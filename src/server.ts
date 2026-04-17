@@ -1,12 +1,10 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
-import { basename, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
 import { getAppConfig } from "./config.js";
 import { AgentService } from "./agent/agent-service.js";
 import { createDefaultAgentSessionFactory } from "./agent/agent-session-factory.js";
 import { ConversationStore } from "./agent/conversation-store.js";
+import { registerAssetRoutes } from "./routes/assets.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerPlaygroundRoute } from "./routes/playground.js";
 
@@ -39,24 +37,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		return { ok: true };
 	});
 
-	app.get("/assets/fonts/:fileName", async (request, reply) => {
-		const { fileName } = request.params as { fileName: string };
-		const safeFileName = basename(fileName);
-		if (safeFileName !== fileName || !safeFileName.endsWith(".ttf")) {
-			return reply.status(404).send();
-		}
-
-		const fontPath = normalize(join(config.projectRoot, "public", "fonts", safeFileName));
-		try {
-			const fileStat = await stat(fontPath);
-			reply.type("font/ttf");
-			reply.header("content-length", fileStat.size);
-			return reply.send(createReadStream(fontPath));
-		} catch {
-			return reply.status(404).send();
-		}
-	});
-
+	registerAssetRoutes(app, { projectRoot: config.projectRoot });
 	registerPlaygroundRoute(app);
 	registerChatRoutes(app, { agentService });
 

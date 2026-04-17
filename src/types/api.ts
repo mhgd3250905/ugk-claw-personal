@@ -17,16 +17,18 @@ export interface DebugSkillsResponseBody {
 	}>;
 }
 
+export type QueueMessageMode = "steer" | "followUp";
+
 export interface QueueMessageRequestBody {
 	conversationId: string;
 	message: string;
-	mode: "steer" | "followUp";
+	mode: QueueMessageMode;
 	userId?: string;
 }
 
 export interface QueueMessageResponseBody {
 	conversationId: string;
-	mode: "steer" | "followUp";
+	mode: QueueMessageMode;
 	queued: boolean;
 	reason?: "not_running";
 }

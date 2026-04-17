@@ -1,15 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { ConversationStore } from "./conversation-store.js";
 import type {
-	AgentSessionEventLike,
 	AgentSessionFactory,
 	AgentSessionLike,
 	MessageUpdateEventLike,
+	QueueUpdateEventLike,
+	RawAgentSessionEventLike,
 	ToolExecutionEndEventLike,
 	ToolExecutionStartEventLike,
 	ToolExecutionUpdateEventLike,
 } from "./agent-session-factory.js";
-import type { ChatStreamEvent } from "../types/api.js";
+import type { ChatStreamEvent, QueueMessageMode } from "../types/api.js";
 
 export interface ChatInput {
 	conversationId?: string;
@@ -26,13 +27,13 @@ export interface ChatResult {
 export interface QueueMessageInput {
 	conversationId: string;
 	message: string;
-	mode: "steer" | "followUp";
+	mode: QueueMessageMode;
 	userId?: string;
 }
 
 export interface QueueMessageResult {
 	conversationId: string;
-	mode: "steer" | "followUp";
+	mode: QueueMessageMode;
 	queued: boolean;
 	reason?: "not_running";
 }
@@ -153,23 +154,33 @@ export class AgentService {
 		const unsubscribe = session.subscribe((event) => {
 			switch (event.type) {
 				case "message_update":
-					text = this.handleMessageUpdate(event as MessageUpdateEventLike, text, onEvent);
+					if (isMessageUpdateEvent(event)) {
+						text = this.handleMessageUpdate(event, text, onEvent);
+					}
 					break;
 				case "tool_execution_start":
-					onEvent?.(this.handleToolExecutionStart(event as ToolExecutionStartEventLike));
+					if (isToolExecutionStartEvent(event)) {
+						onEvent?.(this.handleToolExecutionStart(event));
+					}
 					break;
 				case "tool_execution_update":
-					onEvent?.(this.handleToolExecutionUpdate(event as ToolExecutionUpdateEventLike));
+					if (isToolExecutionUpdateEvent(event)) {
+						onEvent?.(this.handleToolExecutionUpdate(event));
+					}
 					break;
 				case "tool_execution_end":
-					onEvent?.(this.handleToolExecutionEnd(event as ToolExecutionEndEventLike));
+					if (isToolExecutionEndEvent(event)) {
+						onEvent?.(this.handleToolExecutionEnd(event));
+					}
 					break;
 				case "queue_update":
-					onEvent?.({
-						type: "queue_updated",
-						steering: (event as AgentSessionEventLike & { type: "queue_update" }).steering,
-						followUp: (event as AgentSessionEventLike & { type: "queue_update" }).followUp,
-					});
+					if (isQueueUpdateEvent(event)) {
+						onEvent?.({
+							type: "queue_updated",
+							steering: event.steering,
+							followUp: event.followUp,
+						});
+					}
 					break;
 				default:
 					break;
@@ -377,4 +388,34 @@ export class AgentService {
 			.map((item) => item.text)
 			.join("");
 	}
+}
+
+function hasStringProperty(value: object, propertyName: string): boolean {
+	return propertyName in value && typeof value[propertyName as keyof typeof value] === "string";
+}
+
+function isMessageUpdateEvent(event: RawAgentSessionEventLike): event is MessageUpdateEventLike {
+	return event.type === "message_update" && "assistantMessageEvent" in event;
+}
+
+function isToolExecutionStartEvent(event: RawAgentSessionEventLike): event is ToolExecutionStartEventLike {
+	return event.type === "tool_execution_start" && hasStringProperty(event, "toolCallId") && hasStringProperty(event, "toolName");
+}
+
+function isToolExecutionUpdateEvent(event: RawAgentSessionEventLike): event is ToolExecutionUpdateEventLike {
+	return event.type === "tool_execution_update" && hasStringProperty(event, "toolCallId") && hasStringProperty(event, "toolName");
+}
+
+function isToolExecutionEndEvent(event: RawAgentSessionEventLike): event is ToolExecutionEndEventLike {
+	return (
+		event.type === "tool_execution_end" &&
+		hasStringProperty(event, "toolCallId") &&
+		hasStringProperty(event, "toolName") &&
+		"isError" in event &&
+		typeof event.isError === "boolean"
+	);
+}
+
+function isQueueUpdateEvent(event: RawAgentSessionEventLike): event is QueueUpdateEventLike {
+	return event.type === "queue_update" && Array.isArray(event.steering) && Array.isArray(event.followUp);
 }

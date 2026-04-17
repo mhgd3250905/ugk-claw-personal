@@ -60,6 +60,8 @@ export type AgentSessionEventLike =
 	| ToolExecutionEndEventLike
 	| QueueUpdateEventLike;
 
+export type RawAgentSessionEventLike = AgentSessionEventLike | { type: string; [key: string]: unknown };
+
 export interface PromptOptionsLike {
 	streamingBehavior?: "steer" | "followUp";
 }
@@ -72,7 +74,7 @@ export interface AgentSessionLike {
 		stopReason?: string;
 		errorMessage?: string;
 	}>;
-	subscribe(listener: (event: AgentSessionEventLike | { type: string }) => void): () => void;
+	subscribe(listener: (event: RawAgentSessionEventLike) => void): () => void;
 	prompt(message: string, options?: PromptOptionsLike): Promise<void>;
 	abort?(): Promise<void>;
 	clearQueue?(): { steering: string[]; followUp: string[] };

@@ -662,6 +662,8 @@ pi -p "Reply with exactly PROJECT_DEFAULT_OK"
 - playground transcript 安全 Markdown 渲染
 - playground 代码块语言标签与复制按钮
 - playground `Send` 无响应的 `__name()` helper 回归修复
+- 字体资产路由已拆到 `src/routes/assets.ts`，`src/server.ts` 只负责服务装配
+- 聊天路由错误响应已收敛，agent 运行时事件处理改为类型守卫
 - conversation 到 session 的持久化映射
 - 复用项目级 `AGENTS.md`、`.pi/settings.json`、prompts、skills、extensions
 - 项目级 `subagent` 工具
@@ -675,7 +677,7 @@ npx tsc --noEmit
 npm run test
 ```
 
-最近验证结果：`npx tsc --noEmit` 通过，`npm run test` 为 `49 / 49` 通过。
+最近验证结果：`npx tsc --noEmit` 通过，`npm run test` 为 `49 / 49` 通过；临时服务 `127.0.0.1:3101` 已验证 `/healthz`、Agave 字体资产和 playground HTML。
 
 暂未完成：
 

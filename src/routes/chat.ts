@@ -9,6 +9,7 @@ import type {
 	ErrorResponseBody,
 	InterruptChatRequestBody,
 	InterruptChatResponseBody,
+	QueueMessageMode,
 	QueueMessageRequestBody,
 	QueueMessageResponseBody,
 } from "../types/api.js";
@@ -26,6 +27,16 @@ function sendBadRequest(reply: FastifyReply, message: string): FastifyReply {
 	} satisfies ErrorResponseBody);
 }
 
+function sendInternalError(reply: FastifyReply, error: unknown): FastifyReply {
+	const messageText = error instanceof Error ? error.message : "Unknown internal error";
+	return reply.status(500).send({
+		error: {
+			code: "INTERNAL_ERROR",
+			message: messageText,
+		},
+	} satisfies ErrorResponseBody);
+}
+
 function writeSseEvent(raw: ServerResponse, event: ChatStreamEvent): void {
 	raw.write(`data: ${JSON.stringify(event)}\n\n`);
 }
@@ -38,7 +49,7 @@ function isValidConversationId(conversationId: unknown): conversationId is strin
 	return typeof conversationId === "string" && conversationId.trim().length > 0;
 }
 
-function isValidQueueMode(mode: unknown): mode is "steer" | "followUp" {
+function isValidQueueMode(mode: unknown): mode is QueueMessageMode {
 	return mode === "steer" || mode === "followUp";
 }
 
@@ -68,13 +79,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					userId,
 				});
 			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "Unknown internal error";
-				return reply.status(500).send({
-					error: {
-						code: "INTERNAL_ERROR",
-						message: messageText,
-					},
-				} satisfies ErrorResponseBody);
+				return sendInternalError(reply, error);
 			}
 		},
 	);
@@ -144,13 +149,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					userId,
 				});
 			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "Unknown internal error";
-				return reply.status(500).send({
-					error: {
-						code: "INTERNAL_ERROR",
-						message: messageText,
-					},
-				} satisfies ErrorResponseBody);
+				return sendInternalError(reply, error);
 			}
 		},
 	);
@@ -172,13 +171,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					conversationId,
 				});
 			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "Unknown internal error";
-				return reply.status(500).send({
-					error: {
-						code: "INTERNAL_ERROR",
-						message: messageText,
-					},
-				} satisfies ErrorResponseBody);
+				return sendInternalError(reply, error);
 			}
 		},
 	);

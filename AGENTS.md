@@ -187,8 +187,11 @@
 
 - `src/server.ts`
   - 组装 Fastify 服务
-  - 注册 `healthz`、字体资产、`playground`、`chat` 路由
+  - 注册 `healthz` 与各路由模块
   - 默认创建 `AgentService`
+- `src/routes/assets.ts`
+  - 提供 `GET /assets/fonts/:fileName`
+  - 仅允许读取 `public/fonts/` 下的 `.ttf` 字体文件
 - `src/config.ts`
   - 提供应用运行配置
   - 负责从 `api.txt` 自动加载 `DASHSCOPE_CODING_API_KEY`
@@ -359,6 +362,10 @@
 - 已将 playground 字体切换为 bundled Agave，避免依赖外部 CDN 或用户本机字体
 - 已为 playground 增加 queue mode 与 interrupt 控件，可在运行中插嘴或排队后续消息
 - 已为 `.pi/extensions/project-guard.ts` 与 `.pi/extensions/subagent/index.ts` 补齐 TypeScript spawn 类型，`npx tsc --noEmit` 不再被旧类型债卡住
+- 已将字体资产路由从 `src/server.ts` 拆到 `src/routes/assets.ts`，让 server 只负责服务装配
+- 已收敛 `src/routes/chat.ts` 的重复 500 错误响应逻辑
+- 已将 agent raw event 处理改为类型守卫，避免靠硬转型吞掉未知事件
+- 已清理根目录旧 `skills/`、`.tmp/` 与 `.codex/tmp/` 临时残留，并将 `api.txt`、`node_modules/`、`runtime/pi-agent/auth.json` 等写入 `.gitignore`
 - 已修复用户层 `web-access` 在宿主机 IPC 浏览器桥接无 responder 时只能超时失败的问题，新增本机 Chrome/Edge CDP 兜底
 - 已修复 Docker 容器内 `web-access` 因没有浏览器、且不能直接使用 `host.docker.internal` 作为 Chrome DevTools Host header 而误判“当前环境没有浏览器”的问题
 - 已修复容器内读取 Chrome CDP target 后拿到 `ws://127.0.0.1:9222/...` 导致 WebSocket 连回容器自身的问题
@@ -427,6 +434,7 @@
   - `AgentService.interruptChat()` 对 active run 调用 `session.abort()`
   - playground transcript Markdown 渲染、HTML 转义、代码块工具栏与复制按钮注入
   - playground HTML 包含 Agave 字体、queue mode、interrupt button 与新控制接口
+  - 临时启动 `node --import tsx src/server.ts` 于 `127.0.0.1:3101`，验证 `GET /healthz`、`GET /assets/fonts/Agave-Regular.ttf` 与 `GET /playground`
   - skill 白名单 loader 仅加载允许路径中的 skill
   - 系统预装技能 `skill-creator`、`find-skills`、`frontend-design` 已被白名单 loader 识别
   - Windows `bash` 工具隐藏控制台窗口且不以 detached 模式启动
@@ -581,3 +589,6 @@
 - playground 增加 queue mode、运行中 queue 发送和 interrupt 控件
 - 增加运行中队列/打断相关 AgentService 与 HTTP 路由测试
 - 修复 `.pi` 扩展 TypeScript spawn 类型问题，并补充 `.mjs` 测试声明
+- 拆分 `src/routes/assets.ts`，让字体资产路由离开 `src/server.ts`
+- 收敛聊天路由错误处理与 agent event 类型守卫
+- 清理无用本地残留目录，并强化 `.gitignore` 对敏感/生成文件的排除
