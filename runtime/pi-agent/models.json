@@ -1,0 +1,15 @@
+{
+  "providers": {
+    "dashscope-coding": {
+      "baseUrl": "https://coding.dashscope.aliyuncs.com/v1",
+      "api": "openai-completions",
+      "apiKey": "DASHSCOPE_CODING_API_KEY",
+      "models": [
+        {
+          "id": "glm-5",
+          "name": "GLM-5 (DashScope Coding)"
+        }
+      ]
+    }
+  }
+}

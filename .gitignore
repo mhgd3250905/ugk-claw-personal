@@ -1,0 +1,13 @@
+.codex/tmp/
+.tmp/
+.env
+.pi/sessions/
+.data/
+api.txt
+node_modules/
+skills/
+runtime/pi-agent/auth.json
+logs/
+references/pi-mono/
+runtime/skills-user/*
+!runtime/skills-user/.gitkeep

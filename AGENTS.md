@@ -1,0 +1,583 @@
+﻿This file provides guidance and project history for AI coding agents working in this repository.
+
+# ugk-pi Agent Rules
+
+## Language
+
+- 默认使用简体中文回复
+- 只有用户明确要求英文时才切换
+- 命令、代码、日志、报错保持原始语言
+
+## Project Intent
+
+- 这是一个基于 `pi-coding-agent` 的自定义 agent 项目工作区
+- 当前目标不是直接使用 `pi` CLI 当成最终产品，而是复用 `pi-coding-agent` 的基础设施来构建自己的 agent
+- 当前已落地的是一个最小可运行的 HTTP API agent 和 Web playground
+- `references/pi-mono/` 是官方参考镜像，优先用来查 `pi` 的能力、配置和目录约定
+- 不要把 `references/pi-mono/` 当成业务代码目录修改，除非用户明确要求更新参考镜像
+
+## Working Rules
+
+- 先读现有文件，再动手改
+- 优先编辑现有文件，不要无意义地新建文件
+- 在缺少业务上下文时，先写计划到 `.codex/plans/`
+- 做实现前先确认这次任务到底是在写代码、写文档，还是只做规划
+- 后续所有方法实现，优先参考 `references/pi-mono/` 里的官方案例、官方文档和官方测试，不要自己拍脑袋发明一套
+- 不要臆造 `pi` 配置项；涉及 `pi` 行为时先看：
+  - `references/pi-mono/packages/coding-agent/README.md`
+  - `references/pi-mono/packages/coding-agent/docs/settings.md`
+  - `references/pi-mono/AGENTS.md`
+
+## Current Local Conventions
+
+- 项目级 `pi` 配置文件：`.pi/settings.json`
+- 项目级 subagent 目录：`.pi/agents/`
+- 项目级 prompt 目录：`.pi/prompts/`
+- 项目级 skills 目录：`.pi/skills/`
+- 项目级 extensions 目录：`.pi/extensions/`
+- 项目级 `pi` agent 目录：`runtime/pi-agent/`
+- 用户层 subagent 目录：`runtime/agents-user/`
+- HTTP 服务入口：`src/server.ts`
+- Agent 服务核心：`src/agent/`
+- HTTP 路由：`src/routes/`
+- Web playground：`src/ui/playground.ts`
+- 测试目录：`test/`
+
+## Fast Onboarding
+
+如果你是刚接手这个仓库的 agent，先按这个顺序建立上下文，别像没头苍蝇一样乱翻：
+
+1. 先读 `AGENTS.md` 当前文件，确认架构、运行方式、技能分层和已知坑
+2. 再读 `README.md`，确认对外运行命令、接口和容器口径
+3. 看 `src/server.ts`，确认服务装配入口
+4. 看 `src/routes/chat.ts` 和 `src/routes/playground.ts`，确认真实接口面
+5. 看 `src/agent/agent-service.ts` 和 `src/agent/agent-session-factory.ts`，确认 session、skill 和流式链路
+6. 看 `src/ui/playground.ts`，确认 playground 当前交互能力
+7. 如果用户问“有哪些技能”，先查 `GET /v1/debug/skills`，不要信模型自述
+
+当前项目最值得优先记住的事实：
+
+- 这是 `pi-coding-agent` 的自定义 HTTP agent 原型，不是完整业务平台
+- 当前优先目标是稳定 runtime、会话、技能加载、HTTP 接口和后续 IM 接入形态
+- 后续实现新方法时，默认先对照 `references/pi-mono/` 的官方案例与测试，再决定项目内落地方式
+- skill 分为两层：
+  - 系统技能：`.pi/skills`
+  - 用户技能：`runtime/skills-user`
+- 用户新增 skill 不需要重启 Docker，下一条消息就应生效
+- subagent 定义也分两层：
+  - 系统 subagent：`.pi/agents`
+  - 用户 subagent：`runtime/agents-user`
+- 用户新增或覆盖 subagent 定义后，下一次 `subagent` 调用就应生效
+- 开发阶段优先用开发容器；生产容器不是给你边改边玩的
+
+## Execution Boundary
+
+- 当前仓库还没有明确业务领域和正式产品边界
+- 已经确认会走“自定义 agent + HTTP API + 后续接 IM”的路线
+- 在用户没有给出明确业务能力前，不要擅自初始化业务框架、数据库或前端工程化体系
+- 当前阶段的代码应优先服务于：
+  - 跑通 agent runtime
+  - 稳定会话机制
+  - 稳定 HTTP 接口
+  - 为飞书/Slack/企业微信等 IM 接入预留形态
+
+## Project Snapshot
+
+- 快照日期：`2026-04-18`
+- 当前阶段：`基础设施已跑通，处于最小可用原型阶段`
+- playground 聊天视图已固定容器高度，长消息只在消息区内部滚动，输入操作栏固定在底部
+- playground 已支持流式展示 agent 执行过程，工具调用和文本增量会实时滚动
+- playground 已切换为 bundled Agave 字体，字体文件位于 `public/fonts/` 并通过 `/assets/fonts/:fileName` 暴露
+- playground 运行中已支持 `steer` 插嘴、`followUp` 排队和 `interrupt` 打断，行为对齐 Codex 的运行中干预体验
+- playground 聊天气泡已支持安全的 Markdown 渲染，当前覆盖标题、列表、粗斜体、引用、链接、行内代码和代码块，代码块带语言标签与复制按钮
+- playground Markdown 渲染函数注入浏览器脚本时会剥离 `tsx`/esbuild 的 `__name()` helper，避免页面初始化失败导致 `Send` 按钮无反应
+- Windows 下 agent 调用 `bash` 工具时已启用隐藏控制台窗口，避免弹出黑框
+- Windows 下的 `bash` 工具不会以 detached 模式启动，否则按 Node 官方行为会创建独立 console window
+- agent session 的 skill 加载已切到白名单模式，默认只允许项目内 `.pi/skills`
+- 系统预装技能当前除 `superpowers` 外，还包含 `skill-creator`、`frontend-design`、`find-skills`
+- 已补齐容器运行工件，Windows 与 macOS 的推荐运行方式为 Linux 容器
+- 已补齐生产版 compose、环境变量模板和容器健康检查
+- 已加入生产 Nginx 反向代理、日志落盘和健康状态查看脚本
+- 已将 `obra/superpowers` 技能库 vend 到项目白名单 skill 目录，`using-superpowers` 作为初始元技能可用
+- 技能系统已分成系统技能与用户技能两层，用户安装 skill 后无需重启 Docker 即可在下一条消息生效
+- 已提供 `GET /v1/debug/skills` 用于查看运行时真实技能清单
+- 用户层 `web-access` 技能在宿主机 IPC 浏览器桥接无 responder 时，已支持本机 Chrome/Edge CDP 兜底并自动启动本机调试浏览器
+- 开发容器内的 `web-access` 会在容器无浏览器时解析 `host.docker.internal` 为宿主机 IP，并通过宿主机 Chrome CDP 端口继续工作
+- `web-access` 会把 Chrome CDP 返回的 `ws://127.0.0.1:9222/...` 重写成容器可访问的宿主机 IP WebSocket 地址，避免容器连回自己
+- 技能相关问答不再走后端文字命中拦截，统一改为依赖真实技能清单接口或正常 agent 回答
+- 已补齐新 agent 快速接手说明，`project-planning` 技能与顶层文档会优先引导读取关键入口和真实技能清单
+- 已增加项目级 `subagent` 扩展，支持 single / parallel / chain 三种委派模式
+- subagent 通过本地 `pi-coding-agent` CLI 子进程运行，默认只显式加载项目认可的 extension 与 skill 路径
+- 已提供默认 subagent profiles：`scout`、`planner`、`reviewer`、`worker`
+- 已提供 workflow prompts：`/implement`、`/scout-and-plan`、`/implement-and-review`
+- 已修复 subagent 在项目子目录执行时丢失根目录默认 `provider/model`，导致 provider 被解析成 `unknown` 的问题
+- 已改为使用项目内官方 `runtime/pi-agent/models.json` 托管 `dashscope-coding / glm-5` provider 定义，避免容器依赖宿主机 `%USERPROFILE%\\.pi\\agent\\models.json`
+- 主 session 与 subagent 子进程现在共享同一份项目内 provider 定义，子进程通过 `PI_CODING_AGENT_DIR` 显式指向项目 agent 目录
+- 已修复 Windows 下 subagent 本地 CLI 入口解析错误，避免 `import.meta.resolve()` 的 file URL 被错误拼成 `\\E:\\...` 导致 scout 等 subagent 无法启动
+- 当前入口：
+  - `GET /healthz`
+  - `GET /assets/fonts/:fileName`
+  - `GET /playground`
+  - `GET /v1/debug/skills`
+  - `POST /v1/chat`
+  - `POST /v1/chat/stream`
+  - `POST /v1/chat/queue`
+  - `POST /v1/chat/interrupt`
+- 当前默认模型：
+  - provider: `dashscope-coding`
+  - model: `glm-5`
+- 当前运行方式：
+  - 开发：`npm run dev`
+  - 启动：`npm start`
+  - 测试：`npm run test`
+
+## Current Architecture
+
+### High Level
+
+- `HTTP API Layer`
+  - 使用 `Fastify` 提供健康检查、静态字体资产、聊天接口和本地测试页
+- `Agent Service Layer`
+  - `AgentService` 负责对外暴露统一聊天方法
+  - 负责会话选择、消息聚合、流式事件转发、错误抛出和结果返回
+  - 维护当前进程内的 active run 索引，支持运行中 `queueMessage()` 和 `interruptChat()`
+- `Session Runtime Layer`
+  - 通过 `@mariozechner/pi-coding-agent` 创建和复用 agent session
+  - 复用项目根目录下的 `AGENTS.md`、`.pi/settings.json`、prompts、skills、extensions
+  - 项目扩展会在 Windows 下覆盖内置 `bash` 工具，保持行为一致但隐藏控制台窗口
+  - Windows 下禁用 detached bash spawn，避免 Node 为子进程创建独立控制台窗口
+  - session 工厂会关闭默认 skill discovery，只显式加载允许的 skill 路径
+- `Subagent Extension Layer`
+  - 通过 `.pi/extensions/subagent/` 注册 `subagent` 工具
+  - 工具使用本地 `pi-coding-agent` CLI JSON 模式启动隔离子进程
+  - 子进程默认只显式加载 `.pi/extensions/project-guard.ts`、`.pi/skills` 与 `runtime/skills-user`
+  - subagent profile 来自 `.pi/agents` 与 `runtime/agents-user`，用户层覆盖系统层
+- `Persistence Layer`
+  - `ConversationStore` 维护 `conversationId -> sessionFile` 映射
+  - 持久化路径在 `.data/agent/`
+- `Playground UI`
+  - 用于本地测试 agent 行为
+  - 当前为深色、极客、零圆角、中心聚焦布局
+  - 左侧展示对话流，右侧展示实时过程流
+  - 消息区和过程区分别内部滚动，输入区固定在底部
+- `Container Runtime`
+  - 仓库提供 `Dockerfile`、`docker-compose.yml`、`.dockerignore`
+  - Windows/macOS 推荐通过 Linux 容器运行，Linux 容器优先、裸跑兼容
+  - 生产路径使用 `docker-compose.prod.yml` 与 `.env`
+  - 生产环境由 Nginx 暴露外部端口，应用容器仅保留在 compose 内部网络
+
+### Request Flow
+
+1. 客户端调用 `POST /v1/chat` 或 `POST /v1/chat/stream`
+2. 路由校验 `message`
+3. `AgentService` 根据 `conversationId` 查找历史 `sessionFile`
+4. `AgentSessionFactory` 用 `pi-coding-agent` 创建或打开 session
+5. session 执行 `prompt()`
+6. 运行期间同一 `conversationId` 会登记到 `activeRuns`
+7. 客户端可调用 `POST /v1/chat/queue`，通过 `streamingBehavior: "steer"` 插嘴转向，或通过 `"followUp"` 排队到当前轮次之后
+8. 客户端可调用 `POST /v1/chat/interrupt` 触发 `session.abort()`，当前 SSE 会补发 `interrupted`
+9. 如果主 agent 调用 `subagent` 工具，则扩展会启动本地 `pi` 子进程执行委派任务，并把过程通过 `tool_execution_update` 回传
+10. 同步接口聚合 `text_delta`，流式接口转发 `text_delta`、`tool_execution_*`、`queue_update` 等过程事件
+11. 如果没有流式文本，回退读取最终 assistant message
+12. 如果最终 assistant message 标记为错误，则抛出明确异常或输出错误事件
+13. 更新 `conversationId -> sessionFile` 映射
+14. 返回 `{ conversationId, text, sessionFile }` 或 SSE 事件流
+
+## Current File Responsibilities
+
+- `src/server.ts`
+  - 组装 Fastify 服务
+  - 注册 `healthz`、字体资产、`playground`、`chat` 路由
+  - 默认创建 `AgentService`
+- `src/config.ts`
+  - 提供应用运行配置
+  - 负责从 `api.txt` 自动加载 `DASHSCOPE_CODING_API_KEY`
+- `src/agent/agent-service.ts`
+  - 对话主服务
+  - 负责 session 选择、响应聚合、流式事件映射、错误处理、结果持久化
+  - 负责 active run 管理、运行中消息队列和打断控制
+- `src/agent/agent-session-factory.ts`
+  - 基于 `pi-coding-agent` 创建/打开 session
+  - 暴露消息更新、队列更新与工具执行相关事件类型
+  - 创建 skill 白名单 `ResourceLoader`，默认允许系统技能 `.pi/skills` 与用户技能 `runtime/skills-user`
+  - 显式使用 `runtime/pi-agent/models.json` 创建项目级 `ModelRegistry`
+- `public/fonts/`
+  - 当前包含 bundled `Agave-Regular.ttf` 与 `Agave-Bold.ttf`
+  - 字体来源：`https://github.com/blobject/agave`
+- `.pi/extensions/subagent/index.ts`
+  - 注册项目级 `subagent` 工具
+  - 负责 single / parallel / chain 三种委派模式
+  - 负责拼装子进程 CLI 参数、解析 JSON 事件并回传过程更新
+- `.pi/extensions/subagent/agents.ts`
+  - 负责发现 `.pi/agents` 与 `runtime/agents-user` 下的 subagent profiles
+  - 负责处理系统层与用户层的覆盖关系
+- `.pi/agents/`
+  - 内置 subagent profiles
+  - 当前包含 `scout`、`planner`、`reviewer`、`worker`
+- `.pi/skills/superpowers/`
+  - vendored `obra/superpowers` 技能库
+  - 包含 `using-superpowers`、`brainstorming`、`test-driven-development` 等工作流技能
+- `runtime/skills-user/`
+  - 用户后装 skill 的持久目录
+  - 生产 compose 已挂载到应用容器内，供运行时热增加 skill
+- `runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`
+  - `web-access` 的本机浏览器 CDP 兜底实现
+  - 在 IPC 宿主机浏览器桥接没有响应时，连接或启动 `127.0.0.1:9222` 上的 Chrome/Edge 调试实例
+  - 在 Docker 容器里会解析 `host.docker.internal` 到 IPv4 地址后探测宿主机 `9222`，绕开 Chrome DevTools 对非 IP Host header 的限制
+  - 会将 CDP target 内的 loopback WebSocket URL 重写为当前可达的 CDP host
+  - 支持目标页创建、列表、导航、JS 执行、点击、滚动、截图和基础下载轮询
+- `runtime/agents-user/`
+  - 用户后装 subagent profile 的持久目录
+  - 当前可为空，存在时会在 `subagent` 调用时按需扫描
+- `runtime/pi-agent/models.json`
+  - 项目内 checked-in 的官方 `models.json`
+  - 当前托管 `dashscope-coding / glm-5` provider 定义
+- `src/agent/conversation-store.ts`
+  - 管理 conversation 索引文件
+- `.pi/extensions/project-guard.ts`
+  - 拦截危险 bash 与受保护路径写入
+  - 在 Windows 下覆盖内置 `bash` 工具以隐藏控制台弹窗
+- `.pi/prompts/implement.md`
+  - `scout -> planner -> worker` 的链式 subagent 工作流 prompt
+- `.pi/prompts/scout-and-plan.md`
+  - 只调研与规划的链式 subagent 工作流 prompt
+- `.pi/prompts/implement-and-review.md`
+  - `worker -> reviewer` 的链式 subagent 工作流 prompt
+- `src/routes/chat.ts`
+  - `GET /v1/debug/skills`
+  - `POST /v1/chat`
+  - `POST /v1/chat/stream`
+  - `POST /v1/chat/queue`
+  - `POST /v1/chat/interrupt`
+- `src/routes/playground.ts`
+  - `GET /playground`
+- `src/ui/playground.ts`
+  - 本地 Web 测试界面
+  - 对话流和 agent 过程流的实时展示
+  - 使用 Agave 字体并提供运行中插嘴、排队和打断控件
+  - 提供查看真实技能清单的调试入口
+  - 对 transcript 消息执行安全 Markdown 渲染，并为代码块补充语言标签与复制按钮
+- `Dockerfile`
+  - 容器镜像入口
+  - 以 `node:22-bookworm-slim` 运行 HTTP 服务
+  - 内置 `/healthz` 容器健康检查
+- `docker-compose.yml`
+  - 本地开发容器编排
+  - 绑定源码目录并以 `npm run dev` 启动
+- `docker-compose.prod.yml`
+  - 生产容器编排
+  - 使用 `.env` 注入配置、`npm start` 启动、`restart: unless-stopped`
+  - 包含 `nginx` 反向代理、日志卷和双层健康检查
+- `.env.example`
+  - 生产容器环境变量模板
+- `deploy/nginx/default.conf`
+  - 生产版 Nginx 反向代理配置
+- `scripts/docker-health.mjs`
+  - 输出生产 compose 容器的状态、健康度和端口
+- `test/*.test.ts`
+  - 覆盖 conversation store、agent service、config、server 路由
+
+## Skill Landscape
+
+当前 skill 相关认知别再靠猜，按这套来：
+
+- 系统技能根目录：`.pi/skills`
+- 用户技能根目录：`runtime/skills-user`
+- 真实技能清单接口：`GET /v1/debug/skills`
+
+当前系统预装技能至少包括：
+
+- `superpowers` 工作流技能集
+- `project-planning`
+- `skill-creator`
+- `frontend-design`
+- `find-skills`
+
+当前已知用户技能至少包括：
+
+- `web-access`
+
+如果运行时技能列表和这些静态描述不一致，以 `/v1/debug/skills` 返回为准。
+
+## Current Progress
+
+### Done
+
+- 已初始化项目基础文件：
+  - `README.md`
+  - `.gitignore`
+  - `.pi/settings.json`
+  - `.pi/prompts/feature-bootstrap.md`
+  - `.pi/skills/project-planning/SKILL.md`
+  - `.pi/extensions/project-guard.ts`
+- 已克隆参考镜像：
+  - `references/pi-mono`
+- 已安装并验证全局 `pi-coding-agent`
+- 已完成最小 HTTP API agent 骨架
+- 已实现会话持久化映射
+- 已实现 `GET /healthz`
+- 已实现 `GET /playground`
+- 已实现 `POST /v1/chat`
+- 已实现 `POST /v1/chat/stream`
+- 已实现 `POST /v1/chat/queue`，支持运行中 `steer` 与 `followUp`
+- 已实现 `POST /v1/chat/interrupt`，支持中止当前 active run 后继续沿用同一会话
+- 已接入 `dashscope-coding / glm-5`
+- 已完成 API key 模式运行
+- 已修复空回复问题：
+  - 原因是只依赖 `text_delta`，未读取最终 assistant message
+- 已修复 provider 错误透传
+- 已支持从 `api.txt` 自动加载 `DASHSCOPE_CODING_API_KEY`
+- 已将 playground 调整为中心聚焦聊天布局
+- 已将 playground 改为消息区内部滚动，输入区固定底部
+- 已修复 playground 长消息把底部输入操作栏挤出视窗的问题
+- 已将 playground 改为左侧对话流、右侧 agent 过程流的实时展示
+- 已为 Windows 下的 `bash` 工具执行启用 `windowsHide`，避免控制台黑框闪现
+- 已为 Windows 下的 `bash` 工具关闭 detached spawn，避免因 Node 默认行为创建独立黑框窗口
+- 已将 agent skill 加载改为白名单模式，默认仅允许项目内 `.pi/skills`
+- 已加入标准容器运行工件，支持 `docker build` 与 `docker compose up`
+- 已加入生产版 compose、`.env.example` 和镜像健康检查
+- 已加入生产版 Nginx 反向代理、日志落盘目录和状态/日志查看命令
+- 已加入系统预装技能：
+  - `anthropics/skill-creator`
+  - `anthropics/frontend-design`
+  - `vercel-labs/find-skills`
+- 已将 `obra/superpowers` 技能库并入 `.pi/skills` 白名单，并暴露 `using-superpowers` 元技能
+- 已将 skill 白名单改成系统技能 + 用户技能双层目录，用户 skill 可在不重启 Docker 的情况下于下一条消息生效
+- 已重写 `project-planning` 技能，补齐当前项目的快速上手、技能事实源和高频坑说明
+- 已增加项目级 `subagent` 扩展，支持 single / parallel / chain 三种委派模式
+- 已增加默认 subagent profiles：`scout`、`planner`、`reviewer`、`worker`
+- 已增加 workflow prompts：`implement`、`scout-and-plan`、`implement-and-review`
+- 已将 subagent 子进程固定为本地 `pi-coding-agent` CLI 入口，避免依赖系统全局 `pi`
+- 已将 subagent 资源加载收紧为项目认可的 extension 与 skill 路径
+- 已加入 `runtime/agents-user` 作为用户层 subagent 覆盖目录
+- 已让 subagent CLI 参数显式继承项目根 `.pi/settings.json` 的默认 `provider/model`
+- 已让主 session 显式使用项目内 `runtime/pi-agent/models.json` 创建 `ModelRegistry`
+- 已让 subagent 子进程通过 `PI_CODING_AGENT_DIR` 显式指向项目内 agent 目录，和主 session 共用同一份 provider 定义
+- 已修复 Windows 下 subagent CLI 入口解析，`resolvePiCliEntry()` 现在会正确把 file URL 转成本地路径
+- 已为 playground 聊天气泡补上安全 Markdown 渲染与代码块复制按钮，不再把 agent 的 Markdown 原样当纯文本吐出来
+- 已修复 playground Markdown 渲染函数注入时携带 `__name()` helper，导致浏览器端 `ReferenceError` 并让 `Send` 按钮无反应的问题
+- 已将 playground 字体切换为 bundled Agave，避免依赖外部 CDN 或用户本机字体
+- 已为 playground 增加 queue mode 与 interrupt 控件，可在运行中插嘴或排队后续消息
+- 已为 `.pi/extensions/project-guard.ts` 与 `.pi/extensions/subagent/index.ts` 补齐 TypeScript spawn 类型，`npx tsc --noEmit` 不再被旧类型债卡住
+- 已修复用户层 `web-access` 在宿主机 IPC 浏览器桥接无 responder 时只能超时失败的问题，新增本机 Chrome/Edge CDP 兜底
+- 已修复 Docker 容器内 `web-access` 因没有浏览器、且不能直接使用 `host.docker.internal` 作为 Chrome DevTools Host header 而误判“当前环境没有浏览器”的问题
+- 已修复容器内读取 Chrome CDP target 后拿到 `ws://127.0.0.1:9222/...` 导致 WebSocket 连回容器自身的问题
+
+### Not Done Yet
+
+- 飞书 webhook 适配
+- Slack webhook 适配
+- 企业微信 webhook 适配
+- 多租户鉴权
+- 数据库存储
+- 高级 runtime 编排
+- 业务域 prompt/tool 设计
+
+### Current Judgement
+
+- 现在这项目已经不是空壳，基础 agent 能跑、能聊、能记会话、能本地测试
+- 但它还只是基础设施原型，不是完整产品
+- 如果现在就把它吹成“IM agent 平台”，那就是典型自我感动，离正式可交付还差一截
+
+## Model And Provider Notes
+
+- 项目默认模型配置在 `.pi/settings.json`
+- 当前默认：
+  - `defaultProvider = dashscope-coding`
+  - `defaultModel = glm-5`
+- 项目级 provider 定义位于：
+  - `runtime/pi-agent/models.json`
+- 当前认证走 API Key 模式，不是 `/login` OAuth
+- `src/config.ts` 会尝试从 `api.txt` 中提取 `api-key:`
+- 主 session 会显式用项目内 `models.json` 创建 `ModelRegistry`
+- `subagent` 子进程会通过 `PI_CODING_AGENT_DIR` 使用同一份项目内 `models.json`
+- 安全注意：
+  - `api.txt` 里是明文 key
+  - 不要把它提交到远程仓库
+  - 如果后续要公开仓库，必须先清理或改成安全注入
+
+## Data Layout
+
+- 会话索引：
+  - `.data/agent/conversation-index.json`
+- agent session 文件：
+  - `.data/agent/sessions/`
+- 这层映射是为 IM 接入准备的
+- 不要偷懒改成“只记最近一个 session”，那是给后面挖坑
+
+## Validation Status
+
+- 最近一次完整验证：
+  - `npx tsc --noEmit`
+  - `npm run test`
+  - 结果：类型检查通过，`49 / 49` 测试通过
+- 本次 provider 修复：
+  - 已新增项目内 `runtime/pi-agent/models.json`
+  - 已追加 `test/agent-session-factory.test.ts` 与 `test/subagent.test.ts` 的 provider 回归断言
+- 已验证：
+  - `GET /healthz`
+  - `GET /assets/fonts/Agave-Regular.ttf`
+  - `GET /playground`
+  - `GET /v1/debug/skills`
+  - `POST /v1/chat`
+  - `POST /v1/chat/stream`
+  - `POST /v1/chat/queue`
+  - `POST /v1/chat/interrupt`
+  - `AgentService.queueMessage()` 对 active run 调用 `session.prompt(message, { streamingBehavior })`
+  - `AgentService.interruptChat()` 对 active run 调用 `session.abort()`
+  - playground transcript Markdown 渲染、HTML 转义、代码块工具栏与复制按钮注入
+  - playground HTML 包含 Agave 字体、queue mode、interrupt button 与新控制接口
+  - skill 白名单 loader 仅加载允许路径中的 skill
+  - 系统预装技能 `skill-creator`、`find-skills`、`frontend-design` 已被白名单 loader 识别
+  - Windows `bash` 工具隐藏控制台窗口且不以 detached 模式启动
+  - `docker compose config` 可解析
+  - `docker compose -f docker-compose.prod.yml config` 可解析
+  - `docker build` 可成功构建镜像
+  - 容器内 `GET /healthz` 返回 `{"ok":true}`
+  - `docker:health:prod` 在无运行容器时会给出明确提示
+  - 生产 compose 可成功启动双容器
+  - Nginx 对外 `GET /healthz` 返回 `200 {"ok":true}`
+  - `logs/app/` 与 `logs/nginx/` 会在生产 compose 启动后生成
+  - 白名单 loader 可加载 `using-superpowers`、`brainstorming`、`test-driven-development` 等 vendored superpowers 技能
+  - 白名单 loader 可同时加载系统技能目录与用户技能目录
+  - `DefaultResourceLoader` 可识别 `.pi/extensions/subagent/index.ts`
+  - subagent profile 发现支持系统层 `.pi/agents` 与用户层 `runtime/agents-user`，且用户层可覆盖系统层
+  - subagent 子进程参数已锁定为项目认可的 extension/skill 路径
+  - subagent 子进程参数会显式继承项目根默认 `provider/model`
+  - 主 session 会显式使用项目内 `runtime/pi-agent/models.json`
+  - subagent 子进程会显式设置 `PI_CODING_AGENT_DIR=runtime/pi-agent`
+  - Windows 下 `resolvePiCliEntry()` 可正确解析到本地 `node_modules/@mariozechner/pi-coding-agent/dist/cli.js`
+  - Windows 下 subagent 子进程 spawn 启用 `windowsHide`
+  - 容器内 `POST /v1/chat` 可成功返回结果，不再报 `No API key found for unknown`
+  - 本机 `POST /v1/chat` 可成功触发 `subagent scout` 调研 session 复用链路
+- playground 真机发送消息
+- playground 真机点击 `Send` 可触发 `POST /v1/chat/stream` 并收到 `OK` 流式回复
+- playground HTML 不再包含会让浏览器崩溃的 `__name()` helper
+- 用户层 `web-access` 的 `check-deps.mjs` 可在 IPC responder 不存在时回退到本机 Chrome CDP，并启动/复用 `http://127.0.0.1:9222`
+- `web-access` 本机代理 `GET /targets` 可返回本机 Chrome page target
+- `web-access` 本机代理可通过 `/new` 打开 `https://example.com/`，并通过 `/eval` 读取 `Example Domain` 页面文本
+- 已新增 `test/web-access-host-bridge.test.ts` 覆盖 IPC 超时后的本机浏览器 fallback
+- 开发容器内执行 `node runtime/skills-user/web-access/scripts/check-deps.mjs` 可返回 `host-browser: ok (http://192.168.65.254:9222)` 与 `proxy: ready`
+- 开发容器内 `GET http://127.0.0.1:3456/targets` 可返回重写后的 `ws://192.168.65.254:9222/...` target
+- 开发容器内代理可通过 `/new` 打开 `https://example.com/`，并通过 `/eval` 读取 `Example Domain` 页面文本
+- 已通过真实 `POST /v1/chat/stream` 验证 agent 可在容器内执行 `web-access` 依赖检查并报告可用
+- 已新增 `test/local-cdp-browser.test.ts` 覆盖 Docker host CDP 探测和 WebSocket URL 重写
+- 消息区内部滚动行为
+  - 长消息场景下输入操作栏固定在底部可见
+  - playground 右侧过程面板会实时显示工具调用和完成事件
+- 手动验证口径：
+  - 打开 `http://127.0.0.1:3000/playground`
+  - 发送一条短消息
+  - 确认 `sessionFile` 有值
+  - 确认左侧消息区内部滚动，而不是整页向下增长
+  - 确认右侧过程面板出现 `run started`、`tool start`、`tool end`、`run complete`
+  - 确认输入区和发送按钮始终固定在底部可见
+
+## Recovery Notes
+
+- 如果 `GET /playground` 看起来还是旧页面，优先怀疑旧 `node` 进程没重启
+- 如果 playground 点击 `Send` 没反应，先打开浏览器控制台；若看到 `ReferenceError: __name is not defined`，说明有服务端函数通过 `Function.toString()` 注入浏览器脚本时带进了 `tsx`/esbuild helper，需要在 `src/ui/playground.ts` 的脚本拼装处剥离 helper，而不是继续怀疑按钮坏了
+- 如果前端发送后没回复，优先检查：
+  - provider 是否可用
+  - API key 是否存在
+  - `session.messages` 中是否有最终 assistant error
+- 如果 agent 看起来“能运行但空回复”，先排查是否只监听了 `text_delta`
+- 如果流式面板只有 `run started` 没有后续事件，优先检查 provider 延迟、工具是否被阻断、以及浏览器是否连到了旧进程
+- 如果运行中插嘴返回 `not_running`，说明该 `conversationId` 当前没有 active run；先确认 playground 或客户端没有换 conversation
+- 如果打断返回 `abort_not_supported`，说明底层 session 实例没有暴露 `abort()`，优先检查 `@mariozechner/pi-coding-agent` 版本和 `AgentSessionLike` 适配
+- 如果 `followUp` 没在当前轮结束后继续执行，先检查是否调用了 `/v1/chat/queue` 且 `mode` 为 `followUp`，再看流式事件里有没有 `queue_updated`
+- 如果 Agave 字体没生效，先请求 `/assets/fonts/Agave-Regular.ttf`，再检查浏览器是否缓存旧 playground HTML
+- 如果 Windows 下调用 `bash` 仍然弹黑框，优先检查是否跑的是旧进程，或当前 session 没有加载项目级 `.pi/extensions/project-guard.ts`
+- 如果 Windows 下调用 `bash` 仍然弹黑框，也要检查是否有其他地方重新引入了 `detached: true`
+- 如果 agent 没按预期加载 skill，优先检查 `src/agent/agent-session-factory.ts` 里的允许路径列表，而不是只看 `.pi/settings.json`
+- 如果用户新装 skill 不生效，先检查它是不是写进了 `runtime/skills-user/`，而不是误塞进了别的目录
+- 如果 `subagent` 工具不可用，先检查 `.pi/extensions/subagent/` 是否真实存在并被当前 session 加载
+- 如果 `subagent` 能启动但提示找不到 agent，先检查 `.pi/agents/` 或 `runtime/agents-user/` 下的 `.md` frontmatter 是否包含 `name` 和 `description`
+- 如果 `subagent` 行为像是吃进了全局用户环境，先检查子进程参数里是否仍带着 `--no-extensions`、`-e .pi/extensions/project-guard.ts`、`--no-skills` 和项目 skill 路径
+- 如果主服务或 `subagent` 报 `No API key found for unknown`，先检查 `runtime/pi-agent/models.json` 是否存在，以及 `src/agent/agent-session-factory.ts` / `.pi/extensions/subagent/index.ts` 是否还在显式指向项目内 agent 目录
+- 如果 Windows 下 `subagent` 一上来就说调用失败，且日志里像是在检查 `dist` 目录但就是起不来，优先检查 `.pi/extensions/subagent/index.ts` 里是不是又把 file URL 的 `pathname` 当本地路径用了；这里必须走 `fileURLToPath()`
+- 如果 Windows 下 `subagent` 一调用就弹新控制台，优先检查 `.pi/extensions/subagent/index.ts` 的 spawn 选项里 `windowsHide` 是否被改没了
+- 如果用户层 subagent 覆盖不生效，先检查文件是不是写进了 `runtime/agents-user/`，以及同名系统 agent 是否被误以为还在生效
+- 如果用户询问“当前有哪些技能”，优先看 `GET /v1/debug/skills` 的真实结果，不要相信模型自述
+- 如果 `web-access` 报 `host_browser_timeout:status`，先跑 `node runtime/skills-user/web-access/scripts/check-deps.mjs`；当前实现会在 IPC responder 不存在时回退到本机 CDP
+- 如果 `web-access` 的 `/health` 正常但 `/targets` 卡住或失败，不要只看 HTTP 代理是否活着；继续检查 `127.0.0.1:9222/json/version`、Chrome/Edge 是否可启动、以及 `runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`
+- 如果容器里的 `web-access` 仍说没有浏览器，进容器跑 `node runtime/skills-user/web-access/scripts/check-deps.mjs`；正常情况下应显示宿主机 IP 形式的 CDP endpoint，例如 `http://192.168.65.254:9222`
+- 如果容器能访问 `host.docker.internal:9222` 但 Chrome 返回 `Host header is specified and is not an IP address or localhost`，不要继续用这个域名；应解析成 IPv4 地址后访问
+- 如果容器内 `/targets` 返回的 WebSocket 仍是 `ws://127.0.0.1:9222/...`，说明 `rewriteCdpTargetForBaseUrl()` 没生效，容器会连回自己
+- 如果本机没有 Chrome/Edge 或路径非标准，设置 `WEB_ACCESS_CHROME_PATH`；如果 `9222` 端口冲突，设置 `WEB_ACCESS_CDP_PORT`
+- 如果容器内无法鉴权，优先检查是否通过环境变量显式传入了 `DASHSCOPE_CODING_API_KEY`，不要假设镜像里会带上 `api.txt`
+- 如果生产 compose 起不来，优先检查项目根目录 `.env` 是否存在，且 `DASHSCOPE_CODING_API_KEY` 是否已经填写
+- 如果生产入口访问异常，先看 `npm run docker:status:prod`、`npm run docker:health:prod`，再查 `logs/nginx/` 和 `logs/app/app.log`
+- 如果开发容器在 Windows 挂载目录下没有及时热更新，优先重启 `docker compose` 开发容器，不要误以为代码没改进去
+
+## Traceability Rule
+
+- 从现在开始，任何影响以下内容的变更，都必须同步更新本文件：
+  - 项目架构
+  - 运行命令
+  - 接口
+  - 模型/provider
+  - 目录职责
+  - 测试状态
+  - 当前进度
+  - 已知问题
+- 如果是小改动，也至少要更新：
+  - `Project Snapshot`
+  - `Current Progress`
+  - `Validation Status`
+- 如果是结构性改动，还必须更新：
+  - `Current Architecture`
+  - `Current File Responsibilities`
+  - `Recovery Notes`
+- 不要把 `AGENTS.md` 写成空泛口号墙
+- 这个文件的职责是让后续接手的人少踩坑，不是装专业
+
+## Change Log
+
+### 2026-04-17
+
+- 初始化项目工作区与 `pi` 项目级资源
+- 克隆 `references/pi-mono` 作为参考镜像
+- 安装并验证 `pi-coding-agent`
+- 建立最小 HTTP API agent
+- 接入 `dashscope-coding / glm-5`
+- 实现 `GET /healthz`
+- 实现 `GET /playground`
+- 实现 `POST /v1/chat`
+- 实现 conversation 到 session 的持久化映射
+- 修复空回复与 provider 错误透传
+- 加入 `api.txt` 自动加载 key 的兜底逻辑
+- 在 Windows 下覆盖内置 `bash` 工具并启用 `windowsHide`，避免控制台黑框闪现
+- 将 agent session 的 skill 加载切换为白名单模式，默认只允许 `.pi/skills`
+- 调整 Windows bash spawn 策略，移除 detached 以避免 Node 创建独立控制台窗口
+- 增加 `Dockerfile`、`docker-compose.yml`、`.dockerignore`，统一 Windows/macOS 的 Linux 容器运行路径
+- 增加 `docker-compose.prod.yml`、`.env.example` 和容器健康检查，补齐生产运行入口
+- 增加生产版 Nginx 反代、日志落盘和健康状态查看脚本
+- vend `obra/superpowers` 技能库到 `.pi/skills/superpowers/`，将 `using-superpowers` 作为项目可用初始元技能
+- 重做 playground 视觉风格为深色极客零圆角
+- 将聊天区改为中心聚焦布局
+- 将消息区改为内部滚动，输入区固定在底部
+- 修复 playground 长消息导致输入操作栏被挤出视窗的问题
+- 增加 `POST /v1/chat/stream` 并让 playground 实时展示 agent 执行过程
+
+### 2026-04-18
+
+- 增加项目级 `subagent` 扩展，支持 single / parallel / chain 三种委派模式
+- 增加默认 subagent profiles：`scout`、`planner`、`reviewer`、`worker`
+- 增加 workflow prompts：`implement`、`scout-and-plan`、`implement-and-review`
+- 将 subagent 子进程固定到本地 `pi-coding-agent` CLI 入口，避免依赖全局 `pi`
+- 将 subagent 子进程的资源加载收紧到项目认可的 extension 与 skill 路径
+- 增加 `runtime/agents-user` 作为用户层 subagent 覆盖目录
+- 增加 `test/subagent.test.ts` 覆盖 subagent 发现与子进程参数构造
+- 修复用户层 `web-access` 在宿主机 IPC 浏览器桥接无 responder 时只能超时失败的问题
+- 增加 `runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`，支持本机 Chrome/Edge CDP 兜底
+- 增加 `test/web-access-host-bridge.test.ts` 覆盖 IPC 超时后的本机浏览器 fallback
+- 修复开发容器内 `web-access` 无法复用宿主机 Chrome CDP 的问题，改为解析 `host.docker.internal` 的 IPv4 地址并重写 CDP WebSocket URL
+- 增加 `test/local-cdp-browser.test.ts` 覆盖 Docker host CDP 探测和 WebSocket URL 重写
+- 下载并 bundling `Agave-Regular.ttf`、`Agave-Bold.ttf`，playground 改用 Agave 字体
+- 增加 `/assets/fonts/:fileName` 字体资产路由
+- 增加 `POST /v1/chat/queue`，支持运行中 `steer` 插嘴与 `followUp` 排队
+- 增加 `POST /v1/chat/interrupt`，支持中止 active run 后继续同一会话
+- playground 增加 queue mode、运行中 queue 发送和 interrupt 控件
+- 增加运行中队列/打断相关 AgentService 与 HTTP 路由测试
+- 修复 `.pi` 扩展 TypeScript spawn 类型问题，并补充 `.mjs` 测试声明

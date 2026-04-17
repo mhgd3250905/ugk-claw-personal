@@ -1,0 +1,30 @@
+{
+  "name": "ugk-pi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "test": "node --test --import tsx test/**/*.test.ts",
+    "docker:build": "docker build -t ugk-pi:local .",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:up:prod": "docker compose -f docker-compose.prod.yml up --build -d",
+    "docker:down:prod": "docker compose -f docker-compose.prod.yml down",
+    "docker:logs:prod": "docker compose -f docker-compose.prod.yml logs -f",
+    "docker:logs:nginx": "docker compose -f docker-compose.prod.yml logs -f nginx",
+    "docker:status:prod": "docker compose -f docker-compose.prod.yml ps",
+    "docker:health:prod": "node scripts/docker-health.mjs"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.41",
+    "@mariozechner/pi-coding-agent": "^0.67.6",
+    "fastify": "^5.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

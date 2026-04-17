@@ -1,0 +1,21 @@
+{
+  "defaultProvider": "dashscope-coding",
+  "defaultModel": "glm-5",
+  "defaultThinkingLevel": "medium",
+  "sessionDir": ".pi/sessions",
+  "enableSkillCommands": true,
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  },
+  "retry": {
+    "enabled": true,
+    "maxRetries": 3,
+    "baseDelayMs": 2000,
+    "maxDelayMs": 60000
+  },
+  "prompts": ["prompts"],
+  "skills": ["skills"],
+  "extensions": ["extensions"]
+}

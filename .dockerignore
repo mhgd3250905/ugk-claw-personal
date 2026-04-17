@@ -1,0 +1,8 @@
+node_modules
+.git
+.data
+.pi/sessions
+api.txt
+npm-debug.log
+.env
+.env.local
