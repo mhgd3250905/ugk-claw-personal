@@ -167,6 +167,25 @@ function getPlaygroundStyles(): string {
 			min-width: 0;
 		}
 
+		.brand-lockup {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			gap: 18px;
+			align-items: center;
+		}
+
+		.corgi-logo {
+			margin: 0;
+			padding: 10px 12px;
+			border: 1px solid var(--accent);
+			background: rgba(95, 209, 255, 0.06);
+			color: var(--ok);
+			font-size: 12px;
+			line-height: 1.05;
+			white-space: pre;
+			box-shadow: inset 0 0 0 1px rgba(141, 255, 178, 0.08);
+		}
+
 		.kicker {
 			display: inline-block;
 			padding: 4px 8px;
@@ -746,6 +765,14 @@ function getPlaygroundStyles(): string {
 		}
 
 		@media (max-width: 960px) {
+			.brand-lockup {
+				grid-template-columns: 1fr;
+			}
+
+			.corgi-logo {
+				width: max-content;
+			}
+
 			.stream-layout {
 				grid-template-columns: 1fr;
 			}
@@ -850,26 +877,26 @@ function getPlaygroundScript(): string {
 		function setLoading(next) {
 			state.loading = next;
 			sendButton.disabled = false;
-			sendButton.textContent = "send";
+			sendButton.textContent = "发送";
 			interruptButton.disabled = !next;
 			viewSkillsButton.disabled = next;
 			messageInput.disabled = false;
 			conversationInput.disabled = next;
 			newConversationButton.disabled = next;
-			statusPill.textContent = next ? "streaming" : "ready";
+			statusPill.textContent = next ? "运行中" : "就绪";
 		}
 
 		function showError(message) {
 			errorBanner.textContent = message;
 			errorBanner.classList.add("visible");
-			statusPill.textContent = "error";
+			statusPill.textContent = "错误";
 		}
 
 		function clearError() {
 			errorBanner.textContent = "";
 			errorBanner.classList.remove("visible");
 			if (!state.loading) {
-				statusPill.textContent = "ready";
+				statusPill.textContent = "就绪";
 			}
 		}
 
@@ -937,21 +964,21 @@ function getPlaygroundScript(): string {
 
 				const label = document.createElement("span");
 				label.className = "code-block-language";
-				label.textContent = language || "code";
+				label.textContent = language || "代码";
 
 				const copyButton = document.createElement("button");
 				copyButton.type = "button";
 				copyButton.className = "copy-code-button";
-				copyButton.textContent = "copy";
+				copyButton.textContent = "复制";
 				copyButton.addEventListener("click", async () => {
-					const original = copyButton.textContent || "copy";
+					const original = copyButton.textContent || "复制";
 					copyButton.disabled = true;
 
 					try {
 						await copyTextToClipboard(code?.textContent || pre.textContent || "");
-						copyButton.textContent = "copied";
+						copyButton.textContent = "已复制";
 					} catch {
-						copyButton.textContent = "failed";
+						copyButton.textContent = "失败";
 					} finally {
 						window.setTimeout(() => {
 							copyButton.textContent = original;
@@ -972,7 +999,7 @@ function getPlaygroundScript(): string {
 			const normalized = String(detail || "").trim();
 			if (!normalized) {
 				return {
-					summary: "no detail",
+					summary: "无详情",
 					detail: "",
 					expandable: false,
 				};
@@ -996,7 +1023,7 @@ function getPlaygroundScript(): string {
 			}
 
 			const expanded = entry.classList.toggle("expanded");
-			button.textContent = expanded ? "collapse details" : "expand details";
+			button.textContent = expanded ? "收起详情" : "展开详情";
 			button.setAttribute("aria-expanded", String(expanded));
 			scrollProcessToBottom();
 		}
@@ -1024,7 +1051,7 @@ function getPlaygroundScript(): string {
 				const toggle = document.createElement("button");
 				toggle.type = "button";
 				toggle.className = "process-detail-toggle";
-				toggle.textContent = "expand details";
+				toggle.textContent = "展开详情";
 				toggle.setAttribute("aria-expanded", "false");
 				toggle.addEventListener("click", () => {
 					toggleProcessDetail(toggle);
@@ -1044,11 +1071,11 @@ function getPlaygroundScript(): string {
 
 		function formatSkillsReport(skills) {
 			if (!Array.isArray(skills) || skills.length === 0) {
-				return "runtime skills (0)\\n\\nno skills reported by /v1/debug/skills";
+				return "运行时技能 (0)\\n\\n/v1/debug/skills 未返回技能";
 			}
 
 			return [
-				"runtime skills (" + skills.length + ")",
+				"运行时技能 (" + skills.length + ")",
 				"",
 				...skills.map((skill, index) => {
 					const label = skill && typeof skill.name === "string" ? skill.name : "unknown-skill";
@@ -1063,7 +1090,7 @@ function getPlaygroundScript(): string {
 
 		function ensureStreamingAssistantMessage() {
 			if (!state.activeAssistantContent) {
-				state.activeAssistantContent = appendTranscriptMessage("assistant", "agent", "");
+				state.activeAssistantContent = appendTranscriptMessage("assistant", "助手", "");
 			}
 			return state.activeAssistantContent;
 		}
@@ -1078,12 +1105,12 @@ function getPlaygroundScript(): string {
 			conversationInput.value = "manual:web-" + crypto.randomUUID().slice(0, 12);
 			state.conversationId = conversationInput.value;
 			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
-			sessionFile.textContent = "not assigned yet";
+			sessionFile.textContent = "尚未分配";
 			transcript.innerHTML = "";
 			processFeed.innerHTML = "";
 			resetStreamingState();
-			appendTranscriptMessage("system", "session", "new conversation ready");
-			appendProcessEvent("system", "session boot", "waiting for a fresh streamed run");
+			appendTranscriptMessage("system", "会话", "新会话已就绪");
+			appendProcessEvent("system", "会话启动", "等待新的流式任务");
 			clearError();
 		}
 
@@ -1095,32 +1122,32 @@ function getPlaygroundScript(): string {
 		function handleStreamEvent(event) {
 			switch (event.type) {
 				case "run_started":
-					appendProcessEvent("system", "run started", event.conversationId);
-					statusPill.textContent = "running";
+					appendProcessEvent("system", "任务开始", event.conversationId);
+					statusPill.textContent = "运行中";
 					break;
 				case "tool_started":
-					appendProcessEvent("tool", "tool start", describeToolEvent(event, "calling"));
+					appendProcessEvent("tool", "工具开始", describeToolEvent(event, "调用"));
 					break;
 				case "tool_updated":
-					appendProcessEvent("tool", "tool update", describeToolEvent(event, "partial"));
+					appendProcessEvent("tool", "工具更新", describeToolEvent(event, "片段"));
 					break;
 				case "tool_finished":
 					appendProcessEvent(
 						event.isError ? "error" : "ok",
-						"tool end",
-						describeToolEvent(event, event.isError ? "failed" : "completed"),
+						"工具结束",
+						describeToolEvent(event, event.isError ? "失败" : "完成"),
 					);
 					break;
 				case "queue_updated":
 					appendProcessEvent(
 						"system",
-						"queue update",
-						"steer: " + event.steering.length + "\\nfollow-up: " + event.followUp.length,
+						"队列更新",
+						"转向消息: " + event.steering.length + "\\n追加消息: " + event.followUp.length,
 					);
 					break;
 				case "interrupted":
-					appendProcessEvent("system", "run interrupted", event.conversationId);
-					statusPill.textContent = "interrupted";
+					appendProcessEvent("system", "任务已打断", event.conversationId);
+					statusPill.textContent = "已打断";
 					break;
 				case "text_delta": {
 					state.streamingText += event.textDelta;
@@ -1132,23 +1159,23 @@ function getPlaygroundScript(): string {
 				}
 				case "done": {
 					state.receivedDoneEvent = true;
-					sessionFile.textContent = event.sessionFile || "not available";
+					sessionFile.textContent = event.sessionFile || "不可用";
 					if (!state.streamingText && event.text) {
 						const content = ensureStreamingAssistantMessage();
 						content.innerHTML = renderMessageMarkdown(event.text);
 						hydrateMarkdownContent(content);
 						state.streamingText = event.text;
 					}
-					appendProcessEvent("ok", "run complete", event.sessionFile || "session file not returned");
-					statusPill.textContent = "ok";
+					appendProcessEvent("ok", "任务完成", event.sessionFile || "未返回会话文件");
+					statusPill.textContent = "完成";
 					break;
 				}
 				case "error":
 					showError(event.message);
-					appendProcessEvent("error", "run error", event.message);
+					appendProcessEvent("error", "任务错误", event.message);
 					break;
 				default:
-					appendProcessEvent("system", "event", JSON.stringify(event));
+					appendProcessEvent("system", "事件", JSON.stringify(event));
 					break;
 			}
 		}
@@ -1156,7 +1183,7 @@ function getPlaygroundScript(): string {
 		async function readEventStream(response, onEvent) {
 			const reader = response.body?.getReader();
 			if (!reader) {
-				throw new Error("streaming reader is not available");
+				throw new Error("流式读取器不可用");
 			}
 
 			const decoder = new TextDecoder();
@@ -1193,7 +1220,7 @@ function getPlaygroundScript(): string {
 		async function sendMessage() {
 			const message = messageInput.value.trim();
 			if (!message) {
-				showError("message is required");
+				showError("请输入消息");
 				return;
 			}
 
@@ -1207,7 +1234,7 @@ function getPlaygroundScript(): string {
 
 			resetStreamingState();
 			appendTranscriptMessage("user", state.conversationId, message);
-			appendProcessEvent("system", "request queued", message);
+			appendProcessEvent("system", "请求已发送", message);
 			setLoading(true);
 
 			try {
@@ -1223,18 +1250,18 @@ function getPlaygroundScript(): string {
 
 				if (!response.ok) {
 					const body = await response.json().catch(() => ({}));
-					const errorMessage = body?.error?.message || body?.message || "unknown error";
+					const errorMessage = body?.error?.message || body?.message || "未知错误";
 					showError(errorMessage);
-					appendProcessEvent("error", "request rejected", errorMessage);
-					appendTranscriptMessage("error", "server", errorMessage);
+					appendProcessEvent("error", "请求被拒绝", errorMessage);
+					appendTranscriptMessage("error", "服务端", errorMessage);
 					return;
 				}
 
 				await readEventStream(response, handleStreamEvent);
 
 				if (!state.receivedDoneEvent && !errorBanner.classList.contains("visible")) {
-					showError("stream ended before a completion event was received");
-					appendProcessEvent("error", "stream interrupted", "done event missing");
+					showError("流已结束，但没有收到完成事件");
+					appendProcessEvent("error", "流被中断", "缺少 done 事件");
 				}
 
 				if (state.receivedDoneEvent) {
@@ -1242,10 +1269,10 @@ function getPlaygroundScript(): string {
 					messageInput.focus();
 				}
 			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "request failed";
+				const messageText = error instanceof Error ? error.message : "请求失败";
 				showError(messageText);
-				appendProcessEvent("error", "network", messageText);
-				appendTranscriptMessage("error", "network", messageText);
+				appendProcessEvent("error", "网络错误", messageText);
+				appendTranscriptMessage("error", "网络", messageText);
 			} finally {
 				setLoading(false);
 			}
@@ -1253,7 +1280,7 @@ function getPlaygroundScript(): string {
 
 		async function queueActiveMessage(message) {
 			appendTranscriptMessage("user", state.conversationId, message);
-			appendProcessEvent("system", "message queued", message);
+			appendProcessEvent("system", "消息已追加", message);
 
 			try {
 				const response = await fetch("/v1/chat/queue", {
@@ -1272,19 +1299,19 @@ function getPlaygroundScript(): string {
 					const errorMessage =
 						payload?.error?.message ||
 						payload?.reason ||
-						"message could not be queued";
+						"消息无法追加";
 					showError(errorMessage);
-					appendProcessEvent("error", "queue rejected", errorMessage);
+					appendProcessEvent("error", "追加被拒绝", errorMessage);
 					return;
 				}
 
 				messageInput.value = "";
 				messageInput.focus();
-				appendProcessEvent("ok", "message queued", payload.conversationId);
+				appendProcessEvent("ok", "消息已追加", payload.conversationId);
 			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "queue request failed";
+				const messageText = error instanceof Error ? error.message : "追加请求失败";
 				showError(messageText);
-				appendProcessEvent("error", "queue failed", messageText);
+				appendProcessEvent("error", "追加失败", messageText);
 			}
 		}
 
@@ -1294,7 +1321,7 @@ function getPlaygroundScript(): string {
 			}
 
 			ensureConversationId();
-			appendProcessEvent("system", "interrupt requested", state.conversationId);
+			appendProcessEvent("system", "请求打断", state.conversationId);
 
 			try {
 				const response = await fetch("/v1/chat/interrupt", {
@@ -1309,22 +1336,22 @@ function getPlaygroundScript(): string {
 					const errorMessage =
 						payload?.error?.message ||
 						payload?.reason ||
-						"active run could not be interrupted";
+						"当前任务无法打断";
 					showError(errorMessage);
-					appendProcessEvent("error", "interrupt rejected", errorMessage);
+					appendProcessEvent("error", "打断被拒绝", errorMessage);
 					return;
 				}
-				appendProcessEvent("ok", "interrupt accepted", state.conversationId);
+				appendProcessEvent("ok", "打断已接受", state.conversationId);
 			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "interrupt request failed";
+				const messageText = error instanceof Error ? error.message : "打断请求失败";
 				showError(messageText);
-				appendProcessEvent("error", "interrupt failed", messageText);
+				appendProcessEvent("error", "打断失败", messageText);
 			}
 		}
 
 		async function loadSkills() {
 			clearError();
-			appendProcessEvent("system", "skill registry", "requesting /v1/debug/skills");
+			appendProcessEvent("system", "技能清单", "请求 /v1/debug/skills");
 			viewSkillsButton.disabled = true;
 
 			try {
@@ -1335,22 +1362,22 @@ function getPlaygroundScript(): string {
 
 				if (!response.ok) {
 					const body = await response.json().catch(() => ({}));
-					const errorMessage = body?.error?.message || body?.message || "failed to load runtime skills";
+					const errorMessage = body?.error?.message || body?.message || "加载运行时技能失败";
 					showError(errorMessage);
-					appendProcessEvent("error", "skill registry failed", errorMessage);
-					appendTranscriptMessage("error", "skills", errorMessage);
+					appendProcessEvent("error", "技能清单失败", errorMessage);
+					appendTranscriptMessage("error", "技能", errorMessage);
 					return;
 				}
 
 				const payload = await response.json();
 				const report = formatSkillsReport(payload?.skills);
-				appendTranscriptMessage("system", "skills", report);
-				appendProcessEvent("ok", "skill registry loaded", report);
+				appendTranscriptMessage("system", "技能", report);
+				appendProcessEvent("ok", "技能清单已加载", report);
 			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "failed to load runtime skills";
+				const messageText = error instanceof Error ? error.message : "加载运行时技能失败";
 				showError(messageText);
-				appendProcessEvent("error", "skill registry failed", messageText);
-				appendTranscriptMessage("error", "skills", messageText);
+				appendProcessEvent("error", "技能清单失败", messageText);
+				appendTranscriptMessage("error", "技能", messageText);
 			} finally {
 				viewSkillsButton.disabled = state.loading;
 			}
@@ -1360,8 +1387,8 @@ function getPlaygroundScript(): string {
 		if (!conversationInput.value) {
 			resetConversation();
 		} else {
-			appendTranscriptMessage("system", "session", "conversation restored from localStorage");
-			appendProcessEvent("system", "session restored", state.conversationId);
+			appendTranscriptMessage("system", "会话", "已从本地存储恢复会话");
+			appendProcessEvent("system", "会话已恢复", state.conversationId);
 		}
 
 		sendButton.addEventListener("click", () => {
@@ -1396,41 +1423,50 @@ export function renderPlaygroundPage(): string {
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>UGK PI Test Console</title>
+		<title>UGK Claw</title>
 		<style>${getPlaygroundStyles()}</style>
 	</head>
 	<body>
 		<div class="shell">
 			<header class="topbar">
 				<div class="topbar-left">
-					<div class="kicker">UGK PI Test Console</div>
-					<h1>Watch The Agent Run</h1>
-					<p>左边是对话流，右边是 agent 实时过程。默认只看摘要，长参数和大结果按需展开，终于不用被日志瀑布淹死。</p>
+					<div class="brand-lockup">
+						<pre class="corgi-logo" aria-label="柯基字符画"> /\\___/\\
+(  o o  )
+ \\  ^  /
+ /|___|\\
+  /   \\</pre>
+						<div>
+							<div class="kicker">柯基控制台</div>
+							<h1>UGK Claw</h1>
+							<p>左侧看对话，右侧看执行过程。运行中继续发送会追加到后续队列；需要停下当前任务时直接打断。</p>
+						</div>
+					</div>
 				</div>
 				<div class="topbar-right">
-					<div class="status-row"><span>theme</span><strong>dark / geek</strong></div>
-					<div class="status-row"><span>transport</span><strong>sse / stream</strong></div>
-					<div class="status-row"><span>send</span><strong>enter</strong></div>
+					<div class="status-row"><span>主题</span><strong>深色 / 极客</strong></div>
+					<div class="status-row"><span>传输</span><strong>SSE / 流式</strong></div>
+					<div class="status-row"><span>发送</span><strong>Enter</strong></div>
 				</div>
 			</header>
 
 			<main id="chat-stage" class="chat-stage">
 				<section class="chat-meta">
 					<div class="meta-chip">
-						<strong>conversation</strong>
+						<strong>会话</strong>
 						<input id="conversation-id" name="conversation-id" placeholder="manual:web-xxxx" />
 					</div>
 					<div class="meta-chip">
-						<strong>session file</strong>
-						<span id="session-file">not assigned yet</span>
+						<strong>会话文件</strong>
+						<span id="session-file">尚未分配</span>
 					</div>
-					<button id="view-skills-button" type="button">view skills</button>
-					<button id="new-conversation-button" type="button">new conversation</button>
+					<button id="view-skills-button" type="button">查看技能</button>
+					<button id="new-conversation-button" type="button">新会话</button>
 				</section>
 
 				<section class="banner-row">
-					<span>route: POST /v1/chat/stream</span>
-					<div id="status-pill" class="state">ready</div>
+					<span>接口：POST /v1/chat/stream</span>
+					<div id="status-pill" class="state">就绪</div>
 				</section>
 
 				<div id="error-banner" class="error-banner" role="alert"></div>
@@ -1438,7 +1474,7 @@ export function renderPlaygroundPage(): string {
 				<section class="stream-layout">
 					<div class="transcript-pane">
 						<header class="pane-head">
-							<strong>conversation stream</strong>
+							<strong>对话流</strong>
 							<span>对话内容边生成边显示，消息区自动滚到最新位置。</span>
 						</header>
 						<section id="transcript" class="transcript" aria-live="polite"></section>
@@ -1446,7 +1482,7 @@ export function renderPlaygroundPage(): string {
 
 					<aside class="process-panel">
 						<header class="pane-head">
-							<strong>process feed</strong>
+							<strong>过程流</strong>
 							<span>右侧默认展示摘要；遇到长工具参数或大结果时，可以点开看完整细节。</span>
 						</header>
 						<section id="process-feed" class="process-feed" aria-live="polite"></section>
@@ -1456,14 +1492,14 @@ export function renderPlaygroundPage(): string {
 				<section class="composer">
 					<div class="composer-main">
 						<div class="composer-header">
-							<span>message</span>
-							<span>shift+enter = newline</span>
+							<span>消息</span>
+							<span>Shift+Enter 换行</span>
 						</div>
-						<textarea id="message" name="message" placeholder="type a prompt and hit enter"></textarea>
+						<textarea id="message" name="message" placeholder="输入消息，按 Enter 发送"></textarea>
 					</div>
 					<div class="composer-side">
-						<button id="send-button" type="button">send</button>
-						<button id="interrupt-button" type="button" disabled>interrupt</button>
+						<button id="send-button" type="button">发送</button>
+						<button id="interrupt-button" type="button" disabled>打断</button>
 					</div>
 				</section>
 			</main>

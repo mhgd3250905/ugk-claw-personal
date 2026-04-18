@@ -188,7 +188,7 @@ pi
 
 `playground` 的聊天气泡已经支持安全 Markdown 渲染，覆盖标题、列表、引用、粗斜体、链接、行内代码和代码块。代码块会显示语言标签并提供复制按钮；HTML 会先转义，避免把 agent 输出当成页面脚本执行。
 
-`playground` 当前使用 bundled Agave 字体，字体文件来自 `https://github.com/blobject/agave` 的 `dist` 产物，并通过 `/assets/fonts/:fileName` 对外提供。字体资产放在 `public/fonts/`，别又把它塞进 CDN 或运行时下载，离线本地测试会直接翻车。
+`playground` 当前名为 `UGK Claw`，界面已中文化，顶部使用一个 ASCII 柯基字符画作为标识。字体使用 bundled Agave，字体文件来自 `https://github.com/blobject/agave` 的 `dist` 产物，并通过 `/assets/fonts/:fileName` 对外提供。字体资产放在 `public/fonts/`，别又把它塞进 CDN 或运行时下载，离线本地测试会直接翻车。
 
 最近一次前端修复也记录在这里：Markdown 渲染函数会被服务端注入到浏览器脚本里，注入前会剥离 `tsx`/esbuild 生成的 `__name()` helper。否则浏览器会报 `ReferenceError: __name is not defined`，页面初始化失败后 `Send` 按钮看起来就像没反应。这个坑很隐蔽，属于“按钮背锅，脚本先死”的经典冤案。
 
@@ -674,7 +674,7 @@ npx tsc --noEmit
 npm run test
 ```
 
-最近验证结果：`npx tsc --noEmit` 通过，`npm run test` 为 `49 / 49` 通过；临时服务 `127.0.0.1:3101` 已验证 `/healthz`、Agave 字体资产和 playground HTML。
+最近验证结果：`npx tsc --noEmit` 通过，`npm run test` 为 `49 / 49` 通过；默认入口 `127.0.0.1:3000` 已验证 `/healthz`、Agave 字体资产和 `UGK Claw` playground HTML。
 
 暂未完成：
 

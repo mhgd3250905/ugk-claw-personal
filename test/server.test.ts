@@ -97,7 +97,9 @@ test("GET /playground returns the test UI html", async () => {
 
 	assert.equal(response.statusCode, 200);
 	assert.match(response.headers["content-type"] ?? "", /^text\/html/);
-	assert.match(response.body, /UGK PI Test Console/);
+	assert.match(response.body, /UGK Claw/);
+	assert.match(response.body, /\/\\___\/\\/);
+	assert.match(response.body, /柯基/);
 	assert.match(response.body, /font-family: "Agave"/);
 	assert.match(response.body, /\/assets\/fonts\/Agave-Regular\.ttf/);
 	assert.match(response.body, /conversation-id/);
@@ -106,6 +108,10 @@ test("GET /playground returns the test UI html", async () => {
 	assert.doesNotMatch(response.body, /queue-mode/);
 	assert.doesNotMatch(response.body, /interrupt \/ steer/);
 	assert.doesNotMatch(response.body, /wait \/ follow-up/);
+	assert.doesNotMatch(response.body, /Watch The Agent Run/);
+	assert.doesNotMatch(response.body, />message</);
+	assert.doesNotMatch(response.body, />send</);
+	assert.doesNotMatch(response.body, />interrupt</);
 	assert.match(response.body, /view-skills-button/);
 	assert.match(response.body, /chat-stage/);
 	assert.match(response.body, /process-feed/);
@@ -121,7 +127,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.composer\s*\{[\s\S]*flex-shrink: 0;/);
 	assert.match(response.body, /process-detail-toggle/);
 	assert.match(response.body, /process-detail-body/);
-	assert.match(response.body, /expand details/);
+	assert.match(response.body, /展开详情/);
 	assert.match(response.body, /overflow-y: auto/);
 	assert.match(response.body, /message-content/);
 	assert.match(response.body, /renderMessageMarkdown/);
