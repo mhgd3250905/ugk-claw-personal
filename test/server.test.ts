@@ -103,7 +103,9 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /conversation-id/);
 	assert.match(response.body, /send-button/);
 	assert.match(response.body, /interrupt-button/);
-	assert.match(response.body, /queue-mode/);
+	assert.doesNotMatch(response.body, /queue-mode/);
+	assert.doesNotMatch(response.body, /interrupt \/ steer/);
+	assert.doesNotMatch(response.body, /wait \/ follow-up/);
 	assert.match(response.body, /view-skills-button/);
 	assert.match(response.body, /chat-stage/);
 	assert.match(response.body, /process-feed/);
@@ -111,6 +113,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\/v1\/chat\/stream/);
 	assert.match(response.body, /\/v1\/chat\/queue/);
 	assert.match(response.body, /\/v1\/chat\/interrupt/);
+	assert.match(response.body, /mode:\s*"followUp"/);
 	assert.match(response.body, /height: calc\(100vh - 40px\)/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*display: flex;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*flex-direction: column;/);

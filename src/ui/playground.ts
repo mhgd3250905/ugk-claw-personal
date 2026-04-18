@@ -827,7 +827,6 @@ function getPlaygroundScript(): string {
 		const messageInput = document.getElementById("message");
 		const sendButton = document.getElementById("send-button");
 		const interruptButton = document.getElementById("interrupt-button");
-		const queueMode = document.getElementById("queue-mode");
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
 		const statusPill = document.getElementById("status-pill");
@@ -851,13 +850,12 @@ function getPlaygroundScript(): string {
 		function setLoading(next) {
 			state.loading = next;
 			sendButton.disabled = false;
-			sendButton.textContent = next ? "queue" : "send";
+			sendButton.textContent = "send";
 			interruptButton.disabled = !next;
 			viewSkillsButton.disabled = next;
 			messageInput.disabled = false;
 			conversationInput.disabled = next;
 			newConversationButton.disabled = next;
-			queueMode.disabled = false;
 			statusPill.textContent = next ? "streaming" : "ready";
 		}
 
@@ -1255,8 +1253,7 @@ function getPlaygroundScript(): string {
 
 		async function queueActiveMessage(message) {
 			appendTranscriptMessage("user", state.conversationId, message);
-			const mode = queueMode.value === "followUp" ? "followUp" : "steer";
-			appendProcessEvent("system", mode === "followUp" ? "follow-up queued" : "steer queued", message);
+			appendProcessEvent("system", "message queued", message);
 
 			try {
 				const response = await fetch("/v1/chat/queue", {
@@ -1265,7 +1262,7 @@ function getPlaygroundScript(): string {
 					body: JSON.stringify({
 						conversationId: state.conversationId,
 						message,
-						mode,
+						mode: "followUp",
 						userId: "web-playground",
 					}),
 				});
@@ -1283,7 +1280,7 @@ function getPlaygroundScript(): string {
 
 				messageInput.value = "";
 				messageInput.focus();
-				appendProcessEvent("ok", "message queued", payload.mode);
+				appendProcessEvent("ok", "message queued", payload.conversationId);
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "queue request failed";
 				showError(messageText);
@@ -1465,13 +1462,8 @@ export function renderPlaygroundPage(): string {
 						<textarea id="message" name="message" placeholder="type a prompt and hit enter"></textarea>
 					</div>
 					<div class="composer-side">
-						<select id="queue-mode" name="queue-mode" aria-label="Queue mode">
-							<option value="steer">interrupt / steer</option>
-							<option value="followUp">wait / follow-up</option>
-						</select>
 						<button id="send-button" type="button">send</button>
 						<button id="interrupt-button" type="button" disabled>interrupt</button>
-						<div class="hint">现在走 /v1/chat/stream。右侧先看摘要，不够再点开详情，这才像个能盯过程的控制台。</div>
 					</div>
 				</section>
 			</main>

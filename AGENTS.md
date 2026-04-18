@@ -88,7 +88,7 @@
 - playground 聊天视图已固定容器高度，长消息只在消息区内部滚动，输入操作栏固定在底部
 - playground 已支持流式展示 agent 执行过程，工具调用和文本增量会实时滚动
 - playground 已切换为 bundled Agave 字体，字体文件位于 `public/fonts/` 并通过 `/assets/fonts/:fileName` 暴露
-- playground 运行中已支持 `steer` 插嘴、`followUp` 排队和 `interrupt` 打断，行为对齐 Codex 的运行中干预体验
+- playground 控制已简化为 `send` 和 `interrupt`，运行中继续发送消息会统一追加到当前会话后续队列
 - playground 聊天气泡已支持安全的 Markdown 渲染，当前覆盖标题、列表、粗斜体、引用、链接、行内代码和代码块，代码块带语言标签与复制按钮
 - playground Markdown 渲染函数注入浏览器脚本时会剥离 `tsx`/esbuild 的 `__name()` helper，避免页面初始化失败导致 `Send` 按钮无反应
 - Windows 下 agent 调用 `bash` 工具时已启用隐藏控制台窗口，避免弹出黑框
@@ -174,7 +174,7 @@
 4. `AgentSessionFactory` 用 `pi-coding-agent` 创建或打开 session
 5. session 执行 `prompt()`
 6. 运行期间同一 `conversationId` 会登记到 `activeRuns`
-7. 客户端可调用 `POST /v1/chat/queue`，通过 `streamingBehavior: "steer"` 插嘴转向，或通过 `"followUp"` 排队到当前轮次之后
+7. 客户端可调用 `POST /v1/chat/queue` 追加运行中消息；playground 固定使用 `streamingBehavior: "followUp"`，后端保留 `steer` 作为 API 兼容能力
 8. 客户端可调用 `POST /v1/chat/interrupt` 触发 `session.abort()`，当前 SSE 会补发 `interrupted`
 9. 如果主 agent 调用 `subagent` 工具，则扩展会启动本地 `pi` 子进程执行委派任务，并把过程通过 `tool_execution_update` 回传
 10. 同步接口聚合 `text_delta`，流式接口转发 `text_delta`、`tool_execution_*`、`queue_update` 等过程事件
@@ -257,7 +257,7 @@
 - `src/ui/playground.ts`
   - 本地 Web 测试界面
   - 对话流和 agent 过程流的实时展示
-  - 使用 Agave 字体并提供运行中插嘴、排队和打断控件
+  - 使用 Agave 字体，并只提供 `send` 与 `interrupt` 两个核心输入控件
   - 提供查看真实技能清单的调试入口
   - 对 transcript 消息执行安全 Markdown 渲染，并为代码块补充语言标签与复制按钮
 - `Dockerfile`
@@ -322,7 +322,7 @@
 - 已实现 `GET /playground`
 - 已实现 `POST /v1/chat`
 - 已实现 `POST /v1/chat/stream`
-- 已实现 `POST /v1/chat/queue`，支持运行中 `steer` 与 `followUp`
+- 已实现 `POST /v1/chat/queue`，playground 运行中发送统一使用 `followUp` 追加语义
 - 已实现 `POST /v1/chat/interrupt`，支持中止当前 active run 后继续沿用同一会话
 - 已接入 `dashscope-coding / glm-5`
 - 已完成 API key 模式运行
@@ -360,7 +360,7 @@
 - 已为 playground 聊天气泡补上安全 Markdown 渲染与代码块复制按钮，不再把 agent 的 Markdown 原样当纯文本吐出来
 - 已修复 playground Markdown 渲染函数注入时携带 `__name()` helper，导致浏览器端 `ReferenceError` 并让 `Send` 按钮无反应的问题
 - 已将 playground 字体切换为 bundled Agave，避免依赖外部 CDN 或用户本机字体
-- 已为 playground 增加 queue mode 与 interrupt 控件，可在运行中插嘴或排队后续消息
+- 已将 playground 运行中控制收敛为 `send` 与 `interrupt`，移除 queue mode 下拉选择
 - 已为 `.pi/extensions/project-guard.ts` 与 `.pi/extensions/subagent/index.ts` 补齐 TypeScript spawn 类型，`npx tsc --noEmit` 不再被旧类型债卡住
 - 已将字体资产路由从 `src/server.ts` 拆到 `src/routes/assets.ts`，让 server 只负责服务装配
 - 已收敛 `src/routes/chat.ts` 的重复 500 错误响应逻辑
@@ -433,7 +433,7 @@
   - `AgentService.queueMessage()` 对 active run 调用 `session.prompt(message, { streamingBehavior })`
   - `AgentService.interruptChat()` 对 active run 调用 `session.abort()`
   - playground transcript Markdown 渲染、HTML 转义、代码块工具栏与复制按钮注入
-  - playground HTML 包含 Agave 字体、queue mode、interrupt button 与新控制接口
+  - playground HTML 包含 Agave 字体、固定 `followUp` 追加请求、interrupt button 与新控制接口
   - 临时启动 `node --import tsx src/server.ts` 于 `127.0.0.1:3101`，验证 `GET /healthz`、`GET /assets/fonts/Agave-Regular.ttf` 与 `GET /playground`
   - skill 白名单 loader 仅加载允许路径中的 skill
   - 系统预装技能 `skill-creator`、`find-skills`、`frontend-design` 已被白名单 loader 识别
@@ -491,9 +491,9 @@
   - `session.messages` 中是否有最终 assistant error
 - 如果 agent 看起来“能运行但空回复”，先排查是否只监听了 `text_delta`
 - 如果流式面板只有 `run started` 没有后续事件，优先检查 provider 延迟、工具是否被阻断、以及浏览器是否连到了旧进程
-- 如果运行中插嘴返回 `not_running`，说明该 `conversationId` 当前没有 active run；先确认 playground 或客户端没有换 conversation
+- 如果运行中追加返回 `not_running`，说明该 `conversationId` 当前没有 active run；先确认 playground 或客户端没有换 conversation
 - 如果打断返回 `abort_not_supported`，说明底层 session 实例没有暴露 `abort()`，优先检查 `@mariozechner/pi-coding-agent` 版本和 `AgentSessionLike` 适配
-- 如果 `followUp` 没在当前轮结束后继续执行，先检查是否调用了 `/v1/chat/queue` 且 `mode` 为 `followUp`，再看流式事件里有没有 `queue_updated`
+- 如果运行中发送的消息没在当前轮结束后继续执行，先检查 playground 是否调用了 `/v1/chat/queue` 且 `mode` 为 `followUp`，再看流式事件里有没有 `queue_updated`
 - 如果 Agave 字体没生效，先请求 `/assets/fonts/Agave-Regular.ttf`，再检查浏览器是否缓存旧 playground HTML
 - 如果 Windows 下调用 `bash` 仍然弹黑框，优先检查是否跑的是旧进程，或当前 session 没有加载项目级 `.pi/extensions/project-guard.ts`
 - 如果 Windows 下调用 `bash` 仍然弹黑框，也要检查是否有其他地方重新引入了 `detached: true`
@@ -584,9 +584,9 @@
 - 增加 `test/local-cdp-browser.test.ts` 覆盖 Docker host CDP 探测和 WebSocket URL 重写
 - 下载并 bundling `Agave-Regular.ttf`、`Agave-Bold.ttf`，playground 改用 Agave 字体
 - 增加 `/assets/fonts/:fileName` 字体资产路由
-- 增加 `POST /v1/chat/queue`，支持运行中 `steer` 插嘴与 `followUp` 排队
+- 增加 `POST /v1/chat/queue`，playground 运行中发送统一追加为 `followUp`
 - 增加 `POST /v1/chat/interrupt`，支持中止 active run 后继续同一会话
-- playground 增加 queue mode、运行中 queue 发送和 interrupt 控件
+- playground 增加运行中追加发送和 interrupt 控件，随后移除 queue mode 下拉以降低 UI 复杂度
 - 增加运行中队列/打断相关 AgentService 与 HTTP 路由测试
 - 修复 `.pi` 扩展 TypeScript spawn 类型问题，并补充 `.mjs` 测试声明
 - 拆分 `src/routes/assets.ts`，让字体资产路由离开 `src/server.ts`

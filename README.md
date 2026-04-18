@@ -184,7 +184,7 @@ pi
 
 当前项目已经有一个最小可运行的 HTTP API agent 骨架，底层复用 `pi-coding-agent` 的 session、资源加载和项目级 `.pi/` 资源。
 
-现在除了同步聊天接口，还提供了一个流式过程接口，`playground` 会把 agent 的工具调用、文本增量和完成事件实时滚动展示出来。运行中的任务支持两种插入消息方式：`steer` 会打断/转向当前执行，`followUp` 会排到当前轮次之后继续执行。也支持显式 `interrupt`，用于像 Codex 一样中止当前 run，随后继续沿用同一 `conversationId` 发消息。
+现在除了同步聊天接口，还提供了一个流式过程接口，`playground` 会把 agent 的工具调用、文本增量和完成事件实时滚动展示出来。界面只保留 `send` 和 `interrupt`：运行中继续发送消息会追加到当前会话后续队列，点 `interrupt` 会中止当前 run，随后继续沿用同一 `conversationId` 发消息。
 
 `playground` 的聊天气泡已经支持安全 Markdown 渲染，覆盖标题、列表、引用、粗斜体、链接、行内代码和代码块。代码块会显示语言标签并提供复制按钮；HTML 会先转义，避免把 agent 输出当成页面脚本执行。
 
@@ -513,7 +513,7 @@ curl http://127.0.0.1:3000/playground
 1. 打开 `http://127.0.0.1:3000/playground`
 2. 输入一条短消息，例如 `测试 Send 是否正常，请只回复 OK。`
 3. 点击 `send`
-4. 运行中可选择 `interrupt / steer` 或 `wait / follow-up` 后继续输入消息，按钮会显示 `queue`
+4. 运行中继续输入消息并点击 `send`，这条消息会追加到当前会话后续队列
 5. 点击 `interrupt` 可中止当前 run，随后继续用同一 conversation 发新消息
 6. 确认右侧出现 `REQUEST QUEUED`、`RUN STARTED`、`QUEUE UPDATED`、`RUN COMPLETE` 或 `RUN INTERRUPTED`
 7. 确认字体为 Agave，网络里可看到 `/assets/fonts/Agave-Regular.ttf`
@@ -563,20 +563,17 @@ data: {"type":"done","conversationId":"manual:test-stream-1","text":"stream ok",
 ```bash
 curl -X POST http://127.0.0.1:3000/v1/chat/queue ^
   -H "content-type: application/json" ^
-  -d "{\"conversationId\":\"manual:test-stream-1\",\"message\":\"补充：先停止当前方向，改查 README\",\"mode\":\"steer\",\"userId\":\"u-002\"}"
+  -d "{\"conversationId\":\"manual:test-stream-1\",\"message\":\"补充：说完后再列出 README 里的接口\",\"mode\":\"followUp\",\"userId\":\"u-002\"}"
 ```
 
-`mode` 可选：
-
-- `steer`：打断/转向当前运行中的 agent，相当于运行中插嘴纠偏
-- `followUp`：排队到当前轮次之后，相当于“等你说完再接着做”
+playground 运行中发送消息统一使用 `followUp` 追加语义。后端仍保留 `steer` 和 `followUp` 两种 `pi-coding-agent` runtime 能力，避免破坏已有 API 调用，但界面不再暴露这层复杂度。
 
 返回示例：
 
 ```json
 {
   "conversationId": "manual:test-stream-1",
-  "mode": "steer",
+  "mode": "followUp",
   "queued": true
 }
 ```
@@ -658,7 +655,7 @@ pi -p "Reply with exactly PROJECT_DEFAULT_OK"
 - `POST /v1/chat/interrupt`
 - `GET /playground` 实时展示 agent 过程流
 - playground 使用 bundled Agave 字体
-- playground 运行中支持 `steer` 插嘴、`followUp` 排队和 `interrupt` 打断
+- playground 只保留 `send` 和 `interrupt`，运行中再次发送会统一追加到后续队列
 - playground transcript 安全 Markdown 渲染
 - playground 代码块语言标签与复制按钮
 - playground `Send` 无响应的 `__name()` helper 回归修复
