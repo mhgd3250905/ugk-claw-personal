@@ -1,4 +1,5 @@
 {
+  "shellPath": "/bin/bash",
   "defaultProvider": "dashscope-coding",
   "defaultModel": "glm-5",
   "defaultThinkingLevel": "medium",

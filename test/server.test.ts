@@ -9,7 +9,7 @@ type StreamEvent = Record<string, unknown>;
 function createAgentServiceStub(overrides?: {
 	chat?: AgentService["chat"];
 	streamChat?: (
-		input: { conversationId?: string; message: string; userId?: string },
+		input: { conversationId?: string; message: string; userId?: string; attachments?: unknown[] },
 		onEvent: (event: StreamEvent) => void,
 	) => Promise<void>;
 	queueMessage?: AgentService["queueMessage"];
@@ -103,6 +103,37 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /font-family: "Agave"/);
 	assert.match(response.body, /\/assets\/fonts\/Agave-Regular\.ttf/);
 	assert.match(response.body, /conversation-id/);
+	assert.match(response.body, /file-input/);
+	assert.match(response.body, /file-list/);
+	assert.match(response.body, /drag-debug-log/);
+	assert.match(response.body, /clear-drag-debug/);
+	assert.match(response.body, /drop-zone/);
+	assert.match(response.body, /composer-drop-target/);
+	assert.match(response.body, /const chatStage = document.getElementById\("chat-stage"\)/);
+	assert.match(response.body, /bindDropTarget\(chatStage\)/);
+	assert.match(response.body, /bindDropTarget/);
+	assert.match(response.body, /preventWindowFileDrop/);
+	assert.match(response.body, /drag-overlay/);
+	assert.match(response.body, /showGlobalDropHint/);
+	assert.match(response.body, /document\.addEventListener\("dragenter"/);
+	assert.match(response.body, /window\.addEventListener\("dragenter"/);
+	assert.match(response.body, /function hasDragPayload/);
+	assert.match(response.body, /function hasDroppedFiles/);
+	assert.match(response.body, /function setCopyDropEffect/);
+	assert.match(response.body, /function pushDragDebug/);
+	assert.match(response.body, /function renderDragDebugLog/);
+	assert.match(response.body, /function summarizeDataTransfer/);
+	assert.match(response.body, /const pageRoot = document\.documentElement/);
+	assert.match(response.body, /const pageBody = document\.body/);
+	assert.match(response.body, /bindDropTarget\(pageRoot\)/);
+	assert.match(response.body, /bindDropTarget\(pageBody\)/);
+	assert.match(response.body, /dataTransfer\.items/);
+	assert.match(response.body, /dataTransfer\.files/);
+	assert.match(response.body, /dataTransfer\.types/);
+	assert.match(response.body, /handleDroppedFiles/);
+	assert.match(response.body, /applyFileIntentMessage/);
+	assert.match(response.body, /dragover/);
+	assert.match(response.body, /drop/);
 	assert.match(response.body, /send-button/);
 	assert.match(response.body, /interrupt-button/);
 	assert.doesNotMatch(response.body, /queue-mode/);
@@ -119,6 +150,8 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\/v1\/chat\/stream/);
 	assert.match(response.body, /\/v1\/chat\/queue/);
 	assert.match(response.body, /\/v1\/chat\/interrupt/);
+	assert.match(response.body, /attachments/);
+	assert.match(response.body, /file-download/);
 	assert.match(response.body, /mode:\s*"followUp"/);
 	assert.match(response.body, /height: calc\(100vh - 40px\)/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*display: flex;/);
@@ -151,6 +184,37 @@ test("GET /assets/fonts/Agave-Regular.ttf returns the bundled Agave font", async
 	assert.equal(response.statusCode, 200);
 	assert.match(response.headers["content-type"] ?? "", /font\/ttf|application\/octet-stream/);
 	assert.ok(response.rawPayload.length > 1000);
+	await app.close();
+});
+
+test("GET /v1/files/:fileId downloads a stored agent file", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		fileArtifactStore: {
+			saveFiles: async () => [],
+			getFile: async (fileId: string) =>
+				fileId === "file-123"
+					? {
+							id: "file-123",
+							fileName: "hello.txt",
+							mimeType: "text/plain",
+							sizeBytes: 11,
+							downloadUrl: "/v1/files/file-123",
+							content: Buffer.from("hello world", "utf8"),
+						}
+					: undefined,
+		},
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/files/file-123",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] ?? "", /^text\/plain/);
+	assert.match(response.headers["content-disposition"] ?? "", /filename="hello\.txt"/);
+	assert.equal(response.body, "hello world");
 	await app.close();
 });
 
@@ -206,6 +270,57 @@ test("POST /v1/chat returns aggregated chat response", async () => {
 		text: "echo:你好",
 		sessionFile: "E:/sessions/test.jsonl",
 	});
+	await app.close();
+});
+
+test("POST /v1/chat passes uploaded file attachments to the agent service", async () => {
+	const calls: unknown[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			chat: async (input) => {
+				calls.push(input);
+				return {
+					conversationId: input.conversationId ?? "manual:file-input",
+					text: "ok",
+					sessionFile: "E:/sessions/test.jsonl",
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/chat",
+		payload: {
+			conversationId: "manual:file-input",
+			message: "inspect attached file",
+			attachments: [
+				{
+					fileName: "brief.txt",
+					mimeType: "text/plain",
+					sizeBytes: 11,
+					text: "hello file",
+				},
+			],
+		},
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(calls, [
+		{
+			conversationId: "manual:file-input",
+			message: "inspect attached file",
+			userId: undefined,
+			attachments: [
+				{
+					fileName: "brief.txt",
+					mimeType: "text/plain",
+					sizeBytes: 11,
+					text: "hello file",
+				},
+			],
+		},
+	]);
 	await app.close();
 });
 

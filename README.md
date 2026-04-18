@@ -31,8 +31,11 @@
 - 默认本地测试入口是 `http://127.0.0.1:3000/playground`；不要长期另开 `3101` 这类临时端口，开了就收尾关掉，别把机器当端口垃圾场
 - playground 当前品牌是 `UGK Claw`，顶部是 ASCII 柯基字符画，界面文案已中文化
 - playground 使用项目内 bundled Agave 字体，文件在 `public/fonts/`，由 `GET /assets/fonts/:fileName` 暴露
+- playground 支持随消息选择或拖入最多 5 个文件；拖入/选择后会自动给输入框补一段文件意图描述，文本类文件会把内容随 `attachments` 发给 agent，二进制文件只传文件名、类型和大小，别指望模型隔空读取二进制魔法
+- playground 输入区下方常驻 `drag debug` 调试条，会显示最近的 `dragenter` / `dragover` / `drop` 事件和 `dataTransfer` 摘要，专门用于排查 Chrome 拖放兼容性
 - 界面只保留 `发送` 和 `打断` 两个核心控件；运行中再次点击 `发送` 统一视为 `followUp` 追加，不再给用户暴露 `steer` / `followUp` 选择
 - API 仍保留 `POST /v1/chat/queue` 的 `steer` / `followUp` 两种 mode 作为兼容能力；`POST /v1/chat/interrupt` 会打断当前 active run，之后同一 `conversationId` 可继续发消息
+- agent 如果要给用户发送文件，可以在回复里使用 ````ugk-file name="文件名" mime="类型"```` fenced block；后端会提取内容落盘到 `.data/agent/files`，并通过 `GET /v1/files/:fileId` 提供下载
 - 用户层 `web-access` 已修复宿主机浏览器桥接兜底：IPC 没响应时会尝试本机 Chrome/Edge CDP，开发容器内会改走宿主机 CDP 地址
 
 ## 参考基线
@@ -547,6 +550,46 @@ curl -X POST http://127.0.0.1:3000/v1/chat ^
 }
 ```
 
+带文件发送给 agent：
+
+```bash
+curl -X POST http://127.0.0.1:3000/v1/chat ^
+  -H "content-type: application/json" ^
+  -d "{\"conversationId\":\"manual:file-1\",\"message\":\"请总结这个文件\",\"attachments\":[{\"fileName\":\"notes.txt\",\"mimeType\":\"text/plain\",\"sizeBytes\":12,\"text\":\"hello file\"}]}"
+```
+
+`attachments` 当前是 JSON 字段，不是 multipart。文本类文件可以传 `text`，二进制文件只传 `fileName`、`mimeType`、`sizeBytes` 作为意图和元数据。playground 里可以点击选择文件，也可以把文件直接拖到输入区下方的文件区域；拖入后会自动在输入框补上“请结合我拖入的文件一起处理”的描述，让文字意图和文件一起进入同一轮消息。输入区下方还常驻 `drag debug` 调试条，用来直接看浏览器到底有没有把拖放事件和 `dataTransfer` 交给页面。这里要清醒：模型不会凭空理解一个没给内容的 PDF 或图片，除非后续再接 OCR / 视觉模型 / 文件解析链路。
+
+agent 给用户发文件时，回复里使用下面的 fenced block：
+
+````markdown
+```ugk-file name="hello.txt" mime="text/plain"
+hello from agent
+```
+````
+
+后端会把文件内容提取到 `.data/agent/files/`，并在聊天响应或 SSE `done` 事件里返回：
+
+```json
+{
+  "files": [
+    {
+      "id": "file-id",
+      "fileName": "hello.txt",
+      "mimeType": "text/plain",
+      "sizeBytes": 16,
+      "downloadUrl": "/v1/files/file-id"
+    }
+  ]
+}
+```
+
+下载文件：
+
+```bash
+curl -OJ http://127.0.0.1:3000/v1/files/file-id
+```
+
 流式聊天接口：
 
 ```bash
@@ -609,6 +652,8 @@ curl -X POST http://127.0.0.1:3000/v1/chat/interrupt ^
 - 外部 `conversationId` 会映射到本地 `pi` session 文件
 - 映射文件位于：`.data/agent/conversation-index.json`
 - session 文件位于：`.data/agent/sessions/`
+- agent 生成给用户下载的文件位于：`.data/agent/files/`
+- 文件索引位于：`.data/agent/file-index.json`
 - 这层映射是为后续接飞书、Slack、企业微信等 IM 预留的，不要直接拿“最近一次 session”这种偷懒逻辑糊弄
 
 ### 认证方式
@@ -658,6 +703,7 @@ pi -p "Reply with exactly PROJECT_DEFAULT_OK"
 
 - `GET /healthz`
 - `GET /assets/fonts/:fileName`
+- `GET /v1/files/:fileId`
 - `POST /v1/chat`
 - `POST /v1/chat/stream`
 - `POST /v1/chat/queue`
@@ -666,6 +712,9 @@ pi -p "Reply with exactly PROJECT_DEFAULT_OK"
 - playground 使用 bundled Agave 字体
 - playground 品牌为 `UGK Claw`，中文界面，顶部使用 ASCII 柯基字符画
 - playground 只保留 `发送` 和 `打断`，运行中再次发送会统一追加到后续队列
+- playground 支持文件选择/拖放并通过 JSON `attachments` 随消息发送给 agent；拖入文件后会自动补一段文件意图描述
+- playground 输入区下方常驻 `drag debug` 调试条，可直接观察最近拖放事件和 `dataTransfer` 摘要
+- agent 回复中的 `ugk-file` fenced block 会被提取为可下载文件
 - playground transcript 安全 Markdown 渲染
 - playground 代码块语言标签与复制按钮
 - playground `发送` 无响应的 `__name()` helper 回归修复
@@ -684,7 +733,7 @@ npx tsc --noEmit
 npm run test
 ```
 
-最近验证结果：`npx tsc --noEmit` 通过，`npm run test` 为 `49 / 49` 通过；默认入口 `127.0.0.1:3000` 已验证 `/healthz`、Agave 字体资产和 `UGK Claw` playground HTML。
+最近验证结果：`npx tsc --noEmit` 通过，`npm run test` 为 `53 / 53` 通过；默认入口 `127.0.0.1:3000` 已验证 `/healthz`、Agave 字体资产和 `UGK Claw` playground HTML。
 
 暂未完成：
 

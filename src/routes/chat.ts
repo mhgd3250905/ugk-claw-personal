@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ServerResponse } from "node:http";
 import type { AgentService } from "../agent/agent-service.js";
 import type {
+	ChatAttachmentBody,
 	ChatRequestBody,
 	ChatResponseBody,
 	ChatStreamEvent,
@@ -53,6 +54,47 @@ function isValidQueueMode(mode: unknown): mode is QueueMessageMode {
 	return mode === "steer" || mode === "followUp";
 }
 
+function parseAttachments(value: unknown): { attachments?: ChatAttachmentBody[]; error?: string } {
+	if (value === undefined) {
+		return {};
+	}
+	if (!Array.isArray(value)) {
+		return { error: 'Field "attachments" must be an array when provided' };
+	}
+	if (value.length > 5) {
+		return { error: 'Field "attachments" supports at most 5 files' };
+	}
+
+	const attachments: ChatAttachmentBody[] = [];
+	for (const [index, rawAttachment] of value.entries()) {
+		if (!rawAttachment || typeof rawAttachment !== "object") {
+			return { error: `attachments[${index}] must be an object` };
+		}
+		const attachment = rawAttachment as Record<string, unknown>;
+		if (typeof attachment.fileName !== "string" || attachment.fileName.trim().length === 0) {
+			return { error: `attachments[${index}].fileName must be a non-empty string` };
+		}
+		if (attachment.mimeType !== undefined && typeof attachment.mimeType !== "string") {
+			return { error: `attachments[${index}].mimeType must be a string when provided` };
+		}
+		if (attachment.sizeBytes !== undefined && (typeof attachment.sizeBytes !== "number" || !Number.isFinite(attachment.sizeBytes) || attachment.sizeBytes < 0)) {
+			return { error: `attachments[${index}].sizeBytes must be a non-negative number when provided` };
+		}
+		if (attachment.text !== undefined && typeof attachment.text !== "string") {
+			return { error: `attachments[${index}].text must be a string when provided` };
+		}
+
+		attachments.push({
+			fileName: attachment.fileName,
+			mimeType: typeof attachment.mimeType === "string" ? attachment.mimeType : undefined,
+			sizeBytes: typeof attachment.sizeBytes === "number" ? attachment.sizeBytes : undefined,
+			text: typeof attachment.text === "string" ? attachment.text : undefined,
+		});
+	}
+
+	return { attachments };
+}
+
 export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependencies): void {
 	app.get("/v1/debug/skills", async (): Promise<DebugSkillsResponseBody> => {
 		return {
@@ -66,10 +108,14 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			request: FastifyRequest<{ Body: Partial<ChatRequestBody> }>,
 			reply,
 		): Promise<ChatResponseBody | FastifyReply> => {
-			const { conversationId, message, userId } = request.body ?? {};
+			const { conversationId, message, userId, attachments } = request.body ?? {};
 
 			if (!isValidMessage(message)) {
 				return sendBadRequest(reply, 'Field "message" must be a non-empty string');
+			}
+			const parsedAttachments = parseAttachments(attachments);
+			if (parsedAttachments.error) {
+				return sendBadRequest(reply, parsedAttachments.error);
 			}
 
 			try {
@@ -77,6 +123,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					conversationId,
 					message,
 					userId,
+					...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
 				});
 			} catch (error) {
 				return sendInternalError(reply, error);
@@ -87,10 +134,14 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 	app.post(
 		"/v1/chat/stream",
 		async (request: FastifyRequest<{ Body: Partial<ChatRequestBody> }>, reply): Promise<FastifyReply | void> => {
-			const { conversationId, message, userId } = request.body ?? {};
+			const { conversationId, message, userId, attachments } = request.body ?? {};
 
 			if (!isValidMessage(message)) {
 				return sendBadRequest(reply, 'Field "message" must be a non-empty string');
+			}
+			const parsedAttachments = parseAttachments(attachments);
+			if (parsedAttachments.error) {
+				return sendBadRequest(reply, parsedAttachments.error);
 			}
 
 			reply.hijack();
@@ -106,6 +157,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 						conversationId,
 						message,
 						userId,
+						...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
 					},
 					(event) => {
 						writeSseEvent(reply.raw, event);
@@ -129,7 +181,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			request: FastifyRequest<{ Body: Partial<QueueMessageRequestBody> }>,
 			reply,
 		): Promise<QueueMessageResponseBody | FastifyReply> => {
-			const { conversationId, message, mode, userId } = request.body ?? {};
+			const { conversationId, message, mode, userId, attachments } = request.body ?? {};
 
 			if (!isValidConversationId(conversationId)) {
 				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
@@ -140,6 +192,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			if (!isValidQueueMode(mode)) {
 				return sendBadRequest(reply, 'Field "mode" must be either "steer" or "followUp"');
 			}
+			const parsedAttachments = parseAttachments(attachments);
+			if (parsedAttachments.error) {
+				return sendBadRequest(reply, parsedAttachments.error);
+			}
 
 			try {
 				return await deps.agentService.queueMessage({
@@ -147,6 +203,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					message,
 					mode,
 					userId,
+					...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
 				});
 			} catch (error) {
 				return sendInternalError(reply, error);

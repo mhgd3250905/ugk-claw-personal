@@ -123,6 +123,27 @@ class FakeAgentSessionFactory implements AgentSessionFactory {
 	}
 }
 
+class FakeFileArtifactStore {
+	public saved: Array<{
+		conversationId: string;
+		files: Array<{ fileName: string; mimeType: string; content: string }>;
+	}> = [];
+
+	async saveFiles(
+		conversationId: string,
+		files: Array<{ fileName: string; mimeType: string; content: string }>,
+	): Promise<Array<{ id: string; fileName: string; mimeType: string; sizeBytes: number; downloadUrl: string }>> {
+		this.saved.push({ conversationId, files });
+		return files.map((file, index) => ({
+			id: `file-${index + 1}`,
+			fileName: file.fileName,
+			mimeType: file.mimeType,
+			sizeBytes: Buffer.byteLength(file.content, "utf8"),
+			downloadUrl: `/v1/files/file-${index + 1}`,
+		}));
+	}
+}
+
 async function createStore(): Promise<ConversationStore> {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-agent-service-"));
 	return new ConversationStore(join(dir, "conversation-index.json"));
@@ -158,6 +179,88 @@ test("creates a new conversation, prompts the session, and persists the session 
 		sessionFile: "E:/sessions/new.jsonl",
 		updatedAt: (await store.get(result.conversationId))?.updatedAt,
 	});
+});
+
+test("chat includes uploaded file attachments in the session prompt", async () => {
+	const store = await createStore();
+	const session = new FakeSession("E:/sessions/attachments.jsonl", [textDelta("read file")]);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	await service.chat({
+		conversationId: "manual:attachments",
+		message: "Please inspect this file",
+		attachments: [
+			{
+				fileName: "notes.txt",
+				mimeType: "text/plain",
+				sizeBytes: 18,
+				text: "alpha\nbeta",
+			},
+		],
+	});
+
+	assert.equal(session.prompts.length, 1);
+	assert.match(session.prompts[0]?.message ?? "", /Please inspect this file/);
+	assert.match(session.prompts[0]?.message ?? "", /<user_files>/);
+	assert.match(session.prompts[0]?.message ?? "", /fileName: notes\.txt/);
+	assert.match(session.prompts[0]?.message ?? "", /mimeType: text\/plain/);
+	assert.match(session.prompts[0]?.message ?? "", /alpha\nbeta/);
+	assert.match(session.prompts[0]?.message ?? "", /```ugk-file name="example\.txt"/);
+});
+
+test("chat converts ugk-file blocks from the assistant into downloadable files", async () => {
+	const store = await createStore();
+	const fileStore = new FakeFileArtifactStore();
+	const factory = new FakeAgentSessionFactory(
+		() =>
+			new FakeSession(
+				"E:/sessions/files.jsonl",
+				[],
+				[
+					"Here is the file.",
+					"",
+					'```ugk-file name="hello.txt" mime="text/plain"',
+					"hello from agent",
+					"```",
+					"",
+					"Use it well.",
+				].join("\n"),
+			),
+	);
+	const service = new AgentService({
+		conversationStore: store,
+		sessionFactory: factory,
+		fileArtifactStore: fileStore,
+	});
+
+	const result = await service.chat({
+		conversationId: "manual:file-output",
+		message: "send me a file",
+	});
+
+	assert.equal(result.text, "Here is the file.\n\nUse it well.");
+	assert.deepEqual(fileStore.saved, [
+		{
+			conversationId: "manual:file-output",
+			files: [
+				{
+					fileName: "hello.txt",
+					mimeType: "text/plain",
+					content: "hello from agent",
+				},
+			],
+		},
+	]);
+	assert.deepEqual(result.files, [
+		{
+			id: "file-1",
+			fileName: "hello.txt",
+			mimeType: "text/plain",
+			sizeBytes: 16,
+			downloadUrl: "/v1/files/file-1",
+		},
+	]);
 });
 
 test("queueMessage steers into the active session while a run is streaming", async () => {

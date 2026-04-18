@@ -764,6 +764,197 @@ function getPlaygroundStyles(): string {
 			letter-spacing: 0.08em;
 		}
 
+		.file-strip {
+			display: grid;
+			gap: 8px;
+		}
+
+		.drag-debug {
+			display: grid;
+			gap: 8px;
+			padding: 10px 12px;
+			border: 1px solid var(--line);
+			background: rgba(4, 8, 18, 0.78);
+		}
+
+		.drag-debug-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 12px;
+			color: var(--muted);
+			font-size: 11px;
+			line-height: 1.5;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+		}
+
+		.drag-debug-head button {
+			padding: 6px 10px;
+			font-size: 10px;
+		}
+
+		.drag-debug-log {
+			display: grid;
+			gap: 6px;
+			max-height: 132px;
+			overflow-y: auto;
+		}
+
+		.drag-debug-empty,
+		.drag-debug-entry {
+			padding: 8px 10px;
+			border: 1px solid var(--line);
+			background: rgba(11, 16, 32, 0.74);
+			font-size: 11px;
+			line-height: 1.6;
+			word-break: break-word;
+		}
+
+		.drag-debug-empty {
+			color: var(--muted);
+		}
+
+		.drag-debug-entry strong {
+			color: var(--accent);
+		}
+
+		.drag-debug-entry span {
+			color: var(--muted);
+		}
+
+		.drag-overlay {
+			position: fixed;
+			inset: 16px;
+			z-index: 40;
+			display: none;
+			align-items: center;
+			justify-content: center;
+			border: 1px dashed rgba(95, 209, 255, 0.7);
+			background: rgba(5, 7, 13, 0.78);
+			pointer-events: none;
+		}
+
+		.drag-overlay.active {
+			display: flex;
+		}
+
+		.drag-overlay-panel {
+			min-width: min(520px, calc(100vw - 64px));
+			padding: 24px 28px;
+			border: 1px solid var(--accent);
+			background: rgba(11, 16, 32, 0.94);
+			box-shadow: inset 0 0 0 1px rgba(95, 209, 255, 0.18);
+			text-align: center;
+		}
+
+		.drag-overlay-panel strong {
+			display: block;
+			margin-bottom: 8px;
+			color: var(--accent);
+			font-size: 14px;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+
+		.drag-overlay-panel span {
+			display: block;
+			color: var(--muted);
+			font-size: 12px;
+			line-height: 1.7;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+		}
+
+		.drop-zone {
+			display: grid;
+			gap: 8px;
+			border: 1px dashed var(--line-strong);
+			background: rgba(95, 209, 255, 0.04);
+			padding: 10px;
+			transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+		}
+
+		.composer.drag-active,
+		.drop-zone.drag-active {
+			border-color: var(--accent);
+			background: rgba(95, 209, 255, 0.1);
+			box-shadow: inset 0 0 0 1px rgba(95, 209, 255, 0.22);
+		}
+
+		.drop-zone-label {
+			display: flex;
+			justify-content: space-between;
+			gap: 12px;
+			color: var(--muted);
+			font-size: 11px;
+			line-height: 1.5;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+		}
+
+		.file-input {
+			width: 100%;
+			border: 1px solid var(--line);
+			background: rgba(4, 8, 18, 0.74);
+			color: var(--muted);
+			padding: 10px 12px;
+			font-size: 11px;
+			line-height: 1.5;
+		}
+
+		.file-input::file-selector-button {
+			margin-right: 10px;
+			border: 1px solid var(--accent);
+			background: var(--accent-soft);
+			color: var(--accent);
+			padding: 7px 10px;
+			font: inherit;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+			cursor: pointer;
+		}
+
+		.file-list,
+		.file-downloads {
+			display: grid;
+			gap: 6px;
+		}
+
+		.file-pill,
+		.file-download {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 10px;
+			align-items: center;
+			border: 1px solid var(--line);
+			background: rgba(16, 24, 44, 0.5);
+			padding: 8px 10px;
+			font-size: 11px;
+			line-height: 1.5;
+			color: var(--muted);
+		}
+
+		.file-pill strong,
+		.file-download strong {
+			display: block;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: var(--fg);
+			font-size: 11px;
+		}
+
+		.file-download a {
+			border: 1px solid var(--accent);
+			background: var(--accent-soft);
+			color: var(--accent);
+			padding: 6px 9px;
+			text-decoration: none;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+		}
+
 		@media (max-width: 960px) {
 			.brand-lockup {
 				grid-template-columns: 1fr;
@@ -844,14 +1035,30 @@ function getPlaygroundScript(): string {
 			streamingText: "",
 			activeAssistantContent: null,
 			receivedDoneEvent: false,
+			pendingAttachments: [],
+			lastFileIntentMessage: "",
+			dragDepth: 0,
+			dragDebugEvents: [],
+			lastDragDebugKey: "",
+			lastDragDebugAt: 0,
 		};
 
 		const transcript = document.getElementById("transcript");
 		const processFeed = document.getElementById("process-feed");
 		const errorBanner = document.getElementById("error-banner");
+		const dragOverlay = document.getElementById("drag-overlay");
+		const pageRoot = document.documentElement;
+		const pageBody = document.body;
 		const sessionFile = document.getElementById("session-file");
+		const chatStage = document.getElementById("chat-stage");
 		const conversationInput = document.getElementById("conversation-id");
 		const messageInput = document.getElementById("message");
+		const composerDropTarget = document.getElementById("composer-drop-target");
+		const dropZone = document.getElementById("drop-zone");
+		const fileInput = document.getElementById("file-input");
+		const fileList = document.getElementById("file-list");
+		const dragDebugLog = document.getElementById("drag-debug-log");
+		const clearDragDebugButton = document.getElementById("clear-drag-debug");
 		const sendButton = document.getElementById("send-button");
 		const interruptButton = document.getElementById("interrupt-button");
 		const viewSkillsButton = document.getElementById("view-skills-button");
@@ -881,6 +1088,7 @@ function getPlaygroundScript(): string {
 			interruptButton.disabled = !next;
 			viewSkillsButton.disabled = next;
 			messageInput.disabled = false;
+			fileInput.disabled = false;
 			conversationInput.disabled = next;
 			newConversationButton.disabled = next;
 			statusPill.textContent = next ? "运行中" : "就绪";
@@ -898,6 +1106,226 @@ function getPlaygroundScript(): string {
 			if (!state.loading) {
 				statusPill.textContent = "就绪";
 			}
+		}
+
+		function formatFileSize(size) {
+			if (!Number.isFinite(size)) {
+				return "unknown";
+			}
+			if (size < 1024) {
+				return size + " B";
+			}
+			if (size < 1024 * 1024) {
+				return (size / 1024).toFixed(1) + " KB";
+			}
+			return (size / (1024 * 1024)).toFixed(1) + " MB";
+		}
+
+		function isTextLikeFile(file) {
+			return (
+				file.type.startsWith("text/") ||
+				/\\.(txt|md|markdown|json|csv|tsv|log|xml|html|css|js|ts|tsx|jsx|py|java|go|rs|c|cpp|h|hpp|cs|php|rb|yml|yaml|toml|ini|sql)$/i.test(file.name)
+			);
+		}
+
+		function readFileAsText(file) {
+			return new Promise((resolve, reject) => {
+				const reader = new FileReader();
+				reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+				reader.onerror = () => reject(reader.error || new Error("file read failed"));
+				reader.readAsText(file);
+			});
+		}
+
+		async function collectAttachments(files) {
+			const selected = Array.from(files || []).slice(0, 5);
+			const attachments = [];
+
+			for (const file of selected) {
+				const attachment = {
+					fileName: file.name,
+					mimeType: file.type || "application/octet-stream",
+					sizeBytes: file.size,
+				};
+				if (isTextLikeFile(file) && file.size <= 512 * 1024) {
+					attachment.text = await readFileAsText(file);
+				}
+				attachments.push(attachment);
+			}
+
+			return attachments;
+		}
+
+		function renderAttachmentList() {
+			fileList.innerHTML = "";
+			for (const attachment of state.pendingAttachments) {
+				const item = document.createElement("div");
+				item.className = "file-pill";
+				const textState = typeof attachment.text === "string" ? "\\u5df2\\u8bfb\\u53d6\\u6587\\u672c" : "\\u4ec5\\u53d1\\u9001\\u5143\\u6570\\u636e";
+				item.innerHTML = "<div><strong></strong><span></span></div><span></span>";
+				item.querySelector("strong").textContent = attachment.fileName;
+				item.querySelector("div span").textContent = (attachment.mimeType || "application/octet-stream") + " / " + formatFileSize(attachment.sizeBytes);
+				item.querySelector(":scope > span").textContent = textState;
+				fileList.appendChild(item);
+			}
+		}
+
+		function clearSelectedFiles() {
+			state.pendingAttachments = [];
+			state.lastFileIntentMessage = "";
+			fileInput.value = "";
+			renderAttachmentList();
+		}
+
+		function describeNode(node) {
+			if (!(node instanceof Element)) {
+				return "unknown";
+			}
+			if (node.id) {
+				return "#" + node.id;
+			}
+			if (typeof node.className === "string" && node.className.trim()) {
+				return node.tagName.toLowerCase() + "." + node.className.trim().replace(/\s+/g, ".");
+			}
+			return node.tagName.toLowerCase();
+		}
+
+		function summarizeDataTransfer(dataTransfer) {
+			if (!dataTransfer) {
+				return "dataTransfer=none";
+			}
+			const itemKinds = Array.from(dataTransfer.items || []).map((item) => item.kind + ":" + (item.type || "unknown"));
+			const types = Array.from(dataTransfer.types || []);
+			const parts = [
+				"types=[" + (types.join(",") || "none") + "]",
+				"files=" + (dataTransfer.files ? dataTransfer.files.length : 0),
+				"items=" + (dataTransfer.items ? dataTransfer.items.length : 0),
+				"dropEffect=" + (dataTransfer.dropEffect || "none"),
+				"effectAllowed=" + (dataTransfer.effectAllowed || "none"),
+			];
+			if (itemKinds.length) {
+				parts.push("itemKinds=[" + itemKinds.join(",") + "]");
+			}
+			return parts.join(" | ");
+		}
+
+		function renderDragDebugLog() {
+			if (!dragDebugLog) {
+				return;
+			}
+			dragDebugLog.innerHTML = "";
+			if (!state.dragDebugEvents.length) {
+				const empty = document.createElement("div");
+				empty.className = "drag-debug-empty";
+				empty.textContent = "\\u8fd8\\u6ca1\\u6709\\u62d6\\u653e\\u4e8b\\u4ef6\\u3002\\u76f4\\u63a5\\u628a\\u6587\\u4ef6\\u62d6\\u5230\\u8fd9\\u4e2a\\u9875\\u9762\\uff0c\\u8fd9\\u91cc\\u4f1a\\u663e\\u793a Chrome \\u5230\\u5e95\\u6709\\u6ca1\\u6709\\u628a\\u4e8b\\u4ef6\\u4ea4\\u7ed9\\u9875\\u9762\\u3002";
+				dragDebugLog.appendChild(empty);
+				return;
+			}
+			for (const entry of state.dragDebugEvents) {
+				const item = document.createElement("div");
+				item.className = "drag-debug-entry";
+				item.innerHTML = "<strong></strong><br /><span></span>";
+				item.querySelector("strong").textContent = entry.label;
+				item.querySelector("span").textContent = entry.detail;
+				dragDebugLog.appendChild(item);
+			}
+		}
+
+		function pushDragDebug(scope, event) {
+			const detail = [
+				"target=" + describeNode(event.target),
+				"current=" + describeNode(event.currentTarget),
+				summarizeDataTransfer(event.dataTransfer),
+			].join(" | ");
+			const label = new Date().toLocaleTimeString() + " | " + scope + " | " + event.type;
+			const dedupeKey = scope + "|" + event.type + "|" + detail;
+			const now = Date.now();
+			if (dedupeKey === state.lastDragDebugKey && now - state.lastDragDebugAt < 120) {
+				return;
+			}
+			state.lastDragDebugKey = dedupeKey;
+			state.lastDragDebugAt = now;
+			state.dragDebugEvents.unshift({ label, detail });
+			state.dragDebugEvents = state.dragDebugEvents.slice(0, 10);
+			renderDragDebugLog();
+		}
+
+		function showGlobalDropHint() {
+			dragOverlay.classList.add("active");
+			chatStage.classList.add("drag-active");
+			composerDropTarget.classList.add("drag-active");
+			dropZone.classList.add("drag-active");
+		}
+
+		function hideGlobalDropHint() {
+			dragOverlay.classList.remove("active");
+			chatStage.classList.remove("drag-active");
+			composerDropTarget.classList.remove("drag-active");
+			dropZone.classList.remove("drag-active");
+			state.dragDepth = 0;
+		}
+
+		function buildFileIntentMessage(attachments, sourceLabel) {
+			const source = sourceLabel === "drop" ? "拖入" : "选择";
+			return [
+				"请结合我" + source + "的 " + attachments.length + " 个文件一起处理：",
+				...attachments.map((attachment) => "- " + attachment.fileName + " (" + formatFileSize(attachment.sizeBytes) + ")"),
+			].join("\\n");
+		}
+
+		function applyFileIntentMessage(attachments, sourceLabel) {
+			if (!attachments.length) {
+				return;
+			}
+
+			const nextIntent = buildFileIntentMessage(attachments, sourceLabel);
+			const currentValue = messageInput.value.trim();
+			if (!currentValue) {
+				messageInput.value = nextIntent;
+			} else if (state.lastFileIntentMessage && messageInput.value.includes(state.lastFileIntentMessage)) {
+				messageInput.value = messageInput.value.replace(state.lastFileIntentMessage, nextIntent);
+			} else {
+				messageInput.value = messageInput.value.replace(/\\s*$/, "") + "\\n\\n" + nextIntent;
+			}
+			state.lastFileIntentMessage = nextIntent;
+			messageInput.focus();
+		}
+
+		function formatMessageWithAttachments(message, attachments) {
+			if (!attachments.length) {
+				return message;
+			}
+			return [
+				message,
+				"",
+				"\\u9644\\u4ef6:",
+				...attachments.map((attachment) => "- " + attachment.fileName + " (" + formatFileSize(attachment.sizeBytes) + ")"),
+			].join("\\n");
+		}
+
+		function appendFileDownloads(files) {
+			if (!Array.isArray(files) || files.length === 0) {
+				return;
+			}
+			const content = appendTranscriptMessage("system", "\\u6587\\u4ef6", "\\u52a9\\u624b\\u5df2\\u53d1\\u9001 " + files.length + " \\u4e2a\\u6587\\u4ef6");
+			const downloads = document.createElement("div");
+			downloads.className = "file-downloads";
+
+			for (const file of files) {
+				const item = document.createElement("div");
+				item.className = "file-download";
+				item.innerHTML = "<div><strong></strong><span></span></div><a></a>";
+				item.querySelector("strong").textContent = file.fileName || "download";
+				item.querySelector("span").textContent = (file.mimeType || "application/octet-stream") + " / " + formatFileSize(file.sizeBytes);
+				const link = item.querySelector("a");
+				link.href = file.downloadUrl;
+				link.download = file.fileName || "";
+				link.textContent = "\\u4e0b\\u8f7d";
+				downloads.appendChild(item);
+			}
+
+			content.appendChild(downloads);
+			scrollTranscriptToBottom();
 		}
 
 		function appendTranscriptMessage(kind, title, text) {
@@ -1109,6 +1537,7 @@ function getPlaygroundScript(): string {
 			transcript.innerHTML = "";
 			processFeed.innerHTML = "";
 			resetStreamingState();
+			clearSelectedFiles();
 			appendTranscriptMessage("system", "会话", "新会话已就绪");
 			appendProcessEvent("system", "会话启动", "等待新的流式任务");
 			clearError();
@@ -1160,12 +1589,13 @@ function getPlaygroundScript(): string {
 				case "done": {
 					state.receivedDoneEvent = true;
 					sessionFile.textContent = event.sessionFile || "不可用";
-					if (!state.streamingText && event.text) {
+					if (event.text && event.text !== state.streamingText) {
 						const content = ensureStreamingAssistantMessage();
 						content.innerHTML = renderMessageMarkdown(event.text);
 						hydrateMarkdownContent(content);
 						state.streamingText = event.text;
 					}
+					appendFileDownloads(event.files);
 					appendProcessEvent("ok", "任务完成", event.sessionFile || "未返回会话文件");
 					statusPill.textContent = "完成";
 					break;
@@ -1219,33 +1649,39 @@ function getPlaygroundScript(): string {
 
 		async function sendMessage() {
 			const message = messageInput.value.trim();
-			if (!message) {
+			const attachments = [...state.pendingAttachments];
+			if (!message && attachments.length === 0) {
 				showError("请输入消息");
 				return;
 			}
+			const outboundMessage = message || "\\u8bf7\\u67e5\\u770b\\u6211\\u53d1\\u9001\\u7684\\u9644\\u4ef6";
 
 			ensureConversationId();
 			clearError();
 
 			if (state.loading) {
-				await queueActiveMessage(message);
+				await queueActiveMessage(outboundMessage, attachments);
 				return;
 			}
 
 			resetStreamingState();
-			appendTranscriptMessage("user", state.conversationId, message);
-			appendProcessEvent("system", "请求已发送", message);
+			appendTranscriptMessage("user", state.conversationId, formatMessageWithAttachments(outboundMessage, attachments));
+			appendProcessEvent("system", "请求已发送", formatMessageWithAttachments(outboundMessage, attachments));
 			setLoading(true);
 
 			try {
+				const payload = {
+					conversationId: state.conversationId,
+					message: outboundMessage,
+					userId: "web-playground",
+				};
+				if (attachments.length > 0) {
+					payload.attachments = attachments;
+				}
 				const response = await fetch("/v1/chat/stream", {
 					method: "POST",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({
-						conversationId: state.conversationId,
-						message,
-						userId: "web-playground",
-					}),
+					body: JSON.stringify(payload),
 				});
 
 				if (!response.ok) {
@@ -1266,6 +1702,7 @@ function getPlaygroundScript(): string {
 
 				if (state.receivedDoneEvent) {
 					messageInput.value = "";
+					clearSelectedFiles();
 					messageInput.focus();
 				}
 			} catch (error) {
@@ -1278,20 +1715,24 @@ function getPlaygroundScript(): string {
 			}
 		}
 
-		async function queueActiveMessage(message) {
-			appendTranscriptMessage("user", state.conversationId, message);
-			appendProcessEvent("system", "消息已追加", message);
+		async function queueActiveMessage(message, attachments) {
+			appendTranscriptMessage("user", state.conversationId, formatMessageWithAttachments(message, attachments));
+			appendProcessEvent("system", "消息已追加", formatMessageWithAttachments(message, attachments));
 
 			try {
+				const payloadBody = {
+					conversationId: state.conversationId,
+					message,
+					mode: "followUp",
+					userId: "web-playground",
+				};
+				if (attachments.length > 0) {
+					payloadBody.attachments = attachments;
+				}
 				const response = await fetch("/v1/chat/queue", {
 					method: "POST",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({
-						conversationId: state.conversationId,
-						message,
-						mode: "followUp",
-						userId: "web-playground",
-					}),
+					body: JSON.stringify(payloadBody),
 				});
 
 				const payload = await response.json().catch(() => ({}));
@@ -1306,6 +1747,7 @@ function getPlaygroundScript(): string {
 				}
 
 				messageInput.value = "";
+				clearSelectedFiles();
 				messageInput.focus();
 				appendProcessEvent("ok", "消息已追加", payload.conversationId);
 			} catch (error) {
@@ -1391,6 +1833,175 @@ function getPlaygroundScript(): string {
 			appendProcessEvent("system", "会话已恢复", state.conversationId);
 		}
 
+		function hasDragPayload(event) {
+			return Boolean(event.dataTransfer);
+		}
+
+		function hasDroppedFiles(event) {
+			const dataTransfer = event.dataTransfer;
+			if (!dataTransfer) {
+				return false;
+			}
+
+			if (dataTransfer.files && dataTransfer.files.length > 0) {
+				return true;
+			}
+
+			if (Array.from(dataTransfer.items || []).some((item) => item.kind === "file")) {
+				return true;
+			}
+
+			const dragTypes = Array.from(dataTransfer.types || []);
+			if (dragTypes.some((type) => /files|application\\/x-moz-file/i.test(type))) {
+				return true;
+			}
+
+			return false;
+		}
+
+		function preventWindowFileDrop(event) {
+			pushDragDebug("window-guard", event);
+			if (!hasDragPayload(event)) {
+				return;
+			}
+			event.preventDefault();
+			setCopyDropEffect(event);
+		}
+
+		function setCopyDropEffect(event) {
+			if (event.dataTransfer) {
+				event.dataTransfer.dropEffect = "copy";
+			}
+		}
+
+		async function handleDroppedFiles(files, sourceLabel) {
+			clearError();
+			try {
+				state.pendingAttachments = await collectAttachments(files);
+				renderAttachmentList();
+				applyFileIntentMessage(state.pendingAttachments, sourceLabel);
+				appendProcessEvent("system", "文件已载入", formatMessageWithAttachments("待发送附件", state.pendingAttachments));
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "\\u6587\\u4ef6\\u8bfb\\u53d6\\u5931\\u8d25";
+				showError(messageText);
+				state.pendingAttachments = [];
+				renderAttachmentList();
+			}
+		}
+
+		function bindDropTarget(target) {
+			const scope = target.id ? "#" + target.id : describeNode(target);
+			target.addEventListener("dragenter", (event) => {
+				pushDragDebug(scope, event);
+				if (!hasDragPayload(event)) {
+					return;
+				}
+				event.preventDefault();
+				setCopyDropEffect(event);
+				showGlobalDropHint();
+			});
+
+			target.addEventListener("dragover", (event) => {
+				pushDragDebug(scope, event);
+				if (!hasDragPayload(event)) {
+					return;
+				}
+				event.preventDefault();
+				setCopyDropEffect(event);
+				showGlobalDropHint();
+			});
+
+			target.addEventListener("dragleave", (event) => {
+				pushDragDebug(scope, event);
+				const nextTarget = event.relatedTarget;
+				if (!(nextTarget instanceof Node) || !target.contains(nextTarget)) {
+					target.classList.remove("drag-active");
+				}
+			});
+
+			target.addEventListener("drop", (event) => {
+				pushDragDebug(scope, event);
+				if (!hasDragPayload(event)) {
+					return;
+				}
+				event.preventDefault();
+				hideGlobalDropHint();
+				if (hasDroppedFiles(event)) {
+					void handleDroppedFiles(event.dataTransfer.files, "drop");
+				}
+			});
+		}
+
+		document.addEventListener("dragenter", (event) => {
+			pushDragDebug("document", event);
+			if (!hasDragPayload(event)) {
+				return;
+			}
+			event.preventDefault();
+			setCopyDropEffect(event);
+			state.dragDepth += 1;
+			showGlobalDropHint();
+		}, true);
+
+		document.addEventListener("dragover", (event) => {
+			pushDragDebug("document", event);
+			if (!hasDragPayload(event)) {
+				return;
+			}
+			event.preventDefault();
+			setCopyDropEffect(event);
+			showGlobalDropHint();
+		}, true);
+
+		document.addEventListener("dragleave", (event) => {
+			pushDragDebug("document", event);
+			if (!hasDragPayload(event)) {
+				return;
+			}
+			event.preventDefault();
+			state.dragDepth = Math.max(0, state.dragDepth - 1);
+			if (state.dragDepth === 0) {
+				hideGlobalDropHint();
+			}
+		}, true);
+
+		document.addEventListener("drop", (event) => {
+			pushDragDebug("document", event);
+			if (!hasDragPayload(event)) {
+				return;
+			}
+			event.preventDefault();
+			event.stopPropagation();
+			hideGlobalDropHint();
+			if (hasDroppedFiles(event)) {
+				void handleDroppedFiles(event.dataTransfer.files, "drop");
+			}
+		}, true);
+
+		window.addEventListener("dragenter", preventWindowFileDrop);
+		window.addEventListener("dragover", preventWindowFileDrop);
+		window.addEventListener("drop", preventWindowFileDrop);
+		bindDropTarget(pageRoot);
+		bindDropTarget(pageBody);
+		bindDropTarget(chatStage);
+		bindDropTarget(composerDropTarget);
+		bindDropTarget(dropZone);
+		renderDragDebugLog();
+
+		clearDragDebugButton.addEventListener("click", () => {
+			state.dragDebugEvents = [];
+			state.lastDragDebugKey = "";
+			state.lastDragDebugAt = 0;
+			renderDragDebugLog();
+		});
+
+		fileInput.addEventListener("change", async () => {
+			await handleDroppedFiles(fileInput.files, "pick");
+			if (fileInput.files && fileInput.files.length > 5) {
+				appendProcessEvent("system", "\\u6587\\u4ef6\\u5df2\\u622a\\u65ad", "\\u4e00\\u6b21\\u6700\\u591a\\u53d1\\u9001 5 \\u4e2a\\u6587\\u4ef6");
+			}
+		});
+
 		sendButton.addEventListener("click", () => {
 			void sendMessage();
 		});
@@ -1427,6 +2038,12 @@ export function renderPlaygroundPage(): string {
 		<style>${getPlaygroundStyles()}</style>
 	</head>
 	<body>
+		<div id="drag-overlay" class="drag-overlay" aria-hidden="true">
+			<div class="drag-overlay-panel">
+				<strong>释放文件</strong>
+				<span>文件会进入当前消息，并自动补充文件处理描述</span>
+			</div>
+		</div>
 		<div class="shell">
 			<header class="topbar">
 				<div class="topbar-left">
@@ -1489,13 +2106,30 @@ export function renderPlaygroundPage(): string {
 					</aside>
 				</section>
 
-				<section class="composer">
+				<section id="composer-drop-target" class="composer">
 					<div class="composer-main">
 						<div class="composer-header">
 							<span>消息</span>
 							<span>Shift+Enter 换行</span>
 						</div>
 						<textarea id="message" name="message" placeholder="输入消息，按 Enter 发送"></textarea>
+						<div class="file-strip">
+							<div id="drop-zone" class="drop-zone">
+								<div class="drop-zone-label">
+									<span>拖入文件或点击选择</span>
+									<span>文本会随消息发送</span>
+								</div>
+								<input id="file-input" class="file-input" name="files" type="file" multiple />
+							</div>
+							<div id="file-list" class="file-list" aria-live="polite"></div>
+							<section class="drag-debug" aria-live="polite">
+								<div class="drag-debug-head">
+									<span>drag debug</span>
+									<button id="clear-drag-debug" type="button">clear</button>
+								</div>
+								<div id="drag-debug-log" class="drag-debug-log"></div>
+							</section>
+						</div>
 					</div>
 					<div class="composer-side">
 						<button id="send-button" type="button">发送</button>

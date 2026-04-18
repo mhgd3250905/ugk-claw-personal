@@ -9,6 +9,8 @@ export interface AppConfig {
 	agentDataDir: string;
 	agentSessionsDir: string;
 	conversationIndexPath: string;
+	agentFilesDir: string;
+	fileIndexPath: string;
 }
 
 export function loadApiKeyFromApiTxt(
@@ -42,6 +44,8 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 	const agentDataDir = join(dataDir, "agent");
 	const agentSessionsDir = join(agentDataDir, "sessions");
 	const conversationIndexPath = join(agentDataDir, "conversation-index.json");
+	const agentFilesDir = join(agentDataDir, "files");
+	const fileIndexPath = join(agentDataDir, "file-index.json");
 
 	return {
 		host: process.env.HOST ?? "127.0.0.1",
@@ -51,5 +55,7 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 		agentDataDir,
 		agentSessionsDir,
 		conversationIndexPath,
+		agentFilesDir,
+		fileIndexPath,
 	};
 }

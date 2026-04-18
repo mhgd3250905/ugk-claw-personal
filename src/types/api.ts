@@ -2,12 +2,29 @@ export interface ChatRequestBody {
 	conversationId?: string;
 	message: string;
 	userId?: string;
+	attachments?: ChatAttachmentBody[];
 }
 
 export interface ChatResponseBody {
 	conversationId: string;
 	text: string;
 	sessionFile?: string;
+	files?: ChatFileBody[];
+}
+
+export interface ChatAttachmentBody {
+	fileName: string;
+	mimeType?: string;
+	sizeBytes?: number;
+	text?: string;
+}
+
+export interface ChatFileBody {
+	id: string;
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	downloadUrl: string;
 }
 
 export interface DebugSkillsResponseBody {
@@ -24,6 +41,7 @@ export interface QueueMessageRequestBody {
 	message: string;
 	mode: QueueMessageMode;
 	userId?: string;
+	attachments?: ChatAttachmentBody[];
 }
 
 export interface QueueMessageResponseBody {
@@ -85,6 +103,7 @@ export type ChatStreamEvent =
 			conversationId: string;
 			text: string;
 			sessionFile?: string;
+			files?: ChatFileBody[];
 	  }
 	| {
 			type: "error";

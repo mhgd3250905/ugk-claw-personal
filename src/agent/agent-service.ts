@@ -11,17 +11,26 @@ import type {
 	ToolExecutionUpdateEventLike,
 } from "./agent-session-factory.js";
 import type { ChatStreamEvent, QueueMessageMode } from "../types/api.js";
+import {
+	buildPromptWithFileContext,
+	extractAgentFileDrafts,
+	type AgentFileArtifact,
+	type ChatAttachment,
+	type FileArtifactStoreLike,
+} from "./file-artifacts.js";
 
 export interface ChatInput {
 	conversationId?: string;
 	message: string;
 	userId?: string;
+	attachments?: ChatAttachment[];
 }
 
 export interface ChatResult {
 	conversationId: string;
 	text: string;
 	sessionFile?: string;
+	files?: AgentFileArtifact[];
 }
 
 export interface QueueMessageInput {
@@ -29,6 +38,7 @@ export interface QueueMessageInput {
 	message: string;
 	mode: QueueMessageMode;
 	userId?: string;
+	attachments?: ChatAttachment[];
 }
 
 export interface QueueMessageResult {
@@ -56,6 +66,7 @@ export interface RuntimeSkillInfo {
 export interface AgentServiceOptions {
 	conversationStore: ConversationStore;
 	sessionFactory: AgentSessionFactory;
+	fileArtifactStore?: FileArtifactStoreLike;
 }
 
 export class AgentService {
@@ -92,7 +103,11 @@ export class AgentService {
 			};
 		}
 
-		await activeRun.session.prompt(input.message, {
+		const message =
+			input.attachments && input.attachments.length > 0
+				? buildPromptWithFileContext(input.message, input.attachments)
+				: input.message;
+		await activeRun.session.prompt(message, {
 			streamingBehavior: input.mode,
 		});
 
@@ -188,7 +203,7 @@ export class AgentService {
 		});
 
 		try {
-			await session.prompt(input.message);
+			await session.prompt(buildPromptWithFileContext(input.message, input.attachments));
 		} finally {
 			unsubscribe();
 			if (this.activeRuns.get(conversationId) === activeRun) {
@@ -203,6 +218,16 @@ export class AgentService {
 
 		if (!text) {
 			text = this.extractAssistantText(lastAssistantMessage);
+		}
+
+		let files: AgentFileArtifact[] | undefined;
+		if (this.options.fileArtifactStore) {
+			const extractedFiles = extractAgentFileDrafts(text);
+			text = extractedFiles.text;
+			files =
+				extractedFiles.files.length > 0
+					? await this.options.fileArtifactStore.saveFiles(conversationId, extractedFiles.files)
+					: undefined;
 		}
 
 		if (session.sessionFile) {
@@ -222,14 +247,19 @@ export class AgentService {
 			conversationId,
 			text,
 			sessionFile: session.sessionFile,
+			files: files && files.length > 0 ? files : undefined,
 		};
 
-		onEvent?.({
+		const doneEvent: ChatStreamEvent = {
 			type: "done",
 			conversationId: result.conversationId,
 			text: result.text,
 			sessionFile: result.sessionFile,
-		});
+		};
+		if (result.files) {
+			doneEvent.files = result.files;
+		}
+		onEvent?.(doneEvent);
 
 		return result;
 	}

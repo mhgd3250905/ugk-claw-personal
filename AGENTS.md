@@ -75,8 +75,11 @@
 - 默认本地验证入口只保留 `http://127.0.0.1:3000/playground`；如果发现 `3000` 和 `3101` 同时监听，先关掉临时 `3101`，别让旧预览进程污染判断
 - playground 当前品牌是 `UGK Claw`，顶部是 ASCII 柯基字符画，界面文案已中文化
 - playground 已使用 bundled Agave 字体，字体文件在 `public/fonts/`，通过 `GET /assets/fonts/:fileName` 暴露
+- playground 支持随消息选择或拖入最多 5 个文件；拖入/选择后会自动给输入框补一段文件意图描述，文本类文件会通过 JSON `attachments` 把内容交给 agent，二进制文件只传文件名、类型和大小
+- playground 输入区下方常驻 `drag debug` 调试条，会显示最近的 `dragenter` / `dragover` / `drop` 事件、`dataTransfer.types/files/items` 与 `dropEffect/effectAllowed`，专门用于排查 Chrome 拖放兼容性
 - playground 只保留 `发送` 和 `打断` 两个核心控件；运行中继续发送就是追加到当前会话后续队列，语义固定为 `followUp`
 - 后端仍保留 `POST /v1/chat/queue` 的 `steer` / `followUp` 两种 mode 作为 API 兼容能力；`POST /v1/chat/interrupt` 会调用底层 `session.abort()`
+- agent 回复中的 `ugk-file` fenced block 会被提取为可下载文件，落盘到 `.data/agent/files` 并通过 `GET /v1/files/:fileId` 下载
 - `web-access` 用户技能已修宿主机浏览器桥接兜底：IPC 没响应时会走 Chrome/Edge CDP，开发容器内会解析宿主机 IP 并重写 CDP WebSocket 地址
 
 ## Execution Boundary
@@ -100,6 +103,7 @@
 - playground 已命名为 `UGK Claw`，顶部使用 ASCII 柯基字符画作为标识，界面文案已中文化
 - playground 控制已简化为 `发送` 和 `打断`，运行中继续发送消息会统一追加到当前会话后续队列
 - 默认本地验证入口是 `127.0.0.1:3000`；临时预览端口如 `3101` 不应长期保留
+- playground 拖放监听已扩到 `window/document/html/body/chat-stage/composer/drop-zone`，并在 `dragenter/dragover` 显式设置 `dropEffect = "copy"`；当前已知现象是 Edge 正常、部分 Chrome profile 可能仍显示禁止图标
 - playground 聊天气泡已支持安全的 Markdown 渲染，当前覆盖标题、列表、粗斜体、引用、链接、行内代码和代码块，代码块带语言标签与复制按钮
 - playground Markdown 渲染函数注入浏览器脚本时会剥离 `tsx`/esbuild 的 `__name()` helper，避免页面初始化失败导致 `发送` 按钮无反应
 - Windows 下 agent 调用 `bash` 工具时已启用隐藏控制台窗口，避免弹出黑框
@@ -129,6 +133,7 @@
   - `GET /healthz`
   - `GET /assets/fonts/:fileName`
   - `GET /playground`
+  - `GET /v1/files/:fileId`
   - `GET /v1/debug/skills`
   - `POST /v1/chat`
   - `POST /v1/chat/stream`
@@ -165,12 +170,15 @@
   - subagent profile 来自 `.pi/agents` 与 `runtime/agents-user`，用户层覆盖系统层
 - `Persistence Layer`
   - `ConversationStore` 维护 `conversationId -> sessionFile` 映射
+  - `FileArtifactStore` 维护 agent 生成文件的落盘文件与下载索引
   - 持久化路径在 `.data/agent/`
 - `Playground UI`
   - 用于本地测试 agent 行为
   - 当前为深色、极客、零圆角、中心聚焦布局
   - 左侧展示对话流，右侧展示实时过程流
   - 消息区和过程区分别内部滚动，输入区固定在底部
+  - 支持选择或拖入文件随消息发送，拖入后自动补充文件意图描述，并展示 agent 返回文件的下载卡片
+  - 提供常驻 `drag debug` 调试条，显示最近拖放事件和 `dataTransfer` 摘要，方便排查 Chrome / Edge 差异
 - `Container Runtime`
   - 仓库提供 `Dockerfile`、`docker-compose.yml`、`.dockerignore`
   - Windows/macOS 推荐通过 Linux 容器运行，Linux 容器优先、裸跑兼容
@@ -203,13 +211,21 @@
 - `src/routes/assets.ts`
   - 提供 `GET /assets/fonts/:fileName`
   - 仅允许读取 `public/fonts/` 下的 `.ttf` 字体文件
+- `src/routes/files.ts`
+  - 提供 `GET /v1/files/:fileId`
+  - 只从 `FileArtifactStore` 管理的索引读取 agent 生成文件，不暴露任意本地路径
 - `src/config.ts`
   - 提供应用运行配置
   - 负责从 `api.txt` 自动加载 `DASHSCOPE_CODING_API_KEY`
+  - 提供 `.data/agent/files` 与 `.data/agent/file-index.json` 路径
 - `src/agent/agent-service.ts`
   - 对话主服务
   - 负责 session 选择、响应聚合、流式事件映射、错误处理、结果持久化
   - 负责 active run 管理、运行中消息队列和打断控制
+  - 负责把用户 `attachments` 注入 prompt，并把 assistant 的 `ugk-file` 输出转成下载文件
+- `src/agent/file-artifacts.ts`
+  - 定义聊天附件与 agent 文件产物结构
+  - 负责文件响应协议、文件名清洗、文件落盘、索引读写和下载元数据
 - `src/agent/agent-session-factory.ts`
   - 基于 `pi-coding-agent` 创建/打开 session
   - 暴露消息更新、队列更新与工具执行相关事件类型
@@ -377,6 +393,11 @@
 - 已将字体资产路由从 `src/server.ts` 拆到 `src/routes/assets.ts`，让 server 只负责服务装配
 - 已收敛 `src/routes/chat.ts` 的重复 500 错误响应逻辑
 - 已将 agent raw event 处理改为类型守卫，避免靠硬转型吞掉未知事件
+- 已为 `POST /v1/chat`、`POST /v1/chat/stream` 和 `POST /v1/chat/queue` 增加 JSON `attachments`，让 agent 能收到用户随消息发送的文件意图和文本内容
+- 已增加 `FileArtifactStore` 与 `GET /v1/files/:fileId`，支持把 assistant 的 `ugk-file` fenced block 提取为可下载文件
+- 已让 playground 支持选择/拖入文件、自动补充文件意图描述、展示待发送附件，并展示 agent 返回文件的下载卡片
+- 已把 playground 拖放监听扩到 `window/document/html/body/chat-stage/composer/drop-zone`，并在拖放阶段显式设置 `dropEffect = "copy"`，减少 Chrome 在 Windows 下把外部文件显示成禁止图标的概率
+- 已给 playground 增加常驻 `drag debug` 调试条，可直接观察浏览器是否把拖放事件交给页面，以及 `dataTransfer` 里到底带了什么
 - 已清理根目录旧 `skills/`、`.tmp/` 与 `.codex/tmp/` 临时残留，并将 `api.txt`、`node_modules/`、`runtime/pi-agent/auth.json` 等写入 `.gitignore`
 - 已修复用户层 `web-access` 在宿主机 IPC 浏览器桥接无 responder 时只能超时失败的问题，新增本机 Chrome/Edge CDP 兜底
 - 已修复 Docker 容器内 `web-access` 因没有浏览器、且不能直接使用 `host.docker.internal` 作为 Chrome DevTools Host header 而误判“当前环境没有浏览器”的问题
@@ -421,6 +442,10 @@
   - `.data/agent/conversation-index.json`
 - agent session 文件：
   - `.data/agent/sessions/`
+- agent 生成文件：
+  - `.data/agent/files/`
+- 文件下载索引：
+  - `.data/agent/file-index.json`
 - 这层映射是为 IM 接入准备的
 - 不要偷懒改成“只记最近一个 session”，那是给后面挖坑
 
@@ -429,8 +454,10 @@
 - 最近一次完整验证：
   - `npx tsc --noEmit`
   - `npm run test`
-  - 结果：类型检查通过，`49 / 49` 测试通过
-- 本次 README / AGENTS 接手文档补全后已复跑上述两项验证，结果仍为类型检查通过、`49 / 49` 测试通过
+  - 结果：类型检查通过，`53 / 53` 测试通过
+- 本次拖放兼容性与 `drag debug` 面板更新后已复跑上述两项验证，结果仍为类型检查通过、`53 / 53` 测试通过
+- 本次文件发送功能新增后已复跑上述两项验证，结果为类型检查通过、`53 / 53` 测试通过
+- 此前 README / AGENTS 接手文档补全后也复跑过上述两项验证，当时结果为类型检查通过、`49 / 49` 测试通过
 - 本次 provider 修复：
   - 已新增项目内 `runtime/pi-agent/models.json`
   - 已追加 `test/agent-session-factory.test.ts` 与 `test/subagent.test.ts` 的 provider 回归断言
@@ -443,6 +470,13 @@
   - `POST /v1/chat/stream`
   - `POST /v1/chat/queue`
   - `POST /v1/chat/interrupt`
+  - `GET /v1/files/:fileId`
+  - `POST /v1/chat` 可把 JSON `attachments` 透传给 `AgentService`
+  - `AgentService.chat()` 会把上传附件注入 session prompt
+  - `AgentService.chat()` 会把 assistant 的 `ugk-file` fenced block 转成下载文件并从可见文本移除
+  - playground HTML 包含文件选择/拖放、自动文件意图描述、附件列表、文件下载卡片和 `attachments` 请求体逻辑
+  - playground HTML 包含 `drag debug` 调试条、`pushDragDebug()`、`summarizeDataTransfer()`、`renderDragDebugLog()` 以及 `clear-drag-debug` 清空按钮
+  - playground HTML 包含 `bindDropTarget(pageRoot)`、`bindDropTarget(pageBody)` 与 `setCopyDropEffect()`，说明根节点拖放监听和 `dropEffect = "copy"` 已下发到页面
   - `AgentService.queueMessage()` 对 active run 调用 `session.prompt(message, { streamingBehavior })`
   - `AgentService.interruptChat()` 对 active run 调用 `session.abort()`
   - playground transcript Markdown 渲染、HTML 转义、代码块工具栏与复制按钮注入
@@ -500,6 +534,8 @@
 
 - 如果 `GET /playground` 看起来还是旧页面，优先怀疑旧 `node` 进程没重启；开发容器场景先跑 `docker compose restart ugk-pi`，不要立刻另开新端口绕过去
 - 如果发现 `3000` 和 `3101` 同时监听，优先关闭临时预览进程，只保留默认 `3000`；多开端口只会把验证结论搅浑
+- 如果 Edge 能拖、另一个 Chrome 也能拖，只有某个 Chrome profile 显示禁止图标，优先怀疑该 profile 的扩展、站点权限、缓存或企业策略，而不是立刻回头甩锅给 playground
+- 排查 Chrome 拖放时先看输入区下方的 `drag debug` 调试条：如果一条事件都没有，说明浏览器层就把拖放拦了；如果有 `dragenter/dragover` 但没有 `drop`，优先怀疑浏览器或扩展抢占；如果 `types/files/items` 为空，再看浏览器实际传了什么 payload
 - 如果 playground 点击 `发送` 没反应，先打开浏览器控制台；若看到 `ReferenceError: __name is not defined`，说明有服务端函数通过 `Function.toString()` 注入浏览器脚本时带进了 `tsx`/esbuild helper，需要在 `src/ui/playground.ts` 的脚本拼装处剥离 helper，而不是继续怀疑按钮坏了
 - 如果前端发送后没回复，优先检查：
   - provider 是否可用
@@ -510,6 +546,9 @@
 - 如果运行中追加返回 `not_running`，说明该 `conversationId` 当前没有 active run；先确认 playground 或客户端没有换 conversation
 - 如果打断返回 `abort_not_supported`，说明底层 session 实例没有暴露 `abort()`，优先检查 `@mariozechner/pi-coding-agent` 版本和 `AgentSessionLike` 适配
 - 如果运行中发送的消息没在当前轮结束后继续执行，先检查 playground 是否调用了 `/v1/chat/queue` 且 `mode` 为 `followUp`，再看流式事件里有没有 `queue_updated`
+- 如果上传文件后 agent 像没收到，先看请求体里是否真的有 `attachments`；文本文件应包含 `text` 字段，二进制文件目前只会传元数据，别又怪模型不会读空气
+- 如果 agent 说发了文件但页面没有下载卡片，先检查回复里是否用了完整的 ````ugk-file name="..." mime="..."```` fenced block，再看 SSE `done.files`
+- 如果 `GET /v1/files/:fileId` 返回 404，先检查 `.data/agent/file-index.json` 是否有该 id，以及 `.data/agent/files/` 里的落盘文件是否还在
 - 如果 Agave 字体没生效，先请求 `/assets/fonts/Agave-Regular.ttf`，再检查浏览器是否缓存旧 playground HTML
 - 如果 Windows 下调用 `bash` 仍然弹黑框，优先检查是否跑的是旧进程，或当前 session 没有加载项目级 `.pi/extensions/project-guard.ts`
 - 如果 Windows 下调用 `bash` 仍然弹黑框，也要检查是否有其他地方重新引入了 `detached: true`
@@ -605,6 +644,10 @@
 - playground 增加运行中追加发送和 `打断` 控件，随后移除 queue mode 下拉以降低 UI 复杂度
 - playground 改名为 `UGK Claw`，增加 ASCII 柯基标识，并将可见界面文案中文化
 - 增加运行中队列/打断相关 AgentService 与 HTTP 路由测试
+- 增加聊天附件输入：`POST /v1/chat`、`POST /v1/chat/stream`、`POST /v1/chat/queue` 支持 JSON `attachments`
+- 增加 agent 文件输出协议：assistant 回复 `ugk-file` fenced block 后，后端提取为 `.data/agent/files` 中的下载文件
+- 增加 `GET /v1/files/:fileId` 下载路由和 `FileArtifactStore` 文件索引
+- playground 增加文件选择/拖放、自动文件意图描述、待发送附件展示和 agent 返回文件下载卡片
 - 修复 `.pi` 扩展 TypeScript spawn 类型问题，并补充 `.mjs` 测试声明
 - 拆分 `src/routes/assets.ts`，让字体资产路由离开 `src/server.ts`
 - 收敛聊天路由错误处理与 agent event 类型守卫
