@@ -26,6 +26,15 @@
 - 判断“当前到底加载了哪些技能”，以 `GET /v1/debug/skills` 为准，不要信模型自己编的名单
 - 开发阶段优先使用开发容器，生产容器只用于部署验证
 
+近期功能速记，给后续 `/init` 直接续上上下文：
+
+- 默认本地测试入口是 `http://127.0.0.1:3000/playground`；不要长期另开 `3101` 这类临时端口，开了就收尾关掉，别把机器当端口垃圾场
+- playground 当前品牌是 `UGK Claw`，顶部是 ASCII 柯基字符画，界面文案已中文化
+- playground 使用项目内 bundled Agave 字体，文件在 `public/fonts/`，由 `GET /assets/fonts/:fileName` 暴露
+- 界面只保留 `发送` 和 `打断` 两个核心控件；运行中再次点击 `发送` 统一视为 `followUp` 追加，不再给用户暴露 `steer` / `followUp` 选择
+- API 仍保留 `POST /v1/chat/queue` 的 `steer` / `followUp` 两种 mode 作为兼容能力；`POST /v1/chat/interrupt` 会打断当前 active run，之后同一 `conversationId` 可继续发消息
+- 用户层 `web-access` 已修复宿主机浏览器桥接兜底：IPC 没响应时会尝试本机 Chrome/Edge CDP，开发容器内会改走宿主机 CDP 地址
+
 ## 参考基线
 
 - 官方仓库：`https://github.com/badlogic/pi-mono`
@@ -184,13 +193,13 @@ pi
 
 当前项目已经有一个最小可运行的 HTTP API agent 骨架，底层复用 `pi-coding-agent` 的 session、资源加载和项目级 `.pi/` 资源。
 
-现在除了同步聊天接口，还提供了一个流式过程接口，`playground` 会把 agent 的工具调用、文本增量和完成事件实时滚动展示出来。界面只保留 `send` 和 `interrupt`：运行中继续发送消息会追加到当前会话后续队列，点 `interrupt` 会中止当前 run，随后继续沿用同一 `conversationId` 发消息。
+现在除了同步聊天接口，还提供了一个流式过程接口，`playground` 会把 agent 的工具调用、文本增量和完成事件实时滚动展示出来。界面只保留 `发送` 和 `打断`：运行中继续发送消息会追加到当前会话后续队列，点 `打断` 会中止当前 run，随后继续沿用同一 `conversationId` 发消息。
 
 `playground` 的聊天气泡已经支持安全 Markdown 渲染，覆盖标题、列表、引用、粗斜体、链接、行内代码和代码块。代码块会显示语言标签并提供复制按钮；HTML 会先转义，避免把 agent 输出当成页面脚本执行。
 
 `playground` 当前名为 `UGK Claw`，界面已中文化，顶部使用一个 ASCII 柯基字符画作为标识。字体使用 bundled Agave，字体文件来自 `https://github.com/blobject/agave` 的 `dist` 产物，并通过 `/assets/fonts/:fileName` 对外提供。字体资产放在 `public/fonts/`，别又把它塞进 CDN 或运行时下载，离线本地测试会直接翻车。
 
-最近一次前端修复也记录在这里：Markdown 渲染函数会被服务端注入到浏览器脚本里，注入前会剥离 `tsx`/esbuild 生成的 `__name()` helper。否则浏览器会报 `ReferenceError: __name is not defined`，页面初始化失败后 `Send` 按钮看起来就像没反应。这个坑很隐蔽，属于“按钮背锅，脚本先死”的经典冤案。
+最近一次前端修复也记录在这里：Markdown 渲染函数会被服务端注入到浏览器脚本里，注入前会剥离 `tsx`/esbuild 生成的 `__name()` helper。否则浏览器会报 `ReferenceError: __name is not defined`，页面初始化失败后 `发送` 按钮看起来就像没反应。这个坑很隐蔽，属于“按钮背锅，脚本先死”的经典冤案。
 
 ### 启动
 
@@ -511,11 +520,11 @@ curl http://127.0.0.1:3000/playground
 浏览器手动验证：
 
 1. 打开 `http://127.0.0.1:3000/playground`
-2. 输入一条短消息，例如 `测试 Send 是否正常，请只回复 OK。`
-3. 点击 `send`
-4. 运行中继续输入消息并点击 `send`，这条消息会追加到当前会话后续队列
-5. 点击 `interrupt` 可中止当前 run，随后继续用同一 conversation 发新消息
-6. 确认右侧出现 `REQUEST QUEUED`、`RUN STARTED`、`QUEUE UPDATED`、`RUN COMPLETE` 或 `RUN INTERRUPTED`
+2. 输入一条短消息，例如 `测试发送是否正常，请只回复 OK。`
+3. 点击 `发送`
+4. 运行中继续输入消息并点击 `发送`，这条消息会追加到当前会话后续队列
+5. 点击 `打断` 可中止当前 run，随后继续用同一 conversation 发新消息
+6. 确认右侧出现 `任务开始`、`队列更新`、`任务完成` 或 `任务已打断`
 7. 确认字体为 Agave，网络里可看到 `/assets/fonts/Agave-Regular.ttf`
 8. 确认网络里 `POST /v1/chat/stream` 返回 `200`
 9. 确认左侧 agent 回复出现 `OK`
@@ -655,10 +664,11 @@ pi -p "Reply with exactly PROJECT_DEFAULT_OK"
 - `POST /v1/chat/interrupt`
 - `GET /playground` 实时展示 agent 过程流
 - playground 使用 bundled Agave 字体
-- playground 只保留 `send` 和 `interrupt`，运行中再次发送会统一追加到后续队列
+- playground 品牌为 `UGK Claw`，中文界面，顶部使用 ASCII 柯基字符画
+- playground 只保留 `发送` 和 `打断`，运行中再次发送会统一追加到后续队列
 - playground transcript 安全 Markdown 渲染
 - playground 代码块语言标签与复制按钮
-- playground `Send` 无响应的 `__name()` helper 回归修复
+- playground `发送` 无响应的 `__name()` helper 回归修复
 - 字体资产路由已拆到 `src/routes/assets.ts`，`src/server.ts` 只负责服务装配
 - 聊天路由错误响应已收敛，agent 运行时事件处理改为类型守卫
 - conversation 到 session 的持久化映射

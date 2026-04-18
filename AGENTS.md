@@ -70,6 +70,15 @@
 - 用户新增或覆盖 subagent 定义后，下一次 `subagent` 调用就应生效
 - 开发阶段优先用开发容器；生产容器不是给你边改边玩的
 
+近期功能速记，方便后续 `/init` 快速续上：
+
+- 默认本地验证入口只保留 `http://127.0.0.1:3000/playground`；如果发现 `3000` 和 `3101` 同时监听，先关掉临时 `3101`，别让旧预览进程污染判断
+- playground 当前品牌是 `UGK Claw`，顶部是 ASCII 柯基字符画，界面文案已中文化
+- playground 已使用 bundled Agave 字体，字体文件在 `public/fonts/`，通过 `GET /assets/fonts/:fileName` 暴露
+- playground 只保留 `发送` 和 `打断` 两个核心控件；运行中继续发送就是追加到当前会话后续队列，语义固定为 `followUp`
+- 后端仍保留 `POST /v1/chat/queue` 的 `steer` / `followUp` 两种 mode 作为 API 兼容能力；`POST /v1/chat/interrupt` 会调用底层 `session.abort()`
+- `web-access` 用户技能已修宿主机浏览器桥接兜底：IPC 没响应时会走 Chrome/Edge CDP，开发容器内会解析宿主机 IP 并重写 CDP WebSocket 地址
+
 ## Execution Boundary
 
 - 当前仓库还没有明确业务领域和正式产品边界
@@ -89,9 +98,10 @@
 - playground 已支持流式展示 agent 执行过程，工具调用和文本增量会实时滚动
 - playground 已切换为 bundled Agave 字体，字体文件位于 `public/fonts/` 并通过 `/assets/fonts/:fileName` 暴露
 - playground 已命名为 `UGK Claw`，顶部使用 ASCII 柯基字符画作为标识，界面文案已中文化
-- playground 控制已简化为 `send` 和 `interrupt`，运行中继续发送消息会统一追加到当前会话后续队列
+- playground 控制已简化为 `发送` 和 `打断`，运行中继续发送消息会统一追加到当前会话后续队列
+- 默认本地验证入口是 `127.0.0.1:3000`；临时预览端口如 `3101` 不应长期保留
 - playground 聊天气泡已支持安全的 Markdown 渲染，当前覆盖标题、列表、粗斜体、引用、链接、行内代码和代码块，代码块带语言标签与复制按钮
-- playground Markdown 渲染函数注入浏览器脚本时会剥离 `tsx`/esbuild 的 `__name()` helper，避免页面初始化失败导致 `Send` 按钮无反应
+- playground Markdown 渲染函数注入浏览器脚本时会剥离 `tsx`/esbuild 的 `__name()` helper，避免页面初始化失败导致 `发送` 按钮无反应
 - Windows 下 agent 调用 `bash` 工具时已启用隐藏控制台窗口，避免弹出黑框
 - Windows 下的 `bash` 工具不会以 detached 模式启动，否则按 Node 官方行为会创建独立 console window
 - agent session 的 skill 加载已切到白名单模式，默认只允许项目内 `.pi/skills`
@@ -359,10 +369,10 @@
 - 已让 subagent 子进程通过 `PI_CODING_AGENT_DIR` 显式指向项目内 agent 目录，和主 session 共用同一份 provider 定义
 - 已修复 Windows 下 subagent CLI 入口解析，`resolvePiCliEntry()` 现在会正确把 file URL 转成本地路径
 - 已为 playground 聊天气泡补上安全 Markdown 渲染与代码块复制按钮，不再把 agent 的 Markdown 原样当纯文本吐出来
-- 已修复 playground Markdown 渲染函数注入时携带 `__name()` helper，导致浏览器端 `ReferenceError` 并让 `Send` 按钮无反应的问题
+- 已修复 playground Markdown 渲染函数注入时携带 `__name()` helper，导致浏览器端 `ReferenceError` 并让 `发送` 按钮无反应的问题
 - 已将 playground 字体切换为 bundled Agave，避免依赖外部 CDN 或用户本机字体
 - 已将 playground 标题改为 `UGK Claw`，补充 ASCII 柯基字符画，并将主要界面文案中文化
-- 已将 playground 运行中控制收敛为 `send` 与 `interrupt`，移除 queue mode 下拉选择
+- 已将 playground 运行中控制收敛为 `发送` 与 `打断`，移除 queue mode 下拉选择
 - 已为 `.pi/extensions/project-guard.ts` 与 `.pi/extensions/subagent/index.ts` 补齐 TypeScript spawn 类型，`npx tsc --noEmit` 不再被旧类型债卡住
 - 已将字体资产路由从 `src/server.ts` 拆到 `src/routes/assets.ts`，让 server 只负责服务装配
 - 已收敛 `src/routes/chat.ts` 的重复 500 错误响应逻辑
@@ -420,6 +430,7 @@
   - `npx tsc --noEmit`
   - `npm run test`
   - 结果：类型检查通过，`49 / 49` 测试通过
+- 本次 README / AGENTS 接手文档补全后已复跑上述两项验证，结果仍为类型检查通过、`49 / 49` 测试通过
 - 本次 provider 修复：
   - 已新增项目内 `runtime/pi-agent/models.json`
   - 已追加 `test/agent-session-factory.test.ts` 与 `test/subagent.test.ts` 的 provider 回归断言
@@ -435,7 +446,7 @@
   - `AgentService.queueMessage()` 对 active run 调用 `session.prompt(message, { streamingBehavior })`
   - `AgentService.interruptChat()` 对 active run 调用 `session.abort()`
   - playground transcript Markdown 渲染、HTML 转义、代码块工具栏与复制按钮注入
-  - playground HTML 包含 `UGK Claw`、ASCII 柯基字符画、中文界面文案、Agave 字体、固定 `followUp` 追加请求、interrupt button 与新控制接口
+  - playground HTML 包含 `UGK Claw`、ASCII 柯基字符画、中文界面文案、Agave 字体、固定 `followUp` 追加请求、`打断` 按钮与新控制接口
   - 默认入口 `127.0.0.1:3000` 验证 `GET /healthz`、`GET /assets/fonts/Agave-Regular.ttf` 与 `GET /playground`
   - skill 白名单 loader 仅加载允许路径中的 skill
   - 系统预装技能 `skill-creator`、`find-skills`、`frontend-design` 已被白名单 loader 识别
@@ -461,7 +472,7 @@
   - 容器内 `POST /v1/chat` 可成功返回结果，不再报 `No API key found for unknown`
   - 本机 `POST /v1/chat` 可成功触发 `subagent scout` 调研 session 复用链路
 - playground 真机发送消息
-- playground 真机点击 `Send` 可触发 `POST /v1/chat/stream` 并收到 `OK` 流式回复
+- playground 真机点击 `发送` 可触发 `POST /v1/chat/stream` 并收到 `OK` 流式回复
 - playground HTML 不再包含会让浏览器崩溃的 `__name()` helper
 - 用户层 `web-access` 的 `check-deps.mjs` 可在 IPC responder 不存在时回退到本机 Chrome CDP，并启动/复用 `http://127.0.0.1:9222`
 - `web-access` 本机代理 `GET /targets` 可返回本机 Chrome page target
@@ -480,19 +491,22 @@
   - 发送一条短消息
   - 确认 `sessionFile` 有值
   - 确认左侧消息区内部滚动，而不是整页向下增长
-  - 确认右侧过程面板出现 `run started`、`tool start`、`tool end`、`run complete`
-  - 确认输入区和发送按钮始终固定在底部可见
+  - 运行中继续点击 `发送`，确认右侧过程面板出现 `队列更新`
+  - 点击 `打断`，确认右侧过程面板出现 `任务已打断`
+  - 确认右侧过程面板出现 `任务开始`、`工具开始`、`工具完成`、`任务完成`
+  - 确认输入区、`发送` 和 `打断` 按钮始终固定在底部可见
 
 ## Recovery Notes
 
-- 如果 `GET /playground` 看起来还是旧页面，优先怀疑旧 `node` 进程没重启
-- 如果 playground 点击 `Send` 没反应，先打开浏览器控制台；若看到 `ReferenceError: __name is not defined`，说明有服务端函数通过 `Function.toString()` 注入浏览器脚本时带进了 `tsx`/esbuild helper，需要在 `src/ui/playground.ts` 的脚本拼装处剥离 helper，而不是继续怀疑按钮坏了
+- 如果 `GET /playground` 看起来还是旧页面，优先怀疑旧 `node` 进程没重启；开发容器场景先跑 `docker compose restart ugk-pi`，不要立刻另开新端口绕过去
+- 如果发现 `3000` 和 `3101` 同时监听，优先关闭临时预览进程，只保留默认 `3000`；多开端口只会把验证结论搅浑
+- 如果 playground 点击 `发送` 没反应，先打开浏览器控制台；若看到 `ReferenceError: __name is not defined`，说明有服务端函数通过 `Function.toString()` 注入浏览器脚本时带进了 `tsx`/esbuild helper，需要在 `src/ui/playground.ts` 的脚本拼装处剥离 helper，而不是继续怀疑按钮坏了
 - 如果前端发送后没回复，优先检查：
   - provider 是否可用
   - API key 是否存在
   - `session.messages` 中是否有最终 assistant error
 - 如果 agent 看起来“能运行但空回复”，先排查是否只监听了 `text_delta`
-- 如果流式面板只有 `run started` 没有后续事件，优先检查 provider 延迟、工具是否被阻断、以及浏览器是否连到了旧进程
+- 如果流式面板只有 `任务开始` 或底层 `run started` 没有后续事件，优先检查 provider 延迟、工具是否被阻断、以及浏览器是否连到了旧进程
 - 如果运行中追加返回 `not_running`，说明该 `conversationId` 当前没有 active run；先确认 playground 或客户端没有换 conversation
 - 如果打断返回 `abort_not_supported`，说明底层 session 实例没有暴露 `abort()`，优先检查 `@mariozechner/pi-coding-agent` 版本和 `AgentSessionLike` 适配
 - 如果运行中发送的消息没在当前轮结束后继续执行，先检查 playground 是否调用了 `/v1/chat/queue` 且 `mode` 为 `followUp`，再看流式事件里有没有 `queue_updated`
@@ -588,10 +602,12 @@
 - 增加 `/assets/fonts/:fileName` 字体资产路由
 - 增加 `POST /v1/chat/queue`，playground 运行中发送统一追加为 `followUp`
 - 增加 `POST /v1/chat/interrupt`，支持中止 active run 后继续同一会话
-- playground 增加运行中追加发送和 interrupt 控件，随后移除 queue mode 下拉以降低 UI 复杂度
+- playground 增加运行中追加发送和 `打断` 控件，随后移除 queue mode 下拉以降低 UI 复杂度
 - playground 改名为 `UGK Claw`，增加 ASCII 柯基标识，并将可见界面文案中文化
 - 增加运行中队列/打断相关 AgentService 与 HTTP 路由测试
 - 修复 `.pi` 扩展 TypeScript spawn 类型问题，并补充 `.mjs` 测试声明
 - 拆分 `src/routes/assets.ts`，让字体资产路由离开 `src/server.ts`
 - 收敛聊天路由错误处理与 agent event 类型守卫
 - 清理无用本地残留目录，并强化 `.gitignore` 对敏感/生成文件的排除
+- 关闭临时 `3101` 预览口径，默认本地验证入口统一回到 `127.0.0.1:3000`
+- 补齐 README 与 AGENTS 的近期功能速记、中文 UI 验证步骤和后续 `/init` 接手说明
