@@ -2109,6 +2109,23 @@ function getPlaygroundScript(): string {
 
 		messageInput.placeholder = "Enter terminal command or query neural core...";
 
+		function createBrowserId() {
+			const cryptoApi = globalThis.crypto;
+			if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
+				return cryptoApi.randomUUID();
+			}
+			if (cryptoApi && typeof cryptoApi.getRandomValues === "function") {
+				const bytes = new Uint8Array(16);
+				cryptoApi.getRandomValues(bytes);
+				return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+			}
+			return Date.now().toString(36) + Math.random().toString(36).slice(2);
+		}
+
+		function createConversationId() {
+			return "manual:web-" + createBrowserId().replace(/[^a-z0-9]/gi, "").slice(0, 12);
+		}
+
 		function setStageMode(next) {
 			state.stageMode = next;
 			shell.dataset.stageMode = next;
@@ -2144,7 +2161,7 @@ function getPlaygroundScript(): string {
 
 		function ensureConversationId() {
 			if (!conversationInput.value.trim()) {
-				conversationInput.value = "manual:web-" + crypto.randomUUID().slice(0, 12);
+				conversationInput.value = createConversationId();
 			}
 			state.conversationId = conversationInput.value.trim();
 			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
@@ -2433,7 +2450,7 @@ function getPlaygroundScript(): string {
 			}
 
 			return files.map((file) => ({
-				id: file.id || file.assetId || crypto.randomUUID(),
+				id: file.id || file.assetId || createBrowserId(),
 				assetId: file.assetId || file.id || "",
 				reference: file.reference || "",
 				fileName: file.fileName || "download",
@@ -2449,7 +2466,7 @@ function getPlaygroundScript(): string {
 			}
 
 			return {
-				id: typeof rawEntry.id === "string" && rawEntry.id ? rawEntry.id : crypto.randomUUID(),
+				id: typeof rawEntry.id === "string" && rawEntry.id ? rawEntry.id : createBrowserId(),
 				kind: typeof rawEntry.kind === "string" ? rawEntry.kind : "assistant",
 				title: typeof rawEntry.title === "string" ? rawEntry.title : "助手",
 				text: typeof rawEntry.text === "string" ? rawEntry.text : "",
@@ -2588,7 +2605,7 @@ function getPlaygroundScript(): string {
 
 		function buildTranscriptEntry(kind, title, text, options) {
 			return {
-				id: options?.id || crypto.randomUUID(),
+				id: options?.id || createBrowserId(),
 				kind,
 				title,
 				text: String(text || ""),
@@ -3905,7 +3922,7 @@ function getPlaygroundScript(): string {
 			stopActiveRunEventStream();
 			setStageMode("landing");
 			setTranscriptState("idle");
-			conversationInput.value = "manual:web-" + crypto.randomUUID().slice(0, 12);
+			conversationInput.value = createConversationId();
 			state.conversationId = conversationInput.value;
 			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
 			sessionFile.textContent = "尚未分配";

@@ -451,6 +451,24 @@ test("GET /playground embeds syntactically valid browser script", async () => {
 	await app.close();
 });
 
+test("GET /playground does not require crypto.randomUUID in non-HTTPS browsers", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /function createBrowserId\(\)\s*\{/);
+	assert.match(response.body, /typeof cryptoApi\.randomUUID === "function"/);
+	assert.match(response.body, /cryptoApi\.getRandomValues/);
+	assert.doesNotMatch(response.body, /crypto\.randomUUID\(\)/);
+	await app.close();
+});
+
 test("GET /playground embeds conversation history restore and message copy controls", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

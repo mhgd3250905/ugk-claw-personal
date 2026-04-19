@@ -12,6 +12,16 @@
 
 ## 2026-04-19
 
+### Playground HTTP 部署 ID 生成兼容
+- 主题：修复公网 `http://IP:3000/playground` 下浏览器缺少 `crypto.randomUUID()` 导致页面初始化失败、无法发送消息的问题。
+- 影响范围：
+  - `src/ui/playground.ts` 新增 `createBrowserId()` / `createConversationId()`，优先使用 `crypto.randomUUID()`，再退回 `crypto.getRandomValues()`，最后退回时间戳加随机数。
+  - 替换 playground 内会话 ID、历史消息 ID、文件展示 ID 的裸 `crypto.randomUUID()` 调用，避免非 HTTPS 部署直接炸前端。
+  - `test/server.test.ts` 增加回归断言，防止后续又直接依赖 secure-context-only API。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+
 ### 阶段版本文档收口
 - 主题：把 Docker Chrome sidecar 阶段成果补进 `/init` 最容易读取的入口文档，避免新会话继续从旧宿主 IPC 口径出发。
 - 影响范围：
