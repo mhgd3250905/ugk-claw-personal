@@ -119,11 +119,19 @@ This file provides the highest-level working rules for AI coding agents in this 
 1. `AGENTS.md`
 2. `README.md`
 3. `docs/traceability-map.md`
-4. `src/server.ts`
-5. `src/routes/chat.ts`
-6. `src/agent/agent-service.ts`
-7. `src/agent/agent-session-factory.ts`
-8. `src/ui/playground.ts`
+4. `docs/web-access-browser-bridge.md`
+5. `docs/tencent-cloud-singapore-deploy.md`
+6. `src/server.ts`
+7. `src/routes/chat.ts`
+8. `src/agent/agent-service.ts`
+9. `src/agent/agent-session-factory.ts`
+10. `src/ui/playground.ts`
+
+如果这次 `/init` 的目标是接手云服务器，而不是本机开发，先记住三件事：
+
+- 当前云端正式入口是 `http://43.134.167.179:3000/playground`。
+- 服务器 `~/ugk-pi-claw` 是 tar 解包目录，不是 Git 仓库；打包在本机，部署在服务器。
+- 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
 
 ### B 场景：查聊天、会话、流式、打断
 

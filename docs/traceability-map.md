@@ -19,6 +19,10 @@
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
+如果是云端 `/init`，再记一句：
+
+- 服务器 `~/ugk-pi-claw` 不是 Git 仓库，是 tar 解包目录；本机打包，服务器部署。
+
 ## B. 聊天、流式、追加消息、打断
 
 先看：

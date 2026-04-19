@@ -58,6 +58,25 @@ docker compose up -d
 docker compose restart ugk-pi
 ```
 
+但如果你改的是这些东西：
+
+- `Dockerfile`
+- npm 依赖安装层
+- 容器内系统工具，例如 `python3`
+- compose 环境变量或运行时依赖
+
+就不要偷懒用 `restart`，而要在对应环境执行：
+
+```bash
+docker compose up --build -d
+```
+
+云服务器生产环境则用：
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
 如果页面还是旧内容，先重启 `ugk-pi`，再强刷浏览器；别一上来再开一堆临时端口把状态搞脏。
 
 当前开发镜像已内置 `git`、`curl`、`ca-certificates` 和 `python3`。需要在容器内确认仓库状态、执行只读 git 命令，或运行用户技能里的 Python 脚本时，不用再额外临时安装。

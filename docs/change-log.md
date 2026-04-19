@@ -12,6 +12,17 @@
 
 ## 2026-04-19
 
+### `/init` 接手入口补强
+- 主题：把后续 agent `/init` 最容易踩的云端接手前提前置到主入口文档，避免每次重新考古“服务器是不是 Git 仓库”和“什么时候该 build 镜像”。
+- 影响范围：
+  - `AGENTS.md` 的快速接手场景前置 `docs/web-access-browser-bridge.md` 与 `docs/tencent-cloud-singapore-deploy.md`，并明确云端入口、tar 解包目录属性和运行环境变更必须 `up --build -d`。
+  - `README.md` 的快速开始补充“什么时候只 `restart`、什么时候必须 `up --build -d`”的判断口径，减少后续把环境层变更误当成普通热重启。
+  - `docs/traceability-map.md` 的快速接手场景追加云端目录不是 Git 仓库的提醒，防止 `/init` 之后又在服务器里直接跑 `git archive` / `git pull`。
+- 对应入口：
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### 云服务器更新部署流程补强
 - 主题：把本次 `python3` 环境修复上线后的真实云端更新操作补进部署 runbook，明确本机打包、服务器替换、必须重建镜像和验证顺序。
 - 影响范围：
