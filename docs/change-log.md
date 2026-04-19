@@ -12,6 +12,20 @@
 
 ## 2026-04-19
 
+### 腾讯云新加坡部署 Runbook 落地
+- 主题：把本次腾讯云新加坡 CVM 从选型、初始化、Docker 安装、代码传输、`.env`、生产 compose 启动、Chrome sidecar 登录、线上故障修复到后续更新发布的全过程沉淀为可追溯部署文档。
+- 影响范围：
+  - 新增 `docs/tencent-cloud-singapore-deploy.md`，记录当前云端实例 `43.134.167.179`、`4 核 8G`、`5Mbps`、Ubuntu `24.04.4 LTS`、`docker-compose.prod.yml`、公网 `3000`、SSH tunnel 访问 sidecar GUI 等事实。
+  - `AGENTS.md` 增加云端部署 runbook 线索，明确后续接手时不要开放公网 `3901`，域名或 HTTPS 变更必须同步服务器 `.env` 与部署文档。
+  - `README.md` 的文档导航补充部署 runbook 入口，避免只有 agent 接手文档知道这件事，普通入口却找不到。
+  - `docs/traceability-map.md` 在快速接手和容器部署场景中加入部署 runbook，后续排查云端更新、回滚、SSH tunnel 时可以直接定位。
+  - 文档记录本次 Gitee 新加坡访问慢、zip 半截下载、`crypto.randomUUID()` 在公网 HTTP 下不可用等真实踩坑，以及推荐的本地 `git archive` 打包上传更新流程。
+- 对应入口：
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground HTTP 部署 ID 生成兼容
 - 主题：修复公网 `http://IP:3000/playground` 下浏览器缺少 `crypto.randomUUID()` 导致页面初始化失败、无法发送消息的问题。
 - 影响范围：

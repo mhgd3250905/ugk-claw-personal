@@ -35,6 +35,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
+- 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`；当前公网入口是 `http://43.134.167.179:3000/playground`，sidecar GUI 只能走 SSH tunnel，不要开放公网 `3901`。
 - Windows host IPC fallback 仍保留，但只用于 legacy 本机调试和紧急排障。
 - 本阶段标准验证命令是 `npm test` 与 `npm run docker:chrome:check`。
 
@@ -104,6 +105,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 报告截图脚本：`runtime/screenshot.mjs`
 - 移动报告截图脚本：`runtime/screenshot-mobile.mjs`
 - web-access 浏览器桥接：`docs/web-access-browser-bridge.md`
+- 腾讯云新加坡部署运行手册：`docs/tencent-cloud-singapore-deploy.md`
 - 项目级 subagent：`.pi/agents/`
 - 用户 subagent：`runtime/agents-user/`
 - 项目级 `pi` agent：`runtime/pi-agent/`
@@ -179,6 +181,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `docker-compose.yml`
 - `docker-compose.prod.yml`
 - `deploy/nginx/default.conf`
+- `docs/tencent-cloud-singapore-deploy.md`
 - `scripts/docker-health.mjs`
 - `src/routes/static.ts`
 - `runtime/screenshot.mjs`
@@ -198,6 +201,8 @@ This file provides the highest-level working rules for AI coding agents in this 
   - 当前 playground 的真实交互与 UI 约束
 - `docs/runtime-assets-conn-feishu.md`
   - 资产、附件、`conn`、飞书接入的运行说明
+- `docs/tencent-cloud-singapore-deploy.md`
+  - 腾讯云新加坡 CVM 的部署事实、`.env` 口径、更新发布流程、SSH tunnel、验证命令和踩坑记录
 
 ## 8. 当前稳定事实
 
@@ -212,3 +217,4 @@ This file provides the highest-level working rules for AI coding agents in this 
 - Docker 镜像已内置 `git`、`curl` 与 `ca-certificates`，不要再把 `/bin/bash: git: command not found` 或 `/bin/bash: curl: command not found` 当成玄学问题。
 - `web-access` 默认真实浏览器链路走 Docker Chrome sidecar：`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223`；Windows host IPC fallback 仅保留给 legacy 本机调试和紧急排障。
 - 宿主浏览器和 sidecar Chrome 都不能直接依赖容器内 `file:///app/...`：用户可见文本要改写成 `PUBLIC_BASE_URL` 下的 `GET /v1/local-file?path=...`，sidecar 自动化要改写成 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 下的同一路由，真实文件交付优先走 `send_file`。
+- 腾讯云新加坡生产样例使用 `docker-compose.prod.yml`，当前 `HOST_PORT=3000`、`PUBLIC_BASE_URL=http://43.134.167.179:3000`；后续切域名或 HTTPS 时必须同步服务器 `.env`、安全组和 `docs/tencent-cloud-singapore-deploy.md`。

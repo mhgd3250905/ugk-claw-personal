@@ -11,10 +11,11 @@
 1. [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
 2. [README.md](/E:/AII/ugk-pi/README.md)
 3. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
-4. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-5. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-6. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-7. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+4. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+5. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+6. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+7. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+8. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
@@ -128,15 +129,17 @@
 1. [Dockerfile](/E:/AII/ugk-pi/Dockerfile)
 2. [docker-compose.yml](/E:/AII/ugk-pi/docker-compose.yml)
 3. [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
-4. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-5. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
-6. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
-7. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
-8. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
+4. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+5. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+6. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+7. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+8. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+9. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
 
 适用问题：
 
 - `healthz` 不通
+- 腾讯云新加坡服务器更新部署、回滚或 SSH tunnel 不通
 - 静态 HTML / PNG 路由不通
 - 截图脚本又回退到 `file://`
 - `PUBLIC_BASE_URL` 不对

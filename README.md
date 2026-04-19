@@ -50,6 +50,8 @@ docker compose up -d
 - `http://127.0.0.1:3000/playground`
 - `http://127.0.0.1:3000/healthz`
 
+当前腾讯云新加坡部署入口记录在 [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)。云端公网入口是 `http://43.134.167.179:3000/playground`，Chrome sidecar GUI 只通过 SSH tunnel 访问，不开放公网 `3901`。
+
 大多数源码改动后只需要：
 
 ```bash
@@ -176,6 +178,8 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
   - 资产、附件、`send_file`、`conn`、Feishu 运行说明
 - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
   - web-access Docker Chrome sidecar、legacy IPC fallback、Chrome 持久 profile、排障口径
+- [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+  - 腾讯云新加坡 CVM 部署、`.env`、更新发布、SSH tunnel、验证与回滚 runbook
 - [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
   - 统一更新记录
 
