@@ -25,10 +25,30 @@ Historical hits may influence only the starting stage. They never override the c
 Always start with:
 
 ```bash
-node "$CLAUDE_SKILL_DIR/scripts/check-deps.mjs"
+node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
+```
+
+If you are debugging from the Windows project directory instead of the `/app` container, use:
+
+```bash
+node runtime/skills-user/web-access/scripts/check-deps.mjs
 ```
 
 If the check passes, a local compatibility proxy will be available at `http://127.0.0.1:3456`.
+
+When this skill runs inside the Docker container, it cannot start Windows Chrome by itself. If `check-deps.mjs` reports `local_browser_executable_not_found`, ask the user to start the host IPC bridge from the Windows project directory:
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\scripts\start-web-access-browser.ps1
+```
+
+After that command reports `web-access host bridge ready`, rerun `check-deps.mjs`. The host bridge will launch the configured Chrome/profile when the agent sends an IPC browser request.
+
+When this skill produces a local HTML report, screenshot page, or any artifact that the user should open in the host browser, never expose `file:///app/...` container paths to the user. Convert them to host-reachable URLs instead:
+
+- `public/<fileName>` -> `http://127.0.0.1:3000/<fileName>`
+- `runtime/<fileName>` -> `http://127.0.0.1:3000/runtime/<fileName>`
+- If the goal is direct file delivery instead of browser preview, use `send_file`
 
 When you need browser-backed work that may span multiple commands, define the current agent scope once and reuse it on every proxy request:
 
@@ -39,7 +59,7 @@ AGENT_SCOPE="${CLAUDE_AGENT_ID:-${CLAUDE_HOOK_AGENT_ID:-${agent_id:-}}}"
 For a concrete URL, 默认优先使用自动 `run-url` 路径，不要手动把 `recommend` 和 `report` 再额外跑一遍：
 
 ```bash
-node "$CLAUDE_SKILL_DIR/scripts/staged-route-cli.mjs" run-url --url "https://example.com" --task-kind "open_page"
+node /app/runtime/skills-user/web-access/scripts/staged-route-cli.mjs run-url --url "https://example.com" --task-kind "open_page"
 ```
 
 That command uses `staged-url-runner.mjs` internally and will automatically try `S1 -> S2 -> S3` for a 具体 URL, while updating the route cache after each current-round attempt.
@@ -92,13 +112,13 @@ Preferred workflow for downloads:
 - When the current-round evidence shows `S1` is insufficient, upgrade to `S2`.
 - When `S2` still cannot produce a reliable result, upgrade to `S3`.
 - For a 具体 URL task, 默认优先:
-  - `node "$CLAUDE_SKILL_DIR/scripts/staged-route-cli.mjs" run-url --url "<URL>" --task-kind "<TASK_KIND>"`
+  - `node /app/runtime/skills-user/web-access/scripts/staged-route-cli.mjs run-url --url "<URL>" --task-kind "<TASK_KIND>"`
 - Only for manual debugging, you may use:
-  - `node "$CLAUDE_SKILL_DIR/scripts/staged-route-cli.mjs" recommend --url "<URL>" --task-kind "<TASK_KIND>"`
-  - `node "$CLAUDE_SKILL_DIR/scripts/staged-route-cli.mjs" report --url "<URL>" --task-kind "<TASK_KIND>" --stage "S1|S2|S3" --status "success|failure" [--failure-reason "<REASON>"]`
+  - `node /app/runtime/skills-user/web-access/scripts/staged-route-cli.mjs recommend --url "<URL>" --task-kind "<TASK_KIND>"`
+  - `node /app/runtime/skills-user/web-access/scripts/staged-route-cli.mjs report --url "<URL>" --task-kind "<TASK_KIND>" --stage "S1|S2|S3" --status "success|failure" [--failure-reason "<REASON>"]`
 - Prefer `eval` for extraction.
 - Open your own background tab with `/new`; do not assume an existing tab is safe to reuse.
 - If you intentionally keep an agent-owned browser page alive for follow-up work, clear it with `/session/target` or `/session/close-all` when the task is complete.
 - URL-encode nested URLs before calling `/new` or `/navigate`, especially when the target URL already contains query params such as `&src=` or `&f=live`.
 - Close tabs you created when the task is complete.
-- If the proxy reports `bridge_disabled` or `chrome_cdp_unreachable`, tell the user the host browser bridge is not available yet.
+- If IPC reports `chrome_cdp_unreachable`, the host bridge or local CDP fallback will try to launch the configured Chrome profile automatically. Inside Docker, use the host launcher above instead of looking for a browser executable in the container.

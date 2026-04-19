@@ -17,6 +17,7 @@ import { registerConnRoutes } from "./routes/conns.js";
 import { registerFeishuRoutes } from "./routes/feishu.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerPlaygroundRoute } from "./routes/playground.js";
+import { registerStaticRoutes } from "./routes/static.js";
 
 export interface BuildServerOptions {
 	agentService?: AgentService;
@@ -93,6 +94,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	registerAssetRoutes(app, { projectRoot: config.projectRoot });
 	registerFileRoutes(app, { assetStore });
 	registerPlaygroundRoute(app);
+	registerStaticRoutes(app, { projectRoot: config.projectRoot });
 	registerChatRoutes(app, { agentService });
 	registerConnRoutes(app, { connStore, connScheduler });
 	registerFeishuRoutes(app, { feishuService });

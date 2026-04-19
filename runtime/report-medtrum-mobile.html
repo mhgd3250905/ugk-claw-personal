@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medtrum 舆情报告</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0c1222;
+      --bg-card: #1a2540;
+      --accent: #3b82f6;
+      --accent-light: #60a5fa;
+      --danger: #ef4444;
+      --success: #10b981;
+      --text: #f1f5f9;
+      --text-muted: #8896ab;
+      --border: #2a3a55;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Outfit', 'Noto Sans SC', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text);
+      width: 420px;
+      padding: 20px 16px;
+      background-image: 
+        linear-gradient(180deg, rgba(59, 130, 246, 0.08) 0%, transparent 30%);
+    }
+    
+    /* Header */
+    .header {
+      text-align: center;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .brand-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    
+    .brand-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    
+    .title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    
+    /* Stats Row */
+    .stats {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    
+    .stat-box {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 8px;
+      text-align: center;
+    }
+    
+    .stat-num {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--accent-light);
+      line-height: 1;
+    }
+    
+    .stat-num.success { color: var(--success); }
+    .stat-num.danger { color: var(--danger); }
+    
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    
+    /* Section */
+    .section {
+      margin-bottom: 14px;
+    }
+    
+    .section-head {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .section-head .icon {
+      width: 20px; height: 20px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    
+    /* Card */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    
+    /* Activity */
+    .activity {
+      display: flex;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .activity:last-child { border: none; padding-bottom: 0; }
+    .activity:first-child { padding-top: 0; }
+    
+    .act-icon {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    
+    .act-body { flex: 1; }
+    
+    .act-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+    
+    .act-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    
+    .act-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    
+    .tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent-light);
+      border-radius: 4px;
+    }
+    
+    /* Posts */
+    .post {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .post:last-child { border: none; }
+    
+    .post-head {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+    
+    .post-who {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-light);
+    }
+    
+    .post-time {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    
+    .post-txt {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+    
+    /* Summary */
+    .summary-list {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    
+    .summary-list li {
+      margin-bottom: 8px;
+      padding-left: 14px;
+      position: relative;
+    }
+    
+    .summary-list li::before {
+      content: '•';
+      color: var(--accent);
+      position: absolute;
+      left: 0;
+      font-weight: bold;
+    }
+    
+    .summary-list strong {
+      color: #fff;
+    }
+    
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding-top: 12px;
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .footer-brand {
+      font-size: 12px;
+      color: var(--accent-light);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .footer-time {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">📊</div>
+      <span class="brand-text">品牌舆情监测</span>
+    </div>
+    <div class="title">Medtrum 社交媒体报告</div>
+    <div class="subtitle">2026-04-12 ~ 04-19 · X平台</div>
+  </div>
+  
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-num">6</div>
+      <div class="stat-label">总提及</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num success">0</div>
+      <div class="stat-label">风险</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num success">6</div>
+      <div class="stat-label">推广</div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-head">
+      <span class="icon">📢</span>
+      动态概览
+    </div>
+    <div class="card">
+      <div class="activity">
+        <div class="act-icon">EU</div>
+        <div class="act-body">
+          <div class="act-title">欧洲市场推广</div>
+          <div class="act-date">2026-04-18</div>
+          <div class="act-desc">多账号推广 Medtrum 传感器产品，涉及 TouchCare、Nano 等关键词</div>
+          <div class="tags">
+            <span class="tag">#Medtrum</span>
+            <span class="tag">#TouchCare</span>
+            <span class="tag">#Glucose</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-head">
+      <span class="icon">📝</span>
+      推文详情
+    </div>
+    <div class="card">
+      <div class="post">
+        <div class="post-head">
+          <span class="post-who">@Bykadorov</span>
+          <span class="post-time">04-18</span>
+        </div>
+        <div class="post-txt">Medtrum sensoren #Medtrum 2 st. #Sensor #TouchCare #Nano</div>
+      </div>
+      <div class="post">
+        <div class="post-head">
+          <span class="post-who">@singer_pfaff</span>
+          <span class="post-time">04-18</span>
+        </div>
+        <div class="post-txt">Medtrum sensoren #Medtrum 2 st. #Sensor #TouchCare #Nano</div>
+      </div>
+      <div class="post">
+        <div class="post-head">
+          <span class="post-who">@verburg_peter</span>
+          <span class="post-time">04-18</span>
+        </div>
+        <div class="post-txt">Medtrum sensoren #Medtrum 2 st. #Sensor #TouchCare #Nano</div>
+      </div>
+      <div class="post">
+        <div class="post-head">
+          <span class="post-who">@RimowaKoffers</span>
+          <span class="post-time">04-18</span>
+        </div>
+        <div class="post-txt">Medtrum sensoren #Glucose #Sensor #Diabetes #Type1</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-head">
+      <span class="icon">📋</span>
+      监测总结
+    </div>
+    <div class="card">
+      <ul class="summary-list">
+        <li><strong>舆情概况：</strong>过去7天6条提及，均为产品推广内容</li>
+        <li><strong>市场活动：</strong>欧洲（荷兰/德国）多账号推广传感器</li>
+        <li><strong>产品定位：</strong>血糖监测，品牌 TouchCare、Nano</li>
+        <li><strong>建议：</strong>持续监测后续舆情变化</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <div class="footer-brand">UGK CLAW 品牌监测</div>
+    <div class="footer-time">2026-04-19 · X Latest Search</div>
+  </div>
+</body>
+</html>

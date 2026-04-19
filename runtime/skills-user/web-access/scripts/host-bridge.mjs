@@ -5,7 +5,25 @@ import path from 'node:path';
 
 import { getDefaultLocalBrowser } from './local-cdp-browser.mjs';
 
-const DEFAULT_IPC_DIR = process.env.NANOCLAW_BROWSER_BRIDGE_DIR || '/workspace/ipc';
+export function resolveDefaultIpcDir(options = {}) {
+  const env = options.env || process.env;
+  const existsSync = options.existsSync || fs.existsSync;
+  const cwd = options.cwd || process.cwd();
+
+  if (env.NANOCLAW_BROWSER_BRIDGE_DIR) {
+    return env.NANOCLAW_BROWSER_BRIDGE_DIR;
+  }
+
+  if (existsSync('/app')) {
+    return '/app/.data/browser-ipc';
+  }
+
+  return path.join(cwd, '.data', 'browser-ipc');
+}
+
+const DEFAULT_IPC_DIR = resolveDefaultIpcDir();
+const DEFAULT_IPC_TIMEOUT_MS = 1000;
+const HOST_BRIDGE_READY_IPC_TIMEOUT_MS = 30000;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -45,41 +63,92 @@ function sanitizeMeta(meta) {
     : undefined;
 }
 
+function shouldUseLocalFallbackForPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const status = payload.status;
+  if (
+    status &&
+    typeof status === 'object' &&
+    status.enabled !== false &&
+    status.connected === false
+  ) {
+    return true;
+  }
+
+  const error = typeof payload.error === 'string' ? payload.error : '';
+  return (
+    error === 'chrome_cdp_unreachable' ||
+    error === 'cdp_ws_connect_failed' ||
+    error === 'cdp_ws_connect_timeout' ||
+    error === 'local_cdp_start_timeout' ||
+    error.startsWith('cdp_http_') ||
+    error.startsWith('cdp_command_timeout:')
+  );
+}
+
+async function runLocalFallback(command, options) {
+  const localBrowser = options.localBrowser || getDefaultLocalBrowser();
+  return await localBrowser.handleCommand(command, {
+    meta: sanitizeMeta(options.meta),
+  });
+}
+
+function hasHostBridgeReadyFile(ipcDir) {
+  return fs.existsSync(path.join(ipcDir, 'host-bridge-ready.json'));
+}
+
+export function resolveIpcTimeoutMs(options = {}, ipcDir = DEFAULT_IPC_DIR) {
+  if (options.ipcTimeoutMs || options.timeoutMs) {
+    return options.ipcTimeoutMs || options.timeoutMs;
+  }
+
+  return hasHostBridgeReadyFile(ipcDir)
+    ? HOST_BRIDGE_READY_IPC_TIMEOUT_MS
+    : DEFAULT_IPC_TIMEOUT_MS;
+}
+
 export async function requestHostBrowser(command, options = {}) {
   const canUseLocalFallback =
     options.localBrowser !== null && options.disableLocalFallback !== true;
-  const timeoutMs =
-    options.ipcTimeoutMs ||
-    options.timeoutMs ||
-    (canUseLocalFallback ? 1000 : 30000);
   const ipcDir = options.ipcDir || DEFAULT_IPC_DIR;
+  const timeoutMs = resolveIpcTimeoutMs(options, ipcDir);
   const requestsDir = path.join(ipcDir, 'browser-requests');
   const responsesDir = path.join(ipcDir, 'browser-responses');
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const requestPath = path.join(requestsDir, `${requestId}.json`);
   const responsePath = path.join(responsesDir, `${requestId}.json`);
 
-  writeJsonAtomic(requestPath, {
-    requestId,
-    command,
-    meta: sanitizeMeta(options.meta),
-  });
+  try {
+    writeJsonAtomic(requestPath, {
+      requestId,
+      command,
+      meta: sanitizeMeta(options.meta),
+    });
+  } catch (error) {
+    if (canUseLocalFallback) {
+      return await runLocalFallback(command, options);
+    }
+    throw error;
+  }
 
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     if (fs.existsSync(responsePath)) {
       const payload = JSON.parse(fs.readFileSync(responsePath, 'utf-8'));
       fs.rmSync(responsePath, { force: true });
+      if (canUseLocalFallback && shouldUseLocalFallbackForPayload(payload)) {
+        return await runLocalFallback(command, options);
+      }
       return payload;
     }
     await sleep(150);
   }
 
   if (canUseLocalFallback) {
-    const localBrowser = options.localBrowser || getDefaultLocalBrowser();
-    return await localBrowser.handleCommand(command, {
-      meta: sanitizeMeta(options.meta),
-    });
+    return await runLocalFallback(command, options);
   }
 
   throw new Error(`host_browser_timeout:${command.action}`);
@@ -89,7 +158,7 @@ export async function ensureHostBrowserBridge(options = {}) {
   const result = await requestHostBrowser({ action: 'status' }, {
     ...options,
     timeoutMs: options.timeoutMs,
-    ipcTimeoutMs: options.ipcTimeoutMs || options.timeoutMs || 1000,
+    ipcTimeoutMs: options.ipcTimeoutMs,
   });
 
   if (!result.ok) {

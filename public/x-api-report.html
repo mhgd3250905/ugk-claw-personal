@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X/Twitter API 技术调研报告</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a24;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+      --accent-purple: #8b5cf6;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border: #2a2a3a;
+      --glow-blue: rgba(59, 130, 246, 0.3);
+      --glow-cyan: rgba(6, 182, 212, 0.2);
+    }
+
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background atmosphere */
+    .bg-atmosphere {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(ellipse 80% 50% at 20% 20%, var(--glow-cyan), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 80%, var(--glow-blue), transparent),
+        linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      z-index: -1;
+    }
+
+    .noise-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      opacity: 0.03;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 30px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 50px;
+      padding: 40px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      margin-bottom: 24px;
+    }
+
+    .logo-badge .icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .logo-badge span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+    }
+
+    .title {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-cyan) 50%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .meta-info {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .meta-info .divider {
+      color: var(--border);
+    }
+
+    /* Main Content */
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .section-number {
+      width: 40px;
+      height: 40px;
+      background: var(--bg-card);
+      border: 2px solid var(--accent-cyan);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--accent-cyan);
+    }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 30px var(--glow-cyan);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title .icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .icon-blue { background: var(--accent-blue); }
+    .icon-cyan { background: var(--accent-cyan); }
+    .icon-green { background: var(--accent-green); }
+    .icon-red { background: var(--accent-red); }
+    .icon-yellow { background: var(--accent-yellow); }
+    .icon-purple { background: var(--accent-purple); }
+
+    /* Table */
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      background: var(--bg-secondary);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 2px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-ok {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid var(--accent-green);
+    }
+
+    .status-fail {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--accent-red);
+      border: 1px solid var(--accent-red);
+    }
+
+    .status-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-yellow);
+      border: 1px solid var(--accent-yellow);
+    }
+
+    /* Code block */
+    .code-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--accent-cyan);
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+
+    /* Flow diagram */
+    .flow-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 20px;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .flow-step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--bg-primary);
+    }
+
+    .flow-step-content {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .flow-step-content strong {
+      color: var(--accent-cyan);
+    }
+
+    /* Conclusion box */
+    .conclusion-box {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%);
+      border: 2px solid var(--accent-red);
+      border-radius: 16px;
+      padding: 28px;
+      margin-top: 40px;
+    }
+
+    .conclusion-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .conclusion-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-red);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+    }
+
+    .conclusion-title {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .conclusion-text {
+      font-size: 15px;
+      line-height: 1.8;
+      color: var(--text-secondary);
+    }
+
+    .conclusion-text strong {
+      color: var(--accent-yellow);
+    }
+
+    /* Solution box */
+    .solution-box {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
+      border: 2px solid var(--accent-green);
+      border-radius: 16px;
+      padding: 28px;
+      margin-top: 20px;
+    }
+
+    .solution-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .solution-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-green);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+    }
+
+    .solution-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent-green);
+    }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .stat-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 900;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 8px;
+    }
+
+    .stat-value.green { color: var(--accent-green); }
+    .stat-value.red { color: var(--accent-red); }
+    .stat-value.cyan { color: var(--accent-cyan); }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 30px 0;
+      margin-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .footer-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: var(--bg-card);
+      border-radius: 100px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Comparison grid */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .comparison-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .comparison-item.success {
+      border-color: var(--accent-green);
+    }
+
+    .comparison-item.fail {
+      border-color: var(--accent-red);
+    }
+
+    .comparison-label {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .comparison-item.success .comparison-label { color: var(--accent-green); }
+    .comparison-item.fail .comparison-label { color: var(--accent-red); }
+
+    .comparison-content {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px 16px;
+      }
+
+      .title {
+        font-size: 28px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Highlight text */
+    .highlight {
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-atmosphere"></div>
+  <div class="noise-overlay"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-badge">
+        <div class="icon">X</div>
+        <span>API Technical Research</span>
+      </div>
+      <h1 class="title">X/Twitter API 调研报告</h1>
+      <p class="subtitle">关于登录态下直接调用数据接口的可行性验证</p>
+      <div class="meta-info">
+        <span>Date: 2025-04-19</span>
+        <span class="divider">|</span>
+        <span>ugk-pi Project</span>
+        <span class="divider">|</span>
+        <span>Ver: 1.0</span>
+      </div>
+    </header>
+
+    <!-- Section 1: Research Question -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2 class="section-title">调研问题</h2>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <div class="icon icon-cyan">?</div>
+          核心问题
+        </div>
+        <p style="font-size: 15px; line-height: 1.8; color: var(--text-secondary);">
+          <strong style="color: var(--text-primary);">X (Twitter) 是否存在一个可以通过登录态直接调用的数据接口？</strong><br><br>
+          希望找到一种轻量级方案，无需启动完整浏览器，仅通过 HTTP API + Cookies 即可获取搜索结果。
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 2: Discovery -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2 class="section-title">发现：GraphQL API 端点</h2>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <div class="icon icon-blue">API</div>
+          搜索接口地址
+        </div>
+        <div class="code-block">
+https://x.com/i/api/graphql/R0u1RWRf748KzyGBXvOYRA/SearchTimeline
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>参数</th>
+                <th>说明</th>
+                <th>示例值</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="mono">rawQuery</code></td>
+                <td>搜索关键词</td>
+                <td>"Medtrum"</td>
+              </tr>
+              <tr>
+                <td><code class="mono">count</code></td>
+                <td>返回条数</td>
+                <td>20</td>
+              </tr>
+              <tr>
+                <td><code class="mono">product</code></td>
+                <td>搜索类型</td>
+                <td>"Latest" / "Top"</td>
+              </tr>
+              <tr>
+                <td><code class="mono">querySource</code></td>
+                <td>来源标记</td>
+                <td>"typed_query"</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Authentication -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2 class="section-title">认证机制分析</h2>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <div class="icon icon-yellow">🔐</div>
+          必需的认证 Headers
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Header</th>
+                <th>来源</th>
+                <th>获取难度</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="mono">authorization</code></td>
+                <td>固定 Bearer Token</td>
+                <td>公开已知</td>
+                <td><span class="status-badge status-ok">✓ 可获取</span></td>
+              </tr>
+              <tr>
+                <td><code class="mono">x-csrf-token</code></td>
+                <td>ct0 Cookie</td>
+                <td>登录后自动生成</td>
+                <td><span class="status-badge status-ok">✓ 可获取</span></td>
+              </tr>
+              <tr>
+                <td><code class="mono">auth_token</code></td>
+                <td>登录 Cookie</td>
+                <td>登录后获取</td>
+                <td><span class="status-badge status-ok">✓ 可获取</span></td>
+              </tr>
+              <tr>
+                <td><code class="mono" style="color: var(--accent-red);">x-client-transaction-id</code></td>
+                <td><strong style="color: var(--accent-red);">浏览器动态生成</strong></td>
+                <td><strong style="color: var(--accent-red);">反爬保护</strong></td>
+                <td><span class="status-badge status-fail">✗ 无法复制</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <div class="icon icon-red">⚠</div>
+          关键障碍：x-client-transaction-id
+        </div>
+        <p style="font-size: 14px; line-height: 1.8; color: var(--text-secondary);">
+          这是 X 从 2023 年开始启用的反爬机制：<br><br>
+          • 由浏览器内部 JS 动态计算生成<br>
+          • 与浏览器指纹、时间戳、请求参数绑定<br>
+          • 每次请求值都不同<br>
+          • <strong style="color: var(--accent-red);">无法在容器或外部环境中伪造有效值</strong>
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 4: Test Results -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2 class="section-title">实测结果</h2>
+      </div>
+      
+      <div class="comparison-grid">
+        <div class="comparison-item fail">
+          <div class="comparison-label">
+            <span class="status-badge status-fail">✗ 失败</span>
+            直接 HTTP API 调用
+          </div>
+          <div class="comparison-content">
+            使用完整 Cookies + Headers 直接调用 GraphQL API<br>
+            <strong style="color: var(--accent-red);">返回 401 Unauthorized</strong><br>
+            缺少有效的 transaction-id
+          </div>
+        </div>
+        <div class="comparison-item success">
+          <div class="comparison-label">
+            <span class="status-badge status-ok">✓ 成功</span>
+            CDP + 浏览器 DOM 提取
+          </div>
+          <div class="comparison-content">
+            通过 Chrome DevTools Protocol 控制宿主浏览器<br>
+            <strong style="color: var(--accent-green);">成功获取最新数据</strong><br>
+            自动继承登录态
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value red">401</div>
+          <div class="stat-label">API 直接调用状态码</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value green">10+</div>
+          <div class="stat-label">DOM 提取成功条数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value cyan">~15s</div>
+          <div class="stat-label">完整流程耗时</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Solution -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2 class="section-title">可行方案</h2>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">
+          <div class="icon icon-green">→</div>
+          CDP + LocalCdpBrowser 方案流程
+        </div>
+        <div class="flow-container">
+          <div class="flow-step">
+            <div class="flow-step-num">1</div>
+            <div class="flow-step-content"><strong>连接宿主浏览器</strong> — 自动检测 192.168.65.254:9222</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-num">2</div>
+            <div class="flow-step-content"><strong>获取/创建页面</strong> — 使用已有的 X 登录态页面</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-num">3</div>
+            <div class="flow-step-content"><strong>导航搜索页</strong> — https://x.com/search?q=关键词&f=live</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-num">4</div>
+            <div class="flow-step-content"><strong>滚动加载</strong> — 让 X 加载更多推文内容</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-num">5</div>
+            <div class="flow-step-content"><strong>DOM 提取</strong> — 执行 JS 从 article 元素提取数据</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-num">6</div>
+            <div class="flow-step-content"><strong>时间筛选</strong> — 只保留最近 N 天内的推文</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <div class="icon icon-cyan">⚡</div>
+          方案特点
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>特性</th>
+                <th>说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>登录态</td>
+                <td>自动继承宿主浏览器 Cookies，无需手动管理</td>
+              </tr>
+              <tr>
+                <td>可靠性</td>
+                <td>直接 CDP WebSocket 连接，无 IPC 超时风险</td>
+              </tr>
+              <tr>
+                <td>稳定性</td>
+                <td>DOM 结构相对固定，提取逻辑简单可靠</td>
+              </tr>
+              <tr>
+                <td>性能</td>
+                <td>约 10-15 秒完成完整搜索流程</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Conclusion -->
+    <div class="conclusion-box">
+      <div class="conclusion-header">
+        <div class="conclusion-icon">✗</div>
+        <h3 class="conclusion-title">调研结论</h3>
+      </div>
+      <p class="conclusion-text">
+        <strong>X/Twitter 不存在可以"简单借用登录态"直接调用的数据接口。</strong><br><br>
+        由于 <strong>x-client-transaction-id</strong> 反爬保护机制的存在，任何绕过浏览器的直接 API 调用都会返回 401 错误。这不是 API 设计问题，而是 X 故意的反爬策略。
+      </p>
+    </div>
+
+    <div class="solution-box">
+      <div class="solution-header">
+        <div class="solution-icon">✓</div>
+        <h3 class="solution-title">唯一可行路径</h3>
+      </div>
+      <p class="conclusion-text">
+        通过 <strong>CDP (Chrome DevTools Protocol)</strong> 控制真实浏览器，在页面内执行 JavaScript 提取已渲染的 DOM 数据。这是目前获取 X 搜索数据唯一稳定可靠的方式。
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p class="footer-text">Generated by ugk-pi Agent • LocalCdpBrowser Module</p>
+      <div class="footer-brand">
+        <span>UGK CLAW</span>
+        <span style="color: var(--border)">|</span>
+        <span>Technical Research Report</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

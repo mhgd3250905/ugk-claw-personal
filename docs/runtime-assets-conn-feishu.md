@@ -7,7 +7,7 @@
 这份文档只追踪四类运行能力：
 
 - 文件上传与统一资产库
-- `assetRefs` 与 `ugk-file`
+- `assetRefs`、`ugk-file` 与 `send_file`
 - `conn` 定时 / 周期任务
 - 飞书 webhook 接入
 
@@ -21,7 +21,9 @@
 
 - 上传文件会根据类型和体积进入 `attachments.text`、`attachments.base64` 或仅保留元数据
 - agent 回复中的 ````ugk-file```` fenced block 也会被提取进资产库
+- agent 主动交付本地生成文件时，应优先调用项目级 `send_file` 工具，不要把 base64 或 ````ugk-file```` 原始块直接刷到聊天正文里
 - 最近资产可通过 `GET /v1/assets` 查询
+- agent 每轮 prompt 都会由 `src/agent/file-artifacts.ts` 注入文件交付协议：浏览器预览统一回 `http://127.0.0.1:3000/...` 或 `/runtime/...`，直接文件交付优先 `send_file`，不要再把 `file:///app/...` 回给用户
 - 资产可通过 `assetId` 在后续请求中复用
 - 前端会把“待发送文件 / 复用资产 / 已发送附件 / 已发送引用资产”统一渲染为 chip 风格
 
@@ -31,6 +33,7 @@
 - [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
 - [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+- [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
 
 ## 2. 请求体约定
 
@@ -85,7 +88,40 @@ agent 可以通过下面这种 fenced block 输出文件：
 - 生成可下载文件索引
 - 暴露 `GET /v1/files/:fileId`
 
-## 4. `conn` 调度能力
+## 4. `send_file` 文件发送工具
+
+`send_file` 是项目级扩展工具，用来把 agent 已经在项目目录内生成好的文件注册进统一资产库，并在最终聊天结果里返回 `files`，让 playground 渲染成下载卡片。
+
+使用场景：
+
+- 用户明确要求“把文件发给我”“给我图片 / 报告 / 附件”
+- agent 已经生成了本地文件，例如 `public/report.png`、`runtime/report.md`
+- 文件内容不适合塞进聊天正文，尤其是图片、PDF、压缩包或大文本
+
+数据流：
+
+1. agent 调用 `.pi/extensions/send-file.ts` 的 `send_file`
+2. 工具校验 `path` 必须位于项目根目录内，拒绝路径穿越和项目外文件
+3. 工具读取文件 Buffer，通过 `AssetStore.saveFileBuffers()` 写入 `.data/agent/assets/blobs`
+4. 工具返回 `details.file`
+5. `AgentService` 从 `tool_execution_end` 中提取 `send_file` 的 `details.file`，合并进最终 `done.files`
+6. playground 使用既有文件下载卡片展示 `GET /v1/files/:fileId`
+
+关键约束：
+
+- 不要让 agent 再执行 `cat file | base64` 这类操作，聊天框不是文件传输层。
+- `send_file.path` 只允许项目根目录内路径；宿主机任意路径、用户私密目录、容器外路径都不会被发送。
+- `ugk-file` 仍保留为文本协议兜底，但正式发送本地文件时优先使用 `send_file`。
+
+关键文件：
+
+- [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+- [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+- [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
+- [test/send-file-extension.test.ts](/E:/AII/ugk-pi/test/send-file-extension.test.ts)
+- [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+
+## 5. `conn` 调度能力
 
 当前已支持 `once`、`interval`、`cron` 三种调度方式。
 
@@ -121,7 +157,7 @@ agent 可以通过下面这种 fenced block 输出文件：
 - `POST /v1/conns/:connId/run`
 - `DELETE /v1/conns/:connId`
 
-## 5. 飞书接入
+## 6. 飞书接入
 
 当前飞书入口：
 
@@ -149,7 +185,7 @@ agent 可以通过下面这种 fenced block 输出文件：
 - `FEISHU_APP_SECRET`
 - `FEISHU_API_BASE`
 
-## 6. 数据布局
+## 7. 数据布局
 
 ```text
 .data/agent/
@@ -162,7 +198,7 @@ agent 可以通过下面这种 fenced block 输出文件：
    └─ conversation-map.json
 ```
 
-## 7. 当前限制
+## 8. 当前限制
 
 - 飞书侧当前优先处理文本消息；文件 / 图片消息仍以元数据和链接为主
 - `conn` 当前是单进程内调度，重启后能恢复索引，但不适合多实例抢占执行

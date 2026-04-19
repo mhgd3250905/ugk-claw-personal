@@ -736,14 +736,6 @@ function getPlaygroundStyles(): string {
 			color: #f3fbff;
 		}
 
-		.message.error .message-meta strong {
-			color: var(--danger);
-		}
-
-		.message.error .message-body {
-			background: rgba(34, 38, 46, 0.72);
-		}
-
 		.message.user {
 			justify-items: end;
 		}
@@ -803,16 +795,6 @@ function getPlaygroundStyles(): string {
 			border-color: rgba(255, 255, 255, 0.12);
 			background: rgba(255, 255, 255, 0.12);
 			color: #edf5ff;
-		}
-
-		.message.error {
-			justify-items: center;
-			padding-left: 90px;
-			padding-right: 90px;
-		}
-
-		.message.error .message-meta {
-			justify-content: center;
 		}
 
 		.process-note {
@@ -1410,6 +1392,12 @@ function getPlaygroundStyles(): string {
 			justify-content: flex-end;
 		}
 
+		.file-download-actions {
+			display: inline-flex;
+			gap: 6px;
+			align-items: center;
+		}
+
 		.file-download a {
 			border: 1px solid var(--accent);
 			background: var(--accent-soft);
@@ -1591,8 +1579,7 @@ function getPlaygroundStyles(): string {
 			}
 
 			.message.user,
-			.message.assistant,
-			.message.error {
+			.message.assistant {
 				padding-left: 12px;
 				padding-right: 12px;
 			}
@@ -2760,7 +2747,7 @@ function getPlaygroundScript(): string {
 		function renderTranscriptEntry(entry, insertMode) {
 			const card = document.createElement("article");
 			const kind = entry.kind;
-			const visualKind = kind === "system" ? "assistant" : kind;
+			const visualKind = kind === "user" ? "user" : "assistant";
 			card.className = "message " + visualKind;
 			card.dataset.messageKind = kind;
 			card.dataset.entryId = entry.id;
@@ -3161,18 +3148,52 @@ function getPlaygroundScript(): string {
 			for (const file of files) {
 				const item = document.createElement("div");
 				item.className = "file-download";
-				item.innerHTML = "<div><strong></strong><span></span></div><a></a>";
+				item.innerHTML = "<div><strong></strong><span></span></div><div class=\\"file-download-actions\\"></div>";
 				item.querySelector("strong").textContent = file.fileName || "download";
 				item.querySelector("span").textContent =
 					(file.mimeType || "application/octet-stream") + " / " + formatFileSize(file.sizeBytes);
-				const link = item.querySelector("a");
-				link.href = file.downloadUrl;
+				const actions = item.querySelector(".file-download-actions");
+				if (canPreviewFile(file.mimeType)) {
+					const openLink = document.createElement("a");
+					openLink.href = file.downloadUrl;
+					openLink.target = "_blank";
+					openLink.rel = "noreferrer noopener";
+					openLink.textContent = "打开";
+					actions.appendChild(openLink);
+				}
+
+				const link = document.createElement("a");
+				link.href = buildDownloadUrl(file.downloadUrl);
 				link.download = file.fileName || "";
 				link.textContent = "下载";
+				actions.appendChild(link);
 				downloads.appendChild(item);
 			}
 
 			container.appendChild(downloads);
+		}
+
+		function canPreviewFile(mimeType) {
+			const normalized = String(mimeType || "").trim().toLowerCase();
+			return (
+				normalized.startsWith("image/png") ||
+				normalized.startsWith("image/jpeg") ||
+				normalized.startsWith("image/gif") ||
+				normalized.startsWith("image/webp") ||
+				normalized === "application/pdf" ||
+				normalized === "text/plain" ||
+				normalized === "text/markdown" ||
+				normalized === "application/json" ||
+				normalized === "text/csv"
+			);
+		}
+
+		function buildDownloadUrl(downloadUrl) {
+			const normalized = String(downloadUrl || "");
+			if (!normalized) {
+				return "";
+			}
+			return normalized.includes("?") ? normalized + "&download=1" : normalized + "?download=1";
 		}
 
 		function renderAssetPickerList() {
@@ -3956,7 +3977,7 @@ function getPlaygroundScript(): string {
 				case "done": {
 					state.receivedDoneEvent = true;
 					sessionFile.textContent = event.sessionFile || "不可用";
-					if (event.text && event.text !== state.streamingText) {
+					if (typeof event.text === "string" && event.text !== state.streamingText) {
 						const content = ensureStreamingAssistantMessage();
 						setMessageContent(content, event.text);
 						state.streamingText = event.text;
@@ -4089,7 +4110,6 @@ function getPlaygroundScript(): string {
 					updateStreamingProcess("error", "请求被拒绝", errorMessage);
 					completeAssistantLoadingBubble("error", "本轮执行失败");
 					completeProcessStream();
-					appendTranscriptMessage("error", "服务端", errorMessage);
 					return;
 				}
 
@@ -4118,7 +4138,6 @@ function getPlaygroundScript(): string {
 				updateStreamingProcess("error", "网络错误", messageText);
 				completeAssistantLoadingBubble("error", "本轮执行失败");
 				completeProcessStream();
-				appendTranscriptMessage("error", "网络", messageText);
 			} finally {
 				if (!state.pageUnloading) {
 					setLoading(false);

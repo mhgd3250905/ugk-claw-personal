@@ -1,0 +1,97 @@
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import { basename, extname, join, resolve } from "node:path";
+import type { FastifyInstance, FastifyReply } from "fastify";
+
+export interface StaticRouteOptions {
+	projectRoot: string;
+	publicDir?: string;
+	runtimeDir?: string;
+}
+
+const CONTENT_TYPES: Record<string, string> = {
+	".css": "text/css; charset=utf-8",
+	".gif": "image/gif",
+	".html": "text/html; charset=utf-8",
+	".jpeg": "image/jpeg",
+	".jpg": "image/jpeg",
+	".js": "text/javascript; charset=utf-8",
+	".json": "application/json; charset=utf-8",
+	".png": "image/png",
+	".svg": "image/svg+xml; charset=utf-8",
+	".txt": "text/plain; charset=utf-8",
+	".webp": "image/webp",
+};
+
+export function registerStaticRoutes(app: FastifyInstance, options: StaticRouteOptions): void {
+	const publicDir = resolve(options.publicDir ?? join(options.projectRoot, "public"));
+	const runtimeDir = resolve(options.runtimeDir ?? join(options.projectRoot, "runtime"));
+
+	app.get("/:fileName", async (request, reply) => {
+		const { fileName } = request.params as { fileName: string };
+		return await sendStaticFile(reply, {
+			rootDir: publicDir,
+			fileName,
+		});
+	});
+
+	app.get("/runtime/:fileName", async (request, reply) => {
+		const { fileName } = request.params as { fileName: string };
+		return await sendStaticFile(reply, {
+			rootDir: runtimeDir,
+			fileName,
+			allowedExtensions: new Set([".html", ".png", ".jpg", ".jpeg", ".webp", ".pdf", ".txt", ".md", ".json", ".csv"]),
+		});
+	});
+}
+
+async function sendStaticFile(
+	reply: FastifyReply,
+	options: {
+		rootDir: string;
+		fileName: string;
+		allowedExtensions?: Set<string>;
+	},
+) {
+	const safeFileName = basename(options.fileName);
+	if (!safeFileName || safeFileName !== options.fileName || safeFileName.startsWith(".")) {
+		return reply.status(404).send();
+	}
+
+	const filePath = resolve(join(options.rootDir, safeFileName));
+	if (!isPathInside(filePath, options.rootDir)) {
+		return reply.status(404).send();
+	}
+
+	if (options.allowedExtensions && !options.allowedExtensions.has(extname(filePath).toLowerCase())) {
+		return reply.status(404).send();
+	}
+
+	try {
+		const fileStat = await stat(filePath);
+		if (!fileStat.isFile()) {
+			return reply.status(404).send();
+		}
+
+		reply.type(resolveContentType(filePath));
+		reply.header("content-length", fileStat.size);
+		reply.header("cache-control", "no-store, no-cache, must-revalidate");
+		return reply.send(createReadStream(filePath));
+	} catch {
+		return reply.status(404).send();
+	}
+}
+
+function resolveContentType(filePath: string): string {
+	return CONTENT_TYPES[extname(filePath).toLowerCase()] ?? "application/octet-stream";
+}
+
+function isPathInside(filePath: string, parentDir: string): boolean {
+	const normalizedFilePath = resolve(filePath);
+	const normalizedParentDir = resolve(parentDir);
+	return (
+		normalizedFilePath === normalizedParentDir ||
+		normalizedFilePath.startsWith(`${normalizedParentDir}\\`) ||
+		normalizedFilePath.startsWith(`${normalizedParentDir}/`)
+	);
+}

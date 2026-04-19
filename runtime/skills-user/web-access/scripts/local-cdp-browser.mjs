@@ -3,16 +3,13 @@
 import fs from 'node:fs';
 import dns from 'node:dns/promises';
 import { mkdir, readdir, stat } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 const DEFAULT_PORT = Number(process.env.WEB_ACCESS_CDP_PORT || 9222);
 const DEFAULT_HOST = process.env.WEB_ACCESS_CDP_HOST || '127.0.0.1';
-const DEFAULT_PROFILE_DIR =
-  process.env.WEB_ACCESS_CHROME_PROFILE_DIR ||
-  path.join(os.tmpdir(), 'ugk-pi-web-access-chrome');
-
+const DEFAULT_LISTEN_ADDRESS =
+  process.env.WEB_ACCESS_CDP_LISTEN_ADDRESS || DEFAULT_HOST;
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -70,15 +67,20 @@ function findBrowserExecutable() {
     return explicit;
   }
 
+  const allowEdgeFallback = process.env.WEB_ACCESS_ALLOW_EDGE === '1';
   const candidates =
     process.platform === 'win32'
       ? [
           path.join(process.env.PROGRAMFILES || '', 'Google/Chrome/Application/chrome.exe'),
           path.join(process.env['PROGRAMFILES(X86)'] || '', 'Google/Chrome/Application/chrome.exe'),
           path.join(process.env.LOCALAPPDATA || '', 'Google/Chrome/Application/chrome.exe'),
-          path.join(process.env.PROGRAMFILES || '', 'Microsoft/Edge/Application/msedge.exe'),
-          path.join(process.env['PROGRAMFILES(X86)'] || '', 'Microsoft/Edge/Application/msedge.exe'),
-          path.join(process.env.LOCALAPPDATA || '', 'Microsoft/Edge/Application/msedge.exe'),
+          ...(allowEdgeFallback
+            ? [
+                path.join(process.env.PROGRAMFILES || '', 'Microsoft/Edge/Application/msedge.exe'),
+                path.join(process.env['PROGRAMFILES(X86)'] || '', 'Microsoft/Edge/Application/msedge.exe'),
+                path.join(process.env.LOCALAPPDATA || '', 'Microsoft/Edge/Application/msedge.exe'),
+              ]
+            : []),
         ]
       : process.platform === 'darwin'
         ? [
@@ -97,6 +99,15 @@ function findBrowserExecutable() {
           ];
 
   return candidates.filter(Boolean).find((candidate) => fs.existsSync(candidate));
+}
+
+function getDefaultProfileDir(executable) {
+  if (process.env.WEB_ACCESS_CHROME_PROFILE_DIR) {
+    return process.env.WEB_ACCESS_CHROME_PROFILE_DIR;
+  }
+
+  const browserName = path.basename(executable || 'browser', path.extname(executable || 'browser'));
+  return path.join(process.cwd(), '.tmp', `web-access-${browserName.toLowerCase()}`);
 }
 
 function normalizeTarget(target) {
@@ -357,14 +368,19 @@ export class LocalCdpBrowser {
       throw new Error('local_browser_executable_not_found');
     }
 
-    await mkdir(this.options.profileDir || DEFAULT_PROFILE_DIR, { recursive: true });
+    const profileDir = this.options.profileDir || getDefaultProfileDir(executable);
+    await mkdir(profileDir, { recursive: true });
 
     const args = [
       `--remote-debugging-port=${this.options.port || DEFAULT_PORT}`,
-      `--user-data-dir=${this.options.profileDir || DEFAULT_PROFILE_DIR}`,
+      `--remote-debugging-address=${this.options.listenAddress || DEFAULT_LISTEN_ADDRESS}`,
+      `--user-data-dir=${profileDir}`,
       '--no-first-run',
       '--no-default-browser-check',
+      '--disable-breakpad',
       '--disable-background-networking',
+      '--disable-crash-reporter',
+      '--disable-crashpad',
       '--disable-popup-blocking',
       'about:blank',
     ];

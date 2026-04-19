@@ -63,11 +63,21 @@
 1. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 2. [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
 3. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
-4. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+4. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+5. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+这里要先记住：`src/agent/file-artifacts.ts` 不只是解析 `ugk-file`，它还负责给每轮 prompt 注入文件交付协议。凡是 agent 回错“打开地址 / 下载方式”，先看这里，不要只盯某个 skill 文案。
 
 如果是前端展示问题，再补看：
 
-5. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+6. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+
+如果问题是“报告 HTML / 图片已经生成，但用户打不开或截图脚本还在用 `file:///app/...`”，直接看：
+
+7. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+8. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+9. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
+10. [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
 
 ## E 场景：我要查技能系统、技能清单、用户技能
 
@@ -81,6 +91,14 @@
 3. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
 4. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
 5. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
+6. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+
+如果问题和 `web-access`、`x-search-latest`、真实浏览器、X 登录态有关，不要只看技能描述，直接看：
+
+7. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+8. [runtime/skills-user/web-access/scripts/host-bridge.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/host-bridge.mjs)
+9. [runtime/skills-user/web-access/scripts/host-browser-bridge-daemon.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/host-browser-bridge-daemon.mjs)
+10. [scripts/start-web-access-browser.ps1](/E:/AII/ugk-pi/scripts/start-web-access-browser.ps1)
 
 ## F 场景：我要查 subagent、prompt 工作流、项目防护
 
@@ -114,5 +132,10 @@
 3. [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
 4. [deploy/nginx/default.conf](/E:/AII/ugk-pi/deploy/nginx/default.conf)
 5. [scripts/docker-health.mjs](/E:/AII/ugk-pi/scripts/docker-health.mjs)
+6. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+7. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+8. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
 
 如果碰到容器里 `curl` 不存在这种低级环境锅，先看 [Dockerfile](/E:/AII/ugk-pi/Dockerfile) 里的基础工具安装，不要先怀疑人生。
+
+如果碰到容器内 `local_browser_executable_not_found`、Chrome 打开但 agent 仍报浏览器不可用、X 没登录态这类问题，先看 [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)。不要在容器里继续找 Windows Chrome，那条路是死胡同。

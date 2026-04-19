@@ -34,6 +34,13 @@ export interface StoredAssetRecord extends AssetRecord {
 	content?: Buffer;
 }
 
+export interface AgentFileBufferDraft {
+	fileName: string;
+	mimeType: string;
+	content: Buffer;
+	textPreview?: string;
+}
+
 export interface AssetStoreLike {
 	registerAttachments(conversationId: string, attachments: readonly ChatAttachment[]): Promise<AssetRecord[]>;
 	saveFiles(conversationId: string, files: readonly AgentFileDraft[]): Promise<AgentFileArtifact[]>;
@@ -109,6 +116,34 @@ export class AssetStore implements AssetStoreLike {
 				sizeBytes: content.byteLength,
 				content,
 				textPreview: buildTextPreview(file.content),
+				kind: isTextMimeType(file.mimeType) ? "text" : "binary",
+				source: "agent_output",
+			});
+			index[entry.assetId] = entry;
+			saved.push(toAgentFileArtifact(entry));
+		}
+
+		await this.writeIndex(index);
+		return saved;
+	}
+
+	async saveFileBuffers(conversationId: string, files: readonly AgentFileBufferDraft[]): Promise<AgentFileArtifact[]> {
+		if (files.length === 0) {
+			return [];
+		}
+
+		const index = await this.readIndex();
+		await this.ensureStorage();
+		const saved: AgentFileArtifact[] = [];
+
+		for (const file of files) {
+			const entry = await this.createAssetEntry({
+				conversationId,
+				fileName: file.fileName,
+				mimeType: file.mimeType,
+				sizeBytes: file.content.byteLength,
+				content: file.content,
+				textPreview: file.textPreview,
 				kind: isTextMimeType(file.mimeType) ? "text" : "binary",
 				source: "agent_output",
 			});

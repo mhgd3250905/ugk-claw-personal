@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medtrum 品牌舆情监测报告</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0f1c;
+      --bg-secondary: #111827;
+      --bg-card: #1a2235;
+      --accent-primary: #3b82f6;
+      --accent-secondary: #60a5fa;
+      --accent-warning: #f59e0b;
+      --accent-danger: #ef4444;
+      --accent-success: #10b981;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border: #2d3a52;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Outfit', 'Noto Sans SC', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 40px;
+      background-image: 
+        radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom right, rgba(96, 165, 250, 0.1) 0%, transparent 50%);
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 30px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    
+    .logo-text {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #fff, var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .header-meta {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .header-meta span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--accent-secondary);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    
+    .stat-value.warning {
+      color: var(--accent-danger);
+    }
+    
+    .stat-value.success {
+      color: var(--accent-success);
+    }
+    
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    
+    /* Section */
+    .section {
+      margin-bottom: 28px;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 20px;
+      background: var(--accent-primary);
+      border-radius: 2px;
+    }
+    
+    .section-title.alert::before {
+      background: var(--accent-danger);
+    }
+    
+    /* Alert Card */
+    .alert-card {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    
+    .alert-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .alert-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--accent-danger);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    
+    .alert-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fca5a5;
+      margin-bottom: 4px;
+    }
+    
+    .alert-date {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    .alert-content {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding-left: 48px;
+    }
+    
+    .alert-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--accent-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      margin-top: 10px;
+      padding-left: 48px;
+    }
+    
+    /* Activity Card */
+    .activity-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .activity-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    
+    .activity-item:first-child {
+      padding-top: 0;
+    }
+    
+    .activity-avatar {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    
+    .activity-content {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .activity-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    
+    .activity-author {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .activity-handle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    .activity-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    
+    .activity-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    
+    .tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent-secondary);
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    
+    /* Summary */
+    .summary-card {
+      background: linear-gradient(135deg, var(--bg-card), rgba(59, 130, 246, 0.1));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    
+    .summary-list {
+      list-style: none;
+    }
+    
+    .summary-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    
+    .summary-list li::before {
+      content: '●';
+      color: var(--accent-primary);
+      font-size: 8px;
+      margin-top: 5px;
+    }
+    
+    /* Timeline */
+    .timeline {
+      margin-top: 16px;
+    }
+    
+    .timeline-item {
+      display: flex;
+      gap: 12px;
+      padding: 8px 0;
+    }
+    
+    .timeline-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-secondary);
+      border-radius: 50%;
+      margin-top: 6px;
+    }
+    
+    .timeline-content {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    
+    .timeline-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding-top: 24px;
+      margin-top: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    
+    .footer-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">📊</div>
+        <span class="logo-text">品牌舆情监测</span>
+      </div>
+      <h1>Medtrum 社交媒体报告</h1>
+      <div class="header-meta">
+        <span>🔍 关键词: medtrum</span>
+        <span>📅 2026-04-12 ~ 2026-04-19</span>
+        <span>🌐 X (Twitter)</span>
+      </div>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">12</div>
+        <div class="stat-label">总提及数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value warning">1</div>
+        <div class="stat-label">风险预警</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value success">10</div>
+        <div class="stat-label">推广活动</div>
+      </div>
+    </div>
+    
+    <!-- Alert Section -->
+    <div class="section">
+      <div class="section-title alert">⚠️ 风险预警 - 产品召回</div>
+      <div class="alert-card">
+        <div class="alert-header">
+          <div class="alert-icon">!</div>
+          <div>
+            <div class="alert-title">西班牙市场召回 A8 TouchCare System 组件</div>
+            <div class="alert-date">📅 2026-04-14 · 来源: @ManuelBudigno / FACUA</div>
+          </div>
+        </div>
+        <div class="alert-content">
+          Medtrum Technologies INC 生产的 A8 TouchCare System 持续葡萄糖监测系统因测量误差问题，在西班牙召回两个组件。由 Biochemical Systems International SPA 在西班牙分销。消费者组织 FACUA 已发布公告。
+        </div>
+        <div class="alert-link">🔗 x.com/ManuelBudigno/status/2044076013529788451</div>
+      </div>
+    </div>
+    
+    <!-- Activity Section -->
+    <div class="section">
+      <div class="section-title">📢 社交媒体动态</div>
+      <div class="activity-card">
+        <div class="activity-item">
+          <div class="activity-avatar">EU</div>
+          <div class="activity-content">
+            <div class="activity-header">
+              <span class="activity-author">欧洲市场推广</span>
+              <span class="activity-handle">2026-04-18</span>
+            </div>
+            <div class="activity-text">
+              10条推广推文宣传 Medtrum 传感器产品，涉及 TouchCare、Nano、葡萄糖监测等关键词。语言：荷兰语/德语。
+            </div>
+            <div class="activity-tags">
+              <span class="tag">#Medtrum</span>
+              <span class="tag">#TouchCare</span>
+              <span class="tag">#Nano</span>
+              <span class="tag">#Glucose</span>
+            </div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-avatar">ES</div>
+          <div class="activity-content">
+            <div class="activity-header">
+              <span class="activity-author">西班牙召回报道</span>
+              <span class="activity-handle">2026-04-14</span>
+            </div>
+            <div class="activity-text">
+              用户 @ManuelBudigno 报道产品召回事件，指出测量误差问题，来源为 FACUA 消费者组织。
+            </div>
+            <div class="activity-tags">
+              <span class="tag">召回</span>
+              <span class="tag">测量误差</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Timeline -->
+    <div class="section">
+      <div class="section-title">📅 时间线</div>
+      <div class="activity-card">
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div>
+              <div class="timeline-content">西班牙 FACUA 发布召回公告</div>
+              <div class="timeline-date">2026-04-14</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div>
+              <div class="timeline-content">欧洲多账号推广活动开始</div>
+              <div class="timeline-date">2026-04-18</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Summary -->
+    <div class="section">
+      <div class="section-title">📋 监测总结与建议</div>
+      <div class="summary-card">
+        <ul class="summary-list">
+          <li><strong>舆情风险：</strong>西班牙市场出现产品召回事件，涉及 A8 TouchCare System 持续葡萄糖监测系统，需密切关注后续影响及媒体跟进</li>
+          <li><strong>市场推广：</strong>欧洲市场（荷兰/德国地区）有多账号推广活动，产品定位为血糖监测传感器</li>
+          <li><strong>建议行动：</strong>联系西班牙分销商了解召回详情，评估品牌声誉影响；关注后续媒体报道与消费者反馈</li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-brand">📊 UGK CLAW 品牌监测系统</div>
+      <div>报告生成: 2026-04-19 · 数据来源: X (Twitter) Latest Search</div>
+    </div>
+  </div>
+</body>
+</html>

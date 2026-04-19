@@ -9,6 +9,7 @@ import type {
 	AgentSessionLike,
 	MessageUpdateEventLike,
 	PromptOptionsLike,
+	RawAgentSessionEventLike,
 } from "../src/agent/agent-session-factory.js";
 import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
@@ -25,12 +26,12 @@ class FakeSession implements AgentSessionLike {
 
 	constructor(
 		public sessionFile: string | undefined,
-		private readonly events: MessageUpdateEventLike[],
+		private readonly events: RawAgentSessionEventLike[],
 		private readonly finalAssistantText?: string,
 		private readonly finalAssistantError?: string,
 	) {}
 
-	subscribe(listener: (event: MessageUpdateEventLike) => void): () => void {
+	subscribe(listener: (event: RawAgentSessionEventLike) => void): () => void {
 		this.listener = listener;
 		return () => {
 			this.listener = undefined;
@@ -62,11 +63,11 @@ class FakeSession implements AgentSessionLike {
 		this.abortCalls += 1;
 	}
 
-	emit(event: MessageUpdateEventLike): void {
+	emit(event: RawAgentSessionEventLike): void {
 		this.listener?.(event);
 	}
 
-	private listener?: (event: MessageUpdateEventLike) => void;
+	private listener?: (event: RawAgentSessionEventLike) => void;
 }
 
 class DeferredSession extends FakeSession {
@@ -275,6 +276,36 @@ function textDelta(delta: string): MessageUpdateEventLike {
 	};
 }
 
+function sendFileToolFinished(file: {
+	assetId: string;
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	downloadUrl: string;
+}): RawAgentSessionEventLike {
+	return {
+		type: "tool_execution_end",
+		toolCallId: "tool-send-file",
+		toolName: "send_file",
+		isError: false,
+		result: {
+			content: [{ type: "text", text: `File ready: ${file.fileName}` }],
+			details: {
+				action: "send",
+				file: {
+					id: file.assetId,
+					assetId: file.assetId,
+					reference: `@asset[${file.assetId}]`,
+					fileName: file.fileName,
+					mimeType: file.mimeType,
+					sizeBytes: file.sizeBytes,
+					downloadUrl: file.downloadUrl,
+				},
+			},
+		},
+	};
+}
+
 test("creates a new conversation, prompts the session, and persists the session file", async () => {
 	const store = await createStore();
 	const factory = new FakeAgentSessionFactory(
@@ -398,6 +429,105 @@ test("chat converts ugk-file blocks from the assistant into downloadable files",
 			downloadUrl: "/v1/files/file-1",
 		},
 	]);
+});
+
+test("chat returns empty visible text when the assistant only sends a ugk-file block", async () => {
+	const store = await createStore();
+	const assetStore = new FakeAssetStore();
+	const factory = new FakeAgentSessionFactory(
+		() =>
+			new FakeSession(
+				"E:/sessions/file-only.jsonl",
+				[],
+				['```ugk-file name="report.png" mime="image/png"', "iVBORw0KGgo=", "```"].join("\n"),
+			),
+	);
+	const service = new AgentService({
+		conversationStore: store,
+		sessionFactory: factory,
+		assetStore,
+	});
+
+	const events: Array<Record<string, unknown>> = [];
+	const result = await service.streamChat(
+		{
+			conversationId: "manual:file-only",
+			message: "send only the image",
+		},
+		(event) => {
+			events.push(event as unknown as Record<string, unknown>);
+		},
+	);
+
+	assert.equal(result, undefined);
+	const doneEvent = events.find((event) => event.type === "done");
+	assert.deepEqual(doneEvent, {
+		type: "done",
+		conversationId: "manual:file-only",
+		text: "",
+		sessionFile: "E:/sessions/file-only.jsonl",
+		files: [
+			{
+				id: "file-1",
+				assetId: "file-1",
+				reference: "@asset[file-1]",
+				fileName: "report.png",
+				mimeType: "image/png",
+				sizeBytes: 12,
+				downloadUrl: "/v1/files/file-1",
+			},
+		],
+	});
+});
+
+test("chat includes files returned by the send_file tool in the final done event", async () => {
+	const store = await createStore();
+	const factory = new FakeAgentSessionFactory(
+		() =>
+			new FakeSession(
+				"E:/sessions/send-file-tool.jsonl",
+				[
+					sendFileToolFinished({
+						assetId: "file-tool-1",
+						fileName: "report.png",
+						mimeType: "image/png",
+						sizeBytes: 8,
+						downloadUrl: "/v1/files/file-tool-1",
+					}),
+				],
+				"文件已发送。",
+			),
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	const events: Array<Record<string, unknown>> = [];
+
+	const result = await service.chat({
+		conversationId: "manual:send-file-tool",
+		message: "send the report",
+	});
+	await service.streamChat(
+		{
+			conversationId: "manual:send-file-tool-stream",
+			message: "send the report",
+		},
+		(event) => {
+			events.push(event as unknown as Record<string, unknown>);
+		},
+	);
+
+	const expectedFiles = [
+		{
+			id: "file-tool-1",
+			assetId: "file-tool-1",
+			reference: "@asset[file-tool-1]",
+			fileName: "report.png",
+			mimeType: "image/png",
+			sizeBytes: 8,
+			downloadUrl: "/v1/files/file-tool-1",
+		},
+	];
+	assert.deepEqual(result.files, expectedFiles);
+	assert.deepEqual(events.find((event) => event.type === "done")?.files, expectedFiles);
 });
 
 test("chat can reference previously stored assets without re-uploading them", async () => {

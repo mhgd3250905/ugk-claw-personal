@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import fs from 'node:fs';
 
 import { ensureHostBrowserBridge } from './host-bridge.mjs';
 
@@ -52,4 +53,44 @@ async function main() {
   throw new Error('proxy_start_timeout');
 }
 
-await main();
+function isLikelyContainer() {
+  return fs.existsSync('/.dockerenv') || process.cwd() === '/app';
+}
+
+function printBrowserHelp(error) {
+  const message = error instanceof Error ? error.message : String(error || 'unknown_error');
+  console.error(`host-browser: unavailable (${message})`);
+  console.error('proxy: not checked (host browser is unavailable)');
+
+  if (message === 'local_browser_executable_not_found' && isLikelyContainer()) {
+    console.error('');
+    console.error('This command is running inside the container, so it cannot start Windows Chrome directly.');
+    console.error('Start the host IPC bridge from the Windows project directory, then retry:');
+    console.error('');
+    console.error('  powershell -ExecutionPolicy Bypass -File .\\scripts\\start-web-access-browser.ps1');
+    console.error('');
+    console.error('The bridge will launch the configured Chrome/profile when the agent sends a browser IPC request.');
+    return;
+  }
+
+  if (message === 'local_cdp_start_timeout') {
+    console.error('');
+    console.error('A browser executable was found, but CDP did not become ready.');
+    console.error('Try starting the host IPC bridge explicitly:');
+    console.error('');
+    console.error('  powershell -ExecutionPolicy Bypass -File .\\scripts\\start-web-access-browser.ps1');
+    return;
+  }
+
+  if (message === 'local_browser_executable_not_found') {
+    console.error('');
+    console.error('Install Chrome or set WEB_ACCESS_CHROME_PATH to the browser executable.');
+  }
+}
+
+try {
+  await main();
+} catch (error) {
+  printBrowserHelp(error);
+  process.exitCode = 1;
+}

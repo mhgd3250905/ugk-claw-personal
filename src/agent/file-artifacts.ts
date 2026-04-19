@@ -131,10 +131,15 @@ function buildAssetResponseInstruction(): string {
 function buildFileResponseInstruction(): string {
 	return [
 		"<file_response_protocol>",
-		'If you need to send a file back to the user, include a fenced block exactly like: ```ugk-file name="example.txt" mime="text/plain"',
+		"If a local report, screenshot page, or other previewable artifact should be opened in the host browser, never return a container file URL like file:///app/....",
+		"Use host-reachable HTTP URLs instead:",
+		"- public/<fileName> -> http://127.0.0.1:3000/<fileName>",
+		"- runtime/<fileName> -> http://127.0.0.1:3000/runtime/<fileName>",
+		"If you generated a real file inside the project workspace and the user should receive the file itself, prefer the send_file tool.",
+		'Only fall back to a fenced block like ```ugk-file name="example.txt" mime="text/plain"',
 		"file contents",
 		"```",
-		"Only use this protocol for files the user should download.",
+		"when you need to deliver a small text file inline and send_file is not the right fit.",
 		"</file_response_protocol>",
 	].join("\n");
 }

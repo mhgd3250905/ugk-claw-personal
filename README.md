@@ -1,5 +1,14 @@
 # ugk-pi
 
+## File Delivery Rules
+
+- 浏览器预览型报告不要返回 `file:///app/...`；统一使用宿主可访问 HTTP 地址：
+  - `public/<fileName>` -> `http://127.0.0.1:3000/<fileName>`
+  - `runtime/<fileName>` -> `http://127.0.0.1:3000/runtime/<fileName>`
+- 项目内已生成的真实文件，优先使用 `send_file`
+- `ugk-file` 只作为小型文本文件的兜底协议
+- 这套规则由 [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts) 注入到每轮 agent prompt，不依赖某个单独 skill 临场发挥
+
 基于 `pi-coding-agent` 的自定义 HTTP agent 原型仓库。
 
 这不是完整业务平台，当前重点是把 runtime、会话、技能加载、HTTP 接口、playground 和后续 IM 接入形态跑稳。
@@ -15,7 +24,9 @@
 - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
   - playground 当前真实 UI、交互和约束
 - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
-  - 资产、附件、`assetRefs`、`ugk-file`、`conn`、飞书接入
+  - 资产、附件、`assetRefs`、`ugk-file`、`send_file`、`conn`、飞书接入
+- [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+  - web-access 宿主浏览器 IPC bridge、Chrome 自动拉起、持久登录态和排障口径
 
 ## 快速接手
 
@@ -47,6 +58,8 @@
   - `GET /healthz`
   - `GET /playground`
   - `GET /assets/fonts/:fileName`
+  - `GET /:fileName`（仅限 `public/` 根目录普通文件）
+  - `GET /runtime/:fileName`（仅限 `runtime/` 根目录安全报告文件）
   - `GET /v1/files/:fileId`
   - `GET /v1/assets`
   - `GET /v1/assets/:assetId`
@@ -65,9 +78,11 @@
 - 助手消息内保留单个“思考过程”区域，默认展开显示过程和当前动作。
 - 运行中刷新页面会按真实 agent 状态恢复：`GET /v1/chat/status` 判断当前 `conversationId` 是否仍在运行，`GET /v1/chat/events` 重新订阅 active run 事件并继续更新同一个助手气泡。
 - “查看技能”按钮会先展示过程，再列出 `GET /v1/debug/skills` 返回的完整技能清单。
-- 统一资产库已接入上传文件、agent 产出文件、`assetRefs` 复用和 `ugk-file` 协议。
+- 统一资产库已接入上传文件、agent 产出文件、`assetRefs` 复用、`ugk-file` 协议和 `send_file` 下载交付工具。
 - 已支持 `conn` 定时 / 周期任务和飞书 webhook 接入。
 - Docker 镜像已内置 `curl` 与 `ca-certificates`。
+- `web-access` 浏览器能力走宿主 IPC bridge：容器写入 `.data/browser-ipc`，Windows 宿主 bridge 自动拉起指定 Chrome，默认登录态保存在 `.data/web-access-chrome-profile`。
+- 给用户打开本地报告时，不要使用 `file:///app/...` 容器路径；`public/` 文件走 `http://127.0.0.1:3000/<fileName>`，`runtime/` 报告走 `http://127.0.0.1:3000/runtime/<fileName>`。
 
 ## 目录结构
 
@@ -102,6 +117,8 @@ ugk-pi/
   - 聊天、流式、追加、打断、技能清单接口
 - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
   - 会话复用、SSE 映射、运行中追加、打断、附件/资产注入、文件产出提取
+- [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+  - agent 主动把项目内生成文件注册为可下载附件的项目级工具
 - [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
   - session 创建、技能白名单、项目级 provider/model 装配
 - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)

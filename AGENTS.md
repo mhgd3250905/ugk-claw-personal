@@ -64,6 +64,10 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 默认开发方式：`docker compose up -d`
 - 代码已挂载到容器 `/app`，多数改动后只需要：
   - `docker compose restart ugk-pi`
+- 任何需要让宿主浏览器打开的本地报告 / 图片 / HTML，不要给 `file:///app/...` 这类容器路径：
+  - `public/` 根目录文件走 `http://127.0.0.1:3000/<fileName>`
+  - `runtime/` 生成报告走 `http://127.0.0.1:3000/runtime/<fileName>`
+  - 如果是要直接交付文件而不是浏览器预览，优先走 `send_file`
 - 如果页面还是旧 HTML：
   - 先重启 `ugk-pi`
   - 再强刷浏览器
@@ -75,16 +79,22 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 服务入口：`src/server.ts`
 - 聊天路由：`src/routes/chat.ts`
 - playground 路由：`src/routes/playground.ts`
+- 静态报告路由：`src/routes/static.ts`
 - playground UI：`src/ui/playground.ts`
 - agent 服务核心：`src/agent/agent-service.ts`
 - session 工厂：`src/agent/agent-session-factory.ts`
 - 资产库：`src/agent/asset-store.ts`
+- 文件交付协议：`src/agent/file-artifacts.ts`
+- agent 发文件工具：`.pi/extensions/send-file.ts`
 - conn：`src/agent/conn-store.ts`、`src/agent/conn-scheduler.ts`、`src/agent/conn-runner.ts`
 - 飞书：`src/integrations/feishu/`
 - 项目级配置：`.pi/settings.json`
 - 项目级 prompts：`.pi/prompts/`
 - 项目级 skills：`.pi/skills/`
 - 用户 skills：`runtime/skills-user/`
+- 报告截图脚本：`runtime/screenshot.mjs`
+- 移动报告截图脚本：`runtime/screenshot-mobile.mjs`
+- web-access 浏览器桥接：`docs/web-access-browser-bridge.md`
 - 项目级 subagent：`.pi/agents/`
 - 用户 subagent：`runtime/agents-user/`
 - 项目级 `pi` agent：`runtime/pi-agent/`
@@ -119,11 +129,12 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `test/server.test.ts`
 - `docs/playground-current.md`
 
-### D 场景：查上传文件、资产复用、`assetRefs`、`ugk-file`
+### D 场景：查上传文件、资产复用、`assetRefs`、`ugk-file`、`send_file`
 
 - `src/routes/files.ts`
 - `src/agent/asset-store.ts`
 - `src/agent/file-artifacts.ts`
+- `.pi/extensions/send-file.ts`
 - `docs/runtime-assets-conn-feishu.md`
 
 ### E 场景：查技能加载、查看技能、运行时真实技能清单
@@ -132,6 +143,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `src/routes/chat.ts`
 - `.pi/skills/`
 - `runtime/skills-user/`
+- `docs/web-access-browser-bridge.md`（查 web-access / x-search-latest / 浏览器登录态时先看这里）
 
 ### F 场景：查 subagent、prompt 工作流、项目级防护
 
@@ -159,6 +171,9 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `docker-compose.prod.yml`
 - `deploy/nginx/default.conf`
 - `scripts/docker-health.mjs`
+- `src/routes/static.ts`
+- `runtime/screenshot.mjs`
+- `runtime/screenshot-mobile.mjs`
 
 ## 7. 文档分层
 
@@ -177,6 +192,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 ## 8. 当前稳定事实
 
+- agent 每轮 prompt 都会通过 `src/agent/file-artifacts.ts` 注入文件交付协议：预览型产物回 HTTP URL，真实文件优先 `send_file`，`ugk-file` 只作小文本兜底
 - 当前品牌文案为 `UGK CLAW`，playground 顶部和首页使用纯文字字标，不显示图片 logo。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/status` 和 `GET /v1/chat/events` 为准；文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
@@ -184,3 +200,5 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。
 - Docker 镜像已内置 `curl` 与 `ca-certificates`，不要再把 `/bin/bash: curl: command not found` 当成玄学问题。
+- `web-access` 真实浏览器链路走宿主 IPC bridge；容器内 `local_browser_executable_not_found` 不等于 Windows 没装 Chrome，先查 `docs/web-access-browser-bridge.md`。
+- 宿主浏览器永远不能直接访问容器内 `file:///app/...`；凡是要给用户打开的本地报告，必须转成 HTTP URL 或 `send_file`。

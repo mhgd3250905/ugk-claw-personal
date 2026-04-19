@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=920, initial-scale=1.0">
+  <title>X/Twitter API 技术调研报告</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a24;
+      --accent-cyan: #06b6d4;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border: #2a2a3a;
+    }
+    
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      width: 920px;
+      min-height: 100vh;
+      padding: 30px;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .title-group h1 {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--text-primary), var(--accent-cyan), var(--accent-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .title-group p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    
+    .date-badge {
+      padding: 8px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    
+    /* 核心问题 */
+    .question-box {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1));
+      border: 1px solid var(--accent-cyan);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+    
+    .question-box h2 {
+      font-size: 14px;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .question-box p {
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    
+    /* API 信息 */
+    .api-section {
+      margin-bottom: 16px;
+    }
+    
+    .api-section h3 {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .api-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+    }
+    
+    /* 认证表格 */
+    .auth-table {
+      width: 100%;
+      background: var(--bg-card);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .auth-table th {
+      background: var(--bg-secondary);
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: left;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.3px;
+    }
+    
+    .auth-table td {
+      padding: 12px 14px;
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .auth-table code {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-cyan);
+    }
+    
+    .auth-table .problem {
+      color: var(--accent-red);
+    }
+    
+    .status-ok {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid var(--accent-green);
+    }
+    
+    .status-fail {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--accent-red);
+      border: 1px solid var(--accent-red);
+    }
+    
+    /* 测试结果 */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .result-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+    
+    .result-card.fail { border-color: var(--accent-red); }
+    .result-card.success { border-color: var(--accent-green); }
+    
+    .result-card h4 {
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .result-card.fail h4 { color: var(--accent-red); }
+    .result-card.success h4 { color: var(--accent-green); }
+    
+    .result-card p {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    
+    /* 结论 */
+    .conclusion {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .conclusion-box {
+      border-radius: 12px;
+      padding: 16px;
+    }
+    
+    .conclusion-box.negative {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(245, 158, 11, 0.05));
+      border: 2px solid var(--accent-red);
+    }
+    
+    .conclusion-box.positive {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.05));
+      border: 2px solid var(--accent-green);
+    }
+    
+    .conclusion-box h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .conclusion-box.negative h3 { color: var(--accent-red); }
+    .conclusion-box.positive h3 { color: var(--accent-green); }
+    
+    .conclusion-box p {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+    
+    .conclusion-box strong { color: var(--text-primary); }
+    .conclusion-box.negative strong { color: var(--accent-yellow); }
+    
+    /* 流程 */
+    .flow-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    
+    .flow-section h3 {
+      font-size: 14px;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+    }
+    
+    .flow-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    
+    .flow-step-num {
+      width: 20px;
+      height: 20px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 11px;
+      color: var(--bg-primary);
+    }
+    
+    /* Footer */
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 16px;
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .footer-left {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--bg-card);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .highlight { color: var(--accent-cyan); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title-group">
+      <h1>X/Twitter API 技术调研报告</h1>
+      <p>关于登录态下直接调用数据接口的可行性验证</p>
+    </div>
+    <div class="date-badge">2025-04-19</div>
+  </div>
+  
+  <div class="question-box">
+    <h2>🔍 核心问题</h2>
+    <p>X (Twitter) 是否存在一个可以通过登录态直接调用的数据接口？希望找到轻量级方案，无需启动完整浏览器。</p>
+  </div>
+  
+  <div class="api-section">
+    <h3>📡 发现的 GraphQL API 端点</h3>
+    <div class="api-box">
+https://x.com/i/api/graphql/R0u1RWRf748KzyGBXvOYRA/SearchTimeline
+    </div>
+  </div>
+  
+  <div class="api-section">
+    <h3>🔐 认证机制分析</h3>
+    <table class="auth-table">
+      <thead>
+        <tr>
+          <th>Header</th>
+          <th>来源</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>authorization</code></td>
+          <td>固定 Bearer Token（公开）</td>
+          <td><span class="status-ok">✓ 可获取</span></td>
+        </tr>
+        <tr>
+          <td><code>x-csrf-token</code></td>
+          <td>ct0 Cookie</td>
+          <td><span class="status-ok">✓ 可获取</span></td>
+        </tr>
+        <tr>
+          <td><code>auth_token</code></td>
+          <td>登录 Cookie</td>
+          <td><span class="status-ok">✓ 可获取</span></td>
+        </tr>
+        <tr>
+          <td><code class="problem">x-client-transaction-id</code></td>
+          <td><strong class="problem">浏览器动态生成（反爬保护）</strong></td>
+          <td><span class="status-fail">✗ 无法复制</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="results-grid">
+    <div class="result-card fail">
+      <h4><span class="status-fail">✗</span> 直接 API 调用</h4>
+      <p>使用完整 Cookies + Headers 调用 GraphQL API<br><strong>返回 401 Unauthorized</strong><br>缺少有效的 transaction-id</p>
+    </div>
+    <div class="result-card success">
+      <h4><span class="status-ok">✓</span> CDP + DOM 提取</h4>
+      <p>通过 Chrome DevTools Protocol 控制浏览器<br><strong>成功获取最新数据</strong><br>自动继承登录态，10-15秒完成</p>
+    </div>
+  </div>
+  
+  <div class="conclusion">
+    <div class="conclusion-box negative">
+      <h3>❌ 调研结论</h3>
+      <p><strong>X 不存在可简单借用登录态的接口</strong>。由于 <strong>x-client-transaction-id</strong> 反爬保护，直接 API 调用必失败。</p>
+    </div>
+    <div class="conclusion-box positive">
+      <h3>✓ 可行方案</h3>
+      <p>通过 <strong>CDP 控制真实浏览器</strong>，在页面内执行 JS 提取 DOM 数据。这是唯一稳定可靠的路径。</p>
+    </div>
+  </div>
+  
+  <div class="flow-section">
+    <h3>⚡ CDP 方案流程</h3>
+    <div class="flow-steps">
+      <div class="flow-step"><span class="flow-step-num">1</span>连接宿主浏览器</div>
+      <div class="flow-step"><span class="flow-step-num">2</span>获取登录态页面</div>
+      <div class="flow-step"><span class="flow-step-num">3</span>导航搜索页</div>
+      <div class="flow-step"><span class="flow-step-num">4</span>滚动加载</div>
+      <div class="flow-step"><span class="flow-step-num">5</span>DOM 提取</div>
+      <div class="flow-step"><span class="flow-step-num">6</span>时间筛选</div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <div class="footer-left">ugk-pi Project • LocalCdpBrowser Module</div>
+    <div class="footer-right">UGK CLAW | Technical Research</div>
+  </div>
+</body>
+</html>

@@ -198,7 +198,6 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*flex-direction: column;/);
 	assert.match(response.body, /\.transcript\s*\{[\s\S]*flex: 1 1 auto;/);
 	assert.match(response.body, /\.transcript\s*\{[\s\S]*display: grid;/);
-	assert.match(response.body, /\.transcript\s*\{[\s\S]*justify-items: center;/);
 	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*align-items: stretch;/);
 	assert.match(response.body, /--conversation-width: 640px;/);
 	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
@@ -245,9 +244,11 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /updateStreamingProcess\("ok", "打断请求已接受", state\.conversationId\)/);
 	assert.doesNotMatch(response.body, /updateStreamingProcess\("error", "追加被拒绝", errorMessage\)/);
 	assert.doesNotMatch(response.body, /updateStreamingProcess\("error", "打断被拒绝", errorMessage\)/);
-	assert.match(response.body, /const visualKind = kind === "system" \? "assistant" : kind;/);
+	assert.match(response.body, /const visualKind = kind === "user" \? "user" : "assistant";/);
 	assert.match(response.body, /card\.className = "message " \+ visualKind;/);
 	assert.match(response.body, /card\.dataset\.messageKind = kind;/);
+	assert.doesNotMatch(response.body, /appendTranscriptMessage\("error"/);
+	assert.doesNotMatch(response.body, /\.message\.error/);
 	assert.match(response.body, /\.process-note\s*\{[\s\S]*width: 100%;/);
 	assert.match(response.body, /\.process-note-text\s*\{[\s\S]*padding: 0 18px;/);
 	assert.match(response.body, /\.process-note-text\s*\{[\s\S]*text-align: left;/);
@@ -475,6 +476,10 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /message-copy-button/);
 	assert.match(response.body, /copyButton\.textContent = "复制正文"/);
 	assert.match(response.body, /await copyTextToClipboard\(entry\.text \|\| ""\)/);
+	assert.match(response.body, /function canPreviewFile\(mimeType\)\s*\{/);
+	assert.match(response.body, /function buildDownloadUrl\(downloadUrl\)\s*\{/);
+	assert.match(response.body, /openLink\.textContent = "打开"/);
+	assert.match(response.body, /link\.textContent = "下载"/);
 	await app.close();
 });
 
@@ -519,6 +524,8 @@ test("GET /playground shows an explicit assistant loading bubble while a run is 
 	assert.match(response.body, /case "run_started":[\s\S]*ensureStreamingAssistantMessage\(\);[\s\S]*setAssistantLoadingState\(/);
 	assert.match(response.body, /case "text_delta":[\s\S]*setAssistantLoadingState\("正在生成回复", "system"\)/);
 	assert.match(response.body, /case "done":[\s\S]*completeAssistantLoadingBubble\("ok", "本轮已完成"\)/);
+	assert.match(response.body, /typeof event\.text === "string" && event\.text !== state\.streamingText/);
+	assert.doesNotMatch(response.body, /event\.text && event\.text !== state\.streamingText/);
 	await app.close();
 });
 
@@ -577,6 +584,66 @@ test("GET /assets/fonts/Agave-Regular.ttf returns the bundled Agave font", async
 	await app.close();
 });
 
+test("GET /x-api-report-full.png serves public root files over HTTP", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/x-api-report-full.png",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] ?? "", /^image\/png/);
+	assert.ok(response.rawPayload.length > 1000);
+	await app.close();
+});
+
+test("GET /runtime/report-medtrum-v2.html serves runtime report files over HTTP", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/runtime/report-medtrum-v2.html",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] ?? "", /^text\/html/);
+	assert.match(response.body, /<html/i);
+	await app.close();
+});
+
+test("GET /runtime/../package.json does not expose files outside runtime", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/runtime/../package.json",
+	});
+
+	assert.equal(response.statusCode, 404);
+	await app.close();
+});
+
+test("GET /package.json does not expose files outside public", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/package.json",
+	});
+
+	assert.equal(response.statusCode, 404);
+	await app.close();
+});
+
 test("GET /v1/files/:fileId downloads a stored agent file", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -616,6 +683,52 @@ test("GET /v1/files/:fileId downloads a stored agent file", async () => {
 	assert.match(response.headers["content-type"] ?? "", /^text\/plain/);
 	assert.match(response.headers["content-disposition"] ?? "", /filename="hello\.txt"/);
 	assert.equal(response.body, "hello world");
+	await app.close();
+});
+
+test("GET /v1/files/:fileId serves previewable images inline and still supports forced download", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		assetStore: {
+			registerAttachments: async () => [],
+			saveFiles: async () => [],
+			listAssets: async () => [],
+			getAsset: async () => undefined,
+			resolveAssets: async () => [],
+			readText: async () => undefined,
+			getFile: async (fileId: string) =>
+				fileId === "image-1"
+					? {
+							assetId: "image-1",
+							reference: "@asset[image-1]",
+							fileName: "report.png",
+							mimeType: "image/png",
+							sizeBytes: 8,
+							kind: "binary",
+							hasContent: true,
+							source: "agent_output",
+							conversationId: "manual:image",
+							createdAt: "2026-04-19T00:00:00.000Z",
+							downloadUrl: "/v1/files/image-1",
+							content: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+						}
+					: undefined,
+		},
+	});
+
+	const previewResponse = await app.inject({
+		method: "GET",
+		url: "/v1/files/image-1",
+	});
+	assert.equal(previewResponse.statusCode, 200);
+	assert.match(previewResponse.headers["content-disposition"] ?? "", /^inline;\s*filename="report\.png"$/);
+
+	const downloadResponse = await app.inject({
+		method: "GET",
+		url: "/v1/files/image-1?download=1",
+	});
+	assert.equal(downloadResponse.statusCode, 200);
+	assert.match(downloadResponse.headers["content-disposition"] ?? "", /^attachment;\s*filename="report\.png"$/);
 	await app.close();
 });
 

@@ -44,6 +44,7 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 
 	app.get("/v1/files/:fileId", async (request, reply) => {
 		const { fileId } = request.params as { fileId: string };
+		const query = request.query as { download?: string | number | boolean } | undefined;
 		if (!fileId) {
 			return reply.status(404).send();
 		}
@@ -55,11 +56,41 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 
 		reply.type(asset.mimeType);
 		reply.header("content-length", asset.sizeBytes);
-		reply.header("content-disposition", `attachment; filename="${escapeContentDispositionFileName(asset.fileName)}"`);
+		const disposition = shouldForceDownload(query?.download) || !supportsInlinePreview(asset.mimeType) ? "attachment" : "inline";
+		reply.header("content-disposition", `${disposition}; filename="${escapeContentDispositionFileName(asset.fileName)}"`);
 		return reply.send(asset.content);
 	});
 }
 
 function escapeContentDispositionFileName(fileName: string): string {
 	return fileName.replace(/["\\\r\n]/g, "_");
+}
+
+function shouldForceDownload(value: string | number | boolean | undefined): boolean {
+	if (typeof value === "boolean") {
+		return value;
+	}
+	if (typeof value === "number") {
+		return value !== 0;
+	}
+	if (typeof value !== "string") {
+		return false;
+	}
+	const normalized = value.trim().toLowerCase();
+	return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
+function supportsInlinePreview(mimeType: string): boolean {
+	const normalized = String(mimeType ?? "").trim().toLowerCase();
+	return (
+		normalized.startsWith("image/png") ||
+		normalized.startsWith("image/jpeg") ||
+		normalized.startsWith("image/gif") ||
+		normalized.startsWith("image/webp") ||
+		normalized === "application/pdf" ||
+		normalized === "text/plain" ||
+		normalized === "text/markdown" ||
+		normalized === "application/json" ||
+		normalized === "text/csv"
+	);
 }
