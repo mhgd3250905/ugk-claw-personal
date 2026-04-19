@@ -9,7 +9,7 @@ test("resolveBrowserTargetUrl rewrites runtime report paths to local HTTP URLs",
 			projectRoot: "/app",
 			baseUrl: "http://127.0.0.1:3000",
 		}),
-		"http://127.0.0.1:3000/runtime/report-medtrum-v2.html",
+		"http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fruntime%2Freport-medtrum-v2.html",
 	);
 });
 
@@ -19,28 +19,27 @@ test("resolveBrowserTargetUrl rewrites public report paths to local HTTP URLs", 
 			projectRoot: "/app",
 			baseUrl: "http://127.0.0.1:3000",
 		}),
-		"http://127.0.0.1:3000/x-api-report-card.html",
+		"http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fx-api-report-card.html",
 	);
 });
 
 test("resolveBrowserTargetUrl keeps HTTP URLs unchanged", () => {
 	assert.equal(
-		resolveBrowserTargetUrl("http://127.0.0.1:3000/runtime/report-medtrum-v2.html", {
+		resolveBrowserTargetUrl("http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fruntime%2Freport-medtrum-v2.html", {
 			projectRoot: "/app",
 			baseUrl: "http://127.0.0.1:3000",
 		}),
-		"http://127.0.0.1:3000/runtime/report-medtrum-v2.html",
+		"http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fruntime%2Freport-medtrum-v2.html",
 	);
 });
 
-test("resolveBrowserTargetUrl rejects paths outside public and runtime", () => {
-	assert.throws(
-		() =>
-			resolveBrowserTargetUrl("/app/.data/agent/asset-index.json", {
-				projectRoot: "/app",
-				baseUrl: "http://127.0.0.1:3000",
-			}),
-		/report path must be under runtime or public/i,
+test("resolveBrowserTargetUrl preserves unknown local file URLs for native browser handling", () => {
+	assert.equal(
+		resolveBrowserTargetUrl("file:///tmp/custom-report.html", {
+			projectRoot: "/app",
+			baseUrl: "http://127.0.0.1:3000",
+		}),
+		"file:///tmp/custom-report.html",
 	);
 });
 

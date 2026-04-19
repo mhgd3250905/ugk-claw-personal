@@ -383,3 +383,9 @@ npm run test
 - `npx tsc --noEmit` 通过
 - `npm run test` 为 `76 / 76` 通过
 - 默认入口 `127.0.0.1:3000` 已验证 `/healthz`、`/playground`、运行态重连入口和 `UGK CLAW` playground HTML
+# 2026-04-19 Update
+
+- agent 内部允许继续使用 `/app/...` 和 `file:///app/...` 这类本地 artifact 路径
+- 浏览器桥会自动把受支持的本地产物桥接到宿主可访问的 HTTP 地址，统一入口是 `GET /v1/local-file?path=...`
+- 老的 `GET /:fileName` 与 `GET /runtime/:fileName` 继续保留给手动打开和兼容场景
+- 项目内已生成的真实文件，优先使用 `send_file`

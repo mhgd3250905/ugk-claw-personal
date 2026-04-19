@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
 	findDockerHostCdpBaseUrl,
+	resolveBrowserInputUrl,
 	rewriteCdpTargetForBaseUrl,
 } from "../runtime/skills-user/web-access/scripts/local-cdp-browser.mjs";
 
@@ -39,4 +40,24 @@ test("findDockerHostCdpBaseUrl resolves host.docker.internal to an IP before pro
 
 	assert.equal(baseUrl, "http://192.168.65.254:9222");
 	assert.deepEqual(probedUrls, ["http://192.168.65.254:9222/json/version"]);
+});
+
+test("resolveBrowserInputUrl rewrites container runtime file URLs to the local artifact bridge", () => {
+	assert.equal(
+		resolveBrowserInputUrl("file:///app/runtime/report-medtrum-v2.html", {
+			projectRoot: "/app",
+			publicBaseUrl: "http://127.0.0.1:3000",
+		}),
+		"http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fruntime%2Freport-medtrum-v2.html",
+	);
+});
+
+test("resolveBrowserInputUrl rewrites workspace public paths to the local artifact bridge", () => {
+	assert.equal(
+		resolveBrowserInputUrl("/app/public/x-api-report-card.html", {
+			projectRoot: "/app",
+			publicBaseUrl: "http://127.0.0.1:3000",
+		}),
+		"http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fx-api-report-card.html",
+	);
 });

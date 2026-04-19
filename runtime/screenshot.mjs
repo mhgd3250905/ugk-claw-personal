@@ -2,44 +2,18 @@
 import { pathToFileURL } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
-import { requestHostBrowser } from "./skills-user/web-access/scripts/host-bridge.mjs";
+import {
+	requestHostBrowser,
+} from "./skills-user/web-access/scripts/host-bridge.mjs";
+import {
+	resolveBrowserInputUrl,
+} from "./skills-user/web-access/scripts/local-cdp-browser.mjs";
 
 export function resolveBrowserTargetUrl(inputPathOrUrl, options = {}) {
-	const normalizedInput = String(inputPathOrUrl || "").trim();
-	if (!normalizedInput) {
-		throw new Error("report path is required");
-	}
-	if (/^https?:\/\//i.test(normalizedInput)) {
-		return normalizedInput;
-	}
-
-	const projectRoot = path.resolve(options.projectRoot || "/app");
-	const baseUrl = String(options.baseUrl || process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${process.env.PORT || "3000"}`).replace(/\/+$/, "");
-	const decodedInput = normalizedInput.startsWith("file://") ? decodeFileUrlPath(normalizedInput) : normalizedInput;
-	const absolutePath = path.isAbsolute(decodedInput) ? path.normalize(decodedInput) : path.resolve(projectRoot, decodedInput);
-	const publicDir = path.join(projectRoot, "public");
-	const runtimeDir = path.join(projectRoot, "runtime");
-
-	if (isPathInside(absolutePath, publicDir)) {
-		return `${baseUrl}/${encodeURIComponent(path.basename(absolutePath))}`;
-	}
-	if (isPathInside(absolutePath, runtimeDir)) {
-		return `${baseUrl}/runtime/${encodeURIComponent(path.basename(absolutePath))}`;
-	}
-
-	throw new Error(`report path must be under runtime or public: ${normalizedInput}`);
-}
-
-function decodeFileUrlPath(fileUrl) {
-	const url = new URL(fileUrl);
-	return decodeURIComponent(url.pathname);
-}
-
-function isPathInside(filePath, parentDir) {
-	const normalizedFilePath = path.resolve(filePath);
-	const normalizedParentDir = path.resolve(parentDir);
-	const relativePath = path.relative(normalizedParentDir, normalizedFilePath);
-	return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+	return resolveBrowserInputUrl(inputPathOrUrl, {
+		projectRoot: options.projectRoot || "/app",
+		publicBaseUrl: options.baseUrl,
+	});
 }
 
 export async function takeReportScreenshot(htmlPathOrUrl, outputPath, options = {}) {

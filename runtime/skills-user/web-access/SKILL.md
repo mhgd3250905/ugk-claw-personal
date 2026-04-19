@@ -44,11 +44,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-web-access-browser.ps1
 
 After that command reports `web-access host bridge ready`, rerun `check-deps.mjs`. The host bridge will launch the configured Chrome/profile when the agent sends an IPC browser request.
 
-When this skill produces a local HTML report, screenshot page, or any artifact that the user should open in the host browser, never expose `file:///app/...` container paths to the user. Convert them to host-reachable URLs instead:
+Container workspace paths such as `/app/runtime/...`, `/app/public/...`, and `file:///app/...` are valid internal artifact inputs for this skill.
 
-- `public/<fileName>` -> `http://127.0.0.1:3000/<fileName>`
-- `runtime/<fileName>` -> `http://127.0.0.1:3000/runtime/<fileName>`
+- You may pass them directly to `/new` or `/navigate`
+- The runtime browser bridge will resolve supported local artifacts to a host-reachable HTTP URL automatically
 - If the goal is direct file delivery instead of browser preview, use `send_file`
+
+Only in the final user-facing answer should you avoid raw container paths. For user delivery, return the resolved host-reachable URL or use `send_file`.
 
 When you need browser-backed work that may span multiple commands, define the current agent scope once and reuse it on every proxy request:
 

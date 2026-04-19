@@ -30,10 +30,11 @@ test("web-access skill does not depend on CLAUDE_SKILL_DIR for script commands",
 	);
 });
 
-test("web-access skill forbids exposing container file URLs to the user", async () => {
+test("web-access skill treats container file URLs as valid internal artifact inputs and keeps user delivery separate", async () => {
 	const skill = await readFile("runtime/skills-user/web-access/SKILL.md", "utf8");
 
 	assert.match(skill, /file:\/\/\/app\/\.\.\./);
+	assert.match(skill, /internal artifact input/i);
 	assert.match(skill, /send_file/);
-	assert.match(skill, /http:\/\/127\.0\.0\.1:3000/);
+	assert.match(skill, /host-reachable/i);
 });

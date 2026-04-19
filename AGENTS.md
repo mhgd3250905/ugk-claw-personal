@@ -64,10 +64,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 默认开发方式：`docker compose up -d`
 - 代码已挂载到容器 `/app`，多数改动后只需要：
   - `docker compose restart ugk-pi`
-- 任何需要让宿主浏览器打开的本地报告 / 图片 / HTML，不要给 `file:///app/...` 这类容器路径：
-  - `public/` 根目录文件走 `http://127.0.0.1:3000/<fileName>`
-  - `runtime/` 生成报告走 `http://127.0.0.1:3000/runtime/<fileName>`
-  - 如果是要直接交付文件而不是浏览器预览，优先走 `send_file`
+- agent 内部可以继续使用 `/app/...` 或 `file:///app/...` 这类本地 artifact 路径做浏览器操作；运行时会自动桥接到宿主可访问的 HTTP 入口
+- 如果是要直接交付文件而不是浏览器预览，优先走 `send_file`
 - 如果页面还是旧 HTML：
   - 先重启 `ugk-pi`
   - 再强刷浏览器
@@ -192,7 +190,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 ## 8. 当前稳定事实
 
-- agent 每轮 prompt 都会通过 `src/agent/file-artifacts.ts` 注入文件交付协议：预览型产物回 HTTP URL，真实文件优先 `send_file`，`ugk-file` 只作小文本兜底
+- agent 每轮 prompt 都会通过 `src/agent/file-artifacts.ts` 注入文件交付协议：内部本地 artifact 路径允许直接用于工具与浏览器自动化；用户交付时浏览器预览走宿主可访问 HTTP，真实文件优先 `send_file`，`ugk-file` 只作小文本兜底
+- `AgentService` 会在用户可见的正文、流式增量和工具过程消息里，自动把支持的 `/app/public/...`、`/app/runtime/...`、`file:///app/...` 重写成宿主可访问的 `GET /v1/local-file?path=...`；不要再指望宿主浏览器直接打开容器 `file://`
 - 当前品牌文案为 `UGK CLAW`，playground 顶部和首页使用纯文字字标，不显示图片 logo。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/status` 和 `GET /v1/chat/events` 为准；文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
@@ -201,4 +200,4 @@ This file provides the highest-level working rules for AI coding agents in this 
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。
 - Docker 镜像已内置 `curl` 与 `ca-certificates`，不要再把 `/bin/bash: curl: command not found` 当成玄学问题。
 - `web-access` 真实浏览器链路走宿主 IPC bridge；容器内 `local_browser_executable_not_found` 不等于 Windows 没装 Chrome，先查 `docs/web-access-browser-bridge.md`。
-- 宿主浏览器永远不能直接访问容器内 `file:///app/...`；凡是要给用户打开的本地报告，必须转成 HTTP URL 或 `send_file`。
+- 宿主浏览器仍然不能直接访问容器内 `file:///app/...`；区别在于这不该由 agent 自己手动规避，应该由运行时自动桥接到 `GET /v1/local-file`、在用户可见文本里自动改写成本机可访问地址，或直接走 `send_file`。

@@ -139,3 +139,10 @@
 如果碰到容器里 `curl` 不存在这种低级环境锅，先看 [Dockerfile](/E:/AII/ugk-pi/Dockerfile) 里的基础工具安装，不要先怀疑人生。
 
 如果碰到容器内 `local_browser_executable_not_found`、Chrome 打开但 agent 仍报浏览器不可用、X 没登录态这类问题，先看 [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)。不要在容器里继续找 Windows Chrome，那条路是死胡同。
+# 2026-04-19 Addendum
+
+- 如果问题是“agent 又在内部步骤里用了 `file:///app/...`，但我不想再靠提示词堵”，先看：
+  - [runtime/skills-user/web-access/scripts/local-cdp-browser.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/local-cdp-browser.mjs)
+  - [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+  - [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+- 关键事实：现在内部 file 路径是允许的；真正负责把本地 artifact 转成宿主可访问 HTTP 的，是运行时桥接层和 `GET /v1/local-file?path=...`

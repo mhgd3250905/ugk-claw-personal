@@ -616,6 +616,37 @@ test("GET /runtime/report-medtrum-v2.html serves runtime report files over HTTP"
 	await app.close();
 });
 
+test("GET /v1/local-file opens runtime artifacts from container-style paths", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/local-file?path=%2Fapp%2Fruntime%2Freport-medtrum-v2.html",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] ?? "", /^text\/html/);
+	assert.match(response.body, /<html/i);
+	await app.close();
+});
+
+test("GET /v1/local-file accepts file URLs for runtime artifacts", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/local-file?path=file%3A%2F%2F%2Fapp%2Fruntime%2Freport-medtrum-v2.html",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] ?? "", /^text\/html/);
+	await app.close();
+});
+
 test("GET /runtime/../package.json does not expose files outside runtime", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -624,6 +655,20 @@ test("GET /runtime/../package.json does not expose files outside runtime", async
 	const response = await app.inject({
 		method: "GET",
 		url: "/runtime/../package.json",
+	});
+
+	assert.equal(response.statusCode, 404);
+	await app.close();
+});
+
+test("GET /v1/local-file does not expose files outside public and runtime", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/local-file?path=%2Fapp%2F.data%2Fagent%2Fasset-index.json",
 	});
 
 	assert.equal(response.statusCode, 404);
@@ -721,14 +766,66 @@ test("GET /v1/files/:fileId serves previewable images inline and still supports 
 		url: "/v1/files/image-1",
 	});
 	assert.equal(previewResponse.statusCode, 200);
-	assert.match(previewResponse.headers["content-disposition"] ?? "", /^inline;\s*filename="report\.png"$/);
+	assert.match(
+		previewResponse.headers["content-disposition"] ?? "",
+		/^inline;\s*filename="report\.png";\s*filename\*=UTF-8''report\.png$/,
+	);
 
 	const downloadResponse = await app.inject({
 		method: "GET",
 		url: "/v1/files/image-1?download=1",
 	});
 	assert.equal(downloadResponse.statusCode, 200);
-	assert.match(downloadResponse.headers["content-disposition"] ?? "", /^attachment;\s*filename="report\.png"$/);
+	assert.match(
+		downloadResponse.headers["content-disposition"] ?? "",
+		/^attachment;\s*filename="report\.png";\s*filename\*=UTF-8''report\.png$/,
+	);
+	await app.close();
+});
+
+test("GET /v1/files/:fileId supports non-ascii filenames without invalid header errors", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		assetStore: {
+			registerAttachments: async () => [],
+			saveFiles: async () => [],
+			listAssets: async () => [],
+			getAsset: async () => undefined,
+			resolveAssets: async () => [],
+			readText: async () => undefined,
+			getFile: async (fileId: string) =>
+				fileId === "image-zh"
+					? {
+							assetId: "image-zh",
+							reference: "@asset[image-zh]",
+							fileName: "知乎热榜Top3_20260419.png",
+							mimeType: "image/png",
+							sizeBytes: 8,
+							kind: "binary",
+							hasContent: true,
+							source: "agent_output",
+							conversationId: "manual:image-zh",
+							createdAt: "2026-04-19T00:00:00.000Z",
+							downloadUrl: "/v1/files/image-zh",
+							content: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+						}
+					: undefined,
+		},
+	});
+
+	const previewResponse = await app.inject({
+		method: "GET",
+		url: "/v1/files/image-zh",
+	});
+	assert.equal(previewResponse.statusCode, 200);
+	assert.match(previewResponse.headers["content-disposition"] ?? "", /^inline;\s*filename="[^"]+";\s*filename\*=UTF-8''/);
+
+	const downloadResponse = await app.inject({
+		method: "GET",
+		url: "/v1/files/image-zh?download=1",
+	});
+	assert.equal(downloadResponse.statusCode, 200);
+	assert.match(downloadResponse.headers["content-disposition"] ?? "", /^attachment;\s*filename="[^"]+";\s*filename\*=UTF-8''/);
 	await app.close();
 });
 

@@ -92,7 +92,10 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	});
 
 	registerAssetRoutes(app, { projectRoot: config.projectRoot });
-	registerFileRoutes(app, { assetStore });
+	registerFileRoutes(app, {
+		assetStore,
+		projectRoot: config.projectRoot,
+	});
 	registerPlaygroundRoute(app);
 	registerStaticRoutes(app, { projectRoot: config.projectRoot });
 	registerChatRoutes(app, { agentService });

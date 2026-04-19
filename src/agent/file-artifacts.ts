@@ -84,6 +84,27 @@ export function extractAgentFileDrafts(text: string): { text: string; files: Age
 	};
 }
 
+export function rewriteUserVisibleLocalArtifactLinks(
+	text: string,
+	options: {
+		publicBaseUrl?: string;
+	} = {},
+): string {
+	if (!text) {
+		return "";
+	}
+
+	const baseUrl = normalizePublicBaseUrl(options.publicBaseUrl);
+	return text.replace(LOCAL_ARTIFACT_REFERENCE_PATTERN, (match) => {
+		const { reference, trailing } = splitTrailingPunctuation(match);
+		const artifactPath = resolveSupportedLocalArtifactPath(reference);
+		if (!artifactPath) {
+			return match;
+		}
+		return `${baseUrl}/v1/local-file?path=${encodeURIComponent(artifactPath)}${trailing}`;
+	});
+}
+
 function buildAssetContext(assets: readonly PromptAssetContextEntry[]): string {
 	if (assets.length === 0) {
 		return "";
@@ -131,10 +152,10 @@ function buildAssetResponseInstruction(): string {
 function buildFileResponseInstruction(): string {
 	return [
 		"<file_response_protocol>",
-		"If a local report, screenshot page, or other previewable artifact should be opened in the host browser, never return a container file URL like file:///app/....",
-		"Use host-reachable HTTP URLs instead:",
-		"- public/<fileName> -> http://127.0.0.1:3000/<fileName>",
-		"- runtime/<fileName> -> http://127.0.0.1:3000/runtime/<fileName>",
+		"Local workspace artifact paths such as /app/runtime/..., /app/public/..., and file:///app/... are valid internal references for tools and browser automation.",
+		"When the host browser needs to open a local artifact, the runtime will translate those supported local paths to a host-reachable HTTP URL automatically.",
+		"Only in the final user-facing answer should you avoid raw container file paths.",
+		"If the user should open the artifact in a browser, provide a host-reachable HTTP URL.",
 		"If you generated a real file inside the project workspace and the user should receive the file itself, prefer the send_file tool.",
 		'Only fall back to a fenced block like ```ugk-file name="example.txt" mime="text/plain"',
 		"file contents",
@@ -172,6 +193,53 @@ function normalizeVisibleText(text: string): string {
 		.trim();
 }
 
+function normalizePublicBaseUrl(publicBaseUrl?: string): string {
+	return String(publicBaseUrl || process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${process.env.PORT || "3000"}`).replace(
+		/\/+$/,
+		"",
+	);
+}
+
+function resolveSupportedLocalArtifactPath(reference: string): string | undefined {
+	const normalizedReference = String(reference || "").trim();
+	if (!normalizedReference) {
+		return undefined;
+	}
+
+	const decodedReference = normalizedReference.startsWith("file://")
+		? decodeFileUrlPath(normalizedReference) ?? normalizedReference
+		: normalizedReference;
+	const slashPath = decodedReference.replace(/\\/g, "/");
+	if (slashPath.startsWith("/app/public/") || slashPath.startsWith("/app/runtime/")) {
+		return slashPath;
+	}
+	return undefined;
+}
+
+function decodeFileUrlPath(fileUrl: string): string | undefined {
+	try {
+		const url = new URL(fileUrl);
+		if (url.protocol !== "file:") {
+			return undefined;
+		}
+		return decodeURIComponent(url.pathname || "");
+	} catch {
+		return undefined;
+	}
+}
+
+function splitTrailingPunctuation(reference: string): { reference: string; trailing: string } {
+	const trailingMatch = reference.match(/[),.;!?，。；！？）】》]+$/);
+	if (!trailingMatch) {
+		return { reference, trailing: "" };
+	}
+
+	return {
+		reference: reference.slice(0, -trailingMatch[0].length),
+		trailing: trailingMatch[0],
+	};
+}
+
 function normalizeMimeType(mimeType: string): string {
 	const normalized = mimeType.trim().toLowerCase();
 	return /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(normalized) ? normalized : "application/octet-stream";
@@ -181,3 +249,6 @@ function sanitizeFileName(fileName: string): string {
 	const safeBaseName = fileName.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").trim();
 	return safeBaseName || "agent-file.txt";
 }
+
+const LOCAL_ARTIFACT_REFERENCE_PATTERN =
+	/file:\/\/\/app\/(?:public|runtime)\/[^\s<>"'`，。；！？）】》]+|\/app\/(?:public|runtime)\/[^\s<>"'`，。；！？）】》]+/gi;

@@ -5,11 +5,21 @@ import dns from 'node:dns/promises';
 import { mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 const DEFAULT_PORT = Number(process.env.WEB_ACCESS_CDP_PORT || 9222);
 const DEFAULT_HOST = process.env.WEB_ACCESS_CDP_HOST || '127.0.0.1';
 const DEFAULT_LISTEN_ADDRESS =
   process.env.WEB_ACCESS_CDP_LISTEN_ADDRESS || DEFAULT_HOST;
+
+function normalizePublicBaseUrl(options = {}) {
+  return String(
+    options.publicBaseUrl ||
+      process.env.PUBLIC_BASE_URL ||
+      `http://127.0.0.1:${process.env.PORT || '3000'}`,
+  ).replace(/\/+$/, '');
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -119,6 +129,81 @@ function normalizeTarget(target) {
     url: target.url,
     webSocketDebuggerUrl: target.webSocketDebuggerUrl,
   };
+}
+
+function normalizeSlashPath(value) {
+  return String(value || '').replace(/\\/g, '/');
+}
+
+function decodeFileUrlPath(fileUrl) {
+  try {
+    const url = new URL(fileUrl);
+    if (url.protocol !== 'file:') {
+      return undefined;
+    }
+    return decodeURIComponent(url.pathname || '');
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveWorkspaceArtifactPath(input, options = {}) {
+  const normalizedInput = String(input || '').trim();
+  if (!normalizedInput) {
+    return undefined;
+  }
+
+  const decodedInput = normalizedInput.startsWith('file://')
+    ? decodeFileUrlPath(normalizedInput) || normalizedInput
+    : normalizedInput;
+  const projectRoot = normalizeSlashPath(
+    options.projectRoot || process.env.WEB_ACCESS_PROJECT_ROOT || '/app',
+  ).replace(/\/+$/, '');
+  const slashInput = normalizeSlashPath(decodedInput);
+
+  if (!slashInput) {
+    return undefined;
+  }
+
+  if (slashInput.startsWith('/app/public/') || slashInput.startsWith('/app/runtime/')) {
+    return slashInput;
+  }
+  if (
+    slashInput.startsWith(`${projectRoot}/public/`) ||
+    slashInput.startsWith(`${projectRoot}/runtime/`)
+  ) {
+    return decodedInput;
+  }
+  if (/^(public|runtime)(\/|$)/.test(slashInput)) {
+    return `${projectRoot}/${slashInput}`;
+  }
+  return undefined;
+}
+
+export function resolveBrowserInputUrl(input, options = {}) {
+  const normalizedInput = String(input || '').trim();
+  if (!normalizedInput) {
+    throw new Error('browser_target_url_required');
+  }
+  if (/^https?:\/\//i.test(normalizedInput)) {
+    return normalizedInput;
+  }
+
+  const artifactPath = resolveWorkspaceArtifactPath(normalizedInput, options);
+  if (artifactPath) {
+    const baseUrl = normalizePublicBaseUrl(options);
+    return `${baseUrl}/v1/local-file?path=${encodeURIComponent(artifactPath)}`;
+  }
+
+  if (normalizedInput.startsWith('file://')) {
+    return normalizedInput;
+  }
+
+  if (path.isAbsolute(normalizedInput)) {
+    return pathToFileURL(normalizedInput).toString();
+  }
+
+  return normalizedInput;
 }
 
 export function rewriteCdpTargetForBaseUrl(target, baseUrl) {
@@ -420,7 +505,8 @@ export class LocalCdpBrowser {
 
   async newTarget(url = 'about:blank') {
     await this.ensureBrowser();
-    const target = await fetchJson(`${this.baseUrl}/json/new?${encodeURIComponent(url)}`, {
+    const resolvedUrl = resolveBrowserInputUrl(url, this.options);
+    const target = await fetchJson(`${this.baseUrl}/json/new?${encodeURIComponent(resolvedUrl)}`, {
       method: 'PUT',
       fetchImpl: this.fetchImpl,
     });
@@ -487,7 +573,9 @@ export class LocalCdpBrowser {
   async navigate(targetId, url) {
     return await this.withTarget(targetId, async (cdp) => {
       await cdp.send('Page.enable');
-      await cdp.send('Page.navigate', { url });
+      await cdp.send('Page.navigate', {
+        url: resolveBrowserInputUrl(url, this.options),
+      });
       await this.waitForReady(cdp);
       return await this.getTargetInfo(targetId);
     });

@@ -394,3 +394,8 @@ x-search-latest/SKILL.md
 - Chrome 命令行使用 `.data/web-access-chrome-profile`
 - 该 profile 已登录目标网站
 - `/x-search-latest:*` 能打开 X Latest 页面并拿到真实页面状态
+# 2026-04-19 Addendum
+
+- `web-access` 现在正式支持把 `/app/...` 和 `file:///app/...` 当作内部浏览器输入
+- 这些本地 artifact 输入会由运行时自动桥接到 `GET /v1/local-file?path=...`
+- 这层桥接的目标是让 agent 保持 file 工作流，不再靠提示词强行禁止 file 思路

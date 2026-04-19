@@ -15,6 +15,7 @@ import type { ChatStreamEvent, QueueMessageMode } from "../types/api.js";
 import {
 	buildPromptWithAssetContext,
 	extractAgentFileDrafts,
+	rewriteUserVisibleLocalArtifactLinks,
 	type AgentFileArtifact,
 	type PromptAssetContextEntry,
 	toPromptAssetFromStoredAsset,
@@ -232,13 +233,13 @@ export class AgentService {
 			conversationId,
 		});
 
-		let text = "";
+		let rawText = "";
 		const sentFiles: AgentFileArtifact[] = [];
 		const unsubscribe = session.subscribe((event) => {
 			switch (event.type) {
 				case "message_update":
 					if (isMessageUpdateEvent(event)) {
-						text = this.handleMessageUpdate(event, text, (streamEvent) => {
+						rawText = this.handleMessageUpdate(event, rawText, (streamEvent) => {
 							this.emitRunEvent(activeRun, onEvent, streamEvent);
 						});
 					}
@@ -284,19 +285,21 @@ export class AgentService {
 				throw new Error(lastAssistantMessage.errorMessage ?? "Unknown upstream provider error");
 			}
 
-			if (!text) {
-				text = this.extractAssistantText(lastAssistantMessage);
+			if (!rawText) {
+				rawText = this.extractAssistantText(lastAssistantMessage);
 			}
 
+			let text = rawText;
 			let files: AgentFileArtifact[] | undefined;
 			if (this.options.assetStore) {
-				const extractedFiles = extractAgentFileDrafts(text);
+				const extractedFiles = extractAgentFileDrafts(rawText);
 				text = extractedFiles.text;
 				files =
 					extractedFiles.files.length > 0
 						? await this.options.assetStore.saveFiles(conversationId, extractedFiles.files)
 						: undefined;
 			}
+			text = rewriteUserVisibleLocalArtifactLinks(text);
 			files = mergeAgentFiles(files, sentFiles);
 
 			if (session.sessionFile) {
@@ -460,7 +463,7 @@ export class AgentService {
 		const nextText = currentText + delta;
 		this.emitEvent(onEvent, {
 			type: "text_delta",
-			textDelta: delta,
+			textDelta: rewriteUserVisibleLocalArtifactLinks(delta),
 		});
 		return nextText;
 	}
@@ -517,30 +520,30 @@ export class AgentService {
 			}
 
 			try {
-				return JSON.stringify(value, null, 2);
+				return rewriteUserVisibleLocalArtifactLinks(JSON.stringify(value, null, 2));
 			} catch {
-				return this.normalizeProcessText(String(value));
+				return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(String(value)));
 			}
 		}
 
-		return this.normalizeProcessText(String(value));
+		return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(String(value)));
 	}
 
 	private extractTextContent(value: object): string {
 		if ("text" in value && typeof value.text === "string") {
-			return this.normalizeProcessText(value.text);
+			return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(value.text));
 		}
 		if ("message" in value && typeof value.message === "string") {
-			return this.normalizeProcessText(value.message);
+			return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(value.message));
 		}
 		if ("content" in value && Array.isArray(value.content)) {
 			return value.content
 				.map((entry) => {
 					if (typeof entry === "string") {
-						return this.normalizeProcessText(entry);
+						return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(entry));
 					}
 					if (entry && typeof entry === "object" && "text" in entry && typeof entry.text === "string") {
-						return this.normalizeProcessText(entry.text);
+						return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(entry.text));
 					}
 					return "";
 				})

@@ -870,6 +870,82 @@ test("falls back to the final assistant message text when no deltas were emitted
 	assert.equal(result.text, "FINAL_TEXT");
 });
 
+test("rewrites supported local artifact paths before returning assistant text to the user", async () => {
+	const store = await createStore();
+	const factory = new FakeAgentSessionFactory(
+		() =>
+			new FakeSession(
+				"E:/sessions/final-local-artifact.jsonl",
+				[],
+				"请打开 file:///app/public/zhihu-hot-share.html",
+			),
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const result = await service.chat({
+		conversationId: "manual:final-local-artifact",
+		message: "把地址给我",
+	});
+
+	assert.equal(
+		result.text,
+		"请打开 http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html",
+	);
+});
+
+test("rewrites supported local artifact paths in streamed tool output and final done text", async () => {
+	const store = await createStore();
+	const factory = new FakeAgentSessionFactory(
+		() =>
+			new FakeSession(
+				"E:/sessions/stream-local-artifact.jsonl",
+				[
+					{
+						type: "tool_execution_end",
+						toolCallId: "tool-open-local",
+						toolName: "browser_open",
+						result: {
+							message: "准备打开 file:///app/public/zhihu-hot-share.html",
+						},
+						isError: false,
+					} as unknown as MessageUpdateEventLike,
+					textDelta("现在给你 file:///app/public/zhihu-hot-share.html"),
+				],
+				"现在给你 file:///app/public/zhihu-hot-share.html",
+			),
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	const events: Array<Record<string, unknown>> = [];
+
+	await service.streamChat(
+		{
+			conversationId: "manual:stream-local-artifact",
+			message: "把地址给我",
+		},
+		(event) => {
+			events.push(event as unknown as Record<string, unknown>);
+		},
+	);
+
+	assert.deepEqual(events[1], {
+		type: "tool_finished",
+		toolCallId: "tool-open-local",
+		toolName: "browser_open",
+		isError: false,
+		result: "准备打开 http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html",
+	});
+	assert.deepEqual(events[2], {
+		type: "text_delta",
+		textDelta: "现在给你 http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html",
+	});
+	assert.deepEqual(events[3], {
+		type: "done",
+		conversationId: "manual:stream-local-artifact",
+		text: "现在给你 http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html",
+		sessionFile: "E:/sessions/stream-local-artifact.jsonl",
+	});
+});
+
 test("throws when the final assistant message indicates an upstream provider error", async () => {
 	const store = await createStore();
 	const factory = new FakeAgentSessionFactory(

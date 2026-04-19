@@ -203,3 +203,10 @@ agent 可以通过下面这种 fenced block 输出文件：
 - 飞书侧当前优先处理文本消息；文件 / 图片消息仍以元数据和链接为主
 - `conn` 当前是单进程内调度，重启后能恢复索引，但不适合多实例抢占执行
 - 资产复用的真相以 `GET /v1/assets` 和实际资产索引为准，不要靠模型脑补
+# 2026-04-19 Addendum
+
+- `src/agent/file-artifacts.ts` 的文件交付协议已经更新为：
+  - 内部允许 `/app/...` 和 `file:///app/...` 这类本地 artifact 路径
+  - 浏览器打开场景由运行时桥接层自动转换到宿主可访问 HTTP
+  - 用户直接收文件时优先 `send_file`
+- `src/routes/files.ts` 现在额外提供 `GET /v1/local-file?path=...`，给浏览器桥打开 `public/` / `runtime/` 下的本地 artifact
