@@ -106,6 +106,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 ### B 场景：查聊天、会话、流式、打断
 
+- `GET /v1/chat/status`
+- `GET /v1/chat/events`
 - `src/routes/chat.ts`
 - `src/agent/agent-service.ts`
 - `src/agent/agent-session-factory.ts`
@@ -177,6 +179,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 - 当前品牌文案为 `UGK CLAW`，playground 顶部和首页使用纯文字字标，不显示图片 logo。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
+- playground 刷新恢复运行态以 `GET /v1/chat/status` 和 `GET /v1/chat/events` 为准；文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
+- `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。
 - Docker 镜像已内置 `curl` 与 `ca-certificates`，不要再把 `/bin/bash: curl: command not found` 当成玄学问题。

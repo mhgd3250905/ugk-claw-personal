@@ -12,6 +12,20 @@
 
 ## 2026-04-19
 
+### Init 接手文档同步运行态重连口径
+- 主题：把当前运行态重连能力同步到下次 `/init` 最容易读取的入口文档，避免新会话只看到旧的“流式 / 打断”口径
+- 影响范围：
+  - `AGENTS.md` 的聊天场景索引新增 `GET /v1/chat/status` 与 `GET /v1/chat/events`，稳定事实补充“当前正在运行”文案和 active run 事件缓冲边界
+  - `README.md` 的能力概览、接口速查和验证结果补齐运行态查询、事件重连以及 `76 / 76` 测试口径
+  - `docs/traceability-map.md` 增加刷新后 active run 状态映射、事件缓冲和 `/v1/chat/events` 重连追溯点
+  - `docs/playground-current.md` 清理旧乱码小节，补成明确的运行态与 loading 约束
+- 对应入口：
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+  - [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
+
 ### Playground 当前运行态事件重连
 - 主题：修复刷新后恢复出的当前运行任务只显示旧快照、不会继续更新的问题，并移除“上一轮仍在运行”这类误导文案
 - 影响范围：

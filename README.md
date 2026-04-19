@@ -52,6 +52,8 @@
   - `GET /v1/assets/:assetId`
   - `GET /v1/conns`
   - `GET /v1/debug/skills`
+  - `GET /v1/chat/status`
+  - `GET /v1/chat/events`
   - `POST /v1/chat`
   - `POST /v1/chat/stream`
   - `POST /v1/chat/queue`
@@ -61,6 +63,7 @@
 - playground 支持文件选择、拖入、最近资产复用、chip 展示、Markdown 渲染、代码块复制。
 - 用户消息固定靠右；系统反馈视觉上与助手消息保持一致。
 - 助手消息内保留单个“思考过程”区域，默认展开显示过程和当前动作。
+- 运行中刷新页面会按真实 agent 状态恢复：`GET /v1/chat/status` 判断当前 `conversationId` 是否仍在运行，`GET /v1/chat/events` 重新订阅 active run 事件并继续更新同一个助手气泡。
 - “查看技能”按钮会先展示过程，再列出 `GET /v1/debug/skills` 返回的完整技能清单。
 - 统一资产库已接入上传文件、agent 产出文件、`assetRefs` 复用和 `ugk-file` 协议。
 - 已支持 `conn` 定时 / 周期任务和飞书 webhook 接入。
@@ -297,6 +300,18 @@ curl -N -X POST http://127.0.0.1:3000/v1/chat/stream ^
   -d "{\"conversationId\":\"manual:stream-1\",\"message\":\"请流式回复\"}"
 ```
 
+查看当前会话是否仍在运行：
+
+```bash
+curl "http://127.0.0.1:3000/v1/chat/status?conversationId=manual:stream-1"
+```
+
+重新订阅当前运行任务事件：
+
+```bash
+curl -N "http://127.0.0.1:3000/v1/chat/events?conversationId=manual:stream-1"
+```
+
 追加运行中消息：
 
 ```bash
@@ -349,5 +364,5 @@ npm run test
 最近文档整理前的回归结果是：
 
 - `npx tsc --noEmit` 通过
-- `npm run test` 为 `67 / 67` 通过
-- 默认入口 `127.0.0.1:3000` 已验证 `/healthz`、字体资产和 `UGK CLAW` playground HTML
+- `npm run test` 为 `76 / 76` 通过
+- 默认入口 `127.0.0.1:3000` 已验证 `/healthz`、`/playground`、运行态重连入口和 `UGK CLAW` playground HTML

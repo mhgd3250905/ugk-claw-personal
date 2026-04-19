@@ -28,11 +28,14 @@
 
 重点问题：
 
+- `GET /v1/chat/status`
+- `GET /v1/chat/events`
 - `POST /v1/chat`
 - `POST /v1/chat/stream`
 - `POST /v1/chat/queue`
 - `POST /v1/chat/interrupt`
 - `steer` / `followUp` 的实际走向
+- 刷新后 active run 的真实状态映射、事件缓冲和重新订阅
 
 ## C 场景：我要查 playground 的视觉、交互和前端状态
 
@@ -51,6 +54,7 @@
 - 文件 chip
 - 选择资产
 - “查看技能”按钮链路
+- 刷新后恢复“当前正在运行”的 loading 气泡、过程日志和 `/v1/chat/events` 重连
 
 ## D 场景：我要查文件上传、资产复用、下载文件
 
