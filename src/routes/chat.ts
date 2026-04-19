@@ -3,6 +3,7 @@ import type { ServerResponse } from "node:http";
 import type { AgentService } from "../agent/agent-service.js";
 import type {
 	ChatAttachmentBody,
+	ChatAssetBody,
 	ChatRequestBody,
 	ChatResponseBody,
 	ChatStreamEvent,
@@ -83,16 +84,45 @@ function parseAttachments(value: unknown): { attachments?: ChatAttachmentBody[];
 		if (attachment.text !== undefined && typeof attachment.text !== "string") {
 			return { error: `attachments[${index}].text must be a string when provided` };
 		}
+		if (attachment.base64 !== undefined && typeof attachment.base64 !== "string") {
+			return { error: `attachments[${index}].base64 must be a string when provided` };
+		}
+		if (attachment.text !== undefined && attachment.base64 !== undefined) {
+			return { error: `attachments[${index}] cannot provide both text and base64` };
+		}
 
 		attachments.push({
 			fileName: attachment.fileName,
 			mimeType: typeof attachment.mimeType === "string" ? attachment.mimeType : undefined,
 			sizeBytes: typeof attachment.sizeBytes === "number" ? attachment.sizeBytes : undefined,
 			text: typeof attachment.text === "string" ? attachment.text : undefined,
+			base64: typeof attachment.base64 === "string" ? attachment.base64 : undefined,
 		});
 	}
 
 	return { attachments };
+}
+
+function parseAssetRefs(value: unknown): { assetRefs?: string[]; error?: string } {
+	if (value === undefined) {
+		return {};
+	}
+	if (!Array.isArray(value)) {
+		return { error: 'Field "assetRefs" must be an array when provided' };
+	}
+	if (value.length > 20) {
+		return { error: 'Field "assetRefs" supports at most 20 asset ids' };
+	}
+
+	const assetRefs: string[] = [];
+	for (const [index, rawAssetId] of value.entries()) {
+		if (typeof rawAssetId !== "string" || rawAssetId.trim().length === 0) {
+			return { error: `assetRefs[${index}] must be a non-empty string` };
+		}
+		assetRefs.push(rawAssetId.trim());
+	}
+
+	return { assetRefs };
 }
 
 export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependencies): void {
@@ -108,7 +138,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			request: FastifyRequest<{ Body: Partial<ChatRequestBody> }>,
 			reply,
 		): Promise<ChatResponseBody | FastifyReply> => {
-			const { conversationId, message, userId, attachments } = request.body ?? {};
+			const { conversationId, message, userId, attachments, assetRefs } = request.body ?? {};
 
 			if (!isValidMessage(message)) {
 				return sendBadRequest(reply, 'Field "message" must be a non-empty string');
@@ -117,6 +147,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			if (parsedAttachments.error) {
 				return sendBadRequest(reply, parsedAttachments.error);
 			}
+			const parsedAssetRefs = parseAssetRefs(assetRefs);
+			if (parsedAssetRefs.error) {
+				return sendBadRequest(reply, parsedAssetRefs.error);
+			}
 
 			try {
 				return await deps.agentService.chat({
@@ -124,6 +158,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					message,
 					userId,
 					...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
+					...(parsedAssetRefs.assetRefs ? { assetRefs: parsedAssetRefs.assetRefs } : {}),
 				});
 			} catch (error) {
 				return sendInternalError(reply, error);
@@ -134,7 +169,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 	app.post(
 		"/v1/chat/stream",
 		async (request: FastifyRequest<{ Body: Partial<ChatRequestBody> }>, reply): Promise<FastifyReply | void> => {
-			const { conversationId, message, userId, attachments } = request.body ?? {};
+			const { conversationId, message, userId, attachments, assetRefs } = request.body ?? {};
 
 			if (!isValidMessage(message)) {
 				return sendBadRequest(reply, 'Field "message" must be a non-empty string');
@@ -142,6 +177,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			const parsedAttachments = parseAttachments(attachments);
 			if (parsedAttachments.error) {
 				return sendBadRequest(reply, parsedAttachments.error);
+			}
+			const parsedAssetRefs = parseAssetRefs(assetRefs);
+			if (parsedAssetRefs.error) {
+				return sendBadRequest(reply, parsedAssetRefs.error);
 			}
 
 			reply.hijack();
@@ -158,6 +197,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 						message,
 						userId,
 						...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
+						...(parsedAssetRefs.assetRefs ? { assetRefs: parsedAssetRefs.assetRefs } : {}),
 					},
 					(event) => {
 						writeSseEvent(reply.raw, event);
@@ -181,7 +221,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			request: FastifyRequest<{ Body: Partial<QueueMessageRequestBody> }>,
 			reply,
 		): Promise<QueueMessageResponseBody | FastifyReply> => {
-			const { conversationId, message, mode, userId, attachments } = request.body ?? {};
+			const { conversationId, message, mode, userId, attachments, assetRefs } = request.body ?? {};
 
 			if (!isValidConversationId(conversationId)) {
 				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
@@ -196,6 +236,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			if (parsedAttachments.error) {
 				return sendBadRequest(reply, parsedAttachments.error);
 			}
+			const parsedAssetRefs = parseAssetRefs(assetRefs);
+			if (parsedAssetRefs.error) {
+				return sendBadRequest(reply, parsedAssetRefs.error);
+			}
 
 			try {
 				return await deps.agentService.queueMessage({
@@ -204,6 +248,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					mode,
 					userId,
 					...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
+					...(parsedAssetRefs.assetRefs ? { assetRefs: parsedAssetRefs.assetRefs } : {}),
 				});
 			} catch (error) {
 				return sendInternalError(reply, error);

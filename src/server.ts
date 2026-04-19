@@ -2,28 +2,39 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { pathToFileURL } from "node:url";
 import { getAppConfig } from "./config.js";
 import { AgentService } from "./agent/agent-service.js";
+import { AssetStore, type AssetStoreLike } from "./agent/asset-store.js";
+import { ConnRunner } from "./agent/conn-runner.js";
+import { ConnScheduler } from "./agent/conn-scheduler.js";
+import { ConnStore } from "./agent/conn-store.js";
 import { createDefaultAgentSessionFactory } from "./agent/agent-session-factory.js";
 import { ConversationStore } from "./agent/conversation-store.js";
-import { FileArtifactStore, type FileArtifactStoreLike } from "./agent/file-artifacts.js";
+import { FeishuClient } from "./integrations/feishu/client.js";
+import { FeishuConversationMapStore } from "./integrations/feishu/conversation-map-store.js";
+import { FeishuService } from "./integrations/feishu/service.js";
 import { registerAssetRoutes } from "./routes/assets.js";
 import { registerChatRoutes } from "./routes/chat.js";
+import { registerConnRoutes } from "./routes/conns.js";
+import { registerFeishuRoutes } from "./routes/feishu.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerPlaygroundRoute } from "./routes/playground.js";
 
 export interface BuildServerOptions {
 	agentService?: AgentService;
-	fileArtifactStore?: FileArtifactStoreLike;
+	assetStore?: AssetStoreLike;
+	connStore?: ConnStore;
+	connScheduler?: ConnScheduler;
+	feishuService?: FeishuService;
 }
 
-function createDefaultFileArtifactStore(): FileArtifactStore {
+function createDefaultAssetStore(): AssetStore {
 	const config = getAppConfig();
-	return new FileArtifactStore({
-		filesDir: config.agentFilesDir,
-		indexPath: config.fileIndexPath,
+	return new AssetStore({
+		blobsDir: config.agentAssetBlobsDir,
+		indexPath: config.assetIndexPath,
 	});
 }
 
-function createDefaultAgentService(fileArtifactStore: FileArtifactStoreLike): AgentService {
+function createDefaultAgentService(assetStore: AssetStoreLike): AgentService {
 	const config = getAppConfig();
 	const conversationStore = new ConversationStore(config.conversationIndexPath);
 	const sessionFactory = createDefaultAgentSessionFactory({
@@ -34,7 +45,7 @@ function createDefaultAgentService(fileArtifactStore: FileArtifactStoreLike): Ag
 	return new AgentService({
 		conversationStore,
 		sessionFactory,
-		fileArtifactStore,
+		assetStore,
 	});
 }
 
@@ -42,18 +53,49 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	const app = Fastify({
 		logger: false,
 	});
-	const fileArtifactStore = options.fileArtifactStore ?? createDefaultFileArtifactStore();
-	const agentService = options.agentService ?? createDefaultAgentService(fileArtifactStore);
+	const assetStore = options.assetStore ?? createDefaultAssetStore();
+	const agentService = options.agentService ?? createDefaultAgentService(assetStore);
 	const config = getAppConfig();
+	const feishuService =
+		options.feishuService ??
+		new FeishuService({
+			agentService,
+			conversationMapStore: new FeishuConversationMapStore({
+				indexPath: config.feishuConversationMapPath,
+			}),
+			client: new FeishuClient({
+				appId: process.env.FEISHU_APP_ID,
+				appSecret: process.env.FEISHU_APP_SECRET,
+				apiBase: process.env.FEISHU_API_BASE,
+			}),
+			publicBaseUrl: config.publicBaseUrl,
+		});
+	const connStore = options.connStore ?? new ConnStore({ indexPath: config.connIndexPath });
+	const connScheduler =
+		options.connScheduler ??
+		new ConnScheduler({
+			store: connStore,
+			runner: new ConnRunner({
+				agentService,
+				delivery: feishuService,
+			}),
+		});
 
 	app.get("/healthz", async () => {
 		return { ok: true };
 	});
 
+	connScheduler.start();
+	app.addHook("onClose", async () => {
+		connScheduler.stop();
+	});
+
 	registerAssetRoutes(app, { projectRoot: config.projectRoot });
-	registerFileRoutes(app, { fileArtifactStore });
+	registerFileRoutes(app, { assetStore });
 	registerPlaygroundRoute(app);
 	registerChatRoutes(app, { agentService });
+	registerConnRoutes(app, { connStore, connScheduler });
+	registerFeishuRoutes(app, { feishuService });
 
 	return app;
 }

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { ConversationStore } from "./conversation-store.js";
+import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
 import type {
 	AgentSessionFactory,
 	AgentSessionLike,
@@ -12,11 +13,11 @@ import type {
 } from "./agent-session-factory.js";
 import type { ChatStreamEvent, QueueMessageMode } from "../types/api.js";
 import {
-	buildPromptWithFileContext,
+	buildPromptWithAssetContext,
 	extractAgentFileDrafts,
 	type AgentFileArtifact,
-	type ChatAttachment,
-	type FileArtifactStoreLike,
+	type PromptAssetContextEntry,
+	toPromptAssetFromStoredAsset,
 } from "./file-artifacts.js";
 
 export interface ChatInput {
@@ -24,12 +25,14 @@ export interface ChatInput {
 	message: string;
 	userId?: string;
 	attachments?: ChatAttachment[];
+	assetRefs?: string[];
 }
 
 export interface ChatResult {
 	conversationId: string;
 	text: string;
 	sessionFile?: string;
+	inputAssets?: AssetRecord[];
 	files?: AgentFileArtifact[];
 }
 
@@ -39,6 +42,7 @@ export interface QueueMessageInput {
 	mode: QueueMessageMode;
 	userId?: string;
 	attachments?: ChatAttachment[];
+	assetRefs?: string[];
 }
 
 export interface QueueMessageResult {
@@ -66,7 +70,7 @@ export interface RuntimeSkillInfo {
 export interface AgentServiceOptions {
 	conversationStore: ConversationStore;
 	sessionFactory: AgentSessionFactory;
-	fileArtifactStore?: FileArtifactStoreLike;
+	assetStore?: AssetStoreLike;
 }
 
 export class AgentService {
@@ -103,13 +107,17 @@ export class AgentService {
 			};
 		}
 
-		const message =
-			input.attachments && input.attachments.length > 0
-				? buildPromptWithFileContext(input.message, input.attachments)
-				: input.message;
-		await activeRun.session.prompt(message, {
-			streamingBehavior: input.mode,
-		});
+		const preparedAssets = await this.preparePromptAssets(input.conversationId, input.attachments, input.assetRefs);
+		const message = buildPromptWithAssetContext(input.message, preparedAssets.promptAssets);
+		if (input.mode === "steer" && activeRun.session.steer) {
+			await activeRun.session.steer(message);
+		} else if (input.mode === "followUp" && activeRun.session.followUp) {
+			await activeRun.session.followUp(message);
+		} else {
+			await activeRun.session.prompt(message, {
+				streamingBehavior: input.mode,
+			});
+		}
 
 		return {
 			conversationId: input.conversationId,
@@ -151,6 +159,7 @@ export class AgentService {
 	): Promise<ChatResult> {
 		const conversationId = input.conversationId ?? `manual:${randomUUID()}`;
 		const { session, skillFingerprint } = await this.openSession(conversationId);
+		const preparedAssets = await this.preparePromptAssets(conversationId, input.attachments, input.assetRefs);
 		if (this.activeRuns.has(conversationId)) {
 			throw new Error(`Conversation ${conversationId} is already running`);
 		}
@@ -203,7 +212,7 @@ export class AgentService {
 		});
 
 		try {
-			await session.prompt(buildPromptWithFileContext(input.message, input.attachments));
+			await session.prompt(buildPromptWithAssetContext(input.message, preparedAssets.promptAssets));
 		} finally {
 			unsubscribe();
 			if (this.activeRuns.get(conversationId) === activeRun) {
@@ -221,12 +230,12 @@ export class AgentService {
 		}
 
 		let files: AgentFileArtifact[] | undefined;
-		if (this.options.fileArtifactStore) {
+		if (this.options.assetStore) {
 			const extractedFiles = extractAgentFileDrafts(text);
 			text = extractedFiles.text;
 			files =
 				extractedFiles.files.length > 0
-					? await this.options.fileArtifactStore.saveFiles(conversationId, extractedFiles.files)
+					? await this.options.assetStore.saveFiles(conversationId, extractedFiles.files)
 					: undefined;
 		}
 
@@ -247,6 +256,7 @@ export class AgentService {
 			conversationId,
 			text,
 			sessionFile: session.sessionFile,
+			inputAssets: preparedAssets.uploadedAssets.length > 0 ? preparedAssets.uploadedAssets : undefined,
 			files: files && files.length > 0 ? files : undefined,
 		};
 
@@ -258,6 +268,9 @@ export class AgentService {
 		};
 		if (result.files) {
 			doneEvent.files = result.files;
+		}
+		if (result.inputAssets) {
+			doneEvent.inputAssets = result.inputAssets;
 		}
 		onEvent?.(doneEvent);
 
@@ -281,6 +294,61 @@ export class AgentService {
 		return {
 			session,
 			skillFingerprint,
+		};
+	}
+
+	private async preparePromptAssets(
+		conversationId: string,
+		attachments?: readonly ChatAttachment[],
+		assetRefs?: readonly string[],
+	): Promise<{
+		uploadedAssets: AssetRecord[];
+		promptAssets: PromptAssetContextEntry[];
+	}> {
+		if (!this.options.assetStore) {
+			return {
+				uploadedAssets: [],
+				promptAssets:
+					attachments?.map((attachment, index) => ({
+						assetId: `inline-upload-${index + 1}`,
+						reference: `@asset[inline-upload-${index + 1}]`,
+						fileName: attachment.fileName,
+						mimeType: attachment.mimeType?.trim() || "application/octet-stream",
+						sizeBytes: Number.isFinite(attachment.sizeBytes) ? attachment.sizeBytes ?? 0 : 0,
+						kind: typeof attachment.text === "string" ? "text" : "metadata",
+						hasContent: typeof attachment.text === "string",
+						source: "upload",
+						...(typeof attachment.text === "string" ? { textContent: attachment.text } : {}),
+					})) ?? [],
+			};
+		}
+
+		const uploadedAssets =
+			attachments && attachments.length > 0
+				? await this.options.assetStore.registerAttachments(conversationId, attachments)
+				: [];
+		const referencedAssets =
+			assetRefs && assetRefs.length > 0 ? await this.options.assetStore.resolveAssets(assetRefs) : [];
+
+		const uploadedPromptAssets = uploadedAssets.map((asset, index) =>
+			toPromptAssetFromStoredAsset(asset, {
+				source: "upload",
+				textContent: attachments?.[index]?.text,
+			}),
+		);
+
+		const referencedPromptAssets = await Promise.all(
+			referencedAssets.map(async (asset) =>
+				toPromptAssetFromStoredAsset(asset, {
+					source: "reference",
+					textContent: await this.options.assetStore?.readText(asset.assetId),
+				}),
+			),
+		);
+
+		return {
+			uploadedAssets,
+			promptAssets: [...uploadedPromptAssets, ...referencedPromptAssets],
 		};
 	}
 

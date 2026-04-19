@@ -9,7 +9,7 @@ type StreamEvent = Record<string, unknown>;
 function createAgentServiceStub(overrides?: {
 	chat?: AgentService["chat"];
 	streamChat?: (
-		input: { conversationId?: string; message: string; userId?: string; attachments?: unknown[] },
+		input: { conversationId?: string; message: string; userId?: string; attachments?: unknown[]; assetRefs?: string[] },
 		onEvent: (event: StreamEvent) => void,
 	) => Promise<void>;
 	queueMessage?: AgentService["queueMessage"];
@@ -97,16 +97,22 @@ test("GET /playground returns the test UI html", async () => {
 
 	assert.equal(response.statusCode, 200);
 	assert.match(response.headers["content-type"] ?? "", /^text\/html/);
-	assert.match(response.body, /UGK Claw/);
-	assert.match(response.body, /\/\\___\/\\/);
-	assert.match(response.body, /柯基/);
-	assert.match(response.body, /font-family: "Agave"/);
+	assert.equal(response.headers["cache-control"], "no-store, no-cache, must-revalidate");
+	assert.equal(response.headers.pragma, "no-cache");
+	assert.equal(response.headers.expires, "0");
+	assert.match(response.body, /UGK CLAW/);
+	assert.match(response.body, /--font-sans: "OpenAI Sans"/);
+	assert.match(response.body, /font-family: var\(--font-sans\)/);
+	assert.match(response.body, /--font-mono: "Agave"/);
 	assert.match(response.body, /\/assets\/fonts\/Agave-Regular\.ttf/);
 	assert.match(response.body, /conversation-id/);
 	assert.match(response.body, /file-input/);
 	assert.match(response.body, /file-list/);
-	assert.match(response.body, /drag-debug-log/);
-	assert.match(response.body, /clear-drag-debug/);
+	assert.match(response.body, /selected-asset-list/);
+	assert.match(response.body, /open-asset-library-button/);
+	assert.match(response.body, /file-picker-action/);
+	assert.match(response.body, /asset-modal-list/);
+	assert.match(response.body, /close-asset-modal-button/);
 	assert.match(response.body, /drop-zone/);
 	assert.match(response.body, /composer-drop-target/);
 	assert.match(response.body, /const chatStage = document.getElementById\("chat-stage"\)/);
@@ -121,8 +127,10 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function hasDroppedFiles/);
 	assert.match(response.body, /function setCopyDropEffect/);
 	assert.match(response.body, /function pushDragDebug/);
-	assert.match(response.body, /function renderDragDebugLog/);
-	assert.match(response.body, /function summarizeDataTransfer/);
+	assert.match(response.body, /function openAssetLibrary/);
+	assert.match(response.body, /function closeAssetLibrary/);
+	assert.match(response.body, /function selectAssetForReuse/);
+	assert.match(response.body, /function renderSelectedAssets/);
 	assert.match(response.body, /const pageRoot = document\.documentElement/);
 	assert.match(response.body, /const pageBody = document\.body/);
 	assert.match(response.body, /bindDropTarget\(pageRoot\)/);
@@ -131,11 +139,16 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /dataTransfer\.files/);
 	assert.match(response.body, /dataTransfer\.types/);
 	assert.match(response.body, /handleDroppedFiles/);
-	assert.match(response.body, /applyFileIntentMessage/);
+	assert.doesNotMatch(response.body, /applyFileIntentMessage/);
+	assert.doesNotMatch(response.body, /文件已载入/);
+	assert.doesNotMatch(response.body, /待发送附件/);
 	assert.match(response.body, /dragover/);
 	assert.match(response.body, /drop/);
 	assert.match(response.body, /send-button/);
 	assert.match(response.body, /interrupt-button/);
+	assert.match(response.body, /error-banner/);
+	assert.match(response.body, /error-banner-message/);
+	assert.match(response.body, /error-banner-close/);
 	assert.doesNotMatch(response.body, /queue-mode/);
 	assert.doesNotMatch(response.body, /interrupt \/ steer/);
 	assert.doesNotMatch(response.body, /wait \/ follow-up/);
@@ -145,29 +158,273 @@ test("GET /playground returns the test UI html", async () => {
 	assert.doesNotMatch(response.body, />interrupt</);
 	assert.match(response.body, /view-skills-button/);
 	assert.match(response.body, /chat-stage/);
-	assert.match(response.body, /process-feed/);
+	assert.match(response.body, /process-note/);
+	assert.match(response.body, /appendProcessEvent/);
+	assert.match(response.body, /updateStreamingProcess/);
+	assert.match(response.body, /transcript\.appendChild\(note\)/);
 	assert.match(response.body, /\/v1\/debug\/skills/);
 	assert.match(response.body, /\/v1\/chat\/stream/);
 	assert.match(response.body, /\/v1\/chat\/queue/);
 	assert.match(response.body, /\/v1\/chat\/interrupt/);
 	assert.match(response.body, /attachments/);
 	assert.match(response.body, /file-download/);
-	assert.match(response.body, /mode:\s*"followUp"/);
+	assert.match(response.body, /selected-assets/);
+	assert.match(response.body, /asset-modal-shell/);
+	assert.match(response.body, /mode:\s*"steer"/);
 	assert.match(response.body, /height: calc\(100vh - 40px\)/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*display: flex;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*flex-direction: column;/);
 	assert.match(response.body, /\.transcript\s*\{[\s\S]*flex: 1 1 auto;/);
+	assert.match(response.body, /\.transcript\s*\{[\s\S]*display: grid;/);
+	assert.match(response.body, /\.transcript\s*\{[\s\S]*justify-items: center;/);
+	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*align-items: stretch;/);
+	assert.match(response.body, /--conversation-width: 640px;/);
+	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
+	assert.match(response.body, /\.transcript\s*\{[\s\S]*justify-items: stretch;/);
+	assert.match(response.body, /\.transcript\s*\{[\s\S]*width: 100%;/);
+	assert.match(response.body, /\.message\s*\{[\s\S]*justify-items: stretch;/);
+	assert.match(response.body, /\.message\s*\{[\s\S]*width: 100%;/);
+	assert.match(response.body, /\.message\s*\{[\s\S]*padding: 14px 0 0;/);
+	assert.match(response.body, /\.message-meta,\s*\.message-body\s*\{[\s\S]*width: 100%;/);
+	assert.match(response.body, /\.message-body\s*\{[\s\S]*border-radius: 4px;/);
+	assert.match(response.body, /\.message-body\s*\{[\s\S]*background: rgba\(34, 38, 46, 0\.72\);/);
+	assert.match(response.body, /\.message-body\s*\{[\s\S]*border: 0;/);
+	assert.match(response.body, /\.message-body\s*\{[\s\S]*box-shadow: none;/);
+	assert.match(response.body, /\.message-body\s*\{[\s\S]*backdrop-filter: none;/);
+	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*position:\s*relative;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*position:\s*absolute;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*top:\s*0;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*left:\s*50%;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*transform:\s*translateX\(-50%\);/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*border:\s*0;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*z-index:\s*6;/);
+	assert.match(response.body, /\.error-banner\s*\{[\s\S]*pointer-events:\s*auto;/);
+	assert.match(response.body, /\.error-banner\.visible\s*\{[\s\S]*display:\s*grid;/);
+	assert.match(response.body, /\.error-banner\[hidden\]\s*\{[\s\S]*display:\s*none !important;/);
+	assert.match(response.body, /\.error-banner-close\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /\.error-banner-close\s*\{[\s\S]*border:\s*0;/);
+	assert.match(response.body, /\.error-banner-close\s*\{[\s\S]*background:\s*transparent;/);
+	assert.match(response.body, /<div id="error-banner" class="error-banner" role="alert" hidden>/);
+	assert.match(response.body, /errorBanner\.hidden = false;/);
+	assert.match(response.body, /errorBanner\.hidden = true;/);
+	assert.match(response.body, /errorBannerClose\.addEventListener\("click", \(\) => \{\s*clearError\(\);\s*\}\);/);
+	assert.doesNotMatch(response.body, /\.shell\[data-stage-mode="landing"\] \.error-banner\s*\{/);
+	assert.match(response.body, /\.message\.user \.message-content\s*\{[\s\S]*text-align:\s*left;/);
+	assert.doesNotMatch(response.body, /\.message\.user \.message-content\s*\{[^}]*text-align:\s*right;/);
+	assert.match(response.body, /function formatControlActionReason\(action, reason\)\s*\{/);
+	assert.match(response.body, /function getControlActionErrorMessage\(action, payload, fallbackMessage\)\s*\{/);
+	assert.match(response.body, /当前没有可追加的运行任务，请直接重新发送消息。/);
+	assert.match(response.body, /当前没有可打断的运行任务，请从顶部提示确认状态。/);
+	assert.match(response.body, /当前运行任务暂不支持打断，请等待它自然结束。/);
+	assert.match(response.body, /updateStreamingProcess\("ok", "消息已加入队列", payload\.conversationId\)/);
+	assert.match(response.body, /updateStreamingProcess\("ok", "打断请求已接受", state\.conversationId\)/);
+	assert.doesNotMatch(response.body, /updateStreamingProcess\("error", "追加被拒绝", errorMessage\)/);
+	assert.doesNotMatch(response.body, /updateStreamingProcess\("error", "打断被拒绝", errorMessage\)/);
+	assert.match(response.body, /const visualKind = kind === "system" \? "assistant" : kind;/);
+	assert.match(response.body, /card\.className = "message " \+ visualKind;/);
+	assert.match(response.body, /card\.dataset\.messageKind = kind;/);
+	assert.match(response.body, /\.process-note\s*\{[\s\S]*width: 100%;/);
+	assert.match(response.body, /\.process-note-text\s*\{[\s\S]*padding: 0 18px;/);
+	assert.match(response.body, /\.process-note-text\s*\{[\s\S]*text-align: left;/);
+	assert.match(response.body, /assistant-process-shell/);
+	assert.match(response.body, /assistant-process-toggle/);
+	assert.match(response.body, /assistant-process-body/);
+	assert.match(response.body, /assistant-process-current-action/);
+	assert.match(response.body, /\.assistant-process-shell\s*\{[\s\S]*border:\s*0;/);
+	assert.match(response.body, /\.assistant-process-shell\s*\{[\s\S]*background:\s*rgba\(9, 13, 22, 0\.92\);/);
+	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-head\s*\{[\s\S]*justify-content:\s*flex-end;/);
+	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-head strong\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /\.assistant-process-narration\s*\{[\s\S]*max-height:\s*calc\(1\.6em \* 5 \+ 8px \* 4\);/);
+	assert.match(response.body, /\.assistant-process-narration\s*\{[\s\S]*overflow:\s*auto;/);
+	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-narration\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /\.assistant-process-current\s*\{[^}]*border-top:\s*1px solid rgba\(255, 255, 255, 0\.08\);/);
+	assert.match(response.body, /\.assistant-process-current\s*\{[^}]*padding-top:\s*10px;/);
+	assert.doesNotMatch(response.body, /\.assistant-process-current\s*\{[^}]*background:\s*rgba\(14, 20, 33, 0\.96\);/);
+	assert.doesNotMatch(response.body, /\.assistant-process-current\s*\{[^}]*border-radius:\s*4px;/);
+	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-current\s*\{[^}]*border-top:\s*0;/);
+	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-current\s*\{[^}]*padding-top:\s*0;/);
+	assert.match(response.body, /\.assistant-process-current-action\s*\{[\s\S]*min-height:\s*calc\(1\.6em \* 2\);/);
+	assert.match(response.body, /\.assistant-process-current-action\s*\{[\s\S]*max-height:\s*calc\(1\.6em \* 2\);/);
+	assert.match(response.body, /\.assistant-process-current-action\s*\{[\s\S]*-webkit-line-clamp:\s*2;/);
+	assert.match(response.body, /function updateStreamingProcess\(kind, title, detail\)\s*\{\s*appendProcessNarrationLine\(describeProcessNarration\(kind, title, detail\)\);\s*setProcessCurrentAction\(formatProcessAction\(title, detail\), kind\);\s*\}/);
+	assert.match(response.body, /function ensureStreamingAssistantMessage\(\)\s*\{[\s\S]*appendTranscriptMessage\("assistant", "助手", ""\)/);
+	assert.doesNotMatch(response.body, /withProcess:\s*true/);
+	assert.match(response.body, /function attachAssistantProcessShell\(body, content\)/);
+	assert.match(response.body, /shell\.dataset\.processExpanded = "true"/);
+	assert.match(response.body, /toggle\.setAttribute\("aria-expanded", "true"\)/);
+	assert.match(response.body, /narration\.scrollTop = narration\.scrollHeight/);
+	assert.match(response.body, /stream\.narration\.scrollTop = stream\.narration\.scrollHeight/);
+	assert.match(response.body, /function setTranscriptState\(next\)\s*\{/);
+	assert.match(response.body, /function syncConversationWidth\(\)\s*\{/);
+	assert.match(response.body, /composerDropTarget\.getBoundingClientRect\(\)\.width/);
+	assert.match(response.body, /async function sendMessage\(\)\s*\{[\s\S]*setTranscriptState\("active"\);[\s\S]*resetStreamingState\(\);/);
+	assert.match(response.body, /window\.addEventListener\("resize", syncConversationWidth\)/);
+	assert.match(response.body, /window\.requestAnimationFrame\(syncConversationWidth\)/);
 	assert.match(response.body, /\.composer\s*\{[\s\S]*flex-shrink: 0;/);
-	assert.match(response.body, /process-detail-toggle/);
-	assert.match(response.body, /process-detail-body/);
-	assert.match(response.body, /展开详情/);
+	assert.match(response.body, /text\.className = "process-note-text"/);
+	assert.doesNotMatch(response.body, /process-feed/);
+	assert.doesNotMatch(response.body, /card\.className = "message system process-stream is-running"/);
+	assert.doesNotMatch(response.body, /\.message\.process-stream\s*\{/);
 	assert.match(response.body, /overflow-y: auto/);
 	assert.match(response.body, /message-content/);
 	assert.match(response.body, /renderMessageMarkdown/);
 	assert.match(response.body, /hydrateMarkdownContent/);
 	assert.match(response.body, /copy-code-button/);
+	assert.doesNotMatch(response.body, /\.message\.system \.message-meta strong\s*\{/);
+	assert.doesNotMatch(response.body, /\.message\.assistant,\s*\.message\.system,\s*\.message\.error\s*\{/);
+	assert.match(response.body, /function appendAssistantProcessMessage\(title, text\)\s*\{/);
+	assert.match(response.body, /function formatSkillsReply\(skills\)\s*\{/);
+	assert.match(response.body, /\.\.\.skillList\.map\(\(skill, index\) => \{/);
+	assert.match(response.body, /appendNarrationToAssistantProcess\(skillReply, "我接收到查看技能的指令，先确认运行时技能接口。"\)/);
+	assert.match(response.body, /setAssistantProcessAction\(skillReply, "查询接口 · GET \/v1\/debug\/skills", "tool"\)/);
+	assert.match(response.body, /setMessageContent\(skillReply\.content, formatSkillsReply\(payload\?\.skills\)\)/);
+	assert.match(response.body, /completeAssistantProcessShell\(skillReply, "ok"\)/);
+	assert.doesNotMatch(response.body, /appendProcessEvent\("system", "技能清单", "请求 \/v1\/debug\/skills"\)/);
+	assert.doesNotMatch(response.body, /appendTranscriptMessage\("system", "技能", report\)/);
 	assert.match(response.body, /code-block-toolbar/);
+	assert.doesNotMatch(response.body, /drag-debug-log/);
+	assert.doesNotMatch(response.body, /clear-drag-debug/);
+	assert.doesNotMatch(response.body, /asset-library-head/);
 	assert.doesNotMatch(response.body, /__name/);
+	await app.close();
+});
+
+test("GET /playground defaults runtime append behavior to steer", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /mode:\s*"steer"/);
+	await app.close();
+});
+
+test("GET /playground renders immersive landing home shell", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /id="landing-screen"/);
+	assert.match(response.body, /id="hero-core"/);
+	assert.match(response.body, /class="topbar-signal" aria-hidden="true">UGK CLAW</);
+	assert.match(response.body, /class="hero-wordmark">UGK CLAW</);
+	assert.match(response.body, /全新的记忆/);
+	assert.match(response.body, /技能越多，能力越强/);
+	assert.match(response.body, /id="hero-version"/);
+	assert.match(response.body, /id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle"/);
+	assert.match(response.body, /id="command-deck"/);
+	assert.match(response.body, /id="command-status">新会话</);
+	assert.match(response.body, /id="new-conversation-button"/);
+	assert.match(response.body, /id="view-skills-button"/);
+	assert.match(response.body, /id="file-picker-action"/);
+	assert.match(response.body, /id="open-asset-library-button" class="telemetry-card telemetry-action"/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.stream-layout\s*\{[\s\S]*align-items: center;/);
+	assert.match(
+		response.body,
+		/\.shell\[data-stage-mode="landing"\] \.stream-layout\s*\{[\s\S]*inset:\s*86px 34px var\(--command-deck-offset, 176px\) 34px;/
+	);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.stream-layout\s*\{[\s\S]*overflow:\s*hidden;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*flex:\s*1 1 auto;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*height:\s*100%;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*max-height:\s*100%;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border: 0;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border-radius: 4px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*background: rgba\(148, 190, 218, 0\.16\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
+	assert.match(response.body, /const commandDeck = document\.getElementById\("command-deck"\);/);
+	assert.match(response.body, /function syncConversationLayout\(\) \{/);
+	assert.match(response.body, /const chatStageRect = chatStage\.getBoundingClientRect\(\);/);
+	assert.match(response.body, /const commandDeckRect = commandDeck\.getBoundingClientRect\(\);/);
+	assert.match(response.body, /const commandDeckOffset = Math\.ceil\(chatStageRect\.bottom - commandDeckRect\.top \|\| 0\);/);
+	assert.match(response.body, /shell\.style\.setProperty\("--command-deck-offset", commandDeckOffset \+ "px"\);/);
+	assert.match(response.body, /const layoutObserver = new ResizeObserver\(\(\) => \{/);
+	assert.match(response.body, /layoutObserver\.observe\(commandDeck\);/);
+	assert.match(response.body, /layoutObserver\.observe\(chatStage\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border: 0;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border-radius: 4px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*box-shadow: 0 8px 18px rgba\(0, 0, 0, 0\.22\);/);
+	const asideIndex = response.body.indexOf('<aside class="landing-side landing-side-right">');
+	const filePickerActionIndex = response.body.indexOf('id="file-picker-action"');
+	const assetActionIndex = response.body.indexOf('id="open-asset-library-button"');
+	const fileStripIndex = response.body.indexOf('<div class="file-strip">');
+	const selectedAssetsIndex = response.body.indexOf('id="selected-assets"');
+	const composerIndex = response.body.indexOf('<section id="composer-drop-target" class="composer">');
+	const messageInputIndex = response.body.indexOf('<textarea id="message"');
+	assert.ok(asideIndex >= 0);
+	assert.ok(filePickerActionIndex > asideIndex);
+	assert.ok(assetActionIndex > asideIndex);
+	assert.ok(fileStripIndex >= 0);
+	assert.ok(selectedAssetsIndex >= 0);
+	assert.ok(composerIndex >= 0);
+	assert.ok(messageInputIndex >= 0);
+	assert.ok(filePickerActionIndex < fileStripIndex);
+	assert.ok(assetActionIndex < fileStripIndex);
+	assert.ok(fileStripIndex < composerIndex);
+	assert.ok(selectedAssetsIndex < composerIndex);
+	assert.ok(composerIndex < messageInputIndex);
+	assert.match(response.body, /function createFileChip\(\{ tone, fileName, meta, onRemove \}\)\s*\{/);
+	assert.match(response.body, /item\.className = "file-chip " \+ \(tone \|\| "pending"\)/);
+	assert.match(response.body, /badge\.className = "file-chip-badge"/);
+	assert.match(response.body, /label\.className = "file-chip-label"/);
+	assert.match(response.body, /removeButton\.className = "file-chip-remove"/);
+	assert.match(response.body, /function appendUserTranscriptMessage\(message, attachments, assetRefs\)\s*\{/);
+	assert.match(response.body, /function appendMessageFileChips\(body, attachments, assetRefs\)\s*\{/);
+	assert.match(response.body, /body\.classList\.add\("has-file-chips"\)/);
+	assert.match(response.body, /asset\.fileName/);
+	assert.match(response.body, /removeSelectedAsset\(asset\.assetId\)/);
+	assert.match(response.body, /removePendingAttachment\(index\)/);
+	assert.match(response.body, /\.file-chip\s*\{[\s\S]*display:\s*inline-flex;/);
+	assert.match(response.body, /\.file-chip-badge\s*\{[\s\S]*font-family:\s*var\(--font-mono\);/);
+	assert.match(response.body, /\.file-chip-remove\s*\{[\s\S]*border-radius:\s*999px;/);
+	assert.match(response.body, /\.message-file-strip\s*\{[\s\S]*display:\s*flex;/);
+	assert.match(response.body, /\.message\.user \.message-file-strip\s*\{[\s\S]*justify-content:\s*flex-end;/);
+	assert.match(response.body, /appendUserTranscriptMessage\(message, attachments, assetRefs\)/);
+	assert.doesNotMatch(response.body, /appendTranscriptMessage\("user", state\.conversationId, formatMessageWithContext\(outboundMessage, attachments, assetRefs\)\)/);
+	assert.doesNotMatch(response.body, /selected-assets-head/);
+	assert.doesNotMatch(response.body, /drop-zone-actions/);
+	assert.doesNotMatch(response.body, /file-picker-button/);
+	assert.doesNotMatch(response.body, /\.shell\[data-stage-mode="workspace"\]/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\]\[data-transcript-state="idle"\] \.stream-layout\s*\{[\s\S]*justify-content: center;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\]\[data-transcript-state="active"\] \.stream-layout\s*\{[\s\S]*justify-content: flex-end;/);
+	assert.doesNotMatch(response.body, /\.shell::before/);
+	assert.doesNotMatch(response.body, /\.shell\s*\{[\s\S]*border:\s*1px solid rgba\(95, 209, 255, 0\.12\)/);
+	assert.doesNotMatch(response.body, /\.hero-core\s*\{[\s\S]*translateY\(-8%\)/);
+	assert.doesNotMatch(response.body, /class="brand-logo"/);
+	assert.doesNotMatch(response.body, /class="hero-logo"/);
+	await app.close();
+});
+
+test("GET /playground embeds syntactically valid browser script", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	const scriptMatch = response.body.match(/<script>([\s\S]*)<\/script>/);
+	assert.ok(scriptMatch, "expected inline playground script");
+	assert.doesNotThrow(() => {
+		new Function(scriptMatch[1]);
+	});
 	await app.close();
 });
 
@@ -190,15 +447,26 @@ test("GET /assets/fonts/Agave-Regular.ttf returns the bundled Agave font", async
 test("GET /v1/files/:fileId downloads a stored agent file", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
-		fileArtifactStore: {
+		assetStore: {
+			registerAttachments: async () => [],
 			saveFiles: async () => [],
+			listAssets: async () => [],
+			getAsset: async () => undefined,
+			resolveAssets: async () => [],
+			readText: async () => undefined,
 			getFile: async (fileId: string) =>
 				fileId === "file-123"
 					? {
-							id: "file-123",
+							assetId: "file-123",
+							reference: "@asset[file-123]",
 							fileName: "hello.txt",
 							mimeType: "text/plain",
 							sizeBytes: 11,
+							kind: "text",
+							hasContent: true,
+							source: "agent_output",
+							conversationId: "manual:file",
+							createdAt: "2026-04-18T00:00:00.000Z",
 							downloadUrl: "/v1/files/file-123",
 							content: Buffer.from("hello world", "utf8"),
 						}
@@ -215,6 +483,152 @@ test("GET /v1/files/:fileId downloads a stored agent file", async () => {
 	assert.match(response.headers["content-type"] ?? "", /^text\/plain/);
 	assert.match(response.headers["content-disposition"] ?? "", /filename="hello\.txt"/);
 	assert.equal(response.body, "hello world");
+	await app.close();
+});
+
+test("GET /v1/assets returns reusable asset metadata", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		assetStore: {
+			registerAttachments: async () => [],
+			saveFiles: async () => [],
+			listAssets: async () => [
+				{
+					assetId: "asset-1",
+					reference: "@asset[asset-1]",
+					fileName: "notes.txt",
+					mimeType: "text/plain",
+					sizeBytes: 11,
+					kind: "text",
+					hasContent: true,
+					source: "user_upload",
+					conversationId: "manual:test",
+					createdAt: "2026-04-18T00:00:00.000Z",
+					textPreview: "hello file",
+					downloadUrl: "/v1/files/asset-1",
+				},
+			],
+			getAsset: async () => undefined,
+			resolveAssets: async () => [],
+			readText: async () => undefined,
+			getFile: async () => undefined,
+		},
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/assets?limit=20",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		assets: [
+			{
+				assetId: "asset-1",
+				reference: "@asset[asset-1]",
+				fileName: "notes.txt",
+				mimeType: "text/plain",
+				sizeBytes: 11,
+				kind: "text",
+				hasContent: true,
+				source: "user_upload",
+				conversationId: "manual:test",
+				createdAt: "2026-04-18T00:00:00.000Z",
+				textPreview: "hello file",
+				downloadUrl: "/v1/files/asset-1",
+			},
+		],
+	});
+	await app.close();
+});
+
+test("GET /v1/conns returns scheduled conn tasks", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		connStore: {
+			list: async () => [
+				{
+					connId: "conn-1",
+					title: "digest",
+					prompt: "summarize",
+					target: { type: "conversation", conversationId: "manual:digest" },
+					schedule: { kind: "interval", everyMs: 60000 },
+					assetRefs: ["asset-1"],
+					status: "active",
+					createdAt: "2026-04-18T00:00:00.000Z",
+					updatedAt: "2026-04-18T00:00:00.000Z",
+					nextRunAt: "2026-04-18T00:01:00.000Z",
+				},
+			],
+			get: async () => undefined,
+			create: async () => {
+				throw new Error("not used");
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+			due: async () => [],
+			recordRun: async () => undefined,
+			triggerNow: async () => undefined,
+		} as never,
+		connScheduler: {
+			start: () => undefined,
+			stop: () => undefined,
+			runNow: async () => undefined,
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/conns",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conns: [
+			{
+				connId: "conn-1",
+				title: "digest",
+				prompt: "summarize",
+				target: { type: "conversation", conversationId: "manual:digest" },
+				schedule: { kind: "interval", everyMs: 60000 },
+				assetRefs: ["asset-1"],
+				status: "active",
+				createdAt: "2026-04-18T00:00:00.000Z",
+				updatedAt: "2026-04-18T00:00:00.000Z",
+				nextRunAt: "2026-04-18T00:01:00.000Z",
+			},
+		],
+	});
+	await app.close();
+});
+
+test("POST /v1/integrations/feishu/events answers url verification challenge", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		feishuService: {
+			handleWebhook: async () => ({
+				challenge: "challenge-token",
+				accepted: true,
+			}),
+			deliverText: async () => undefined,
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/integrations/feishu/events",
+		payload: {
+			type: "url_verification",
+			challenge: "challenge-token",
+		},
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		challenge: "challenge-token",
+	});
 	await app.close();
 });
 
@@ -313,12 +727,50 @@ test("POST /v1/chat passes uploaded file attachments to the agent service", asyn
 			userId: undefined,
 			attachments: [
 				{
+					base64: undefined,
 					fileName: "brief.txt",
 					mimeType: "text/plain",
 					sizeBytes: 11,
 					text: "hello file",
 				},
 			],
+		},
+	]);
+	await app.close();
+});
+
+test("POST /v1/chat passes reusable asset references to the agent service", async () => {
+	const calls: unknown[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			chat: async (input) => {
+				calls.push(input);
+				return {
+					conversationId: input.conversationId ?? "manual:asset-ref",
+					text: "ok",
+					sessionFile: "E:/sessions/test.jsonl",
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/chat",
+		payload: {
+			conversationId: "manual:asset-ref",
+			message: "reuse it",
+			assetRefs: ["asset-1", "asset-2"],
+		},
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(calls, [
+		{
+			conversationId: "manual:asset-ref",
+			message: "reuse it",
+			userId: undefined,
+			assetRefs: ["asset-1", "asset-2"],
 		},
 	]);
 	await app.close();

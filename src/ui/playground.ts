@@ -114,10 +114,25 @@ function getPlaygroundStyles(): string {
 			--ok: #8dffb2;
 			--danger: #ff7188;
 			--warn: #ffd166;
+			--conversation-width: 640px;
+			--font-sans: "OpenAI Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+			--font-mono: "Agave", "SFMono-Regular", "Cascadia Mono", Consolas, "Lucida Console", monospace;
 		}
 
 		* {
 			box-sizing: border-box;
+		}
+
+		.visually-hidden {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			white-space: nowrap;
+			border: 0;
 		}
 
 		html,
@@ -125,28 +140,35 @@ function getPlaygroundStyles(): string {
 			margin: 0;
 			height: 100%;
 			background:
-				linear-gradient(90deg, rgba(95, 209, 255, 0.03) 1px, transparent 1px),
-				linear-gradient(rgba(95, 209, 255, 0.03) 1px, transparent 1px),
-				radial-gradient(circle at top, rgba(95, 209, 255, 0.08), transparent 35%),
-				var(--bg);
-			background-size: 22px 22px, 22px 22px, auto, auto;
+				radial-gradient(circle at 18% 16%, rgba(123, 178, 255, 0.14), transparent 0 18%),
+				radial-gradient(circle at 78% 12%, rgba(92, 239, 255, 0.08), transparent 0 16%),
+				radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.12), transparent 0 22%),
+				radial-gradient(circle at 15% 30%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.5px),
+				radial-gradient(circle at 28% 76%, rgba(255, 255, 255, 0.18) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 56% 48%, rgba(121, 213, 255, 0.18) 0 1.2px, transparent 1.8px),
+				radial-gradient(circle at 73% 62%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 88% 34%, rgba(95, 209, 255, 0.16) 0 1.1px, transparent 1.8px),
+				linear-gradient(180deg, #090d16 0%, #0a101a 42%, #090c14 100%);
+			background-size: auto, auto, auto, 240px 240px, 260px 260px, 320px 320px, 280px 280px, 360px 360px, auto;
 			color: var(--fg);
-			font-family: "Agave", Consolas, "Cascadia Mono", "Lucida Console", "SFMono-Regular", monospace;
+			font-family: var(--font-sans);
 			overflow: hidden;
 		}
 
 		body {
-			padding: 20px;
+			padding: 24px;
 			display: flex;
 			justify-content: center;
 		}
 
 		.shell {
-			width: min(1240px, 100%);
+			width: min(1180px, 100%);
 			height: calc(100vh - 40px);
 			margin: 0 auto;
-			border: 1px solid var(--line-strong);
-			background: rgba(5, 7, 13, 0.98);
+			border: 0;
+			background: transparent;
+			box-shadow: none;
+			backdrop-filter: none;
 			display: grid;
 			grid-template-rows: auto minmax(0, 1fr);
 			overflow: hidden;
@@ -156,10 +178,10 @@ function getPlaygroundStyles(): string {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) auto;
 			gap: 14px;
-			width: min(980px, calc(100% - 36px));
+			width: min(840px, calc(100% - 40px));
 			margin: 0 auto;
-			padding: 18px 0 14px;
-			border-bottom: 1px solid var(--line-strong);
+			padding: 28px 0 16px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 			align-items: center;
 		}
 
@@ -169,21 +191,9 @@ function getPlaygroundStyles(): string {
 
 		.brand-lockup {
 			display: grid;
-			grid-template-columns: auto minmax(0, 1fr);
-			gap: 18px;
+			grid-template-columns: minmax(0, 1fr);
+			gap: 0;
 			align-items: center;
-		}
-
-		.corgi-logo {
-			margin: 0;
-			padding: 10px 12px;
-			border: 1px solid var(--accent);
-			background: rgba(95, 209, 255, 0.06);
-			color: var(--ok);
-			font-size: 12px;
-			line-height: 1.05;
-			white-space: pre;
-			box-shadow: inset 0 0 0 1px rgba(141, 255, 178, 0.08);
 		}
 
 		.kicker {
@@ -198,28 +208,39 @@ function getPlaygroundStyles(): string {
 
 		h1 {
 			margin: 8px 0;
-			font-size: clamp(26px, 4vw, 40px);
+			font-size: clamp(28px, 4vw, 42px);
 			line-height: 0.95;
-			letter-spacing: -0.06em;
+			letter-spacing: -0.08em;
 			text-transform: uppercase;
+		}
+
+		.brand-lockup h1 {
+			font-family: var(--font-mono);
+			letter-spacing: 0.12em;
 		}
 
 		.topbar p {
 			margin: 0;
 			color: var(--muted);
-			font-size: 12px;
-			line-height: 1.6;
-			max-width: 60ch;
+			font-size: 13px;
+			line-height: 1.7;
+			max-width: 52ch;
+		}
+
+		.topbar p,
+		.topbar-right,
+		.transcript-pane .pane-head {
+			display: none !important;
 		}
 
 		.topbar-right {
 			display: grid;
 			gap: 8px;
 			justify-items: end;
-			font-size: 11px;
+			font-size: 10px;
 			text-transform: uppercase;
 			letter-spacing: 0.12em;
-			color: var(--muted);
+			color: rgba(238, 244, 255, 0.42);
 		}
 
 		.status-row {
@@ -235,36 +256,44 @@ function getPlaygroundStyles(): string {
 		.chat-stage {
 			display: flex;
 			flex-direction: column;
-			width: min(980px, calc(100% - 36px));
+			position: relative;
+			width: min(840px, calc(100% - 40px));
 			min-height: 0;
 			margin: 0 auto;
-			background: linear-gradient(180deg, rgba(16, 24, 44, 0.75), rgba(5, 7, 13, 0.98));
-			border-left: 1px solid var(--line);
-			border-right: 1px solid var(--line);
+			background: transparent;
+			border-left: 0;
+			border-right: 0;
 			overflow: hidden;
 		}
 
 		.chat-meta {
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto auto auto;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
 			gap: 12px;
-			padding: 12px 18px;
-			border-bottom: 1px solid var(--line);
-			background: rgba(11, 16, 32, 0.82);
+			padding: 12px 0 10px;
+			border-bottom: 0;
+			background: transparent;
 			align-items: center;
 			flex-shrink: 0;
+		}
+
+		.chat-meta,
+		.banner-row,
+		.process-panel {
+			display: none !important;
 		}
 
 		.meta-chip {
 			min-width: 0;
 			padding: 10px 12px;
-			border: 1px solid var(--line);
-			background: rgba(16, 24, 44, 0.58);
-			font-size: 11px;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(255, 255, 255, 0.035);
+			backdrop-filter: blur(14px);
+			font-size: 10px;
 			line-height: 1.5;
 			text-transform: uppercase;
 			letter-spacing: 0.08em;
-			color: var(--muted);
+			color: rgba(238, 244, 255, 0.54);
 		}
 
 		.meta-chip strong {
@@ -284,6 +313,7 @@ function getPlaygroundStyles(): string {
 
 		code {
 			color: var(--accent);
+			font-family: var(--font-mono);
 			background: transparent;
 			padding: 0;
 		}
@@ -293,24 +323,31 @@ function getPlaygroundStyles(): string {
 		select,
 		textarea {
 			font: inherit;
-			border-radius: 0;
+			border-radius: 4px;
 		}
 
 		button {
-			border: 1px solid var(--line-strong);
-			background: #0d1425;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.04);
 			color: var(--fg);
 			padding: 10px 14px;
 			cursor: pointer;
 			text-transform: uppercase;
 			letter-spacing: 0.08em;
-			transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+			transition:
+				transform 120ms ease,
+				border-color 120ms ease,
+				color 120ms ease,
+				background 120ms ease,
+				box-shadow 120ms ease;
 		}
 
 		button:hover:not(:disabled) {
 			border-color: var(--accent);
 			color: var(--accent);
-			background: #111c33;
+			background: rgba(255, 255, 255, 0.08);
+			transform: translateY(-1px);
+			box-shadow: 0 8px 18px rgba(95, 209, 255, 0.08);
 		}
 
 		button:disabled {
@@ -319,9 +356,11 @@ function getPlaygroundStyles(): string {
 		}
 
 		#send-button {
-			border-color: var(--accent);
-			color: var(--accent);
-			background: var(--accent-soft);
+			border-color: rgba(170, 223, 255, 0.32);
+			color: #f3fbff;
+			background:
+				linear-gradient(135deg, rgba(170, 223, 255, 0.14), rgba(106, 173, 255, 0.08)),
+				rgba(255, 255, 255, 0.05);
 		}
 
 		.banner-row {
@@ -329,70 +368,117 @@ function getPlaygroundStyles(): string {
 			justify-content: space-between;
 			align-items: center;
 			gap: 12px;
-			padding: 10px 18px;
-			border-bottom: 1px solid var(--line);
-			font-size: 11px;
+			padding: 0 0 8px;
+			border-bottom: 0;
+			font-size: 10px;
 			text-transform: uppercase;
 			letter-spacing: 0.12em;
-			color: var(--muted);
+			color: rgba(238, 244, 255, 0.46);
 			flex-shrink: 0;
 		}
 
 		.state {
 			padding: 6px 10px;
-			border: 1px solid var(--line-strong);
+			border: 1px solid rgba(141, 255, 178, 0.24);
+			background: rgba(141, 255, 178, 0.05);
 			color: var(--ok);
 		}
 
 		.error-banner {
 			display: none;
+			position: absolute;
+			top: 0;
+			left: 50%;
+			transform: translateX(-50%);
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: start;
+			gap: 12px;
+			width: min(var(--conversation-width), calc(100% - 40px));
 			padding: 12px 18px;
-			border-bottom: 1px solid rgba(255, 113, 136, 0.32);
-			background: rgba(255, 113, 136, 0.08);
+			border: 0;
+			border-radius: 4px;
+			background: rgba(255, 113, 136, 0.12);
 			color: #ff9faf;
 			font-size: 12px;
 			line-height: 1.6;
 			flex-shrink: 0;
+			z-index: 6;
+			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+			pointer-events: auto;
 		}
 
 		.error-banner.visible {
-			display: block;
+			display: grid;
+		}
+
+		.error-banner[hidden] {
+			display: none !important;
+		}
+
+		.error-banner-message {
+			min-width: 0;
+			word-break: break-word;
+		}
+
+		.error-banner-close {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 24px;
+			height: 24px;
+			padding: 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			box-shadow: none;
+			color: rgba(255, 189, 199, 0.9);
+			font-size: 16px;
+			line-height: 1;
+			cursor: pointer;
+		}
+
+		.error-banner-close:hover:not(:disabled),
+		.error-banner-close:focus-visible {
+			background: rgba(255, 255, 255, 0.08);
+			color: #ffd7de;
+			box-shadow: none;
+			transform: none;
 		}
 
 		.stream-layout {
-			display: grid;
-			grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.95fr);
-			flex: 1 1 auto;
-			min-height: 0;
-			background:
-				linear-gradient(rgba(95, 209, 255, 0.03) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(95, 209, 255, 0.03) 1px, transparent 1px),
-				rgba(5, 7, 13, 0.16);
-			background-size: 22px 22px;
-		}
-
-		.transcript-pane,
-		.process-panel {
 			display: flex;
 			flex-direction: column;
+			align-items: center;
+			gap: 14px;
+			flex: 1 1 auto;
 			min-height: 0;
+			background: transparent;
 		}
 
-		.process-panel {
-			border-left: 1px solid var(--line);
-			background: rgba(8, 12, 22, 0.95);
+		.transcript-pane {
+			display: flex;
+			flex-direction: column;
+			align-items: stretch;
+			width: min(var(--conversation-width), 100%);
+			margin: 0 auto;
+			min-height: 0;
 		}
 
 		.pane-head {
 			padding: 12px 18px;
-			border-bottom: 1px solid var(--line);
-			background: rgba(11, 16, 32, 0.82);
+			border-bottom: 0;
+			background: transparent;
 			flex-shrink: 0;
+		}
+
+		.transcript-pane .pane-head {
+			padding: 8px 12px 4px;
+			background: transparent;
 		}
 
 		.pane-head strong {
 			display: block;
-			font-size: 11px;
+			font-size: 10px;
 			letter-spacing: 0.14em;
 			text-transform: uppercase;
 			margin-bottom: 4px;
@@ -406,54 +492,75 @@ function getPlaygroundStyles(): string {
 		}
 
 		.transcript {
+			display: grid;
+			align-content: start;
+			justify-items: stretch;
+			width: 100%;
 			flex: 1 1 auto;
 			min-height: 0;
-			padding: 0;
+			padding: 0 0 8px;
 			overflow-y: auto;
 			overflow-x: hidden;
 			overscroll-behavior: contain;
+			scrollbar-width: none;
+			-ms-overflow-style: none;
 		}
 
-		.process-feed {
-			flex: 1 1 auto;
-			min-height: 0;
-			padding: 0;
-			overflow-y: auto;
-			overflow-x: hidden;
-			overscroll-behavior: contain;
+		.transcript::-webkit-scrollbar {
+			width: 0;
+			height: 0;
+			display: none;
 		}
 
 		.message {
 			display: grid;
-			grid-template-columns: 150px minmax(0, 1fr);
-			border-bottom: 1px solid var(--line);
+			grid-template-columns: 1fr;
+			justify-items: stretch;
+			gap: 8px;
+			width: 100%;
+			padding: 14px 0 0;
+			border-bottom: 0;
 		}
 
 		.message-meta,
 		.message-body {
-			padding: 16px 18px;
+			padding: 0;
 			min-width: 0;
+			width: 100%;
 		}
 
 		.message-meta {
-			border-right: 1px solid var(--line);
-			background: rgba(9, 15, 29, 0.9);
-			font-size: 11px;
-			line-height: 1.8;
-			letter-spacing: 0.12em;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			background: transparent;
+			font-size: 10px;
+			line-height: 1.6;
+			letter-spacing: 0.14em;
 			text-transform: uppercase;
-			color: var(--muted);
+			color: rgba(238, 244, 255, 0.42);
 		}
 
 		.message-meta strong {
-			display: block;
-			margin-bottom: 6px;
-			font-size: 11px;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			margin-bottom: 0;
+			padding: 6px 10px;
+			font-size: 10px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 4px;
+			background: rgba(255, 255, 255, 0.06);
 			color: var(--fg);
 		}
 
 		.message-body {
-			background: rgba(12, 19, 36, 0.88);
+			padding: 16px 18px;
+			border: 0;
+			border-radius: 4px;
+			background: rgba(34, 38, 46, 0.72);
+			box-shadow: none;
+			backdrop-filter: none;
 		}
 
 		.message-content {
@@ -585,6 +692,7 @@ function getPlaygroundStyles(): string {
 
 		.message-content pre code {
 			display: block;
+			font-family: var(--font-mono);
 			padding: 0;
 			border: 0;
 			background: transparent;
@@ -601,15 +709,15 @@ function getPlaygroundStyles(): string {
 		}
 
 		.message.user .message-meta strong {
-			color: var(--accent);
+			border-color: rgba(168, 212, 255, 0.16);
+			background: rgba(255, 255, 255, 0.08);
+			color: #dff7ff;
 		}
 
 		.message.assistant .message-meta strong {
-			color: var(--ok);
-		}
-
-		.message.system .message-meta strong {
-			color: var(--warn);
+			border-color: rgba(255, 255, 255, 0.16);
+			background: rgba(255, 255, 255, 0.08);
+			color: #f3fbff;
 		}
 
 		.message.error .message-meta strong {
@@ -617,99 +725,269 @@ function getPlaygroundStyles(): string {
 		}
 
 		.message.error .message-body {
-			background: rgba(255, 113, 136, 0.06);
+			background: rgba(34, 38, 46, 0.72);
 		}
 
-		.process-item {
-			padding: 14px 16px;
-			border-bottom: 1px solid var(--line);
-			background: rgba(10, 16, 30, 0.9);
+		.message.user {
+			justify-items: end;
 		}
 
-		.process-item strong {
-			display: block;
+		.message.user .message-meta {
+			width: fit-content;
+			justify-self: end;
+			justify-content: flex-end;
+		}
+
+		.message.user .message-body {
+			width: fit-content;
+			max-width: min(100%, 75%);
+			justify-self: end;
+			background: rgba(34, 38, 46, 0.72);
+			color: #eef6ff;
+		}
+
+		.message.user .message-content {
+			text-align: left;
+		}
+
+		.message.assistant {
+			justify-items: stretch;
+		}
+
+		.message.assistant .message-body {
+			background: rgba(34, 38, 46, 0.72);
+			color: #edf5ff;
+		}
+
+		.message.assistant .message-content,
+		.message.assistant .message-content a,
+		.message.assistant .message-content code,
+		.message.assistant .message-content .code-block-language {
+			color: #edf5ff;
+		}
+
+		.message.assistant .message-content code {
+			border-color: rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.12);
+		}
+
+		.message.assistant .message-content blockquote {
+			border-left-color: rgba(170, 223, 255, 0.4);
+			background: rgba(255, 255, 255, 0.08);
+			color: #edf5ff;
+		}
+
+		.message.assistant .message-content pre,
+		.message.assistant .message-content .code-block {
+			border-color: rgba(255, 255, 255, 0.1);
+			background: rgba(255, 255, 255, 0.08);
+		}
+
+		.message.assistant .copy-code-button {
+			border-color: rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.12);
+			color: #edf5ff;
+		}
+
+		.message.error {
+			justify-items: center;
+			padding-left: 90px;
+			padding-right: 90px;
+		}
+
+		.message.error .message-meta {
+			justify-content: center;
+		}
+
+		.process-note {
+			display: grid;
+			width: 100%;
+			padding: 4px 0 0;
+		}
+
+		.process-note-text {
+			width: 100%;
+			max-width: none;
+			padding: 0 18px;
+			color: rgba(238, 244, 255, 0.54);
 			font-size: 11px;
-			letter-spacing: 0.12em;
-			text-transform: uppercase;
-			margin-bottom: 6px;
-		}
-
-		.process-item time {
-			display: block;
-			margin: 0 0 8px;
-			font-size: 12px;
-			line-height: 1.6;
-			color: var(--muted);
-		}
-
-		.process-summary {
-			margin: 0;
-			font-size: 12px;
-			line-height: 1.7;
-			color: var(--muted);
-			white-space: pre-wrap;
+			line-height: 1.5;
+			text-align: left;
 			word-break: break-word;
 		}
 
-		.process-detail-toggle {
-			margin-top: 10px;
-			padding: 7px 10px;
+		.process-note.tool .process-note-text {
+			color: rgba(170, 223, 255, 0.7);
+		}
+
+		.process-note.ok .process-note-text {
+			color: rgba(141, 255, 178, 0.78);
+		}
+
+		.process-note.error .process-note-text {
+			color: rgba(255, 153, 170, 0.82);
+		}
+
+		.message-content.is-empty {
+			display: none;
+		}
+
+		.message.assistant .message-body {
+			display: grid;
+			gap: 14px;
+		}
+
+		.assistant-process-shell {
+			display: grid;
+			gap: 12px;
+			padding: 12px 14px;
+			border: 0;
+			border-radius: 4px;
+			background: rgba(9, 13, 22, 0.92);
+		}
+
+		.assistant-process-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		.assistant-process-head strong {
+			color: rgba(238, 244, 255, 0.7);
 			font-size: 10px;
 			letter-spacing: 0.12em;
-			background: rgba(95, 209, 255, 0.06);
-			border-color: var(--line);
-			color: var(--accent);
+			text-transform: uppercase;
 		}
 
-		.process-detail-body {
+		.assistant-process-shell[data-process-expanded="false"] .assistant-process-head {
+			justify-content: flex-end;
+		}
+
+		.assistant-process-shell[data-process-expanded="false"] .assistant-process-head strong {
 			display: none;
-			margin-top: 10px;
-			padding: 10px 12px;
-			border: 1px solid var(--line);
-			background: rgba(4, 8, 18, 0.92);
-			color: var(--fg);
-			font-size: 12px;
-			line-height: 1.65;
+		}
+
+		.assistant-process-toggle {
+			padding: 6px 8px;
+			border: 0;
+			background: rgba(20, 28, 44, 0.94);
+			color: rgba(238, 244, 255, 0.7);
+			font-size: 10px;
+			letter-spacing: 0.12em;
+		}
+
+		.assistant-process-body {
+			display: grid;
+			gap: 10px;
+			overflow: visible;
+			min-width: 0;
+		}
+
+		.assistant-process-narration {
+			display: grid;
+			gap: 8px;
+			max-height: calc(1.6em * 5 + 8px * 4);
+			overflow: auto;
+			padding-right: 4px;
+			scrollbar-width: thin;
+			scrollbar-color: rgba(95, 209, 255, 0.24) transparent;
+		}
+
+		.assistant-process-narration::-webkit-scrollbar {
+			width: 4px;
+		}
+
+		.assistant-process-narration::-webkit-scrollbar-thumb {
+			background: rgba(95, 209, 255, 0.24);
+		}
+
+		.assistant-process-shell[data-process-expanded="false"] .assistant-process-narration {
+			display: none;
+		}
+
+		.assistant-process-line {
+			margin: 0;
+			color: rgba(238, 244, 255, 0.56);
+			font-size: 11px;
+			line-height: 1.6;
+			text-align: left;
+			word-break: break-word;
+		}
+
+		.assistant-process-line::before {
+			content: "· ";
+			color: rgba(170, 223, 255, 0.56);
+		}
+
+		.assistant-process-current {
+			display: grid;
+			gap: 6px;
+			padding-top: 10px;
+			border-top: 1px solid rgba(255, 255, 255, 0.08);
+			min-width: 0;
+		}
+
+		.assistant-process-shell[data-process-expanded="false"] .assistant-process-current {
+			padding-top: 0;
+			border-top: 0;
+		}
+
+		.assistant-process-current-label {
+			color: rgba(238, 244, 255, 0.4);
+			font-size: 9px;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+		}
+
+		.assistant-process-current-action {
+			margin: 0;
+			padding: 0;
+			border: 0;
+			background: transparent;
+			color: rgba(241, 247, 255, 0.64);
+			font-family: var(--font-sans);
+			font-size: 11px;
+			line-height: 1.6;
+			text-align: left;
 			white-space: pre-wrap;
 			word-break: break-word;
-			max-height: 220px;
-			overflow: auto;
+			min-height: calc(1.6em * 2);
+			max-height: calc(1.6em * 2);
+			overflow: hidden;
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
 		}
 
-		.process-item.expanded .process-detail-body {
-			display: block;
+		.assistant-process-shell.tool {
+			border-color: rgba(95, 209, 255, 0.18);
 		}
 
-		.process-item.tool strong {
-			color: var(--accent);
+		.assistant-process-shell.ok {
+			border-color: rgba(141, 255, 178, 0.18);
 		}
 
-		.process-item.ok strong {
-			color: var(--ok);
-		}
-
-		.process-item.error strong {
-			color: var(--danger);
-		}
-
-		.process-item.system strong {
-			color: var(--warn);
+		.assistant-process-shell.error {
+			border-color: rgba(255, 113, 136, 0.22);
 		}
 
 		.composer {
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) 220px;
-			gap: 12px;
-			padding: 14px 18px 18px;
-			border-top: 1px solid var(--line-strong);
-			background: rgba(8, 12, 22, 0.98);
+			grid-template-columns: minmax(0, 1fr) 168px;
+			gap: 14px;
+			padding: 18px 0 20px;
+			border: 0;
+			border-radius: 4px;
+			background: rgba(148, 190, 218, 0.12);
+			box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
 			align-items: end;
 			flex-shrink: 0;
 		}
 
 		.composer-main {
 			display: grid;
-			gap: 10px;
+			gap: 12px;
 		}
 
 		.composer-header {
@@ -726,26 +1004,31 @@ function getPlaygroundStyles(): string {
 		.composer input,
 		.composer select {
 			width: 100%;
-			border: 1px solid var(--line-strong);
-			background: #040812;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.045);
 			color: var(--fg);
 			padding: 12px 14px;
 			outline: none;
-			transition: border-color 120ms ease, background 120ms ease;
+			transition:
+				border-color 120ms ease,
+				background 120ms ease,
+				box-shadow 120ms ease;
 		}
 
 		.composer textarea {
-			min-height: 112px;
+			min-height: 128px;
 			max-height: 28vh;
 			resize: vertical;
 			line-height: 1.7;
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 		}
 
 		.composer textarea:focus,
 		.composer input:focus,
 		.composer select:focus {
 			border-color: var(--accent);
-			background: #08101d;
+			background: rgba(255, 255, 255, 0.07);
+			box-shadow: 0 0 0 4px rgba(95, 209, 255, 0.08);
 		}
 
 		.composer-side {
@@ -767,60 +1050,6 @@ function getPlaygroundStyles(): string {
 		.file-strip {
 			display: grid;
 			gap: 8px;
-		}
-
-		.drag-debug {
-			display: grid;
-			gap: 8px;
-			padding: 10px 12px;
-			border: 1px solid var(--line);
-			background: rgba(4, 8, 18, 0.78);
-		}
-
-		.drag-debug-head {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			gap: 12px;
-			color: var(--muted);
-			font-size: 11px;
-			line-height: 1.5;
-			text-transform: uppercase;
-			letter-spacing: 0.08em;
-		}
-
-		.drag-debug-head button {
-			padding: 6px 10px;
-			font-size: 10px;
-		}
-
-		.drag-debug-log {
-			display: grid;
-			gap: 6px;
-			max-height: 132px;
-			overflow-y: auto;
-		}
-
-		.drag-debug-empty,
-		.drag-debug-entry {
-			padding: 8px 10px;
-			border: 1px solid var(--line);
-			background: rgba(11, 16, 32, 0.74);
-			font-size: 11px;
-			line-height: 1.6;
-			word-break: break-word;
-		}
-
-		.drag-debug-empty {
-			color: var(--muted);
-		}
-
-		.drag-debug-entry strong {
-			color: var(--accent);
-		}
-
-		.drag-debug-entry span {
-			color: var(--muted);
 		}
 
 		.drag-overlay {
@@ -869,10 +1098,18 @@ function getPlaygroundStyles(): string {
 		.drop-zone {
 			display: grid;
 			gap: 8px;
-			border: 1px dashed var(--line-strong);
-			background: rgba(95, 209, 255, 0.04);
-			padding: 10px;
+			border: 1px dashed rgba(255, 255, 255, 0.14);
+			background: rgba(255, 255, 255, 0.04);
+			backdrop-filter: blur(14px);
+			padding: 12px;
 			transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+		}
+
+		.drop-zone-top {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			gap: 12px;
 		}
 
 		.composer.drag-active,
@@ -883,10 +1120,9 @@ function getPlaygroundStyles(): string {
 		}
 
 		.drop-zone-label {
-			display: flex;
-			justify-content: space-between;
-			gap: 12px;
-			color: var(--muted);
+			display: grid;
+			gap: 4px;
+			color: rgba(238, 244, 255, 0.56);
 			font-size: 11px;
 			line-height: 1.5;
 			text-transform: uppercase;
@@ -894,35 +1130,25 @@ function getPlaygroundStyles(): string {
 		}
 
 		.file-input {
-			width: 100%;
-			border: 1px solid var(--line);
-			background: rgba(4, 8, 18, 0.74);
-			color: var(--muted);
-			padding: 10px 12px;
-			font-size: 11px;
-			line-height: 1.5;
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			white-space: nowrap;
+			border: 0;
 		}
 
-		.file-input::file-selector-button {
-			margin-right: 10px;
-			border: 1px solid var(--accent);
-			background: var(--accent-soft);
-			color: var(--accent);
-			padding: 7px 10px;
-			font: inherit;
-			text-transform: uppercase;
-			letter-spacing: 0.08em;
-			cursor: pointer;
-		}
-
-		.file-list,
-		.file-downloads {
+		.file-downloads,
+		.asset-modal-list {
 			display: grid;
 			gap: 6px;
 		}
 
-		.file-pill,
-		.file-download {
+		.file-download,
+		.asset-pill {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) auto;
 			gap: 10px;
@@ -935,14 +1161,121 @@ function getPlaygroundStyles(): string {
 			color: var(--muted);
 		}
 
-		.file-pill strong,
-		.file-download strong {
+		.file-download strong,
+		.asset-pill strong {
 			display: block;
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
 			color: var(--fg);
 			font-size: 11px;
+		}
+
+		.file-list {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			align-items: flex-start;
+		}
+
+		.selected-asset-list {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			align-items: flex-start;
+		}
+
+		.file-chip {
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			min-width: 0;
+			max-width: 100%;
+			padding: 6px 10px 6px 8px;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 14px;
+			background: rgba(255, 255, 255, 0.035);
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+		}
+
+		.file-chip-badge {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 22px;
+			height: 22px;
+			flex-shrink: 0;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 7px;
+			background: rgba(255, 255, 255, 0.06);
+			color: rgba(238, 244, 255, 0.72);
+			font-family: var(--font-mono);
+			font-size: 9px;
+			line-height: 1;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+		}
+
+		.file-chip-label {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: rgba(238, 244, 255, 0.88);
+			font-size: 12px;
+			line-height: 1.5;
+		}
+
+		.file-chip-remove {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 18px;
+			height: 18px;
+			flex-shrink: 0;
+			padding: 0;
+			border: 0;
+			border-radius: 999px;
+			background: transparent;
+			box-shadow: none;
+			color: rgba(238, 244, 255, 0.58);
+			font-size: 14px;
+			line-height: 1;
+			transform: none !important;
+		}
+
+		.file-chip-remove:hover:not(:disabled) {
+			background: rgba(255, 255, 255, 0.08);
+			color: rgba(255, 244, 247, 0.92);
+			box-shadow: none;
+		}
+
+		.file-chip.pending {
+			background: rgba(255, 255, 255, 0.04);
+		}
+
+		.file-chip.asset {
+			background: rgba(255, 255, 255, 0.045);
+		}
+
+		.file-chip.asset .file-chip-badge {
+			background: rgba(95, 209, 255, 0.08);
+			color: rgba(194, 232, 255, 0.82);
+		}
+
+		.message-file-strip {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+
+		.message-body.has-file-chips {
+			display: grid;
+			gap: 10px;
+		}
+
+		.message.user .message-file-strip {
+			justify-content: flex-end;
 		}
 
 		.file-download a {
@@ -955,29 +1288,141 @@ function getPlaygroundStyles(): string {
 			letter-spacing: 0.08em;
 		}
 
+		.selected-assets {
+			display: none;
+			gap: 8px;
+			padding: 0;
+			border: 0;
+			background: transparent;
+			backdrop-filter: none;
+		}
+
+		.selected-assets.visible {
+			display: grid;
+		}
+
+		.asset-modal-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 12px;
+			color: var(--muted);
+			font-size: 11px;
+			line-height: 1.5;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+		}
+
+		.asset-modal-actions {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.asset-modal-actions button,
+		.asset-pill button {
+			padding: 6px 10px;
+			font-size: 10px;
+		}
+
+		.asset-pill {
+			grid-template-columns: minmax(0, 1fr) auto;
+		}
+
+		.asset-pill.active {
+			border-color: rgba(170, 223, 255, 0.2);
+			background: rgba(255, 255, 255, 0.08);
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+		}
+
+		.asset-pill span {
+			display: block;
+		}
+
+		.asset-empty {
+			padding: 10px;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(255, 255, 255, 0.04);
+			color: rgba(238, 244, 255, 0.56);
+			font-size: 11px;
+			line-height: 1.6;
+		}
+
+		.asset-modal-shell {
+			position: fixed;
+			inset: 0;
+			z-index: 60;
+			display: none;
+			align-items: center;
+			justify-content: center;
+			padding: 24px;
+			background: rgba(4, 8, 14, 0.54);
+			backdrop-filter: blur(10px);
+		}
+
+		.asset-modal-shell.open {
+			display: flex;
+		}
+
+		.asset-modal {
+			width: min(760px, 100%);
+			max-height: min(72vh, 720px);
+			display: grid;
+			grid-template-rows: auto minmax(0, 1fr);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background:
+				linear-gradient(180deg, rgba(19, 26, 38, 0.86), rgba(13, 18, 28, 0.88));
+			box-shadow: 0 20px 80px rgba(0, 0, 0, 0.4);
+			backdrop-filter: blur(18px);
+		}
+
+		.asset-modal-copy {
+			display: grid;
+			gap: 4px;
+		}
+
+		.asset-modal-copy strong {
+			display: block;
+			color: var(--fg);
+			font-size: 13px;
+			letter-spacing: 0.12em;
+		}
+
+		.asset-modal-copy span {
+			display: block;
+			color: var(--muted);
+			font-size: 11px;
+			line-height: 1.6;
+			text-transform: none;
+			letter-spacing: 0.04em;
+		}
+
+		.asset-modal-body {
+			min-height: 0;
+			padding: 14px;
+			overflow-y: auto;
+			border-top: 1px solid var(--line);
+		}
+
 		@media (max-width: 960px) {
 			.brand-lockup {
 				grid-template-columns: 1fr;
 			}
 
-			.corgi-logo {
-				width: max-content;
-			}
-
 			.stream-layout {
-				grid-template-columns: 1fr;
-			}
-
-			.process-panel {
-				border-left: 0;
-				border-top: 1px solid var(--line);
-				min-height: 220px;
+				gap: 12px;
 			}
 
 			.chat-meta,
 			.composer,
 			.topbar {
 				grid-template-columns: 1fr;
+			}
+
+			.drop-zone-top,
+			.asset-modal-head {
+				flex-direction: column;
+				align-items: stretch;
 			}
 
 			.topbar-right {
@@ -1009,12 +1454,459 @@ function getPlaygroundStyles(): string {
 			}
 
 			.message {
+				padding-left: 12px;
+				padding-right: 12px;
+			}
+
+			.message.user,
+			.message.assistant,
+			.message.error {
+				padding-left: 12px;
+				padding-right: 12px;
+			}
+
+			.asset-modal-shell {
+				padding: 0;
+			}
+
+			.asset-modal {
+				width: 100%;
+				height: 100%;
+				max-height: none;
+				border-left: 0;
+				border-right: 0;
+			}
+		}
+
+		body {
+			position: relative;
+			padding: 0;
+			align-items: center;
+		}
+
+		body::before {
+			content: "";
+			position: fixed;
+			inset: 0;
+			background:
+				linear-gradient(rgba(95, 209, 255, 0.035) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(95, 209, 255, 0.03) 1px, transparent 1px),
+				linear-gradient(180deg, rgba(5, 10, 18, 0.12), rgba(3, 6, 11, 0.36));
+			background-size: 40px 40px, 40px 40px, auto;
+			opacity: 0.38;
+			pointer-events: none;
+		}
+
+		.shell {
+			position: relative;
+			width: 100vw;
+			height: 100vh;
+			margin: 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			box-shadow: none;
+			backdrop-filter: none;
+			isolation: isolate;
+		}
+
+		.topbar {
+			position: relative;
+			z-index: 2;
+			width: 100%;
+			min-height: 44px;
+			margin: 0;
+			padding: 0 24px;
+			grid-template-columns: 1fr auto 1fr;
+			align-items: center;
+			border-bottom: 1px solid rgba(95, 209, 255, 0.08);
+		}
+
+		.topbar-left {
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		.topbar-signal,
+		.hero-wordmark {
+			font-family: var(--font-mono);
+			font-weight: 700;
+			text-transform: uppercase;
+			font-smooth: never;
+			-webkit-font-smoothing: none;
+			text-rendering: optimizeSpeed;
+		}
+
+		.topbar-signal {
+			justify-self: center;
+			color: #35cfff;
+			font-size: 13px;
+			letter-spacing: 0.22em;
+			text-shadow:
+				2px 0 0 rgba(8, 14, 24, 0.95),
+				0 2px 0 rgba(8, 14, 24, 0.95),
+				0 0 12px rgba(53, 207, 255, 0.22);
+		}
+
+		.chat-stage {
+			position: relative;
+			width: 100%;
+			margin: 0;
+			padding: 0 28px 22px;
+		}
+
+		.landing-screen {
+			display: none;
+			position: relative;
+			flex: 1 1 auto;
+			min-height: 0;
+			z-index: 1;
+		}
+
+		.shell[data-stage-mode="landing"] .landing-screen {
+			display: grid;
+		}
+
+		.landing-grid {
+			position: relative;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto minmax(180px, 220px);
+			align-items: center;
+			width: 100%;
+			height: 100%;
+		}
+
+		.hero-core {
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			z-index: 1;
+			display: grid;
+			gap: 16px;
+			text-align: center;
+			transform: translate(-50%, -50%);
+			animation: hero-core-drift 8s ease-in-out infinite;
+		}
+
+		.hero-mark {
+			display: none;
+		}
+
+		.hero-wordmark {
+			color: rgba(53, 207, 255, 0.3);
+			font-size: clamp(54px, 8.4vw, 84px);
+			line-height: 0.88;
+			letter-spacing: 0.18em;
+			text-indent: 0.18em;
+			text-shadow:
+				4px 0 0 rgba(8, 14, 24, 0.92),
+				0 4px 0 rgba(8, 14, 24, 0.92),
+				0 0 30px rgba(53, 207, 255, 0.12);
+		}
+
+		.hero-divider {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 14px;
+		}
+
+		.hero-divider span {
+			width: 90px;
+			height: 1px;
+			background: linear-gradient(90deg, transparent, rgba(95, 209, 255, 0.28), transparent);
+		}
+
+		.hero-divider em {
+			color: rgba(194, 224, 255, 0.34);
+			font-size: 11px;
+			font-style: normal;
+			letter-spacing: 0.28em;
+		}
+
+		.landing-side-right {
+			position: absolute;
+			right: 34px;
+			top: 50%;
+			z-index: 3;
+			display: grid;
+			gap: 18px;
+			transform: translateY(-50%);
+		}
+
+		.telemetry-card {
+			display: grid;
+			gap: 10px;
+			text-align: right;
+			opacity: 0.62;
+		}
+
+		.telemetry-card span {
+			color: rgba(194, 224, 255, 0.18);
+			font-size: 10px;
+			letter-spacing: 0.18em;
+			text-transform: uppercase;
+		}
+
+		.telemetry-card strong {
+			color: rgba(194, 224, 255, 0.34);
+			font-size: 12px;
+			letter-spacing: 0.08em;
+			font-weight: 400;
+		}
+
+		.telemetry-action {
+			font: inherit;
+			color: inherit;
+			cursor: pointer;
+			padding: 0;
+			border: 0;
+			background: transparent;
+			box-shadow: none;
+			text-align: right;
+		}
+
+		.telemetry-action:hover:not(:disabled),
+		.telemetry-action:focus-visible {
+			border-color: transparent;
+			background: transparent;
+			box-shadow: none;
+			transform: translateY(0);
+		}
+
+		.telemetry-action:hover:not(:disabled) span,
+		.telemetry-action:focus-visible span,
+		.telemetry-action:hover:not(:disabled) strong,
+		.telemetry-action:focus-visible strong {
+			color: rgba(95, 209, 255, 0.9);
+			text-shadow: 0 0 18px rgba(53, 207, 255, 0.18);
+		}
+
+		.telemetry-action:disabled {
+			cursor: wait;
+		}
+
+		.command-deck {
+			position: relative;
+			z-index: 2;
+			flex-shrink: 0;
+		}
+
+		.shell[data-stage-mode="landing"] .stream-layout {
+			position: absolute;
+			inset: 86px 34px var(--command-deck-offset, 176px) 34px;
+			display: flex;
+			align-items: center;
+			overflow: hidden;
+			z-index: 3;
+			pointer-events: none;
+		}
+
+		.shell[data-stage-mode="landing"][data-transcript-state="idle"] .stream-layout {
+			justify-content: center;
+		}
+
+		.shell[data-stage-mode="landing"][data-transcript-state="active"] .stream-layout {
+			justify-content: flex-end;
+		}
+
+		.shell[data-stage-mode="landing"] .transcript-pane,
+		.shell[data-stage-mode="landing"] .transcript {
+			pointer-events: auto;
+		}
+
+		.shell[data-stage-mode="landing"] .transcript-pane {
+			flex: 1 1 auto;
+			width: min(var(--conversation-width), 100%);
+			height: 100%;
+			max-height: 100%;
+			margin: 0 auto;
+		}
+
+		.shell[data-stage-mode="landing"] .transcript {
+			padding: 0 0 12px;
+		}
+
+		.shell[data-stage-mode="landing"] .command-deck {
+			display: grid;
+			gap: 6px;
+			width: min(var(--conversation-width), 100%);
+			margin: 0 auto 18px;
+			z-index: 4;
+		}
+
+		.shell[data-stage-mode="landing"] .composer {
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 12px;
+			padding: 12px;
+			border: 0;
+			border-radius: 4px;
+			background: rgba(148, 190, 218, 0.16);
+			box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+			backdrop-filter: none;
+		}
+
+		.shell[data-stage-mode="landing"] .composer-header {
+			display: none;
+		}
+
+		.shell[data-stage-mode="landing"] .composer-main {
+			gap: 8px;
+		}
+
+		.shell[data-stage-mode="landing"] .composer textarea {
+			min-height: 56px;
+			max-height: 56px;
+			padding: 15px 10px 12px;
+			border: 0;
+			background: transparent;
+			box-shadow: none;
+			color: rgba(238, 244, 255, 0.84);
+			line-height: 1.45;
+			resize: none;
+			overflow: hidden;
+		}
+
+		.shell[data-stage-mode="landing"] .composer textarea::placeholder {
+			color: rgba(194, 224, 255, 0.28);
+		}
+
+		.shell[data-stage-mode="landing"] .composer textarea:focus {
+			background: transparent;
+			box-shadow: none;
+		}
+
+		.shell[data-stage-mode="landing"] .file-strip {
+			display: grid;
+			gap: 4px;
+		}
+
+		.shell[data-stage-mode="landing"] .drop-zone {
+			padding: 0;
+			border: 0;
+			background: transparent;
+			backdrop-filter: none;
+		}
+
+		.shell[data-stage-mode="landing"] .drop-zone-top {
+			align-items: center;
+		}
+
+		.shell[data-stage-mode="landing"] .drop-zone-label {
+			font-size: 10px;
+			letter-spacing: 0.12em;
+			color: rgba(194, 224, 255, 0.22);
+		}
+
+		.shell[data-stage-mode="landing"] .drop-zone-label span:last-child {
+			display: none;
+		}
+
+		.shell[data-stage-mode="landing"] .composer-side {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+			align-content: center;
+		}
+
+		.shell[data-stage-mode="landing"] #send-button,
+		.shell[data-stage-mode="landing"] #interrupt-button {
+			min-width: 56px;
+			min-height: 56px;
+			padding: 0 18px;
+			border: 0;
+			border-radius: 4px;
+			box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+		}
+
+		.shell[data-stage-mode="landing"] #interrupt-button {
+			order: 1;
+			background: rgba(108, 68, 78, 0.88);
+			color: rgba(255, 232, 236, 0.94);
+		}
+
+		.shell[data-stage-mode="landing"] #send-button {
+			order: 2;
+			background: rgba(67, 112, 91, 0.9);
+			color: rgba(238, 255, 245, 0.96);
+		}
+
+		.shell[data-stage-mode="landing"] .selected-assets,
+		.shell[data-stage-mode="landing"] .file-list {
+			max-height: 126px;
+			overflow: auto;
+			scrollbar-width: none;
+		}
+
+		@keyframes hero-core-drift {
+			0%,
+			100% {
+				transform: translate(-50%, -50%) scale(1);
+				opacity: 0.92;
+			}
+			50% {
+				transform: translate(-50%, calc(-50% - 6px)) scale(1.015);
+				opacity: 1;
+			}
+		}
+
+		@media (max-width: 900px) {
+			.chat-stage {
+				padding: 0 18px 18px;
+			}
+
+			.landing-grid {
 				grid-template-columns: 1fr;
 			}
 
-			.message-meta {
-				border-right: 0;
-				border-bottom: 1px solid var(--line);
+			.hero-core {
+				left: 50%;
+				top: 50%;
+			}
+
+			.landing-side-right {
+				right: 18px;
+				top: 110px;
+				grid-auto-flow: row;
+				gap: 16px;
+				transform: none;
+			}
+
+			.telemetry-card {
+				text-align: left;
+			}
+
+			.shell[data-stage-mode="landing"] .stream-layout {
+				inset: 78px 18px var(--command-deck-offset, 190px) 18px;
+			}
+		}
+
+		@media (max-width: 640px) {
+			body {
+				padding: 0;
+			}
+
+			.shell {
+				width: 100vw;
+				height: 100vh;
+				border-radius: 4px;
+			}
+
+			.topbar {
+				padding: 0 16px;
+			}
+
+			.hero-wordmark {
+				font-size: 64px;
+			}
+
+			.shell[data-stage-mode="landing"] .composer {
+				grid-template-columns: 1fr;
+			}
+
+			.shell[data-stage-mode="landing"] .composer-side {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				display: grid;
 			}
 		}
 	`;
@@ -1031,39 +1923,85 @@ function getPlaygroundScript(): string {
 
 		const state = {
 			loading: false,
+			stageMode: "landing",
 			conversationId: localStorage.getItem("ugk-pi:conversation-id") || "",
 			streamingText: "",
 			activeAssistantContent: null,
+			activeProcessShell: null,
+			activeProcessNarration: null,
+			activeProcessAction: null,
+			lastProcessNarration: "",
 			receivedDoneEvent: false,
 			pendingAttachments: [],
-			lastFileIntentMessage: "",
+			recentAssets: [],
+			selectedAssetRefs: [],
 			dragDepth: 0,
-			dragDebugEvents: [],
-			lastDragDebugKey: "",
-			lastDragDebugAt: 0,
+			assetModalOpen: false,
 		};
 
 		const transcript = document.getElementById("transcript");
-		const processFeed = document.getElementById("process-feed");
 		const errorBanner = document.getElementById("error-banner");
+		const errorBannerMessage = document.getElementById("error-banner-message");
+		const errorBannerClose = document.getElementById("error-banner-close");
 		const dragOverlay = document.getElementById("drag-overlay");
 		const pageRoot = document.documentElement;
 		const pageBody = document.body;
+		const shell = document.getElementById("shell");
+		const landingScreen = document.getElementById("landing-screen");
 		const sessionFile = document.getElementById("session-file");
 		const chatStage = document.getElementById("chat-stage");
 		const conversationInput = document.getElementById("conversation-id");
 		const messageInput = document.getElementById("message");
+		const commandDeck = document.getElementById("command-deck");
 		const composerDropTarget = document.getElementById("composer-drop-target");
 		const dropZone = document.getElementById("drop-zone");
 		const fileInput = document.getElementById("file-input");
+		const filePickerAction = document.getElementById("file-picker-action");
 		const fileList = document.getElementById("file-list");
-		const dragDebugLog = document.getElementById("drag-debug-log");
-		const clearDragDebugButton = document.getElementById("clear-drag-debug");
+		const selectedAssetsSection = document.getElementById("selected-assets");
+		const selectedAssetList = document.getElementById("selected-asset-list");
+		const openAssetLibraryButton = document.getElementById("open-asset-library-button");
+		const assetModal = document.getElementById("asset-modal");
+		const assetModalList = document.getElementById("asset-modal-list");
+		const closeAssetModalButton = document.getElementById("close-asset-modal-button");
+		const refreshAssetsButton = document.getElementById("refresh-assets-button");
 		const sendButton = document.getElementById("send-button");
 		const interruptButton = document.getElementById("interrupt-button");
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
 		const statusPill = document.getElementById("status-pill");
+		const commandStatus = document.getElementById("command-status");
+
+		messageInput.placeholder = "Enter terminal command or query neural core...";
+
+		function setStageMode(next) {
+			state.stageMode = next;
+			shell.dataset.stageMode = next;
+			landingScreen.setAttribute("aria-hidden", next === "landing" ? "false" : "true");
+		}
+
+		function syncConversationLayout() {
+			const composerWidth = Math.round(composerDropTarget.getBoundingClientRect().width || 0);
+			if (composerWidth > 0) {
+				shell.style.setProperty("--conversation-width", composerWidth + "px");
+			}
+			const chatStageRect = chatStage.getBoundingClientRect();
+			const commandDeckRect = commandDeck.getBoundingClientRect();
+			const commandDeckOffset = Math.ceil(chatStageRect.bottom - commandDeckRect.top || 0);
+			if (commandDeckOffset > 0) {
+				shell.style.setProperty("--command-deck-offset", commandDeckOffset + "px");
+			}
+		}
+
+		function setTranscriptState(next) {
+			shell.dataset.transcriptState = next === "active" ? "active" : "idle";
+			window.requestAnimationFrame(syncConversationLayout);
+		}
+
+		function setCommandStatus(next) {
+			shell.dataset.commandState = String(next || "standby").toLowerCase();
+			newConversationButton.dataset.state = shell.dataset.commandState;
+		}
 
 		function ensureConversationId() {
 			if (!conversationInput.value.trim()) {
@@ -1077,32 +2015,59 @@ function getPlaygroundScript(): string {
 			transcript.scrollTop = transcript.scrollHeight;
 		}
 
-		function scrollProcessToBottom() {
-			processFeed.scrollTop = processFeed.scrollHeight;
-		}
-
 		function setLoading(next) {
 			state.loading = next;
 			sendButton.disabled = false;
 			sendButton.textContent = "发送";
 			interruptButton.disabled = !next;
 			viewSkillsButton.disabled = next;
+			filePickerAction.disabled = false;
 			messageInput.disabled = false;
 			fileInput.disabled = false;
 			conversationInput.disabled = next;
 			newConversationButton.disabled = next;
+			openAssetLibraryButton.disabled = next;
+			refreshAssetsButton.disabled = next;
+			setCommandStatus(next ? "RUNNING" : "STANDBY");
 			statusPill.textContent = next ? "运行中" : "就绪";
 		}
 
 		function showError(message) {
-			errorBanner.textContent = message;
+			errorBannerMessage.textContent = message;
+			errorBanner.hidden = false;
 			errorBanner.classList.add("visible");
+			setCommandStatus("ERROR");
 			statusPill.textContent = "错误";
 		}
 
+		function formatControlActionReason(action, reason) {
+			if (reason === "not_running") {
+				return action === "interrupt"
+					? "当前没有可打断的运行任务，请从顶部提示确认状态。"
+					: "当前没有可追加的运行任务，请直接重新发送消息。";
+			}
+			if (reason === "abort_not_supported") {
+				return "当前运行任务暂不支持打断，请等待它自然结束。";
+			}
+			return "";
+		}
+
+		function getControlActionErrorMessage(action, payload, fallbackMessage) {
+			return (
+				payload?.error?.message ||
+				formatControlActionReason(action, payload?.reason) ||
+				payload?.reason ||
+				fallbackMessage
+			);
+		}
+
 		function clearError() {
-			errorBanner.textContent = "";
+			errorBannerMessage.textContent = "";
 			errorBanner.classList.remove("visible");
+			errorBanner.hidden = true;
+			if (!state.loading) {
+				setCommandStatus("STANDBY");
+			}
 			if (!state.loading) {
 				statusPill.textContent = "就绪";
 			}
@@ -1137,6 +2102,24 @@ function getPlaygroundScript(): string {
 			});
 		}
 
+		function readFileAsArrayBuffer(file) {
+			return new Promise((resolve, reject) => {
+				const reader = new FileReader();
+				reader.onload = () => resolve(reader.result instanceof ArrayBuffer ? reader.result : new ArrayBuffer(0));
+				reader.onerror = () => reject(reader.error || new Error("file read failed"));
+				reader.readAsArrayBuffer(file);
+			});
+		}
+
+		function arrayBufferToBase64(buffer) {
+			const bytes = new Uint8Array(buffer);
+			let binary = "";
+			for (let index = 0; index < bytes.length; index += 1) {
+				binary += String.fromCharCode(bytes[index]);
+			}
+			return btoa(binary);
+		}
+
 		async function collectAttachments(files) {
 			const selected = Array.from(files || []).slice(0, 5);
 			const attachments = [];
@@ -1149,6 +2132,8 @@ function getPlaygroundScript(): string {
 				};
 				if (isTextLikeFile(file) && file.size <= 512 * 1024) {
 					attachment.text = await readFileAsText(file);
+				} else if (file.size <= 2 * 1024 * 1024) {
+					attachment.base64 = arrayBufferToBase64(await readFileAsArrayBuffer(file));
 				}
 				attachments.push(attachment);
 			}
@@ -1158,23 +2143,266 @@ function getPlaygroundScript(): string {
 
 		function renderAttachmentList() {
 			fileList.innerHTML = "";
-			for (const attachment of state.pendingAttachments) {
-				const item = document.createElement("div");
-				item.className = "file-pill";
-				const textState = typeof attachment.text === "string" ? "\\u5df2\\u8bfb\\u53d6\\u6587\\u672c" : "\\u4ec5\\u53d1\\u9001\\u5143\\u6570\\u636e";
-				item.innerHTML = "<div><strong></strong><span></span></div><span></span>";
-				item.querySelector("strong").textContent = attachment.fileName;
-				item.querySelector("div span").textContent = (attachment.mimeType || "application/octet-stream") + " / " + formatFileSize(attachment.sizeBytes);
-				item.querySelector(":scope > span").textContent = textState;
+			for (const [index, attachment] of state.pendingAttachments.entries()) {
+				const item = createFileChip({
+					tone: "pending",
+					fileName: attachment.fileName,
+					meta:
+						(attachment.mimeType || "application/octet-stream") +
+						" / " +
+						formatFileSize(attachment.sizeBytes),
+					onRemove: () => {
+						removePendingAttachment(index);
+					},
+				});
 				fileList.appendChild(item);
+			}
+		}
+
+		function getSelectedAssets() {
+			return state.selectedAssetRefs
+				.map((assetId) => state.recentAssets.find((asset) => asset.assetId === assetId))
+				.filter(Boolean);
+		}
+
+		function renderSelectedAssets() {
+			selectedAssetList.innerHTML = "";
+			const selectedAssets = getSelectedAssets();
+			selectedAssetsSection.classList.toggle("visible", selectedAssets.length > 0);
+			if (selectedAssets.length === 0) {
+				return;
+			}
+
+			for (const asset of selectedAssets) {
+				const item = createFileChip({
+					tone: "asset",
+					fileName: asset.fileName,
+					meta:
+						(asset.kind || "metadata") +
+						" / " +
+						(asset.mimeType || "application/octet-stream") +
+						" / " +
+						formatFileSize(asset.sizeBytes),
+					onRemove: () => {
+						removeSelectedAsset(asset.assetId);
+					},
+				});
+				selectedAssetList.appendChild(item);
+			}
+		}
+
+		function deriveFileBadge(fileName, fallback) {
+			const label = String(fileName || "").trim();
+			const extensionMatch = label.match(/\.([a-z0-9]{1,5})$/i);
+			if (extensionMatch) {
+				return extensionMatch[1].slice(0, 3).toUpperCase();
+			}
+
+			const fallbackText = String(fallback || "").trim().toLowerCase();
+			if (fallbackText.startsWith("text/")) {
+				return "TXT";
+			}
+			if (fallbackText.includes("markdown")) {
+				return "MD";
+			}
+			if (fallbackText.includes("json")) {
+				return "JSN";
+			}
+			if (fallbackText.includes("image/")) {
+				return "IMG";
+			}
+
+			return "FILE";
+		}
+
+		function createFileChip({ tone, fileName, meta, onRemove }) {
+			const item = document.createElement("div");
+			item.className = "file-chip " + (tone || "pending");
+			item.title = String(meta || "");
+
+			const badge = document.createElement("span");
+			badge.className = "file-chip-badge";
+			badge.textContent = deriveFileBadge(fileName, meta);
+
+			const label = document.createElement("span");
+			label.className = "file-chip-label";
+			label.textContent = fileName || "untitled";
+
+			item.appendChild(badge);
+			item.appendChild(label);
+			if (typeof onRemove === "function") {
+				const removeButton = document.createElement("button");
+				removeButton.type = "button";
+				removeButton.className = "file-chip-remove";
+				removeButton.textContent = "×";
+				removeButton.setAttribute("aria-label", "移除 " + (fileName || "文件"));
+				removeButton.addEventListener("click", () => {
+					onRemove();
+				});
+				item.appendChild(removeButton);
+			}
+			return item;
+		}
+
+		function getReferencedAssets(assetRefs) {
+			return assetRefs
+				.map((assetId) => state.recentAssets.find((asset) => asset.assetId === assetId))
+				.filter(Boolean);
+		}
+
+		function appendMessageFileChips(body, attachments, assetRefs) {
+			const referencedAssets = getReferencedAssets(assetRefs);
+			if (attachments.length === 0 && referencedAssets.length === 0) {
+				return;
+			}
+
+			const strip = document.createElement("div");
+			strip.className = "message-file-strip";
+
+			for (const attachment of attachments) {
+				strip.appendChild(
+					createFileChip({
+						tone: "pending",
+						fileName: attachment.fileName,
+						meta:
+							(attachment.mimeType || "application/octet-stream") +
+							" / " +
+							formatFileSize(attachment.sizeBytes),
+					}),
+				);
+			}
+
+			for (const asset of referencedAssets) {
+				strip.appendChild(
+					createFileChip({
+						tone: "asset",
+						fileName: asset.fileName,
+						meta:
+							(asset.kind || "metadata") +
+							" / " +
+							(asset.mimeType || "application/octet-stream") +
+							" / " +
+							formatFileSize(asset.sizeBytes),
+					}),
+				);
+			}
+
+			body.classList.add("has-file-chips");
+			body.appendChild(strip);
+		}
+
+		function appendUserTranscriptMessage(message, attachments, assetRefs) {
+			const content = appendTranscriptMessage("user", state.conversationId, message);
+			const body = content.parentElement;
+			if (body) {
+				appendMessageFileChips(body, attachments, assetRefs);
+			}
+			return content;
+		}
+
+		function renderAssetPickerList() {
+			assetModalList.innerHTML = "";
+			if (!Array.isArray(state.recentAssets) || state.recentAssets.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "asset-empty";
+				empty.textContent = "暂无可复用资产，先上传文件或让助手生成文件。";
+				assetModalList.appendChild(empty);
+				return;
+			}
+
+			for (const asset of state.recentAssets) {
+				const item = document.createElement("div");
+				item.className = "asset-pill" + (state.selectedAssetRefs.includes(asset.assetId) ? " active" : "");
+				item.innerHTML = "<div><strong></strong><span></span></div><button type=\\"button\\"></button>";
+				item.querySelector("strong").textContent = asset.fileName;
+				item.querySelector("span").textContent =
+					(asset.kind || "metadata") +
+					" / " +
+					(asset.mimeType || "application/octet-stream") +
+					" / " +
+					formatFileSize(asset.sizeBytes) +
+					" / " +
+					asset.assetId.slice(0, 12);
+				const toggleButton = item.querySelector("button");
+				toggleButton.textContent = state.selectedAssetRefs.includes(asset.assetId) ? "已选" : "复用";
+				toggleButton.disabled = state.selectedAssetRefs.includes(asset.assetId);
+				toggleButton.addEventListener("click", () => {
+					selectAssetForReuse(asset.assetId);
+				});
+				assetModalList.appendChild(item);
 			}
 		}
 
 		function clearSelectedFiles() {
 			state.pendingAttachments = [];
-			state.lastFileIntentMessage = "";
 			fileInput.value = "";
 			renderAttachmentList();
+		}
+
+		function removePendingAttachment(indexToRemove) {
+			state.pendingAttachments = state.pendingAttachments.filter((_, index) => index !== indexToRemove);
+			if (state.pendingAttachments.length === 0) {
+				fileInput.value = "";
+			}
+			renderAttachmentList();
+		}
+
+		function openAssetLibrary() {
+			state.assetModalOpen = true;
+			assetModal.hidden = false;
+			assetModal.classList.add("open");
+			assetModal.setAttribute("aria-hidden", "false");
+			renderAssetPickerList();
+		}
+
+		function closeAssetLibrary() {
+			state.assetModalOpen = false;
+			assetModal.classList.remove("open");
+			assetModal.hidden = true;
+			assetModal.setAttribute("aria-hidden", "true");
+		}
+
+		function selectAssetForReuse(assetId) {
+			if (!state.selectedAssetRefs.includes(assetId)) {
+				state.selectedAssetRefs = [...state.selectedAssetRefs, assetId];
+			}
+			renderSelectedAssets();
+			renderAssetPickerList();
+			closeAssetLibrary();
+		}
+
+		function clearSelectedAssetRefs() {
+			state.selectedAssetRefs = [];
+			renderSelectedAssets();
+			renderAssetPickerList();
+		}
+
+		function removeSelectedAsset(assetId) {
+			state.selectedAssetRefs = state.selectedAssetRefs.filter((currentId) => currentId !== assetId);
+			renderSelectedAssets();
+			renderAssetPickerList();
+		}
+
+		function isInterruptIntentMessage(message) {
+			const normalized = String(message || "")
+				.toLowerCase()
+				.replace(/[\\s，。、“”"'‘’！!？?、,.]/g, "")
+				.trim();
+			return [
+				"停",
+				"停止",
+				"先停",
+				"停下",
+				"别做了",
+				"不要做了",
+				"先不要做了",
+				"取消",
+				"中止",
+				"打断",
+				"stop",
+				"cancel",
+				"abort",
+			].includes(normalized);
 		}
 
 		function describeNode(node) {
@@ -1190,64 +2418,8 @@ function getPlaygroundScript(): string {
 			return node.tagName.toLowerCase();
 		}
 
-		function summarizeDataTransfer(dataTransfer) {
-			if (!dataTransfer) {
-				return "dataTransfer=none";
-			}
-			const itemKinds = Array.from(dataTransfer.items || []).map((item) => item.kind + ":" + (item.type || "unknown"));
-			const types = Array.from(dataTransfer.types || []);
-			const parts = [
-				"types=[" + (types.join(",") || "none") + "]",
-				"files=" + (dataTransfer.files ? dataTransfer.files.length : 0),
-				"items=" + (dataTransfer.items ? dataTransfer.items.length : 0),
-				"dropEffect=" + (dataTransfer.dropEffect || "none"),
-				"effectAllowed=" + (dataTransfer.effectAllowed || "none"),
-			];
-			if (itemKinds.length) {
-				parts.push("itemKinds=[" + itemKinds.join(",") + "]");
-			}
-			return parts.join(" | ");
-		}
-
-		function renderDragDebugLog() {
-			if (!dragDebugLog) {
-				return;
-			}
-			dragDebugLog.innerHTML = "";
-			if (!state.dragDebugEvents.length) {
-				const empty = document.createElement("div");
-				empty.className = "drag-debug-empty";
-				empty.textContent = "\\u8fd8\\u6ca1\\u6709\\u62d6\\u653e\\u4e8b\\u4ef6\\u3002\\u76f4\\u63a5\\u628a\\u6587\\u4ef6\\u62d6\\u5230\\u8fd9\\u4e2a\\u9875\\u9762\\uff0c\\u8fd9\\u91cc\\u4f1a\\u663e\\u793a Chrome \\u5230\\u5e95\\u6709\\u6ca1\\u6709\\u628a\\u4e8b\\u4ef6\\u4ea4\\u7ed9\\u9875\\u9762\\u3002";
-				dragDebugLog.appendChild(empty);
-				return;
-			}
-			for (const entry of state.dragDebugEvents) {
-				const item = document.createElement("div");
-				item.className = "drag-debug-entry";
-				item.innerHTML = "<strong></strong><br /><span></span>";
-				item.querySelector("strong").textContent = entry.label;
-				item.querySelector("span").textContent = entry.detail;
-				dragDebugLog.appendChild(item);
-			}
-		}
-
-		function pushDragDebug(scope, event) {
-			const detail = [
-				"target=" + describeNode(event.target),
-				"current=" + describeNode(event.currentTarget),
-				summarizeDataTransfer(event.dataTransfer),
-			].join(" | ");
-			const label = new Date().toLocaleTimeString() + " | " + scope + " | " + event.type;
-			const dedupeKey = scope + "|" + event.type + "|" + detail;
-			const now = Date.now();
-			if (dedupeKey === state.lastDragDebugKey && now - state.lastDragDebugAt < 120) {
-				return;
-			}
-			state.lastDragDebugKey = dedupeKey;
-			state.lastDragDebugAt = now;
-			state.dragDebugEvents.unshift({ label, detail });
-			state.dragDebugEvents = state.dragDebugEvents.slice(0, 10);
-			renderDragDebugLog();
+		function pushDragDebug() {
+			return;
 		}
 
 		function showGlobalDropHint() {
@@ -1265,42 +2437,95 @@ function getPlaygroundScript(): string {
 			state.dragDepth = 0;
 		}
 
-		function buildFileIntentMessage(attachments, sourceLabel) {
-			const source = sourceLabel === "drop" ? "拖入" : "选择";
-			return [
-				"请结合我" + source + "的 " + attachments.length + " 个文件一起处理：",
-				...attachments.map((attachment) => "- " + attachment.fileName + " (" + formatFileSize(attachment.sizeBytes) + ")"),
-			].join("\\n");
+		function formatMessageWithContext(message, attachments, assetRefs) {
+			const sections = [message];
+			if (attachments.length) {
+				sections.push("", "\\u9644\\u4ef6:", ...attachments.map((attachment) => "- " + attachment.fileName + " (" + formatFileSize(attachment.sizeBytes) + ")"));
+			}
+			if (assetRefs.length) {
+				sections.push(
+					"",
+					"\\u5f15\\u7528\\u8d44\\u4ea7:",
+					...assetRefs
+						.map((assetId) => state.recentAssets.find((asset) => asset.assetId === assetId))
+						.filter(Boolean)
+						.map((asset) => "- " + asset.fileName + " [" + asset.assetId.slice(0, 12) + "]"),
+				);
+			}
+			return sections.join("\\n");
 		}
 
-		function applyFileIntentMessage(attachments, sourceLabel) {
-			if (!attachments.length) {
+		function formatOutboundSummary(message, attachments, assetRefs) {
+			const sections = [];
+			const normalizedMessage = String(message || "").trim();
+			if (normalizedMessage) {
+				sections.push(normalizedMessage);
+			}
+			if (attachments.length) {
+				sections.push("附件 " + attachments.length + " 个");
+			}
+			if (assetRefs.length) {
+				sections.push("引用资产 " + assetRefs.length + " 个");
+			}
+			return sections.join("\\n");
+		}
+
+		function mergeRecentAssets(nextAssets) {
+			if (!Array.isArray(nextAssets) || nextAssets.length === 0) {
 				return;
 			}
-
-			const nextIntent = buildFileIntentMessage(attachments, sourceLabel);
-			const currentValue = messageInput.value.trim();
-			if (!currentValue) {
-				messageInput.value = nextIntent;
-			} else if (state.lastFileIntentMessage && messageInput.value.includes(state.lastFileIntentMessage)) {
-				messageInput.value = messageInput.value.replace(state.lastFileIntentMessage, nextIntent);
-			} else {
-				messageInput.value = messageInput.value.replace(/\\s*$/, "") + "\\n\\n" + nextIntent;
+			const byId = new Map();
+			for (const asset of [...nextAssets, ...state.recentAssets]) {
+				if (asset && typeof asset.assetId === "string" && !byId.has(asset.assetId)) {
+					byId.set(asset.assetId, asset);
+				}
 			}
-			state.lastFileIntentMessage = nextIntent;
-			messageInput.focus();
+			state.recentAssets = [...byId.values()];
+			renderSelectedAssets();
+			renderAssetPickerList();
 		}
 
-		function formatMessageWithAttachments(message, attachments) {
-			if (!attachments.length) {
-				return message;
+		async function loadAssets(silent) {
+			if (!silent) {
+				clearError();
+				appendProcessEvent("system", "\\u8d44\\u4ea7\\u6e05\\u5355", "请求 /v1/assets");
 			}
-			return [
-				message,
-				"",
-				"\\u9644\\u4ef6:",
-				...attachments.map((attachment) => "- " + attachment.fileName + " (" + formatFileSize(attachment.sizeBytes) + ")"),
-			].join("\\n");
+			refreshAssetsButton.disabled = true;
+
+			try {
+				const response = await fetch("/v1/assets?limit=40", {
+					method: "GET",
+					headers: { "accept": "application/json" },
+				});
+				if (!response.ok) {
+					const body = await response.json().catch(() => ({}));
+					const errorMessage = body?.error?.message || body?.message || "\\u52a0\\u8f7d\\u8d44\\u4ea7\\u5931\\u8d25";
+					if (!silent) {
+						showError(errorMessage);
+						appendProcessEvent("error", "\\u8d44\\u4ea7\\u6e05\\u5355\\u5931\\u8d25", errorMessage);
+					}
+					return;
+				}
+
+				const payload = await response.json();
+				state.recentAssets = Array.isArray(payload?.assets) ? payload.assets : [];
+				state.selectedAssetRefs = state.selectedAssetRefs.filter((assetId) =>
+					state.recentAssets.some((asset) => asset.assetId === assetId),
+				);
+				renderSelectedAssets();
+				renderAssetPickerList();
+				if (!silent) {
+					appendProcessEvent("ok", "\\u8d44\\u4ea7\\u6e05\\u5355\\u5df2\\u52a0\\u8f7d", String(state.recentAssets.length));
+				}
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "\\u52a0\\u8f7d\\u8d44\\u4ea7\\u5931\\u8d25";
+				if (!silent) {
+					showError(messageText);
+					appendProcessEvent("error", "\\u8d44\\u4ea7\\u6e05\\u5355\\u5931\\u8d25", messageText);
+				}
+			} finally {
+				refreshAssetsButton.disabled = state.loading;
+			}
 		}
 
 		function appendFileDownloads(files) {
@@ -1329,19 +2554,28 @@ function getPlaygroundScript(): string {
 		}
 
 		function appendTranscriptMessage(kind, title, text) {
+			setTranscriptState("active");
 			const card = document.createElement("article");
-			card.className = "message " + kind;
+			const visualKind = kind === "system" ? "assistant" : kind;
+			card.className = "message " + visualKind;
+			card.dataset.messageKind = kind;
 
 			const meta = document.createElement("div");
 			meta.className = "message-meta";
-			meta.innerHTML = "<strong>" + title + "</strong><span>" + new Date().toLocaleTimeString() + "</span>";
+			const metaTime = new Date().toLocaleTimeString();
+			if (kind === "user") {
+				meta.innerHTML = "<span>" + metaTime + "</span>";
+			} else {
+				const metaTitle = title;
+				meta.innerHTML = "<strong>" + metaTitle + "</strong><span>" + metaTime + "</span>";
+			}
 
 			const body = document.createElement("div");
 			body.className = "message-body";
 			const content = document.createElement("div");
 			content.className = "message-content";
-			content.innerHTML = renderMessageMarkdown(text);
-			hydrateMarkdownContent(content);
+			setMessageContent(content, text);
+
 			body.appendChild(content);
 
 			card.appendChild(meta);
@@ -1349,6 +2583,209 @@ function getPlaygroundScript(): string {
 			transcript.appendChild(card);
 			scrollTranscriptToBottom();
 			return content;
+		}
+
+		function setMessageContent(content, text) {
+			const nextText = String(text || "");
+			if (nextText.trim()) {
+				content.innerHTML = renderMessageMarkdown(nextText);
+				content.classList.remove("is-empty");
+				hydrateMarkdownContent(content);
+				return;
+			}
+
+			content.innerHTML = "";
+			content.classList.add("is-empty");
+		}
+
+		function appendAssistantProcessMessage(title, text) {
+			setTranscriptState("active");
+			const card = document.createElement("article");
+			card.className = "message assistant";
+			card.dataset.messageKind = "assistant";
+
+			const meta = document.createElement("div");
+			meta.className = "message-meta";
+			meta.innerHTML = "<strong>" + title + "</strong><span>" + new Date().toLocaleTimeString() + "</span>";
+
+			const body = document.createElement("div");
+			body.className = "message-body";
+			const stream = buildAssistantProcessShell();
+			const content = document.createElement("div");
+			content.className = "message-content";
+			setMessageContent(content, text);
+
+			body.appendChild(stream.shell);
+			body.appendChild(content);
+			card.appendChild(meta);
+			card.appendChild(body);
+			transcript.appendChild(card);
+			scrollTranscriptToBottom();
+
+			return {
+				content,
+				shell: stream.shell,
+				narration: stream.narration,
+				action: stream.action,
+			};
+		}
+
+		function buildAssistantProcessShell() {
+			const shell = document.createElement("section");
+			shell.className = "assistant-process-shell is-running system";
+			shell.dataset.processExpanded = "true";
+
+			const head = document.createElement("div");
+			head.className = "assistant-process-head";
+
+			const title = document.createElement("strong");
+			title.textContent = "思考过程";
+
+			const toggle = document.createElement("button");
+			toggle.type = "button";
+			toggle.className = "assistant-process-toggle";
+			toggle.textContent = "收起";
+			toggle.setAttribute("aria-expanded", "true");
+
+			const body = document.createElement("div");
+			body.className = "assistant-process-body";
+
+			const narration = document.createElement("div");
+			narration.className = "assistant-process-narration";
+
+			const current = document.createElement("div");
+			current.className = "assistant-process-current";
+
+			const label = document.createElement("span");
+			label.className = "assistant-process-current-label";
+			label.textContent = "当前动作";
+
+			const action = document.createElement("pre");
+			action.className = "assistant-process-current-action";
+			action.textContent = "等待动作";
+
+			toggle.addEventListener("click", () => {
+				const nextExpanded = shell.dataset.processExpanded !== "true";
+				shell.dataset.processExpanded = nextExpanded ? "true" : "false";
+				toggle.textContent = nextExpanded ? "收起" : "展开";
+				toggle.setAttribute("aria-expanded", nextExpanded ? "true" : "false");
+				if (nextExpanded) {
+					narration.scrollTop = narration.scrollHeight;
+				}
+				scrollTranscriptToBottom();
+			});
+
+			current.appendChild(label);
+			current.appendChild(action);
+			head.appendChild(title);
+			head.appendChild(toggle);
+			body.appendChild(narration);
+			body.appendChild(current);
+			shell.appendChild(head);
+			shell.appendChild(body);
+
+			return { shell, narration, action };
+		}
+
+		function attachAssistantProcessShell(body, content) {
+			const stream = buildAssistantProcessShell();
+			const processShell = stream.shell;
+			if (content.parentElement === body) {
+				body.insertBefore(processShell, content);
+			} else {
+				body.appendChild(processShell);
+			}
+
+			state.activeProcessShell = processShell;
+			state.activeProcessNarration = stream.narration;
+			state.activeProcessAction = stream.action;
+			state.lastProcessNarration = "";
+
+			return stream;
+		}
+
+		function ensureProcessStreamCard() {
+			if (state.activeProcessNarration && state.activeProcessAction && state.activeProcessShell) {
+				return {
+					shell: state.activeProcessShell,
+					narration: state.activeProcessNarration,
+					action: state.activeProcessAction,
+				};
+			}
+
+			const content = ensureStreamingAssistantMessage();
+			const body = content.parentElement;
+			if (!body) {
+				throw new Error("assistant message body is unavailable");
+			}
+
+			return attachAssistantProcessShell(body, content);
+		}
+
+		function completeProcessStream() {
+			if (!state.activeProcessShell) {
+				return;
+			}
+			completeAssistantProcessShell({
+				shell: state.activeProcessShell,
+				narration: state.activeProcessNarration,
+				action: state.activeProcessAction,
+			});
+		}
+
+		function appendProcessNarrationLine(text) {
+			const lineText = String(text || "").trim();
+			if (!lineText || lineText === state.lastProcessNarration) {
+				return;
+			}
+
+			const stream = ensureProcessStreamCard();
+			appendNarrationToAssistantProcess(stream, lineText);
+			state.lastProcessNarration = lineText;
+		}
+
+		function setProcessCurrentAction(text, kind) {
+			const actionText = String(text || "").trim() || "等待动作";
+			const stream = ensureProcessStreamCard();
+			setAssistantProcessAction(stream, actionText, kind);
+		}
+
+		function appendNarrationToAssistantProcess(stream, text) {
+			if (!stream?.narration) {
+				return;
+			}
+
+			const line = document.createElement("p");
+			line.className = "assistant-process-line";
+			line.textContent = text;
+			stream.narration.appendChild(line);
+			stream.narration.scrollTop = stream.narration.scrollHeight;
+			scrollTranscriptToBottom();
+		}
+
+		function setAssistantProcessAction(stream, text, kind) {
+			if (!stream?.shell || !stream?.action) {
+				return;
+			}
+
+			stream.action.textContent = String(text || "").trim() || "等待动作";
+			stream.shell.classList.remove("tool", "ok", "error", "system");
+			stream.shell.classList.add(kind || "system");
+			scrollTranscriptToBottom();
+		}
+
+		function completeAssistantProcessShell(stream, kind) {
+			if (!stream?.shell) {
+				return;
+			}
+
+			if (kind) {
+				stream.shell.classList.remove("tool", "ok", "error", "system");
+				stream.shell.classList.add(kind);
+			}
+			stream.shell.classList.remove("is-running");
+			stream.shell.classList.add("is-complete");
+			scrollTranscriptToBottom();
 		}
 
 		async function copyTextToClipboard(text) {
@@ -1444,76 +2881,112 @@ function getPlaygroundScript(): string {
 			};
 		}
 
-		function toggleProcessDetail(button) {
-			const entry = button.closest(".process-item");
-			if (!entry) {
-				return;
-			}
-
-			const expanded = entry.classList.toggle("expanded");
-			button.textContent = expanded ? "收起详情" : "展开详情";
-			button.setAttribute("aria-expanded", String(expanded));
-			scrollProcessToBottom();
+		function formatProcessAction(title, detail) {
+			const normalized = String(detail || "").trim();
+			return normalized ? title + " · " + normalized : title;
 		}
 
-		function appendProcessEvent(kind, title, detail) {
-			const entry = document.createElement("article");
-			entry.className = "process-item " + kind;
-
-			const heading = document.createElement("strong");
-			heading.textContent = title;
-
-			const timestamp = document.createElement("time");
-			timestamp.textContent = new Date().toLocaleTimeString();
-
-			const summaryBlock = summarizeDetail(detail);
-			const summary = document.createElement("p");
-			summary.className = "process-summary";
-			summary.textContent = summaryBlock.summary;
-
-			entry.appendChild(heading);
-			entry.appendChild(timestamp);
-			entry.appendChild(summary);
-
-			if (summaryBlock.expandable) {
-				const toggle = document.createElement("button");
-				toggle.type = "button";
-				toggle.className = "process-detail-toggle";
-				toggle.textContent = "展开详情";
-				toggle.setAttribute("aria-expanded", "false");
-				toggle.addEventListener("click", () => {
-					toggleProcessDetail(toggle);
-				});
-
-				const detailBody = document.createElement("pre");
-				detailBody.className = "process-detail-body";
-				detailBody.textContent = summaryBlock.detail;
-
-				entry.appendChild(toggle);
-				entry.appendChild(detailBody);
-			}
-
-			processFeed.appendChild(entry);
-			scrollProcessToBottom();
-		}
-
-		function formatSkillsReport(skills) {
-			if (!Array.isArray(skills) || skills.length === 0) {
-				return "运行时技能 (0)\\n\\n/v1/debug/skills 未返回技能";
+		function formatSkillsReply(skills) {
+			const skillList = Array.isArray(skills) ? skills : [];
+			const skillCount = skillList.length;
+			if (skillCount === 0) {
+				return [
+					"我查过运行时技能接口了。",
+					"",
+					"当前没有拿到可用技能。",
+					"接口 /v1/debug/skills 已返回，但结果为空。",
+				].join("\\n");
 			}
 
 			return [
-				"运行时技能 (" + skills.length + ")",
+				"我已经查到当前运行时技能状态。",
 				"",
-				...skills.map((skill, index) => {
+				"当前共加载 " + skillCount + " 个技能。",
+				"接口 /v1/debug/skills 返回正常。",
+				"",
+				...skillList.map((skill, index) => {
 					const label = skill && typeof skill.name === "string" ? skill.name : "unknown-skill";
-					const pathLine =
-						skill && typeof skill.path === "string" && skill.path.trim()
-							? "  path: " + skill.path.trim()
-							: "";
-					return (index + 1) + ". " + label + (pathLine ? "\\n" + pathLine : "");
+					return (index + 1) + ". " + label;
 				}),
 			].join("\\n");
+		}
+
+		function describeProcessNarration(kind, title, detail) {
+			const normalized = String(detail || "").trim();
+			const detailSummary = summarizeDetail(detail).summary;
+			if (title === "请求已发送") {
+				return "我先理解这条请求，再决定接下来用什么方式处理。";
+			}
+			if (title === "消息已追加") {
+				return "我已经收到你的补充要求，会在当前步骤结束后按新方向继续。";
+			}
+			if (title === "请求打断") {
+				return "我收到停止信号，正在尝试中断当前任务。";
+			}
+			if (title === "检测到停止意图") {
+				return "我识别到你要停下当前任务，所以先发起打断。";
+			}
+			if (title === "任务开始") {
+				return "我开始处理这条请求，先确认上下文和可用工具。";
+			}
+			if (title === "工具开始") {
+				const toolName = normalized.split(/\s+/)[1] || "工具";
+				return "我现在尝试调用 " + toolName + "，看看能不能拿到需要的信息。";
+			}
+			if (title === "工具更新") {
+				return detailSummary && detailSummary !== "无详情"
+					? "我拿到了新的执行片段，当前看到的是：" + detailSummary
+					: "我拿到了新的执行片段，继续沿着这条线往下推进。";
+			}
+			if (title === "工具结束") {
+				return kind === "error"
+					? "这一步没有完全走通，我换个角度继续。"
+					: detailSummary && detailSummary !== "无详情"
+						? "这一步已经完成，当前结果是：" + detailSummary
+						: "这一步已经完成，我开始整理下一步。";
+			}
+			if (title === "队列更新") {
+				return normalized.includes("转向消息: 0")
+					? "我收到了一条排队补充，等当前步骤结束后继续处理。"
+					: "我收到新的转向要求，当前步骤结束后就会切过去。";
+			}
+			if (title === "任务完成") {
+				return "过程已经走完，下面开始整理最终答复。";
+			}
+			if (title === "任务已打断") {
+				return "当前任务已经停下来了，我先把执行状态收住。";
+			}
+			if (title === "任务错误") {
+				return "这次执行遇到了问题，我把错误保留下来方便你判断。";
+			}
+			if (title === "请求被拒绝" || title === "网络错误" || title === "流被中断") {
+				return "这次请求没有顺利走完，我先把失败原因告诉你。";
+			}
+
+			return detailSummary && detailSummary !== "无详情" ? title + "，" + detailSummary : title;
+		}
+
+		function appendProcessEvent(kind, title, detail) {
+			const summaryBlock = summarizeDetail(detail);
+			setTranscriptState("active");
+			const note = document.createElement("div");
+			note.className = "process-note " + kind;
+
+			const text = document.createElement("p");
+			text.className = "process-note-text";
+			text.textContent = summaryBlock.summary && summaryBlock.summary !== "无详情" ? title + " · " + summaryBlock.summary : title;
+			if (summaryBlock.detail && summaryBlock.detail !== summaryBlock.summary) {
+				text.title = summaryBlock.detail;
+			}
+
+			note.appendChild(text);
+			transcript.appendChild(note);
+			scrollTranscriptToBottom();
+		}
+
+		function updateStreamingProcess(kind, title, detail) {
+			appendProcessNarrationLine(describeProcessNarration(kind, title, detail));
+			setProcessCurrentAction(formatProcessAction(title, detail), kind);
 		}
 
 		function ensureStreamingAssistantMessage() {
@@ -1526,20 +2999,24 @@ function getPlaygroundScript(): string {
 		function resetStreamingState() {
 			state.streamingText = "";
 			state.activeAssistantContent = null;
+			state.activeProcessShell = null;
+			state.activeProcessNarration = null;
+			state.activeProcessAction = null;
+			state.lastProcessNarration = "";
 			state.receivedDoneEvent = false;
 		}
 
 		function resetConversation() {
+			setStageMode("landing");
+			setTranscriptState("idle");
 			conversationInput.value = "manual:web-" + crypto.randomUUID().slice(0, 12);
 			state.conversationId = conversationInput.value;
 			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
 			sessionFile.textContent = "尚未分配";
 			transcript.innerHTML = "";
-			processFeed.innerHTML = "";
 			resetStreamingState();
 			clearSelectedFiles();
-			appendTranscriptMessage("system", "会话", "新会话已就绪");
-			appendProcessEvent("system", "会话启动", "等待新的流式任务");
+			clearSelectedAssetRefs();
 			clearError();
 		}
 
@@ -1551,37 +3028,39 @@ function getPlaygroundScript(): string {
 		function handleStreamEvent(event) {
 			switch (event.type) {
 				case "run_started":
-					appendProcessEvent("system", "任务开始", event.conversationId);
+					updateStreamingProcess("system", "任务开始", event.conversationId);
 					statusPill.textContent = "运行中";
 					break;
 				case "tool_started":
-					appendProcessEvent("tool", "工具开始", describeToolEvent(event, "调用"));
+					updateStreamingProcess("tool", "工具开始", describeToolEvent(event, "调用"));
 					break;
 				case "tool_updated":
-					appendProcessEvent("tool", "工具更新", describeToolEvent(event, "片段"));
+					updateStreamingProcess("tool", "工具更新", describeToolEvent(event, "片段"));
 					break;
 				case "tool_finished":
-					appendProcessEvent(
+					updateStreamingProcess(
 						event.isError ? "error" : "ok",
 						"工具结束",
 						describeToolEvent(event, event.isError ? "失败" : "完成"),
 					);
 					break;
 				case "queue_updated":
-					appendProcessEvent(
+					updateStreamingProcess(
 						"system",
 						"队列更新",
 						"转向消息: " + event.steering.length + "\\n追加消息: " + event.followUp.length,
 					);
 					break;
 				case "interrupted":
-					appendProcessEvent("system", "任务已打断", event.conversationId);
+					updateStreamingProcess("system", "任务已打断", event.conversationId);
+					completeProcessStream();
 					statusPill.textContent = "已打断";
 					break;
 				case "text_delta": {
 					state.streamingText += event.textDelta;
 					const content = ensureStreamingAssistantMessage();
 					content.innerHTML = renderMessageMarkdown(state.streamingText);
+					content.classList.remove("is-empty");
 					hydrateMarkdownContent(content);
 					scrollTranscriptToBottom();
 					break;
@@ -1592,20 +3071,25 @@ function getPlaygroundScript(): string {
 					if (event.text && event.text !== state.streamingText) {
 						const content = ensureStreamingAssistantMessage();
 						content.innerHTML = renderMessageMarkdown(event.text);
+						content.classList.toggle("is-empty", !event.text.trim());
 						hydrateMarkdownContent(content);
 						state.streamingText = event.text;
 					}
+					mergeRecentAssets(event.inputAssets);
 					appendFileDownloads(event.files);
-					appendProcessEvent("ok", "任务完成", event.sessionFile || "未返回会话文件");
+					void loadAssets(true);
+					updateStreamingProcess("ok", "任务完成", event.sessionFile || "未返回会话文件");
+					completeProcessStream();
 					statusPill.textContent = "完成";
 					break;
 				}
 				case "error":
 					showError(event.message);
-					appendProcessEvent("error", "任务错误", event.message);
+					updateStreamingProcess("error", "任务错误", event.message);
+					completeProcessStream();
 					break;
 				default:
-					appendProcessEvent("system", "事件", JSON.stringify(event));
+					updateStreamingProcess("system", "事件", JSON.stringify(event));
 					break;
 			}
 		}
@@ -1650,23 +3134,36 @@ function getPlaygroundScript(): string {
 		async function sendMessage() {
 			const message = messageInput.value.trim();
 			const attachments = [...state.pendingAttachments];
-			if (!message && attachments.length === 0) {
+			const assetRefs = [...state.selectedAssetRefs];
+			if (!message && attachments.length === 0 && assetRefs.length === 0) {
 				showError("请输入消息");
 				return;
 			}
-			const outboundMessage = message || "\\u8bf7\\u67e5\\u770b\\u6211\\u53d1\\u9001\\u7684\\u9644\\u4ef6";
+			const outboundMessage =
+				message ||
+				(assetRefs.length > 0
+					? "\\u8bf7\\u7ed3\\u5408\\u6211\\u5f15\\u7528\\u7684\\u8d44\\u4ea7\\u4e00\\u8d77\\u5904\\u7406"
+					: "\\u8bf7\\u67e5\\u770b\\u6211\\u53d1\\u9001\\u7684\\u9644\\u4ef6");
 
 			ensureConversationId();
 			clearError();
 
 			if (state.loading) {
-				await queueActiveMessage(outboundMessage, attachments);
+				if (isInterruptIntentMessage(outboundMessage) && attachments.length === 0 && assetRefs.length === 0) {
+					appendTranscriptMessage("user", state.conversationId, outboundMessage);
+					updateStreamingProcess("system", "检测到停止意图", "本次发送改为直接打断当前任务");
+					messageInput.value = "";
+					await interruptRun();
+					return;
+				}
+				await queueActiveMessage(outboundMessage, attachments, assetRefs);
 				return;
 			}
 
+			setTranscriptState("active");
 			resetStreamingState();
-			appendTranscriptMessage("user", state.conversationId, formatMessageWithAttachments(outboundMessage, attachments));
-			appendProcessEvent("system", "请求已发送", formatMessageWithAttachments(outboundMessage, attachments));
+			appendUserTranscriptMessage(message, attachments, assetRefs);
+			updateStreamingProcess("system", "请求已发送", formatOutboundSummary(message, attachments, assetRefs));
 			setLoading(true);
 
 			try {
@@ -1678,6 +3175,9 @@ function getPlaygroundScript(): string {
 				if (attachments.length > 0) {
 					payload.attachments = attachments;
 				}
+				if (assetRefs.length > 0) {
+					payload.assetRefs = assetRefs;
+				}
 				const response = await fetch("/v1/chat/stream", {
 					method: "POST",
 					headers: { "content-type": "application/json" },
@@ -1688,7 +3188,8 @@ function getPlaygroundScript(): string {
 					const body = await response.json().catch(() => ({}));
 					const errorMessage = body?.error?.message || body?.message || "未知错误";
 					showError(errorMessage);
-					appendProcessEvent("error", "请求被拒绝", errorMessage);
+					updateStreamingProcess("error", "请求被拒绝", errorMessage);
+					completeProcessStream();
 					appendTranscriptMessage("error", "服务端", errorMessage);
 					return;
 				}
@@ -1697,37 +3198,42 @@ function getPlaygroundScript(): string {
 
 				if (!state.receivedDoneEvent && !errorBanner.classList.contains("visible")) {
 					showError("流已结束，但没有收到完成事件");
-					appendProcessEvent("error", "流被中断", "缺少 done 事件");
+					updateStreamingProcess("error", "流被中断", "缺少 done 事件");
+					completeProcessStream();
 				}
 
 				if (state.receivedDoneEvent) {
 					messageInput.value = "";
 					clearSelectedFiles();
+					clearSelectedAssetRefs();
 					messageInput.focus();
 				}
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "请求失败";
 				showError(messageText);
-				appendProcessEvent("error", "网络错误", messageText);
+				updateStreamingProcess("error", "网络错误", messageText);
+				completeProcessStream();
 				appendTranscriptMessage("error", "网络", messageText);
 			} finally {
 				setLoading(false);
 			}
 		}
 
-		async function queueActiveMessage(message, attachments) {
-			appendTranscriptMessage("user", state.conversationId, formatMessageWithAttachments(message, attachments));
-			appendProcessEvent("system", "消息已追加", formatMessageWithAttachments(message, attachments));
+		async function queueActiveMessage(message, attachments, assetRefs) {
+			appendUserTranscriptMessage(message, attachments, assetRefs);
 
 			try {
 				const payloadBody = {
 					conversationId: state.conversationId,
 					message,
-					mode: "followUp",
+					mode: "steer",
 					userId: "web-playground",
 				};
 				if (attachments.length > 0) {
 					payloadBody.attachments = attachments;
+				}
+				if (assetRefs.length > 0) {
+					payloadBody.assetRefs = assetRefs;
 				}
 				const response = await fetch("/v1/chat/queue", {
 					method: "POST",
@@ -1737,23 +3243,19 @@ function getPlaygroundScript(): string {
 
 				const payload = await response.json().catch(() => ({}));
 				if (!response.ok || !payload.queued) {
-					const errorMessage =
-						payload?.error?.message ||
-						payload?.reason ||
-						"消息无法追加";
+					const errorMessage = getControlActionErrorMessage("queue", payload, "消息无法追加");
 					showError(errorMessage);
-					appendProcessEvent("error", "追加被拒绝", errorMessage);
 					return;
 				}
 
 				messageInput.value = "";
 				clearSelectedFiles();
+				clearSelectedAssetRefs();
 				messageInput.focus();
-				appendProcessEvent("ok", "消息已追加", payload.conversationId);
+				updateStreamingProcess("ok", "消息已加入队列", payload.conversationId);
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "追加请求失败";
 				showError(messageText);
-				appendProcessEvent("error", "追加失败", messageText);
 			}
 		}
 
@@ -1763,7 +3265,6 @@ function getPlaygroundScript(): string {
 			}
 
 			ensureConversationId();
-			appendProcessEvent("system", "请求打断", state.conversationId);
 
 			try {
 				const response = await fetch("/v1/chat/interrupt", {
@@ -1775,28 +3276,27 @@ function getPlaygroundScript(): string {
 				});
 				const payload = await response.json().catch(() => ({}));
 				if (!response.ok || !payload.interrupted) {
-					const errorMessage =
-						payload?.error?.message ||
-						payload?.reason ||
-						"当前任务无法打断";
+					const errorMessage = getControlActionErrorMessage("interrupt", payload, "当前任务无法打断");
 					showError(errorMessage);
-					appendProcessEvent("error", "打断被拒绝", errorMessage);
 					return;
 				}
-				appendProcessEvent("ok", "打断已接受", state.conversationId);
+				updateStreamingProcess("ok", "打断请求已接受", state.conversationId);
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "打断请求失败";
 				showError(messageText);
-				appendProcessEvent("error", "打断失败", messageText);
 			}
 		}
 
 		async function loadSkills() {
 			clearError();
-			appendProcessEvent("system", "技能清单", "请求 /v1/debug/skills");
+			const skillReply = appendAssistantProcessMessage("助手", "");
+			appendNarrationToAssistantProcess(skillReply, "我接收到查看技能的指令，先确认运行时技能接口。");
+			setAssistantProcessAction(skillReply, "接收指令 · 查看技能", "system");
 			viewSkillsButton.disabled = true;
 
 			try {
+				appendNarrationToAssistantProcess(skillReply, "我开始请求 /v1/debug/skills，读取当前运行时技能。");
+				setAssistantProcessAction(skillReply, "查询接口 · GET /v1/debug/skills", "tool");
 				const response = await fetch("/v1/debug/skills", {
 					method: "GET",
 					headers: { "accept": "application/json" },
@@ -1806,32 +3306,51 @@ function getPlaygroundScript(): string {
 					const body = await response.json().catch(() => ({}));
 					const errorMessage = body?.error?.message || body?.message || "加载运行时技能失败";
 					showError(errorMessage);
-					appendProcessEvent("error", "技能清单失败", errorMessage);
-					appendTranscriptMessage("error", "技能", errorMessage);
+					appendNarrationToAssistantProcess(skillReply, "技能接口返回了错误，我先把失败状态告诉你。");
+					setMessageContent(skillReply.content, "我这次没查到技能清单，接口返回了错误：\\n\\n" + errorMessage);
+					setAssistantProcessAction(skillReply, "返回结果 · 技能查询失败", "error");
+					completeAssistantProcessShell(skillReply, "error");
 					return;
 				}
 
-				const payload = await response.json();
-				const report = formatSkillsReport(payload?.skills);
-				appendTranscriptMessage("system", "技能", report);
-				appendProcessEvent("ok", "技能清单已加载", report);
+				const payload = await response.json().catch(() => ({}));
+				const skillCount = Array.isArray(payload?.skills) ? payload.skills.length : 0;
+				appendNarrationToAssistantProcess(skillReply, "接口已经返回，我正在整理技能结果。");
+				setAssistantProcessAction(skillReply, "整理结果 · 共 " + skillCount + " 个技能", "system");
+				setMessageContent(skillReply.content, formatSkillsReply(payload?.skills));
+				appendNarrationToAssistantProcess(skillReply, "结果已经整理好了，现在给你一条简洁结论。");
+				setAssistantProcessAction(skillReply, "返回结果 · 技能状态已更新", "ok");
+				completeAssistantProcessShell(skillReply, "ok");
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "加载运行时技能失败";
 				showError(messageText);
-				appendProcessEvent("error", "技能清单失败", messageText);
-				appendTranscriptMessage("error", "技能", messageText);
+				appendNarrationToAssistantProcess(skillReply, "这次请求没走通，我先把错误原因保留下来。");
+				setMessageContent(skillReply.content, "我这次没查到技能清单，请求失败：\\n\\n" + messageText);
+				setAssistantProcessAction(skillReply, "返回结果 · 请求失败", "error");
+				completeAssistantProcessShell(skillReply, "error");
 			} finally {
 				viewSkillsButton.disabled = state.loading;
 			}
 		}
 
 		conversationInput.value = state.conversationId;
+		setStageMode("landing");
+		setTranscriptState("idle");
+		setCommandStatus("STANDBY");
+		renderSelectedAssets();
+		renderAssetPickerList();
+		void loadAssets(true);
 		if (!conversationInput.value) {
 			resetConversation();
 		} else {
 			appendTranscriptMessage("system", "会话", "已从本地存储恢复会话");
 			appendProcessEvent("system", "会话已恢复", state.conversationId);
 		}
+
+		transcript.innerHTML = "";
+		resetStreamingState();
+		setTranscriptState("idle");
+		clearError();
 
 		function hasDragPayload(event) {
 			return Boolean(event.dataTransfer);
@@ -1879,8 +3398,6 @@ function getPlaygroundScript(): string {
 			try {
 				state.pendingAttachments = await collectAttachments(files);
 				renderAttachmentList();
-				applyFileIntentMessage(state.pendingAttachments, sourceLabel);
-				appendProcessEvent("system", "文件已载入", formatMessageWithAttachments("待发送附件", state.pendingAttachments));
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "\\u6587\\u4ef6\\u8bfb\\u53d6\\u5931\\u8d25";
 				showError(messageText);
@@ -1981,18 +3498,21 @@ function getPlaygroundScript(): string {
 		window.addEventListener("dragenter", preventWindowFileDrop);
 		window.addEventListener("dragover", preventWindowFileDrop);
 		window.addEventListener("drop", preventWindowFileDrop);
+		window.addEventListener("resize", syncConversationLayout);
+		const layoutObserver = new ResizeObserver(() => {
+			window.requestAnimationFrame(syncConversationLayout);
+		});
+		layoutObserver.observe(chatStage);
+		layoutObserver.observe(commandDeck);
+		layoutObserver.observe(composerDropTarget);
 		bindDropTarget(pageRoot);
 		bindDropTarget(pageBody);
 		bindDropTarget(chatStage);
 		bindDropTarget(composerDropTarget);
 		bindDropTarget(dropZone);
-		renderDragDebugLog();
 
-		clearDragDebugButton.addEventListener("click", () => {
-			state.dragDebugEvents = [];
-			state.lastDragDebugKey = "";
-			state.lastDragDebugAt = 0;
-			renderDragDebugLog();
+		filePickerAction.addEventListener("click", () => {
+			fileInput.click();
 		});
 
 		fileInput.addEventListener("change", async () => {
@@ -2014,9 +3534,30 @@ function getPlaygroundScript(): string {
 			void loadSkills();
 		});
 
+		refreshAssetsButton.addEventListener("click", () => {
+			void loadAssets(false);
+		});
+
+		openAssetLibraryButton.addEventListener("click", () => {
+			openAssetLibrary();
+		});
+
+		closeAssetModalButton.addEventListener("click", () => {
+			closeAssetLibrary();
+		});
+
+		assetModal.addEventListener("click", (event) => {
+			if (event.target === assetModal) {
+				closeAssetLibrary();
+			}
+		});
+
 		newConversationButton.addEventListener("click", () => {
 			resetConversation();
 			messageInput.focus();
+		});
+		errorBannerClose.addEventListener("click", () => {
+			clearError();
 		});
 
 		messageInput.addEventListener("keydown", (event) => {
@@ -2025,6 +3566,14 @@ function getPlaygroundScript(): string {
 				void sendMessage();
 			}
 		});
+
+		document.addEventListener("keydown", (event) => {
+			if (event.key === "Escape" && state.assetModalOpen) {
+				closeAssetLibrary();
+			}
+		});
+
+		window.requestAnimationFrame(syncConversationLayout);
 	`;
 }
 
@@ -2044,22 +3593,18 @@ export function renderPlaygroundPage(): string {
 				<span>文件会进入当前消息，并自动补充文件处理描述</span>
 			</div>
 		</div>
-		<div class="shell">
+		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
 			<header class="topbar">
 				<div class="topbar-left">
 					<div class="brand-lockup">
-						<pre class="corgi-logo" aria-label="柯基字符画"> /\\___/\\
-(  o o  )
- \\  ^  /
- /|___|\\
-  /   \\</pre>
 						<div>
 							<div class="kicker">柯基控制台</div>
-							<h1>UGK Claw</h1>
-							<p>左侧看对话，右侧看执行过程。运行中继续发送会追加到后续队列；需要停下当前任务时直接打断。</p>
+							<h1>UGK CLAW</h1>
+							<p>深色电子星空里只保留当前会话焦点，过程细节默认收起，需要时再展开查看。</p>
 						</div>
 					</div>
 				</div>
+				<div class="topbar-signal" aria-hidden="true">UGK CLAW</div>
 				<div class="topbar-right">
 					<div class="status-row"><span>主题</span><strong>深色 / 极客</strong></div>
 					<div class="status-row"><span>传输</span><strong>SSE / 流式</strong></div>
@@ -2068,7 +3613,7 @@ export function renderPlaygroundPage(): string {
 			</header>
 
 			<main id="chat-stage" class="chat-stage">
-				<section class="chat-meta">
+				<div hidden>
 					<div class="meta-chip">
 						<strong>会话</strong>
 						<input id="conversation-id" name="conversation-id" placeholder="manual:web-xxxx" />
@@ -2077,66 +3622,101 @@ export function renderPlaygroundPage(): string {
 						<strong>会话文件</strong>
 						<span id="session-file">尚未分配</span>
 					</div>
-					<button id="view-skills-button" type="button">查看技能</button>
-					<button id="new-conversation-button" type="button">新会话</button>
-				</section>
+				</div>
 
-				<section class="banner-row">
+				<div hidden>
 					<span>接口：POST /v1/chat/stream</span>
 					<div id="status-pill" class="state">就绪</div>
+				</div>
+
+				<section id="landing-screen" class="landing-screen" aria-hidden="false">
+					<div class="landing-grid">
+						<section id="hero-core" class="hero-core">
+							<div class="hero-wordmark">UGK CLAW</div>
+							<div class="hero-divider">
+								<span></span>
+								<em id="hero-version">v4.0.21.STABLE</em>
+								<span></span>
+							</div>
+						</section>
+						<aside class="landing-side landing-side-right">
+							<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button">
+								<span>全新的记忆</span>
+								<strong id="command-status">新会话</strong>
+							</button>
+							<button id="view-skills-button" class="telemetry-card telemetry-action" type="button">
+								<span>技能越多，能力越强？</span>
+								<strong>查看技能</strong>
+							</button>
+							<button id="file-picker-action" class="telemetry-card telemetry-action" type="button">
+								<span>文件或许更稳定</span>
+								<strong>选择文件</strong>
+							</button>
+							<button id="open-asset-library-button" class="telemetry-card telemetry-action" type="button">
+								<span>这里不是垃圾堆</span>
+								<strong>项目文件夹</strong>
+							</button>
+						</aside>
+					</div>
 				</section>
 
-				<div id="error-banner" class="error-banner" role="alert"></div>
+				<div id="error-banner" class="error-banner" role="alert" hidden>
+					<span id="error-banner-message" class="error-banner-message"></span>
+					<button id="error-banner-close" class="error-banner-close" type="button" aria-label="关闭错误提示">×</button>
+				</div>
 
 				<section class="stream-layout">
 					<div class="transcript-pane">
 						<header class="pane-head">
 							<strong>对话流</strong>
-							<span>对话内容边生成边显示，消息区自动滚到最新位置。</span>
+							<span>单列会话舞台会把用户与 Agent 的回应自然分层，焦点始终落在当前内容。</span>
 						</header>
 						<section id="transcript" class="transcript" aria-live="polite"></section>
 					</div>
-
-					<aside class="process-panel">
-						<header class="pane-head">
-							<strong>过程流</strong>
-							<span>右侧默认展示摘要；遇到长工具参数或大结果时，可以点开看完整细节。</span>
-						</header>
-						<section id="process-feed" class="process-feed" aria-live="polite"></section>
-					</aside>
 				</section>
 
-				<section id="composer-drop-target" class="composer">
-					<div class="composer-main">
-						<div class="composer-header">
-							<span>消息</span>
-							<span>Shift+Enter 换行</span>
+				<div id="command-deck" class="command-deck">
+					<div class="file-strip">
+						<div id="drop-zone" class="drop-zone">
+							<input id="file-input" class="file-input" name="files" type="file" multiple />
 						</div>
-						<textarea id="message" name="message" placeholder="输入消息，按 Enter 发送"></textarea>
-						<div class="file-strip">
-							<div id="drop-zone" class="drop-zone">
-								<div class="drop-zone-label">
-									<span>拖入文件或点击选择</span>
-									<span>文本会随消息发送</span>
-								</div>
-								<input id="file-input" class="file-input" name="files" type="file" multiple />
+						<div id="file-list" class="file-list" aria-live="polite"></div>
+						<section id="selected-assets" class="selected-assets" aria-live="polite">
+							<div id="selected-asset-list" class="selected-asset-list"></div>
+						</section>
+					</div>
+					<section id="composer-drop-target" class="composer">
+						<div class="composer-main">
+							<div class="composer-header">
+								<span>消息</span>
+								<span>Shift+Enter 换行</span>
 							</div>
-							<div id="file-list" class="file-list" aria-live="polite"></div>
-							<section class="drag-debug" aria-live="polite">
-								<div class="drag-debug-head">
-									<span>drag debug</span>
-									<button id="clear-drag-debug" type="button">clear</button>
-								</div>
-								<div id="drag-debug-log" class="drag-debug-log"></div>
-							</section>
+							<textarea id="message" name="message" placeholder="输入消息，按 Enter 发送"></textarea>
 						</div>
-					</div>
-					<div class="composer-side">
-						<button id="send-button" type="button">发送</button>
-						<button id="interrupt-button" type="button" disabled>打断</button>
-					</div>
-				</section>
+						<div class="composer-side">
+							<button id="interrupt-button" type="button" disabled>打断</button>
+							<button id="send-button" type="button">发送</button>
+						</div>
+					</section>
+				</div>
 			</main>
+		</div>
+		<div id="asset-modal" class="asset-modal-shell" aria-hidden="true" hidden>
+			<section class="asset-modal" role="dialog" aria-modal="true" aria-labelledby="asset-modal-title">
+				<div class="asset-modal-head">
+					<div class="asset-modal-copy">
+						<strong id="asset-modal-title">可复用资产</strong>
+						<span>选中后会立刻回到当前输入区，并在文件区域显示为已复用资产。</span>
+					</div>
+					<div class="asset-modal-actions">
+						<button id="refresh-assets-button" type="button">刷新</button>
+						<button id="close-asset-modal-button" type="button">关闭</button>
+					</div>
+				</div>
+				<div class="asset-modal-body">
+					<div id="asset-modal-list" class="asset-modal-list"></div>
+				</div>
+			</section>
 		</div>
 		<script>${getPlaygroundScript()}</script>
 	</body>

@@ -1,13 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
-
-export interface ChatAttachment {
-	fileName: string;
-	mimeType?: string;
-	sizeBytes?: number;
-	text?: string;
-}
+import type { AssetRecord } from "./asset-store.js";
 
 export interface AgentFileDraft {
 	fileName: string;
@@ -17,129 +8,58 @@ export interface AgentFileDraft {
 
 export interface AgentFileArtifact {
 	id: string;
+	assetId: string;
+	reference: string;
 	fileName: string;
 	mimeType: string;
 	sizeBytes: number;
 	downloadUrl: string;
 }
 
-export interface StoredAgentFileArtifact extends AgentFileArtifact {
-	content: Buffer;
-}
-
-export interface FileArtifactStoreLike {
-	saveFiles(conversationId: string, files: AgentFileDraft[]): Promise<AgentFileArtifact[]>;
-	getFile?(fileId: string): Promise<StoredAgentFileArtifact | undefined>;
-}
-
-interface FileIndexEntry {
-	id: string;
-	conversationId: string;
+export interface PromptAssetContextEntry {
+	assetId: string;
+	reference: string;
 	fileName: string;
 	mimeType: string;
 	sizeBytes: number;
-	filePath: string;
-	createdAt: string;
+	kind: "text" | "binary" | "metadata";
+	hasContent: boolean;
+	source: "upload" | "reference";
+	textContent?: string;
+	textPreview?: string;
 }
 
-type FileIndex = Record<string, FileIndexEntry>;
-
-export class FileArtifactStore implements FileArtifactStoreLike {
-	constructor(
-		private readonly options: {
-			filesDir: string;
-			indexPath: string;
-		},
-	) {}
-
-	async saveFiles(conversationId: string, files: AgentFileDraft[]): Promise<AgentFileArtifact[]> {
-		if (files.length === 0) {
-			return [];
-		}
-
-		const index = await this.readIndex();
-		const saved: AgentFileArtifact[] = [];
-		await mkdir(this.options.filesDir, { recursive: true });
-		await mkdir(dirname(this.options.indexPath), { recursive: true });
-
-		for (const file of files) {
-			const id = randomUUID();
-			const fileName = sanitizeFileName(file.fileName);
-			const mimeType = normalizeMimeType(file.mimeType);
-			const content = Buffer.from(file.content, "utf8");
-			const storedFileName = `${id}-${fileName}`;
-			const filePath = resolve(this.options.filesDir, storedFileName);
-
-			if (!isPathInside(filePath, this.options.filesDir)) {
-				throw new Error("Refusing to store file outside the artifact directory");
-			}
-
-			await writeFile(filePath, content);
-			index[id] = {
-				id,
-				conversationId,
-				fileName,
-				mimeType,
-				sizeBytes: content.byteLength,
-				filePath,
-				createdAt: new Date().toISOString(),
-			};
-			saved.push(toPublicArtifact(index[id]));
-		}
-
-		await this.writeIndex(index);
-		return saved;
-	}
-
-	async getFile(fileId: string): Promise<StoredAgentFileArtifact | undefined> {
-		const index = await this.readIndex();
-		const entry = index[fileId];
-		if (!entry) {
-			return undefined;
-		}
-
-		const filePath = resolve(entry.filePath);
-		if (!isPathInside(filePath, this.options.filesDir)) {
-			return undefined;
-		}
-
-		return {
-			...toPublicArtifact(entry),
-			content: await readFile(filePath),
-		};
-	}
-
-	private async readIndex(): Promise<FileIndex> {
-		try {
-			const content = await readFile(this.options.indexPath, "utf8");
-			if (!content.trim()) {
-				return {};
-			}
-			const parsed = JSON.parse(content) as FileIndex;
-			return typeof parsed === "object" && parsed !== null ? parsed : {};
-		} catch (error) {
-			if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
-				return {};
-			}
-			if (error instanceof SyntaxError) {
-				return {};
-			}
-			throw error;
-		}
-	}
-
-	private async writeIndex(index: FileIndex): Promise<void> {
-		await writeFile(this.options.indexPath, JSON.stringify(index, null, 2), "utf8");
-	}
-}
-
-export function buildPromptWithFileContext(message: string, attachments: readonly ChatAttachment[] = []): string {
-	const sections = [message.trim(), buildFileResponseInstruction()];
-	const attachmentContext = buildAttachmentContext(attachments);
-	if (attachmentContext) {
-		sections.splice(1, 0, attachmentContext);
+export function buildPromptWithAssetContext(
+	message: string,
+	assets: readonly PromptAssetContextEntry[] = [],
+): string {
+	const sections = [message.trim(), buildAssetResponseInstruction(), buildFileResponseInstruction()];
+	const assetContext = buildAssetContext(assets);
+	if (assetContext) {
+		sections.splice(1, 0, assetContext);
 	}
 	return sections.filter((section) => section.length > 0).join("\n\n");
+}
+
+export function toPromptAssetFromStoredAsset(
+	asset: AssetRecord,
+	options: {
+		source: "upload" | "reference";
+		textContent?: string;
+	},
+): PromptAssetContextEntry {
+	return {
+		assetId: asset.assetId,
+		reference: asset.reference,
+		fileName: asset.fileName,
+		mimeType: asset.mimeType,
+		sizeBytes: asset.sizeBytes,
+		kind: asset.kind,
+		hasContent: asset.hasContent,
+		source: options.source,
+		...(options.textContent ? { textContent: options.textContent } : {}),
+		...(asset.textPreview ? { textPreview: asset.textPreview } : {}),
+	};
 }
 
 export function extractAgentFileDrafts(text: string): { text: string; files: AgentFileDraft[] } {
@@ -164,31 +84,48 @@ export function extractAgentFileDrafts(text: string): { text: string; files: Age
 	};
 }
 
-function buildAttachmentContext(attachments: readonly ChatAttachment[]): string {
-	const validAttachments = attachments.filter((attachment) => attachment.fileName.trim().length > 0);
-	if (validAttachments.length === 0) {
+function buildAssetContext(assets: readonly PromptAssetContextEntry[]): string {
+	if (assets.length === 0) {
 		return "";
 	}
 
-	const fileSections = validAttachments.map((attachment, index) => {
+	const sections = assets.map((asset, index) => {
 		const lines = [
-			`<file index="${index + 1}">`,
-			`fileName: ${sanitizeFileName(attachment.fileName)}`,
-			`mimeType: ${attachment.mimeType?.trim() || "application/octet-stream"}`,
-			`sizeBytes: ${Number.isFinite(attachment.sizeBytes) ? attachment.sizeBytes : "unknown"}`,
+			`<asset index="${index + 1}" source="${asset.source}">`,
+			`assetId: ${asset.assetId}`,
+			`reference: ${asset.reference}`,
+			`fileName: ${sanitizeFileName(asset.fileName)}`,
+			`mimeType: ${asset.mimeType}`,
+			`sizeBytes: ${asset.sizeBytes}`,
+			`kind: ${asset.kind}`,
+			`hasContent: ${asset.hasContent ? "yes" : "no"}`,
 		];
 
-		if (typeof attachment.text === "string" && attachment.text.length > 0) {
-			lines.push("content:", "```text", limitAttachmentText(attachment.text), "```");
+		if (typeof asset.textContent === "string" && asset.textContent.length > 0) {
+			lines.push("content:", "```text", limitAttachmentText(asset.textContent), "```");
+		} else if (asset.textPreview) {
+			lines.push("preview:", "```text", asset.textPreview, "```");
+		} else if (asset.hasContent) {
+			lines.push("content: stored on server; use asset_store with assetId if full inspection is needed");
 		} else {
-			lines.push("content: (binary or empty file content was not included; use the metadata above)");
+			lines.push("content: metadata only; no server-side file body is currently available");
 		}
 
-		lines.push("</file>");
+		lines.push("</asset>");
 		return lines.join("\n");
 	});
 
-	return ["<user_files>", ...fileSections, "</user_files>"].join("\n");
+	return ["<user_assets>", ...sections, "</user_assets>"].join("\n");
+}
+
+function buildAssetResponseInstruction(): string {
+	return [
+		"<asset_reference_protocol>",
+		"Uploaded files and reusable server-side artifacts are represented as assets.",
+		"Each asset includes an assetId and a reusable reference token like @asset[asset-id].",
+		"If you need the full text of a referenced asset and it is not already embedded, use the asset_store tool with that assetId.",
+		"</asset_reference_protocol>",
+	].join("\n");
 }
 
 function buildFileResponseInstruction(): string {
@@ -230,28 +167,12 @@ function normalizeVisibleText(text: string): string {
 		.trim();
 }
 
-function toPublicArtifact(entry: FileIndexEntry): AgentFileArtifact {
-	return {
-		id: entry.id,
-		fileName: entry.fileName,
-		mimeType: entry.mimeType,
-		sizeBytes: entry.sizeBytes,
-		downloadUrl: `/v1/files/${encodeURIComponent(entry.id)}`,
-	};
-}
-
 function normalizeMimeType(mimeType: string): string {
 	const normalized = mimeType.trim().toLowerCase();
 	return /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(normalized) ? normalized : "application/octet-stream";
 }
 
 function sanitizeFileName(fileName: string): string {
-	const safeBaseName = basename(fileName).replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").trim();
+	const safeBaseName = fileName.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").trim();
 	return safeBaseName || "agent-file.txt";
-}
-
-function isPathInside(filePath: string, parentDir: string): boolean {
-	const normalizedFilePath = resolve(filePath);
-	const normalizedParentDir = resolve(parentDir);
-	return normalizedFilePath === normalizedParentDir || normalizedFilePath.startsWith(`${normalizedParentDir}\\`) || normalizedFilePath.startsWith(`${normalizedParentDir}/`);
 }

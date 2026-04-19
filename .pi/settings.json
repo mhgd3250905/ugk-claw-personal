@@ -1,5 +1,5 @@
 {
-  "shellPath": "/bin/bash",
+  // "shellPath": "C:\\Windows\\System32\\cmd.exe",  // Windows 下临时启用
   "defaultProvider": "dashscope-coding",
   "defaultModel": "glm-5",
   "defaultThinkingLevel": "medium",

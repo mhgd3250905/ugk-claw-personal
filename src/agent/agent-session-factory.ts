@@ -76,6 +76,8 @@ export interface AgentSessionLike {
 	}>;
 	subscribe(listener: (event: RawAgentSessionEventLike) => void): () => void;
 	prompt(message: string, options?: PromptOptionsLike): Promise<void>;
+	steer?(message: string): Promise<void>;
+	followUp?(message: string): Promise<void>;
 	abort?(): Promise<void>;
 	clearQueue?(): { steering: string[]; followUp: string[] };
 }

@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
 	buildSubagentCliArgs,
+	getDefaultAssetStoreExtensionPath,
+	getDefaultConnExtensionPath,
 	buildSubagentSpawnOptions,
 	getDefaultProjectGuardExtensionPath,
 	getProjectAgentDirPath,
@@ -108,8 +110,10 @@ test("buildSubagentCliArgs locks child pi to project-approved extensions and ski
 		tools: ["read", "grep", "find", "ls"],
 	});
 
-	assert.deepEqual(args.slice(0, 6), ["--mode", "json", "-p", "--no-session", "--no-extensions", "-e"]);
+	assert.deepEqual(args.slice(0, 5), ["--mode", "json", "-p", "--no-session", "--no-extensions"]);
 	assert.equal(args.includes(getDefaultProjectGuardExtensionPath(projectRoot)), true);
+	assert.equal(args.includes(getDefaultAssetStoreExtensionPath(projectRoot)), true);
+	assert.equal(args.includes(getDefaultConnExtensionPath(projectRoot)), true);
 	assert.equal(args.includes("--no-skills"), true);
 	assert.equal(args.includes("--skill"), true);
 	assert.equal(args.includes(getDefaultSystemSkillPath(projectRoot)), true);

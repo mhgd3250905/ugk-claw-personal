@@ -4,13 +4,19 @@ import { join } from "node:path";
 export interface AppConfig {
 	host: string;
 	port: number;
+	publicBaseUrl?: string;
 	projectRoot: string;
 	dataDir: string;
 	agentDataDir: string;
 	agentSessionsDir: string;
 	conversationIndexPath: string;
-	agentFilesDir: string;
-	fileIndexPath: string;
+	agentAssetsDir: string;
+	agentAssetBlobsDir: string;
+	assetIndexPath: string;
+	connDataDir: string;
+	connIndexPath: string;
+	feishuDataDir: string;
+	feishuConversationMapPath: string;
 }
 
 export function loadApiKeyFromApiTxt(
@@ -44,18 +50,29 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 	const agentDataDir = join(dataDir, "agent");
 	const agentSessionsDir = join(agentDataDir, "sessions");
 	const conversationIndexPath = join(agentDataDir, "conversation-index.json");
-	const agentFilesDir = join(agentDataDir, "files");
-	const fileIndexPath = join(agentDataDir, "file-index.json");
+	const agentAssetsDir = join(agentDataDir, "assets");
+	const agentAssetBlobsDir = join(agentAssetsDir, "blobs");
+	const assetIndexPath = join(agentDataDir, "asset-index.json");
+	const connDataDir = join(agentDataDir, "conn");
+	const connIndexPath = join(connDataDir, "conn-index.json");
+	const feishuDataDir = join(agentDataDir, "feishu");
+	const feishuConversationMapPath = join(feishuDataDir, "conversation-map.json");
 
 	return {
 		host: process.env.HOST ?? "127.0.0.1",
 		port: Number(process.env.PORT ?? "3000"),
+		publicBaseUrl: process.env.PUBLIC_BASE_URL?.trim() || undefined,
 		projectRoot,
 		dataDir,
 		agentDataDir,
 		agentSessionsDir,
 		conversationIndexPath,
-		agentFilesDir,
-		fileIndexPath,
+		agentAssetsDir,
+		agentAssetBlobsDir,
+		assetIndexPath,
+		connDataDir,
+		connIndexPath,
+		feishuDataDir,
+		feishuConversationMapPath,
 	};
 }

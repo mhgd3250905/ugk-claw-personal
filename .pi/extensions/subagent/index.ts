@@ -69,6 +69,14 @@ export function getDefaultProjectGuardExtensionPath(projectRoot: string): string
 	return join(projectRoot, ".pi", "extensions", "project-guard.ts");
 }
 
+export function getDefaultAssetStoreExtensionPath(projectRoot: string): string {
+	return join(projectRoot, ".pi", "extensions", "asset-store.ts");
+}
+
+export function getDefaultConnExtensionPath(projectRoot: string): string {
+	return join(projectRoot, ".pi", "extensions", "conn", "index.ts");
+}
+
 export function getProjectAgentDirPath(projectRoot: string): string {
 	return getProjectAgentDirPathFromSessionFactory(projectRoot);
 }
@@ -102,8 +110,10 @@ export function buildSubagentCliArgs(options: {
 	model?: string;
 	tools?: string[];
 }): string[] {
-	const args = ["--mode", "json", "-p", "--no-session", "--no-extensions", "-e"];
-	args.push(getDefaultProjectGuardExtensionPath(options.projectRoot));
+	const args = ["--mode", "json", "-p", "--no-session", "--no-extensions"];
+	args.push("-e", getDefaultProjectGuardExtensionPath(options.projectRoot));
+	args.push("-e", getDefaultAssetStoreExtensionPath(options.projectRoot));
+	args.push("-e", getDefaultConnExtensionPath(options.projectRoot));
 	args.push("--no-skills");
 	args.push("--skill", getDefaultSystemSkillPath(options.projectRoot));
 	args.push("--skill", getDefaultUserSkillPath(options.projectRoot));

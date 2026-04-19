@@ -10,6 +10,7 @@ import type {
 	MessageUpdateEventLike,
 	PromptOptionsLike,
 } from "../src/agent/agent-session-factory.js";
+import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
 
 class FakeSession implements AgentSessionLike {
@@ -68,6 +69,8 @@ class DeferredSession extends FakeSession {
 	private resolvePrompt?: () => void;
 	public promptStarted?: Promise<void>;
 	private resolvePromptStarted?: () => void;
+	public steerCalls: string[] = [];
+	public followUpCalls: string[] = [];
 
 	constructor(sessionFile: string | undefined) {
 		super(sessionFile, []);
@@ -100,6 +103,23 @@ class DeferredSession extends FakeSession {
 		this.abortCalls += 1;
 		this.finish();
 	}
+
+	async steer(message: string): Promise<void> {
+		this.steerCalls.push(message);
+	}
+
+	async followUp(message: string): Promise<void> {
+		this.followUpCalls.push(message);
+	}
+}
+
+class StrictQueueSession extends DeferredSession {
+	override async prompt(message: string, options?: PromptOptionsLike): Promise<void> {
+		if (options?.streamingBehavior) {
+			throw new Error(`queueMessage must use explicit queue APIs, got prompt(${options.streamingBehavior}) for ${message}`);
+		}
+		await super.prompt(message, options);
+	}
 }
 
 class FakeAgentSessionFactory implements AgentSessionFactory {
@@ -123,24 +143,116 @@ class FakeAgentSessionFactory implements AgentSessionFactory {
 	}
 }
 
-class FakeFileArtifactStore {
+class FakeAssetStore {
+	public savedAttachments: Array<{
+		conversationId: string;
+		attachments: readonly ChatAttachment[];
+	}> = [];
 	public saved: Array<{
 		conversationId: string;
 		files: Array<{ fileName: string; mimeType: string; content: string }>;
 	}> = [];
+	private readonly assets = new Map<string, AssetRecord>();
+	private readonly assetTexts = new Map<string, string>();
+
+	async registerAttachments(conversationId: string, attachments: readonly ChatAttachment[]): Promise<AssetRecord[]> {
+		this.savedAttachments.push({ conversationId, attachments });
+		return attachments.map((attachment, index) => {
+			const asset = {
+				assetId: `asset-upload-${index + 1}`,
+				reference: `@asset[asset-upload-${index + 1}]`,
+				fileName: attachment.fileName,
+				mimeType: attachment.mimeType ?? "application/octet-stream",
+				sizeBytes: attachment.sizeBytes ?? 0,
+				kind: typeof attachment.text === "string" ? ("text" as const) : ("metadata" as const),
+				hasContent: typeof attachment.text === "string",
+				source: "user_upload" as const,
+				conversationId,
+				createdAt: "2026-04-18T00:00:00.000Z",
+				...(typeof attachment.text === "string" ? { textPreview: attachment.text } : {}),
+				...(typeof attachment.text === "string" ? { downloadUrl: `/v1/files/asset-upload-${index + 1}` } : {}),
+			} satisfies AssetRecord;
+			this.assets.set(asset.assetId, asset);
+			if (typeof attachment.text === "string") {
+				this.assetTexts.set(asset.assetId, attachment.text);
+			}
+			return asset;
+		});
+	}
 
 	async saveFiles(
 		conversationId: string,
 		files: Array<{ fileName: string; mimeType: string; content: string }>,
-	): Promise<Array<{ id: string; fileName: string; mimeType: string; sizeBytes: number; downloadUrl: string }>> {
+	): Promise<Array<{ id: string; assetId: string; reference: string; fileName: string; mimeType: string; sizeBytes: number; downloadUrl: string }>> {
 		this.saved.push({ conversationId, files });
 		return files.map((file, index) => ({
 			id: `file-${index + 1}`,
+			assetId: `file-${index + 1}`,
+			reference: `@asset[file-${index + 1}]`,
 			fileName: file.fileName,
 			mimeType: file.mimeType,
 			sizeBytes: Buffer.byteLength(file.content, "utf8"),
 			downloadUrl: `/v1/files/file-${index + 1}`,
 		}));
+	}
+
+	async listAssets(): Promise<AssetRecord[]> {
+		return [...this.assets.values()];
+	}
+
+	async getAsset(assetId: string): Promise<AssetRecord | undefined> {
+		return this.assets.get(assetId);
+	}
+
+	async resolveAssets(assetIds: readonly string[]): Promise<AssetRecord[]> {
+		return assetIds.map((assetId) => this.assets.get(assetId)).filter((asset): asset is AssetRecord => Boolean(asset));
+	}
+
+	async readText(assetId: string): Promise<string | undefined> {
+		return this.assetTexts.get(assetId);
+	}
+
+	async getFile(assetId: string): Promise<
+		| {
+				assetId: string;
+				reference: string;
+				fileName: string;
+				mimeType: string;
+				sizeBytes: number;
+				kind: "text";
+				hasContent: true;
+				source: "agent_output";
+				conversationId: string;
+				createdAt: string;
+				downloadUrl: string;
+				content: Buffer;
+		  }
+		| undefined
+	> {
+		if (assetId !== "file-1") {
+			return undefined;
+		}
+		return {
+			assetId: "file-1",
+			reference: "@asset[file-1]",
+			fileName: "hello.txt",
+			mimeType: "text/plain",
+			sizeBytes: 16,
+			kind: "text",
+			hasContent: true,
+			source: "agent_output",
+			conversationId: "manual:file-output",
+			createdAt: "2026-04-18T00:00:00.000Z",
+			downloadUrl: "/v1/files/file-1",
+			content: Buffer.from("hello from agent", "utf8"),
+		};
+	}
+
+	seedAsset(asset: AssetRecord, text?: string): void {
+		this.assets.set(asset.assetId, asset);
+		if (typeof text === "string") {
+			this.assetTexts.set(asset.assetId, text);
+		}
 	}
 }
 
@@ -185,9 +297,10 @@ test("chat includes uploaded file attachments in the session prompt", async () =
 	const store = await createStore();
 	const session = new FakeSession("E:/sessions/attachments.jsonl", [textDelta("read file")]);
 	const factory = new FakeAgentSessionFactory(() => session);
-	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	const assetStore = new FakeAssetStore();
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory, assetStore });
 
-	await service.chat({
+	const result = await service.chat({
 		conversationId: "manual:attachments",
 		message: "Please inspect this file",
 		attachments: [
@@ -202,16 +315,34 @@ test("chat includes uploaded file attachments in the session prompt", async () =
 
 	assert.equal(session.prompts.length, 1);
 	assert.match(session.prompts[0]?.message ?? "", /Please inspect this file/);
-	assert.match(session.prompts[0]?.message ?? "", /<user_files>/);
+	assert.match(session.prompts[0]?.message ?? "", /<user_assets>/);
+	assert.match(session.prompts[0]?.message ?? "", /assetId: asset-upload-1/);
+	assert.match(session.prompts[0]?.message ?? "", /reference: @asset\[asset-upload-1\]/);
 	assert.match(session.prompts[0]?.message ?? "", /fileName: notes\.txt/);
 	assert.match(session.prompts[0]?.message ?? "", /mimeType: text\/plain/);
 	assert.match(session.prompts[0]?.message ?? "", /alpha\nbeta/);
 	assert.match(session.prompts[0]?.message ?? "", /```ugk-file name="example\.txt"/);
+	assert.deepEqual(result.inputAssets, [
+		{
+			assetId: "asset-upload-1",
+			reference: "@asset[asset-upload-1]",
+			fileName: "notes.txt",
+			mimeType: "text/plain",
+			sizeBytes: 18,
+			kind: "text",
+			hasContent: true,
+			source: "user_upload",
+			conversationId: "manual:attachments",
+			createdAt: "2026-04-18T00:00:00.000Z",
+			textPreview: "alpha\nbeta",
+			downloadUrl: "/v1/files/asset-upload-1",
+		},
+	]);
 });
 
 test("chat converts ugk-file blocks from the assistant into downloadable files", async () => {
 	const store = await createStore();
-	const fileStore = new FakeFileArtifactStore();
+	const assetStore = new FakeAssetStore();
 	const factory = new FakeAgentSessionFactory(
 		() =>
 			new FakeSession(
@@ -231,7 +362,7 @@ test("chat converts ugk-file blocks from the assistant into downloadable files",
 	const service = new AgentService({
 		conversationStore: store,
 		sessionFactory: factory,
-		fileArtifactStore: fileStore,
+		assetStore,
 	});
 
 	const result = await service.chat({
@@ -240,7 +371,7 @@ test("chat converts ugk-file blocks from the assistant into downloadable files",
 	});
 
 	assert.equal(result.text, "Here is the file.\n\nUse it well.");
-	assert.deepEqual(fileStore.saved, [
+	assert.deepEqual(assetStore.saved, [
 		{
 			conversationId: "manual:file-output",
 			files: [
@@ -255,12 +386,49 @@ test("chat converts ugk-file blocks from the assistant into downloadable files",
 	assert.deepEqual(result.files, [
 		{
 			id: "file-1",
+			assetId: "file-1",
+			reference: "@asset[file-1]",
 			fileName: "hello.txt",
 			mimeType: "text/plain",
 			sizeBytes: 16,
 			downloadUrl: "/v1/files/file-1",
 		},
 	]);
+});
+
+test("chat can reference previously stored assets without re-uploading them", async () => {
+	const store = await createStore();
+	const session = new FakeSession("E:/sessions/reuse.jsonl", [textDelta("reused asset")]);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const assetStore = new FakeAssetStore();
+	assetStore.seedAsset(
+		{
+			assetId: "asset-existing",
+			reference: "@asset[asset-existing]",
+			fileName: "plan.md",
+			mimeType: "text/markdown",
+			sizeBytes: 12,
+			kind: "text",
+			hasContent: true,
+			source: "user_upload",
+			conversationId: "manual:seed",
+			createdAt: "2026-04-18T00:00:00.000Z",
+			textPreview: "hello plan",
+			downloadUrl: "/v1/files/asset-existing",
+		},
+		"hello plan",
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory, assetStore });
+
+	await service.chat({
+		conversationId: "manual:reuse",
+		message: "Reuse that plan",
+		assetRefs: ["asset-existing"],
+	});
+
+	assert.match(session.prompts[0]?.message ?? "", /assetId: asset-existing/);
+	assert.match(session.prompts[0]?.message ?? "", /reference: @asset\[asset-existing\]/);
+	assert.match(session.prompts[0]?.message ?? "", /hello plan/);
 });
 
 test("queueMessage steers into the active session while a run is streaming", async () => {
@@ -290,12 +458,10 @@ test("queueMessage steers into the active session while a run is streaming", asy
 		mode: "steer",
 		queued: true,
 	});
-	assert.deepEqual(activeSession.prompts[1], {
-		message: "插嘴",
-		options: {
-			streamingBehavior: "steer",
-		},
-	});
+	assert.equal(activeSession.prompts.length, 1);
+	assert.equal(activeSession.steerCalls.length, 1);
+	assert.match(activeSession.steerCalls[0] ?? "", /插嘴/);
+	assert.deepEqual(activeSession.followUpCalls, []);
 
 	activeSession.finish();
 	await run;
@@ -324,12 +490,70 @@ test("queueMessage can enqueue a follow-up after the active turn", async () => {
 	});
 
 	assert.equal(queued.queued, true);
-	assert.deepEqual(activeSession.prompts[1], {
-		message: "等会继续",
-		options: {
-			streamingBehavior: "followUp",
+	assert.equal(activeSession.prompts.length, 1);
+	assert.deepEqual(activeSession.steerCalls, []);
+	assert.equal(activeSession.followUpCalls.length, 1);
+	assert.equal(activeSession.followUpCalls[0]?.startsWith("等会继续"), true);
+
+	activeSession.finish();
+	await run;
+});
+
+test("queueMessage uses explicit steer API instead of prompt(streamingBehavior)", async () => {
+	const store = await createStore();
+	const activeSession = new StrictQueueSession("E:/sessions/strict-steer.jsonl");
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:strict-steer",
+			message: "start",
 		},
-	});
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+
+	await assert.doesNotReject(() =>
+		service.queueMessage({
+			conversationId: "manual:strict-steer",
+			message: "steer now",
+			mode: "steer",
+		}),
+	);
+	assert.equal(activeSession.steerCalls.length, 1);
+	assert.match(activeSession.steerCalls[0] ?? "", /steer now/);
+	assert.deepEqual(activeSession.followUpCalls, []);
+
+	activeSession.finish();
+	await run;
+});
+
+test("queueMessage uses explicit followUp API instead of prompt(streamingBehavior)", async () => {
+	const store = await createStore();
+	const activeSession = new StrictQueueSession("E:/sessions/strict-follow-up.jsonl");
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:strict-follow-up",
+			message: "start",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+
+	await assert.doesNotReject(() =>
+		service.queueMessage({
+			conversationId: "manual:strict-follow-up",
+			message: "follow up later",
+			mode: "followUp",
+		}),
+	);
+	assert.deepEqual(activeSession.steerCalls, []);
+	assert.equal(activeSession.followUpCalls.length, 1);
+	assert.equal(activeSession.followUpCalls[0]?.startsWith("follow up later"), true);
 
 	activeSession.finish();
 	await run;

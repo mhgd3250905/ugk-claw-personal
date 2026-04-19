@@ -23,6 +23,7 @@ test("container runtime files exist with the expected base configuration", () =>
 
 	const dockerfile = readFileSync(dockerfilePath, "utf8");
 	assert.match(dockerfile, /FROM node:22-bookworm-slim/i);
+	assert.match(dockerfile, /apt-get install -y --no-install-recommends curl ca-certificates/i);
 	assert.match(dockerfile, /ENV HOST=0\.0\.0\.0/);
 	assert.match(dockerfile, /ENV PORT=3000/);
 	assert.match(dockerfile, /HEALTHCHECK/i);
