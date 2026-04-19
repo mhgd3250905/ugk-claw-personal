@@ -101,16 +101,16 @@ function getPlaygroundStyles(): string {
 		}
 
 		:root {
-			--bg: #05070d;
-			--bg-panel: #0b1020;
-			--bg-panel-2: #10182c;
-			--bg-panel-3: #0d1324;
+			--bg: #01030a;
+			--bg-panel: #060711;
+			--bg-panel-2: #0b0c18;
+			--bg-panel-3: #090a15;
 			--fg: #eef4ff;
-			--muted: #7f8ca8;
-			--line: #1a2540;
-			--line-strong: #2a3a63;
-			--accent: #5fd1ff;
-			--accent-soft: rgba(95, 209, 255, 0.08);
+			--muted: #8f93ad;
+			--line: #1a1b2b;
+			--line-strong: #2b2d42;
+			--accent: #c9d2ff;
+			--accent-soft: rgba(201, 210, 255, 0.08);
 			--ok: #8dffb2;
 			--danger: #ff7188;
 			--warn: #ffd166;
@@ -140,15 +140,16 @@ function getPlaygroundStyles(): string {
 			margin: 0;
 			height: 100%;
 			background:
-				radial-gradient(circle at 18% 16%, rgba(123, 178, 255, 0.14), transparent 0 18%),
-				radial-gradient(circle at 78% 12%, rgba(92, 239, 255, 0.08), transparent 0 16%),
-				radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.12), transparent 0 22%),
-				radial-gradient(circle at 15% 30%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.5px),
-				radial-gradient(circle at 28% 76%, rgba(255, 255, 255, 0.18) 0 1px, transparent 1.6px),
-				radial-gradient(circle at 56% 48%, rgba(121, 213, 255, 0.18) 0 1.2px, transparent 1.8px),
-				radial-gradient(circle at 73% 62%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.6px),
-				radial-gradient(circle at 88% 34%, rgba(95, 209, 255, 0.16) 0 1.1px, transparent 1.8px),
-				linear-gradient(180deg, #090d16 0%, #0a101a 42%, #090c14 100%);
+				radial-gradient(circle at 18% 14%, rgba(121, 105, 214, 0.14), transparent 0 18%),
+				radial-gradient(circle at 78% 10%, rgba(255, 255, 255, 0.06), transparent 0 14%),
+				radial-gradient(circle at 50% -12%, rgba(255, 255, 255, 0.08), transparent 0 20%),
+				radial-gradient(circle at 22% 72%, rgba(186, 142, 255, 0.1), transparent 0 20%),
+				radial-gradient(circle at 14% 28%, rgba(255, 255, 255, 0.16) 0 1px, transparent 1.5px),
+				radial-gradient(circle at 31% 78%, rgba(255, 255, 255, 0.14) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 57% 46%, rgba(203, 217, 255, 0.14) 0 1.1px, transparent 1.8px),
+				radial-gradient(circle at 76% 60%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 87% 36%, rgba(198, 166, 255, 0.12) 0 1.1px, transparent 1.8px),
+				linear-gradient(180deg, #02030a 0%, #04050d 38%, #090611 100%);
 			background-size: auto, auto, auto, 240px 240px, 260px 260px, 320px 320px, 280px 280px, 360px 360px, auto;
 			color: var(--fg);
 			font-family: var(--font-sans);
@@ -347,7 +348,7 @@ function getPlaygroundStyles(): string {
 			color: var(--accent);
 			background: rgba(255, 255, 255, 0.08);
 			transform: translateY(-1px);
-			box-shadow: 0 8px 18px rgba(95, 209, 255, 0.08);
+			box-shadow: 0 8px 18px rgba(201, 210, 255, 0.08);
 		}
 
 		button:disabled {
@@ -356,10 +357,10 @@ function getPlaygroundStyles(): string {
 		}
 
 		#send-button {
-			border-color: rgba(170, 223, 255, 0.32);
+			border-color: rgba(201, 210, 255, 0.28);
 			color: #f3fbff;
 			background:
-				linear-gradient(135deg, rgba(170, 223, 255, 0.14), rgba(106, 173, 255, 0.08)),
+				linear-gradient(135deg, rgba(201, 210, 255, 0.14), rgba(145, 125, 214, 0.08)),
 				rgba(255, 255, 255, 0.05);
 		}
 
@@ -512,6 +513,21 @@ function getPlaygroundStyles(): string {
 			display: none;
 		}
 
+		.history-load-more {
+			align-self: center;
+			margin: 0 0 10px;
+			padding: 7px 12px;
+			border: 1px solid rgba(201, 210, 255, 0.18);
+			background: rgba(201, 210, 255, 0.05);
+			color: rgba(236, 240, 255, 0.88);
+			font-size: 10px;
+			letter-spacing: 0.12em;
+		}
+
+		.history-load-more[hidden] {
+			display: none !important;
+		}
+
 		.message {
 			display: grid;
 			grid-template-columns: 1fr;
@@ -628,8 +644,8 @@ function getPlaygroundStyles(): string {
 			margin-left: 0;
 			padding: 12px 14px;
 			border-left: 3px solid var(--accent);
-			background: rgba(95, 209, 255, 0.06);
-			color: #d8e7ff;
+			background: rgba(201, 210, 255, 0.06);
+			color: #e6e9ff;
 		}
 
 		.message-content pre {
@@ -642,7 +658,7 @@ function getPlaygroundStyles(): string {
 		.message-content .code-block {
 			border: 1px solid var(--line);
 			background:
-				linear-gradient(90deg, rgba(95, 209, 255, 0.05), transparent 45%),
+				linear-gradient(90deg, rgba(201, 210, 255, 0.05), transparent 45%),
 				rgba(4, 8, 18, 0.95);
 		}
 
@@ -665,8 +681,8 @@ function getPlaygroundStyles(): string {
 
 		.message-content .copy-code-button {
 			padding: 5px 8px;
-			border-color: rgba(95, 209, 255, 0.28);
-			background: rgba(95, 209, 255, 0.06);
+			border-color: rgba(201, 210, 255, 0.22);
+			background: rgba(201, 210, 255, 0.05);
 			color: var(--accent);
 			font-size: 10px;
 			letter-spacing: 0.12em;
@@ -685,8 +701,8 @@ function getPlaygroundStyles(): string {
 		.message-content code {
 			display: inline-block;
 			padding: 1px 6px;
-			border: 1px solid rgba(95, 209, 255, 0.22);
-			background: rgba(95, 209, 255, 0.08);
+			border: 1px solid rgba(201, 210, 255, 0.18);
+			background: rgba(201, 210, 255, 0.08);
 			font-size: 13px;
 		}
 
@@ -772,7 +788,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.message.assistant .message-content blockquote {
-			border-left-color: rgba(170, 223, 255, 0.4);
+			border-left-color: rgba(201, 210, 255, 0.32);
 			background: rgba(255, 255, 255, 0.08);
 			color: #edf5ff;
 		}
@@ -817,7 +833,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.process-note.tool .process-note-text {
-			color: rgba(170, 223, 255, 0.7);
+			color: rgba(212, 218, 255, 0.7);
 		}
 
 		.process-note.ok .process-note-text {
@@ -830,6 +846,122 @@ function getPlaygroundStyles(): string {
 
 		.message-content.is-empty {
 			display: none;
+		}
+
+		.assistant-loading-shell {
+			display: flex;
+			justify-content: flex-start;
+			margin-top: 10px;
+		}
+
+		.assistant-loading-bubble {
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			max-width: 100%;
+			padding: 8px 12px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 999px;
+			background: rgba(201, 210, 255, 0.06);
+			color: rgba(233, 238, 255, 0.88);
+			font-size: 10px;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+		}
+
+		.assistant-loading-label {
+			min-width: 0;
+			white-space: nowrap;
+		}
+
+		.assistant-loading-dots {
+			display: inline-flex;
+			align-items: center;
+			gap: 5px;
+		}
+
+		.assistant-loading-dots[hidden] {
+			display: none !important;
+		}
+
+		.assistant-loading-dot {
+			width: 5px;
+			height: 5px;
+			border-radius: 999px;
+			background: currentColor;
+			opacity: 0.24;
+			animation: assistant-loading-pulse 1.15s ease-in-out infinite;
+		}
+
+		.assistant-loading-dot:nth-child(2) {
+			animation-delay: 0.16s;
+		}
+
+		.assistant-loading-dot:nth-child(3) {
+			animation-delay: 0.32s;
+		}
+
+		.assistant-loading-shell.tool .assistant-loading-bubble {
+			border-color: rgba(201, 210, 255, 0.2);
+			background: rgba(201, 210, 255, 0.08);
+		}
+
+		.assistant-loading-shell.ok .assistant-loading-bubble {
+			border-color: rgba(141, 255, 178, 0.22);
+			background: rgba(141, 255, 178, 0.07);
+			color: rgba(201, 255, 220, 0.92);
+		}
+
+		.assistant-loading-shell.warn .assistant-loading-bubble {
+			border-color: rgba(255, 209, 102, 0.2);
+			background: rgba(255, 209, 102, 0.07);
+			color: rgba(255, 230, 178, 0.94);
+		}
+
+		.assistant-loading-shell.error .assistant-loading-bubble {
+			border-color: rgba(255, 113, 136, 0.2);
+			background: rgba(255, 113, 136, 0.08);
+			color: rgba(255, 210, 220, 0.94);
+		}
+
+		.assistant-loading-shell.is-complete .assistant-loading-bubble {
+			box-shadow: none;
+		}
+
+		@keyframes assistant-loading-pulse {
+			0%,
+			80%,
+			100% {
+				opacity: 0.22;
+				transform: scale(0.82);
+			}
+
+			40% {
+				opacity: 1;
+				transform: scale(1);
+			}
+		}
+
+		.message-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 8px;
+			margin-top: 10px;
+		}
+
+		.message-copy-button {
+			padding: 6px 10px;
+			border-color: rgba(201, 210, 255, 0.2);
+			background: rgba(201, 210, 255, 0.05);
+			color: var(--accent);
+			font-size: 10px;
+			letter-spacing: 0.12em;
+		}
+
+		.message-copy-button:disabled {
+			cursor: default;
+			opacity: 0.45;
 		}
 
 		.message.assistant .message-body {
@@ -891,7 +1023,7 @@ function getPlaygroundStyles(): string {
 			overflow: auto;
 			padding-right: 4px;
 			scrollbar-width: thin;
-			scrollbar-color: rgba(95, 209, 255, 0.24) transparent;
+			scrollbar-color: rgba(201, 210, 255, 0.2) transparent;
 		}
 
 		.assistant-process-narration::-webkit-scrollbar {
@@ -899,7 +1031,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.assistant-process-narration::-webkit-scrollbar-thumb {
-			background: rgba(95, 209, 255, 0.24);
+			background: rgba(201, 210, 255, 0.2);
 		}
 
 		.assistant-process-shell[data-process-expanded="false"] .assistant-process-narration {
@@ -917,7 +1049,7 @@ function getPlaygroundStyles(): string {
 
 		.assistant-process-line::before {
 			content: "· ";
-			color: rgba(170, 223, 255, 0.56);
+			color: rgba(212, 218, 255, 0.56);
 		}
 
 		.assistant-process-current {
@@ -961,7 +1093,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.assistant-process-shell.tool {
-			border-color: rgba(95, 209, 255, 0.18);
+			border-color: rgba(201, 210, 255, 0.14);
 		}
 
 		.assistant-process-shell.ok {
@@ -979,7 +1111,7 @@ function getPlaygroundStyles(): string {
 			padding: 18px 0 20px;
 			border: 0;
 			border-radius: 4px;
-			background: rgba(148, 190, 218, 0.12);
+			background: rgba(102, 93, 138, 0.16);
 			box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
 			align-items: end;
 			flex-shrink: 0;
@@ -1028,7 +1160,7 @@ function getPlaygroundStyles(): string {
 		.composer select:focus {
 			border-color: var(--accent);
 			background: rgba(255, 255, 255, 0.07);
-			box-shadow: 0 0 0 4px rgba(95, 209, 255, 0.08);
+			box-shadow: 0 0 0 4px rgba(201, 210, 255, 0.07);
 		}
 
 		.composer-side {
@@ -1059,7 +1191,7 @@ function getPlaygroundStyles(): string {
 			display: none;
 			align-items: center;
 			justify-content: center;
-			border: 1px dashed rgba(95, 209, 255, 0.7);
+			border: 1px dashed rgba(201, 210, 255, 0.5);
 			background: rgba(5, 7, 13, 0.78);
 			pointer-events: none;
 		}
@@ -1073,7 +1205,7 @@ function getPlaygroundStyles(): string {
 			padding: 24px 28px;
 			border: 1px solid var(--accent);
 			background: rgba(11, 16, 32, 0.94);
-			box-shadow: inset 0 0 0 1px rgba(95, 209, 255, 0.18);
+			box-shadow: inset 0 0 0 1px rgba(201, 210, 255, 0.14);
 			text-align: center;
 		}
 
@@ -1115,8 +1247,8 @@ function getPlaygroundStyles(): string {
 		.composer.drag-active,
 		.drop-zone.drag-active {
 			border-color: var(--accent);
-			background: rgba(95, 209, 255, 0.1);
-			box-shadow: inset 0 0 0 1px rgba(95, 209, 255, 0.22);
+			background: rgba(201, 210, 255, 0.08);
+			box-shadow: inset 0 0 0 1px rgba(201, 210, 255, 0.16);
 		}
 
 		.drop-zone-label {
@@ -1259,8 +1391,8 @@ function getPlaygroundStyles(): string {
 		}
 
 		.file-chip.asset .file-chip-badge {
-			background: rgba(95, 209, 255, 0.08);
-			color: rgba(194, 232, 255, 0.82);
+			background: rgba(201, 210, 255, 0.08);
+			color: rgba(226, 231, 255, 0.82);
 		}
 
 		.message-file-strip {
@@ -1330,7 +1462,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.asset-pill.active {
-			border-color: rgba(170, 223, 255, 0.2);
+			border-color: rgba(201, 210, 255, 0.18);
 			background: rgba(255, 255, 255, 0.08);
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 		}
@@ -1489,9 +1621,9 @@ function getPlaygroundStyles(): string {
 			position: fixed;
 			inset: 0;
 			background:
-				linear-gradient(rgba(95, 209, 255, 0.035) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(95, 209, 255, 0.03) 1px, transparent 1px),
-				linear-gradient(180deg, rgba(5, 10, 18, 0.12), rgba(3, 6, 11, 0.36));
+				linear-gradient(rgba(201, 210, 255, 0.022) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(201, 210, 255, 0.018) 1px, transparent 1px),
+				linear-gradient(180deg, rgba(8, 8, 18, 0.1), rgba(3, 3, 9, 0.42));
 			background-size: 40px 40px, 40px 40px, auto;
 			opacity: 0.38;
 			pointer-events: none;
@@ -1519,7 +1651,7 @@ function getPlaygroundStyles(): string {
 			padding: 0 24px;
 			grid-template-columns: 1fr auto 1fr;
 			align-items: center;
-			border-bottom: 1px solid rgba(95, 209, 255, 0.08);
+			border-bottom: 1px solid rgba(201, 210, 255, 0.06);
 		}
 
 		.topbar-left {
@@ -1614,11 +1746,11 @@ function getPlaygroundStyles(): string {
 		.hero-divider span {
 			width: 90px;
 			height: 1px;
-			background: linear-gradient(90deg, transparent, rgba(95, 209, 255, 0.28), transparent);
+			background: linear-gradient(90deg, transparent, rgba(201, 210, 255, 0.24), transparent);
 		}
 
 		.hero-divider em {
-			color: rgba(194, 224, 255, 0.34);
+			color: rgba(214, 220, 255, 0.34);
 			font-size: 11px;
 			font-style: normal;
 			letter-spacing: 0.28em;
@@ -1642,14 +1774,14 @@ function getPlaygroundStyles(): string {
 		}
 
 		.telemetry-card span {
-			color: rgba(194, 224, 255, 0.18);
+			color: rgba(214, 220, 255, 0.18);
 			font-size: 10px;
 			letter-spacing: 0.18em;
 			text-transform: uppercase;
 		}
 
 		.telemetry-card strong {
-			color: rgba(194, 224, 255, 0.34);
+			color: rgba(214, 220, 255, 0.34);
 			font-size: 12px;
 			letter-spacing: 0.08em;
 			font-weight: 400;
@@ -1678,8 +1810,8 @@ function getPlaygroundStyles(): string {
 		.telemetry-action:focus-visible span,
 		.telemetry-action:hover:not(:disabled) strong,
 		.telemetry-action:focus-visible strong {
-			color: rgba(95, 209, 255, 0.9);
-			text-shadow: 0 0 18px rgba(53, 207, 255, 0.18);
+			color: rgba(224, 228, 255, 0.9);
+			text-shadow: 0 0 18px rgba(167, 151, 231, 0.18);
 		}
 
 		.telemetry-action:disabled {
@@ -1741,7 +1873,7 @@ function getPlaygroundStyles(): string {
 			padding: 12px;
 			border: 0;
 			border-radius: 4px;
-			background: rgba(148, 190, 218, 0.16);
+			background: rgba(90, 82, 122, 0.22);
 			box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
 			backdrop-filter: none;
 		}
@@ -1768,7 +1900,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"] .composer textarea::placeholder {
-			color: rgba(194, 224, 255, 0.28);
+			color: rgba(214, 220, 255, 0.28);
 		}
 
 		.shell[data-stage-mode="landing"] .composer textarea:focus {
@@ -1795,7 +1927,7 @@ function getPlaygroundStyles(): string {
 		.shell[data-stage-mode="landing"] .drop-zone-label {
 			font-size: 10px;
 			letter-spacing: 0.12em;
-			color: rgba(194, 224, 255, 0.22);
+			color: rgba(214, 220, 255, 0.22);
 		}
 
 		.shell[data-stage-mode="landing"] .drop-zone-label span:last-child {
@@ -1921,12 +2053,19 @@ function getPlaygroundScript(): string {
 	return `
 		${renderMarkdownFunction}
 
+		const CONVERSATION_HISTORY_INDEX_KEY = "ugk-pi:conversation-history-index";
+		const MAX_STORED_CONVERSATIONS = 12;
+		const MAX_STORED_MESSAGES_PER_CONVERSATION = 160;
+
 		const state = {
 			loading: false,
 			stageMode: "landing",
 			conversationId: localStorage.getItem("ugk-pi:conversation-id") || "",
 			streamingText: "",
 			activeAssistantContent: null,
+			activeLoadingShell: null,
+			activeLoadingLabel: null,
+			activeLoadingDots: null,
 			activeProcessShell: null,
 			activeProcessNarration: null,
 			activeProcessAction: null,
@@ -1937,9 +2076,18 @@ function getPlaygroundScript(): string {
 			selectedAssetRefs: [],
 			dragDepth: 0,
 			assetModalOpen: false,
+			conversationHistory: [],
+			renderedHistoryCount: 0,
+			historyPageSize: 12,
+			historyLoadingMore: false,
+			activeRunEventController: null,
+			pageUnloading: false,
 		};
 
+		const renderedMessages = new Map();
+
 		const transcript = document.getElementById("transcript");
+		const historyLoadMoreButton = document.getElementById("history-load-more-button");
 		const errorBanner = document.getElementById("error-banner");
 		const errorBannerMessage = document.getElementById("error-banner-message");
 		const errorBannerClose = document.getElementById("error-banner-close");
@@ -1991,6 +2139,10 @@ function getPlaygroundScript(): string {
 			if (commandDeckOffset > 0) {
 				shell.style.setProperty("--command-deck-offset", commandDeckOffset + "px");
 			}
+		}
+
+		function syncConversationWidth() {
+			syncConversationLayout();
 		}
 
 		function setTranscriptState(next) {
@@ -2071,6 +2223,703 @@ function getPlaygroundScript(): string {
 			if (!state.loading) {
 				statusPill.textContent = "就绪";
 			}
+		}
+
+		async function fetchConversationRunStatus(conversationId) {
+			if (!conversationId) {
+				return { conversationId: "", running: false };
+			}
+
+			const query = new URLSearchParams({ conversationId });
+			const response = await fetch("/v1/chat/status?" + query.toString(), {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法获取当前会话状态";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				conversationId: payload?.conversationId || conversationId,
+				running: Boolean(payload?.running),
+			};
+		}
+
+		function stopActiveRunEventStream() {
+			const controller = state.activeRunEventController;
+			state.activeRunEventController = null;
+			if (controller && !controller.signal.aborted) {
+				controller.abort();
+			}
+		}
+
+		function isAbortError(error) {
+			return error instanceof DOMException && error.name === "AbortError";
+		}
+
+		async function attachActiveRunEventStream(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId) {
+				return;
+			}
+			if (
+				state.activeRunEventController &&
+				state.activeRunEventController.conversationId === nextConversationId &&
+				!state.activeRunEventController.signal.aborted
+			) {
+				return;
+			}
+
+			stopActiveRunEventStream();
+			const controller = new AbortController();
+			controller.conversationId = nextConversationId;
+			state.activeRunEventController = controller;
+
+			try {
+				const query = new URLSearchParams({ conversationId: nextConversationId });
+				const response = await fetch("/v1/chat/events?" + query.toString(), {
+					method: "GET",
+					headers: { accept: "text/event-stream" },
+					signal: controller.signal,
+				});
+				if (!response.ok) {
+					throw new Error("无法重新连接当前运行任务");
+				}
+
+				await readEventStream(response, handleStreamEvent);
+			} catch (error) {
+				if (controller.signal.aborted || isAbortError(error) || isPageUnloadStreamError(error)) {
+					return;
+				}
+
+				const messageText = error instanceof Error ? error.message : "无法重新连接当前运行任务";
+				showError(messageText);
+				updateStreamingProcess("error", "运行状态重连失败", messageText);
+			} finally {
+				if (state.activeRunEventController === controller) {
+					state.activeRunEventController = null;
+				}
+			}
+		}
+
+		function findLatestUserHistoryEntry() {
+			for (let index = state.conversationHistory.length - 1; index >= 0; index -= 1) {
+				const entry = state.conversationHistory[index];
+				if (entry?.kind === "user" && String(entry.text || "").trim()) {
+					return entry;
+				}
+			}
+			return null;
+		}
+
+		function findLatestAssistantHistoryEntry() {
+			for (let index = state.conversationHistory.length - 1; index >= 0; index -= 1) {
+				const entry = state.conversationHistory[index];
+				if (entry?.kind === "assistant") {
+					return entry;
+				}
+			}
+			return null;
+		}
+
+		function ensureRecoveredStreamingAssistantMessage() {
+			const latestAssistantEntry = findLatestAssistantHistoryEntry();
+			const rendered = latestAssistantEntry ? renderedMessages.get(latestAssistantEntry.id) : null;
+			if (latestAssistantEntry && rendered?.content?.isConnected) {
+				state.activeAssistantContent = rendered.content;
+				restoreProcessSnapshot(latestAssistantEntry, rendered, {
+					activate: true,
+					running: true,
+				});
+				return rendered.content;
+			}
+
+			return ensureStreamingAssistantMessage();
+		}
+
+		function formatRecoveredRunMessage() {
+			const latestUserEntry = findLatestUserHistoryEntry();
+			if (!latestUserEntry) {
+				return "当前任务正在运行。\\n\\n刷新只断开了页面连接，后端任务还在继续。";
+			}
+
+			const taskText = String(latestUserEntry.text || "").trim();
+			const taskSummary = taskText.length > 800 ? taskText.slice(0, 800) + "..." : taskText;
+			return "当前任务正在运行。\\n\\n当前任务：\\n> " + taskSummary;
+		}
+
+		async function syncConversationRunState(conversationId, options) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId) {
+				return { conversationId: "", running: false };
+			}
+
+			try {
+				const payload = await fetchConversationRunStatus(nextConversationId);
+				if (payload.running) {
+					setTranscriptState("active");
+					setLoading(true);
+					const content = ensureRecoveredStreamingAssistantMessage();
+					if (!String(content.textContent || "").trim()) {
+						setMessageContent(content, formatRecoveredRunMessage());
+					}
+					setAssistantLoadingState("当前正在运行", "system");
+					void attachActiveRunEventStream(nextConversationId);
+					return payload;
+				}
+
+				if (state.loading && options?.clearIfIdle) {
+					stopActiveRunEventStream();
+					completeAssistantLoadingBubble("ok", "当前任务已结束");
+					completeProcessStream();
+					setLoading(false);
+				}
+
+				return payload;
+			} catch (error) {
+				if (!options?.silent) {
+					const messageText = error instanceof Error ? error.message : "无法获取当前会话状态";
+					showError(messageText);
+				}
+
+				return {
+					conversationId: nextConversationId,
+					running: Boolean(state.loading),
+				};
+			}
+		}
+
+		function getConversationHistoryStorageKey(conversationId) {
+			return "ugk-pi:conversation-history:" + conversationId;
+		}
+
+		function readConversationHistoryIndex() {
+			try {
+				const raw = localStorage.getItem(CONVERSATION_HISTORY_INDEX_KEY);
+				const parsed = JSON.parse(raw || "[]");
+				return Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return [];
+			}
+		}
+
+		function writeConversationHistoryIndex(index) {
+			try {
+				localStorage.setItem(CONVERSATION_HISTORY_INDEX_KEY, JSON.stringify(index));
+			} catch {}
+		}
+
+		function cloneHistoryAttachments(attachments) {
+			if (!Array.isArray(attachments) || attachments.length === 0) {
+				return [];
+			}
+
+			return attachments.map((attachment) => ({
+				fileName: attachment.fileName || "attachment",
+				mimeType: attachment.mimeType || "application/octet-stream",
+				sizeBytes: Number.isFinite(attachment.sizeBytes) ? attachment.sizeBytes : 0,
+			}));
+		}
+
+		function cloneHistoryAssetRefs(assetRefs) {
+			if (!Array.isArray(assetRefs) || assetRefs.length === 0) {
+				return [];
+			}
+
+			return assetRefs
+				.map((assetId) => state.recentAssets.find((asset) => asset.assetId === assetId))
+				.filter(Boolean)
+				.map((asset) => ({
+					assetId: asset.assetId,
+					fileName: asset.fileName || asset.assetId,
+					mimeType: asset.mimeType || "application/octet-stream",
+					sizeBytes: Number.isFinite(asset.sizeBytes) ? asset.sizeBytes : 0,
+					kind: asset.kind || "metadata",
+				}));
+		}
+
+		function cloneHistoryFiles(files) {
+			if (!Array.isArray(files) || files.length === 0) {
+				return [];
+			}
+
+			return files.map((file) => ({
+				id: file.id || file.assetId || crypto.randomUUID(),
+				assetId: file.assetId || file.id || "",
+				reference: file.reference || "",
+				fileName: file.fileName || "download",
+				mimeType: file.mimeType || "application/octet-stream",
+				sizeBytes: Number.isFinite(file.sizeBytes) ? file.sizeBytes : 0,
+				downloadUrl: file.downloadUrl || "",
+			}));
+		}
+
+		function normalizeHistoryEntry(rawEntry) {
+			if (!rawEntry || typeof rawEntry !== "object") {
+				return null;
+			}
+
+			return {
+				id: typeof rawEntry.id === "string" && rawEntry.id ? rawEntry.id : crypto.randomUUID(),
+				kind: typeof rawEntry.kind === "string" ? rawEntry.kind : "assistant",
+				title: typeof rawEntry.title === "string" ? rawEntry.title : "助手",
+				text: typeof rawEntry.text === "string" ? rawEntry.text : "",
+				createdAt:
+					typeof rawEntry.createdAt === "string" && rawEntry.createdAt
+						? rawEntry.createdAt
+						: new Date().toISOString(),
+				attachments: cloneHistoryAttachments(rawEntry.attachments),
+				assetRefs: Array.isArray(rawEntry.assetRefs)
+					? rawEntry.assetRefs
+							.filter((asset) => asset && typeof asset === "object")
+							.map((asset) => ({
+								assetId: typeof asset.assetId === "string" ? asset.assetId : "",
+								fileName: typeof asset.fileName === "string" ? asset.fileName : "asset",
+								mimeType: typeof asset.mimeType === "string" ? asset.mimeType : "application/octet-stream",
+								sizeBytes: Number.isFinite(asset.sizeBytes) ? asset.sizeBytes : 0,
+								kind: typeof asset.kind === "string" ? asset.kind : "metadata",
+							}))
+							.filter((asset) => asset.assetId)
+					: [],
+				files: cloneHistoryFiles(rawEntry.files),
+				process: normalizeProcessSnapshot(rawEntry.process),
+			};
+		}
+
+		function isNetworkErrorText(text) {
+			const normalized = String(text || "").trim().toLowerCase();
+			return (
+				normalized === "network error" ||
+				normalized.includes("failed to fetch") ||
+				normalized.includes("networkerror") ||
+				normalized.includes("abort") ||
+				normalized.includes("cancel")
+			);
+		}
+
+		function isTransientNetworkHistoryEntry(entry) {
+			if (!entry || entry.kind !== "error") {
+				return false;
+			}
+
+			const title = String(entry.title || "").trim().toLowerCase();
+			const isNetworkTitle = title === "network" || entry.title === "网络";
+			return isNetworkTitle && isNetworkErrorText(entry.text);
+		}
+
+		function isPageUnloadStreamError(error) {
+			const messageText = error instanceof Error ? error.message : String(error || "");
+			return state.pageUnloading && !state.receivedDoneEvent && isNetworkErrorText(messageText);
+		}
+
+		function normalizeProcessSnapshot(rawProcess) {
+			if (!rawProcess || typeof rawProcess !== "object") {
+				return null;
+			}
+
+			const allowedKinds = new Set(["system", "tool", "ok", "error", "warn"]);
+			const narration = Array.isArray(rawProcess.narration)
+				? rawProcess.narration
+						.map((line) => String(line || "").trim())
+						.filter(Boolean)
+						.slice(-80)
+				: [];
+			const action = String(rawProcess.action || "").trim();
+			const kind = allowedKinds.has(rawProcess.kind) ? rawProcess.kind : "system";
+			if (!narration.length && !action) {
+				return null;
+			}
+
+			return {
+				narration,
+				action: action || "等待动作",
+				kind,
+				isComplete: Boolean(rawProcess.isComplete),
+			};
+		}
+
+		function loadConversationHistoryEntries(conversationId) {
+			if (!conversationId) {
+				return [];
+			}
+
+			try {
+				const raw = localStorage.getItem(getConversationHistoryStorageKey(conversationId));
+				const parsed = JSON.parse(raw || "[]");
+				if (!Array.isArray(parsed)) {
+					return [];
+				}
+				return parsed
+					.map(normalizeHistoryEntry)
+					.filter(Boolean)
+					.filter((entry) => !isTransientNetworkHistoryEntry(entry));
+			} catch {
+				return [];
+			}
+		}
+
+		function persistConversationHistory(conversationId) {
+			if (!conversationId) {
+				return;
+			}
+
+			state.conversationHistory = state.conversationHistory.slice(-MAX_STORED_MESSAGES_PER_CONVERSATION);
+
+			try {
+				localStorage.setItem(
+					getConversationHistoryStorageKey(conversationId),
+					JSON.stringify(state.conversationHistory),
+				);
+			} catch {
+				return;
+			}
+
+			const nextIndex = readConversationHistoryIndex()
+				.filter((entry) => entry && typeof entry === "object" && entry.conversationId !== conversationId)
+				.map((entry) => ({
+					conversationId: entry.conversationId,
+					updatedAt: entry.updatedAt,
+					messageCount: Number.isFinite(entry.messageCount) ? entry.messageCount : 0,
+				}));
+			nextIndex.unshift({
+				conversationId,
+				updatedAt: new Date().toISOString(),
+				messageCount: state.conversationHistory.length,
+			});
+
+			while (nextIndex.length > MAX_STORED_CONVERSATIONS) {
+				const removed = nextIndex.pop();
+				if (removed?.conversationId) {
+					localStorage.removeItem(getConversationHistoryStorageKey(removed.conversationId));
+				}
+			}
+
+			writeConversationHistoryIndex(nextIndex);
+		}
+
+		function buildTranscriptEntry(kind, title, text, options) {
+			return {
+				id: options?.id || crypto.randomUUID(),
+				kind,
+				title,
+				text: String(text || ""),
+				createdAt: options?.createdAt || new Date().toISOString(),
+				attachments: cloneHistoryAttachments(options?.attachments),
+				assetRefs: cloneHistoryAssetRefs(options?.assetRefs),
+				files: cloneHistoryFiles(options?.files),
+				process: normalizeProcessSnapshot(options?.process),
+			};
+		}
+
+		function rememberConversationMessage(entry) {
+			const index = state.conversationHistory.findIndex((current) => current.id === entry.id);
+			if (index >= 0) {
+				state.conversationHistory.splice(index, 1, entry);
+			} else {
+				state.conversationHistory.push(entry);
+			}
+			persistConversationHistory(state.conversationId);
+		}
+
+		function clearRenderedTranscript() {
+			transcript.innerHTML = "";
+			renderedMessages.clear();
+		}
+
+		function syncMessageCopyButton(entry) {
+			const rendered = renderedMessages.get(entry.id);
+			if (!rendered?.copyButton) {
+				return;
+			}
+
+			rendered.copyButton.disabled = !String(entry.text || "").trim();
+		}
+
+		function buildAssistantLoadingBubble() {
+			const shell = document.createElement("div");
+			shell.className = "assistant-loading-shell is-running system";
+
+			const bubble = document.createElement("div");
+			bubble.className = "assistant-loading-bubble";
+
+			const label = document.createElement("span");
+			label.className = "assistant-loading-label";
+			label.textContent = "正在等待响应";
+
+			const dots = document.createElement("span");
+			dots.className = "assistant-loading-dots";
+			dots.setAttribute("aria-hidden", "true");
+
+			for (let index = 0; index < 3; index += 1) {
+				const dot = document.createElement("span");
+				dot.className = "assistant-loading-dot";
+				dots.appendChild(dot);
+			}
+
+			bubble.appendChild(label);
+			bubble.appendChild(dots);
+			shell.appendChild(bubble);
+
+			return { shell, label, dots };
+		}
+
+		function attachAssistantLoadingBubble(body, content) {
+			const stream = buildAssistantLoadingBubble();
+			if (content.parentElement === body && content.nextSibling) {
+				body.insertBefore(stream.shell, content.nextSibling);
+			} else {
+				body.appendChild(stream.shell);
+			}
+
+			state.activeLoadingShell = stream.shell;
+			state.activeLoadingLabel = stream.label;
+			state.activeLoadingDots = stream.dots;
+			return stream;
+		}
+
+		function ensureAssistantLoadingBubble() {
+			if (
+				state.activeLoadingShell?.isConnected &&
+				state.activeLoadingLabel?.isConnected &&
+				state.activeLoadingDots?.isConnected
+			) {
+				return {
+					shell: state.activeLoadingShell,
+					label: state.activeLoadingLabel,
+					dots: state.activeLoadingDots,
+				};
+			}
+
+			const content = ensureStreamingAssistantMessage();
+			const body = content.parentElement;
+			if (!body) {
+				throw new Error("assistant message body is unavailable");
+			}
+
+			return attachAssistantLoadingBubble(body, content);
+		}
+
+		function setAssistantLoadingState(text, kind) {
+			const labelText = String(text || "").trim() || "正在等待响应";
+			const stream = ensureAssistantLoadingBubble();
+			stream.label.textContent = labelText;
+			stream.dots.hidden = false;
+			stream.shell.classList.remove("tool", "ok", "warn", "error", "system");
+			stream.shell.classList.add(kind || "system");
+			stream.shell.classList.add("is-running");
+			stream.shell.classList.remove("is-complete");
+			scrollTranscriptToBottom();
+		}
+
+		function completeAssistantLoadingBubble(kind, text) {
+			if (!state.activeLoadingShell || !state.activeLoadingLabel || !state.activeLoadingDots) {
+				return;
+			}
+
+			if (text) {
+				state.activeLoadingLabel.textContent = text;
+			}
+			state.activeLoadingDots.hidden = true;
+			state.activeLoadingShell.classList.remove("tool", "ok", "warn", "error", "system");
+			state.activeLoadingShell.classList.add(kind || "ok");
+			state.activeLoadingShell.classList.remove("is-running");
+			state.activeLoadingShell.classList.add("is-complete");
+			scrollTranscriptToBottom();
+		}
+
+		function createMessageActions(entry, content) {
+			const actions = document.createElement("div");
+			actions.className = "message-actions";
+
+			const copyButton = document.createElement("button");
+			copyButton.type = "button";
+			copyButton.className = "message-copy-button";
+			copyButton.textContent = "复制正文";
+			copyButton.addEventListener("click", async () => {
+				const original = copyButton.textContent || "复制正文";
+				copyButton.disabled = true;
+				try {
+					await copyTextToClipboard(entry.text || "");
+					copyButton.textContent = "已复制";
+				} catch {
+					copyButton.textContent = "失败";
+				} finally {
+					window.setTimeout(() => {
+						copyButton.textContent = original;
+						syncMessageCopyButton(entry);
+					}, 1200);
+				}
+			});
+
+			actions.appendChild(copyButton);
+			return { actions, copyButton };
+		}
+
+		function renderTranscriptEntry(entry, insertMode) {
+			const card = document.createElement("article");
+			const kind = entry.kind;
+			const visualKind = kind === "system" ? "assistant" : kind;
+			card.className = "message " + visualKind;
+			card.dataset.messageKind = kind;
+			card.dataset.entryId = entry.id;
+
+			const meta = document.createElement("div");
+			meta.className = "message-meta";
+			const metaTime = new Date(entry.createdAt || Date.now()).toLocaleTimeString();
+			if (kind === "user") {
+				meta.innerHTML = "<span>" + metaTime + "</span>";
+			} else {
+				meta.innerHTML = "<strong>" + entry.title + "</strong><span>" + metaTime + "</span>";
+			}
+
+			const body = document.createElement("div");
+			body.className = "message-body";
+
+			const content = document.createElement("div");
+			content.className = "message-content";
+			content.dataset.entryId = entry.id;
+			setMessageContent(content, entry.text);
+			body.appendChild(content);
+
+			if (entry.attachments?.length || entry.assetRefs?.length) {
+				appendMessageFileChips(body, entry.attachments || [], entry.assetRefs || []);
+			}
+			if (entry.files?.length) {
+				appendFileDownloadList(body, entry.files);
+			}
+
+			const messageActions = createMessageActions(entry, content);
+			card.appendChild(meta);
+			card.appendChild(body);
+			card.appendChild(messageActions.actions);
+
+			if (insertMode === "prepend" && transcript.firstChild) {
+				transcript.insertBefore(card, transcript.firstChild);
+			} else {
+				transcript.appendChild(card);
+			}
+
+			const rendered = {
+				card,
+				body,
+				content,
+				copyButton: messageActions.copyButton,
+				processShell: null,
+				processNarration: null,
+				processAction: null,
+			};
+			renderedMessages.set(entry.id, rendered);
+			restoreProcessSnapshot(entry, rendered);
+			syncMessageCopyButton(entry);
+			return rendered;
+		}
+
+		function restoreProcessSnapshot(entry, rendered, options) {
+			const snapshot = normalizeProcessSnapshot(entry?.process);
+			if (!snapshot || !rendered?.body || !rendered?.content) {
+				return null;
+			}
+
+			let stream;
+			if (rendered.processShell?.isConnected && rendered.processNarration && rendered.processAction) {
+				stream = {
+					shell: rendered.processShell,
+					narration: rendered.processNarration,
+					action: rendered.processAction,
+				};
+			} else {
+				stream = buildAssistantProcessShell();
+				rendered.body.insertBefore(stream.shell, rendered.content);
+				rendered.processShell = stream.shell;
+				rendered.processNarration = stream.narration;
+				rendered.processAction = stream.action;
+			}
+
+			stream.narration.innerHTML = "";
+			for (const lineText of snapshot.narration) {
+				const line = document.createElement("p");
+				line.className = "assistant-process-line";
+				line.textContent = lineText;
+				stream.narration.appendChild(line);
+			}
+			stream.narration.scrollTop = stream.narration.scrollHeight;
+			stream.action.textContent = snapshot.action || "等待动作";
+			stream.shell.classList.remove("tool", "ok", "error", "warn", "system", "is-running", "is-complete");
+			stream.shell.classList.add(snapshot.kind || "system");
+			stream.shell.classList.add(options?.running || !snapshot.isComplete ? "is-running" : "is-complete");
+
+			if (options?.activate) {
+				state.activeProcessShell = stream.shell;
+				state.activeProcessNarration = stream.narration;
+				state.activeProcessAction = stream.action;
+				state.lastProcessNarration = snapshot.narration.at(-1) || "";
+			}
+
+			return stream;
+		}
+
+		function syncHistoryLoadMoreButton() {
+			const hasMore = state.renderedHistoryCount < state.conversationHistory.length;
+			historyLoadMoreButton.hidden = !hasMore;
+			historyLoadMoreButton.disabled = state.historyLoadingMore;
+		}
+
+		function renderMoreConversationHistory() {
+			if (state.historyLoadingMore) {
+				return;
+			}
+
+			const remaining = state.conversationHistory.length - state.renderedHistoryCount;
+			if (remaining <= 0) {
+				syncHistoryLoadMoreButton();
+				return;
+			}
+
+			state.historyLoadingMore = true;
+			const previousHeight = transcript.scrollHeight;
+			const nextCount = Math.min(state.historyPageSize, remaining);
+			const startIndex = Math.max(0, state.conversationHistory.length - state.renderedHistoryCount - nextCount);
+			const slice = state.conversationHistory.slice(startIndex, startIndex + nextCount);
+
+			for (const entry of slice.slice().reverse()) {
+				renderTranscriptEntry(entry, "prepend");
+			}
+
+			state.renderedHistoryCount += slice.length;
+			const heightDelta = transcript.scrollHeight - previousHeight;
+			if (heightDelta > 0) {
+				transcript.scrollTop += heightDelta;
+			}
+			state.historyLoadingMore = false;
+			syncHistoryLoadMoreButton();
+		}
+
+		function restoreConversationHistory(conversationId) {
+			state.conversationHistory = loadConversationHistoryEntries(conversationId);
+			state.renderedHistoryCount = 0;
+			clearRenderedTranscript();
+
+			if (state.conversationHistory.length === 0) {
+				setTranscriptState("idle");
+				syncHistoryLoadMoreButton();
+				return;
+			}
+
+			setTranscriptState("active");
+			renderMoreConversationHistory();
+			transcript.scrollTop = transcript.scrollHeight;
+		}
+
+		function handleTranscriptScroll() {
+			if (transcript.scrollTop <= 48) {
+				renderMoreConversationHistory();
+			}
+		}
+
+		function announceFreshConversation(conversationId) {
+			appendTranscriptMessage("assistant", "助手", "当前启用新会话。\\n\\n新会话 ID: \`" + conversationId + "\`");
 		}
 
 		function formatFileSize(size) {
@@ -2246,20 +3095,23 @@ function getPlaygroundScript(): string {
 
 		function getReferencedAssets(assetRefs) {
 			return assetRefs
-				.map((assetId) => state.recentAssets.find((asset) => asset.assetId === assetId))
+				.map((asset) =>
+					typeof asset === "string" ? state.recentAssets.find((current) => current.assetId === asset) : asset,
+				)
 				.filter(Boolean);
 		}
 
 		function appendMessageFileChips(body, attachments, assetRefs) {
-			const referencedAssets = getReferencedAssets(assetRefs);
-			if (attachments.length === 0 && referencedAssets.length === 0) {
+			const normalizedAttachments = Array.isArray(attachments) ? attachments : [];
+			const referencedAssets = getReferencedAssets(Array.isArray(assetRefs) ? assetRefs : []);
+			if (normalizedAttachments.length === 0 && referencedAssets.length === 0) {
 				return;
 			}
 
 			const strip = document.createElement("div");
 			strip.className = "message-file-strip";
 
-			for (const attachment of attachments) {
+			for (const attachment of normalizedAttachments) {
 				strip.appendChild(
 					createFileChip({
 						tone: "pending",
@@ -2292,12 +3144,35 @@ function getPlaygroundScript(): string {
 		}
 
 		function appendUserTranscriptMessage(message, attachments, assetRefs) {
-			const content = appendTranscriptMessage("user", state.conversationId, message);
-			const body = content.parentElement;
-			if (body) {
-				appendMessageFileChips(body, attachments, assetRefs);
+			return appendTranscriptMessage("user", state.conversationId, message, {
+				attachments,
+				assetRefs,
+			});
+		}
+
+		function appendFileDownloadList(container, files) {
+			if (!Array.isArray(files) || files.length === 0) {
+				return;
 			}
-			return content;
+
+			const downloads = document.createElement("div");
+			downloads.className = "file-downloads";
+
+			for (const file of files) {
+				const item = document.createElement("div");
+				item.className = "file-download";
+				item.innerHTML = "<div><strong></strong><span></span></div><a></a>";
+				item.querySelector("strong").textContent = file.fileName || "download";
+				item.querySelector("span").textContent =
+					(file.mimeType || "application/octet-stream") + " / " + formatFileSize(file.sizeBytes);
+				const link = item.querySelector("a");
+				link.href = file.downloadUrl;
+				link.download = file.fileName || "";
+				link.textContent = "下载";
+				downloads.appendChild(item);
+			}
+
+			container.appendChild(downloads);
 		}
 
 		function renderAssetPickerList() {
@@ -2532,61 +3407,33 @@ function getPlaygroundScript(): string {
 			if (!Array.isArray(files) || files.length === 0) {
 				return;
 			}
-			const content = appendTranscriptMessage("system", "\\u6587\\u4ef6", "\\u52a9\\u624b\\u5df2\\u53d1\\u9001 " + files.length + " \\u4e2a\\u6587\\u4ef6");
-			const downloads = document.createElement("div");
-			downloads.className = "file-downloads";
-
-			for (const file of files) {
-				const item = document.createElement("div");
-				item.className = "file-download";
-				item.innerHTML = "<div><strong></strong><span></span></div><a></a>";
-				item.querySelector("strong").textContent = file.fileName || "download";
-				item.querySelector("span").textContent = (file.mimeType || "application/octet-stream") + " / " + formatFileSize(file.sizeBytes);
-				const link = item.querySelector("a");
-				link.href = file.downloadUrl;
-				link.download = file.fileName || "";
-				link.textContent = "\\u4e0b\\u8f7d";
-				downloads.appendChild(item);
-			}
-
-			content.appendChild(downloads);
-			scrollTranscriptToBottom();
+			appendTranscriptMessage("system", "\\u6587\\u4ef6", "\\u52a9\\u624b\\u5df2\\u53d1\\u9001 " + files.length + " \\u4e2a\\u6587\\u4ef6", {
+				files,
+			});
 		}
 
-		function appendTranscriptMessage(kind, title, text) {
+		function appendTranscriptMessage(kind, title, text, options) {
 			setTranscriptState("active");
-			const card = document.createElement("article");
-			const visualKind = kind === "system" ? "assistant" : kind;
-			card.className = "message " + visualKind;
-			card.dataset.messageKind = kind;
-
-			const meta = document.createElement("div");
-			meta.className = "message-meta";
-			const metaTime = new Date().toLocaleTimeString();
-			if (kind === "user") {
-				meta.innerHTML = "<span>" + metaTime + "</span>";
-			} else {
-				const metaTitle = title;
-				meta.innerHTML = "<strong>" + metaTitle + "</strong><span>" + metaTime + "</span>";
-			}
-
-			const body = document.createElement("div");
-			body.className = "message-body";
-			const content = document.createElement("div");
-			content.className = "message-content";
-			setMessageContent(content, text);
-
-			body.appendChild(content);
-
-			card.appendChild(meta);
-			card.appendChild(body);
-			transcript.appendChild(card);
+			const entry = buildTranscriptEntry(kind, title, text, options);
+			rememberConversationMessage(entry);
+			const rendered = renderTranscriptEntry(entry, options?.insertMode);
+			state.renderedHistoryCount = Math.min(state.conversationHistory.length, state.renderedHistoryCount + 1);
+			syncHistoryLoadMoreButton();
 			scrollTranscriptToBottom();
-			return content;
+			return rendered.content;
 		}
 
 		function setMessageContent(content, text) {
 			const nextText = String(text || "");
+			const entryId = content.dataset.entryId;
+			if (entryId) {
+				const historyEntry = state.conversationHistory.find((entry) => entry.id === entryId);
+				if (historyEntry) {
+					historyEntry.text = nextText;
+					rememberConversationMessage(historyEntry);
+					syncMessageCopyButton(historyEntry);
+				}
+			}
 			if (nextText.trim()) {
 				content.innerHTML = renderMessageMarkdown(nextText);
 				content.classList.remove("is-empty");
@@ -2600,30 +3447,19 @@ function getPlaygroundScript(): string {
 
 		function appendAssistantProcessMessage(title, text) {
 			setTranscriptState("active");
-			const card = document.createElement("article");
-			card.className = "message assistant";
-			card.dataset.messageKind = "assistant";
-
-			const meta = document.createElement("div");
-			meta.className = "message-meta";
-			meta.innerHTML = "<strong>" + title + "</strong><span>" + new Date().toLocaleTimeString() + "</span>";
-
-			const body = document.createElement("div");
-			body.className = "message-body";
+			const entry = buildTranscriptEntry("assistant", title, text);
+			rememberConversationMessage(entry);
+			const rendered = renderTranscriptEntry(entry);
+			state.renderedHistoryCount = Math.min(state.conversationHistory.length, state.renderedHistoryCount + 1);
+			syncHistoryLoadMoreButton();
 			const stream = buildAssistantProcessShell();
-			const content = document.createElement("div");
-			content.className = "message-content";
-			setMessageContent(content, text);
-
-			body.appendChild(stream.shell);
-			body.appendChild(content);
-			card.appendChild(meta);
-			card.appendChild(body);
-			transcript.appendChild(card);
+			rendered.body.insertBefore(stream.shell, rendered.content);
+			attachAssistantLoadingBubble(rendered.body, rendered.content);
 			scrollTranscriptToBottom();
 
 			return {
-				content,
+				entry,
+				content: rendered.content,
 				shell: stream.shell,
 				narration: stream.narration,
 				action: stream.action,
@@ -2731,6 +3567,39 @@ function getPlaygroundScript(): string {
 				narration: state.activeProcessNarration,
 				action: state.activeProcessAction,
 			});
+			persistActiveProcessSnapshot();
+		}
+
+		function persistActiveProcessSnapshot() {
+			const entryId = state.activeAssistantContent?.dataset.entryId;
+			if (!entryId) {
+				return;
+			}
+
+			const historyEntry = state.conversationHistory.find((entry) => entry.id === entryId);
+			if (!historyEntry) {
+				return;
+			}
+
+			const narration = state.activeProcessNarration
+				? Array.from(state.activeProcessNarration.querySelectorAll(".assistant-process-line")).map((line) => line.textContent || "")
+				: [];
+			const shell = state.activeProcessShell;
+			const kind =
+				["tool", "ok", "error", "warn", "system"].find((className) => shell?.classList.contains(className)) || "system";
+			const process = normalizeProcessSnapshot({
+				narration,
+				action: state.activeProcessAction?.textContent || "",
+				kind,
+				isComplete: Boolean(shell?.classList.contains("is-complete")),
+			});
+
+			if (process) {
+				historyEntry.process = process;
+			} else {
+				delete historyEntry.process;
+			}
+			rememberConversationMessage(historyEntry);
 		}
 
 		function appendProcessNarrationLine(text) {
@@ -2742,12 +3611,14 @@ function getPlaygroundScript(): string {
 			const stream = ensureProcessStreamCard();
 			appendNarrationToAssistantProcess(stream, lineText);
 			state.lastProcessNarration = lineText;
+			persistActiveProcessSnapshot();
 		}
 
 		function setProcessCurrentAction(text, kind) {
 			const actionText = String(text || "").trim() || "等待动作";
 			const stream = ensureProcessStreamCard();
 			setAssistantProcessAction(stream, actionText, kind);
+			persistActiveProcessSnapshot();
 		}
 
 		function appendNarrationToAssistantProcess(stream, text) {
@@ -2769,7 +3640,7 @@ function getPlaygroundScript(): string {
 			}
 
 			stream.action.textContent = String(text || "").trim() || "等待动作";
-			stream.shell.classList.remove("tool", "ok", "error", "system");
+			stream.shell.classList.remove("tool", "ok", "error", "warn", "system");
 			stream.shell.classList.add(kind || "system");
 			scrollTranscriptToBottom();
 		}
@@ -2780,7 +3651,7 @@ function getPlaygroundScript(): string {
 			}
 
 			if (kind) {
-				stream.shell.classList.remove("tool", "ok", "error", "system");
+				stream.shell.classList.remove("tool", "ok", "error", "warn", "system");
 				stream.shell.classList.add(kind);
 			}
 			stream.shell.classList.remove("is-running");
@@ -2999,6 +3870,9 @@ function getPlaygroundScript(): string {
 		function resetStreamingState() {
 			state.streamingText = "";
 			state.activeAssistantContent = null;
+			state.activeLoadingShell = null;
+			state.activeLoadingLabel = null;
+			state.activeLoadingDots = null;
 			state.activeProcessShell = null;
 			state.activeProcessNarration = null;
 			state.activeProcessAction = null;
@@ -3006,18 +3880,25 @@ function getPlaygroundScript(): string {
 			state.receivedDoneEvent = false;
 		}
 
-		function resetConversation() {
+		function resetConversation(options) {
+			stopActiveRunEventStream();
 			setStageMode("landing");
 			setTranscriptState("idle");
 			conversationInput.value = "manual:web-" + crypto.randomUUID().slice(0, 12);
 			state.conversationId = conversationInput.value;
 			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
 			sessionFile.textContent = "尚未分配";
-			transcript.innerHTML = "";
+			state.conversationHistory = [];
+			state.renderedHistoryCount = 0;
+			clearRenderedTranscript();
 			resetStreamingState();
 			clearSelectedFiles();
 			clearSelectedAssetRefs();
 			clearError();
+			syncHistoryLoadMoreButton();
+			if (options?.announce !== false) {
+				announceFreshConversation(state.conversationId);
+			}
 		}
 
 		function describeToolEvent(event, prefix) {
@@ -3028,16 +3909,21 @@ function getPlaygroundScript(): string {
 		function handleStreamEvent(event) {
 			switch (event.type) {
 				case "run_started":
+					ensureStreamingAssistantMessage();
+					setAssistantLoadingState("正在接手任务", "system");
 					updateStreamingProcess("system", "任务开始", event.conversationId);
 					statusPill.textContent = "运行中";
 					break;
 				case "tool_started":
+					setAssistantLoadingState("正在调用工具", "tool");
 					updateStreamingProcess("tool", "工具开始", describeToolEvent(event, "调用"));
 					break;
 				case "tool_updated":
+					setAssistantLoadingState("正在等待工具返回", "tool");
 					updateStreamingProcess("tool", "工具更新", describeToolEvent(event, "片段"));
 					break;
 				case "tool_finished":
+					setAssistantLoadingState(event.isError ? "工具步骤失败" : "工具步骤已完成", event.isError ? "error" : "system");
 					updateStreamingProcess(
 						event.isError ? "error" : "ok",
 						"工具结束",
@@ -3045,6 +3931,7 @@ function getPlaygroundScript(): string {
 					);
 					break;
 				case "queue_updated":
+					setAssistantLoadingState("正在等待当前步骤收尾", "system");
 					updateStreamingProcess(
 						"system",
 						"队列更新",
@@ -3053,15 +3940,16 @@ function getPlaygroundScript(): string {
 					break;
 				case "interrupted":
 					updateStreamingProcess("system", "任务已打断", event.conversationId);
+					completeAssistantLoadingBubble("warn", "本轮已中断");
 					completeProcessStream();
+					setLoading(false);
 					statusPill.textContent = "已打断";
 					break;
 				case "text_delta": {
 					state.streamingText += event.textDelta;
 					const content = ensureStreamingAssistantMessage();
-					content.innerHTML = renderMessageMarkdown(state.streamingText);
-					content.classList.remove("is-empty");
-					hydrateMarkdownContent(content);
+					setAssistantLoadingState("正在生成回复", "system");
+					setMessageContent(content, state.streamingText);
 					scrollTranscriptToBottom();
 					break;
 				}
@@ -3070,23 +3958,25 @@ function getPlaygroundScript(): string {
 					sessionFile.textContent = event.sessionFile || "不可用";
 					if (event.text && event.text !== state.streamingText) {
 						const content = ensureStreamingAssistantMessage();
-						content.innerHTML = renderMessageMarkdown(event.text);
-						content.classList.toggle("is-empty", !event.text.trim());
-						hydrateMarkdownContent(content);
+						setMessageContent(content, event.text);
 						state.streamingText = event.text;
 					}
 					mergeRecentAssets(event.inputAssets);
 					appendFileDownloads(event.files);
 					void loadAssets(true);
 					updateStreamingProcess("ok", "任务完成", event.sessionFile || "未返回会话文件");
+					completeAssistantLoadingBubble("ok", "本轮已完成");
 					completeProcessStream();
+					setLoading(false);
 					statusPill.textContent = "完成";
 					break;
 				}
 				case "error":
 					showError(event.message);
 					updateStreamingProcess("error", "任务错误", event.message);
+					completeAssistantLoadingBubble("error", "本轮执行失败");
 					completeProcessStream();
+					setLoading(false);
 					break;
 				default:
 					updateStreamingProcess("system", "事件", JSON.stringify(event));
@@ -3148,7 +4038,12 @@ function getPlaygroundScript(): string {
 			ensureConversationId();
 			clearError();
 
-			if (state.loading) {
+			const liveRunState = await syncConversationRunState(state.conversationId, {
+				silent: true,
+				clearIfIdle: state.loading,
+			});
+
+			if (liveRunState.running) {
 				if (isInterruptIntentMessage(outboundMessage) && attachments.length === 0 && assetRefs.length === 0) {
 					appendTranscriptMessage("user", state.conversationId, outboundMessage);
 					updateStreamingProcess("system", "检测到停止意图", "本次发送改为直接打断当前任务");
@@ -3161,10 +4056,13 @@ function getPlaygroundScript(): string {
 			}
 
 			setTranscriptState("active");
+			stopActiveRunEventStream();
 			resetStreamingState();
 			appendUserTranscriptMessage(message, attachments, assetRefs);
 			updateStreamingProcess("system", "请求已发送", formatOutboundSummary(message, attachments, assetRefs));
 			setLoading(true);
+			ensureStreamingAssistantMessage();
+			setAssistantLoadingState("正在等待 Agent 开始处理", "system");
 
 			try {
 				const payload = {
@@ -3189,6 +4087,7 @@ function getPlaygroundScript(): string {
 					const errorMessage = body?.error?.message || body?.message || "未知错误";
 					showError(errorMessage);
 					updateStreamingProcess("error", "请求被拒绝", errorMessage);
+					completeAssistantLoadingBubble("error", "本轮执行失败");
 					completeProcessStream();
 					appendTranscriptMessage("error", "服务端", errorMessage);
 					return;
@@ -3199,6 +4098,7 @@ function getPlaygroundScript(): string {
 				if (!state.receivedDoneEvent && !errorBanner.classList.contains("visible")) {
 					showError("流已结束，但没有收到完成事件");
 					updateStreamingProcess("error", "流被中断", "缺少 done 事件");
+					completeAssistantLoadingBubble("error", "本轮异常结束");
 					completeProcessStream();
 				}
 
@@ -3209,18 +4109,27 @@ function getPlaygroundScript(): string {
 					messageInput.focus();
 				}
 			} catch (error) {
+				if (isPageUnloadStreamError(error)) {
+					return;
+				}
+
 				const messageText = error instanceof Error ? error.message : "请求失败";
 				showError(messageText);
 				updateStreamingProcess("error", "网络错误", messageText);
+				completeAssistantLoadingBubble("error", "本轮执行失败");
 				completeProcessStream();
 				appendTranscriptMessage("error", "网络", messageText);
 			} finally {
-				setLoading(false);
+				if (!state.pageUnloading) {
+					setLoading(false);
+				}
 			}
 		}
 
-		async function queueActiveMessage(message, attachments, assetRefs) {
-			appendUserTranscriptMessage(message, attachments, assetRefs);
+		async function queueActiveMessage(message, attachments, assetRefs, options) {
+			if (options?.appendTranscript !== false) {
+				appendUserTranscriptMessage(message, attachments, assetRefs);
+			}
 
 			try {
 				const payloadBody = {
@@ -3276,11 +4185,24 @@ function getPlaygroundScript(): string {
 				});
 				const payload = await response.json().catch(() => ({}));
 				if (!response.ok || !payload.interrupted) {
+					if (payload?.reason === "not_running") {
+						updateStreamingProcess("ok", "任务状态已同步", "后端没有正在运行的任务");
+						stopActiveRunEventStream();
+						completeAssistantLoadingBubble("ok", "当前任务已结束");
+						completeProcessStream();
+						setLoading(false);
+						statusPill.textContent = "已结束";
+						return;
+					}
 					const errorMessage = getControlActionErrorMessage("interrupt", payload, "当前任务无法打断");
 					showError(errorMessage);
 					return;
 				}
 				updateStreamingProcess("ok", "打断请求已接受", state.conversationId);
+				completeAssistantLoadingBubble("warn", "本轮已中断");
+				completeProcessStream();
+				setLoading(false);
+				statusPill.textContent = "已打断";
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "打断请求失败";
 				showError(messageText);
@@ -3290,12 +4212,14 @@ function getPlaygroundScript(): string {
 		async function loadSkills() {
 			clearError();
 			const skillReply = appendAssistantProcessMessage("助手", "");
+			setAssistantLoadingState("正在检查技能状态", "system");
 			appendNarrationToAssistantProcess(skillReply, "我接收到查看技能的指令，先确认运行时技能接口。");
 			setAssistantProcessAction(skillReply, "接收指令 · 查看技能", "system");
 			viewSkillsButton.disabled = true;
 
 			try {
 				appendNarrationToAssistantProcess(skillReply, "我开始请求 /v1/debug/skills，读取当前运行时技能。");
+				setAssistantLoadingState("正在查询技能接口", "tool");
 				setAssistantProcessAction(skillReply, "查询接口 · GET /v1/debug/skills", "tool");
 				const response = await fetch("/v1/debug/skills", {
 					method: "GET",
@@ -3309,6 +4233,7 @@ function getPlaygroundScript(): string {
 					appendNarrationToAssistantProcess(skillReply, "技能接口返回了错误，我先把失败状态告诉你。");
 					setMessageContent(skillReply.content, "我这次没查到技能清单，接口返回了错误：\\n\\n" + errorMessage);
 					setAssistantProcessAction(skillReply, "返回结果 · 技能查询失败", "error");
+					completeAssistantLoadingBubble("error", "本轮执行失败");
 					completeAssistantProcessShell(skillReply, "error");
 					return;
 				}
@@ -3320,6 +4245,7 @@ function getPlaygroundScript(): string {
 				setMessageContent(skillReply.content, formatSkillsReply(payload?.skills));
 				appendNarrationToAssistantProcess(skillReply, "结果已经整理好了，现在给你一条简洁结论。");
 				setAssistantProcessAction(skillReply, "返回结果 · 技能状态已更新", "ok");
+				completeAssistantLoadingBubble("ok", "本轮已完成");
 				completeAssistantProcessShell(skillReply, "ok");
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "加载运行时技能失败";
@@ -3327,6 +4253,7 @@ function getPlaygroundScript(): string {
 				appendNarrationToAssistantProcess(skillReply, "这次请求没走通，我先把错误原因保留下来。");
 				setMessageContent(skillReply.content, "我这次没查到技能清单，请求失败：\\n\\n" + messageText);
 				setAssistantProcessAction(skillReply, "返回结果 · 请求失败", "error");
+				completeAssistantLoadingBubble("error", "本轮执行失败");
 				completeAssistantProcessShell(skillReply, "error");
 			} finally {
 				viewSkillsButton.disabled = state.loading;
@@ -3341,16 +4268,19 @@ function getPlaygroundScript(): string {
 		renderAssetPickerList();
 		void loadAssets(true);
 		if (!conversationInput.value) {
-			resetConversation();
+			resetConversation({ announce: false });
 		} else {
-			appendTranscriptMessage("system", "会话", "已从本地存储恢复会话");
-			appendProcessEvent("system", "会话已恢复", state.conversationId);
+			restoreConversationHistory(state.conversationId);
 		}
 
-		transcript.innerHTML = "";
 		resetStreamingState();
-		setTranscriptState("idle");
 		clearError();
+		if (state.conversationId) {
+			void syncConversationRunState(state.conversationId, {
+				silent: true,
+				clearIfIdle: true,
+			});
+		}
 
 		function hasDragPayload(event) {
 			return Boolean(event.dataTransfer);
@@ -3498,9 +4428,15 @@ function getPlaygroundScript(): string {
 		window.addEventListener("dragenter", preventWindowFileDrop);
 		window.addEventListener("dragover", preventWindowFileDrop);
 		window.addEventListener("drop", preventWindowFileDrop);
-		window.addEventListener("resize", syncConversationLayout);
+		window.addEventListener("resize", syncConversationWidth);
+		window.addEventListener("beforeunload", () => {
+			state.pageUnloading = true;
+		});
+		window.addEventListener("pagehide", () => {
+			state.pageUnloading = true;
+		});
 		const layoutObserver = new ResizeObserver(() => {
-			window.requestAnimationFrame(syncConversationLayout);
+			window.requestAnimationFrame(syncConversationWidth);
 		});
 		layoutObserver.observe(chatStage);
 		layoutObserver.observe(commandDeck);
@@ -3556,6 +4492,10 @@ function getPlaygroundScript(): string {
 			resetConversation();
 			messageInput.focus();
 		});
+		historyLoadMoreButton.addEventListener("click", () => {
+			renderMoreConversationHistory();
+		});
+		transcript.addEventListener("scroll", handleTranscriptScroll);
 		errorBannerClose.addEventListener("click", () => {
 			clearError();
 		});
@@ -3573,7 +4513,7 @@ function getPlaygroundScript(): string {
 			}
 		});
 
-		window.requestAnimationFrame(syncConversationLayout);
+		window.requestAnimationFrame(syncConversationWidth);
 	`;
 }
 
@@ -3671,6 +4611,7 @@ export function renderPlaygroundPage(): string {
 							<strong>对话流</strong>
 							<span>单列会话舞台会把用户与 Agent 的回应自然分层，焦点始终落在当前内容。</span>
 						</header>
+						<button id="history-load-more-button" class="history-load-more" type="button" hidden>加载更多历史</button>
 						<section id="transcript" class="transcript" aria-live="polite"></section>
 					</div>
 				</section>

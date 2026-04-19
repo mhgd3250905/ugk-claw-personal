@@ -62,6 +62,17 @@ export interface InterruptChatResult {
 	reason?: "not_running" | "abort_not_supported";
 }
 
+export interface RunStatusResult {
+	conversationId: string;
+	running: boolean;
+}
+
+export interface RunEventSubscription {
+	conversationId: string;
+	running: boolean;
+	unsubscribe: () => void;
+}
+
 export interface RuntimeSkillInfo {
 	name: string;
 	path?: string;
@@ -73,14 +84,19 @@ export interface AgentServiceOptions {
 	assetStore?: AssetStoreLike;
 }
 
+type ChatStreamEventSink = (event: ChatStreamEvent) => void;
+
+interface ActiveRunState {
+	session: AgentSessionLike;
+	interrupted: boolean;
+	events: ChatStreamEvent[];
+	subscribers: Set<ChatStreamEventSink>;
+}
+
+const MAX_BUFFERED_RUN_EVENTS = 300;
+
 export class AgentService {
-	private readonly activeRuns = new Map<
-		string,
-		{
-			session: AgentSessionLike;
-			interrupted: boolean;
-		}
-	>();
+	private readonly activeRuns = new Map<string, ActiveRunState>();
 
 	constructor(private readonly options: AgentServiceOptions) {}
 
@@ -153,9 +169,49 @@ export class AgentService {
 		};
 	}
 
+	async getRunStatus(conversationId: string): Promise<RunStatusResult> {
+		return {
+			conversationId,
+			running: this.activeRuns.has(conversationId),
+		};
+	}
+
+	subscribeRunEvents(conversationId: string, onEvent: ChatStreamEventSink): RunEventSubscription {
+		const activeRun = this.activeRuns.get(conversationId);
+		if (!activeRun) {
+			return {
+				conversationId,
+				running: false,
+				unsubscribe: () => undefined,
+			};
+		}
+
+		let replayedTerminalEvent = false;
+		for (const event of activeRun.events) {
+			this.emitEvent(onEvent, event);
+			replayedTerminalEvent ||= isTerminalChatStreamEvent(event);
+		}
+		if (replayedTerminalEvent) {
+			return {
+				conversationId,
+				running: true,
+				unsubscribe: () => undefined,
+			};
+		}
+		activeRun.subscribers.add(onEvent);
+
+		return {
+			conversationId,
+			running: true,
+			unsubscribe: () => {
+				activeRun.subscribers.delete(onEvent);
+			},
+		};
+	}
+
 	private async runChat(
 		input: ChatInput,
-		onEvent?: (event: ChatStreamEvent) => void,
+		onEvent?: ChatStreamEventSink,
 	): Promise<ChatResult> {
 		const conversationId = input.conversationId ?? `manual:${randomUUID()}`;
 		const { session, skillFingerprint } = await this.openSession(conversationId);
@@ -166,10 +222,12 @@ export class AgentService {
 		const activeRun = {
 			session,
 			interrupted: false,
+			events: [],
+			subscribers: new Set<ChatStreamEventSink>(),
 		};
 		this.activeRuns.set(conversationId, activeRun);
 
-		onEvent?.({
+		this.emitRunEvent(activeRun, onEvent, {
 			type: "run_started",
 			conversationId,
 		});
@@ -179,27 +237,29 @@ export class AgentService {
 			switch (event.type) {
 				case "message_update":
 					if (isMessageUpdateEvent(event)) {
-						text = this.handleMessageUpdate(event, text, onEvent);
+						text = this.handleMessageUpdate(event, text, (streamEvent) => {
+							this.emitRunEvent(activeRun, onEvent, streamEvent);
+						});
 					}
 					break;
 				case "tool_execution_start":
 					if (isToolExecutionStartEvent(event)) {
-						onEvent?.(this.handleToolExecutionStart(event));
+						this.emitRunEvent(activeRun, onEvent, this.handleToolExecutionStart(event));
 					}
 					break;
 				case "tool_execution_update":
 					if (isToolExecutionUpdateEvent(event)) {
-						onEvent?.(this.handleToolExecutionUpdate(event));
+						this.emitRunEvent(activeRun, onEvent, this.handleToolExecutionUpdate(event));
 					}
 					break;
 				case "tool_execution_end":
 					if (isToolExecutionEndEvent(event)) {
-						onEvent?.(this.handleToolExecutionEnd(event));
+						this.emitRunEvent(activeRun, onEvent, this.handleToolExecutionEnd(event));
 					}
 					break;
 				case "queue_update":
 					if (isQueueUpdateEvent(event)) {
-						onEvent?.({
+						this.emitRunEvent(activeRun, onEvent, {
 							type: "queue_updated",
 							steering: event.steering,
 							followUp: event.followUp,
@@ -213,68 +273,97 @@ export class AgentService {
 
 		try {
 			await session.prompt(buildPromptWithAssetContext(input.message, preparedAssets.promptAssets));
+
+			const lastAssistantMessage = [...(session.messages ?? [])].reverse().find((message) => message.role === "assistant");
+			if (lastAssistantMessage?.stopReason === "error") {
+				throw new Error(lastAssistantMessage.errorMessage ?? "Unknown upstream provider error");
+			}
+
+			if (!text) {
+				text = this.extractAssistantText(lastAssistantMessage);
+			}
+
+			let files: AgentFileArtifact[] | undefined;
+			if (this.options.assetStore) {
+				const extractedFiles = extractAgentFileDrafts(text);
+				text = extractedFiles.text;
+				files =
+					extractedFiles.files.length > 0
+						? await this.options.assetStore.saveFiles(conversationId, extractedFiles.files)
+						: undefined;
+			}
+
+			if (session.sessionFile) {
+				await this.options.conversationStore.set(conversationId, session.sessionFile, {
+					skillFingerprint,
+				});
+			}
+
+			if (activeRun.interrupted) {
+				this.emitRunEvent(activeRun, onEvent, {
+					type: "interrupted",
+					conversationId,
+				});
+			}
+
+			const result: ChatResult = {
+				conversationId,
+				text,
+				sessionFile: session.sessionFile,
+				inputAssets: preparedAssets.uploadedAssets.length > 0 ? preparedAssets.uploadedAssets : undefined,
+				files: files && files.length > 0 ? files : undefined,
+			};
+
+			const doneEvent: ChatStreamEvent = {
+				type: "done",
+				conversationId: result.conversationId,
+				text: result.text,
+				sessionFile: result.sessionFile,
+			};
+			if (result.files) {
+				doneEvent.files = result.files;
+			}
+			if (result.inputAssets) {
+				doneEvent.inputAssets = result.inputAssets;
+			}
+			this.emitRunEvent(activeRun, onEvent, doneEvent);
+
+			return result;
 		} finally {
 			unsubscribe();
 			if (this.activeRuns.get(conversationId) === activeRun) {
 				this.activeRuns.delete(conversationId);
 			}
+			activeRun.subscribers.clear();
+		}
+	}
+
+	private emitRunEvent(
+		activeRun: ActiveRunState,
+		primarySink: ChatStreamEventSink | undefined,
+		event: ChatStreamEvent,
+	): void {
+		activeRun.events.push(event);
+		if (activeRun.events.length > MAX_BUFFERED_RUN_EVENTS) {
+			activeRun.events.shift();
 		}
 
-		const lastAssistantMessage = [...(session.messages ?? [])].reverse().find((message) => message.role === "assistant");
-		if (lastAssistantMessage?.stopReason === "error") {
-			throw new Error(lastAssistantMessage.errorMessage ?? "Unknown upstream provider error");
+		this.emitEvent(primarySink, event);
+		for (const subscriber of activeRun.subscribers) {
+			this.emitEvent(subscriber, event);
+		}
+	}
+
+	private emitEvent(onEvent: ChatStreamEventSink | undefined, event: ChatStreamEvent): void {
+		if (!onEvent) {
+			return;
 		}
 
-		if (!text) {
-			text = this.extractAssistantText(lastAssistantMessage);
+		try {
+			onEvent(event);
+		} catch {
+			// Event delivery is best-effort; a dead SSE client must not cancel the agent run.
 		}
-
-		let files: AgentFileArtifact[] | undefined;
-		if (this.options.assetStore) {
-			const extractedFiles = extractAgentFileDrafts(text);
-			text = extractedFiles.text;
-			files =
-				extractedFiles.files.length > 0
-					? await this.options.assetStore.saveFiles(conversationId, extractedFiles.files)
-					: undefined;
-		}
-
-		if (session.sessionFile) {
-			await this.options.conversationStore.set(conversationId, session.sessionFile, {
-				skillFingerprint,
-			});
-		}
-
-		if (activeRun.interrupted) {
-			onEvent?.({
-				type: "interrupted",
-				conversationId,
-			});
-		}
-
-		const result: ChatResult = {
-			conversationId,
-			text,
-			sessionFile: session.sessionFile,
-			inputAssets: preparedAssets.uploadedAssets.length > 0 ? preparedAssets.uploadedAssets : undefined,
-			files: files && files.length > 0 ? files : undefined,
-		};
-
-		const doneEvent: ChatStreamEvent = {
-			type: "done",
-			conversationId: result.conversationId,
-			text: result.text,
-			sessionFile: result.sessionFile,
-		};
-		if (result.files) {
-			doneEvent.files = result.files;
-		}
-		if (result.inputAssets) {
-			doneEvent.inputAssets = result.inputAssets;
-		}
-		onEvent?.(doneEvent);
-
-		return result;
 	}
 
 	private async openSession(
@@ -363,7 +452,7 @@ export class AgentService {
 
 		const delta = event.assistantMessageEvent.delta;
 		const nextText = currentText + delta;
-		onEvent?.({
+		this.emitEvent(onEvent, {
 			type: "text_delta",
 			textDelta: delta,
 		});
@@ -516,4 +605,8 @@ function isToolExecutionEndEvent(event: RawAgentSessionEventLike): event is Tool
 
 function isQueueUpdateEvent(event: RawAgentSessionEventLike): event is QueueUpdateEventLike {
 	return event.type === "queue_update" && Array.isArray(event.steering) && Array.isArray(event.followUp);
+}
+
+function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
+	return event.type === "done" || event.type === "interrupted" || event.type === "error";
 }

@@ -14,6 +14,15 @@ function createAgentServiceStub(overrides?: {
 	) => Promise<void>;
 	queueMessage?: AgentService["queueMessage"];
 	interruptChat?: AgentService["interruptChat"];
+	getRunStatus?: (conversationId: string) => Promise<{ conversationId: string; running: boolean }>;
+	subscribeRunEvents?: (
+		conversationId: string,
+		onEvent: (event: StreamEvent) => void,
+	) => {
+		conversationId: string;
+		running: boolean;
+		unsubscribe: () => void;
+	};
 	getAvailableSkills?: () => Promise<Array<{ name: string; path?: string }>>;
 }): AgentService {
 	return {
@@ -60,6 +69,19 @@ function createAgentServiceStub(overrides?: {
 			(async (input) => ({
 				conversationId: input.conversationId,
 				interrupted: true,
+			})),
+		getRunStatus:
+			overrides?.getRunStatus ??
+			(async (conversationId) => ({
+				conversationId,
+				running: false,
+			})),
+		subscribeRunEvents:
+			overrides?.subscribeRunEvents ??
+			((conversationId) => ({
+				conversationId,
+				running: false,
+				unsubscribe: () => undefined,
 			})),
 		getAvailableSkills:
 			overrides?.getAvailableSkills ??
@@ -344,7 +366,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*max-height:\s*100%;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border-radius: 4px;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*background: rgba\(148, 190, 218, 0\.16\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*background: rgba\(90, 82, 122, 0\.22\);/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
 	assert.match(response.body, /const commandDeck = document\.getElementById\("command-deck"\);/);
 	assert.match(response.body, /function syncConversationLayout\(\) \{/);
@@ -425,6 +447,117 @@ test("GET /playground embeds syntactically valid browser script", async () => {
 	assert.doesNotThrow(() => {
 		new Function(scriptMatch[1]);
 	});
+	await app.close();
+});
+
+test("GET /playground embeds conversation history restore and message copy controls", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /ugk-pi:conversation-history-index/);
+	assert.match(response.body, /function getConversationHistoryStorageKey\(conversationId\)\s*\{/);
+	assert.match(response.body, /function restoreConversationHistory\(conversationId\)\s*\{/);
+	assert.match(response.body, /function renderMoreConversationHistory\(\)\s*\{/);
+	assert.match(response.body, /function handleTranscriptScroll\(\)\s*\{/);
+	assert.match(response.body, /transcript\.addEventListener\("scroll", handleTranscriptScroll\)/);
+	assert.match(response.body, /id="history-load-more-button"/);
+	assert.match(response.body, /当前启用新会话/);
+	assert.match(response.body, /function announceFreshConversation\(conversationId\)\s*\{/);
+	assert.match(response.body, /function createMessageActions\(entry, content\)\s*\{/);
+	assert.match(response.body, /message-actions/);
+	assert.match(response.body, /message-copy-button/);
+	assert.match(response.body, /copyButton\.textContent = "复制正文"/);
+	assert.match(response.body, /await copyTextToClipboard\(entry\.text \|\| ""\)/);
+	await app.close();
+});
+
+test("GET /playground uses the deeper cosmic palette instead of bright blue neon", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /--bg:\s*#01030a;/);
+	assert.match(response.body, /--bg-panel:\s*#060711;/);
+	assert.match(response.body, /--accent:\s*#c9d2ff;/);
+	assert.match(response.body, /radial-gradient\(circle at 18% 14%, rgba\(121, 105, 214, 0\.14\), transparent 0 18%\)/);
+	assert.match(response.body, /linear-gradient\(180deg, #02030a 0%, #04050d 38%, #090611 100%\)/);
+	assert.doesNotMatch(response.body, /--accent:\s*#5fd1ff;/);
+	assert.doesNotMatch(response.body, /radial-gradient\(circle at 18% 16%, rgba\(123, 178, 255, 0\.14\), transparent 0 18%\)/);
+	await app.close();
+});
+
+test("GET /playground shows an explicit assistant loading bubble while a run is in flight", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /assistant-loading-shell/);
+	assert.match(response.body, /assistant-loading-label/);
+	assert.match(response.body, /assistant-loading-dots/);
+	assert.match(response.body, /function ensureAssistantLoadingBubble\(\)\s*\{/);
+	assert.match(response.body, /function setAssistantLoadingState\(text, kind\)\s*\{/);
+	assert.match(response.body, /function completeAssistantLoadingBubble\(kind, text\)\s*\{/);
+	assert.match(response.body, /case "run_started":[\s\S]*ensureStreamingAssistantMessage\(\);[\s\S]*setAssistantLoadingState\(/);
+	assert.match(response.body, /case "text_delta":[\s\S]*setAssistantLoadingState\("正在生成回复", "system"\)/);
+	assert.match(response.body, /case "done":[\s\S]*completeAssistantLoadingBubble\("ok", "本轮已完成"\)/);
+	await app.close();
+});
+
+test("GET /playground restores running conversations after refresh and avoids reopening the same stream", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /\/v1\/chat\/status\?/);
+	assert.match(response.body, /\/v1\/chat\/events\?/);
+	assert.match(response.body, /async function fetchConversationRunStatus\(conversationId\)\s*\{/);
+	assert.match(response.body, /function stopActiveRunEventStream\(\)\s*\{/);
+	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
+	assert.match(response.body, /async function syncConversationRunState\(conversationId, options\)\s*\{/);
+	assert.match(response.body, /function findLatestUserHistoryEntry\(\)\s*\{/);
+	assert.match(response.body, /function formatRecoveredRunMessage\(\)\s*\{/);
+	assert.match(response.body, /setMessageContent\(content, formatRecoveredRunMessage\(\)\)/);
+	assert.match(response.body, /function normalizeProcessSnapshot\(rawProcess\)\s*\{/);
+	assert.match(response.body, /process: normalizeProcessSnapshot\(rawEntry\.process\)/);
+	assert.match(response.body, /function restoreProcessSnapshot\(entry, rendered, options\)\s*\{/);
+	assert.match(response.body, /restoreProcessSnapshot\(entry, rendered/);
+	assert.match(response.body, /function persistActiveProcessSnapshot\(\)\s*\{/);
+	assert.match(response.body, /persistActiveProcessSnapshot\(\)/);
+	assert.match(response.body, /function isPageUnloadStreamError\(error\)\s*\{/);
+	assert.match(response.body, /if \(isPageUnloadStreamError\(error\)\) \{/);
+	assert.match(response.body, /function isTransientNetworkHistoryEntry\(entry\)\s*\{/);
+	assert.match(response.body, /filter\(\(entry\) => !isTransientNetworkHistoryEntry\(entry\)\)/);
+	assert.match(response.body, /setAssistantLoadingState\("当前正在运行", "system"\)/);
+	assert.match(response.body, /void attachActiveRunEventStream\(nextConversationId\)/);
+	assert.doesNotMatch(response.body, /上一轮/);
+	assert.match(response.body, /const liveRunState = await syncConversationRunState\(state\.conversationId, \{/);
+	assert.match(response.body, /if \(liveRunState\.running\) \{[\s\S]*await queueActiveMessage\(outboundMessage, attachments, assetRefs\);/);
+	assert.match(response.body, /async function interruptRun\(\)\s*\{[\s\S]*completeAssistantLoadingBubble\("warn", "本轮已中断"\);[\s\S]*setLoading\(false\);/);
 	await app.close();
 });
 
@@ -793,6 +926,79 @@ test("GET /v1/debug/skills returns the runtime skill registry", async () => {
 			{ name: "web-access", path: "E:/AII/ugk-pi/runtime/skills-user/web-access/SKILL.md" },
 		],
 	});
+	await app.close();
+});
+
+test("GET /v1/chat/status returns whether the conversation is currently running", async () => {
+	const calls: string[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			getRunStatus: async (conversationId) => {
+				calls.push(conversationId);
+				return {
+					conversationId,
+					running: true,
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/chat/status?conversationId=manual:refresh-run",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conversationId: "manual:refresh-run",
+		running: true,
+	});
+	assert.deepEqual(calls, ["manual:refresh-run"]);
+	await app.close();
+});
+
+test("GET /v1/chat/events attaches to the current active run event stream", async () => {
+	const calls: string[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			subscribeRunEvents: (conversationId, onEvent) => {
+				calls.push(conversationId);
+				onEvent({
+					type: "run_started",
+					conversationId,
+				});
+				onEvent({
+					type: "text_delta",
+					textDelta: "after refresh",
+				});
+				onEvent({
+					type: "done",
+					conversationId,
+					text: "after refresh",
+					sessionFile: "E:/sessions/events.jsonl",
+				});
+				return {
+					conversationId,
+					running: true,
+					unsubscribe: () => {
+						calls.push("unsubscribed");
+					},
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/chat/events?conversationId=manual:events",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] ?? "", /^text\/event-stream/);
+	assert.match(response.body, /"type":"run_started"/);
+	assert.match(response.body, /"type":"text_delta"/);
+	assert.match(response.body, /"type":"done"/);
+	assert.deepEqual(calls, ["manual:events", "unsubscribed"]);
 	await app.close();
 });
 

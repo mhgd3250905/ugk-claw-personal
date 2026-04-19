@@ -6,6 +6,7 @@ import type {
 	ChatAssetBody,
 	ChatRequestBody,
 	ChatResponseBody,
+	ChatStatusResponseBody,
 	ChatStreamEvent,
 	DebugSkillsResponseBody,
 	ErrorResponseBody,
@@ -40,7 +41,25 @@ function sendInternalError(reply: FastifyReply, error: unknown): FastifyReply {
 }
 
 function writeSseEvent(raw: ServerResponse, event: ChatStreamEvent): void {
-	raw.write(`data: ${JSON.stringify(event)}\n\n`);
+	if (raw.destroyed || raw.writableEnded) {
+		return;
+	}
+
+	try {
+		raw.write(`data: ${JSON.stringify(event)}\n\n`);
+	} catch {
+		// Browser refresh closes the SSE response, but the agent run should keep working.
+	}
+}
+
+function endSseResponse(raw: ServerResponse): void {
+	if (!raw.destroyed && !raw.writableEnded) {
+		raw.end();
+	}
+}
+
+function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
+	return event.type === "done" || event.type === "interrupted" || event.type === "error";
 }
 
 function isValidMessage(message: unknown): message is string {
@@ -132,6 +151,84 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		};
 	});
 
+	app.get(
+		"/v1/chat/status",
+		async (
+			request: FastifyRequest<{ Querystring: { conversationId?: string } }>,
+			reply,
+		): Promise<ChatStatusResponseBody | FastifyReply> => {
+			const { conversationId } = request.query ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+
+			try {
+				return await deps.agentService.getRunStatus(conversationId);
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
+		},
+	);
+
+	app.get(
+		"/v1/chat/events",
+		async (
+			request: FastifyRequest<{ Querystring: { conversationId?: string } }>,
+			reply,
+		): Promise<FastifyReply | void> => {
+			const { conversationId } = request.query ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+
+			reply.hijack();
+			reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+			reply.raw.setHeader("Cache-Control", "no-cache, no-transform");
+			reply.raw.setHeader("Connection", "keep-alive");
+			reply.raw.setHeader("X-Accel-Buffering", "no");
+			reply.raw.flushHeaders?.();
+
+			let subscription:
+				| {
+						running: boolean;
+						unsubscribe: () => void;
+				  }
+				| undefined;
+			let closed = false;
+			const closeStream = () => {
+				if (closed) {
+					return;
+				}
+				closed = true;
+				subscription?.unsubscribe();
+				endSseResponse(reply.raw);
+			};
+
+			request.raw.on("close", closeStream);
+
+			subscription = deps.agentService.subscribeRunEvents(conversationId, (event) => {
+				writeSseEvent(reply.raw, event);
+				if (isTerminalChatStreamEvent(event)) {
+					closeStream();
+				}
+			});
+
+			if (!subscription.running) {
+				writeSseEvent(reply.raw, {
+					type: "error",
+					message: `Conversation ${conversationId} is not running`,
+				});
+				closeStream();
+			}
+
+			if (closed) {
+				subscription.unsubscribe();
+			}
+		},
+	);
+
 	app.post(
 		"/v1/chat",
 		async (
@@ -210,7 +307,9 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					message: messageText,
 				});
 			} finally {
-				reply.raw.end();
+				if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+					reply.raw.end();
+				}
 			}
 		},
 	);

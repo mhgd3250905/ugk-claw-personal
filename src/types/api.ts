@@ -121,6 +121,11 @@ export interface DebugSkillsResponseBody {
 	}>;
 }
 
+export interface ChatStatusResponseBody {
+	conversationId: string;
+	running: boolean;
+}
+
 export type QueueMessageMode = "steer" | "followUp";
 
 export interface QueueMessageRequestBody {

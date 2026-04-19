@@ -62,6 +62,10 @@ class FakeSession implements AgentSessionLike {
 		this.abortCalls += 1;
 	}
 
+	emit(event: MessageUpdateEventLike): void {
+		this.listener?.(event);
+	}
+
 	private listener?: (event: MessageUpdateEventLike) => void;
 }
 
@@ -499,6 +503,85 @@ test("queueMessage can enqueue a follow-up after the active turn", async () => {
 	await run;
 });
 
+test("getRunStatus reports whether a conversation is actively streaming", async () => {
+	const store = await createStore();
+	const activeSession = new DeferredSession("E:/sessions/status.jsonl");
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:status",
+			message: "start",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+
+	assert.deepEqual(await service.getRunStatus("manual:status"), {
+		conversationId: "manual:status",
+		running: true,
+	});
+
+	activeSession.finish();
+	await run;
+
+	assert.deepEqual(await service.getRunStatus("manual:status"), {
+		conversationId: "manual:status",
+		running: false,
+	});
+});
+
+test("subscribeRunEvents replays buffered events and keeps streaming live active run updates", async () => {
+	const store = await createStore();
+	const activeSession = new DeferredSession("E:/sessions/reattach.jsonl");
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	const originalEvents: Array<Record<string, unknown>> = [];
+	const reattachedEvents: Array<Record<string, unknown>> = [];
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:reattach",
+			message: "start",
+		},
+		(event) => {
+			originalEvents.push(event as unknown as Record<string, unknown>);
+		},
+	);
+	await activeSession.promptStarted;
+
+	const subscription = service.subscribeRunEvents("manual:reattach", (event) => {
+		reattachedEvents.push(event as unknown as Record<string, unknown>);
+	});
+
+	assert.equal(subscription.running, true);
+	assert.deepEqual(reattachedEvents[0], {
+		type: "run_started",
+		conversationId: "manual:reattach",
+	});
+
+	activeSession.emit(textDelta("after refresh"));
+	assert.deepEqual(reattachedEvents.at(-1), {
+		type: "text_delta",
+		textDelta: "after refresh",
+	});
+	assert.deepEqual(originalEvents.at(-1), {
+		type: "text_delta",
+		textDelta: "after refresh",
+	});
+
+	subscription.unsubscribe();
+	activeSession.emit(textDelta("after unsubscribe"));
+	assert.equal(
+		reattachedEvents.some((event) => event.textDelta === "after unsubscribe"),
+		false,
+	);
+
+	activeSession.finish();
+	await run;
+});
+
 test("queueMessage uses explicit steer API instead of prompt(streamingBehavior)", async () => {
 	const store = await createStore();
 	const activeSession = new StrictQueueSession("E:/sessions/strict-steer.jsonl");
@@ -753,6 +836,46 @@ test("streamChat emits process events and final result while persisting the sess
 	assert.deepEqual(await store.get("manual:stream"), {
 		sessionFile: "E:/sessions/stream.jsonl",
 		updatedAt: (await store.get("manual:stream"))?.updatedAt,
+	});
+});
+
+test("streamChat ignores event sink failures so disconnected clients do not kill the run", async () => {
+	const store = await createStore();
+	const factory = new FakeAgentSessionFactory(
+		() =>
+			new FakeSession(
+				"E:/sessions/disconnected.jsonl",
+				[
+					{
+						type: "message_update",
+						assistantMessageEvent: {
+							type: "text_delta",
+							delta: "still running",
+						},
+					},
+				],
+				"still running",
+			),
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	await assert.doesNotReject(() =>
+		service.streamChat(
+			{
+				conversationId: "manual:disconnected",
+				message: "start",
+			},
+			(event) => {
+				if (event.type === "text_delta") {
+					throw new Error("client closed");
+				}
+			},
+		),
+	);
+
+	assert.deepEqual(await store.get("manual:disconnected"), {
+		sessionFile: "E:/sessions/disconnected.jsonl",
+		updatedAt: (await store.get("manual:disconnected"))?.updatedAt,
 	});
 });
 
