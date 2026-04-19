@@ -1,149 +1,17 @@
 # ugk-pi
 
-## File Delivery Rules
-
-- 浏览器预览型报告不要返回 `file:///app/...`；统一使用宿主可访问 HTTP 地址：
-  - `public/<fileName>` -> `http://127.0.0.1:3000/<fileName>`
-  - `runtime/<fileName>` -> `http://127.0.0.1:3000/runtime/<fileName>`
-- 项目内已生成的真实文件，优先使用 `send_file`
-- `ugk-file` 只作为小型文本文件的兜底协议
-- 这套规则由 [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts) 注入到每轮 agent prompt，不依赖某个单独 skill 临场发挥
-
 基于 `pi-coding-agent` 的自定义 HTTP agent 原型仓库。
 
-这不是完整业务平台，当前重点是把 runtime、会话、技能加载、HTTP 接口、playground 和后续 IM 接入形态跑稳。
+当前重点不是做一个完整业务平台，而是把这些基础能力跑稳：
 
-## 文档导航
+- agent runtime
+- 会话与流式输出
+- playground
+- 文件交付与本地报告访问
+- web-access 宿主浏览器桥接
+- 为 Feishu / Slack / 企业微信等接入预留形态
 
-- [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
-  - 最高准则、全局规则、固定运行口径、场景索引
-- [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
-  - 按问题场景追溯该先看哪些文件
-- [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
-  - 统一更新记录；每次影响行为或口径的改动都要留痕
-- [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-  - playground 当前真实 UI、交互和约束
-- [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
-  - 资产、附件、`assetRefs`、`ugk-file`、`send_file`、`conn`、飞书接入
-- [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
-  - web-access 宿主浏览器 IPC bridge、Chrome 自动拉起、持久登录态和排障口径
-
-## 快速接手
-
-推荐顺序：
-
-1. [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
-2. [README.md](/E:/AII/ugk-pi/README.md)
-3. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-4. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-5. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-6. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
-7. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
-
-先记住这几个事实：
-
-- 这是 `pi-coding-agent` 的自定义 HTTP agent 原型，不是完整产品。
-- 技能分两层：
-  - 系统技能：`.pi/skills`
-  - 用户技能：`runtime/skills-user`
-- subagent 分两层：
-  - 系统 subagent：`.pi/agents`
-  - 用户 subagent：`runtime/agents-user`
-- 真实技能清单以 `GET /v1/debug/skills` 为准，不要信模型自述。
-- 默认本地验证入口固定为 `http://127.0.0.1:3000/playground`。
-
-## 当前能力概览
-
-- HTTP 服务入口已稳定：
-  - `GET /healthz`
-  - `GET /playground`
-  - `GET /assets/fonts/:fileName`
-  - `GET /:fileName`（仅限 `public/` 根目录普通文件）
-  - `GET /runtime/:fileName`（仅限 `runtime/` 根目录安全报告文件）
-  - `GET /v1/files/:fileId`
-  - `GET /v1/assets`
-  - `GET /v1/assets/:assetId`
-  - `GET /v1/conns`
-  - `GET /v1/debug/skills`
-  - `GET /v1/chat/status`
-  - `GET /v1/chat/events`
-  - `POST /v1/chat`
-  - `POST /v1/chat/stream`
-  - `POST /v1/chat/queue`
-  - `POST /v1/chat/interrupt`
-  - `POST /v1/integrations/feishu/events`
-- playground 当前品牌为 `UGK CLAW`，顶部与首页使用纯文字字标。
-- playground 支持文件选择、拖入、最近资产复用、chip 展示、Markdown 渲染、代码块复制。
-- 用户消息固定靠右；系统反馈视觉上与助手消息保持一致。
-- 助手消息内保留单个“思考过程”区域，默认展开显示过程和当前动作。
-- 运行中刷新页面会按真实 agent 状态恢复：`GET /v1/chat/status` 判断当前 `conversationId` 是否仍在运行，`GET /v1/chat/events` 重新订阅 active run 事件并继续更新同一个助手气泡。
-- “查看技能”按钮会先展示过程，再列出 `GET /v1/debug/skills` 返回的完整技能清单。
-- 统一资产库已接入上传文件、agent 产出文件、`assetRefs` 复用、`ugk-file` 协议和 `send_file` 下载交付工具。
-- 已支持 `conn` 定时 / 周期任务和飞书 webhook 接入。
-- Docker 镜像已内置 `curl` 与 `ca-certificates`。
-- `web-access` 浏览器能力走宿主 IPC bridge：容器写入 `.data/browser-ipc`，Windows 宿主 bridge 自动拉起指定 Chrome，默认登录态保存在 `.data/web-access-chrome-profile`。
-- 给用户打开本地报告时，不要使用 `file:///app/...` 容器路径；`public/` 文件走 `http://127.0.0.1:3000/<fileName>`，`runtime/` 报告走 `http://127.0.0.1:3000/runtime/<fileName>`。
-
-## 目录结构
-
-```text
-ugk-pi/
-├─ .codex/plans/
-├─ .data/
-├─ .pi/
-│  ├─ agents/
-│  ├─ extensions/
-│  ├─ prompts/
-│  ├─ settings.json
-│  └─ skills/
-├─ docs/
-├─ public/
-│  └─ fonts/
-├─ runtime/
-│  ├─ agents-user/
-│  ├─ pi-agent/
-│  └─ skills-user/
-├─ src/
-├─ test/
-├─ AGENTS.md
-└─ README.md
-```
-
-## 核心架构
-
-- [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-  - 装配 Fastify、AgentService、资产库、conn、飞书、playground 和各路由
-- [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-  - 聊天、流式、追加、打断、技能清单接口
-- [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-  - 会话复用、SSE 映射、运行中追加、打断、附件/资产注入、文件产出提取
-- [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
-  - agent 主动把项目内生成文件注册为可下载附件的项目级工具
-- [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
-  - session 创建、技能白名单、项目级 provider/model 装配
-- [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
-  - 本地 playground 页面、样式、前端状态、消息渲染、文件/资产交互
-
-## 参考基线
-
-- 官方仓库：`https://github.com/badlogic/pi-mono`
-- 本地参考镜像：`references/pi-mono`
-- 优先参考：
-  - `references/pi-mono/packages/coding-agent/README.md`
-  - `references/pi-mono/packages/coding-agent/docs/settings.md`
-  - `references/pi-mono/AGENTS.md`
-
-别把 `references/pi-mono/` 当业务目录改，它是参考镜像，不是给你撒野的地方。
-
-## 运行方式
-
-### 推荐方式
-
-- Windows：Docker Desktop 跑 Linux 容器
-- macOS：Docker Desktop 跑 Linux 容器
-- Linux：优先容器，裸跑只作为兼容调试
-
-### 本地开发
+## 快速开始
 
 安装依赖：
 
@@ -157,18 +25,11 @@ npm install
 docker compose up -d
 ```
 
-或使用脚本：
-
-```bash
-npm run docker:up
-```
-
 默认入口：
 
-```text
-http://127.0.0.1:3000
-http://127.0.0.1:3000/playground
-```
+- `http://127.0.0.1:3000`
+- `http://127.0.0.1:3000/playground`
+- `http://127.0.0.1:3000/healthz`
 
 大多数源码改动后只需要：
 
@@ -176,102 +37,123 @@ http://127.0.0.1:3000/playground
 docker compose restart ugk-pi
 ```
 
-如果页面还是旧 HTML，先重启容器再强刷，别手贱另开 `3101`、`3102` 制造脏状态。
+如果页面还是旧内容，先重启 `ugk-pi`，再强刷浏览器；别一上来再开一堆临时端口把状态搞脏。
 
-### 生产 compose
+## 当前稳定口径
 
-准备环境变量：
+### 1. 本地文件与报告
 
-```bash
-cp .env.example .env
-```
-
-至少填写：
+- agent 内部允许继续使用 `/app/...` 和 `file:///app/...` 作为本地 artifact 路径
+- 宿主浏览器不能直接打开容器内 `file:///app/...`
+- 运行时会自动把用户可见文本里的受支持本地路径改写成：
 
 ```text
-DASHSCOPE_CODING_API_KEY=你的真实 key
+http://127.0.0.1:3000/v1/local-file?path=...
 ```
 
-启动：
+- 需要直接给用户文件时，优先使用 `send_file`
 
-```bash
-npm run docker:up:prod
-```
+### 2. 静态与运行时文件出口
 
-查看状态：
+- `public/` 根目录文件：
+  - `GET /:fileName`
+- `runtime/` 报告文件：
+  - `GET /runtime/:fileName`
+- 统一本地 artifact 桥接：
+  - `GET /v1/local-file?path=...`
+- 资产与文件下载：
+  - `GET /v1/assets`
+  - `GET /v1/assets/:assetId`
+  - `GET /v1/files/:fileId`
 
-```bash
-npm run docker:status:prod
-npm run docker:health:prod
-```
+### 3. 文件预览与下载
 
-查看日志：
-
-```bash
-npm run docker:logs:prod
-npm run docker:logs:nginx
-```
-
-### 裸跑兼容方式
-
-```bash
-npm install
-npm start
-```
-
-容器外默认：
+- `/v1/files/:fileId` 会按 MIME 决定默认 `inline` 还是 `attachment`
+- 强制下载使用：
 
 ```text
-HOST=127.0.0.1
-PORT=3000
+/v1/files/:fileId?download=1
 ```
 
-容器内默认：
+- 中文文件名已经按 `filename` + `filename*` 处理，不再因为响应头非法导致 0B 下载
+
+### 4. web-access 浏览器桥接
+
+- 容器内 agent 不直接找 Windows Chrome
+- 真正链路是：
 
 ```text
-HOST=0.0.0.0
-PORT=3000
+container agent -> IPC -> host bridge -> LocalCdpBrowser -> Chrome CDP
 ```
 
-## `pi` 与项目资源
+- 宿主桥接默认使用项目内持久 profile：
 
-安装：
-
-```bash
-npm install -g @mariozechner/pi-coding-agent
+```text
+.data/web-access-chrome-profile
 ```
 
-启动：
+- X 等站点第一次登录后，后续通常不用重复登录，除非站点 session 过期、手动退出，或 profile 被清空
 
-```bash
-pi
-```
+## 常用接口
 
-建议进入后先：
+### 基础
 
-```bash
-/reload
-```
+- `GET /healthz`
+- `GET /playground`
+- `GET /assets/fonts/:fileName`
 
-常用项目资源：
+### 聊天与流式
 
-- prompts：`.pi/prompts/`
-- skills：`.pi/skills/`
-- 用户 skills：`runtime/skills-user/`
-- subagents：`.pi/agents/`
-- 用户 subagents：`runtime/agents-user/`
-- 项目级 agent 配置：`runtime/pi-agent/`
+- `POST /v1/chat`
+- `POST /v1/chat/stream`
+- `POST /v1/chat/queue`
+- `POST /v1/chat/interrupt`
+- `GET /v1/chat/status`
+- `GET /v1/chat/events`
+- `GET /v1/debug/skills`
 
-常用 prompt：
+### 文件与资产
 
-```bash
-/feature-bootstrap <功能目标>
-/implement <实现目标>
-/scout-and-plan <调研目标>
-/implement-and-review <实现并审查目标>
-```
+- `GET /v1/assets`
+- `GET /v1/assets/:assetId`
+- `GET /v1/files/:fileId`
+- `GET /v1/local-file?path=...`
+- `GET /:fileName`
+- `GET /runtime/:fileName`
 
-## 接口速查
+### 集成
+
+- `GET /v1/conns`
+- `POST /v1/integrations/feishu/events`
+
+## 文档导航
+
+- [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - 最高准则、固定运行口径、关键路径、场景索引
+- [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - 按问题场景快速定位入口
+- [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+  - playground 当前真实 UI 与交互约束
+- [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+  - 资产、附件、`send_file`、`conn`、Feishu 运行说明
+- [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+  - web-access 宿主浏览器桥接、Chrome 持久 profile、排障口径
+- [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
+  - 统一更新记录
+
+## 关键路径
+
+- [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+- [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+- [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+- [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+- [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+- [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+- [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+- [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+- [runtime/skills-user/web-access/scripts/local-cdp-browser.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/local-cdp-browser.mjs)
+
+## 常用验证命令
 
 健康检查：
 
@@ -285,107 +167,14 @@ curl http://127.0.0.1:3000/healthz
 curl http://127.0.0.1:3000/v1/debug/skills
 ```
 
-同步聊天：
+打开本地 artifact：
 
-```bash
-curl -X POST http://127.0.0.1:3000/v1/chat ^
-  -H "content-type: application/json" ^
-  -d "{\"conversationId\":\"manual:test-1\",\"message\":\"你好，介绍一下当前项目\"}"
+```text
+http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html
 ```
 
-带附件聊天：
+查看运行态：
 
 ```bash
-curl -X POST http://127.0.0.1:3000/v1/chat ^
-  -H "content-type: application/json" ^
-  -d "{\"conversationId\":\"manual:file-1\",\"message\":\"请总结这个文件\",\"attachments\":[{\"fileName\":\"notes.txt\",\"mimeType\":\"text/plain\",\"sizeBytes\":12,\"text\":\"hello file\"}]}"
+curl "http://127.0.0.1:3000/v1/chat/status?conversationId=manual:test"
 ```
-
-复用已有资产：
-
-```bash
-curl -X POST http://127.0.0.1:3000/v1/chat ^
-  -H "content-type: application/json" ^
-  -d "{\"conversationId\":\"manual:file-2\",\"message\":\"继续基于这个文件处理\",\"assetRefs\":[\"asset-id\"]}"
-```
-
-流式聊天：
-
-```bash
-curl -N -X POST http://127.0.0.1:3000/v1/chat/stream ^
-  -H "content-type: application/json" ^
-  -d "{\"conversationId\":\"manual:stream-1\",\"message\":\"请流式回复\"}"
-```
-
-查看当前会话是否仍在运行：
-
-```bash
-curl "http://127.0.0.1:3000/v1/chat/status?conversationId=manual:stream-1"
-```
-
-重新订阅当前运行任务事件：
-
-```bash
-curl -N "http://127.0.0.1:3000/v1/chat/events?conversationId=manual:stream-1"
-```
-
-追加运行中消息：
-
-```bash
-curl -X POST http://127.0.0.1:3000/v1/chat/queue ^
-  -H "content-type: application/json" ^
-  -d "{\"conversationId\":\"manual:stream-1\",\"message\":\"补充一条要求\",\"mode\":\"steer\"}"
-```
-
-打断当前运行：
-
-```bash
-curl -X POST http://127.0.0.1:3000/v1/chat/interrupt ^
-  -H "content-type: application/json" ^
-  -d "{\"conversationId\":\"manual:stream-1\"}"
-```
-
-查看最近资产：
-
-```bash
-curl http://127.0.0.1:3000/v1/assets
-```
-
-下载 agent 产出文件：
-
-```bash
-curl -OJ http://127.0.0.1:3000/v1/files/file-id
-```
-
-## 当前实现边界
-
-当前阶段不要自作主张去补这些东西：
-
-- 多租户鉴权
-- 数据库存储
-- 分布式任务编排
-- 正式业务前后端框架
-- Slack / 企业微信完整适配
-
-先把 runtime 和接入层打稳，不然越写越像给事故做预埋。
-
-## 验证
-
-基础检查：
-
-```bash
-npx tsc --noEmit
-npm run test
-```
-
-最近文档整理前的回归结果是：
-
-- `npx tsc --noEmit` 通过
-- `npm run test` 为 `76 / 76` 通过
-- 默认入口 `127.0.0.1:3000` 已验证 `/healthz`、`/playground`、运行态重连入口和 `UGK CLAW` playground HTML
-# 2026-04-19 Update
-
-- agent 内部允许继续使用 `/app/...` 和 `file:///app/...` 这类本地 artifact 路径
-- 浏览器桥会自动把受支持的本地产物桥接到宿主可访问的 HTTP 地址，统一入口是 `GET /v1/local-file?path=...`
-- 老的 `GET /:fileName` 与 `GET /runtime/:fileName` 继续保留给手动打开和兼容场景
-- 项目内已生成的真实文件，优先使用 `send_file`

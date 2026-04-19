@@ -376,3 +376,20 @@
   - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
   - [test/file-artifacts.test.ts](/E:/AII/ugk-pi/test/file-artifacts.test.ts)
   - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+## 2026-04-19 Documentation Consolidation
+
+### 文档口径整理：本地文件桥接与用户交付
+
+- 主题：把最近围绕本地 artifact、`send_file`、`/v1/local-file`、web-access 宿主浏览器桥接的口径重新收成主文档，清理 README 和专题文档里残留的旧说法。
+- 影响范围：
+  - `README.md` 重写为当前稳定入口文档，明确区分“agent 内部允许 file 路径”和“用户可见地址必须可打开”
+  - `docs/traceability-map.md` 重写为按场景追溯入口，补齐文件交付、`/v1/local-file`、web-access 与截图链路
+  - `docs/runtime-assets-conn-feishu.md` 重写资产/附件/`send_file`/本地 artifact 桥接口径
+  - `docs/web-access-browser-bridge.md` 重写宿主浏览器桥接、专用 profile、本地文件桥接与排障顺序
+  - `docs/change-log.md` 追加本条记录，避免后续 `/init` 还被旧口径误导
+- 对应入口：
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+  - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+  - [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)

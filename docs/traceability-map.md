@@ -1,23 +1,21 @@
 # 追溯地图
 
-这份文档不讲大道理，只回答一个问题：
+这份文档只回答一个问题：
 
 “我现在碰到某类问题，先看哪几个文件最省命？”
 
-## A 场景：我刚接手项目，想快速建立全貌
+## A. 快速接手项目
 
-建议顺序：
+先看：
 
-1. [README.md](/E:/AII/ugk-pi/README.md)
-2. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-3. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-4. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-5. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
+1. [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+2. [README.md](/E:/AII/ugk-pi/README.md)
+3. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+4. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+5. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
 6. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 
-看完这几处，至少不会再把它误认成一个普通聊天前端。
-
-## B 场景：我要查聊天接口、流式输出、追加消息、打断
+## B. 聊天、流式、追加消息、打断
 
 先看：
 
@@ -26,7 +24,7 @@
 3. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
 4. [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
 
-重点问题：
+重点接口：
 
 - `GET /v1/chat/status`
 - `GET /v1/chat/events`
@@ -34,10 +32,8 @@
 - `POST /v1/chat/stream`
 - `POST /v1/chat/queue`
 - `POST /v1/chat/interrupt`
-- `steer` / `followUp` 的实际走向
-- 刷新后 active run 的真实状态映射、事件缓冲和重新订阅
 
-## C 场景：我要查 playground 的视觉、交互和前端状态
+## C. Playground 页面、消息气泡、过程区
 
 先看：
 
@@ -45,62 +41,58 @@
 2. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 3. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
 
-这里统一覆盖：
+适用问题：
 
-- 品牌字标
-- landing 与 transcript 状态切换
-- 用户 / 助手 / 系统消息样式
-- “思考过程”区域
-- 文件 chip
-- 选择资产
-- “查看技能”按钮链路
-- 刷新后恢复“当前正在运行”的 loading 气泡、过程日志和 `/v1/chat/events` 重连
+- 助手/用户消息样式
+- 过程区与 loading 气泡
+- 文件卡片“打开 / 下载”
+- 刷新后运行态恢复
 
-## D 场景：我要查文件上传、资产复用、下载文件
+## D. 文件上传、资产复用、send_file、本地报告访问
 
 先看：
 
 1. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
-2. [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
-3. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
-4. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
-5. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+2. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+3. [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
+4. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+5. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+6. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+7. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
-这里要先记住：`src/agent/file-artifacts.ts` 不只是解析 `ugk-file`，它还负责给每轮 prompt 注入文件交付协议。凡是 agent 回错“打开地址 / 下载方式”，先看这里，不要只盯某个 skill 文案。
+适用问题：
 
-如果是前端展示问题，再补看：
+- `send_file` 没出现在文件卡片里
+- 图片/报告下载 0B
+- 用户拿到的是容器 `file:///app/...`
+- HTML / 图片已经生成，但浏览器打不开
+- `/v1/local-file?path=...` 返回异常
 
-6. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+如果问题是“agent 内部想继续用 `file:///app/...`，但用户看到的地址必须能打开”，重点看：
 
-如果问题是“报告 HTML / 图片已经生成，但用户打不开或截图脚本还在用 `file:///app/...`”，直接看：
+- [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+- [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
 
-7. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
-8. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
-9. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
-10. [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
+## E. 技能加载、真实技能清单、web-access
 
-## E 场景：我要查技能系统、技能清单、用户技能
-
-先看真实事实源：
+先看：
 
 1. `GET /v1/debug/skills`
-
-再看代码和目录：
-
 2. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
 3. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
 4. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
-5. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
-6. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+5. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
 
-如果问题和 `web-access`、`x-search-latest`、真实浏览器、X 登录态有关，不要只看技能描述，直接看：
+如果问题跟以下内容有关，直接进 web-access 专题文档，不要在别的地方绕：
 
-7. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
-8. [runtime/skills-user/web-access/scripts/host-bridge.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/host-bridge.mjs)
-9. [runtime/skills-user/web-access/scripts/host-browser-bridge-daemon.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/host-browser-bridge-daemon.mjs)
-10. [scripts/start-web-access-browser.ps1](/E:/AII/ugk-pi/scripts/start-web-access-browser.ps1)
+- host browser bridge
+- Chrome 持久 profile
+- `local_browser_executable_not_found`
+- `chrome_cdp_unreachable`
+- `/x-search-latest:*`
+- X 登录态
 
-## F 场景：我要查 subagent、prompt 工作流、项目防护
+## F. Subagent、项目级 prompt、防护
 
 先看：
 
@@ -111,7 +103,7 @@
 5. [runtime/agents-user](/E:/AII/ugk-pi/runtime/agents-user)
 6. [.pi/prompts](/E:/AII/ugk-pi/.pi/prompts)
 
-## G 场景：我要查 conn 和飞书接入
+## G. Conn / Feishu 集成
 
 先看：
 
@@ -123,26 +115,22 @@
 6. [src/integrations/feishu/service.ts](/E:/AII/ugk-pi/src/integrations/feishu/service.ts)
 7. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
-## H 场景：我要查容器、部署、健康检查
+## H. 容器、部署、健康检查、截图
 
 先看：
 
 1. [Dockerfile](/E:/AII/ugk-pi/Dockerfile)
 2. [docker-compose.yml](/E:/AII/ugk-pi/docker-compose.yml)
 3. [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
-4. [deploy/nginx/default.conf](/E:/AII/ugk-pi/deploy/nginx/default.conf)
-5. [scripts/docker-health.mjs](/E:/AII/ugk-pi/scripts/docker-health.mjs)
-6. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+4. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+5. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+6. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 7. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
 8. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
 
-如果碰到容器里 `curl` 不存在这种低级环境锅，先看 [Dockerfile](/E:/AII/ugk-pi/Dockerfile) 里的基础工具安装，不要先怀疑人生。
+适用问题：
 
-如果碰到容器内 `local_browser_executable_not_found`、Chrome 打开但 agent 仍报浏览器不可用、X 没登录态这类问题，先看 [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)。不要在容器里继续找 Windows Chrome，那条路是死胡同。
-# 2026-04-19 Addendum
-
-- 如果问题是“agent 又在内部步骤里用了 `file:///app/...`，但我不想再靠提示词堵”，先看：
-  - [runtime/skills-user/web-access/scripts/local-cdp-browser.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/local-cdp-browser.mjs)
-  - [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
-  - [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
-- 关键事实：现在内部 file 路径是允许的；真正负责把本地 artifact 转成宿主可访问 HTTP 的，是运行时桥接层和 `GET /v1/local-file?path=...`
+- `healthz` 不通
+- 静态 HTML / PNG 路由不通
+- 截图脚本又回退到 `file://`
+- `PUBLIC_BASE_URL` 不对
