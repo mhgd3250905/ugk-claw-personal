@@ -25,7 +25,7 @@ test("container runtime files exist with the expected base configuration", () =>
 
 	const dockerfile = readFileSync(dockerfilePath, "utf8");
 	assert.match(dockerfile, /FROM node:22-bookworm-slim/i);
-	assert.match(dockerfile, /apt-get install -y --no-install-recommends git curl ca-certificates/i);
+	assert.match(dockerfile, /apt-get install -y --no-install-recommends git curl ca-certificates python3/i);
 	assert.match(dockerfile, /ENV HOST=0\.0\.0\.0/);
 	assert.match(dockerfile, /ENV PORT=3000/);
 	assert.match(dockerfile, /HEALTHCHECK/i);
@@ -127,6 +127,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(sidecarChromeScript, /hide-crash-restore-bubble/);
 	assert.match(sidecarChromeScript, /--ozone-platform=x11/);
 	assert.match(sidecarChromeScript, /export DISPLAY=:0/);
+	assert.doesNotMatch(sidecarChromeScript, /command -v python3/);
+	assert.doesNotMatch(sidecarChromeScript, /python is required to clear Chrome restore state/);
 	assert.doesNotMatch(sidecarChromeScript, /--ozone-platform=wayland/);
 	assert.doesNotMatch(sidecarChromeScript, /WAYLAND_DISPLAY=wayland-1/);
 	assert.match(sidecarChromeScript, /exited_cleanly/);

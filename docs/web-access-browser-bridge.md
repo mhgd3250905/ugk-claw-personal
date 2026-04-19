@@ -152,7 +152,7 @@ npm run docker:chrome:restart
 - `docker:chrome:check`: 标准 readiness check，验证 Chrome CDP、app 到 sidecar CDP、以及 `web-access` proxy。
 - `docker:chrome:status`: 打印 compose 状态和 browser-local / app-to-sidecar 两个 CDP 探针。
 - `docker:chrome:open`: 打印 GUI 登录入口，不擅自启动宿主 GUI app。
-- `docker:chrome:restart`: 重启 sidecar Chrome，清理 stale lock 和 `Restore Pages?` 状态，不清登录 cookies。
+- `docker:chrome:restart`: 重启 sidecar Chrome，清理 stale lock 和 `Restore Pages?` 状态，不清登录 cookies；该清理逻辑由 Node helper 读写 profile JSON，不依赖 Chrome sidecar 容器里安装 `python3`。
 
 期望健康输出包含：
 
@@ -246,6 +246,14 @@ npm run docker:chrome:restart
 ```
 
 helper 会清理 Chrome crash-restore profile 状态。
+
+如果旧版本提示：
+
+```text
+python is required to clear Chrome restore state
+```
+
+说明 `scripts/sidecar-chrome.mjs` 还是旧实现。更新代码并重新构建 app 容器，不要去改第三方 Chrome sidecar 镜像硬装 Python。
 
 ### 鼠标是问号或菜单点不了
 

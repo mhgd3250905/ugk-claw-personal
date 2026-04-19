@@ -50,6 +50,15 @@ function runDockerOrThrow(args, stepName) {
 	return result.stdout;
 }
 
+function runDockerOrThrowWithInput(args, input, stepName) {
+	const result = runDocker(args, { input });
+	if (result.status !== 0) {
+		const detail = formatCommandFailure(result);
+		fail(`${stepName} failed (exit ${result.status})\n${detail}`);
+	}
+	return result.stdout;
+}
+
 function execInService(service, script, stepName) {
 	return runDockerOrThrow(["exec", "-T", service, "sh", "-lc", script], stepName);
 }
@@ -78,43 +87,59 @@ function clearChromeLocks() {
 }
 
 function clearChromeRestorePromptState() {
-	const script = [
-		"if command -v python3 >/dev/null 2>&1; then",
-		"  PYTHON=python3",
-		"elif command -v python >/dev/null 2>&1; then",
-		"  PYTHON=python",
-		"else",
-		"  echo 'python is required to clear Chrome restore state' >&2",
-		"  exit 1",
-		"fi",
-		`PROFILE_DIR=${shQuote(profileDir)} "$PYTHON" - <<'PY'`,
-		"import json",
-		"import os",
-		"from pathlib import Path",
-		"",
-		"root = Path(os.environ['PROFILE_DIR'])",
-		"for relative_path in ('Default/Preferences', 'Local State'):",
-		"    path = root / relative_path",
-		"    if not path.exists():",
-		"        continue",
-		"    try:",
-		"        data = json.loads(path.read_text(encoding='utf-8'))",
-		"    except Exception:",
-		"        continue",
-		"    profile = data.setdefault('profile', {})",
-		"    profile['exited_cleanly'] = True",
-		"    profile['exit_type'] = 'Normal'",
-		"    if 'exit_type' in data:",
-		"        data['exit_type'] = 'Normal'",
-		"    path.write_text(",
-		"        json.dumps(data, ensure_ascii=False, separators=(',', ':')),",
-		"        encoding='utf-8',",
-		"    )",
-		"PY",
-		`PROFILE_DIR=${shQuote(profileDir)}`,
-		`chown -R abc:abc "$PROFILE_DIR/Default" "$PROFILE_DIR/Local State" 2>/dev/null || true`,
-	].join("\n");
-	execInService(browserService, script, "clear Chrome Restore Pages state");
+	for (const relativePath of ["Default/Preferences", "Local State"]) {
+		const containerPath = `${profileDir}/${relativePath}`;
+		const content = runDockerOrThrow(
+			[
+				"exec",
+				"-T",
+				browserService,
+				"sh",
+				"-lc",
+				`if [ -f ${shQuote(containerPath)} ]; then cat ${shQuote(containerPath)}; fi`,
+			],
+			`read Chrome state file ${relativePath}`,
+		);
+
+		if (!content.trim()) {
+			continue;
+		}
+
+		let data;
+		try {
+			data = JSON.parse(content);
+		} catch {
+			continue;
+		}
+
+		const profile = data.profile && typeof data.profile === "object" ? data.profile : {};
+		profile.exited_cleanly = true;
+		profile.exit_type = "Normal";
+		data.profile = profile;
+		if (Object.hasOwn(data, "exit_type")) {
+			data.exit_type = "Normal";
+		}
+
+		runDockerOrThrowWithInput(
+			[
+				"exec",
+				"-T",
+				browserService,
+				"sh",
+				"-lc",
+				`mkdir -p "$(dirname ${shQuote(containerPath)})" && cat > ${shQuote(containerPath)}`,
+			],
+			JSON.stringify(data),
+			`write Chrome state file ${relativePath}`,
+		);
+	}
+
+	execInService(
+		browserService,
+		`PROFILE_DIR=${shQuote(profileDir)}
+chown -R abc:abc "$PROFILE_DIR/Default" "$PROFILE_DIR/Local State" 2>/dev/null || true`,
+		"fix Chrome Restore Pages state ownership",
+	);
 }
 
 function stopChrome() {

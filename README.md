@@ -60,7 +60,7 @@ docker compose restart ugk-pi
 
 如果页面还是旧内容，先重启 `ugk-pi`，再强刷浏览器；别一上来再开一堆临时端口把状态搞脏。
 
-当前开发镜像已内置 `git`、`curl` 和 `ca-certificates`。需要在容器内确认仓库状态或执行只读 git 命令时，不用再额外临时安装。
+当前开发镜像已内置 `git`、`curl`、`ca-certificates` 和 `python3`。需要在容器内确认仓库状态、执行只读 git 命令，或运行用户技能里的 Python 脚本时，不用再额外临时安装。
 
 当前 `docker compose up -d` 还会同时拉起一个可登录的 Chrome sidecar：
 

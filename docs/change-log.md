@@ -12,6 +12,20 @@
 
 ## 2026-04-19
 
+### 容器 Python3 运行环境补齐
+- 主题：修复容器内缺少 `python3`，以及 sidecar Chrome 重启 helper 依赖浏览器容器 Python 导致 `python is required to clear Chrome restore state` 的问题。
+- 影响范围：
+  - `Dockerfile` 的基础工具安装列表新增 `python3`，让 app / agent 容器可以直接运行用户技能里的 Python 脚本。
+  - `scripts/sidecar-chrome.mjs` 不再进入 `ugk-pi-browser` 容器查找 `python3` / `python`；改为由 Node helper 读取并写回 Chrome profile JSON，避免第三方 Chrome sidecar 镜像缺 Python 时重启失败。
+  - `test/containerization.test.ts` 增加回归断言，固定 app 镜像必须包含 `python3`，并防止 sidecar helper 再次依赖浏览器容器内 Python。
+  - `AGENTS.md`、`README.md`、`docs/web-access-browser-bridge.md`、`docs/tencent-cloud-singapore-deploy.md` 同步更新运行口径和线上验证命令。
+- 对应入口：
+  - [Dockerfile](/E:/AII/ugk-pi/Dockerfile)
+  - [scripts/sidecar-chrome.mjs](/E:/AII/ugk-pi/scripts/sidecar-chrome.mjs)
+  - [test/containerization.test.ts](/E:/AII/ugk-pi/test/containerization.test.ts)
+  - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### 腾讯云新加坡部署 Runbook 落地
 - 主题：把本次腾讯云新加坡 CVM 从选型、初始化、Docker 安装、代码传输、`.env`、生产 compose 启动、Chrome sidecar 登录、线上故障修复到后续更新发布的全过程沉淀为可追溯部署文档。
 - 影响范围：

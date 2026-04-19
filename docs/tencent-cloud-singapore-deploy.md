@@ -116,6 +116,22 @@ docker run --rm hello-world
 # Hello from Docker!
 ```
 
+当前应用镜像会安装基础运行工具：
+
+```text
+git
+curl
+ca-certificates
+python3
+```
+
+如果服务器上遇到 `python3: not found`，说明线上镜像还是旧版本，需要重新打包上传并执行：
+
+```bash
+cd ~/ugk-pi-claw
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
 如果刚把 `ubuntu` 加入 `docker` 组，需要执行：
 
 ```bash
@@ -427,6 +443,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 docker compose -f docker-compose.prod.yml ps
 curl -i http://127.0.0.1:3000/healthz
 curl -I http://127.0.0.1:3000/playground
+docker compose -f docker-compose.prod.yml exec -T ugk-pi python3 --version
 docker compose -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
 ```
 
