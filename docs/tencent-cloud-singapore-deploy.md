@@ -415,6 +415,12 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 ### 推荐方式：本地打包上传
 
+当前云服务器上的 `~/ugk-pi-claw` 是 tar 解包目录，不是 Git 仓库。也就是说：
+
+- 本机负责 `git archive` 打包。
+- 服务器负责接收 tar 包、替换目录、重建容器。
+- 不要在服务器 `~/ugk-pi-claw` 里执行 `git archive` 或 `git pull`，它没有 `.git`，执行了也只会报 `fatal: not a git repository`。别跟它较劲，它确实不是仓库。
+
 本地：
 
 ```bash
@@ -437,6 +443,8 @@ cd ugk-pi-claw
 docker compose -f docker-compose.prod.yml up --build -d
 ```
 
+这里必须使用 `up --build -d`。只 `restart` 只会重启旧镜像里的旧容器，像 `python3` 这种写进 `Dockerfile` 的环境变更不会凭空出现。
+
 更新后必须跑：
 
 ```bash
@@ -446,6 +454,31 @@ curl -I http://127.0.0.1:3000/playground
 docker compose -f docker-compose.prod.yml exec -T ugk-pi python3 --version
 docker compose -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
 ```
+
+本次 `python3` 运行环境更新的服务器实测结果：
+
+```text
+Image ugk-pi:prod                          Built
+Container ugk-pi-claw-ugk-pi-1             Healthy
+
+docker compose -f docker-compose.prod.yml exec -T ugk-pi python3 --version
+Python 3.11.2
+
+curl -i http://127.0.0.1:3000/healthz
+HTTP/1.1 200 OK
+
+docker compose -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
+host-browser: ok (http://172.31.250.10:9223)
+proxy: starting
+proxy: ready (127.0.0.1:3456)
+```
+
+以后判断一次更新是否真的部署成功，至少要同时满足：
+
+- `ugk-pi` 容器是 `healthy`。
+- `/healthz` 返回 `HTTP/1.1 200 OK`。
+- 如果改过 `Dockerfile` 或运行环境，必须验证对应命令，例如 `python3 --version`。
+- 如果涉及 `web-access` / X 搜索 / Chrome sidecar，必须跑 `check-deps.mjs`。
 
 ### 可选方式：Gitee git 更新
 

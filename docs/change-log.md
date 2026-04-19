@@ -12,6 +12,16 @@
 
 ## 2026-04-19
 
+### 云服务器更新部署流程补强
+- 主题：把本次 `python3` 环境修复上线后的真实云端更新操作补进部署 runbook，明确本机打包、服务器替换、必须重建镜像和验证顺序。
+- 影响范围：
+  - `docs/tencent-cloud-singapore-deploy.md` 的“后续更新部署流程”补充说明：服务器 `~/ugk-pi-claw` 是 tar 解包目录，不是 Git 仓库，不能在服务器里执行 `git archive` / `git pull`。
+  - 明确运行环境变更必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，只 `restart` 不会让旧镜像获得新依赖。
+  - 记录本次云端实测结果：`ugk-pi` healthy、`python3 --version -> Python 3.11.2`、`/healthz -> HTTP/1.1 200 OK`、`check-deps.mjs -> host-browser ok + proxy ready`。
+  - 固化后续更新验收口径：容器健康、健康检查、运行环境命令、以及 web-access sidecar readiness 必须按变更范围逐项验证。
+- 对应入口：
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### 容器 Python3 运行环境补齐
 - 主题：修复容器内缺少 `python3`，以及 sidecar Chrome 重启 helper 依赖浏览器容器 Python 导致 `python is required to clear Chrome restore state` 的问题。
 - 影响范围：
