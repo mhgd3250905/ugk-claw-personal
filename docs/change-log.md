@@ -12,6 +12,16 @@
 
 ## 2026-04-19
 
+### 云服务器更新方式确认规则
+- 主题：把“服务器更新前必须先确认增量更新还是整目录替换”上升到项目最高规则和部署 runbook，避免后续 agent 默认整目录替换把服务器本地状态一起覆盖。
+- 影响范围：
+  - `AGENTS.md` 的最高准则新增部署确认规则：云服务器更新前必须先问清是增量更新还是整目录替换，默认倾向增量更新。
+  - `docs/tencent-cloud-singapore-deploy.md` 的更新部署流程前置这条硬规则，明确在未获确认前不要默认执行整目录替换。
+  - 这条规则的直接目标是保护服务器上的 `runtime/skills-user/`、`runtime/agents-user/`、`.data/` 以及其他不在仓库里的本地状态。
+- 对应入口：
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### `/init` 接手入口补强
 - 主题：把后续 agent `/init` 最容易踩的云端接手前提前置到主入口文档，避免每次重新考古“服务器是不是 Git 仓库”和“什么时候该 build 镜像”。
 - 影响范围：

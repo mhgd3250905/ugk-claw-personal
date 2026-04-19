@@ -10,6 +10,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 先判断任务性质：
   - 文档 / 规划任务：优先改文档，不要顺手碰源码。
   - 实现 / 修复任务：先看真实入口和调用链，再落代码。
+- 涉及云服务器更新部署时，必须先向用户确认本次是“增量更新”还是“整目录替换”；在用户明确确认前，不要默认执行整目录替换。默认倾向是增量更新，不要擅自把服务器本地状态、已安装 skills、`.data` 和运行目录一起洗掉。
 - 缺少上下文但需要规划时，先写 `.codex/plans/`，执行前等用户确认。
 - 不要臆造 `pi` 的配置、技能、provider、行为；涉及这类事实时必须查：
   - `references/pi-mono/packages/coding-agent/README.md`
