@@ -8,8 +8,27 @@
 - 会话与流式输出
 - playground
 - 文件交付与本地报告访问
-- web-access 宿主浏览器桥接
+- web-access Docker Chrome sidecar 浏览器桥接
 - 为 Feishu / Slack / 企业微信等接入预留形态
+
+## 阶段快照
+
+截至 `2026-04-19`，这个阶段的核心结论是：`web-access` 主链路已经从 Windows 宿主 IPC 迁移到 Docker Chrome sidecar。后续 `/init` 接手时，先把它当作 Linux / Docker 可部署方案看，不要默认回到宿主 Chrome。
+
+当前主链路：
+
+```text
+agent / skill -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker Chrome sidecar
+```
+
+当前稳定事实：
+
+- sidecar GUI 登录入口是 `https://127.0.0.1:3901/`
+- 登录态持久目录是 `.data/chrome-sidecar`
+- 用户可见链接使用 `PUBLIC_BASE_URL`
+- sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL=http://ugk-pi:3000`
+- Windows host IPC 只保留为 legacy fallback，不是 Docker / Linux 默认路径
+- 阶段验证命令是 `npm test` 和 `npm run docker:chrome:check`
 
 ## 快速开始
 
@@ -38,6 +57,17 @@ docker compose restart ugk-pi
 ```
 
 如果页面还是旧内容，先重启 `ugk-pi`，再强刷浏览器；别一上来再开一堆临时端口把状态搞脏。
+
+当前开发镜像已内置 `git`、`curl` 和 `ca-certificates`。需要在容器内确认仓库状态或执行只读 git 命令时，不用再额外临时安装。
+
+当前 `docker compose up -d` 还会同时拉起一个可登录的 Chrome sidecar：
+
+- GUI 登录入口：`https://127.0.0.1:3901/`
+- 浏览器登录态持久目录：`.data/chrome-sidecar`
+- `ugk-pi` 容器默认通过 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` 直连 sidecar 的 `172.31.250.10:9223` CDP relay，不再先等宿主 IPC 超时
+- 用户可见链接继续使用 `PUBLIC_BASE_URL`；sidecar Chrome 打开本地 artifact 时使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL=http://ugk-pi:3000`
+
+第一次打开 sidecar GUI 时浏览器会使用自签名证书，手工放行后即可在里面登录站点账号做验证。
 
 ## 当前稳定口径
 
@@ -79,20 +109,28 @@ http://127.0.0.1:3000/v1/local-file?path=...
 
 ### 4. web-access 浏览器桥接
 
-- 容器内 agent 不直接找 Windows Chrome
-- 真正链路是：
+- 当前默认链路是 Docker Chrome sidecar：
 
 ```text
-container agent -> IPC -> host bridge -> LocalCdpBrowser -> Chrome CDP
+container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker Chrome sidecar
 ```
 
-- 宿主桥接默认使用项目内持久 profile：
+- legacy Windows host IPC fallback 仍保留给本机调试和紧急排障，但不再是 Docker / Linux 默认路径。
+- sidecar 登录态默认保存在：
 
 ```text
-.data/web-access-chrome-profile
+.data/chrome-sidecar
 ```
 
-- X 等站点第一次登录后，后续通常不用重复登录，除非站点 session 过期、手动退出，或 profile 被清空
+- X 等站点第一次在 sidecar GUI 登录后，后续通常不用重复登录，除非站点 session 过期、手动退出，或 profile 被清空。
+
+### 5. Docker Chrome sidecar（当前已启用）
+
+- 开发 compose 与生产 compose 都已预留 `ugk-pi-browser`
+- `ugk-pi` 优先直连 `http://172.31.250.10:9223`
+- 手工登录走 `https://127.0.0.1:3901/`
+- 自动截图 / 浏览器打开本地 HTML 时，agent 会把 `/app/runtime/...`、`/app/public/...` 解析成 sidecar 可访问的 `http://ugk-pi:3000/v1/local-file?...`，而不是让 sidecar Chrome 打开宿主用的 `127.0.0.1:3000`
+- sidecar 模式更适合 Linux 云服务器；宿主 IPC bridge 继续保留给本机 Windows 登录态复用和排障
 
 ## 常用接口
 
@@ -137,7 +175,7 @@ container agent -> IPC -> host bridge -> LocalCdpBrowser -> Chrome CDP
 - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
   - 资产、附件、`send_file`、`conn`、Feishu 运行说明
 - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
-  - web-access 宿主浏览器桥接、Chrome 持久 profile、排障口径
+  - web-access Docker Chrome sidecar、legacy IPC fallback、Chrome 持久 profile、排障口径
 - [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
   - 统一更新记录
 
@@ -167,6 +205,12 @@ curl http://127.0.0.1:3000/healthz
 curl http://127.0.0.1:3000/v1/debug/skills
 ```
 
+检查 sidecar 浏览器链路：
+
+```bash
+docker compose exec -T ugk-pi sh -lc "node /app/runtime/skills-user/web-access/scripts/check-deps.mjs"
+```
+
 打开本地 artifact：
 
 ```text
@@ -178,3 +222,16 @@ http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html
 ```bash
 curl "http://127.0.0.1:3000/v1/chat/status?conversationId=manual:test"
 ```
+
+## Docker Chrome sidecar 速查
+
+- sidecar 使用唯一持久 profile 配置：`WEB_ACCESS_BROWSER_PROFILE_DIR`
+- 默认 profile 路径是 `${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar}`
+- `PUBLIC_BASE_URL` 给用户可见链接使用；`WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 给 CDP 控制的 sidecar Chrome 使用
+- 默认 sidecar 浏览器内访问 app 的地址是 `http://ugk-pi:3000`，因为浏览器容器里的 `127.0.0.1` 指向它自己
+- 不要把手工登录和自动启动拆到两个 profile 路径，否则重启验证会骗你
+- `npm run docker:chrome:restart` 会在启动前清理 Chrome crash-restore 状态，`Restore Pages?` 不应该继续挡住手工操作
+- `npm run docker:chrome:check` 是 `web-access -> direct_cdp -> Chrome sidecar` 链路的标准验证命令
+- `npm run docker:chrome:status` 打印 compose 状态和两个 CDP 探针；`npm run docker:chrome:open` 只打印 sidecar GUI URL，不擅自启动宿主 GUI app
+- sidecar 使用 `SELKIES_USE_BROWSER_CURSORS=true`，手工 GUI 控制会使用本地浏览器光标，避免远程桌面 cursor theme 变成问号
+- Chrome 使用 `DISPLAY=:0` 和 `--ozone-platform=x11` 启动，让菜单、权限提示、账号气泡等顶层 UI 走 X11 路径，输入转发更可靠

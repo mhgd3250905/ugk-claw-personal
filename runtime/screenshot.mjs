@@ -13,6 +13,7 @@ export function resolveBrowserTargetUrl(inputPathOrUrl, options = {}) {
 	return resolveBrowserInputUrl(inputPathOrUrl, {
 		projectRoot: options.projectRoot || "/app",
 		publicBaseUrl: options.baseUrl,
+		browserPublicBaseUrl: options.browserBaseUrl,
 	});
 }
 

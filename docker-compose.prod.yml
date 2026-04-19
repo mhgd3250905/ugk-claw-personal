@@ -10,9 +10,16 @@ services:
     environment:
       HOST: ${HOST:-0.0.0.0}
       PORT: ${PORT:-3000}
+      WEB_ACCESS_BROWSER_PUBLIC_BASE_URL: http://ugk-pi:3000
+      WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
+      WEB_ACCESS_CDP_HOST: 172.31.250.10
+      WEB_ACCESS_CDP_PORT: 9223
     volumes:
       - ./logs/app:/var/log/ugk-pi
       - ./runtime/skills-user:/app/runtime/skills-user
+    depends_on:
+      - ugk-pi-browser
+      - ugk-pi-browser-cdp
     restart: unless-stopped
     command: /bin/sh -lc "mkdir -p /var/log/ugk-pi && npm start 2>&1 | tee -a /var/log/ugk-pi/app.log"
     healthcheck:
@@ -27,6 +34,38 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    networks:
+      - ugk-pi-net
+  ugk-pi-browser:
+    image: lscr.io/linuxserver/chrome:latest
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-Asia/Shanghai}
+      DISPLAY: ":0"
+      SELKIES_USE_BROWSER_CURSORS: "true"
+      WEB_ACCESS_BROWSER_PROFILE_DIR: ${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar}
+      CHROME_CLI: "--remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --hide-crash-restore-bubble --ozone-platform=x11 --user-data-dir=${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar} about:blank"
+    volumes:
+      - ./.data/chrome-sidecar:/config
+    ports:
+      - "127.0.0.1:${WEB_ACCESS_BROWSER_GUI_PORT:-3901}:3001"
+    shm_size: "1gb"
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
+    networks:
+      ugk-pi-net:
+        ipv4_address: 172.31.250.10
+  ugk-pi-browser-cdp:
+    image: alpine/socat:latest
+    depends_on:
+      - ugk-pi-browser
+    network_mode: "service:ugk-pi-browser"
+    command:
+      - "TCP-LISTEN:9223,fork,bind=0.0.0.0,reuseaddr"
+      - "TCP:127.0.0.1:9222"
+    restart: unless-stopped
   nginx:
     image: nginx:1.27-alpine
     depends_on:
@@ -38,9 +77,18 @@ services:
       - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./logs/nginx:/var/log/nginx
     restart: unless-stopped
+    networks:
+      - ugk-pi-net
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+networks:
+  ugk-pi-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24

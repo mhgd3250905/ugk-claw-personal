@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -109,6 +110,44 @@ test("requestHostBrowser falls back to a local browser backend when IPC has no r
 	}
 });
 
+test("requestHostBrowser can prefer direct local CDP without touching IPC", async () => {
+	const ipcDir = await mkdtemp(join(tmpdir(), "ugk-pi-browser-ipc-"));
+	let localCommandCalls = 0;
+
+	try {
+		const result = await requestHostBrowser(
+			{ action: "status" },
+			{
+				ipcDir,
+				env: {
+					WEB_ACCESS_BROWSER_PROVIDER: "direct_cdp",
+				},
+				localBrowser: {
+					async handleCommand(command: { action: string }) {
+						assert.equal(command.action, "status");
+						localCommandCalls += 1;
+						return {
+							ok: true,
+							status: {
+								enabled: true,
+								connected: true,
+								endpoint: "http://ugk-pi-browser:9222",
+							},
+						};
+					},
+				},
+			},
+		);
+
+		assert.equal(existsSync(join(ipcDir, "browser-requests")), false);
+		assert.equal(localCommandCalls, 1);
+		assert.equal(result.ok, true);
+		assert.equal(result.status.endpoint, "http://ugk-pi-browser:9222");
+	} finally {
+		await rm(ipcDir, { recursive: true, force: true });
+	}
+});
+
 test("requestHostBrowser falls back when the IPC directory cannot be written", async () => {
 	const ipcFile = join(await mkdtemp(join(tmpdir(), "ugk-pi-browser-ipc-")), "ipc-file");
 	await writeFile(ipcFile, "not a directory", "utf8");
@@ -187,6 +226,40 @@ test("ensureHostBrowserBridge accepts status from the local browser fallback", a
 		});
 
 		assert.equal(status.endpoint, "local-cdp://test");
+	} finally {
+		await rm(ipcDir, { recursive: true, force: true });
+	}
+});
+
+test("ensureHostBrowserBridge honors direct CDP mode before legacy IPC", async () => {
+	const ipcDir = await mkdtemp(join(tmpdir(), "ugk-pi-browser-ipc-"));
+	let localStatusCalls = 0;
+
+	try {
+		const status = await ensureHostBrowserBridge({
+			ipcDir,
+			env: {
+				WEB_ACCESS_BROWSER_PROVIDER: "sidecar",
+			},
+			localBrowser: {
+				async handleCommand(command: { action: string }) {
+					assert.equal(command.action, "status");
+					localStatusCalls += 1;
+					return {
+						ok: true,
+						status: {
+							enabled: true,
+							connected: true,
+							endpoint: "http://172.31.250.10:9223",
+						},
+					};
+				},
+			},
+		});
+
+		assert.equal(existsSync(join(ipcDir, "browser-requests")), false);
+		assert.equal(localStatusCalls, 1);
+		assert.equal(status.endpoint, "http://172.31.250.10:9223");
 	} finally {
 		await rm(ipcDir, { recursive: true, force: true });
 	}

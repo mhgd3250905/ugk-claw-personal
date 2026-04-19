@@ -13,6 +13,17 @@ test("resolveBrowserTargetUrl rewrites runtime report paths to local HTTP URLs",
 	);
 });
 
+test("resolveBrowserTargetUrl can use a sidecar-reachable base URL", () => {
+	assert.equal(
+		resolveBrowserTargetUrl("/app/runtime/report-medtrum-v2.html", {
+			projectRoot: "/app",
+			baseUrl: "http://127.0.0.1:3000",
+			browserBaseUrl: "http://ugk-pi:3000",
+		}),
+		"http://ugk-pi:3000/v1/local-file?path=%2Fapp%2Fruntime%2Freport-medtrum-v2.html",
+	);
+});
+
 test("resolveBrowserTargetUrl rewrites public report paths to local HTTP URLs", () => {
 	assert.equal(
 		resolveBrowserTargetUrl("/app/public/x-api-report-card.html", {

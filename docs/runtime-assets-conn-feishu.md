@@ -157,3 +157,19 @@ playground 卡片当前规则：
 - 查文件问题时，先区分：
   - 是内部工作路径问题
   - 还是用户交付出口问题
+
+## 9. Docker sidecar 与本地 artifact
+
+`web-access` 现在默认通过 Docker Chrome sidecar 打开真实浏览器页面。这里有一个非常容易踩的网络视角问题：
+
+- 用户可见链接使用 `PUBLIC_BASE_URL`，本地通常是 `http://127.0.0.1:3000`
+- sidecar Chrome 自动化使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，compose 内默认是 `http://ugk-pi:3000`
+- sidecar Chrome 不能直接打开 `file:///app/...`，也不能把 `127.0.0.1:3000` 当成 app 容器
+
+因此 agent 内部可以继续写 `/app/runtime/report.html`，但浏览器预览和截图必须经由：
+
+```text
+GET /v1/local-file?path=...
+```
+
+如果是给用户拿真实文件，仍然优先使用 `send_file`，不要把浏览器预览链路当文件交付链路。

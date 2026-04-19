@@ -29,6 +29,15 @@ This file provides the highest-level working rules for AI coding agents in this 
   - 为飞书 / Slack / 企业微信等 IM 接入预留形态
 - 在用户没有给出明确业务能力前，不要擅自初始化数据库、业务框架或大型前端工程体系。
 
+## 2.1 当前阶段快照
+
+- 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
+- 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
+- sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
+- 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
+- Windows host IPC fallback 仍保留，但只用于 legacy 本机调试和紧急排障。
+- 本阶段标准验证命令是 `npm test` 与 `npm run docker:chrome:check`。
+
 ## 3. 全局验证规则
 
 - 不要把“代码里出现了某段字符串”当作修复完成；要验证真实入口、真实状态、真实行为。
@@ -64,7 +73,9 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 默认开发方式：`docker compose up -d`
 - 代码已挂载到容器 `/app`，多数改动后只需要：
   - `docker compose restart ugk-pi`
-- agent 内部可以继续使用 `/app/...` 或 `file:///app/...` 这类本地 artifact 路径做浏览器操作；运行时会自动桥接到宿主可访问的 HTTP 入口
+- agent 内部可以继续使用 `/app/...` 或 `file:///app/...` 这类本地 artifact 路径做浏览器操作；运行时会按浏览器所在网络自动桥接成 HTTP：
+  - 用户可见链接走 `PUBLIC_BASE_URL`
+  - Docker Chrome sidecar 自动化走 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`
 - 如果是要直接交付文件而不是浏览器预览，优先走 `send_file`
 - 如果页面还是旧 HTML：
   - 先重启 `ugk-pi`
@@ -198,6 +209,6 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。
-- Docker 镜像已内置 `curl` 与 `ca-certificates`，不要再把 `/bin/bash: curl: command not found` 当成玄学问题。
-- `web-access` 真实浏览器链路走宿主 IPC bridge；容器内 `local_browser_executable_not_found` 不等于 Windows 没装 Chrome，先查 `docs/web-access-browser-bridge.md`。
-- 宿主浏览器仍然不能直接访问容器内 `file:///app/...`；区别在于这不该由 agent 自己手动规避，应该由运行时自动桥接到 `GET /v1/local-file`、在用户可见文本里自动改写成本机可访问地址，或直接走 `send_file`。
+- Docker 镜像已内置 `git`、`curl` 与 `ca-certificates`，不要再把 `/bin/bash: git: command not found` 或 `/bin/bash: curl: command not found` 当成玄学问题。
+- `web-access` 默认真实浏览器链路走 Docker Chrome sidecar：`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223`；Windows host IPC fallback 仅保留给 legacy 本机调试和紧急排障。
+- 宿主浏览器和 sidecar Chrome 都不能直接依赖容器内 `file:///app/...`：用户可见文本要改写成 `PUBLIC_BASE_URL` 下的 `GET /v1/local-file?path=...`，sidecar 自动化要改写成 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 下的同一路由，真实文件交付优先走 `send_file`。

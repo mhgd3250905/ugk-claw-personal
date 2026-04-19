@@ -10,10 +10,13 @@
 
 1. [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
 2. [README.md](/E:/AII/ugk-pi/README.md)
-3. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-4. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-5. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-6. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+3. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+4. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+5. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+6. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+7. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+
+当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
 ## B. 聊天、流式、追加消息、打断
 
@@ -86,6 +89,9 @@
 如果问题跟以下内容有关，直接进 web-access 专题文档，不要在别的地方绕：
 
 - host browser bridge
+- Docker Chrome sidecar
+- `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`
+- `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`
 - Chrome 持久 profile
 - `local_browser_executable_not_found`
 - `chrome_cdp_unreachable`
@@ -134,3 +140,5 @@
 - 静态 HTML / PNG 路由不通
 - 截图脚本又回退到 `file://`
 - `PUBLIC_BASE_URL` 不对
+- sidecar Chrome 打开本地 HTML 时访问到 `127.0.0.1:3000` 造成 404
+- `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 没有指向 `http://ugk-pi:3000`

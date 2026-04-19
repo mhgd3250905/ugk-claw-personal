@@ -52,6 +52,40 @@ test("resolveBrowserInputUrl rewrites container runtime file URLs to the local a
 	);
 });
 
+test("resolveBrowserInputUrl uses the browser-reachable base URL for sidecar local artifacts", () => {
+	assert.equal(
+		resolveBrowserInputUrl("file:///app/runtime/report-medtrum-v2.html", {
+			projectRoot: "/app",
+			publicBaseUrl: "http://127.0.0.1:3000",
+			browserPublicBaseUrl: "http://ugk-pi:3000",
+		}),
+		"http://ugk-pi:3000/v1/local-file?path=%2Fapp%2Fruntime%2Freport-medtrum-v2.html",
+	);
+});
+
+test("resolveBrowserInputUrl rewrites host-visible app URLs to the sidecar-reachable origin", () => {
+	assert.equal(
+		resolveBrowserInputUrl(
+			"http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fruntime%2Fzhihu-hot-card.html",
+			{
+				publicBaseUrl: "http://127.0.0.1:3000",
+				browserPublicBaseUrl: "http://ugk-pi:3000",
+			},
+		),
+		"http://ugk-pi:3000/v1/local-file?path=%2Fapp%2Fruntime%2Fzhihu-hot-card.html",
+	);
+});
+
+test("resolveBrowserInputUrl keeps external URLs unchanged when using a sidecar base", () => {
+	assert.equal(
+		resolveBrowserInputUrl("https://example.com/path", {
+			publicBaseUrl: "http://127.0.0.1:3000",
+			browserPublicBaseUrl: "http://ugk-pi:3000",
+		}),
+		"https://example.com/path",
+	);
+});
+
 test("resolveBrowserInputUrl rewrites workspace public paths to the local artifact bridge", () => {
 	assert.equal(
 		resolveBrowserInputUrl("/app/public/x-api-report-card.html", {

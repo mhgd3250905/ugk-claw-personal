@@ -20,6 +20,40 @@ function normalizePublicBaseUrl(options = {}) {
   ).replace(/\/+$/, '');
 }
 
+function normalizeBrowserPublicBaseUrl(options = {}) {
+  return String(
+    options.browserPublicBaseUrl ||
+      process.env.WEB_ACCESS_BROWSER_PUBLIC_BASE_URL ||
+      normalizePublicBaseUrl(options),
+  ).replace(/\/+$/, '');
+}
+
+function rewriteSameOriginUrlForBrowser(input, options = {}) {
+  const publicBaseUrl = normalizePublicBaseUrl(options);
+  const browserBaseUrl = normalizeBrowserPublicBaseUrl(options);
+
+  if (publicBaseUrl === browserBaseUrl) {
+    return input;
+  }
+
+  try {
+    const inputUrl = new URL(input);
+    const publicUrl = new URL(publicBaseUrl);
+    const browserUrl = new URL(browserBaseUrl);
+
+    if (inputUrl.origin !== publicUrl.origin) {
+      return input;
+    }
+
+    inputUrl.protocol = browserUrl.protocol;
+    inputUrl.hostname = browserUrl.hostname;
+    inputUrl.port = browserUrl.port;
+    return inputUrl.toString();
+  } catch {
+    return input;
+  }
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -186,12 +220,12 @@ export function resolveBrowserInputUrl(input, options = {}) {
     throw new Error('browser_target_url_required');
   }
   if (/^https?:\/\//i.test(normalizedInput)) {
-    return normalizedInput;
+    return rewriteSameOriginUrlForBrowser(normalizedInput, options);
   }
 
   const artifactPath = resolveWorkspaceArtifactPath(normalizedInput, options);
   if (artifactPath) {
-    const baseUrl = normalizePublicBaseUrl(options);
+    const baseUrl = normalizeBrowserPublicBaseUrl(options);
     return `${baseUrl}/v1/local-file?path=${encodeURIComponent(artifactPath)}`;
   }
 

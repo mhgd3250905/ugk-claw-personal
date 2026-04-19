@@ -57,10 +57,27 @@ function isLikelyContainer() {
   return fs.existsSync('/.dockerenv') || process.cwd() === '/app';
 }
 
+function isDirectCdpMode() {
+  const provider = String(process.env.WEB_ACCESS_BROWSER_PROVIDER || '').trim().toLowerCase();
+  return provider === 'direct_cdp' || provider === 'direct' || provider === 'sidecar';
+}
+
 function printBrowserHelp(error) {
   const message = error instanceof Error ? error.message : String(error || 'unknown_error');
   console.error(`host-browser: unavailable (${message})`);
   console.error('proxy: not checked (host browser is unavailable)');
+
+  if (isDirectCdpMode()) {
+    console.error('');
+    console.error('Direct CDP sidecar mode is enabled for this container.');
+    console.error('Check that the browser service is running and reachable at the configured CDP endpoint.');
+    console.error('You can restart the sidecar browser stack from the project root with:');
+    console.error('');
+    console.error('  npm run docker:chrome:restart');
+    console.error('');
+    console.error('If you need manual login, open the browser GUI entrypoint and complete login there first.');
+    return;
+  }
 
   if (message === 'local_browser_executable_not_found' && isLikelyContainer()) {
     console.error('');

@@ -3,13 +3,59 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - ugk-pi-browser
+      - ugk-pi-browser-cdp
     environment:
       HOST: 0.0.0.0
       PORT: 3000
       PUBLIC_BASE_URL: http://127.0.0.1:3000
+      WEB_ACCESS_BROWSER_PUBLIC_BASE_URL: http://ugk-pi:3000
+      WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
+      WEB_ACCESS_CDP_HOST: 172.31.250.10
+      WEB_ACCESS_CDP_PORT: 9223
     ports:
       - "3000:3000"
     volumes:
       - .:/app
       - /app/node_modules
     command: npm run dev
+    networks:
+      - ugk-pi-net
+  ugk-pi-browser:
+    image: lscr.io/linuxserver/chrome:latest
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Asia/Shanghai
+      DISPLAY: ":0"
+      SELKIES_USE_BROWSER_CURSORS: "true"
+      WEB_ACCESS_BROWSER_PROFILE_DIR: ${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar}
+      CHROME_CLI: "--remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --hide-crash-restore-bubble --ozone-platform=x11 --user-data-dir=${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar} about:blank"
+    volumes:
+      - ./.data/chrome-sidecar:/config
+    ports:
+      - "127.0.0.1:${WEB_ACCESS_BROWSER_GUI_PORT:-3901}:3001"
+    shm_size: "1gb"
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
+    networks:
+      ugk-pi-net:
+        ipv4_address: 172.31.250.10
+  ugk-pi-browser-cdp:
+    image: alpine/socat:latest
+    depends_on:
+      - ugk-pi-browser
+    network_mode: "service:ugk-pi-browser"
+    command:
+      - "TCP-LISTEN:9223,fork,bind=0.0.0.0,reuseaddr"
+      - "TCP:127.0.0.1:9222"
+    restart: unless-stopped
+
+networks:
+  ugk-pi-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24

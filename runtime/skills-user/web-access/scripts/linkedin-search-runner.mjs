@@ -2,10 +2,6 @@
 
 import { ensureHostBrowserBridge } from './host-bridge.mjs';
 
-const IPC_DIR = process.env.NANOCLAW_BROWSER_BRIDGE_DIR || '/workspace/ipc';
-const REQUESTS_DIR = `${IPC_DIR}/browser-requests`;
-const RESPONSES_DIR = `${IPC_DIR}/browser-responses`;
-
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

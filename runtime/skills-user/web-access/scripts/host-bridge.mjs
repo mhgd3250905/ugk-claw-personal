@@ -24,6 +24,7 @@ export function resolveDefaultIpcDir(options = {}) {
 const DEFAULT_IPC_DIR = resolveDefaultIpcDir();
 const DEFAULT_IPC_TIMEOUT_MS = 1000;
 const HOST_BRIDGE_READY_IPC_TIMEOUT_MS = 30000;
+const DIRECT_LOCAL_BROWSER_PROVIDERS = new Set(['direct_cdp', 'direct', 'sidecar']);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -100,6 +101,12 @@ function hasHostBridgeReadyFile(ipcDir) {
   return fs.existsSync(path.join(ipcDir, 'host-bridge-ready.json'));
 }
 
+function shouldPreferDirectLocalBrowser(options = {}) {
+  const env = options.env || process.env;
+  const provider = String(env.WEB_ACCESS_BROWSER_PROVIDER || '').trim().toLowerCase();
+  return DIRECT_LOCAL_BROWSER_PROVIDERS.has(provider);
+}
+
 export function resolveIpcTimeoutMs(options = {}, ipcDir = DEFAULT_IPC_DIR) {
   if (options.ipcTimeoutMs || options.timeoutMs) {
     return options.ipcTimeoutMs || options.timeoutMs;
@@ -113,6 +120,10 @@ export function resolveIpcTimeoutMs(options = {}, ipcDir = DEFAULT_IPC_DIR) {
 export async function requestHostBrowser(command, options = {}) {
   const canUseLocalFallback =
     options.localBrowser !== null && options.disableLocalFallback !== true;
+  if (canUseLocalFallback && shouldPreferDirectLocalBrowser(options)) {
+    return await runLocalFallback(command, options);
+  }
+
   const ipcDir = options.ipcDir || DEFAULT_IPC_DIR;
   const timeoutMs = resolveIpcTimeoutMs(options, ipcDir);
   const requestsDir = path.join(ipcDir, 'browser-requests');
