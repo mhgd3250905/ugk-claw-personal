@@ -636,7 +636,7 @@ test("GET /playground uses one global agent conversation and restores server his
 	await app.close();
 });
 
-test("GET /playground adds a mobile-only top action strip without collapsing into a menu", async () => {
+test("GET /playground uses a compact mobile topbar with overflow actions", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
 	});
@@ -647,20 +647,32 @@ test("GET /playground adds a mobile-only top action strip without collapsing int
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.match(response.body, /class="mobile-action-strip"/);
+	assert.match(response.body, /class="mobile-topbar"/);
+	assert.match(response.body, /class="mobile-brand-logo"[^>]*src="\/ugk-claw-mobile-logo\.png"/);
+	assert.match(response.body, /class="mobile-brand-wordmark">UGK Claw</);
 	assert.match(response.body, /id="mobile-new-conversation-button"/);
-	assert.match(response.body, /id="mobile-view-skills-button"/);
-	assert.match(response.body, /id="mobile-file-picker-action"/);
-	assert.match(response.body, /id="mobile-asset-library-button"/);
-	assert.match(response.body, /\.mobile-action-strip\s*\{[\s\S]*display:\s*none;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-action-strip\s*\{[\s\S]*display:\s*grid;/);
+	assert.match(response.body, /id="mobile-overflow-menu-button"/);
+	assert.match(response.body, /id="mobile-overflow-menu"/);
+	assert.match(response.body, /class="mobile-overflow-menu"/);
+	assert.match(response.body, /id="mobile-overflow-menu"[^>]*hidden|hidden[^>]*id="mobile-overflow-menu"/);
+	assert.match(response.body, /id="mobile-menu-skills-button"/);
+	assert.match(response.body, /id="mobile-menu-file-button"/);
+	assert.match(response.body, /id="mobile-menu-library-button"/);
+	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*none;/);
-	assert.match(response.body, /\.mobile-action-button\s*\{[\s\S]*min-height:\s*40px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*min-height:\s*48px;/);
+	assert.match(response.body, /\.mobile-topbar-button\s*\{[\s\S]*width:\s*36px;/);
+	assert.match(response.body, /\.mobile-overflow-menu-item\s*\{[\s\S]*grid-template-columns:\s*18px minmax\(0, 1fr\);/);
 	assert.match(response.body, /mobileNewConversationButton\.addEventListener\("click", \(\) => \{/);
-	assert.doesNotMatch(response.body, /mobile-menu-button/);
-	assert.doesNotMatch(response.body, /mobile-menu-panel/);
-	assert.doesNotMatch(response.body, /setMobileMenuOpen/);
-	assert.doesNotMatch(response.body, /closeMobileMenu/);
+	assert.match(response.body, /mobileOverflowMenuButton\.addEventListener\("click", \(event\) => \{/);
+	assert.match(response.body, /function setMobileOverflowMenuOpen\(next\)\s*\{/);
+	assert.match(response.body, /function closeMobileOverflowMenu\(\)\s*\{/);
+	assert.match(response.body, /mobileMenuSkillsButton\.addEventListener\("click", \(\) => \{/);
+	assert.match(response.body, /mobileMenuFileButton\.addEventListener\("click", \(\) => \{/);
+	assert.match(response.body, /mobileMenuLibraryButton\.addEventListener\("click", \(\) => \{/);
+	assert.doesNotMatch(response.body, /class="mobile-action-strip"/);
 	await app.close();
 });
 

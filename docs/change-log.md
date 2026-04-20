@@ -12,6 +12,22 @@
 
 ## 2026-04-20
 
+### Playground 手机端顶部收口为品牌状态栏 + 溢出菜单
+- 主题：把手机端顶部从常驻四按钮条收口成更薄的品牌状态栏，避免继续拿操作按钮堆满首屏高度；左侧恢复品牌识别，右侧只保留新会话和更多操作。
+- 影响范围：
+  - `src/ui/playground.ts` 的手机端顶部结构改为 `logo + UGK Claw + 新会话按钮 + 更多按钮`，并新增右上角溢出菜单承载 `技能 / 文件 / 文件库`
+  - 手机端样式从旧的 `mobile-action-strip` 收口到 `mobile-topbar` / `mobile-overflow-menu`，把交互高度压回约 `48px` 的紧凑状态栏
+  - `test/server.test.ts` 更新 `/playground` 页面断言，明确手机端真实结构是紧凑状态栏 + overflow actions，不再是四按钮常驻条
+  - `public/ugk-claw-mobile-logo.png` 新增手机端品牌 logo 静态资源，避免把图片路径继续塞进内联代码里乱飞
+  - `AGENTS.md`、`docs/playground-current.md`、`docs/traceability-map.md` 同步移除旧的“四按钮条”口径，改成当前真实约束
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [public/ugk-claw-mobile-logo.png](/E:/AII/ugk-pi/public/ugk-claw-mobile-logo.png)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground 新会话改为服务端真重置
 - 主题：修复点击 `新会话` 后只在前端清 DOM、插入本地提示气泡，结果刷新又被 `/v1/chat/state` 的真实历史打回去的问题。
 - 影响范围：

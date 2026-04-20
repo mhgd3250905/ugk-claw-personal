@@ -172,41 +172,139 @@ function getPlaygroundStyles(): string {
 			color: rgba(238, 244, 255, 0.42);
 		}
 
-		.mobile-action-strip {
+		.mobile-topbar {
 			display: none;
-			grid-template-columns: repeat(4, minmax(0, 1fr));
-			gap: 8px;
-			width: min(var(--conversation-width), 100%);
-			margin: 0 auto 10px;
+			position: relative;
+			width: 100%;
+			align-items: center;
 		}
 
-		.mobile-action-button {
+		.mobile-brand {
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			min-width: 0;
+		}
+
+		.mobile-brand-logo {
+			display: block;
+			width: 28px;
+			height: 28px;
+			flex: 0 0 auto;
+			filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.26));
+		}
+
+		.mobile-brand-copy {
+			display: grid;
+			min-width: 0;
+		}
+
+		.mobile-brand-wordmark {
+			display: block;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: rgba(242, 246, 255, 0.94);
+			font-size: 13px;
+			font-weight: 600;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.mobile-topbar-button {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			min-height: 40px;
-			padding: 8px 6px;
-			border: 1px solid rgba(201, 210, 255, 0.14);
-			background:
-				linear-gradient(180deg, rgba(14, 18, 31, 0.92), rgba(8, 11, 20, 0.94)),
-				rgba(8, 11, 20, 0.94);
-			color: rgba(238, 244, 255, 0.9);
-			font-size: 11px;
-			line-height: 1;
-			letter-spacing: 0.08em;
-			text-transform: uppercase;
-			box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+			width: 36px;
+			height: 36px;
+			padding: 0;
+			border: 1px solid rgba(201, 210, 255, 0.12);
+			background: rgba(255, 255, 255, 0.04);
+			box-shadow:
+				inset 0 1px 0 rgba(255, 255, 255, 0.05),
+				0 10px 20px rgba(0, 0, 0, 0.16);
 		}
 
-		.mobile-action-button:hover:not(:disabled),
-		.mobile-action-button:focus-visible {
-			border-color: rgba(201, 210, 255, 0.28);
-			background:
-				linear-gradient(180deg, rgba(20, 26, 42, 0.96), rgba(10, 14, 24, 0.98)),
-				rgba(10, 14, 24, 0.98);
-			color: #f2f6ff;
+		.mobile-topbar-button svg {
+			width: 18px;
+			height: 18px;
+			stroke: currentColor;
+		}
+
+		.mobile-topbar-button:hover:not(:disabled),
+		.mobile-topbar-button:focus-visible {
+			border-color: rgba(201, 210, 255, 0.24);
+			background: rgba(255, 255, 255, 0.08);
+			color: #f7f9ff;
 			transform: none;
-			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+			box-shadow:
+				inset 0 1px 0 rgba(255, 255, 255, 0.08),
+				0 12px 24px rgba(0, 0, 0, 0.2);
+		}
+
+		.mobile-overflow-menu {
+			position: absolute;
+			top: calc(100% + 8px);
+			right: 0;
+			z-index: 8;
+			display: grid;
+			gap: 4px;
+			min-width: 156px;
+			padding: 8px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 12px;
+			background:
+				linear-gradient(180deg, rgba(12, 16, 28, 0.98), rgba(7, 10, 18, 0.98)),
+				rgba(7, 10, 18, 0.98);
+			box-shadow:
+				0 18px 34px rgba(0, 0, 0, 0.28),
+				inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			backdrop-filter: blur(16px);
+		}
+
+		.mobile-overflow-menu[hidden] {
+			display: none !important;
+		}
+
+		.mobile-overflow-menu-item {
+			display: grid;
+			grid-template-columns: 18px minmax(0, 1fr);
+			align-items: center;
+			gap: 10px;
+			width: 100%;
+			padding: 10px 12px;
+			border: 0;
+			background: transparent;
+			box-shadow: none;
+			color: rgba(238, 244, 255, 0.9);
+			font-size: 12px;
+			font-weight: 500;
+			letter-spacing: 0.04em;
+			text-transform: none;
+			text-align: left;
+		}
+
+		.mobile-overflow-menu-item:hover:not(:disabled),
+		.mobile-overflow-menu-item:focus-visible {
+			background: rgba(201, 210, 255, 0.08);
+			border-color: transparent;
+			box-shadow: none;
+			transform: none;
+		}
+
+		.mobile-overflow-menu-item-icon {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 18px;
+			height: 18px;
+			color: rgba(212, 221, 255, 0.84);
+		}
+
+		.mobile-overflow-menu-item-icon svg {
+			width: 18px;
+			height: 18px;
+			stroke: currentColor;
 		}
 
 		.status-row {
@@ -2276,19 +2374,33 @@ function getPlaygroundStyles(): string {
 			.topbar {
 				grid-template-columns: 1fr;
 				width: 100%;
-				padding: max(8px, env(safe-area-inset-top)) 12px 8px;
-				min-height: 0;
+				padding: max(8px, env(safe-area-inset-top)) 12px 6px;
+				min-height: 48px;
+				gap: 0;
 				border-bottom: 0;
 				background: linear-gradient(180deg, rgba(6, 8, 15, 0.96), rgba(6, 8, 15, 0.64));
 				backdrop-filter: blur(18px);
 			}
 
 			.topbar-signal {
-				justify-self: center;
-				font-size: 11px;
-				letter-spacing: 0.22em;
-				color: rgba(231, 237, 255, 0.74);
-				text-shadow: none;
+				display: none;
+			}
+
+			.mobile-topbar {
+				display: grid;
+				grid-template-columns: auto minmax(0, 1fr) auto auto;
+				gap: 8px;
+				min-height: 48px;
+			}
+
+			.mobile-brand-logo {
+				width: 26px;
+				height: 26px;
+			}
+
+			.mobile-brand-wordmark {
+				font-size: 12px;
+				letter-spacing: 0.06em;
 			}
 
 			.landing-screen {
@@ -2327,30 +2439,8 @@ function getPlaygroundStyles(): string {
 				padding: 8px 0 10px;
 			}
 
-			.mobile-action-strip {
-				display: grid;
-				position: relative;
-				z-index: 2;
-				grid-template-columns: repeat(4, minmax(0, 1fr));
-				gap: 6px;
-				width: 100%;
-				margin: 0;
-			}
-
 			.archived-conversation-head {
 				padding: 0 12px;
-			}
-
-			.mobile-action-button {
-				min-height: 38px;
-				padding: 8px 4px;
-				border-radius: 12px;
-				font-size: 10px;
-				letter-spacing: 0.06em;
-				background:
-					linear-gradient(180deg, rgba(18, 23, 38, 0.94), rgba(10, 13, 22, 0.98)),
-					rgba(10, 13, 22, 0.98);
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 			}
 
 			.stream-layout {
@@ -2685,7 +2775,9 @@ function getPlaygroundStyles(): string {
 			}
 
 			.transcript-pane,
-			.mobile-action-button,
+			.mobile-topbar-button,
+			.mobile-overflow-menu,
+			.mobile-overflow-menu-item,
 			.shell[data-transcript-state="idle"] .transcript-current:empty::before,
 			.shell[data-stage-mode="landing"] .composer,
 			#send-button,
@@ -2831,6 +2923,7 @@ function getPlaygroundScript(): string {
 			contextUsageSyncToken: 0,
 			dragDepth: 0,
 			assetModalOpen: false,
+			mobileOverflowMenuOpen: false,
 			conversationState: null,
 			conversationHistory: [],
 			renderedHistoryCount: 0,
@@ -2886,10 +2979,13 @@ function getPlaygroundScript(): string {
 		const interruptButton = document.getElementById("interrupt-button");
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
+		const mobileTopbar = document.getElementById("mobile-topbar");
 		const mobileNewConversationButton = document.getElementById("mobile-new-conversation-button");
-		const mobileViewSkillsButton = document.getElementById("mobile-view-skills-button");
-		const mobileFilePickerAction = document.getElementById("mobile-file-picker-action");
-		const mobileAssetLibraryButton = document.getElementById("mobile-asset-library-button");
+		const mobileOverflowMenuButton = document.getElementById("mobile-overflow-menu-button");
+		const mobileOverflowMenu = document.getElementById("mobile-overflow-menu");
+		const mobileMenuSkillsButton = document.getElementById("mobile-menu-skills-button");
+		const mobileMenuFileButton = document.getElementById("mobile-menu-file-button");
+		const mobileMenuLibraryButton = document.getElementById("mobile-menu-library-button");
 		const statusPill = document.getElementById("status-pill");
 		const commandStatus = document.getElementById("command-status");
 
@@ -3238,6 +3334,16 @@ function getPlaygroundScript(): string {
 			updateScrollToBottomButton();
 		}
 
+		function setMobileOverflowMenuOpen(next) {
+			state.mobileOverflowMenuOpen = Boolean(next);
+			mobileOverflowMenu.hidden = !state.mobileOverflowMenuOpen;
+			mobileOverflowMenuButton.setAttribute("aria-expanded", state.mobileOverflowMenuOpen ? "true" : "false");
+		}
+
+		function closeMobileOverflowMenu() {
+			setMobileOverflowMenuOpen(false);
+		}
+
 		function setLoading(next) {
 			state.loading = next;
 			sendButton.disabled = false;
@@ -3249,8 +3355,16 @@ function getPlaygroundScript(): string {
 			fileInput.disabled = false;
 			conversationInput.disabled = next;
 			newConversationButton.disabled = next;
+			mobileNewConversationButton.disabled = next;
+			mobileOverflowMenuButton.disabled = false;
+			mobileMenuSkillsButton.disabled = next;
+			mobileMenuFileButton.disabled = false;
+			mobileMenuLibraryButton.disabled = next;
 			openAssetLibraryButton.disabled = next;
 			refreshAssetsButton.disabled = next;
+			if (next) {
+				closeMobileOverflowMenu();
+			}
 			setCommandStatus(next ? "RUNNING" : "STANDBY");
 			statusPill.textContent = next ? "运行中" : "就绪";
 		}
@@ -5963,19 +6077,27 @@ function getPlaygroundScript(): string {
 			});
 		});
 		mobileNewConversationButton.addEventListener("click", () => {
+			closeMobileOverflowMenu();
 			void resetConversation().then((reset) => {
 				if (reset) {
 					messageInput.focus();
 				}
 			});
 		});
-		mobileViewSkillsButton.addEventListener("click", () => {
+		mobileOverflowMenuButton.addEventListener("click", (event) => {
+			event.stopPropagation();
+			setMobileOverflowMenuOpen(!state.mobileOverflowMenuOpen);
+		});
+		mobileMenuSkillsButton.addEventListener("click", () => {
+			closeMobileOverflowMenu();
 			void loadSkills();
 		});
-		mobileFilePickerAction.addEventListener("click", () => {
+		mobileMenuFileButton.addEventListener("click", () => {
+			closeMobileOverflowMenu();
 			fileInput.click();
 		});
-		mobileAssetLibraryButton.addEventListener("click", () => {
+		mobileMenuLibraryButton.addEventListener("click", () => {
+			closeMobileOverflowMenu();
 			openAssetLibrary();
 		});
 		historyLoadMoreButton.addEventListener("click", () => {
@@ -6035,6 +6157,18 @@ function getPlaygroundScript(): string {
 			if (event.key === "Escape" && !contextUsageDialog.hidden) {
 				closeContextUsageDialog();
 			}
+			if (event.key === "Escape" && state.mobileOverflowMenuOpen) {
+				closeMobileOverflowMenu();
+			}
+		});
+
+		document.addEventListener("click", (event) => {
+			if (!state.mobileOverflowMenuOpen) {
+				return;
+			}
+			if (!mobileTopbar.contains(event.target)) {
+				closeMobileOverflowMenu();
+			}
 		});
 
 		window.requestAnimationFrame(syncConversationWidth);
@@ -6060,6 +6194,69 @@ export function renderPlaygroundPage(): string {
 		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
 			<header class="topbar">
 				<div class="topbar-signal" aria-hidden="true">UGK CLAW</div>
+				<section id="mobile-topbar" class="mobile-topbar" aria-label="手机状态栏">
+					<div class="mobile-brand">
+						<img class="mobile-brand-logo" src="/ugk-claw-mobile-logo.png" alt="UGK Claw logo" />
+						<div class="mobile-brand-copy">
+							<span class="mobile-brand-wordmark">UGK Claw</span>
+						</div>
+					</div>
+					<div></div>
+					<button
+						id="mobile-new-conversation-button"
+						class="mobile-topbar-button"
+						type="button"
+						aria-label="新会话"
+						title="新会话"
+					>
+						<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<path d="M12 5v14M5 12h14" stroke-width="1.8" stroke-linecap="round" />
+						</svg>
+					</button>
+					<button
+						id="mobile-overflow-menu-button"
+						class="mobile-topbar-button"
+						type="button"
+						aria-haspopup="menu"
+						aria-expanded="false"
+						aria-controls="mobile-overflow-menu"
+						aria-label="更多操作"
+						title="更多操作"
+					>
+						<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+							<circle cx="12" cy="5" r="1.8"></circle>
+							<circle cx="12" cy="12" r="1.8"></circle>
+							<circle cx="12" cy="19" r="1.8"></circle>
+						</svg>
+					</button>
+					<div id="mobile-overflow-menu" class="mobile-overflow-menu" role="menu" hidden>
+						<button id="mobile-menu-skills-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span>技能</span>
+						</button>
+						<button id="mobile-menu-file-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M7 4h7l4 4v12H7V4Z" stroke-width="1.8" stroke-linejoin="round" />
+									<path d="M14 4v4h4" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span>文件</span>
+						</button>
+						<button id="mobile-menu-library-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M4 7h5l2 2h9v9H4V7Z" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span>文件库</span>
+						</button>
+					</div>
+				</section>
 				<div class="topbar-right">
 					<div class="status-row"><span>主题</span><strong>深色 / 极客</strong></div>
 					<div class="status-row"><span>传输</span><strong>SSE / 流式</strong></div>
@@ -6068,12 +6265,6 @@ export function renderPlaygroundPage(): string {
 			</header>
 
 			<main id="chat-stage" class="chat-stage">
-				<section class="mobile-action-strip" aria-label="手机快捷操作">
-					<button id="mobile-new-conversation-button" class="mobile-action-button" type="button">新会话</button>
-					<button id="mobile-view-skills-button" class="mobile-action-button" type="button">技能</button>
-					<button id="mobile-file-picker-action" class="mobile-action-button" type="button">文件</button>
-					<button id="mobile-asset-library-button" class="mobile-action-button" type="button">文件库</button>
-				</section>
 				<div hidden>
 					<div class="meta-chip">
 						<strong>会话</strong>
