@@ -207,6 +207,8 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
   - 资产、附件、`send_file`、`conn`、Feishu 运行说明
 - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
   - web-access Docker Chrome sidecar、legacy IPC fallback、Chrome 持久 profile、排障口径
+- [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+  - 腾讯云服务器最常用运维命令速查；只保留更新、验收、日志、SSH tunnel 和回滚这些高频动作
 - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
   - 腾讯云新加坡 CVM 部署、`.env`、更新发布、SSH tunnel、验证与回滚 runbook
 - [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)

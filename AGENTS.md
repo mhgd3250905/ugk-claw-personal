@@ -217,6 +217,8 @@ This file provides the highest-level working rules for AI coding agents in this 
   - 当前 playground 的真实交互与 UI 约束
 - `docs/runtime-assets-conn-feishu.md`
   - 资产、附件、`conn`、飞书接入的运行说明
+- `docs/server-ops-quick-reference.md`
+  - 腾讯云服务器高频运维动作速查；只看更新、验收、日志、SSH tunnel 和回滚
 - `docs/tencent-cloud-singapore-deploy.md`
   - 腾讯云新加坡 CVM 的部署事实、`.env` 口径、更新发布流程、SSH tunnel、验证命令和踩坑记录
 

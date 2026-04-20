@@ -40,6 +40,18 @@
   - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
   - [test/containerization.test.ts](/E:/AII/ugk-pi/test/containerization.test.ts)
 
+### 服务器运维速查页
+- 主题：把腾讯云新加坡服务器最常用的更新、验收、日志、SSH tunnel、运行态位置与回滚命令压成一页速查，避免每次都在长 runbook 里考古。
+- 影响范围：
+  - 新增 `docs/server-ops-quick-reference.md`，只保留高频操作，不重复铺陈历史背景
+  - `README.md`、`AGENTS.md`、`docs/traceability-map.md`、`docs/tencent-cloud-singapore-deploy.md` 同步挂出速查页入口，形成“速查页 -> 长 runbook”的文档梯度
+- 对应入口：
+  - [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### 腾讯云服务器迁移到 GitHub 工作目录
 - 主题：把腾讯云新加坡服务器的主部署目录从 tar 解包目录迁到 GitHub 工作目录，结束“本地打包 tar -> 服务器解包”作为默认主流程的阶段。
 - 影响范围：

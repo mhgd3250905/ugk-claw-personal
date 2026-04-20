@@ -4,6 +4,8 @@
 
 这不是泛泛而谈的“云服务器教程”，而是本仓库当前这台服务器的可追溯 runbook。后续更新部署时，先看这里，别靠记忆硬莽。
 
+如果你现在只想要高频命令速查，不想先读长文，直接看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)。
+
 ## 当前部署快照
 
 - 日期：`2026-04-20`
