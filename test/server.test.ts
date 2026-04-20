@@ -536,9 +536,10 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*padding:\s*6px 8px 6px 10px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*align-self:\s*end;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*height:\s*fit-content;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*max-height:\s*64px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*max-height:\s*none;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*min-height:\s*40px;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*max-height:\s*40px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*max-height:\s*calc\(var\(--composer-line-height\) \* var\(--composer-textarea-max-lines\) \+ 20px\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*padding:\s*10px 8px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*min-height:\s*40px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
 	assert.match(response.body, /const commandDeck = document\.getElementById\("command-deck"\);/);
@@ -550,6 +551,13 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /const layoutObserver = new ResizeObserver\(\(\) => \{/);
 	assert.match(response.body, /layoutObserver\.observe\(commandDeck\);/);
 	assert.match(response.body, /layoutObserver\.observe\(chatStage\);/);
+	assert.match(response.body, /function syncComposerTextareaHeight\(\)\s*\{/);
+	assert.match(response.body, /const maxLines = 10;/);
+	assert.match(response.body, /messageInput\.style\.height = "auto";/);
+	assert.match(response.body, /messageInput\.style\.overflowY = messageInput\.scrollHeight > maxHeight \? "auto" : "hidden";/);
+	assert.match(response.body, /<textarea id="message" name="message" placeholder="和我聊聊吧"><\/textarea>/);
+	assert.match(response.body, /messageInput\.placeholder = "和我聊聊吧";/);
+	assert.doesNotMatch(response.body, /Enter terminal command or query neural core/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border-radius: 4px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*box-shadow: 0 8px 18px rgba\(0, 0, 0, 0\.22\);/);
@@ -601,6 +609,10 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.doesNotMatch(response.body, /\.hero-core\s*\{[\s\S]*translateY\(-8%\)/);
 	assert.doesNotMatch(response.body, /class="brand-logo"/);
 	assert.doesNotMatch(response.body, /class="hero-logo"/);
+	assert.doesNotMatch(response.body, /开始一轮对话，或先从上方选择文件与资产。/);
+	assert.match(response.body, /\.shell\[data-transcript-state="idle"\] \.transcript-current:empty::before\s*\{[\s\S]*content:\s*"■   ■  ■■■  ■  ■\\A/);
+	assert.match(response.body, /\.shell\[data-transcript-state="idle"\] \.transcript-current:empty::before\s*\{[\s\S]*font-family:\s*var\(--font-mono\);/);
+	assert.match(response.body, /\.shell\[data-transcript-state="idle"\] \.transcript-current:empty::before\s*\{[\s\S]*white-space:\s*pre;/);
 	await app.close();
 });
 
@@ -668,7 +680,22 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /function createMessageActions\(entry, content\)\s*\{/);
 	assert.match(response.body, /message-actions/);
 	assert.match(response.body, /message-copy-button/);
-	assert.match(response.body, /copyButton\.textContent = "复制正文"/);
+	assert.match(response.body, /\.message-actions\s*\{[\s\S]*margin-top:\s*4px;/);
+	assert.match(response.body, /\.message-copy-button\s*\{[\s\S]*width:\s*26px;/);
+	assert.match(response.body, /\.message-copy-button\s*\{[\s\S]*height:\s*26px;/);
+	const messageCopyButtonBlock = response.body.match(/\.message-copy-button\s*\{([\s\S]*?)\n\s*\}/);
+	assert.ok(messageCopyButtonBlock);
+	assert.match(messageCopyButtonBlock[1], /border:\s*0;/);
+	assert.match(messageCopyButtonBlock[1], /background:\s*transparent;/);
+	assert.match(messageCopyButtonBlock[1], /box-shadow:\s*none;/);
+	assert.match(messageCopyButtonBlock[1], /color:\s*rgba\(226,\s*234,\s*255,\s*0\.52\);/);
+	assert.doesNotMatch(messageCopyButtonBlock[1], /border-color:\s*rgba\(201,\s*210,\s*255,\s*0\.2\);/);
+	assert.doesNotMatch(messageCopyButtonBlock[1], /background:\s*rgba\(201,\s*210,\s*255,\s*0\.05\);/);
+	assert.match(response.body, /\.message-copy-button:hover:not\(:disabled\),[\s\S]*\.message-copy-button:focus-visible\s*\{[\s\S]*background:\s*transparent;/);
+	assert.match(response.body, /\.message-copy-button::before,[\s\S]*\.message-copy-button::after\s*\{[\s\S]*content:\s*"";/);
+	assert.match(response.body, /copyButton\.setAttribute\("aria-label", "复制正文"\)/);
+	assert.match(response.body, /copyLabel\.className = "visually-hidden"/);
+	assert.doesNotMatch(response.body, /copyButton\.textContent = "复制正文"/);
 	assert.match(response.body, /await copyTextToClipboard\(entry\.text \|\| ""\)/);
 	assert.match(response.body, /function canPreviewFile\(mimeType\)\s*\{/);
 	assert.match(response.body, /function buildDownloadUrl\(downloadUrl\)\s*\{/);
@@ -731,6 +758,20 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*min-height:\s*48px;/);
 	assert.match(response.body, /\.mobile-topbar-button\s*\{[\s\S]*width:\s*36px;/);
 	assert.match(response.body, /\.mobile-overflow-menu-item\s*\{[\s\S]*grid-template-columns:\s*18px minmax\(0, 1fr\);/);
+	const mobileDrawerBackdropBlock = response.body.match(/\.mobile-drawer-backdrop\s*\{([\s\S]*?)\n\s*\}/);
+	assert.ok(mobileDrawerBackdropBlock);
+	assert.match(mobileDrawerBackdropBlock[1], /background:\s*transparent;/);
+	assert.match(mobileDrawerBackdropBlock[1], /backdrop-filter:\s*none;/);
+	assert.doesNotMatch(mobileDrawerBackdropBlock[1], /blur\(10px\)/);
+	const mobileConversationListBlock = response.body.match(/\.mobile-conversation-list\s*\{([\s\S]*?)\n\s*\}/);
+	assert.ok(mobileConversationListBlock);
+	assert.match(mobileConversationListBlock[1], /scrollbar-width:\s*none;/);
+	assert.match(mobileConversationListBlock[1], /-ms-overflow-style:\s*none;/);
+	assert.match(response.body, /\.mobile-conversation-list::-webkit-scrollbar\s*\{[\s\S]*display:\s*none;/);
+	const mobileConversationItemBlock = response.body.match(/\.mobile-conversation-item\s*\{([\s\S]*?)\n\s*\}/);
+	assert.ok(mobileConversationItemBlock);
+	assert.match(mobileConversationItemBlock[1], /border-radius:\s*4px;/);
+	assert.doesNotMatch(mobileConversationItemBlock[1], /border-radius:\s*14px;/);
 	assert.match(response.body, /mobileNewConversationButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /mobileOverflowMenuButton\.addEventListener\("click", \(event\) => \{/);
 	assert.match(response.body, /function setMobileOverflowMenuOpen\(next\)\s*\{/);
@@ -813,14 +854,28 @@ test("GET /playground keeps the mobile active composer compact", async () => {
 	});
 
 	assert.equal(response.statusCode, 200);
+	const mobileComposerBlock = [...response.body.matchAll(/\n\s*\.composer\s*\{([\s\S]*?)\n\s*\}/g)].find((match) =>
+		match[1].includes("background: rgba(8, 10, 19, 0.98);"),
+	);
+	const mobileLandingComposerBlock = [
+		...response.body.matchAll(/\.shell\[data-stage-mode="landing"\] \.composer\s*\{([\s\S]*?)\n\s*\}/g),
+	].find((match) => match[1].includes("background: rgba(8, 10, 19, 0.98);"));
+	assert.ok(mobileComposerBlock);
+	assert.ok(mobileLandingComposerBlock);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer\s*\{[\s\S]*padding:\s*8px 8px 8px 10px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer\s*\{[\s\S]*background:\s*rgba\(8, 10, 19, 0\.98\);/);
+	assert.doesNotMatch(mobileComposerBlock[1], /linear-gradient/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer-main\s*\{[\s\S]*gap:\s*4px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer-header\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer textarea\s*\{[\s\S]*min-height:\s*44px;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer textarea\s*\{[\s\S]*max-height:\s*96px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer textarea\s*\{[\s\S]*max-height:\s*calc\(var\(--composer-line-height\) \* var\(--composer-textarea-max-lines\) \+ 24px\);/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer textarea\s*\{[\s\S]*padding:\s*12px 0;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer textarea\s*\{[\s\S]*resize:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*height:\s*fit-content;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*max-height:\s*40px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*background:\s*rgba\(8, 10, 19, 0\.98\);/);
+	assert.doesNotMatch(mobileLandingComposerBlock[1], /linear-gradient/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*max-height:\s*calc\(var\(--composer-line-height\) \* var\(--composer-textarea-max-lines\) \+ 20px\);/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*padding:\s*10px 0;/);
 	await app.close();
 });
 
@@ -838,8 +893,10 @@ test("GET /playground keeps the default active composer compact before mobile ov
 	assert.match(response.body, /\.composer\s*\{[\s\S]*padding:\s*12px 0 14px;/);
 	assert.match(response.body, /\.composer-main\s*\{[\s\S]*gap:\s*8px;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*min-height:\s*72px;/);
-	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*max-height:\s*18vh;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*--composer-textarea-max-lines:\s*10;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*max-height:\s*calc\(var\(--composer-line-height\) \* var\(--composer-textarea-max-lines\) \+ 24px\);/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*resize:\s*none;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*overflow-y:\s*auto;/);
 	assert.match(response.body, /@media \(max-width: 960px\) \{[\s\S]*\.composer-side\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
 	await app.close();
 });

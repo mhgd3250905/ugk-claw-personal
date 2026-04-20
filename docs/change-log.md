@@ -10,7 +10,94 @@
 
 ---
 
+## 2026-04-21
+
+### Playground 手机历史抽屉右侧遮罩去模糊
+- 主题：手机历史会话侧边栏展开后，右侧不再显示暗色毛玻璃背景，只保留透明点击遮罩用于关闭抽屉。
+- 影响范围：
+  - `src/ui/playground.ts` 将 `.mobile-drawer-backdrop` 改为 `background: transparent` 与 `backdrop-filter: none`，移除右侧区域的暗色和模糊效果。
+  - `test/server.test.ts` 增加移动抽屉 backdrop 透明、无 blur 的回归断言。
+  - `docs/playground-current.md` 同步更新手机历史会话抽屉遮罩口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 手机侧边栏与输入框视觉收口
+- 主题：把手机历史会话侧边栏条目圆角收为 `4px`，隐藏列表侧边滚动条，并让 composer 输入框 placeholder / 正文在单行状态下视觉居中。
+- 影响范围：
+  - `src/ui/playground.ts` 将 `.mobile-conversation-item` 从 `14px` 圆角改为 `4px`，与手机端统一矩形圆角口径一致。
+  - `src/ui/playground.ts` 为 `.mobile-conversation-list` 增加 `scrollbar-width: none`、`-ms-overflow-style: none` 和 WebKit scrollbar 隐藏规则，保留纵向滚动但不显示侧边滑动条。
+  - `src/ui/playground.ts` 将手机 active textarea 调整为 `44px` 高度下的 `12px 0` 对称 padding，landing textarea 调整为 `40px` 高度下的 `10px 0` padding，并同步 max-height 计算，避免 placeholder 和正文偏上。
+  - `test/server.test.ts` 增加历史会话列表圆角、滚动条隐藏、textarea 对称 padding 与最大高度计算的回归断言。
+  - `docs/playground-current.md` 同步更新手机侧边栏和输入框视觉口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 消息复制 icon 视觉降噪
+- 主题：把消息气泡底部的小型复制 icon 改成灰色裸 icon，不再显示按钮背景、边框或阴影。
+- 影响范围：
+  - `src/ui/playground.ts` 将 `.message-copy-button` 改为透明背景、`border: 0`、`box-shadow: none`，基础色收为灰色，并覆盖 hover / focus 状态，避免全局按钮样式重新冒出底色和边框。
+  - `src/ui/playground.ts` 将复制 icon 伪元素的前景纸张背景改为透明，只保留灰色线条图形。
+  - `test/server.test.ts` 增加复制按钮透明背景、无边框、无阴影、灰色 icon 和 hover / focus 覆盖的回归断言。
+  - `docs/playground-current.md` 同步更新消息复制操作的真实 UI 口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ## 2026-04-20
+
+### Playground 消息复制按钮改为小型 icon
+- 主题：把消息气泡底部的“复制正文”文字按钮收口成小型复制 icon，并让操作区纵向更贴近消息气泡。
+- 影响范围：
+  - `src/ui/playground.ts` 将 `.message-actions` 的顶部间距从 `10px` 收到 `4px`，减少消息气泡和复制操作之间的空档。
+  - `src/ui/playground.ts` 将 `.message-copy-button` 改为 `26px` icon-only 按钮，手机端收为 `24px`；复制图形由 CSS 伪元素绘制。
+  - `src/ui/playground.ts` 保留 `aria-label`、`title` 和 `.visually-hidden` 文本，复制成功 / 失败时更新无障碍提示，不再用可见文字撑开按钮。
+  - `test/server.test.ts` 增加 icon-only 复制按钮、尺寸、间距和无障碍文本的回归断言。
+  - `docs/playground-current.md` 同步更新消息复制操作的真实 UI 口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 输入框 placeholder 中文化
+- 主题：把 composer 输入框运行时覆盖的英文占位符 `Enter terminal command or query neural core...` 改为中文“和我聊聊吧”。
+- 影响范围：
+  - `src/ui/playground.ts` 同步更新 textarea HTML placeholder 和脚本初始化 placeholder，避免加载前后文案不一致。
+  - `test/server.test.ts` 增加回归断言，防止英文调试口吻再次回流。
+  - `docs/playground-current.md` 同步记录当前 placeholder 口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 空态方块 UGK 与移动输入框纯色背景
+- 主题：把手机空态中间的 `UGK` 标识从普通字母字符改成方块字符拼出的像素标识，并把移动端底部 composer 背景从渐变收成单层纯色。
+- 影响范围：
+  - `src/ui/playground.ts` 更新 idle transcript 伪元素内容，使用 `■` 方块字符组成 `UGK`。
+  - `src/ui/playground.ts` 将 `max-width: 640px` 下普通 `.composer` 与 landing `.composer` 背景改为 `rgba(8, 10, 19, 0.98)`，移除这两处 `linear-gradient`。
+  - `test/server.test.ts` 增加方块字符标识与移动端 composer 背景纯色的回归断言。
+  - `docs/playground-current.md` 同步更新手机空态和底部 composer 背景口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 输入框十行自适应与空态 UGK 标识
+- 主题：把底部输入框从“最多两行且不好查看超出内容”的旧表现，改为随输入行数自适应增长，最多显示 10 行；超过 10 行后在 textarea 内部纵向滚动。同时移除手机空态中间的中文提示方块，改为像素字符 `UGK` 标识。
+- 影响范围：
+  - `src/ui/playground.ts` 为 composer textarea 增加 `--composer-textarea-max-lines: 10`，桌面、landing 与手机断点统一按行高 + padding 计算最大高度，并保留紧凑初始高度。
+  - `src/ui/playground.ts` 新增 `syncComposerTextareaHeight()`，在输入、清空、草稿恢复和初始化时同步 textarea 实际高度；超过 10 行后切换为 `overflow-y: auto`，未超过时隐藏内部滚动条。
+  - `src/ui/playground.ts` 将手机 idle transcript 的旧中文提示替换为 `UGK` 像素字符伪元素，使用等宽字体和 `white-space: pre` 保持字符图形。
+  - `test/server.test.ts` 增加输入框 10 行自适应、内部滚动、landing/mobile 最大高度与空态 `UGK` 标识的回归断言。
+  - `docs/playground-current.md` 同步更新当前输入框高度与手机空态展示口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
 
 ### Playground active 输入区高度收口
 - 主题：修复进入对话后 `#composer-drop-target.composer` 仍沿用偏高 textarea 高度，导致底部输入区在手机、窄屏和普通对话态下占据过多屏幕的问题。

@@ -324,8 +324,8 @@ function getPlaygroundStyles(): string {
 			position: fixed;
 			inset: 0;
 			z-index: 30;
-			background: rgba(2, 4, 10, 0.58);
-			backdrop-filter: blur(10px);
+			background: transparent;
+			backdrop-filter: none;
 		}
 
 		.mobile-drawer-backdrop[hidden],
@@ -388,8 +388,17 @@ function getPlaygroundStyles(): string {
 			align-content: start;
 			gap: 8px;
 			min-height: 0;
-			overflow: auto;
-			padding-right: 2px;
+			overflow-y: auto;
+			overflow-x: hidden;
+			padding-right: 0;
+			scrollbar-width: none;
+			-ms-overflow-style: none;
+		}
+
+		.mobile-conversation-list::-webkit-scrollbar {
+			width: 0;
+			height: 0;
+			display: none;
 		}
 
 		.mobile-conversation-empty {
@@ -407,7 +416,7 @@ function getPlaygroundStyles(): string {
 			width: 100%;
 			padding: 11px 12px;
 			border: 1px solid rgba(201, 210, 255, 0.1);
-			border-radius: 14px;
+			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.035);
 			box-shadow: none;
 			text-align: left;
@@ -1273,16 +1282,55 @@ function getPlaygroundStyles(): string {
 			display: flex;
 			justify-content: flex-end;
 			gap: 8px;
-			margin-top: 10px;
+			margin-top: 4px;
 		}
 
 		.message-copy-button {
-			padding: 6px 10px;
-			border-color: rgba(201, 210, 255, 0.2);
-			background: rgba(201, 210, 255, 0.05);
-			color: var(--accent);
-			font-size: 10px;
-			letter-spacing: 0.12em;
+			position: relative;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 26px;
+			height: 26px;
+			padding: 0;
+			border: 0;
+			background: transparent;
+			color: rgba(226, 234, 255, 0.52);
+			box-shadow: none;
+			font-size: 0;
+			line-height: 0;
+			letter-spacing: 0;
+		}
+
+		.message-copy-button:hover:not(:disabled),
+		.message-copy-button:focus-visible {
+			border-color: transparent;
+			background: transparent;
+			color: rgba(242, 246, 255, 0.78);
+			box-shadow: none;
+			transform: none;
+		}
+
+		.message-copy-button::before,
+		.message-copy-button::after {
+			content: "";
+			position: absolute;
+			width: 9px;
+			height: 11px;
+			border: 1px solid currentColor;
+			border-radius: 2px;
+		}
+
+		.message-copy-button::before {
+			top: 6px;
+			left: 7px;
+			opacity: 0.46;
+		}
+
+		.message-copy-button::after {
+			top: 9px;
+			left: 10px;
+			background: transparent;
 		}
 
 		.message-copy-button:disabled {
@@ -1474,10 +1522,13 @@ function getPlaygroundStyles(): string {
 		}
 
 		.composer textarea {
+			--composer-line-height: 22px;
+			--composer-textarea-max-lines: 10;
 			min-height: 72px;
-			max-height: 18vh;
+			max-height: calc(var(--composer-line-height) * var(--composer-textarea-max-lines) + 24px);
 			resize: none;
-			line-height: 1.55;
+			line-height: var(--composer-line-height);
+			overflow-y: auto;
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 		}
 
@@ -2378,7 +2429,7 @@ function getPlaygroundStyles(): string {
 			align-items: center;
 			height: fit-content;
 			min-height: 0;
-			max-height: 64px;
+			max-height: none;
 			gap: 8px;
 			padding: 6px 8px 6px 10px;
 			border: 0;
@@ -2397,16 +2448,17 @@ function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"] .composer textarea {
+			--composer-line-height: 20px;
 			min-height: 40px;
-			max-height: 40px;
-			padding: 10px 8px 8px;
+			max-height: calc(var(--composer-line-height) * var(--composer-textarea-max-lines) + 20px);
+			padding: 10px 8px;
 			border: 0;
 			background: transparent;
 			box-shadow: none;
 			color: rgba(238, 244, 255, 0.84);
-			line-height: 1.4;
+			line-height: var(--composer-line-height);
 			resize: none;
-			overflow: hidden;
+			overflow-y: auto;
 		}
 
 		.shell[data-stage-mode="landing"] .composer textarea::placeholder {
@@ -2642,18 +2694,25 @@ function getPlaygroundStyles(): string {
 			}
 
 			.shell[data-transcript-state="idle"] .transcript-current:empty::before {
-				content: "开始一轮对话，或先从上方选择文件与资产。";
+				content: "■   ■  ■■■  ■  ■\\A■   ■ ■     ■ ■ \\A■   ■ ■  ■■ ■■  \\A■   ■ ■   ■ ■ ■ \\A ■■■   ■■■  ■  ■";
 				display: block;
 				margin: 16vh auto 0;
-				width: min(240px, calc(100% - 32px));
-				padding: 14px 16px;
-				border: 1px solid rgba(201, 210, 255, 0.08);
-				border-radius: 14px;
-				background: rgba(255, 255, 255, 0.03);
-				color: rgba(231, 236, 255, 0.46);
-				font-size: 13px;
-				line-height: 1.65;
+				width: max-content;
+				max-width: calc(100% - 32px);
+				padding: 0;
+				border: 0;
+				border-radius: 0;
+				background: transparent;
+				color: rgba(231, 236, 255, 0.58);
+				font-family: var(--font-mono);
+				font-size: 14px;
+				line-height: 1.08;
+				letter-spacing: 0.08em;
+				white-space: pre;
 				text-align: center;
+				text-shadow:
+					0 0 12px rgba(201, 210, 255, 0.18),
+					0 0 24px rgba(121, 105, 214, 0.12);
 			}
 
 			.file-strip {
@@ -2712,9 +2771,7 @@ function getPlaygroundStyles(): string {
 				padding: 8px 8px 8px 10px;
 				border: 1px solid rgba(201, 210, 255, 0.08);
 				border-radius: 4px;
-				background:
-					linear-gradient(180deg, rgba(13, 17, 29, 0.96), rgba(8, 10, 19, 0.98)),
-					rgba(8, 10, 19, 0.98);
+				background: rgba(8, 10, 19, 0.98);
 				box-shadow:
 					0 -8px 30px rgba(0, 0, 0, 0.18),
 					inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -2730,15 +2787,16 @@ function getPlaygroundStyles(): string {
 			}
 
 			.composer textarea {
+				--composer-line-height: 20px;
 				min-height: 44px;
-				max-height: 96px;
-				padding: 11px 0 8px;
+				max-height: calc(var(--composer-line-height) * var(--composer-textarea-max-lines) + 24px);
+				padding: 12px 0;
 				border: 0;
 				background: transparent;
 				box-shadow: none;
 				color: rgba(242, 246, 255, 0.92);
 				font-size: 14px;
-				line-height: 1.55;
+				line-height: var(--composer-line-height);
 				resize: none;
 				overflow-y: auto;
 			}
@@ -2763,14 +2821,12 @@ function getPlaygroundStyles(): string {
 				align-items: center;
 				height: fit-content;
 				min-height: 0;
-				max-height: 64px;
+				max-height: none;
 				gap: 8px;
 				padding: 6px 8px 6px 10px;
 				border: 1px solid rgba(201, 210, 255, 0.08);
 				border-radius: 4px;
-				background:
-					linear-gradient(180deg, rgba(13, 17, 29, 0.96), rgba(8, 10, 19, 0.98)),
-					rgba(8, 10, 19, 0.98);
+				background: rgba(8, 10, 19, 0.98);
 				box-shadow:
 					0 -8px 30px rgba(0, 0, 0, 0.18),
 					inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -2786,11 +2842,12 @@ function getPlaygroundStyles(): string {
 			}
 
 			.shell[data-stage-mode="landing"] .composer textarea {
+				--composer-line-height: 20px;
 				min-height: 40px;
-				max-height: 40px;
-				padding: 10px 0 8px;
+				max-height: calc(var(--composer-line-height) * var(--composer-textarea-max-lines) + 20px);
+				padding: 10px 0;
 				font-size: 14px;
-				line-height: 1.4;
+				line-height: var(--composer-line-height);
 				color: rgba(242, 246, 255, 0.92);
 			}
 
@@ -2886,8 +2943,8 @@ function getPlaygroundStyles(): string {
 			}
 
 			.message-copy-button {
-				font-size: 10px;
-				padding: 5px 8px;
+				width: 24px;
+				height: 24px;
 			}
 
 			.message,
@@ -3218,7 +3275,7 @@ function getPlaygroundScript(): string {
 		const statusPill = document.getElementById("status-pill");
 		const commandStatus = document.getElementById("command-status");
 
-		messageInput.placeholder = "Enter terminal command or query neural core...";
+		messageInput.placeholder = "和我聊聊吧";
 
 		function createBrowserId() {
 			const cryptoApi = globalThis.crypto;
@@ -3510,6 +3567,20 @@ function getPlaygroundScript(): string {
 
 		function syncConversationWidth() {
 			syncConversationLayout();
+		}
+
+		function syncComposerTextareaHeight() {
+			const style = window.getComputedStyle(messageInput);
+			const lineHeight = Number.parseFloat(style.lineHeight) || 20;
+			const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+			const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+			const maxLines = 10;
+			const maxHeight = Math.ceil(lineHeight * maxLines + paddingTop + paddingBottom);
+			messageInput.style.height = "auto";
+			const nextHeight = Math.min(messageInput.scrollHeight, maxHeight);
+			messageInput.style.height = nextHeight + "px";
+			messageInput.style.overflowY = messageInput.scrollHeight > maxHeight ? "auto" : "hidden";
+			window.requestAnimationFrame(syncConversationLayout);
 		}
 
 		function setTranscriptState(next) {
@@ -4669,18 +4740,29 @@ function getPlaygroundScript(): string {
 			const copyButton = document.createElement("button");
 			copyButton.type = "button";
 			copyButton.className = "message-copy-button";
-			copyButton.textContent = "复制正文";
+			copyButton.setAttribute("aria-label", "复制正文");
+			copyButton.title = "复制正文";
+			const copyLabel = document.createElement("span");
+			copyLabel.className = "visually-hidden";
+			copyLabel.textContent = "复制正文";
+			copyButton.appendChild(copyLabel);
 			copyButton.addEventListener("click", async () => {
-				const original = copyButton.textContent || "复制正文";
+				const original = copyButton.getAttribute("aria-label") || "复制正文";
 				copyButton.disabled = true;
 				try {
 					await copyTextToClipboard(entry.text || "");
-					copyButton.textContent = "已复制";
+					copyButton.setAttribute("aria-label", "已复制");
+					copyButton.title = "已复制";
+					copyLabel.textContent = "已复制";
 				} catch {
-					copyButton.textContent = "失败";
+					copyButton.setAttribute("aria-label", "复制失败");
+					copyButton.title = "复制失败";
+					copyLabel.textContent = "复制失败";
 				} finally {
 					window.setTimeout(() => {
-						copyButton.textContent = original;
+						copyButton.setAttribute("aria-label", original);
+						copyButton.title = original;
+						copyLabel.textContent = original;
 						syncMessageCopyButton(entry);
 					}, 1200);
 				}
@@ -5247,12 +5329,14 @@ function getPlaygroundScript(): string {
 
 		function clearComposerDraft() {
 			messageInput.value = "";
+			syncComposerTextareaHeight();
 			clearSelectedFiles();
 			clearSelectedAssetRefs();
 		}
 
 		function restoreComposerDraft(draft) {
 			messageInput.value = String(draft?.message || "");
+			syncComposerTextareaHeight();
 			state.pendingAttachments = Array.isArray(draft?.attachments) ? [...draft.attachments] : [];
 			state.selectedAssetRefs = Array.isArray(draft?.assetRefs) ? [...draft.assetRefs] : [];
 			renderAttachmentList();
@@ -6511,6 +6595,7 @@ function getPlaygroundScript(): string {
 		layoutObserver.observe(chatStage);
 		layoutObserver.observe(commandDeck);
 		layoutObserver.observe(composerDropTarget);
+		syncComposerTextareaHeight();
 		bindDropTarget(pageRoot);
 		bindDropTarget(pageBody);
 		bindDropTarget(chatStage);
@@ -6652,6 +6737,7 @@ function getPlaygroundScript(): string {
 			}
 		});
 		messageInput.addEventListener("input", () => {
+			syncComposerTextareaHeight();
 			renderContextUsageBar();
 		});
 
@@ -6894,7 +6980,7 @@ export function renderPlaygroundPage(): string {
 								<span>消息</span>
 								<span>Shift+Enter 换行</span>
 							</div>
-							<textarea id="message" name="message" placeholder="输入消息，按 Enter 发送"></textarea>
+							<textarea id="message" name="message" placeholder="和我聊聊吧"></textarea>
 						</div>
 						<div class="composer-side">
 							<button id="interrupt-button" type="button" disabled>打断</button>
