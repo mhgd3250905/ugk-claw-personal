@@ -747,3 +747,26 @@
   - [README.md](/E:/AII/ugk-pi/README.md)
   - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
   - [runtime/skills-user/web-access/SKILL.md](/E:/AII/ugk-pi/runtime/skills-user/web-access/SKILL.md)
+## 2026-04-20 Playground Context Usage Indicator
+
+- 主题：为 `playground` 增加位于对话区和输入框之间、右侧对齐的小圆环上下文提示，并把当前会话的上下文估算结果暴露到 `GET /v1/chat/status`
+- 影响范围：
+  - `src/agent/context-usage.ts` 新增会话上下文估算逻辑，优先复用最近一次 assistant `usage`，并补上 trailing messages / 输入附件 / 资产的粗估 token
+  - `src/agent/agent-session-factory.ts` 暴露项目默认 provider / model / context window / reserve budget，避免前端凭空脑补上下文上限
+  - `src/agent/agent-service.ts` 的 `getRunStatus` 现在会返回 `contextUsage`，即使当前没有 active run，也会基于已存 session 估算会话占用
+  - `src/types/api.ts`、`src/routes/chat.ts` 同步把 `ChatStatusResponseBody` 收口为 `conversationId + running + contextUsage`
+  - `src/ui/playground.ts` 在对话区和输入框之间新增独立的小圆环进度提示，圆环只显示百分比，风险色跟随 `safe / caution / warning / danger`
+  - 桌面 Web 和手机端都使用同一位置规则：在输入框外部、右侧与输入区域对齐
+  - 桌面端 hover / focus 展示详情浮层，手机端点击圆环打开底部详情弹窗
+  - `playground` 前端会把本地草稿、待发附件、已选资产叠加到后端基线，占用文案明确标成估算，不再装成 provider 精确统计
+- 对应入口：
+  - [src/agent/context-usage.ts](/E:/AII/ugk-pi/src/agent/context-usage.ts)
+  - [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+  - [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/agent-session-factory.test.ts](/E:/AII/ugk-pi/test/agent-session-factory.test.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)

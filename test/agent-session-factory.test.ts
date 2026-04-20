@@ -10,6 +10,7 @@ import {
 	getDefaultSystemSkillPath,
 	getDefaultUserSkillPath,
 	getProjectModelsPath,
+	resolveProjectDefaultModelContext,
 } from "../src/agent/agent-session-factory.js";
 
 test("createSkillRestrictedResourceLoader only loads skills from the allowed paths", async () => {
@@ -114,4 +115,16 @@ test("project models.json exposes the checked-in dashscope-coding glm-5 provider
 	assert.notEqual(model, undefined);
 	assert.equal(model?.provider, "dashscope-coding");
 	assert.equal(model?.id, "glm-5");
+});
+
+test("resolveProjectDefaultModelContext uses the checked-in project defaults and reserve budget", () => {
+	const context = resolveProjectDefaultModelContext(process.cwd());
+
+	assert.deepEqual(context, {
+		provider: "dashscope-coding",
+		model: "glm-5",
+		contextWindow: 128000,
+		maxResponseTokens: 16384,
+		reserveTokens: 16384,
+	});
 });

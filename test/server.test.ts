@@ -14,7 +14,24 @@ function createAgentServiceStub(overrides?: {
 	) => Promise<void>;
 	queueMessage?: AgentService["queueMessage"];
 	interruptChat?: AgentService["interruptChat"];
-	getRunStatus?: (conversationId: string) => Promise<{ conversationId: string; running: boolean }>;
+	getRunStatus?: (
+		conversationId: string,
+	) => Promise<{
+			conversationId: string;
+			running: boolean;
+			contextUsage: {
+				provider: string;
+				model: string;
+				currentTokens: number;
+				contextWindow: number;
+				reserveTokens: number;
+				maxResponseTokens: number;
+				availableTokens: number;
+				percent: number;
+				status: "safe" | "caution" | "warning" | "danger";
+				mode: "usage" | "estimate";
+			};
+		}>;
 	subscribeRunEvents?: (
 		conversationId: string,
 		onEvent: (event: StreamEvent) => void,
@@ -75,6 +92,18 @@ function createAgentServiceStub(overrides?: {
 			(async (conversationId) => ({
 				conversationId,
 				running: false,
+				contextUsage: {
+					provider: "dashscope-coding",
+					model: "glm-5",
+					currentTokens: 45231,
+					contextWindow: 128000,
+					reserveTokens: 16384,
+					maxResponseTokens: 16384,
+					availableTokens: 66385,
+					percent: 35,
+					status: "safe",
+					mode: "estimate",
+				},
 			})),
 		subscribeRunEvents:
 			overrides?.subscribeRunEvents ??
@@ -192,6 +221,26 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /file-download/);
 	assert.match(response.body, /selected-assets/);
 	assert.match(response.body, /asset-modal-shell/);
+	assert.match(response.body, /context-usage-shell/);
+	assert.match(response.body, /context-usage-progress/);
+	assert.match(response.body, /context-usage-summary/);
+	assert.match(response.body, /context-usage-meta/);
+	assert.match(response.body, /context-usage-toggle/);
+	assert.match(response.body, /context-usage-ring/);
+	assert.match(response.body, /context-usage-dialog/);
+	assert.match(response.body, /context-usage-dialog-body/);
+	assert.match(response.body, /selected-assets[\s\S]*context-usage-row[\s\S]*composer-drop-target/);
+	assert.match(response.body, /\.context-usage-row\s*\{\s*display:\s*flex;/);
+	assert.match(response.body, /\.context-usage-row\s*\{[\s\S]*justify-content:\s*flex-end;/);
+	assert.match(response.body, /function renderContextUsageBar\(/);
+	assert.match(response.body, /function syncContextUsage\(/);
+	assert.match(response.body, /function estimateDraftContextTokens\(/);
+	assert.match(response.body, /function buildProjectedContextUsage\(/);
+	assert.match(response.body, /function openContextUsageDialog\(/);
+	assert.match(response.body, /function closeContextUsageDialog\(/);
+	assert.match(response.body, /function toggleContextUsageDetails\(/);
+	assert.match(response.body, /matchMedia\("\(max-width: 640px\)"\)/);
+	assert.match(response.body, /\/v1\/chat\/status\?conversationId=/);
 	assert.match(response.body, /mode:\s*"steer"/);
 	assert.match(response.body, /height: calc\(100vh - 40px\)/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*display: flex;/);
@@ -1274,6 +1323,18 @@ test("GET /v1/chat/status returns whether the conversation is currently running"
 				return {
 					conversationId,
 					running: true,
+					contextUsage: {
+						provider: "dashscope-coding",
+						model: "glm-5",
+						currentTokens: 45231,
+						contextWindow: 128000,
+						reserveTokens: 16384,
+						maxResponseTokens: 16384,
+						availableTokens: 66385,
+						percent: 35,
+						status: "safe",
+						mode: "estimate",
+					},
 				};
 			},
 		}),
@@ -1288,6 +1349,18 @@ test("GET /v1/chat/status returns whether the conversation is currently running"
 	assert.deepEqual(response.json(), {
 		conversationId: "manual:refresh-run",
 		running: true,
+		contextUsage: {
+			provider: "dashscope-coding",
+			model: "glm-5",
+			currentTokens: 45231,
+			contextWindow: 128000,
+			reserveTokens: 16384,
+			maxResponseTokens: 16384,
+			availableTokens: 66385,
+			percent: 35,
+			status: "safe",
+			mode: "estimate",
+		},
 	});
 	assert.deepEqual(calls, ["manual:refresh-run"]);
 	await app.close();

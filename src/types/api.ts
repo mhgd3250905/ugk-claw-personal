@@ -121,9 +121,23 @@ export interface DebugSkillsResponseBody {
 	}>;
 }
 
+export interface ChatContextUsageBody {
+	provider: string;
+	model: string;
+	currentTokens: number;
+	contextWindow: number;
+	reserveTokens: number;
+	maxResponseTokens: number;
+	availableTokens: number;
+	percent: number;
+	status: "safe" | "caution" | "warning" | "danger";
+	mode: "usage" | "estimate";
+}
+
 export interface ChatStatusResponseBody {
 	conversationId: string;
 	running: boolean;
+	contextUsage: ChatContextUsageBody;
 }
 
 export type QueueMessageMode = "steer" | "followUp";

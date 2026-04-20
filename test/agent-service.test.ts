@@ -146,6 +146,16 @@ class FakeAgentSessionFactory implements AgentSessionFactory {
 	async getSkillFingerprint(): Promise<string | undefined> {
 		return this.skillFingerprint;
 	}
+
+	getDefaultModelContext() {
+		return {
+			provider: "dashscope-coding",
+			model: "glm-5",
+			contextWindow: 128000,
+			maxResponseTokens: 16384,
+			reserveTokens: 16384,
+		};
+	}
 }
 
 class FakeAssetStore {
@@ -636,6 +646,12 @@ test("queueMessage can enqueue a follow-up after the active turn", async () => {
 test("getRunStatus reports whether a conversation is actively streaming", async () => {
 	const store = await createStore();
 	const activeSession = new DeferredSession("E:/sessions/status.jsonl");
+	activeSession.messages.push({
+		role: "assistant",
+		content: [{ type: "text", text: "已有上下文" }],
+		usage: { totalTokens: 45231 },
+		stopReason: "stop",
+	} as never);
 	const factory = new FakeAgentSessionFactory(() => activeSession);
 	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
 
@@ -651,6 +667,18 @@ test("getRunStatus reports whether a conversation is actively streaming", async 
 	assert.deepEqual(await service.getRunStatus("manual:status"), {
 		conversationId: "manual:status",
 		running: true,
+		contextUsage: {
+			provider: "dashscope-coding",
+			model: "glm-5",
+			currentTokens: 45231,
+			contextWindow: 128000,
+			reserveTokens: 16384,
+			maxResponseTokens: 16384,
+			availableTokens: 66385,
+			percent: 35,
+			status: "safe",
+			mode: "usage",
+		},
 	});
 
 	activeSession.finish();
@@ -659,6 +687,18 @@ test("getRunStatus reports whether a conversation is actively streaming", async 
 	assert.deepEqual(await service.getRunStatus("manual:status"), {
 		conversationId: "manual:status",
 		running: false,
+		contextUsage: {
+			provider: "dashscope-coding",
+			model: "glm-5",
+			currentTokens: 45236,
+			contextWindow: 128000,
+			reserveTokens: 16384,
+			maxResponseTokens: 16384,
+			availableTokens: 66380,
+			percent: 35,
+			status: "safe",
+			mode: "usage",
+		},
 	});
 });
 

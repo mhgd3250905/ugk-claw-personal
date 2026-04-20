@@ -10,8 +10,13 @@ import type {
 	ToolExecutionEndEventLike,
 	ToolExecutionStartEventLike,
 	ToolExecutionUpdateEventLike,
+	type ProjectDefaultModelContext,
 } from "./agent-session-factory.js";
-import type { ChatStreamEvent, QueueMessageMode } from "../types/api.js";
+import {
+	buildContextUsageSnapshot,
+	type AgentMessageLike,
+} from "./context-usage.js";
+import type { ChatContextUsageBody, ChatStreamEvent, QueueMessageMode } from "../types/api.js";
 import {
 	buildPromptWithAssetContext,
 	extractAgentFileDrafts,
@@ -66,6 +71,7 @@ export interface InterruptChatResult {
 export interface RunStatusResult {
 	conversationId: string;
 	running: boolean;
+	contextUsage: ChatContextUsageBody;
 }
 
 export interface RunEventSubscription {
@@ -171,9 +177,18 @@ export class AgentService {
 	}
 
 	async getRunStatus(conversationId: string): Promise<RunStatusResult> {
+		const running = this.activeRuns.has(conversationId);
+		const session = await this.getContextSession(conversationId);
+		const modelContext = this.getDefaultModelContext();
+		const contextUsage = buildContextUsageSnapshot(
+			modelContext,
+			((session?.messages as AgentMessageLike[] | undefined) ?? []),
+		);
+
 		return {
 			conversationId,
-			running: this.activeRuns.has(conversationId),
+			running,
+			contextUsage,
 		};
 	}
 
@@ -393,6 +408,35 @@ export class AgentService {
 			session,
 			skillFingerprint,
 		};
+	}
+
+	private async getContextSession(conversationId: string): Promise<AgentSessionLike | undefined> {
+		const activeRun = this.activeRuns.get(conversationId);
+		if (activeRun) {
+			return activeRun.session;
+		}
+
+		const existingConversation = await this.options.conversationStore.get(conversationId);
+		if (!existingConversation?.sessionFile) {
+			return undefined;
+		}
+
+		return await this.options.sessionFactory.createSession({
+			conversationId,
+			sessionFile: existingConversation.sessionFile,
+		});
+	}
+
+	private getDefaultModelContext(): ProjectDefaultModelContext {
+		return (
+			this.options.sessionFactory.getDefaultModelContext?.() ?? {
+				provider: "unknown",
+				model: "unknown",
+				contextWindow: 128000,
+				maxResponseTokens: 16384,
+				reserveTokens: 16384,
+			}
+		);
 	}
 
 	private async preparePromptAssets(

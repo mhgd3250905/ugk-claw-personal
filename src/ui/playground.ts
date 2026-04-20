@@ -1210,6 +1210,176 @@ function getPlaygroundStyles(): string {
 			gap: 8px;
 		}
 
+		.context-usage-row {
+			display: flex;
+			justify-content: flex-end;
+			align-items: center;
+			min-height: 26px;
+			margin: -2px 0 -4px;
+		}
+
+		.context-usage-shell {
+			position: relative;
+			display: inline-grid;
+			place-items: center;
+			width: 36px;
+			height: 36px;
+			padding: 0;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 50%;
+			background: rgba(9, 12, 22, 0.72);
+			color: rgba(247, 249, 255, 0.9);
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+		}
+
+		.context-usage-shell:hover,
+		.context-usage-shell:focus-visible,
+		.context-usage-shell[data-expanded="true"] {
+			border-color: rgba(201, 210, 255, 0.28);
+			background: rgba(14, 18, 31, 0.96);
+		}
+
+		.context-usage-ring {
+			position: absolute;
+			inset: 3px;
+			width: 28px;
+			height: 28px;
+			transform: rotate(-90deg);
+		}
+
+		.context-usage-track {
+			fill: none;
+			stroke: rgba(255, 255, 255, 0.12);
+			stroke-width: 3;
+		}
+
+		.context-usage-progress {
+			fill: none;
+			stroke: rgba(143, 255, 199, 0.94);
+			stroke-linecap: round;
+			stroke-width: 3;
+			stroke-dasharray: 0 100;
+			transition: stroke-dasharray 160ms ease, stroke 160ms ease;
+		}
+
+		.context-usage-summary {
+			position: relative;
+			z-index: 1;
+			font-size: 9px;
+			font-weight: 700;
+			letter-spacing: -0.03em;
+		}
+
+		.context-usage-toggle {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			white-space: nowrap;
+		}
+
+		.context-usage-meta {
+			position: absolute;
+			right: 0;
+			bottom: calc(100% + 10px);
+			z-index: 20;
+			width: 286px;
+			padding: 10px 12px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			background: rgba(7, 10, 18, 0.96);
+			box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			color: rgba(225, 232, 247, 0.72);
+			font-size: 11px;
+			line-height: 1.75;
+			text-align: left;
+			white-space: pre-line;
+			opacity: 0;
+			pointer-events: none;
+			transform: translateY(4px);
+			transition: opacity 120ms ease, transform 120ms ease;
+		}
+
+		.context-usage-shell:hover .context-usage-meta,
+		.context-usage-shell:focus-visible .context-usage-meta,
+		.context-usage-shell[data-expanded="true"] .context-usage-meta {
+			opacity: 1;
+			transform: translateY(0);
+		}
+
+		.context-usage-shell[data-status="caution"] .context-usage-progress {
+			stroke: rgba(255, 214, 125, 0.96);
+		}
+
+		.context-usage-shell[data-status="warning"] .context-usage-progress {
+			stroke: rgba(255, 156, 92, 0.98);
+		}
+
+		.context-usage-shell[data-status="danger"] .context-usage-progress {
+			stroke: rgba(255, 113, 136, 1);
+		}
+
+		.context-usage-dialog[hidden] {
+			display: none !important;
+		}
+
+		.context-usage-dialog {
+			position: fixed;
+			inset: 0;
+			z-index: 70;
+			display: none;
+			align-items: flex-end;
+			justify-content: center;
+			padding: 18px;
+			background: rgba(3, 5, 10, 0.58);
+			backdrop-filter: blur(10px);
+		}
+
+		.context-usage-dialog.open {
+			display: flex;
+		}
+
+		.context-usage-dialog-panel {
+			width: min(420px, 100%);
+			padding: 16px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 18px;
+			background: rgba(8, 11, 20, 0.98);
+			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+		}
+
+		.context-usage-dialog-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			margin-bottom: 12px;
+		}
+
+		.context-usage-dialog-head strong {
+			color: rgba(247, 249, 255, 0.92);
+			font-size: 13px;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.context-usage-dialog-close {
+			width: 32px;
+			height: 32px;
+			padding: 0;
+			border: 1px solid rgba(201, 210, 255, 0.12);
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(238, 244, 255, 0.76);
+		}
+
+		.context-usage-dialog-body {
+			color: rgba(225, 232, 247, 0.76);
+			font-size: 12px;
+			line-height: 1.8;
+			white-space: pre-line;
+		}
+
 		.drag-overlay {
 			position: fixed;
 			inset: 16px;
@@ -1890,6 +2060,11 @@ function getPlaygroundStyles(): string {
 			z-index: 4;
 		}
 
+		.shell[data-stage-mode="landing"] .context-usage-row {
+			min-height: 26px;
+			margin: -4px 0 -2px;
+		}
+
 		.shell[data-stage-mode="landing"] .composer {
 			grid-template-columns: minmax(0, 1fr) auto;
 			gap: 12px;
@@ -2176,6 +2351,30 @@ function getPlaygroundStyles(): string {
 
 			.file-strip {
 				gap: 6px;
+			}
+
+			.context-usage-row {
+				min-height: 24px;
+				margin: -2px 0 -5px;
+			}
+
+			.context-usage-shell {
+				width: 32px;
+				height: 32px;
+			}
+
+			.context-usage-ring {
+				inset: 3px;
+				width: 24px;
+				height: 24px;
+			}
+
+			.context-usage-summary {
+				font-size: 8px;
+			}
+
+			.context-usage-meta {
+				display: none;
 			}
 
 			.drop-zone {
@@ -2478,6 +2677,15 @@ function getPlaygroundScript(): string {
 		const MAX_STORED_CONVERSATIONS = 12;
 		const MAX_STORED_MESSAGES_PER_CONVERSATION = 160;
 		const MAX_ARCHIVED_TRANSCRIPTS = 4;
+		const FALLBACK_CONTEXT_WINDOW = 128000;
+		const FALLBACK_RESPONSE_TOKENS = 16384;
+		const FALLBACK_RESERVE_TOKENS = 16384;
+		const CONTEXT_STATUS_LABELS = {
+			safe: "上下文充足",
+			caution: "接近提醒线",
+			warning: "接近上限",
+			danger: "建议新会话",
+		};
 
 		const state = {
 			loading: false,
@@ -2496,6 +2704,9 @@ function getPlaygroundScript(): string {
 			pendingAttachments: [],
 			recentAssets: [],
 			selectedAssetRefs: [],
+			contextUsage: null,
+			contextUsageExpanded: false,
+			contextUsageSyncToken: 0,
 			dragDepth: 0,
 			assetModalOpen: false,
 			conversationHistory: [],
@@ -2532,6 +2743,14 @@ function getPlaygroundScript(): string {
 		const fileList = document.getElementById("file-list");
 		const selectedAssetsSection = document.getElementById("selected-assets");
 		const selectedAssetList = document.getElementById("selected-asset-list");
+		const contextUsageShell = document.getElementById("context-usage-shell");
+		const contextUsageProgress = document.getElementById("context-usage-progress");
+		const contextUsageSummary = document.getElementById("context-usage-summary");
+		const contextUsageMeta = document.getElementById("context-usage-meta");
+		const contextUsageToggle = document.getElementById("context-usage-toggle");
+		const contextUsageDialog = document.getElementById("context-usage-dialog");
+		const contextUsageDialogBody = document.getElementById("context-usage-dialog-body");
+		const contextUsageDialogClose = document.getElementById("context-usage-dialog-close");
 		const openAssetLibraryButton = document.getElementById("open-asset-library-button");
 		const assetModal = document.getElementById("asset-modal");
 		const assetModalList = document.getElementById("asset-modal-list");
@@ -2565,6 +2784,262 @@ function getPlaygroundScript(): string {
 
 		function createConversationId() {
 			return "manual:web-" + createBrowserId().replace(/[^a-z0-9]/gi, "").slice(0, 12);
+		}
+
+		function formatTokenCount(value) {
+			const normalized = Math.max(0, Math.round(Number(value) || 0));
+			return normalized.toLocaleString("en-US");
+		}
+
+		function estimateTextTokenCount(text) {
+			return Math.ceil(String(text || "").length / 4);
+		}
+
+		function estimateBinaryTokenCount(mimeType, sizeBytes) {
+			const normalizedMimeType = String(mimeType || "").toLowerCase();
+			if (normalizedMimeType.startsWith("image/")) {
+				return 1200;
+			}
+			const normalizedSize = Math.max(0, Number.isFinite(sizeBytes) ? Number(sizeBytes) : 0);
+			if (normalizedSize === 0) {
+				return 128;
+			}
+			return Math.max(128, Math.ceil(normalizedSize / 16));
+		}
+
+		function estimateAttachmentTokenCount(attachment) {
+			if (typeof attachment?.text === "string" && attachment.text.length > 0) {
+				return estimateTextTokenCount(attachment.text);
+			}
+			if (typeof attachment?.base64 === "string" && attachment.base64.length > 0) {
+				const approxBytes = Math.ceil((attachment.base64.length * 3) / 4);
+				return estimateBinaryTokenCount(attachment.mimeType, approxBytes);
+			}
+			return estimateBinaryTokenCount(attachment?.mimeType, attachment?.sizeBytes);
+		}
+
+		function estimatePromptAssetTokenCount(asset) {
+			if (typeof asset?.textContent === "string" && asset.textContent.length > 0) {
+				return estimateTextTokenCount(asset.textContent);
+			}
+			if (typeof asset?.textPreview === "string" && asset.textPreview.length > 0) {
+				return estimateTextTokenCount(asset.textPreview);
+			}
+			if (asset?.kind === "text" || asset?.hasContent) {
+				return estimateBinaryTokenCount(asset?.mimeType, asset?.sizeBytes);
+			}
+			return Math.max(32, estimateTextTokenCount((asset?.fileName || "") + " " + (asset?.mimeType || "")));
+		}
+
+		function resolveContextUsageStatus(currentTokens, contextWindow, reserveTokens) {
+			const usableWindow = Math.max(1, contextWindow - reserveTokens);
+			const ratio = currentTokens / usableWindow;
+			if (ratio >= 1) {
+				return "danger";
+			}
+			if (ratio >= 0.9) {
+				return "warning";
+			}
+			if (ratio >= 0.72) {
+				return "caution";
+			}
+			return "safe";
+		}
+
+		function createFallbackContextUsage() {
+			return {
+				provider: "dashscope-coding",
+				model: "glm-5",
+				currentTokens: 0,
+				contextWindow: FALLBACK_CONTEXT_WINDOW,
+				reserveTokens: FALLBACK_RESERVE_TOKENS,
+				maxResponseTokens: FALLBACK_RESPONSE_TOKENS,
+				availableTokens: Math.max(0, FALLBACK_CONTEXT_WINDOW - FALLBACK_RESERVE_TOKENS),
+				percent: 0,
+				status: "safe",
+				mode: "estimate",
+			};
+		}
+
+		function normalizeContextUsage(rawUsage) {
+			const fallback = createFallbackContextUsage();
+			if (!rawUsage || typeof rawUsage !== "object") {
+				return fallback;
+			}
+
+			const contextWindow = Number(rawUsage.contextWindow);
+			const reserveTokens = Number(rawUsage.reserveTokens);
+			const maxResponseTokens = Number(rawUsage.maxResponseTokens);
+			const currentTokens = Math.max(0, Number(rawUsage.currentTokens) || 0);
+			const normalizedWindow = Number.isFinite(contextWindow) && contextWindow > 0 ? contextWindow : fallback.contextWindow;
+			const normalizedReserve = Number.isFinite(reserveTokens) && reserveTokens >= 0 ? reserveTokens : fallback.reserveTokens;
+			const normalizedResponse =
+				Number.isFinite(maxResponseTokens) && maxResponseTokens >= 0 ? maxResponseTokens : fallback.maxResponseTokens;
+			const percent = Math.max(0, Math.min(100, Math.round((currentTokens / normalizedWindow) * 100)));
+			const status = ["safe", "caution", "warning", "danger"].includes(rawUsage.status)
+				? rawUsage.status
+				: resolveContextUsageStatus(currentTokens, normalizedWindow, normalizedReserve);
+
+			return {
+				provider: String(rawUsage.provider || fallback.provider),
+				model: String(rawUsage.model || fallback.model),
+				currentTokens,
+				contextWindow: normalizedWindow,
+				reserveTokens: normalizedReserve,
+				maxResponseTokens: normalizedResponse,
+				availableTokens: Math.max(0, normalizedWindow - normalizedReserve - currentTokens),
+				percent,
+				status,
+				mode: rawUsage.mode === "usage" ? "usage" : "estimate",
+			};
+		}
+
+		function estimateDraftContextTokens() {
+			const selectedAssets = getSelectedAssets();
+			const messageTokens = estimateTextTokenCount(messageInput.value);
+			const attachmentTokens = state.pendingAttachments.reduce(
+				(sum, attachment) => sum + estimateAttachmentTokenCount(attachment),
+				0,
+			);
+			const assetTokens = selectedAssets.reduce((sum, asset) => sum + estimatePromptAssetTokenCount(asset), 0);
+
+			return {
+				messageTokens,
+				attachmentTokens,
+				assetTokens,
+				totalTokens: messageTokens + attachmentTokens + assetTokens,
+			};
+		}
+
+		function buildProjectedContextUsage(baseUsage, draftUsage) {
+			const normalizedBase = normalizeContextUsage(baseUsage);
+			const draftTokens = Math.max(0, Number(draftUsage?.totalTokens) || 0);
+			const currentTokens = normalizedBase.currentTokens + draftTokens;
+			const percent = Math.max(
+				0,
+				Math.min(100, Math.round((currentTokens / Math.max(1, normalizedBase.contextWindow)) * 100)),
+			);
+
+			return {
+				...normalizedBase,
+				currentTokens,
+				availableTokens: Math.max(0, normalizedBase.contextWindow - normalizedBase.reserveTokens - currentTokens),
+				percent,
+				status: resolveContextUsageStatus(
+					currentTokens,
+					normalizedBase.contextWindow,
+					normalizedBase.reserveTokens,
+				),
+				mode: draftTokens > 0 ? "estimate" : normalizedBase.mode,
+				baseTokens: normalizedBase.currentTokens,
+				draftTokens,
+				messageTokens: Math.max(0, Number(draftUsage?.messageTokens) || 0),
+				attachmentTokens: Math.max(0, Number(draftUsage?.attachmentTokens) || 0),
+				assetTokens: Math.max(0, Number(draftUsage?.assetTokens) || 0),
+			};
+		}
+
+		function renderContextUsageBar() {
+			const draftUsage = estimateDraftContextTokens();
+			const projectedUsage = buildProjectedContextUsage(state.contextUsage, draftUsage);
+			const hasDraft = draftUsage.totalTokens > 0;
+			const summaryPrefix = hasDraft ? "预计发送后" : "当前上下文";
+			const baseLabel = "会话 " + formatTokenCount(projectedUsage.baseTokens);
+			const draftLabel = "待发 " + formatTokenCount(projectedUsage.draftTokens);
+			const reserveLabel = "预留 " + formatTokenCount(projectedUsage.reserveTokens);
+			const statusLabel = CONTEXT_STATUS_LABELS[projectedUsage.status] || CONTEXT_STATUS_LABELS.safe;
+			const modeLabel = projectedUsage.mode === "usage" ? "基于最近一次 usage" : "按当前输入估算";
+			const summaryLine =
+				summaryPrefix +
+				" " +
+				formatTokenCount(projectedUsage.currentTokens) +
+				" / " +
+				formatTokenCount(projectedUsage.contextWindow) +
+				" tokens (" +
+				projectedUsage.percent +
+				"%)";
+			const breakdownLine = baseLabel + " · " + draftLabel + " · " + reserveLabel;
+			const detailLine =
+				"模型 " +
+				projectedUsage.model +
+				" · " +
+				projectedUsage.provider +
+				" · " +
+				modeLabel +
+				" · " +
+				statusLabel +
+				" · 可用 " +
+				formatTokenCount(projectedUsage.availableTokens);
+			const detailText = summaryLine + "\\n" + breakdownLine + "\\n" + detailLine;
+
+			contextUsageShell.dataset.status = projectedUsage.status;
+			contextUsageShell.dataset.expanded = state.contextUsageExpanded ? "true" : "false";
+			contextUsageSummary.textContent = projectedUsage.percent + "%";
+			contextUsageShell.setAttribute("aria-label", "上下文使用 " + projectedUsage.percent + "%，" + statusLabel);
+			contextUsageMeta.textContent = detailText;
+			contextUsageDialogBody.textContent = detailText;
+			contextUsageProgress.style.strokeDasharray = projectedUsage.percent + " 100";
+			contextUsageProgress.setAttribute("stroke-dasharray", projectedUsage.percent + " 100");
+			contextUsageProgress.setAttribute("aria-valuenow", String(projectedUsage.percent));
+			contextUsageToggle.textContent = "上下文详情";
+			contextUsageToggle.setAttribute("aria-expanded", state.contextUsageExpanded ? "true" : "false");
+			window.requestAnimationFrame(syncConversationLayout);
+		}
+
+		function isMobileContextUsageSurface() {
+			return window.matchMedia("(max-width: 640px)").matches;
+		}
+
+		function openContextUsageDialog() {
+			contextUsageDialog.hidden = false;
+			contextUsageDialog.classList.add("open");
+			contextUsageDialog.setAttribute("aria-hidden", "false");
+		}
+
+		function closeContextUsageDialog() {
+			contextUsageDialog.classList.remove("open");
+			contextUsageDialog.hidden = true;
+			contextUsageDialog.setAttribute("aria-hidden", "true");
+		}
+
+		function toggleContextUsageDetails() {
+			if (isMobileContextUsageSurface()) {
+				openContextUsageDialog();
+				return;
+			}
+			state.contextUsageExpanded = !state.contextUsageExpanded;
+			renderContextUsageBar();
+		}
+
+		async function syncContextUsage(conversationId, options) {
+			const nextConversationId = String(conversationId || state.conversationId || "").trim();
+			if (!nextConversationId) {
+				state.contextUsage = null;
+				renderContextUsageBar();
+				return createFallbackContextUsage();
+			}
+
+			const requestToken = state.contextUsageSyncToken + 1;
+			state.contextUsageSyncToken = requestToken;
+
+			try {
+				const payload = await fetchConversationRunStatus(nextConversationId);
+				if (state.contextUsageSyncToken !== requestToken) {
+					return payload.contextUsage;
+				}
+				state.contextUsage = normalizeContextUsage(payload.contextUsage);
+				renderContextUsageBar();
+				return state.contextUsage;
+			} catch (error) {
+				if (!options?.silent) {
+					const messageText = error instanceof Error ? error.message : "无法同步上下文使用情况";
+					showError(messageText);
+				}
+				if (state.contextUsageSyncToken === requestToken) {
+					renderContextUsageBar();
+				}
+				return normalizeContextUsage(state.contextUsage);
+			}
 		}
 
 		function setStageMode(next) {
@@ -2601,11 +3076,15 @@ function getPlaygroundScript(): string {
 		}
 
 		function ensureConversationId() {
+			const previousConversationId = state.conversationId;
 			if (!conversationInput.value.trim()) {
 				conversationInput.value = createConversationId();
 			}
 			state.conversationId = conversationInput.value.trim();
 			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
+			if (state.conversationId && state.conversationId !== previousConversationId) {
+				void syncContextUsage(state.conversationId, { silent: true });
+			}
 		}
 
 		function scrollTranscriptToBottom() {
@@ -2672,11 +3151,10 @@ function getPlaygroundScript(): string {
 
 		async function fetchConversationRunStatus(conversationId) {
 			if (!conversationId) {
-				return { conversationId: "", running: false };
+				return { conversationId: "", running: false, contextUsage: createFallbackContextUsage() };
 			}
 
-			const query = new URLSearchParams({ conversationId });
-			const response = await fetch("/v1/chat/status?" + query.toString(), {
+			const response = await fetch("/v1/chat/status?conversationId=" + encodeURIComponent(conversationId), {
 				method: "GET",
 				headers: { accept: "application/json" },
 			});
@@ -2689,6 +3167,7 @@ function getPlaygroundScript(): string {
 			return {
 				conversationId: payload?.conversationId || conversationId,
 				running: Boolean(payload?.running),
+				contextUsage: normalizeContextUsage(payload?.contextUsage),
 			};
 		}
 
@@ -2798,11 +3277,15 @@ function getPlaygroundScript(): string {
 		async function syncConversationRunState(conversationId, options) {
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId) {
-				return { conversationId: "", running: false };
+				state.contextUsage = null;
+				renderContextUsageBar();
+				return { conversationId: "", running: false, contextUsage: createFallbackContextUsage() };
 			}
 
 			try {
 				const payload = await fetchConversationRunStatus(nextConversationId);
+				state.contextUsage = normalizeContextUsage(payload.contextUsage);
+				renderContextUsageBar();
 				if (payload.running) {
 					setTranscriptState("active");
 					setLoading(true);
@@ -2824,6 +3307,7 @@ function getPlaygroundScript(): string {
 
 				return payload;
 			} catch (error) {
+				renderContextUsageBar();
 				if (!options?.silent) {
 					const messageText = error instanceof Error ? error.message : "无法获取当前会话状态";
 					showError(messageText);
@@ -2832,6 +3316,7 @@ function getPlaygroundScript(): string {
 				return {
 					conversationId: nextConversationId,
 					running: Boolean(state.loading),
+					contextUsage: normalizeContextUsage(state.contextUsage),
 				};
 			}
 		}
@@ -3485,6 +3970,7 @@ function getPlaygroundScript(): string {
 				});
 				fileList.appendChild(item);
 			}
+			renderContextUsageBar();
 		}
 
 		function getSelectedAssets() {
@@ -3498,6 +3984,7 @@ function getPlaygroundScript(): string {
 			const selectedAssets = getSelectedAssets();
 			selectedAssetsSection.classList.toggle("visible", selectedAssets.length > 0);
 			if (selectedAssets.length === 0) {
+				renderContextUsageBar();
 				return;
 			}
 
@@ -3517,6 +4004,7 @@ function getPlaygroundScript(): string {
 				});
 				selectedAssetList.appendChild(item);
 			}
+			renderContextUsageBar();
 		}
 
 		function deriveFileBadge(fileName, fallback) {
@@ -4429,12 +4917,15 @@ function getPlaygroundScript(): string {
 			sessionFile.textContent = "尚未分配";
 			state.conversationHistory = [];
 			state.renderedHistoryCount = 0;
+			state.contextUsage = null;
 			clearRenderedTranscript();
 			resetStreamingState();
 			clearSelectedFiles();
 			clearSelectedAssetRefs();
 			clearError();
 			syncHistoryLoadMoreButton();
+			renderContextUsageBar();
+			void syncContextUsage(state.conversationId, { silent: true });
 			if (options?.announce !== false) {
 				announceFreshConversation(state.conversationId);
 			}
@@ -4452,6 +4943,7 @@ function getPlaygroundScript(): string {
 					setAssistantLoadingState("正在接手任务", "system");
 					updateStreamingProcess("system", "任务开始", event.conversationId);
 					statusPill.textContent = "运行中";
+					void syncContextUsage(event.conversationId, { silent: true });
 					break;
 				case "tool_started":
 					setAssistantLoadingState("正在调用工具", "tool");
@@ -4483,6 +4975,7 @@ function getPlaygroundScript(): string {
 					completeProcessStream();
 					setLoading(false);
 					statusPill.textContent = "已打断";
+					void syncContextUsage(event.conversationId, { silent: true });
 					break;
 				case "text_delta": {
 					state.streamingText += event.textDelta;
@@ -4508,6 +5001,7 @@ function getPlaygroundScript(): string {
 					completeProcessStream();
 					setLoading(false);
 					statusPill.textContent = "完成";
+					void syncContextUsage(event.conversationId, { silent: true });
 					break;
 				}
 				case "error":
@@ -4516,6 +5010,7 @@ function getPlaygroundScript(): string {
 					completeAssistantLoadingBubble("error", "本轮执行失败");
 					completeProcessStream();
 					setLoading(false);
+					void syncContextUsage(state.conversationId, { silent: true });
 					break;
 				default:
 					updateStreamingProcess("system", "事件", JSON.stringify(event));
@@ -4805,6 +5300,7 @@ function getPlaygroundScript(): string {
 		setStageMode("landing");
 		setTranscriptState("idle");
 		setCommandStatus("STANDBY");
+		renderContextUsageBar();
 		renderSelectedAssets();
 		renderAssetPickerList();
 		void loadAssets(true);
@@ -5053,6 +5549,34 @@ function getPlaygroundScript(): string {
 		errorBannerClose.addEventListener("click", () => {
 			clearError();
 		});
+		contextUsageShell.addEventListener("click", () => {
+			toggleContextUsageDetails();
+		});
+		contextUsageDialogClose.addEventListener("click", () => {
+			closeContextUsageDialog();
+		});
+		contextUsageDialog.addEventListener("click", (event) => {
+			if (event.target === contextUsageDialog) {
+				closeContextUsageDialog();
+			}
+		});
+
+		conversationInput.addEventListener("change", () => {
+			const nextConversationId = conversationInput.value.trim();
+			if (!nextConversationId || nextConversationId === state.conversationId) {
+				renderContextUsageBar();
+				return;
+			}
+			state.conversationId = nextConversationId;
+			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
+			restoreConversationHistory(state.conversationId);
+			resetStreamingState();
+			clearError();
+			void syncConversationRunState(state.conversationId, {
+				silent: true,
+				clearIfIdle: true,
+			});
+		});
 
 		messageInput.addEventListener("keydown", (event) => {
 			if (event.key === "Enter" && !event.shiftKey) {
@@ -5060,10 +5584,16 @@ function getPlaygroundScript(): string {
 				void sendMessage();
 			}
 		});
+		messageInput.addEventListener("input", () => {
+			renderContextUsageBar();
+		});
 
 		document.addEventListener("keydown", (event) => {
 			if (event.key === "Escape" && state.assetModalOpen) {
 				closeAssetLibrary();
+			}
+			if (event.key === "Escape" && !contextUsageDialog.hidden) {
+				closeContextUsageDialog();
 			}
 		});
 
@@ -5180,6 +5710,17 @@ export function renderPlaygroundPage(): string {
 							<div id="selected-asset-list" class="selected-asset-list"></div>
 						</section>
 					</div>
+					<div class="context-usage-row">
+						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="上下文使用 0%" aria-describedby="context-usage-meta">
+							<svg class="context-usage-ring" viewBox="0 0 36 36" aria-hidden="true">
+								<circle class="context-usage-track" cx="18" cy="18" r="15.5" pathLength="100"></circle>
+								<circle id="context-usage-progress" class="context-usage-progress" cx="18" cy="18" r="15.5" pathLength="100"></circle>
+							</svg>
+							<span id="context-usage-summary" class="context-usage-summary">0%</span>
+							<span id="context-usage-toggle" class="context-usage-toggle">上下文详情</span>
+							<span id="context-usage-meta" class="context-usage-meta" role="tooltip">当前上下文 0 / 128,000 tokens (0%)</span>
+						</button>
+					</div>
 					<section id="composer-drop-target" class="composer">
 						<div class="composer-main">
 							<div class="composer-header">
@@ -5195,6 +5736,15 @@ export function renderPlaygroundPage(): string {
 					</section>
 				</div>
 			</main>
+		</div>
+		<div id="context-usage-dialog" class="context-usage-dialog" aria-hidden="true" hidden>
+			<section class="context-usage-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="context-usage-dialog-title">
+				<div class="context-usage-dialog-head">
+					<strong id="context-usage-dialog-title">上下文使用情况</strong>
+					<button id="context-usage-dialog-close" class="context-usage-dialog-close" type="button" aria-label="关闭上下文详情">×</button>
+				</div>
+				<div id="context-usage-dialog-body" class="context-usage-dialog-body">当前上下文 0 / 128,000 tokens (0%)</div>
+			</section>
 		</div>
 		<div id="asset-modal" class="asset-modal-shell" aria-hidden="true" hidden>
 			<section class="asset-modal" role="dialog" aria-modal="true" aria-labelledby="asset-modal-title">
