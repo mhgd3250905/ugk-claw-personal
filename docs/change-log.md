@@ -62,6 +62,19 @@
   - [scripts/ensure-sidecar-chrome.sh](/E:/AII/ugk-pi/scripts/ensure-sidecar-chrome.sh)
   - [test/containerization.test.ts](/E:/AII/ugk-pi/test/containerization.test.ts)
 
+### Sidecar 登录态持久化口径补强
+- 主题：把“为什么正常更新不该把 sidecar 登录态洗掉”写成明确 runbook，而不是继续靠口头传说维持秩序。
+- 影响范围：
+  - `AGENTS.md` 明确：生产 sidecar 登录态挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，且 GUI 与 direct CDP 共用同一套 `chrome-profile-sidecar`；更新后如果又像两套登录态，先查 launcher 与浏览器容器版本。
+  - `docs/server-ops-quick-reference.md` 新增 sidecar 登录态备份命令，以及更新后针对 `9222`、desktop launcher、`chrome-profile-sidecar` 进程的三段式验收。
+  - `docs/tencent-cloud-singapore-deploy.md` 同步补上登录态备份、验收和浏览器栈强制重建口径，避免后续 `/init` 又把“刷新 GUI 看起来没登录”误判成 shared 目录被清空。
+  - `docs/traceability-map.md` 在 web-access 场景下补了 sidecar 登录态异常的追溯入口，后续 `/init` 不用再在多份文档里瞎游泳。
+- 对应入口：
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### 腾讯云服务器迁移到 GitHub 工作目录
 - 主题：把腾讯云新加坡服务器的主部署目录从 tar 解包目录迁到 GitHub 工作目录，结束“本地打包 tar -> 服务器解包”作为默认主流程的阶段。
 - 影响范围：

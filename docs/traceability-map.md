@@ -112,6 +112,13 @@
 - `/x-search-latest:*`
 - X 登录态
 
+如果现象是“sidecar GUI 像没登录，但 agent 还能跑”或“更新后看起来像丢登录”，先看：
+
+- [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+- [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
+重点核对 `9222/9223`、desktop launcher 是否指向 `ugk-sidecar-chrome`，以及进程是否仍然挂在 `chrome-profile-sidecar`；别一上来就脑补 shared 目录被清空。
+
 ## F. Subagent、项目级 prompt、防护
 
 先看：

@@ -146,6 +146,34 @@ https://127.0.0.1:13901/
 
 不要再去 repo 目录里找这些运行态文件。
 
+## sidecar 登录态备份
+
+正常 `git pull` + `up --build -d` 不应该把 sidecar 登录态洗掉，因为它挂在 shared 目录里，不在 repo 里。但“理论上不会”不是备份，别把运气当流程。
+
+```bash
+cd ~/ugk-claw-repo
+mkdir -p ~/ugk-claw-shared/backups
+tar -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
+```
+
+## sidecar 登录态验收
+
+如果更新后 GUI 看起来像没登录，先别急着骂 shared 目录。先查这 3 件事：
+
+```bash
+cd ~/ugk-claw-repo
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi-browser sh -lc "curl -fsS http://127.0.0.1:9222/json/version"
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi-browser sh -lc "grep -n '^Exec=' /usr/share/applications/google-chrome.desktop /usr/share/applications/com.google.Chrome.desktop"
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi-browser sh -lc "ps -ef | grep '[c]hrome-profile-sidecar'"
+```
+
+期望结果：
+- `9222/json/version` 能返回 JSON，说明 sidecar 里的真实 Chrome 进程已经起来。
+- 两个 desktop launcher 的 `Exec=` 都指向 `/usr/local/bin/ugk-sidecar-chrome`，说明 GUI 手点和 agent/CDP 走的是同一个入口。
+- 进程列表里能看到 `chrome-profile-sidecar`，说明 GUI 与 direct CDP 共用同一套 profile。
+
+如果这三条都对，GUI 里某个站点还是掉登录，那大概率是站点自己的 session 过期，不是部署把 cookie 洗了。
+
 ## 回滚
 
 旧目录还保留着，只用于回滚和比对：

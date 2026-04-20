@@ -449,12 +449,49 @@ bind [127.0.0.1]:3901: Permission denied
 /home/ubuntu/ugk-claw-shared/.data/chrome-sidecar
 ```
 
+正常 `git pull --ff-only origin main` 再 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，不应该把登录态洗掉。原因不是玄学，是这两条约束同时成立：
+
+- sidecar profile 真正挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，而不是 repo 目录。
+- sidecar GUI 桌面启动器和 agent/CDP 控制的 Chrome 已经统一走 `WEB_ACCESS_BROWSER_PROFILE_DIR=/config/chrome-profile-sidecar`。
+
+所以如果更新后看起来像“浏览器全失忆”，先怀疑浏览器容器没吃到新 launcher，或者你看的 GUI 还是旧窗口，不要第一时间把锅甩给 shared 目录。
+
+建议在改动浏览器链路前先备份一份 sidecar profile：
+
+```bash
+cd ~/ugk-claw-repo
+mkdir -p ~/ugk-claw-shared/backups
+tar -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
+```
+
 如果后续 X 搜索、网页登录态异常，先确认：
 
 - SSH tunnel 是否还开着。
 - sidecar GUI 里是否仍然登录。
 - `~/ugk-claw-shared/.data/chrome-sidecar` 是否被误删。
 - compose 是否仍然使用同一个 `WEB_ACCESS_BROWSER_PROFILE_DIR`。
+
+如果 GUI 和 agent 看起来像两套登录态，再补 3 个硬检查：
+
+```bash
+cd ~/ugk-claw-repo
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi-browser sh -lc "curl -fsS http://127.0.0.1:9222/json/version"
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi-browser sh -lc "grep -n '^Exec=' /usr/share/applications/google-chrome.desktop /usr/share/applications/com.google.Chrome.desktop"
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi-browser sh -lc "ps -ef | grep '[c]hrome-profile-sidecar'"
+```
+
+期望是：
+
+- `9222` 返回 JSON；
+- 两个 launcher 都指向 `/usr/local/bin/ugk-sidecar-chrome`；
+- 进程里能看到 `chrome-profile-sidecar`。
+
+如果这里不对，就别继续自欺欺人刷新 GUI 了，先重建浏览器栈：
+
+```bash
+cd ~/ugk-claw-repo
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate ugk-pi-browser ugk-pi-browser-cdp ugk-pi
+```
 
 ## 本次线上故障记录
 
