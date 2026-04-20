@@ -13,6 +13,7 @@ import type {
 } from "../src/agent/agent-session-factory.js";
 import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
+import { buildPromptWithAssetContext } from "../src/agent/file-artifacts.js";
 
 class FakeSession implements AgentSessionLike {
 	public prompts: Array<{ message: string; options?: PromptOptionsLike }> = [];
@@ -700,6 +701,38 @@ test("getRunStatus reports whether a conversation is actively streaming", async 
 			mode: "usage",
 		},
 	});
+});
+
+test("getConversationHistory returns the original user text without internal prompt protocols", async () => {
+	const store = await createStore();
+	await store.set("manual:history-clean", "E:/sessions/history-clean.jsonl");
+	const session = new FakeSession("E:/sessions/history-clean.jsonl", [], "讨论的是第一条热点");
+	session.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("帮我查询一下第一条大家都在讨论什么"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "讨论的是第一条热点" }],
+			stopReason: "stop",
+		},
+	);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const history = await service.getConversationHistory("manual:history-clean");
+
+	assert.deepEqual(history.messages[0], {
+		id: "session-message-1",
+		kind: "user",
+		title: "agent:global",
+		text: "帮我查询一下第一条大家都在讨论什么",
+		createdAt: new Date(0).toISOString(),
+	});
+	assert.equal(history.messages[1]?.text, "讨论的是第一条热点");
+	assert.equal(history.messages.some((message) => message.text.includes("<asset_reference_protocol>")), false);
+	assert.equal(history.messages.some((message) => message.text.includes("<file_response_protocol>")), false);
 });
 
 test("subscribeRunEvents replays buffered events and keeps streaming live active run updates", async () => {

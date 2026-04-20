@@ -12,6 +12,19 @@
 
 ## 2026-04-20
 
+### Playground 历史恢复过滤内部 prompt 协议
+- 主题：修复刷新或重新打开 playground 后，从后端 session 恢复的用户历史消息会暴露 `<asset_reference_protocol>`、`<file_response_protocol>` 等内部 prompt 注入段的问题。
+- 影响范围：
+  - `src/agent/file-artifacts.ts` 新增内部 prompt 上下文剥离逻辑，统一移除 `<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这些只应给模型看的协议段。
+  - `src/agent/agent-service.ts` 在 `GET /v1/chat/history` 还原用户消息时应用剥离逻辑，保留真实用户原文，不影响助手回复、工具过程和实际发送给模型的增强 prompt。
+  - `test/agent-service.test.ts` 增加回归测试，覆盖“session 里存的是增强 prompt，但历史接口只返回用户原文”的场景。
+  - `docs/playground-current.md` 同步记录历史恢复口径，避免后续把内部协议泄漏误认为正常历史内容。
+- 对应入口：
+  - [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground 历史阅读时不强制滚底
 - 主题：修复 playground 在最新对话流式更新时无条件自动滚到底部，导致用户上滑查阅历史被打断的问题。
 - 影响范围：

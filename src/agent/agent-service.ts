@@ -21,6 +21,7 @@ import {
 	buildPromptWithAssetContext,
 	extractAgentFileDrafts,
 	rewriteUserVisibleLocalArtifactLinks,
+	stripInternalPromptContext,
 	type AgentFileArtifact,
 	type PromptAssetContextEntry,
 	toPromptAssetFromStoredAsset,
@@ -663,7 +664,8 @@ export class AgentService {
 			return undefined;
 		}
 
-		const text = this.extractMessageText(message);
+		const extractedText = this.extractMessageText(message);
+		const text = role === "user" ? stripInternalPromptContext(extractedText) : extractedText;
 		if (!text.trim()) {
 			return undefined;
 		}

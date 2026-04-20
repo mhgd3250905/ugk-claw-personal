@@ -29,6 +29,7 @@
 - 当前 Web 入口固定使用全局会话 `agent:global`，不再按浏览器 / 设备生成独立 `conversationId`
 - 页面会先用本地缓存快速恢复 transcript，再通过 `GET /v1/chat/history?conversationId=agent%3Aglobal` 从后端 agent session 同步真实历史；多浏览器、多设备看到的是同一个 agent 的对话记录
 - 本地 `localStorage` 只作为当前设备的快速缓存和渲染快照，不再作为会话身份事实源
+- 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部时，会自动继续补更多旧消息，顶部同时保留“加载更多历史”按钮作为兜底入口
 - `landing` 模式下，对话区底部避让按“`chat-stage` 底部到 `command-deck` 顶部的真实距离”动态计算，不再偷懒拿固定值或只拿 `command-deck` 高度瞎猜
 - `landing` 模式下 transcript 容器会被锁进可用高度内，多选文件 / 资产后应表现为对话区收缩并滚动，而不是继续向下顶进 `command-deck`

@@ -108,6 +108,14 @@ export function rewriteUserVisibleLocalArtifactLinks(
 	});
 }
 
+export function stripInternalPromptContext(text: string): string {
+	if (!text) {
+		return "";
+	}
+
+	return normalizeVisibleText(text.replace(INTERNAL_PROMPT_SECTION_PATTERN, ""));
+}
+
 function buildAssetContext(assets: readonly PromptAssetContextEntry[]): string {
 	if (assets.length === 0) {
 		return "";
@@ -260,3 +268,6 @@ function sanitizeFileName(fileName: string): string {
 
 const LOCAL_ARTIFACT_REFERENCE_PATTERN =
 	/file:\/\/\/app\/(?:public|runtime)\/[^\s<>"'`，。；！？）】》]+|\/app\/(?:public|runtime)\/[^\s<>"'`，。；！？）】》]+/gi;
+
+const INTERNAL_PROMPT_SECTION_PATTERN =
+	/(?:\n{0,2})<(user_assets|asset_reference_protocol|file_response_protocol)>[\s\S]*?<\/\1>/gi;
