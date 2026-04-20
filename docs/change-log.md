@@ -12,6 +12,19 @@
 
 ## 2026-04-20
 
+### GitHub 主仓库切换与仓库边界收口
+- 主题：把代码主仓库切到 GitHub，并先收紧 `.gitignore` 与部署文档口径，避免后续服务器迁移还没开始，主仓库已经被本地运行产物污染。
+- 影响范围：
+  - `.gitignore` 新增本地调试目录、部署 tar 包、运行时截图 / 调试 HTML、临时输出目录等低争议 ignore 规则，先把明显不该入库的产物挡在 Git 之外
+  - `README.md`、`AGENTS.md`、`docs/traceability-map.md` 同步声明 GitHub 已是代码事实源，并明确 `.env`、`.data/`、运行时报告、部署包不属于主仓库
+  - `docs/tencent-cloud-singapore-deploy.md` 从“Gitee / tar 为主”调整为“GitHub 为主、tar 为服务器过渡方案”，为后续把服务器迁成 Git 工作目录铺路
+- 对应入口：
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+  - [.gitignore](/E:/AII/ugk-pi/.gitignore)
+
 ### Playground 手机端展示层重写
 - 主题：不再继续拿桌面端布局硬压手机，而是在保留现有会话、文件、技能、发送等逻辑的前提下，把手机端展示层整体重写成真正可用的移动聊天页。
 - 影响范围：

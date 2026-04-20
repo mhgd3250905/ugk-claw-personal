@@ -23,6 +23,7 @@ agent / skill -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker C
 
 当前稳定事实：
 
+- 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`
 - 登录态持久目录是 `.data/chrome-sidecar`
 - 用户可见链接使用 `PUBLIC_BASE_URL`
@@ -30,6 +31,7 @@ agent / skill -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker C
 - Windows host IPC 只保留为 legacy fallback，不是 Docker / Linux 默认路径
 - 阶段验证命令是 `npm test` 和 `npm run docker:chrome:check`
 - `playground` 的手机端已经单独重写成移动聊天页，不是把桌面端硬压缩；后续 `/init` 如果要接手前端，先看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)，别按“桌面端缩略版”理解
+- `.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告和本地调试目录不属于代码仓库；后续 GitHub 部署与服务器迁移都要按 `.gitignore` 边界处理
 
 ## 快速开始
 
@@ -52,6 +54,12 @@ docker compose up -d
 - `http://127.0.0.1:3000/healthz`
 
 当前腾讯云新加坡部署入口记录在 [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)。云端公网入口是 `http://43.134.167.179:3000/playground`，Chrome sidecar GUI 只通过 SSH tunnel 访问，不开放公网 `3901`。
+
+当前仓库管理口径：
+
+- GitHub 是代码事实源
+- 服务器现有 `~/ugk-pi-claw` 仍是 tar 解包目录，只是过渡状态，不是长期推荐架构
+- 下一阶段目标是把服务器迁成真正的 Git 工作目录，同时把 `.env`、`.data` 和用户运行态目录继续外置
 
 大多数源码改动后只需要：
 

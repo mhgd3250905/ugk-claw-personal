@@ -19,6 +19,8 @@
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
+再记一句：当前代码主仓库已经切到 GitHub，服务器上的 `~/ugk-pi-claw` 仍只是 tar 解包目录；后续 `/init` 接手部署时，不要把这坨过渡状态误当成长期正确架构。
+
 如果是云端 `/init`，再记一句：
 
 - 服务器 `~/ugk-pi-claw` 不是 Git 仓库，是 tar 解包目录；本机打包，服务器部署。

@@ -142,13 +142,13 @@ newgrp docker
 
 ## 代码传输方式
 
-本仓库远程地址：
+当前代码主仓库地址：
 
 ```text
-https://gitee.com/ksheng3250905/ugk-pi-claw.git
+https://github.com/mhgd3250905/ugk-claw-personal.git
 ```
 
-本次从新加坡 CVM 直接访问 Gitee 很慢，曾出现：
+历史上这台新加坡 CVM 直接访问 Gitee 很慢，曾出现：
 
 ```text
 Receiving objects: 37% ..., 9.00 KiB/s
@@ -160,7 +160,7 @@ Gitee archive zip 也曾下载到半截，解压时报：
 End-of-central-directory signature not found
 ```
 
-所以当前更稳的方式是：本地打包 `git archive`，再上传到服务器。
+所以在服务器仍是 tar 解包目录的阶段，更稳的方式一直是：本地打包 `git archive`，再上传到服务器。
 
 本地打包：
 
@@ -488,12 +488,12 @@ proxy: ready (127.0.0.1:3456)
 - 如果改过 `Dockerfile` 或运行环境，必须验证对应命令，例如 `python3 --version`。
 - 如果涉及 `web-access` / X 搜索 / Chrome sidecar，必须跑 `check-deps.mjs`。
 
-### 可选方式：Gitee git 更新
+### 可选方式：GitHub git 更新
 
-如果新加坡服务器访问 Gitee 恢复正常，可以改用：
+如果后续把服务器目录迁成真正的 Git 工作目录，可以改用：
 
 ```bash
-git clone --depth 1 https://gitee.com/ksheng3250905/ugk-pi-claw.git
+git clone --depth 1 https://github.com/mhgd3250905/ugk-claw-personal.git
 ```
 
 或在已有 git 目录中：
@@ -502,7 +502,7 @@ git clone --depth 1 https://gitee.com/ksheng3250905/ugk-pi-claw.git
 git pull
 ```
 
-但当前服务器目录是 tar 解包目录，没有 `.git`，而且本次 Gitee 网络明显偏慢，所以不作为推荐方式。
+但当前服务器目录仍是 tar 解包目录，没有 `.git`，所以这条路在迁移完成前不作为默认方式。不要因为 GitHub 仓库建好了，就自我催眠说服务器已经自动升级成正常部署结构了。
 
 ### 应急方式：单文件热修
 
@@ -593,6 +593,7 @@ free -h
 - 不要开放公网 `3901`。
 - 不要开放公网 `9223`。
 - 不要把 `.env`、`.data/`、`node_modules/`、临时 tar 包提交到 git。
+- 不要把运行时截图、调试 HTML、`output/`、`tmp/` 这类本地产物继续塞进主仓库；GitHub 是代码事实源，不是垃圾回收站。
 - 不要在服务器上长期依赖单文件热修。
 - 不要把 `PUBLIC_BASE_URL` 和 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 混用。
 - 不要看到 Gitee clone 慢就反复 Ctrl+Z，停掉的 job 和半截目录会让下一次 clone 更乱。
@@ -602,6 +603,8 @@ free -h
 本次部署过程中出现过这些本地临时文件或目录，不应默认提交：
 
 - `.gh-cli-config/`
+- `output/`
+- `tmp/`
 - `server-install-docker.sh`
 - `ugk-pi-deploy.tar.gz`
 

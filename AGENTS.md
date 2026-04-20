@@ -33,6 +33,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 ## 2.1 当前阶段快照
 
 - 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
+- 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；后续接手不要再把 Gitee / tar 包搬运当成长期主流程理解。
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
@@ -224,6 +225,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - agent 每轮 prompt 都会通过 `src/agent/file-artifacts.ts` 注入文件交付协议：内部本地 artifact 路径允许直接用于工具与浏览器自动化；用户交付时浏览器预览走宿主可访问 HTTP，真实文件优先 `send_file`，`ugk-file` 只作小文本兜底
 - `AgentService` 会在用户可见的正文、流式增量和工具过程消息里，自动把支持的 `/app/public/...`、`/app/runtime/...`、`file:///app/...` 重写成宿主可访问的 `GET /v1/local-file?path=...`；不要再指望宿主浏览器直接打开容器 `file://`
 - 当前品牌文案为 `UGK CLAW`，playground 顶部和首页使用纯文字字标，不显示图片 logo。
+- 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/status` 和 `GET /v1/chat/events` 为准；文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
