@@ -33,7 +33,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 ## 2.1 当前阶段快照
 
 - 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
-- 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；后续接手不要再把 Gitee / tar 包搬运当成长期主流程理解。
+- 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器当前主部署目录也已经迁到 GitHub 工作目录 `~/ugk-claw-repo`，不要再把 Gitee / tar 包搬运当成长期主流程理解。
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
@@ -133,7 +133,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 如果这次 `/init` 的目标是接手云服务器，而不是本机开发，先记住三件事：
 
 - 当前云端正式入口是 `http://43.134.167.179:3000/playground`。
-- 服务器 `~/ugk-pi-claw` 是 tar 解包目录，不是 Git 仓库；打包在本机，部署在服务器。
+- 服务器当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
 
 如果这次 `/init` 还要接手 `playground` 前端，再记住两件事：

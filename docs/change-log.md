@@ -12,6 +12,20 @@
 
 ## 2026-04-20
 
+### 腾讯云服务器迁移到 GitHub 工作目录
+- 主题：把腾讯云新加坡服务器的主部署目录从 tar 解包目录迁到 GitHub 工作目录，结束“本地打包 tar -> 服务器解包”作为默认主流程的阶段。
+- 影响范围：
+  - 服务器当前主部署目录改为 `~/ugk-claw-repo`，`origin` 指向 `https://github.com/mhgd3250905/ugk-claw-personal.git`
+  - 生产容器实际 bind source 已切到 `~/ugk-claw-repo`：`runtime/skills-user` 与 `.data/chrome-sidecar`
+  - 原 `~/ugk-pi-claw` 与两个历史目录保留为回滚兜底，不再是默认更新入口
+  - 服务器实测通过：`/healthz` 返回 `200`、`playground` 返回 `200`、`python3 --version` 正常、`check-deps.mjs` 返回 `host-browser: ok`
+  - `README.md`、`AGENTS.md`、`docs/traceability-map.md`、`docs/tencent-cloud-singapore-deploy.md` 同步更新接手和部署口径，避免后续 `/init` 继续按旧 tar 目录理解
+- 对应入口：
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### GitHub 主仓库切换与仓库边界收口
 - 主题：把代码主仓库切到 GitHub，并先收紧 `.gitignore` 与部署文档口径，避免后续服务器迁移还没开始，主仓库已经被本地运行产物污染。
 - 影响范围：

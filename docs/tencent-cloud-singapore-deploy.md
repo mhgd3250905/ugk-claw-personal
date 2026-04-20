@@ -6,7 +6,7 @@
 
 ## 当前部署快照
 
-- 日期：`2026-04-19`
+- 日期：`2026-04-20`
 - 云厂商：腾讯云 CVM
 - 地域：新加坡二区
 - 实例 ID：`ins-0voci0xy`
@@ -19,6 +19,8 @@
 - 服务公网入口：`http://43.134.167.179:3000/playground`
 - 健康检查入口：`http://43.134.167.179:3000/healthz`
 - 生产 compose 文件：`docker-compose.prod.yml`
+- 当前主部署目录：`/home/ubuntu/ugk-claw-repo`
+- 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 
 服务器初始核验结果：
 
@@ -125,11 +127,11 @@ ca-certificates
 python3
 ```
 
-如果服务器上遇到 `python3: not found`，说明线上镜像还是旧版本，需要重新打包上传并执行：
+如果服务器上遇到 `python3: not found`，说明线上镜像还是旧版本，需要在当前主部署目录执行：
 
 ```bash
-cd ~/ugk-pi-claw
-docker compose -f docker-compose.prod.yml up --build -d
+cd ~/ugk-claw-repo
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
 如果刚把 `ubuntu` 加入 `docker` 组，需要执行：
@@ -140,7 +142,24 @@ newgrp docker
 
 或重新登录 SSH。
 
-## 代码传输方式
+## 当前部署目录与更新入口
+
+当前服务器已经完成一次从 tar 解包目录到 GitHub 工作目录的迁移：
+
+- 默认更新目录：`~/ugk-claw-repo`
+- 当前目录类型：GitHub clone 出来的 Git 工作目录
+- 当前远程仓库：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`
+- 旧目录 `~/ugk-pi-claw` 及 `~/ugk-pi-claw-prev-*` 只保留给回滚与比对
+
+后续默认更新时，先进入：
+
+```bash
+cd ~/ugk-claw-repo
+```
+
+不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 历史代码传输方式
 
 当前代码主仓库地址：
 
@@ -210,7 +229,7 @@ tsconfig.json
 服务器 `.env` 放在：
 
 ```text
-/home/ubuntu/ugk-pi-claw/.env
+/home/ubuntu/ugk-claw-repo/.env
 ```
 
 模板如下，真实 key 不要写进仓库和文档：
@@ -253,8 +272,8 @@ chmod 600 .env
 服务器执行：
 
 ```bash
-cd ~/ugk-pi-claw
-docker compose -f docker-compose.prod.yml up --build -d
+cd ~/ugk-claw-repo
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
 查看容器：
@@ -421,9 +440,9 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 原因很简单：这台服务器上除了仓库代码，还有用户后来安装的 skills、agents、本地登录态和 `.data`。整目录替换如果只记得带 `.env`，大概率就会把这些本地状态一起抹掉。
 
-### 推荐方式：本地打包上传
+### 历史方式：本地打包上传
 
-当前云服务器上的 `~/ugk-pi-claw` 是 tar 解包目录，不是 Git 仓库。也就是说：
+这是迁移前的旧方式，保留在这里仅用于解释历史背景。迁移前云服务器上的 `~/ugk-pi-claw` 是 tar 解包目录，不是 Git 仓库。也就是说：
 
 - 本机负责 `git archive` 打包。
 - 服务器负责接收 tar 包、替换目录、重建容器。
@@ -488,21 +507,34 @@ proxy: ready (127.0.0.1:3456)
 - 如果改过 `Dockerfile` 或运行环境，必须验证对应命令，例如 `python3 --version`。
 - 如果涉及 `web-access` / X 搜索 / Chrome sidecar，必须跑 `check-deps.mjs`。
 
-### 可选方式：GitHub git 更新
+### 当前推荐方式：GitHub git 更新
 
-如果后续把服务器目录迁成真正的 Git 工作目录，可以改用：
-
-```bash
-git clone --depth 1 https://github.com/mhgd3250905/ugk-claw-personal.git
-```
-
-或在已有 git 目录中：
+当前服务器目录已经迁成 Git 工作目录，默认更新方式就是：
 
 ```bash
-git pull
+cd ~/ugk-claw-repo
+git pull --ff-only origin main
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
-但当前服务器目录仍是 tar 解包目录，没有 `.git`，所以这条路在迁移完成前不作为默认方式。不要因为 GitHub 仓库建好了，就自我催眠说服务器已经自动升级成正常部署结构了。
+如果只是确认当前目录状态：
+
+```bash
+cd ~/ugk-claw-repo
+git remote -v
+git status --short
+git rev-parse HEAD
+```
+
+迁移完成后的服务器实测结果：
+
+```text
+/home/ubuntu/ugk-claw-repo/.git 存在
+docker inspect 显示 ugk-pi 与浏览器容器的 bind source 已指向 /home/ubuntu/ugk-claw-repo
+curl http://127.0.0.1:3000/healthz -> {"ok":true}
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi python3 --version -> Python 3.11.2
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs -> host-browser ok
+```
 
 ### 应急方式：单文件热修
 
@@ -521,21 +553,22 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 ## 回滚
 
-如果按推荐流程更新，旧目录会保留为：
+当前可用的回滚目录包括：
 
 ```text
-ugk-pi-claw-prev-YYYYMMDD-HHMMSS
+/home/ubuntu/ugk-pi-claw
+/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142
+/home/ubuntu/ugk-pi-claw-prev-20260419-231530
 ```
 
 回滚示例：
 
 ```bash
 cd ~
-docker compose -f ugk-pi-claw/docker-compose.prod.yml down
-mv ugk-pi-claw ugk-pi-claw-bad-$(date +%Y%m%d-%H%M%S)
-mv ugk-pi-claw-prev-YYYYMMDD-HHMMSS ugk-pi-claw
-cd ugk-pi-claw
-docker compose -f docker-compose.prod.yml up -d
+cd ~/ugk-claw-repo
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml down
+cd ~/ugk-pi-claw
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml up -d
 ```
 
 回滚后同样必须执行验证清单。
@@ -545,31 +578,36 @@ docker compose -f docker-compose.prod.yml up -d
 查看容器：
 
 ```bash
-docker compose -f docker-compose.prod.yml ps
+cd ~/ugk-claw-repo
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml ps
 ```
 
 查看 app 日志：
 
 ```bash
-docker compose -f docker-compose.prod.yml logs --tail=120 ugk-pi
+cd ~/ugk-claw-repo
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml logs --tail=120 ugk-pi
 ```
 
 查看 nginx 日志：
 
 ```bash
-docker compose -f docker-compose.prod.yml logs --tail=120 nginx
+cd ~/ugk-claw-repo
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml logs --tail=120 nginx
 ```
 
 重启 app：
 
 ```bash
-docker compose -f docker-compose.prod.yml restart ugk-pi
+cd ~/ugk-claw-repo
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml restart ugk-pi
 ```
 
 重新构建并启动：
 
 ```bash
-docker compose -f docker-compose.prod.yml up --build -d
+cd ~/ugk-claw-repo
+docker compose -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
 检查磁盘：

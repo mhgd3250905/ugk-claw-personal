@@ -19,11 +19,11 @@
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
-再记一句：当前代码主仓库已经切到 GitHub，服务器上的 `~/ugk-pi-claw` 仍只是 tar 解包目录；后续 `/init` 接手部署时，不要把这坨过渡状态误当成长期正确架构。
+再记一句：当前代码主仓库已经切到 GitHub，服务器默认部署目录也已经迁到 `~/ugk-claw-repo`；旧的 `~/ugk-pi-claw` 只留给回滚和比对，别再把它当默认更新入口。
 
 如果是云端 `/init`，再记一句：
 
-- 服务器 `~/ugk-pi-claw` 不是 Git 仓库，是 tar 解包目录；本机打包，服务器部署。
+- 服务器当前默认工作目录是 `~/ugk-claw-repo`，已经能直接 `git pull`；但旧的 `~/ugk-pi-claw` 还在，别在错误目录里更新完了还以为自己部署成功。
 - 如果这次 `/init` 还要接手 `playground` 前端，先读 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)；当前手机端是单独重写的移动展示层，不要按桌面端缩略版理解
 
 ## B. 聊天、流式、追加消息、打断
