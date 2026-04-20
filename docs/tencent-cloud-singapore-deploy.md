@@ -76,6 +76,8 @@ ssh -L 13901:127.0.0.1:3901 ubuntu@43.134.167.179
 
 当前 compose 已经给 `ugk-pi-browser` 加了容器内自举 healthcheck。不要把“GUI 页面能打开”误判成“CDP 已经 ready”；真正算数的是 `9222/9223` 探针和 `check-deps.mjs` 输出。
 
+当前 sidecar GUI 手点打开的浏览器，也已经被收口到同一个 `chrome-profile-sidecar`。后续如果再出现“GUI 里像是没登录、但 agent 还在用另一套 cookie”的现象，先怀疑是不是老容器没更新，而不是先脑补 shared 目录把登录态吃了。
+
 然后在本机打开：
 
 ```text

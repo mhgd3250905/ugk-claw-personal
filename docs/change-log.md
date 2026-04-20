@@ -52,6 +52,16 @@
   - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
   - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
 
+### Sidecar GUI 与 CDP 统一 profile
+- 主题：修复 sidecar GUI 手点打开的浏览器仍走默认 desktop launcher，导致它和 agent/CDP 控制的 Chrome 分别落到不同 profile、看起来像“登录态全没了”的问题。
+- 影响范围：
+  - `scripts/ensure-sidecar-chrome.sh` 现在会在容器内生成 `ugk-sidecar-chrome` launcher，并把 `google-chrome.desktop` 与 `com.google.Chrome.desktop` 的 `Exec=` 改写到同一个 `chrome-profile-sidecar`
+  - GUI 手点浏览器与 direct CDP 启动的 Chrome 现在共用 `WEB_ACCESS_BROWSER_PROFILE_DIR=/config/chrome-profile-sidecar`
+  - `test/containerization.test.ts` 增加对 launcher 名称、desktop patch 和统一 `--user-data-dir` 的回归断言
+- 对应入口：
+  - [scripts/ensure-sidecar-chrome.sh](/E:/AII/ugk-pi/scripts/ensure-sidecar-chrome.sh)
+  - [test/containerization.test.ts](/E:/AII/ugk-pi/test/containerization.test.ts)
+
 ### 腾讯云服务器迁移到 GitHub 工作目录
 - 主题：把腾讯云新加坡服务器的主部署目录从 tar 解包目录迁到 GitHub 工作目录，结束“本地打包 tar -> 服务器解包”作为默认主流程的阶段。
 - 影响范围：

@@ -151,4 +151,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(sidecarEnsureScript, /ozone-platform=x11/);
 	assert.match(sidecarEnsureScript, /SingletonLock/);
 	assert.match(sidecarEnsureScript, /chrome-manual\.log/);
+	assert.match(sidecarEnsureScript, /ugk-sidecar-chrome/);
+	assert.match(sidecarEnsureScript, /google-chrome\.desktop/);
+	assert.match(sidecarEnsureScript, /com\.google\.Chrome\.desktop/);
+	assert.match(sidecarEnsureScript, /--user-data-dir="\$PROFILE_DIR"/);
 });
