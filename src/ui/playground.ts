@@ -1,85 +1,55 @@
-export function renderPlaygroundMarkdown(source: string): string {
-	function escapeHtml(value: string): string {
-		return value
-			.replace(/&/g, "&amp;")
-			.replace(/</g, "&lt;")
-			.replace(/>/g, "&gt;")
-			.replace(/"/g, "&quot;")
-			.replace(/'/g, "&#39;");
-	}
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { Marked, type Tokens } from "marked";
 
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value: string): string {
+	return escapeHtml(value).replace(/`/g, "&#96;");
+}
+
+function isSafeHttpUrl(value: string): boolean {
+	try {
+		const url = new URL(value);
+		return url.protocol === "http:" || url.protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
+const playgroundMarkdownParser = new Marked({
+	gfm: true,
+	breaks: false,
+	async: false,
+	renderer: {
+		html({ text }: Tokens.HTML | Tokens.Tag): string {
+			return escapeHtml(text);
+		},
+		link({ href, title, text }: Tokens.Link): string {
+			if (!isSafeHttpUrl(href)) {
+				return escapeHtml(text);
+			}
+			const titleAttribute = title ? ` title="${escapeAttribute(title)}"` : "";
+			return `<a href="${escapeAttribute(href)}"${titleAttribute} target="_blank" rel="noreferrer noopener">${escapeHtml(text)}</a>`;
+		},
+	},
+});
+
+export function renderPlaygroundMarkdown(source: string): string {
 	const normalized = String(source ?? "").replace(/\r\n?/g, "\n").trim();
 	if (!normalized) {
 		return "<p></p>";
 	}
 
-	const codeBlocks: string[] = [];
-	const codeTokenized = normalized.replace(/```([a-z0-9_-]+)?\n([\s\S]*?)```/gi, (_match, language, code) => {
-		const safeLanguage = typeof language === "string" ? language.replace(/[^a-z0-9_-]/gi, "").toLowerCase() : "";
-		const className = safeLanguage ? ` class="language-${safeLanguage}"` : "";
-		const html = `<pre><code${className}>${escapeHtml(String(code).replace(/\n$/, ""))}</code></pre>`;
-		const token = `\u0000CODEBLOCK${codeBlocks.length}\u0000`;
-		codeBlocks.push(html);
-		return `\n\n${token}\n\n`;
-	});
-
-	function applyInlineMarkdown(text: string): string {
-		const inlineCode: string[] = [];
-		const inlineTokenized = text.replace(/`([^`\n]+)`/g, (_match, code) => {
-			const token = `\u0000INLINECODE${inlineCode.length}\u0000`;
-			inlineCode.push(`<code>${escapeHtml(code)}</code>`);
-			return token;
-		});
-
-		let html = escapeHtml(inlineTokenized);
-		html = html.replace(
-			/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-			(_match, label, href) =>
-				`<a href="${href.replace(/"/g, "&quot;")}" target="_blank" rel="noreferrer noopener">${label}</a>`,
-		);
-		html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-		html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-		html = html.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
-		html = html.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, "$1<em>$2</em>");
-		return html.replace(/\u0000INLINECODE(\d+)\u0000/g, (_match, index) => inlineCode[Number(index)] ?? "");
-	}
-
-	function renderBlock(block: string): string {
-		if (/^\u0000CODEBLOCK\d+\u0000$/.test(block)) {
-			return block.replace(/\u0000CODEBLOCK(\d+)\u0000/g, (_match, index) => codeBlocks[Number(index)] ?? "");
-		}
-
-		const lines = block.split("\n");
-		if (lines.length === 1) {
-			const heading = lines[0].match(/^(#{1,6})\s+(.+)$/);
-			if (heading) {
-				const level = heading[1].length;
-				return `<h${level}>${applyInlineMarkdown(heading[2])}</h${level}>`;
-			}
-		}
-
-		if (lines.every((line) => /^\s*[-*]\s+/.test(line))) {
-			return `<ul>${lines.map((line) => `<li>${applyInlineMarkdown(line.replace(/^\s*[-*]\s+/, ""))}</li>`).join("")}</ul>`;
-		}
-
-		if (lines.every((line) => /^\s*\d+\.\s+/.test(line))) {
-			return `<ol>${lines.map((line) => `<li>${applyInlineMarkdown(line.replace(/^\s*\d+\.\s+/, ""))}</li>`).join("")}</ol>`;
-		}
-
-		if (lines.every((line) => /^\s*>\s?/.test(line))) {
-			const quoted = lines.map((line) => line.replace(/^\s*>\s?/, ""));
-			return `<blockquote><p>${quoted.map((line) => applyInlineMarkdown(line)).join("<br />")}</p></blockquote>`;
-		}
-
-		return `<p>${lines.map((line) => applyInlineMarkdown(line)).join("<br />")}</p>`;
-	}
-
-	return codeTokenized
-		.split(/\n{2,}/)
-		.map((block) => block.trim())
-		.filter((block) => block.length > 0)
-		.map(renderBlock)
-		.join("");
+	const rendered = playgroundMarkdownParser.parse(normalized, { async: false });
+	return String(rendered).trim() || "<p></p>";
 }
 
 function getPlaygroundStyles(): string {
@@ -640,6 +610,7 @@ function getPlaygroundStyles(): string {
 		.message-content p,
 		.message-content ul,
 		.message-content ol,
+		.message-content .markdown-table-scroll,
 		.message-content .code-block,
 		.message-content pre,
 		.message-content blockquote,
@@ -682,6 +653,50 @@ function getPlaygroundStyles(): string {
 
 		.message-content li + li {
 			margin-top: 6px;
+		}
+
+		.message-content .markdown-table-scroll {
+			display: block;
+			width: fit-content;
+			max-width: 100%;
+			overflow-x: auto;
+			border: 1px solid rgba(201, 210, 255, 0.16);
+			background: rgba(6, 7, 17, 0.42);
+		}
+
+		.message-content table {
+			width: max-content;
+			border-collapse: collapse;
+		}
+
+		.message-content th,
+		.message-content td {
+			padding: 9px 11px;
+			border-right: 1px solid rgba(201, 210, 255, 0.12);
+			border-bottom: 1px solid rgba(201, 210, 255, 0.12);
+			text-align: left;
+			vertical-align: top;
+			white-space: nowrap;
+		}
+
+		.message-content th:last-child,
+		.message-content td:last-child {
+			border-right: 0;
+		}
+
+		.message-content tbody tr:last-child td {
+			border-bottom: 0;
+		}
+
+		.message-content th {
+			background: rgba(201, 210, 255, 0.09);
+			color: var(--fg);
+			font-size: 12px;
+			font-weight: 700;
+		}
+
+		.message-content td {
+			color: rgba(238, 244, 255, 0.86);
 		}
 
 		.message-content blockquote {
@@ -2664,14 +2679,83 @@ function getPlaygroundStyles(): string {
 	`;
 }
 
-function getPlaygroundScript(): string {
-	const renderMarkdownFunction = renderPlaygroundMarkdown
-		.toString()
-		.replace("function renderPlaygroundMarkdown", "function renderMessageMarkdown")
-		.replace(/\s*__name\([^)]*\);\n?/g, "\n");
+let markedBrowserScriptCache: string | undefined;
 
+function getMarkedBrowserScript(): string {
+	if (!markedBrowserScriptCache) {
+		markedBrowserScriptCache = readFileSync(join(process.cwd(), "node_modules", "marked", "lib", "marked.umd.js"), "utf8")
+			.replace(/\/\/# sourceMappingURL=.*$/gm, "")
+			.replace(/<\/script/gi, "<\\/script");
+	}
+	return markedBrowserScriptCache;
+}
+
+function getBrowserMarkdownRendererScript(): string {
 	return `
-		${renderMarkdownFunction}
+		function renderMessageMarkdown(source) {
+			function escapeHtml(value) {
+				return String(value || "")
+					.replace(/&/g, "&amp;")
+					.replace(/</g, "&lt;")
+					.replace(/>/g, "&gt;")
+					.replace(/"/g, "&quot;")
+					.replace(/'/g, "&#39;");
+			}
+
+			function escapeAttribute(value) {
+				return escapeHtml(value).replace(/\`/g, "&#96;");
+			}
+
+			function isSafeHttpUrl(value) {
+				try {
+					const url = new URL(value);
+					return url.protocol === "http:" || url.protocol === "https:";
+				} catch (_error) {
+					return false;
+				}
+			}
+
+			const normalized = String(source || "").replace(/\\r\\n?/g, "\\n").trim();
+			if (!normalized) {
+				return "<p></p>";
+			}
+
+			const markedApi = globalThis.marked;
+			if (!markedApi || typeof markedApi.Marked !== "function") {
+				return "<p>" + escapeHtml(normalized).replace(/\\n/g, "<br />") + "</p>";
+			}
+
+			if (!globalThis.__ugkPlaygroundMarkdownParser) {
+				globalThis.__ugkPlaygroundMarkdownParser = new markedApi.Marked({
+					gfm: true,
+					breaks: false,
+					async: false,
+					renderer: {
+						html: function html(token) {
+							return escapeHtml(token && token.text ? token.text : "");
+						},
+						link: function link(token) {
+							const href = token && token.href ? token.href : "";
+							const text = token && token.text ? token.text : "";
+							if (!isSafeHttpUrl(href)) {
+								return escapeHtml(text);
+							}
+							const title = token && token.title ? ' title="' + escapeAttribute(token.title) + '"' : "";
+							return '<a href="' + escapeAttribute(href) + '"' + title + ' target="_blank" rel="noreferrer noopener">' + escapeHtml(text) + "</a>";
+						},
+					},
+				});
+			}
+
+			const rendered = globalThis.__ugkPlaygroundMarkdownParser.parse(normalized, { async: false });
+			return String(rendered || "").trim() || "<p></p>";
+		}
+	`;
+}
+
+function getPlaygroundScript(): string {
+	return `
+		${getBrowserMarkdownRendererScript()}
 
 		const CONVERSATION_HISTORY_INDEX_KEY = "ugk-pi:conversation-history-index";
 		const MAX_STORED_CONVERSATIONS = 12;
@@ -4706,6 +4790,17 @@ function getPlaygroundScript(): string {
 		}
 
 		function hydrateMarkdownContent(root) {
+			root.querySelectorAll("table").forEach((table) => {
+				if (table.closest(".markdown-table-scroll")) {
+					return;
+				}
+
+				const wrapper = document.createElement("div");
+				wrapper.className = "markdown-table-scroll";
+				table.parentNode?.insertBefore(wrapper, table);
+				wrapper.appendChild(table);
+			});
+
 			root.querySelectorAll("pre").forEach((pre) => {
 				if (pre.closest(".code-block")) {
 					return;
@@ -5763,7 +5858,8 @@ export function renderPlaygroundPage(): string {
 				</div>
 			</section>
 		</div>
-		<script>${getPlaygroundScript()}</script>
+		<script>${getMarkedBrowserScript()}
+${getPlaygroundScript()}</script>
 	</body>
 </html>`;
 }

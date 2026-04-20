@@ -23,9 +23,10 @@
     "docker:chrome:open": "node scripts/sidecar-chrome.mjs open"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.41",
     "@mariozechner/pi-coding-agent": "^0.67.6",
-    "fastify": "^5.6.1"
+    "@sinclair/typebox": "^0.34.41",
+    "fastify": "^5.6.1",
+    "marked": "^18.0.2"
   },
   "devDependencies": {
     "@types/node": "^24.6.0",

@@ -12,6 +12,21 @@
 
 ## 2026-04-20
 
+### Playground Markdown 渲染库化
+- 主题：把 agent 回复 Markdown 从项目内手写解析器迁到 `marked`，避免表格、分割线等标准 Markdown 继续靠临时正则补洞。
+- 影响范围：
+  - `package.json` 新增 `marked` 依赖，`src/ui/playground.ts` 的 `renderPlaygroundMarkdown()` 改为使用 `marked` 的 GFM 渲染能力。
+  - playground 浏览器端内联 `marked` 的 UMD 版本，避免单文件 HTML 前端在运行时依赖外部 CDN 或 Node import。
+  - 仍然覆盖安全边界：原始 HTML 会被转义，链接只允许 `http/https`，并继续加 `target="_blank"` 与 `rel="noreferrer noopener"`。
+  - playground 消息内容新增表格样式，表头、单元格、横向滚动和边框层次跟当前深色消息气泡保持一致；表格由外层滚动容器控制最大宽度，窄表按内容宽度展示，不再强制撑满消息气泡。
+  - `test/server.test.ts` 增加“段落 + pipe table + `---`”回归断言，固定表格必须输出 `<table>` / `<thead>` / `<tbody>`，分割线必须输出 `<hr>`，并防止分隔行裸露。
+  - `docs/playground-current.md` 同步记录当前 Markdown 渲染口径。
+- 对应入口：
+  - [package.json](/E:/AII/ugk-pi/package.json)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### 生产运行态外置到 shared 目录
 - 主题：把腾讯云服务器上的 `.env`、`.data/chrome-sidecar` 和生产日志从代码目录继续剥离到 `~/ugk-claw-shared/`，让 Git 工作目录和运行态彻底分家。
 - 影响范围：

@@ -239,6 +239,15 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function openContextUsageDialog\(/);
 	assert.match(response.body, /function closeContextUsageDialog\(/);
 	assert.match(response.body, /function toggleContextUsageDetails\(/);
+	assert.match(response.body, /__ugkPlaygroundMarkdownParser/);
+	assert.match(response.body, /globalThis\.marked/);
+	assert.doesNotMatch(response.body, /CODEBLOCK/);
+	assert.match(
+		response.body,
+		/\.message-content \.markdown-table-scroll\s*\{\s*display:\s*block;\s*width:\s*fit-content;\s*max-width:\s*100%;\s*overflow-x:\s*auto;/,
+	);
+	assert.match(response.body, /\.message-content table\s*\{\s*width:\s*max-content;\s*border-collapse:\s*collapse;/);
+	assert.match(response.body, /wrapper\.className = "markdown-table-scroll";/);
 	assert.match(response.body, /matchMedia\("\(max-width: 640px\)"\)/);
 	assert.match(response.body, /\/v1\/chat\/status\?conversationId=/);
 	assert.match(response.body, /mode:\s*"steer"/);
@@ -1163,12 +1172,12 @@ test("renderPlaygroundMarkdown renders safe markdown html for transcript message
 	);
 
 	assert.match(html, /<h1>Title<\/h1>/);
-	assert.match(html, /<ul><li>one<\/li><li>two<\/li><\/ul>/);
+	assert.match(html, /<ul>\s*<li>one<\/li>\s*<li>two<\/li>\s*<\/ul>/);
 	assert.match(html, /<strong>bold<\/strong>/);
 	assert.match(html, /<code>code<\/code>/);
 	assert.match(html, /<a href="https:\/\/example\.com" target="_blank" rel="noreferrer noopener">link<\/a>/);
-	assert.match(html, /<blockquote><p>quote<\/p><\/blockquote>/);
-	assert.match(html, /<pre><code class="language-ts">const value = 1 &lt; 2;<\/code><\/pre>/);
+	assert.match(html, /<blockquote>\s*<p>quote<\/p>\s*<\/blockquote>/);
+	assert.match(html, /<pre><code class="language-ts">const value = 1 &lt; 2;\s*<\/code><\/pre>/);
 	assert.doesNotMatch(html, /<script>/);
 	assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });
@@ -1177,8 +1186,33 @@ test("renderPlaygroundMarkdown keeps fenced code blocks visible when preceded by
 	const html = renderPlaygroundMarkdown(["技能结构：", "```json", '{ "name": "web-access" }', "```"].join("\n"));
 
 	assert.match(html, /<p>技能结构：<\/p>/);
-	assert.match(html, /<pre><code class="language-json">\{ &quot;name&quot;: &quot;web-access&quot; \}<\/code><\/pre>/);
+	assert.match(html, /<pre><code class="language-json">\{ &quot;name&quot;: &quot;web-access&quot; \}\s*<\/code><\/pre>/);
 	assert.doesNotMatch(html, /CODEBLOCK0/);
+});
+
+test("renderPlaygroundMarkdown renders pipe tables as html tables", () => {
+	const html = renderPlaygroundMarkdown(
+		[
+			"这是一个 Markdown 表格示例：",
+			"",
+			"| 写法 | 能抓 NoSuchMethodError？ |",
+			"|------|------------------------|",
+			"| catch (Exception e) | ❌ 不能 |",
+			"| catch (Error e) | ✅ 能，但不推荐单独用 |",
+			"| catch (Throwable t) | ✅ 能，推荐 |",
+			"| catch (NoSuchMethodError e) | ✅ 能，但太具体 |",
+			"",
+			"---",
+		].join("\n"),
+	);
+
+	assert.match(html, /<p>这是一个 Markdown 表格示例：<\/p>/);
+	assert.match(html, /<table>/);
+	assert.match(html, /<thead>\s*<tr>\s*<th>写法<\/th>\s*<th>能抓 NoSuchMethodError？<\/th>\s*<\/tr>\s*<\/thead>/);
+	assert.match(html, /<tbody>/);
+	assert.match(html, /<td>catch \(Throwable t\)<\/td>\s*<td>✅ 能，推荐<\/td>/);
+	assert.match(html, /<hr>/);
+	assert.doesNotMatch(html, /\|------\|/);
 });
 
 test("POST /v1/chat returns aggregated chat response", async () => {

@@ -10,7 +10,7 @@ import type {
 	ToolExecutionEndEventLike,
 	ToolExecutionStartEventLike,
 	ToolExecutionUpdateEventLike,
-	type ProjectDefaultModelContext,
+	ProjectDefaultModelContext,
 } from "./agent-session-factory.js";
 import {
 	buildContextUsageSnapshot,
