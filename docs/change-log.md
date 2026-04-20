@@ -12,6 +12,23 @@
 
 ## 2026-04-20
 
+### Playground active 输入区高度收口
+- 主题：修复进入对话后 `#composer-drop-target.composer` 仍沿用偏高 textarea 高度，导致底部输入区在手机、窄屏和普通对话态下占据过多屏幕的问题。
+- 影响范围：
+  - `src/ui/playground.ts` 进一步收口 landing 空态的 `.shell[data-stage-mode="landing"] .composer`：padding 改为 `6px 8px 6px 10px`，textarea 固定 `40px`，发送 / 打断按钮最小高度改为 `40px`，避免底部输入面板继续按大块卡片展示。
+  - Landing composer 外壳新增 `align-self: end`、`height: fit-content`、`max-height: 64px`，并让 `command-deck` 使用 `grid-auto-rows: max-content` / `align-content: end`，防止手机 grid 把 `section#composer-drop-target` 拉伸成接近半屏高度。
+  - Landing 空态的 `command-deck` 间距、底部 margin 和 context usage 行高度同步压缩，减少输入框外围空间继续制造“底部很高”的视觉问题。
+  - `src/ui/playground.ts` 将 active 对话态基础 `.composer` padding、间距和 textarea 高度整体收口；普通对话 textarea 从 `min-height: 128px` / `max-height: 28vh` 改为 `72px` / `18vh`，并禁用手动竖向 resize。
+  - `max-width: 960px` 下 `.composer-side` 改为两列横排，避免发送 / 打断按钮掉到输入框下方继续撑高底部区域。
+  - `max-width: 640px` 下为普通 `.composer`、`.composer-main`、`.composer-header`、`.composer textarea` 和 `.composer-side` 增加更紧凑约束；active 对话态不再只吃桌面基础高度。
+  - 手机端 active 对话态 textarea 最小高度收口为 `44px`、最大高度收口为 `96px`，并禁用手动竖向 resize，避免输入区继续挤压 transcript。
+  - `test/server.test.ts` 增加回归断言，固定默认和手机端 active composer 的紧凑 CSS 入口，防止后续只修 landing 空态或只修单一断点。
+  - `docs/playground-current.md` 同步记录当前 active 输入区高度口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground 切换为单工人多会话模型
 - 主题：把 `playground` 从固定 `agent:global` + reset 旧会话，切到“一个 agent、多条历史会话、一个全局当前会话”的模型；新会话是真正新建会话，旧会话保留为历史。
 - 影响范围：

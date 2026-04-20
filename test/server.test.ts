@@ -533,6 +533,13 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border-radius: 4px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*background: rgba\(90, 82, 122, 0\.22\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*padding:\s*6px 8px 6px 10px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*align-self:\s*end;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*height:\s*fit-content;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*max-height:\s*64px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*min-height:\s*40px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*max-height:\s*40px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*min-height:\s*40px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
 	assert.match(response.body, /const commandDeck = document\.getElementById\("command-deck"\);/);
 	assert.match(response.body, /function syncConversationLayout\(\) \{/);
@@ -792,6 +799,48 @@ test("GET /playground uses icon-only mobile send and interrupt controls", async 
 	assert.match(response.body, /#interrupt-button::before\s*\{[\s\S]*background-image: url\("data:image\/svg\+xml,/);
 	assert.match(response.body, /#interrupt-button:disabled\s*\{[\s\S]*display: inline-flex;/);
 	assert.match(response.body, /#interrupt-button:disabled\s*\{[\s\S]*opacity: 0\.38;/);
+	await app.close();
+});
+
+test("GET /playground keeps the mobile active composer compact", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer\s*\{[\s\S]*padding:\s*8px 8px 8px 10px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer-main\s*\{[\s\S]*gap:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer-header\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer textarea\s*\{[\s\S]*min-height:\s*44px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer textarea\s*\{[\s\S]*max-height:\s*96px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\n\s*\.composer textarea\s*\{[\s\S]*resize:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*height:\s*fit-content;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*max-height:\s*40px;/);
+	await app.close();
+});
+
+test("GET /playground keeps the default active composer compact before mobile overrides", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /\.composer\s*\{[\s\S]*padding:\s*12px 0 14px;/);
+	assert.match(response.body, /\.composer-main\s*\{[\s\S]*gap:\s*8px;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*min-height:\s*72px;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*max-height:\s*18vh;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*resize:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 960px\) \{[\s\S]*\.composer-side\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
 	await app.close();
 });
 

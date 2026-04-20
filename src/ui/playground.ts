@@ -1433,8 +1433,8 @@ function getPlaygroundStyles(): string {
 		.composer {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) 168px;
-			gap: 14px;
-			padding: 18px 0 20px;
+			gap: 10px;
+			padding: 12px 0 14px;
 			border: 0;
 			border-radius: 4px;
 			background: rgba(102, 93, 138, 0.16);
@@ -1445,7 +1445,7 @@ function getPlaygroundStyles(): string {
 
 		.composer-main {
 			display: grid;
-			gap: 12px;
+			gap: 8px;
 		}
 
 		.composer-header {
@@ -1474,10 +1474,10 @@ function getPlaygroundStyles(): string {
 		}
 
 		.composer textarea {
-			min-height: 128px;
-			max-height: 28vh;
-			resize: vertical;
-			line-height: 1.7;
+			min-height: 72px;
+			max-height: 18vh;
+			resize: none;
+			line-height: 1.55;
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 		}
 
@@ -2049,6 +2049,10 @@ function getPlaygroundStyles(): string {
 				grid-template-columns: 1fr;
 			}
 
+			.composer-side {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
+
 			.drop-zone-top,
 			.asset-modal-head {
 				flex-direction: column;
@@ -2354,21 +2358,29 @@ function getPlaygroundStyles(): string {
 
 		.shell[data-stage-mode="landing"] .command-deck {
 			display: grid;
-			gap: 6px;
+			grid-auto-rows: max-content;
+			align-self: end;
+			align-content: end;
+			gap: 4px;
 			width: min(var(--conversation-width), 100%);
-			margin: 0 auto 18px;
+			margin: 0 auto 12px;
 			z-index: 4;
 		}
 
 		.shell[data-stage-mode="landing"] .context-usage-row {
-			min-height: 26px;
-			margin: -4px 0 -2px;
+			min-height: 22px;
+			margin: -6px 0 -3px;
 		}
 
 		.shell[data-stage-mode="landing"] .composer {
 			grid-template-columns: minmax(0, 1fr) auto;
-			gap: 12px;
-			padding: 12px;
+			align-self: end;
+			align-items: center;
+			height: fit-content;
+			min-height: 0;
+			max-height: 64px;
+			gap: 8px;
+			padding: 6px 8px 6px 10px;
 			border: 0;
 			border-radius: 4px;
 			background: rgba(90, 82, 122, 0.22);
@@ -2381,18 +2393,18 @@ function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"] .composer-main {
-			gap: 8px;
+			gap: 4px;
 		}
 
 		.shell[data-stage-mode="landing"] .composer textarea {
-			min-height: 56px;
-			max-height: 56px;
-			padding: 15px 10px 12px;
+			min-height: 40px;
+			max-height: 40px;
+			padding: 10px 8px 8px;
 			border: 0;
 			background: transparent;
 			box-shadow: none;
 			color: rgba(238, 244, 255, 0.84);
-			line-height: 1.45;
+			line-height: 1.4;
 			resize: none;
 			overflow: hidden;
 		}
@@ -2435,15 +2447,15 @@ function getPlaygroundStyles(): string {
 		.shell[data-stage-mode="landing"] .composer-side {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 12px;
+			gap: 8px;
 			align-content: center;
 		}
 
 		.shell[data-stage-mode="landing"] #send-button,
 		.shell[data-stage-mode="landing"] #interrupt-button {
-			min-width: 56px;
-			min-height: 56px;
-			padding: 0 18px;
+			min-width: 44px;
+			min-height: 40px;
+			padding: 0 14px;
 			border: 0;
 			border-radius: 4px;
 			box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
@@ -2622,6 +2634,9 @@ function getPlaygroundStyles(): string {
 			}
 
 			.shell[data-stage-mode="landing"] .command-deck {
+				grid-auto-rows: max-content;
+				align-self: end;
+				align-content: end;
 				width: 100%;
 				margin-bottom: 0;
 			}
@@ -2691,12 +2706,68 @@ function getPlaygroundStyles(): string {
 				padding: 0;
 			}
 
-			.shell[data-stage-mode="landing"] .composer {
+			.composer {
 				grid-template-columns: minmax(0, 1fr) auto;
 				gap: 8px;
-				padding: 10px 10px 10px 12px;
+				padding: 8px 8px 8px 10px;
 				border: 1px solid rgba(201, 210, 255, 0.08);
-				border-radius: 16px;
+				border-radius: 4px;
+				background:
+					linear-gradient(180deg, rgba(13, 17, 29, 0.96), rgba(8, 10, 19, 0.98)),
+					rgba(8, 10, 19, 0.98);
+				box-shadow:
+					0 -8px 30px rgba(0, 0, 0, 0.18),
+					inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			}
+
+			.composer-main {
+				gap: 4px;
+				min-width: 0;
+			}
+
+			.composer-header {
+				display: none;
+			}
+
+			.composer textarea {
+				min-height: 44px;
+				max-height: 96px;
+				padding: 11px 0 8px;
+				border: 0;
+				background: transparent;
+				box-shadow: none;
+				color: rgba(242, 246, 255, 0.92);
+				font-size: 14px;
+				line-height: 1.55;
+				resize: none;
+				overflow-y: auto;
+			}
+
+			.composer textarea:focus {
+				background: transparent;
+				box-shadow: none;
+			}
+
+			.composer-side {
+				display: grid;
+				grid-auto-flow: column;
+				grid-auto-columns: 46px;
+				gap: 8px;
+				align-content: end;
+				align-items: end;
+			}
+
+			.shell[data-stage-mode="landing"] .composer {
+				grid-template-columns: minmax(0, 1fr) auto;
+				align-self: end;
+				align-items: center;
+				height: fit-content;
+				min-height: 0;
+				max-height: 64px;
+				gap: 8px;
+				padding: 6px 8px 6px 10px;
+				border: 1px solid rgba(201, 210, 255, 0.08);
+				border-radius: 4px;
 				background:
 					linear-gradient(180deg, rgba(13, 17, 29, 0.96), rgba(8, 10, 19, 0.98)),
 					rgba(8, 10, 19, 0.98);
@@ -2715,11 +2786,11 @@ function getPlaygroundStyles(): string {
 			}
 
 			.shell[data-stage-mode="landing"] .composer textarea {
-				min-height: 44px;
-				max-height: 112px;
-				padding: 11px 0 8px;
+				min-height: 40px;
+				max-height: 40px;
+				padding: 10px 0 8px;
 				font-size: 14px;
-				line-height: 1.55;
+				line-height: 1.4;
 				color: rgba(242, 246, 255, 0.92);
 			}
 
