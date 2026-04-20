@@ -3350,6 +3350,39 @@ function getPlaygroundScript(): string {
 			};
 		}
 
+		async function requestFreshConversation(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId) {
+				return {
+					conversationId: "",
+					reset: false,
+					reason: "running",
+				};
+			}
+
+			const response = await fetch("/v1/chat/reset", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					accept: "application/json",
+				},
+				body: JSON.stringify({
+					conversationId: nextConversationId,
+				}),
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法开启新会话";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				conversationId: payload?.conversationId || nextConversationId,
+				reset: payload?.reset === true,
+				reason: typeof payload?.reason === "string" ? payload.reason : undefined,
+			};
+		}
+
 		async function fetchConversationHistory(conversationId) {
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId) {
@@ -4202,10 +4235,6 @@ function getPlaygroundScript(): string {
 			if (transcript.scrollTop <= 48) {
 				renderMoreConversationHistory();
 			}
-		}
-
-		function announceFreshConversation(conversationId) {
-			appendTranscriptMessage("assistant", "助手", "当前启用新会话。\\n\\n新会话 ID: \`" + conversationId + "\`");
 		}
 
 		function formatFileSize(size) {
@@ -5204,30 +5233,55 @@ function getPlaygroundScript(): string {
 			state.receivedDoneEvent = false;
 		}
 
-		function resetConversation(options) {
-			const previousConversationId = state.conversationId;
+		async function resetConversation() {
+			const nextConversationId = createConversationId();
+			clearError();
+
+			let resetResult;
+			try {
+				resetResult = await requestFreshConversation(nextConversationId);
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法开启新会话";
+				showError(messageText);
+				return false;
+			}
+
+			if (!resetResult?.reset) {
+				if (resetResult?.reason === "running") {
+					showError("当前任务仍在运行，请先打断再开启新会话");
+				} else {
+					showError("无法开启新会话");
+				}
+				return false;
+			}
+
 			stopActiveRunEventStream();
-			archiveCurrentTranscript(previousConversationId);
 			setStageMode("landing");
 			setTranscriptState("idle");
-			conversationInput.value = createConversationId();
-			state.conversationId = conversationInput.value;
+			conversationInput.value = nextConversationId;
+			state.conversationId = nextConversationId;
 			sessionFile.textContent = "尚未分配";
 			state.conversationHistory = [];
 			state.renderedHistoryCount = 0;
 			state.contextUsage = null;
 			clearRenderedTranscript();
+			transcriptArchive.innerHTML = "";
 			resetStreamingState();
 			clearSelectedFiles();
 			clearSelectedAssetRefs();
-			clearError();
 			syncHistoryLoadMoreButton();
-			renderContextUsageBar();
-			void syncContextUsage(state.conversationId, { silent: true });
-			void restoreConversationHistoryFromServer(state.conversationId);
-			if (options?.announce !== false) {
-				announceFreshConversation(state.conversationId);
-			}
+			renderConversationState({
+				conversationId: nextConversationId,
+				running: false,
+				contextUsage: createFallbackContextUsage(),
+				messages: [],
+				activeRun: null,
+				updatedAt: new Date().toISOString(),
+			});
+			persistConversationHistory(nextConversationId);
+			void syncContextUsage(nextConversationId, { silent: true });
+			void restoreConversationHistoryFromServer(nextConversationId);
+			return true;
 		}
 
 		function describeToolEvent(event, prefix) {
@@ -5624,7 +5678,7 @@ function getPlaygroundScript(): string {
 		renderAssetPickerList();
 		void loadAssets(true);
 		if (!conversationInput.value) {
-			resetConversation({ announce: false });
+			ensureConversationId();
 		} else {
 			restoreConversationHistory(state.conversationId);
 			void restoreConversationHistoryFromServer(state.conversationId);
@@ -5869,12 +5923,18 @@ function getPlaygroundScript(): string {
 		});
 
 		newConversationButton.addEventListener("click", () => {
-			resetConversation();
-			messageInput.focus();
+			void resetConversation().then((reset) => {
+				if (reset) {
+					messageInput.focus();
+				}
+			});
 		});
 		mobileNewConversationButton.addEventListener("click", () => {
-			resetConversation();
-			messageInput.focus();
+			void resetConversation().then((reset) => {
+				if (reset) {
+					messageInput.focus();
+				}
+			});
 		});
 		mobileViewSkillsButton.addEventListener("click", () => {
 			void loadSkills();

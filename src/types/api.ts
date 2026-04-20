@@ -231,6 +231,16 @@ export interface InterruptChatResponseBody {
 	reason?: "not_running" | "abort_not_supported";
 }
 
+export interface ResetConversationRequestBody {
+	conversationId: string;
+}
+
+export interface ResetConversationResponseBody {
+	conversationId: string;
+	reset: boolean;
+	reason?: "running";
+}
+
 export type ChatStreamEvent =
 	| {
 			type: "run_started";

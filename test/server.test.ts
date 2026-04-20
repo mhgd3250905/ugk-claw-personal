@@ -14,6 +14,7 @@ function createAgentServiceStub(overrides?: {
 	) => Promise<void>;
 	queueMessage?: AgentService["queueMessage"];
 	interruptChat?: AgentService["interruptChat"];
+	resetConversation?: AgentService["resetConversation"];
 	getRunStatus?: (
 		conversationId: string,
 	) => Promise<{
@@ -99,6 +100,12 @@ function createAgentServiceStub(overrides?: {
 			(async (input) => ({
 				conversationId: input.conversationId,
 				interrupted: true,
+			})),
+		resetConversation:
+			overrides?.resetConversation ??
+			(async (input) => ({
+				conversationId: input.conversationId,
+				reset: true,
 			})),
 		getRunStatus:
 			overrides?.getRunStatus ??
@@ -592,10 +599,9 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /id="transcript-current"/);
 	assert.match(response.body, /function archiveCurrentTranscript\(conversationId\)\s*\{/);
 	assert.match(response.body, /const MAX_ARCHIVED_TRANSCRIPTS = 4;/);
-	assert.match(response.body, /archiveCurrentTranscript\(previousConversationId\);/);
 	assert.match(response.body, /id="history-load-more-button"/);
-	assert.match(response.body, /当前启用新会话/);
-	assert.match(response.body, /function announceFreshConversation\(conversationId\)\s*\{/);
+	assert.match(response.body, /async function requestFreshConversation\(conversationId\)\s*\{/);
+	assert.match(response.body, /\/v1\/chat\/reset/);
 	assert.match(response.body, /function createMessageActions\(entry, content\)\s*\{/);
 	assert.match(response.body, /message-actions/);
 	assert.match(response.body, /message-copy-button/);
@@ -1829,6 +1835,37 @@ test("POST /v1/chat/interrupt interrupts an active run", async () => {
 		interrupted: true,
 	});
 	assert.deepEqual(calls, [{ conversationId: "manual:interrupt" }]);
+	await app.close();
+});
+
+test("POST /v1/chat/reset clears the canonical conversation state", async () => {
+	const calls: unknown[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			resetConversation: async (input) => {
+				calls.push(input);
+				return {
+					conversationId: input.conversationId,
+					reset: true,
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/chat/reset",
+		payload: {
+			conversationId: "agent:global",
+		},
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conversationId: "agent:global",
+		reset: true,
+	});
+	assert.deepEqual(calls, [{ conversationId: "agent:global" }]);
 	await app.close();
 });
 

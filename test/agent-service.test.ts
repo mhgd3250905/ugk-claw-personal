@@ -827,6 +827,40 @@ test("getConversationHistory returns the original user text without internal pro
 	assert.equal(history.messages.some((message) => message.text.includes("<file_response_protocol>")), false);
 });
 
+test("resetConversation clears the persisted conversation state when no run is active", async () => {
+	const store = await createStore();
+	await store.set("agent:global", "E:/sessions/reset-source.jsonl");
+	const existingSession = new FakeSession("E:/sessions/reset-source.jsonl", []);
+	existingSession.messages.push(
+		{
+			role: "user",
+			content: [{ type: "text", text: "old prompt" }],
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "old answer" }],
+			stopReason: "stop",
+		},
+	);
+	const factory = new FakeAgentSessionFactory(() => existingSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const reset = await service.resetConversation({
+		conversationId: "agent:global",
+	});
+
+	assert.deepEqual(reset, {
+		conversationId: "agent:global",
+		reset: true,
+	});
+	assert.equal(await store.get("agent:global"), undefined);
+
+	const state = await service.getConversationState("agent:global");
+	assert.equal(state.running, false);
+	assert.equal(state.activeRun, null);
+	assert.deepEqual(state.messages, []);
+});
+
 test("subscribeRunEvents replays buffered events and keeps streaming live active run updates", async () => {
 	const store = await createStore();
 	const activeSession = new DeferredSession("E:/sessions/reattach.jsonl");

@@ -17,6 +17,8 @@ import type {
 	QueueMessageMode,
 	QueueMessageRequestBody,
 	QueueMessageResponseBody,
+	ResetConversationRequestBody,
+	ResetConversationResponseBody,
 } from "../types/api.js";
 
 interface ChatRouteDependencies {
@@ -390,6 +392,28 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					userId,
 					...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
 					...(parsedAssetRefs.assetRefs ? { assetRefs: parsedAssetRefs.assetRefs } : {}),
+				});
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
+		},
+	);
+
+	app.post(
+		"/v1/chat/reset",
+		async (
+			request: FastifyRequest<{ Body: Partial<ResetConversationRequestBody> }>,
+			reply,
+		): Promise<ResetConversationResponseBody | FastifyReply> => {
+			const { conversationId } = request.body ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+
+			try {
+				return await deps.agentService.resetConversation({
+					conversationId,
 				});
 			} catch (error) {
 				return sendInternalError(reply, error);

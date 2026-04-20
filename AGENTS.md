@@ -148,6 +148,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `GET /v1/chat/state`
 - `GET /v1/chat/status`
 - `GET /v1/chat/events`
+- `POST /v1/chat/reset`
 - `src/routes/chat.ts`
 - `src/agent/agent-service.ts`
 - `src/agent/agent-session-factory.ts`
@@ -235,6 +236,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
 - playground Web 入口当前固定使用全局会话 `agent:global`；不同浏览器 / 设备打开后应通过 `GET /v1/chat/state` 看到同一个 agent 的历史、当前输入、active assistant 正文和过程区，不要再生成设备私有 `conversationId`。
+- playground 的“新会话”必须走 `POST /v1/chat/reset` 真正清空全局会话状态；不要再只清当前浏览器 DOM、写一条本地提示气泡，刷新后又被服务端历史打回原形。
 - playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示“回到底部”按钮。
 - 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要 `GET /v1/chat/state` 仍显示 running，前端应切到 `/v1/chat/events` 续订事件流。
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。

@@ -77,6 +77,16 @@ export interface InterruptChatResult {
 	reason?: "not_running" | "abort_not_supported";
 }
 
+export interface ResetConversationInput {
+	conversationId: string;
+}
+
+export interface ResetConversationResult {
+	conversationId: string;
+	reset: boolean;
+	reason?: "running";
+}
+
 export interface RunStatusResult {
 	conversationId: string;
 	running: boolean;
@@ -198,6 +208,22 @@ export class AgentService {
 		return {
 			conversationId: input.conversationId,
 			interrupted: true,
+		};
+	}
+
+	async resetConversation(input: ResetConversationInput): Promise<ResetConversationResult> {
+		if (this.activeRuns.has(input.conversationId)) {
+			return {
+				conversationId: input.conversationId,
+				reset: false,
+				reason: "running",
+			};
+		}
+
+		await this.options.conversationStore.delete(input.conversationId);
+		return {
+			conversationId: input.conversationId,
+			reset: true,
 		};
 	}
 

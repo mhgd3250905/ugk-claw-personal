@@ -33,6 +33,7 @@ agent / skill -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker C
 - `playground` 的手机端已经单独重写成移动聊天页，不是把桌面端硬压缩；后续 `/init` 如果要接手前端，先看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)，别按“桌面端缩略版”理解
 - `playground` 当前使用固定全局会话 `agent:global`；不同浏览器 / 设备打开后都通过 `GET /v1/chat/state` 看到同一个 agent 的历史、运行态和 active run 过程，而不是各自生成本地 `conversationId`
 - 页面前后台切换、手机浏览器挂起或 `/v1/chat/stream` 主连接短断时，如果 `/v1/chat/state` 仍显示后端任务运行中，前端会切到 `/v1/chat/events` 继续订阅，不把这种浏览器生命周期断线当成本轮失败
+- `新会话` 按钮现在走 `POST /v1/chat/reset` 清空 `agent:global` 的真实服务端会话；刷新后应该继续看到清空后的状态，而不是本地假气泡
 - `.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告和本地调试目录不属于代码仓库；后续 GitHub 部署与服务器迁移都要按 `.gitignore` 边界处理
 
 ## 快速开始
@@ -183,6 +184,7 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
 - `GET /v1/chat/state`
 - `GET /v1/chat/history`
 - `GET /v1/chat/events`
+- `POST /v1/chat/reset`
 - `GET /v1/debug/skills`
 
 ### 文件与资产

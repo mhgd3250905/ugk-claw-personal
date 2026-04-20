@@ -136,6 +136,7 @@
 - 手机端继续沿用桌面端的深空黑 / 暗紫星云 / 冷白星尘视觉语言，但页面组织改成更接近原生聊天页的结构
 - 手机端当前统一视觉收口规则是：所有可见圆角一律压到 `4px`，不再混用 `12px / 14px / 16px`
 - 顶部只保留紧凑 `topbar` 和常驻四按钮条：`新会话 / 技能 / 文件 / 文件库`；不再塞进折叠菜单，也不再保留左侧品牌占位
+- `新会话` 按钮现在走 `POST /v1/chat/reset` 真正清空 `agent:global` 的服务端会话；不再只清本地 transcript，也不再插入刷新后会消失的“当前启用新会话”提示气泡
 - `landing-screen` 在手机端直接隐藏，不再让 hero、大标题和装饰块继续吞掉首屏高度
 - 中间主区收口成全高 transcript 区域，去掉额外边框和背景壳层，优先把有限空间让给对话内容；空态时会在 transcript 内直接给出起聊提示，而不是另起一块首页
 - 拖拽上传区在手机端隐藏；已选文件与资产改成横向滚动条带，避免把竖向空间浪费在触屏上几乎不好用的拖拽壳子上
@@ -148,6 +149,7 @@
 
 - 刷新页面后，playground 固定按 `agent:global` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、过程区、队列和上下文占用作为同一个 canonical state 渲染。
 - `GET /v1/chat/history` 与 `GET /v1/chat/status` 继续保留兼容，但刷新恢复不再靠前端把 history、status、events、localStorage 和 DOM 指针拼成一份“猜出来的状态”。
+- 点击 `新会话` 后，页面会先请求 `POST /v1/chat/reset`，然后再以清空后的 `GET /v1/chat/state` 作为真源恢复 UI；刷新后不应该再回出上一轮历史，也不应该丢掉一个只存在于本地的假提示气泡。
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
 - `activeRun` 存在时，前端只渲染一个 active assistant 气泡；同一 run 不允许拆出多条“助手 / 思考过程”消息。
 - `activeRun.input.message` 用来补齐刷新观察者看到的当前用户任务；如果 session history 已经包含同一条用户消息，前端会避免重复渲染。

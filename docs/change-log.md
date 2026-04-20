@@ -12,6 +12,23 @@
 
 ## 2026-04-20
 
+### Playground 新会话改为服务端真重置
+- 主题：修复点击 `新会话` 后只在前端清 DOM、插入本地提示气泡，结果刷新又被 `/v1/chat/state` 的真实历史打回去的问题。
+- 影响范围：
+  - `src/routes/chat.ts` 新增 `POST /v1/chat/reset`，由后端负责清空指定会话的 canonical state。
+  - `src/agent/agent-service.ts` 新增 `resetConversation()`；空闲时删除会话映射，运行中则返回 `reason: "running"`，避免把还在执行的 active run 硬抹掉。
+  - `src/agent/conversation-store.ts` 新增删除会话索引能力，让 `agent:global` 的新会话真正落到服务端状态，而不是仅靠前端本地假动作。
+  - `src/ui/playground.ts` 的 `新会话` 按钮改为调用 `/v1/chat/reset` 后再按清空后的 `/v1/chat/state` 重绘；移除刷新后会消失的本地“当前启用新会话”提示气泡。
+  - `test/agent-service.test.ts`、`test/server.test.ts` 增加回归断言，覆盖服务端 reset 和前端入口脚本。
+  - `AGENTS.md`、`README.md`、`docs/traceability-map.md`、`docs/playground-current.md` 同步更新新会话语义与接口口径。
+- 对应入口：
+  - [src/agent/conversation-store.ts](/E:/AII/ugk-pi/src/agent/conversation-store.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+
 ### Playground 统一 agent 状态渲染
 - 主题：把刷新、多浏览器和运行中任务展示收口到后端 canonical conversation state，避免前端继续把 history、status、events、localStorage 和 DOM 指针拼成多套状态。
 - 影响范围：

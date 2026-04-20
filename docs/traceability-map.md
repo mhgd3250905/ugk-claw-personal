@@ -42,6 +42,7 @@
 - `GET /v1/chat/status`
 - `GET /v1/chat/state`
 - `GET /v1/chat/events`
+- `POST /v1/chat/reset`
 - `POST /v1/chat`
 - `POST /v1/chat/stream`
 - `POST /v1/chat/queue`
@@ -54,6 +55,7 @@
 1. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 2. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 3. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+4. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
 
 适用问题：
 
@@ -61,7 +63,7 @@
 - 过程区与 loading 气泡
 - 文件卡片“打开 / 下载”
 - 刷新后运行态恢复
-- 新会话历史归档
+- 新会话服务端重置与刷新后不回魂
 - 发送后立即清空输入框
 - 手机端四按钮顶部条、底部 icon 发送区
 - 手机端代码块宽度、复制 icon 与透明壳层

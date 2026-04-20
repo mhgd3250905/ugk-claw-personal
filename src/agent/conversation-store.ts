@@ -36,6 +36,16 @@ export class ConversationStore {
 		return entry;
 	}
 
+	async delete(conversationId: string): Promise<void> {
+		const index = await this.readIndex();
+		if (!(conversationId in index)) {
+			return;
+		}
+
+		delete index[conversationId];
+		await this.writeIndex(index);
+	}
+
 	private async readIndex(): Promise<ConversationIndex> {
 		try {
 			const content = await readFile(this.indexPath, "utf8");
