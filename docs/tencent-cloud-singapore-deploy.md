@@ -20,6 +20,7 @@
 - 健康检查入口：`http://43.134.167.179:3000/healthz`
 - 生产 compose 文件：`docker-compose.prod.yml`
 - 当前主部署目录：`/home/ubuntu/ugk-claw-repo`
+- 当前 shared 运行态目录：`/home/ubuntu/ugk-claw-shared`
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 
 服务器初始核验结果：
@@ -144,11 +145,12 @@ newgrp docker
 
 ## 当前部署目录与更新入口
 
-当前服务器已经完成一次从 tar 解包目录到 GitHub 工作目录的迁移：
+当前服务器已经完成一次从 tar 解包目录到 GitHub 工作目录的迁移，并把主要运行态外置到 shared 目录：
 
 - 默认更新目录：`~/ugk-claw-repo`
 - 当前目录类型：GitHub clone 出来的 Git 工作目录
 - 当前远程仓库：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`
+- 当前 shared 运行态目录：`~/ugk-claw-shared`
 - 旧目录 `~/ugk-pi-claw` 及 `~/ugk-pi-claw-prev-*` 只保留给回滚与比对
 
 后续默认更新时，先进入：
@@ -224,12 +226,40 @@ test/
 tsconfig.json
 ```
 
-## 服务器 .env
+## shared 运行态目录
 
-服务器 `.env` 放在：
+当前服务器把生产运行态统一收进：
 
 ```text
-/home/ubuntu/ugk-claw-repo/.env
+/home/ubuntu/ugk-claw-shared
+```
+
+当前建议结构：
+
+```text
+~/ugk-claw-shared/
+├─ app.env
+├─ compose.env
+├─ .data/
+│  └─ chrome-sidecar/
+└─ logs/
+   ├─ app/
+   └─ nginx/
+```
+
+其中：
+
+- `app.env` 保存应用真实环境变量和密钥
+- `compose.env` 保存 compose 级路径和端口变量
+- `.data/chrome-sidecar` 保存 sidecar Chrome 登录态
+- `logs/` 保存 app 与 nginx 日志
+
+## 服务器 app.env
+
+服务器应用环境文件放在：
+
+```text
+/home/ubuntu/ugk-claw-shared/app.env
 ```
 
 模板如下，真实 key 不要写进仓库和文档：
@@ -257,7 +287,7 @@ FEISHU_API_BASE=https://open.feishu.cn/open-apis
 建议权限：
 
 ```bash
-chmod 600 .env
+chmod 600 ~/ugk-claw-shared/app.env
 ```
 
 关键点：
@@ -267,19 +297,44 @@ chmod 600 .env
 - sidecar Chrome 里的 `127.0.0.1` 指向浏览器容器自己，不是 `ugk-pi` 容器，所以这里必须是 `http://ugk-pi:3000`。
 - `WEB_ACCESS_CDP_HOST=172.31.250.10` 是当前 compose 下 CDP relay 的固定口径；改 compose 网络时要重新验证。
 
+## 服务器 compose.env
+
+服务器 compose 级变量放在：
+
+```text
+/home/ubuntu/ugk-claw-shared/compose.env
+```
+
+模板如下：
+
+```dotenv
+UGK_APP_ENV_FILE=/home/ubuntu/ugk-claw-shared/app.env
+UGK_APP_LOG_DIR=/home/ubuntu/ugk-claw-shared/logs/app
+UGK_NGINX_LOG_DIR=/home/ubuntu/ugk-claw-shared/logs/nginx
+UGK_BROWSER_CONFIG_DIR=/home/ubuntu/ugk-claw-shared/.data/chrome-sidecar
+HOST_PORT=3000
+WEB_ACCESS_BROWSER_GUI_PORT=3901
+```
+
+建议权限：
+
+```bash
+chmod 600 ~/ugk-claw-shared/compose.env
+```
+
 ## 首次启动
 
 服务器执行：
 
 ```bash
 cd ~/ugk-claw-repo
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
 查看容器：
 
 ```bash
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
 ```
 
 本次成功状态包含：
@@ -324,7 +379,7 @@ cache-control: no-store, no-cache, must-revalidate
 web-access / Chrome sidecar 链路：
 
 ```bash
-docker compose -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
+docker compose --env-file ~/ugk-claw-shared/compose.env -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
 ```
 
 预期：
@@ -374,14 +429,14 @@ bind [127.0.0.1]:3901: Permission denied
 登录态持久化目录：
 
 ```text
-.data/chrome-sidecar
+/home/ubuntu/ugk-claw-shared/.data/chrome-sidecar
 ```
 
 如果后续 X 搜索、网页登录态异常，先确认：
 
 - SSH tunnel 是否还开着。
 - sidecar GUI 里是否仍然登录。
-- `.data/chrome-sidecar` 是否被误删。
+- `~/ugk-claw-shared/.data/chrome-sidecar` 是否被误删。
 - compose 是否仍然使用同一个 `WEB_ACCESS_BROWSER_PROFILE_DIR`。
 
 ## 本次线上故障记录
@@ -514,7 +569,7 @@ proxy: ready (127.0.0.1:3456)
 ```bash
 cd ~/ugk-claw-repo
 git pull --ff-only origin main
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
 如果只是确认当前目录状态：
@@ -530,10 +585,10 @@ git rev-parse HEAD
 
 ```text
 /home/ubuntu/ugk-claw-repo/.git 存在
-docker inspect 显示 ugk-pi 与浏览器容器的 bind source 已指向 /home/ubuntu/ugk-claw-repo
+docker inspect 显示 ugk-pi 与浏览器容器的 bind source 已指向 /home/ubuntu/ugk-claw-repo 与 /home/ubuntu/ugk-claw-shared
 curl http://127.0.0.1:3000/healthz -> {"ok":true}
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi python3 --version -> Python 3.11.2
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs -> host-browser ok
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi python3 --version -> Python 3.11.2
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs -> host-browser ok
 ```
 
 ### 应急方式：单文件热修
@@ -566,7 +621,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 ```bash
 cd ~
 cd ~/ugk-claw-repo
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml down
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml down
 cd ~/ugk-pi-claw
 docker compose -p ugk-pi-claw -f docker-compose.prod.yml up -d
 ```
@@ -579,35 +634,35 @@ docker compose -p ugk-pi-claw -f docker-compose.prod.yml up -d
 
 ```bash
 cd ~/ugk-claw-repo
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml ps
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
 ```
 
 查看 app 日志：
 
 ```bash
 cd ~/ugk-claw-repo
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml logs --tail=120 ugk-pi
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml logs --tail=120 ugk-pi
 ```
 
 查看 nginx 日志：
 
 ```bash
 cd ~/ugk-claw-repo
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml logs --tail=120 nginx
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml logs --tail=120 nginx
 ```
 
 重启 app：
 
 ```bash
 cd ~/ugk-claw-repo
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml restart ugk-pi
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml restart ugk-pi
 ```
 
 重新构建并启动：
 
 ```bash
 cd ~/ugk-claw-repo
-docker compose -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
 检查磁盘：

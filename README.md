@@ -60,7 +60,7 @@ docker compose up -d
 - GitHub 是代码事实源
 - 服务器当前主部署目录已经迁到 `~/ugk-claw-repo`，是 GitHub clone 出来的 Git 工作目录
 - 旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留作回滚兜底，不再是默认更新入口
-- 下一阶段目标是继续把 `.env`、`.data` 和用户运行态目录彻底外置，减少代码目录和运行态互相污染
+- 服务器当前把 `.env`、`.data/chrome-sidecar` 和生产日志进一步外置到 `~/ugk-claw-shared/`，后续部署统一通过 shared env 文件驱动
 
 大多数源码改动后只需要：
 

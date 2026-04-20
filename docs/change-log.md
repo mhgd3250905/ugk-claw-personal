@@ -12,6 +12,20 @@
 
 ## 2026-04-20
 
+### 生产运行态外置到 shared 目录
+- 主题：把腾讯云服务器上的 `.env`、`.data/chrome-sidecar` 和生产日志从代码目录继续剥离到 `~/ugk-claw-shared/`，让 Git 工作目录和运行态彻底分家。
+- 影响范围：
+  - `docker-compose.prod.yml` 改为支持通过 `UGK_APP_ENV_FILE`、`UGK_APP_LOG_DIR`、`UGK_NGINX_LOG_DIR`、`UGK_BROWSER_CONFIG_DIR` 从 shared 目录注入生产运行态路径
+  - `.env.example` 补齐这些路径变量的默认值，避免后续只会盯着仓库内相对路径发呆
+  - `README.md`、`AGENTS.md`、`docs/traceability-map.md`、`docs/tencent-cloud-singapore-deploy.md` 同步更新 shared 目录口径和生产命令
+- 对应入口：
+  - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
+  - [.env.example](/E:/AII/ugk-pi/.env.example)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### 腾讯云服务器迁移到 GitHub 工作目录
 - 主题：把腾讯云新加坡服务器的主部署目录从 tar 解包目录迁到 GitHub 工作目录，结束“本地打包 tar -> 服务器解包”作为默认主流程的阶段。
 - 影响范围：
