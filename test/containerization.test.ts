@@ -14,6 +14,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	const nginxConfigPath = join(projectRoot, "deploy", "nginx", "default.conf");
 	const packageJsonPath = join(projectRoot, "package.json");
 	const sidecarChromeScriptPath = join(projectRoot, "scripts", "sidecar-chrome.mjs");
+	const sidecarEnsureScriptPath = join(projectRoot, "scripts", "ensure-sidecar-chrome.sh");
 
 	assert.equal(existsSync(dockerfilePath), true);
 	assert.equal(existsSync(composePath), true);
@@ -22,6 +23,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.equal(existsSync(envExamplePath), true);
 	assert.equal(existsSync(nginxConfigPath), true);
 	assert.equal(existsSync(sidecarChromeScriptPath), true);
+	assert.equal(existsSync(sidecarEnsureScriptPath), true);
 
 	const dockerfile = readFileSync(dockerfilePath, "utf8");
 	assert.match(dockerfile, /FROM node:22-bookworm-slim/i);
@@ -56,6 +58,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /SELKIES_USE_BROWSER_CURSORS:\s*"true"/);
 	assert.match(compose, /DISPLAY:\s*":0"/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_PROFILE_DIR:-\/config\/chrome-profile-sidecar/);
+	assert.match(compose, /ensure-sidecar-chrome\.sh/);
+	assert.match(compose, /condition:\s*service_healthy/);
 	assert.match(compose, /TCP-LISTEN:9223,fork,bind=0\.0\.0\.0,reuseaddr/);
 	assert.match(compose, /npm run dev/);
 
@@ -85,6 +89,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /SELKIES_USE_BROWSER_CURSORS:\s*"true"/);
 	assert.match(prodCompose, /DISPLAY:\s*":0"/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_PROFILE_DIR:-\/config\/chrome-profile-sidecar/);
+	assert.match(prodCompose, /ensure-sidecar-chrome\.sh/);
+	assert.match(prodCompose, /condition:\s*service_healthy/);
 	assert.match(prodCompose, /TCP-LISTEN:9223,fork,bind=0\.0\.0\.0,reuseaddr/);
 	assert.match(prodCompose, /npm start/);
 	assert.match(prodCompose, /healthcheck:/);
@@ -138,4 +144,11 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(sidecarChromeScript, /"open"/);
 	assert.match(sidecarChromeScript, /check-deps\.mjs/);
 	assert.match(sidecarChromeScript, /json\/version/);
+
+	const sidecarEnsureScript = readFileSync(sidecarEnsureScriptPath, "utf8");
+	assert.match(sidecarEnsureScript, /remote-debugging-port=9222/);
+	assert.match(sidecarEnsureScript, /hide-crash-restore-bubble/);
+	assert.match(sidecarEnsureScript, /ozone-platform=x11/);
+	assert.match(sidecarEnsureScript, /SingletonLock/);
+	assert.match(sidecarEnsureScript, /chrome-manual\.log/);
 });

@@ -28,6 +28,18 @@
   - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
   - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
 
+### Chrome sidecar 自举收口
+- 主题：修复 `ugk-pi-browser` 容器启动后只有 GUI 壳子、却不会自动拉起带 `--remote-debugging-port=9222` 的 Chrome 进程，导致 direct CDP 默认链路空转的问题。
+- 影响范围：
+  - 新增 `scripts/ensure-sidecar-chrome.sh`，让浏览器容器在 healthcheck 中自检并按需拉起 Chrome CDP
+  - `docker-compose.yml` 与 `docker-compose.prod.yml` 把该脚本挂进 `ugk-pi-browser`，并要求 `ugk-pi-browser-cdp`、`ugk-pi` 等到浏览器健康后再继续启动
+  - `test/containerization.test.ts` 增加对 sidecar 自举脚本、挂载路径和 `service_healthy` 依赖条件的回归断言
+- 对应入口：
+  - [scripts/ensure-sidecar-chrome.sh](/E:/AII/ugk-pi/scripts/ensure-sidecar-chrome.sh)
+  - [docker-compose.yml](/E:/AII/ugk-pi/docker-compose.yml)
+  - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
+  - [test/containerization.test.ts](/E:/AII/ugk-pi/test/containerization.test.ts)
+
 ### 腾讯云服务器迁移到 GitHub 工作目录
 - 主题：把腾讯云新加坡服务器的主部署目录从 tar 解包目录迁到 GitHub 工作目录，结束“本地打包 tar -> 服务器解包”作为默认主流程的阶段。
 - 影响范围：

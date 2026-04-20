@@ -72,6 +72,8 @@ sidecar GUI 不暴露公网。需要人工登录 X 等网站时，从本机用 S
 ssh -L 13901:127.0.0.1:3901 ubuntu@43.134.167.179
 ```
 
+当前 compose 已经给 `ugk-pi-browser` 加了容器内自举 healthcheck。不要把“GUI 页面能打开”误判成“CDP 已经 ready”；真正算数的是 `9222/9223` 探针和 `check-deps.mjs` 输出。
+
 然后在本机打开：
 
 ```text
@@ -391,6 +393,15 @@ host-browser: ok (http://172.31.250.10:9223)
 proxy: starting
 proxy: ready (127.0.0.1:3456)
 ```
+
+如果你怀疑 sidecar 只是 GUI 活着、CDP 其实没起来，直接核：
+
+```bash
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi-browser sh -lc "curl -fsS http://127.0.0.1:9222/json/version"
+```
+
+期望是 `ugk-pi-browser` 进入 `healthy`，并且容器内 `9222` 能返回 JSON。只会看 GUI，不看 CDP，本质上就是在闭眼运维。
 
 公网验证：
 

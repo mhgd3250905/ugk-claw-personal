@@ -235,5 +235,6 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `playground` 手机端当前采用“顶部四按钮条 / 中间 transcript / 底部 composer”结构；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
 - Docker 镜像已内置 `git`、`curl`、`ca-certificates` 与 `python3`，不要再把 `/bin/bash: git: command not found`、`/bin/bash: curl: command not found` 或 `python3: not found` 当成玄学问题。
 - `web-access` 默认真实浏览器链路走 Docker Chrome sidecar：`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223`；Windows host IPC fallback 仅保留给 legacy 本机调试和紧急排障。
+- `ugk-pi-browser` 当前通过容器内 healthcheck 自举 Chrome CDP；后续排障别只看 GUI 能不能打开，至少同时确认浏览器容器 `healthy`，以及 `127.0.0.1:9222` / `172.31.250.10:9223` 探针能通。
 - 宿主浏览器和 sidecar Chrome 都不能直接依赖容器内 `file:///app/...`：用户可见文本要改写成 `PUBLIC_BASE_URL` 下的 `GET /v1/local-file?path=...`，sidecar 自动化要改写成 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 下的同一路由，真实文件交付优先走 `send_file`。
 - 腾讯云新加坡生产样例使用 `docker-compose.prod.yml`，当前 `HOST_PORT=3000`、`PUBLIC_BASE_URL=http://43.134.167.179:3000`；后续切域名或 HTTPS 时必须同步服务器 `.env`、安全组和 `docs/tencent-cloud-singapore-deploy.md`。

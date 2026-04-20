@@ -18,8 +18,10 @@ services:
       - ${UGK_APP_LOG_DIR:-./logs/app}:/var/log/ugk-pi
       - ./runtime/skills-user:/app/runtime/skills-user
     depends_on:
-      - ugk-pi-browser
-      - ugk-pi-browser-cdp
+      ugk-pi-browser:
+        condition: service_healthy
+      ugk-pi-browser-cdp:
+        condition: service_started
     restart: unless-stopped
     command: /bin/sh -lc "mkdir -p /var/log/ugk-pi && npm start 2>&1 | tee -a /var/log/ugk-pi/app.log"
     healthcheck:
@@ -48,19 +50,27 @@ services:
       CHROME_CLI: "--remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --hide-crash-restore-bubble --ozone-platform=x11 --user-data-dir=${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar} about:blank"
     volumes:
       - ${UGK_BROWSER_CONFIG_DIR:-./.data/chrome-sidecar}:/config
+      - ./scripts/ensure-sidecar-chrome.sh:/usr/local/bin/ensure-sidecar-chrome.sh:ro
     ports:
       - "127.0.0.1:${WEB_ACCESS_BROWSER_GUI_PORT:-3901}:3001"
     shm_size: "1gb"
     security_opt:
       - seccomp:unconfined
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/local/bin/ensure-sidecar-chrome.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
     networks:
       ugk-pi-net:
         ipv4_address: 172.31.250.10
   ugk-pi-browser-cdp:
     image: alpine/socat:latest
     depends_on:
-      - ugk-pi-browser
+      ugk-pi-browser:
+        condition: service_healthy
     network_mode: "service:ugk-pi-browser"
     command:
       - "TCP-LISTEN:9223,fork,bind=0.0.0.0,reuseaddr"
