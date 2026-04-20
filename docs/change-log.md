@@ -12,6 +12,20 @@
 
 ## 2026-04-20
 
+### 本地 artifact 链接避免二次包裹
+- 主题：修复 agent 回复里的 `/v1/local-file?path=...` 链接被用户可见文本重写器再次包裹，生成 `path=http://.../v1/local-file?path=...` 后打不开的问题。
+- 影响范围：
+  - `src/agent/file-artifacts.ts` 在重写 `/app/public/...`、`/app/runtime/...` 和 `file:///app/...` 时，会识别当前匹配是否已经位于 `/v1/local-file` 的 `path` 查询参数里，避免二次重写。
+  - `src/routes/files.ts` 对历史上已经生成的双层 `/v1/local-file` URL 做兼容拆包，拆出内层真实 artifact 路径后仍按 `public/`、`runtime/` 白名单校验和服务。
+  - `test/file-artifacts.test.ts` 增加“已翻译 local-file URL 不再二次包裹”的回归用例；`test/server.test.ts` 增加“双层 local-file URL 仍能打开”的回归用例。
+  - `docs/runtime-assets-conn-feishu.md` 同步记录本地 artifact 链接重写与双层链接兜底口径。
+- 对应入口：
+  - [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+  - [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+  - [test/file-artifacts.test.ts](/E:/AII/ugk-pi/test/file-artifacts.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
 ### Playground Markdown 渲染库化
 - 主题：把 agent 回复 Markdown 从项目内手写解析器迁到 `marked`，避免表格、分割线等标准 Markdown 继续靠临时正则补洞。
 - 影响范围：

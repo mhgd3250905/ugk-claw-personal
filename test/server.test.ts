@@ -823,6 +823,21 @@ test("GET /v1/local-file accepts file URLs for runtime artifacts", async () => {
 	await app.close();
 });
 
+test("GET /v1/local-file unwraps accidentally nested local-file urls", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/local-file?path=http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fruntime%2Freport-medtrum-v2.html",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] ?? "", /^text\/html/);
+	await app.close();
+});
+
 test("GET /runtime/../package.json does not expose files outside runtime", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

@@ -101,6 +101,7 @@ GET /v1/local-file?path=...
 
 - agent 内部：允许继续用本地路径
 - 用户可见文本：运行时会自动改写成宿主可访问的 `/v1/local-file?path=...`
+- 已经是 `/v1/local-file?path=...` 的用户可见链接不能再次被路径重写器包一层；如果历史消息里出现 `path=http://.../v1/local-file?path=...` 这类双层链接，`/v1/local-file` 会拆出内层真实 artifact 路径后再按白名单服务
 - 用户拿真实文件：优先 `send_file`
 
 ## 5. 文件预览与下载

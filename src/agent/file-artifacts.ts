@@ -95,7 +95,10 @@ export function rewriteUserVisibleLocalArtifactLinks(
 	}
 
 	const baseUrl = normalizePublicBaseUrl(options.publicBaseUrl);
-	return text.replace(LOCAL_ARTIFACT_REFERENCE_PATTERN, (match) => {
+	return text.replace(LOCAL_ARTIFACT_REFERENCE_PATTERN, (match, offset: number) => {
+		if (isInsideLocalFilePathQuery(text, offset)) {
+			return match;
+		}
 		const { reference, trailing } = splitTrailingPunctuation(match);
 		const artifactPath = resolveSupportedLocalArtifactPath(reference);
 		if (!artifactPath) {
@@ -198,6 +201,11 @@ function normalizePublicBaseUrl(publicBaseUrl?: string): string {
 		/\/+$/,
 		"",
 	);
+}
+
+function isInsideLocalFilePathQuery(text: string, matchStart: number): boolean {
+	const prefix = text.slice(Math.max(0, matchStart - 2048), matchStart);
+	return /(?:^|[\s([<>"'`])(?:https?:\/\/[^\s<>"'`]+)?\/v1\/local-file\?(?:[^\s<>"'`#]*&)?path=$/i.test(prefix);
 }
 
 function resolveSupportedLocalArtifactPath(reference: string): string | undefined {

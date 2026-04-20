@@ -105,7 +105,7 @@ function encodeRFC5987ValueChars(value: string): string {
 }
 
 function resolveLocalArtifactPath(inputPath: string | undefined, projectRoot: string): string | undefined {
-	const normalizedInput = String(inputPath || "").trim();
+	const normalizedInput = unwrapLocalFileUrlPath(String(inputPath || "").trim());
 	if (!normalizedInput) {
 		return undefined;
 	}
@@ -121,6 +121,32 @@ function resolveLocalArtifactPath(inputPath: string | undefined, projectRoot: st
 		resolve(projectRoot, "runtime"),
 	];
 	return allowedRoots.some((allowedRoot) => isPathInside(absolutePath, allowedRoot)) ? absolutePath : undefined;
+}
+
+function unwrapLocalFileUrlPath(inputPath: string): string {
+	let current = inputPath;
+	for (let index = 0; index < 3; index += 1) {
+		const nestedPath = extractLocalFileUrlPath(current);
+		if (!nestedPath || nestedPath === current) {
+			return current;
+		}
+		current = nestedPath;
+	}
+	return current;
+}
+
+function extractLocalFileUrlPath(inputPath: string): string | undefined {
+	try {
+		const url = inputPath.startsWith("/v1/local-file")
+			? new URL(inputPath, "http://localhost")
+			: new URL(inputPath);
+		if (url.pathname !== "/v1/local-file") {
+			return undefined;
+		}
+		return url.searchParams.get("path") ?? undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 function resolveProjectArtifactPath(inputPath: string, projectRoot: string): string | undefined {
