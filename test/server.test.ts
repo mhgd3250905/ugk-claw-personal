@@ -40,6 +40,18 @@ function createAgentServiceStub(overrides?: {
 		running: boolean;
 		unsubscribe: () => void;
 	};
+	getConversationHistory?: (
+		conversationId: string,
+	) => Promise<{
+		conversationId: string;
+		messages: Array<{
+			id: string;
+			kind: "user" | "assistant" | "system" | "error";
+			title: string;
+			text: string;
+			createdAt: string;
+		}>;
+	}>;
 	getAvailableSkills?: () => Promise<Array<{ name: string; path?: string }>>;
 }): AgentService {
 	return {
@@ -111,6 +123,12 @@ function createAgentServiceStub(overrides?: {
 				conversationId,
 				running: false,
 				unsubscribe: () => undefined,
+			})),
+		getConversationHistory:
+			overrides?.getConversationHistory ??
+			(async (conversationId) => ({
+				conversationId,
+				messages: [],
 			})),
 		getAvailableSkills:
 			overrides?.getAvailableSkills ??
@@ -568,6 +586,28 @@ test("GET /playground embeds conversation history restore and message copy contr
 	await app.close();
 });
 
+test("GET /playground uses one global agent conversation and restores server history", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /const GLOBAL_CONVERSATION_ID = "agent:global";/);
+	assert.match(response.body, /conversationId: GLOBAL_CONVERSATION_ID,/);
+	assert.doesNotMatch(response.body, /localStorage\.getItem\("ugk-pi:conversation-id"\)/);
+	assert.match(response.body, /async function fetchConversationHistory\(conversationId\)\s*\{/);
+	assert.match(response.body, /\/v1\/chat\/history\?conversationId=/);
+	assert.match(response.body, /async function restoreConversationHistoryFromServer\(conversationId\)\s*\{/);
+	assert.match(response.body, /void restoreConversationHistoryFromServer\(state\.conversationId\)/);
+	assert.match(response.body, /conversationInput\.readOnly = true;/);
+	await app.close();
+});
+
 test("GET /playground adds a mobile-only top action strip without collapsing into a menu", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -702,6 +742,34 @@ test("GET /playground shows an explicit assistant loading bubble while a run is 
 	await app.close();
 });
 
+test("GET /playground does not force-scroll when the user is reading history", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /id="scroll-to-bottom-button"/);
+	assert.match(response.body, /\.scroll-to-bottom-button\s*\{[\s\S]*position:\s*absolute;/);
+	assert.match(response.body, /\.scroll-to-bottom-button\.visible\s*\{[\s\S]*display:\s*inline-flex;/);
+	assert.match(response.body, /const TRANSCRIPT_FOLLOW_THRESHOLD_PX = 120;/);
+	assert.match(response.body, /autoFollowTranscript: true,/);
+	assert.match(response.body, /function isTranscriptNearBottom\(\)\s*\{/);
+	assert.match(response.body, /function syncTranscriptFollowState\(\)\s*\{/);
+	assert.match(response.body, /function updateScrollToBottomButton\(\)\s*\{/);
+	assert.match(response.body, /function scrollTranscriptToBottom\(options\)\s*\{/);
+	assert.match(response.body, /if \(options\?\.force \|\| state\.autoFollowTranscript \|\| isTranscriptNearBottom\(\)\) \{/);
+	assert.match(response.body, /scrollToBottomButton\.addEventListener\("click", \(\) => \{/);
+	assert.match(response.body, /transcript\.addEventListener\("scroll", handleTranscriptScroll\)/);
+	assert.match(response.body, /syncTranscriptFollowState\(\);/);
+	assert.match(response.body, /scrollTranscriptToBottom\(\{ force: true \}\);/);
+	await app.close();
+});
+
 test("GET /playground restores running conversations after refresh and avoids reopening the same stream", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -719,6 +787,7 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /function stopActiveRunEventStream\(\)\s*\{/);
 	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
 	assert.match(response.body, /async function syncConversationRunState\(conversationId, options\)\s*\{/);
+	assert.match(response.body, /async function recoverRunningStreamAfterDisconnect\(reason\)\s*\{/);
 	assert.match(response.body, /function findLatestUserHistoryEntry\(\)\s*\{/);
 	assert.match(response.body, /function formatRecoveredRunMessage\(\)\s*\{/);
 	assert.match(response.body, /setMessageContent\(content, formatRecoveredRunMessage\(\)\)/);
@@ -736,11 +805,74 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /void attachActiveRunEventStream\(nextConversationId\)/);
 	assert.doesNotMatch(response.body, /上一轮/);
 	assert.match(response.body, /const liveRunState = await syncConversationRunState\(state\.conversationId, \{/);
+	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("missing_done"\);/);
+	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("network_error"\);/);
+	assert.match(response.body, /if \(!state\.pageUnloading && !handoffToRunEvents\) \{/);
+	assert.match(response.body, /document\.addEventListener\("visibilitychange"/);
+	assert.match(response.body, /window\.addEventListener\("pageshow"/);
 	assert.match(
 		response.body,
 		/if \(liveRunState\.running\) \{[\s\S]*await queueActiveMessage\(outboundMessage, attachments, assetRefs, \{ composerDraft \}\);/,
 	);
 	assert.match(response.body, /async function interruptRun\(\)\s*\{[\s\S]*completeAssistantLoadingBubble\("warn", "本轮已中断"\);[\s\S]*setLoading\(false\);/);
+	await app.close();
+});
+
+test("GET /v1/chat/history returns global conversation transcript", async () => {
+	const calls: string[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			getConversationHistory: async (conversationId) => {
+				calls.push(conversationId);
+				return {
+					conversationId,
+					messages: [
+						{
+							id: "history-1",
+							kind: "user",
+							title: "agent:global",
+							text: "跨设备任务",
+							createdAt: "2026-04-20T00:00:00.000Z",
+						},
+						{
+							id: "history-2",
+							kind: "assistant",
+							title: "助手",
+							text: "跨设备回复",
+							createdAt: "2026-04-20T00:00:01.000Z",
+						},
+					],
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/chat/history?conversationId=agent%3Aglobal",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conversationId: "agent:global",
+		messages: [
+			{
+				id: "history-1",
+				kind: "user",
+				title: "agent:global",
+				text: "跨设备任务",
+				createdAt: "2026-04-20T00:00:00.000Z",
+			},
+			{
+				id: "history-2",
+				kind: "assistant",
+				title: "助手",
+				text: "跨设备回复",
+				createdAt: "2026-04-20T00:00:01.000Z",
+			},
+		],
+	});
+	assert.deepEqual(calls, ["agent:global"]);
 	await app.close();
 });
 

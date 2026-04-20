@@ -425,6 +425,7 @@ function getPlaygroundStyles(): string {
 			display: flex;
 			flex-direction: column;
 			align-items: stretch;
+			position: relative;
 			width: min(var(--conversation-width), 100%);
 			margin: 0 auto;
 			min-height: 0;
@@ -476,6 +477,41 @@ function getPlaygroundStyles(): string {
 			width: 0;
 			height: 0;
 			display: none;
+		}
+
+		.scroll-to-bottom-button {
+			display: none;
+			position: absolute;
+			right: 14px;
+			bottom: 16px;
+			z-index: 5;
+			align-items: center;
+			justify-content: center;
+			min-height: 34px;
+			padding: 8px 12px;
+			border: 1px solid rgba(201, 210, 255, 0.2);
+			border-radius: 4px;
+			background: rgba(9, 13, 22, 0.92);
+			color: rgba(238, 244, 255, 0.92);
+			font-size: 11px;
+			line-height: 1;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
+			backdrop-filter: blur(10px);
+		}
+
+		.scroll-to-bottom-button.visible {
+			display: inline-flex;
+		}
+
+		.scroll-to-bottom-button:hover:not(:disabled),
+		.scroll-to-bottom-button:focus-visible {
+			border-color: rgba(201, 210, 255, 0.36);
+			background: rgba(14, 18, 31, 0.96);
+			color: #f3fbff;
+			transform: none;
+			box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
 		}
 
 		.transcript-archive,
@@ -2758,6 +2794,8 @@ function getPlaygroundScript(): string {
 		${getBrowserMarkdownRendererScript()}
 
 		const CONVERSATION_HISTORY_INDEX_KEY = "ugk-pi:conversation-history-index";
+		const GLOBAL_CONVERSATION_ID = "agent:global";
+		const TRANSCRIPT_FOLLOW_THRESHOLD_PX = 120;
 		const MAX_STORED_CONVERSATIONS = 12;
 		const MAX_STORED_MESSAGES_PER_CONVERSATION = 160;
 		const MAX_ARCHIVED_TRANSCRIPTS = 4;
@@ -2774,7 +2812,7 @@ function getPlaygroundScript(): string {
 		const state = {
 			loading: false,
 			stageMode: "landing",
-			conversationId: localStorage.getItem("ugk-pi:conversation-id") || "",
+			conversationId: GLOBAL_CONVERSATION_ID,
 			streamingText: "",
 			activeAssistantContent: null,
 			activeLoadingShell: null,
@@ -2799,6 +2837,8 @@ function getPlaygroundScript(): string {
 			historyLoadingMore: false,
 			activeRunEventController: null,
 			pageUnloading: false,
+			primaryStreamActive: false,
+			autoFollowTranscript: true,
 		};
 
 		const renderedMessages = new Map();
@@ -2807,6 +2847,7 @@ function getPlaygroundScript(): string {
 		const transcriptArchive = document.getElementById("transcript-archive");
 		const transcriptCurrent = document.getElementById("transcript-current");
 		const historyLoadMoreButton = document.getElementById("history-load-more-button");
+		const scrollToBottomButton = document.getElementById("scroll-to-bottom-button");
 		const errorBanner = document.getElementById("error-banner");
 		const errorBannerMessage = document.getElementById("error-banner-message");
 		const errorBannerClose = document.getElementById("error-banner-close");
@@ -2867,7 +2908,7 @@ function getPlaygroundScript(): string {
 		}
 
 		function createConversationId() {
-			return "manual:web-" + createBrowserId().replace(/[^a-z0-9]/gi, "").slice(0, 12);
+			return GLOBAL_CONVERSATION_ID;
 		}
 
 		function formatTokenCount(value) {
@@ -3161,18 +3202,39 @@ function getPlaygroundScript(): string {
 
 		function ensureConversationId() {
 			const previousConversationId = state.conversationId;
-			if (!conversationInput.value.trim()) {
-				conversationInput.value = createConversationId();
-			}
-			state.conversationId = conversationInput.value.trim();
-			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
+			conversationInput.value = GLOBAL_CONVERSATION_ID;
+			state.conversationId = GLOBAL_CONVERSATION_ID;
 			if (state.conversationId && state.conversationId !== previousConversationId) {
 				void syncContextUsage(state.conversationId, { silent: true });
 			}
 		}
 
-		function scrollTranscriptToBottom() {
-			transcript.scrollTop = transcript.scrollHeight;
+		function isTranscriptNearBottom() {
+			const remaining = transcript.scrollHeight - transcript.clientHeight - transcript.scrollTop;
+			return remaining <= TRANSCRIPT_FOLLOW_THRESHOLD_PX;
+		}
+
+		function updateScrollToBottomButton() {
+			const shouldShow =
+				!state.autoFollowTranscript &&
+				transcript.scrollHeight > transcript.clientHeight + TRANSCRIPT_FOLLOW_THRESHOLD_PX;
+			scrollToBottomButton.hidden = !shouldShow;
+			scrollToBottomButton.classList.toggle("visible", shouldShow);
+		}
+
+		function syncTranscriptFollowState() {
+			state.autoFollowTranscript = isTranscriptNearBottom();
+			updateScrollToBottomButton();
+		}
+
+		function scrollTranscriptToBottom(options) {
+			if (options?.force || state.autoFollowTranscript || isTranscriptNearBottom()) {
+				transcript.scrollTop = transcript.scrollHeight;
+				state.autoFollowTranscript = true;
+				updateScrollToBottomButton();
+				return;
+			}
+			updateScrollToBottomButton();
 		}
 
 		function setLoading(next) {
@@ -3252,6 +3314,28 @@ function getPlaygroundScript(): string {
 				conversationId: payload?.conversationId || conversationId,
 				running: Boolean(payload?.running),
 				contextUsage: normalizeContextUsage(payload?.contextUsage),
+			};
+		}
+
+		async function fetchConversationHistory(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId) {
+				return { conversationId: "", messages: [] };
+			}
+
+			const response = await fetch("/v1/chat/history?conversationId=" + encodeURIComponent(nextConversationId), {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法获取全局对话历史";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				conversationId: payload?.conversationId || nextConversationId,
+				messages: Array.isArray(payload?.messages) ? payload.messages : [],
 			};
 		}
 
@@ -3378,7 +3462,9 @@ function getPlaygroundScript(): string {
 						setMessageContent(content, formatRecoveredRunMessage());
 					}
 					setAssistantLoadingState("当前正在运行", "system");
-					void attachActiveRunEventStream(nextConversationId);
+					if (!state.primaryStreamActive) {
+						void attachActiveRunEventStream(nextConversationId);
+					}
 					return payload;
 				}
 
@@ -3526,6 +3612,32 @@ function getPlaygroundScript(): string {
 		function isPageUnloadStreamError(error) {
 			const messageText = error instanceof Error ? error.message : String(error || "");
 			return state.pageUnloading && !state.receivedDoneEvent && isNetworkErrorText(messageText);
+		}
+
+		async function recoverRunningStreamAfterDisconnect(reason) {
+			if (state.receivedDoneEvent || !state.conversationId) {
+				return false;
+			}
+
+			const payload = await syncConversationRunState(state.conversationId, {
+				silent: true,
+				clearIfIdle: false,
+			});
+			if (!payload.running) {
+				return false;
+			}
+
+			clearError();
+			setLoading(true);
+			setAssistantLoadingState("当前正在运行", "system");
+			updateStreamingProcess(
+				"warn",
+				"页面连接已恢复",
+				reason === "missing_done"
+					? "主连接结束但后端任务仍在运行，已切换到运行态事件流继续接收。"
+					: "浏览器网络连接短暂断开，已重新订阅当前运行任务。",
+			);
+			return true;
 		}
 
 		function normalizeProcessSnapshot(rawProcess) {
@@ -3957,10 +4069,38 @@ function getPlaygroundScript(): string {
 
 			setTranscriptState("active");
 			renderMoreConversationHistory();
-			transcript.scrollTop = transcript.scrollHeight;
+			scrollTranscriptToBottom({ force: true });
+		}
+
+		async function restoreConversationHistoryFromServer(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId) {
+				return;
+			}
+
+			try {
+				const payload = await fetchConversationHistory(nextConversationId);
+				const serverEntries = payload.messages.map(normalizeHistoryEntry).filter(Boolean);
+				if (serverEntries.length === 0) {
+					return;
+				}
+				state.conversationHistory = serverEntries.slice(-MAX_STORED_MESSAGES_PER_CONVERSATION);
+				state.renderedHistoryCount = 0;
+				clearRenderedTranscript();
+				persistConversationHistory(nextConversationId);
+				setTranscriptState("active");
+				renderMoreConversationHistory();
+				scrollTranscriptToBottom({ force: true });
+			} catch (error) {
+				if (state.conversationHistory.length === 0) {
+					const messageText = error instanceof Error ? error.message : "无法获取全局对话历史";
+					showError(messageText);
+				}
+			}
 		}
 
 		function handleTranscriptScroll() {
+			syncTranscriptFollowState();
 			if (transcript.scrollTop <= 48) {
 				renderMoreConversationHistory();
 			}
@@ -4198,6 +4338,7 @@ function getPlaygroundScript(): string {
 			return appendTranscriptMessage("user", state.conversationId, message, {
 				attachments,
 				assetRefs,
+				forceScroll: true,
 			});
 		}
 
@@ -4528,7 +4669,7 @@ function getPlaygroundScript(): string {
 			const rendered = renderTranscriptEntry(entry, options?.insertMode);
 			state.renderedHistoryCount = Math.min(state.conversationHistory.length, state.renderedHistoryCount + 1);
 			syncHistoryLoadMoreButton();
-			scrollTranscriptToBottom();
+			scrollTranscriptToBottom({ force: options?.forceScroll === true });
 			return rendered.content;
 		}
 
@@ -5008,7 +5149,6 @@ function getPlaygroundScript(): string {
 			setTranscriptState("idle");
 			conversationInput.value = createConversationId();
 			state.conversationId = conversationInput.value;
-			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
 			sessionFile.textContent = "尚未分配";
 			state.conversationHistory = [];
 			state.renderedHistoryCount = 0;
@@ -5021,6 +5161,7 @@ function getPlaygroundScript(): string {
 			syncHistoryLoadMoreButton();
 			renderContextUsageBar();
 			void syncContextUsage(state.conversationId, { silent: true });
+			void restoreConversationHistoryFromServer(state.conversationId);
 			if (options?.announce !== false) {
 				announceFreshConversation(state.conversationId);
 			}
@@ -5175,7 +5316,7 @@ function getPlaygroundScript(): string {
 
 			if (liveRunState.running) {
 				if (isInterruptIntentMessage(outboundMessage) && attachments.length === 0 && assetRefs.length === 0) {
-					appendTranscriptMessage("user", state.conversationId, outboundMessage);
+					appendTranscriptMessage("user", state.conversationId, outboundMessage, { forceScroll: true });
 					updateStreamingProcess("system", "检测到停止意图", "本次发送改为直接打断当前任务");
 					messageInput.value = "";
 					await interruptRun();
@@ -5195,6 +5336,7 @@ function getPlaygroundScript(): string {
 			ensureStreamingAssistantMessage();
 			setAssistantLoadingState("正在等待 Agent 开始处理", "system");
 
+			let handoffToRunEvents = false;
 			try {
 				const payload = {
 					conversationId: state.conversationId,
@@ -5224,9 +5366,19 @@ function getPlaygroundScript(): string {
 					return;
 				}
 
-				await readEventStream(response, handleStreamEvent);
+				state.primaryStreamActive = true;
+				try {
+					await readEventStream(response, handleStreamEvent);
+				} finally {
+					state.primaryStreamActive = false;
+				}
 
 				if (!state.receivedDoneEvent && !errorBanner.classList.contains("visible")) {
+					const streamWasRecovered = await recoverRunningStreamAfterDisconnect("missing_done");
+					if (streamWasRecovered) {
+						handoffToRunEvents = true;
+						return;
+					}
 					showError("流已结束，但没有收到完成事件");
 					updateStreamingProcess("error", "流被中断", "缺少 done 事件");
 					completeAssistantLoadingBubble("error", "本轮异常结束");
@@ -5241,6 +5393,12 @@ function getPlaygroundScript(): string {
 					return;
 				}
 
+				const streamWasRecovered = await recoverRunningStreamAfterDisconnect("network_error");
+				if (streamWasRecovered) {
+					handoffToRunEvents = true;
+					return;
+				}
+
 				if (!String(state.streamingText || "").trim() && !state.receivedDoneEvent) {
 					restoreComposerDraft(composerDraft);
 				}
@@ -5250,7 +5408,8 @@ function getPlaygroundScript(): string {
 				completeAssistantLoadingBubble("error", "本轮执行失败");
 				completeProcessStream();
 			} finally {
-				if (!state.pageUnloading) {
+				state.primaryStreamActive = false;
+				if (!state.pageUnloading && !handoffToRunEvents) {
 					setLoading(false);
 				}
 			}
@@ -5392,6 +5551,7 @@ function getPlaygroundScript(): string {
 		}
 
 		conversationInput.value = state.conversationId;
+		conversationInput.readOnly = true;
 		setStageMode("landing");
 		setTranscriptState("idle");
 		setCommandStatus("STANDBY");
@@ -5403,6 +5563,7 @@ function getPlaygroundScript(): string {
 			resetConversation({ announce: false });
 		} else {
 			restoreConversationHistory(state.conversationId);
+			void restoreConversationHistoryFromServer(state.conversationId);
 		}
 
 		resetStreamingState();
@@ -5567,6 +5728,29 @@ function getPlaygroundScript(): string {
 		window.addEventListener("pagehide", () => {
 			state.pageUnloading = true;
 		});
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "visible") {
+				void syncConversationRunState(state.conversationId, {
+					silent: true,
+					clearIfIdle: state.loading,
+				});
+				void restoreConversationHistoryFromServer(state.conversationId);
+			}
+		});
+		window.addEventListener("pageshow", () => {
+			state.pageUnloading = false;
+			void syncConversationRunState(state.conversationId, {
+				silent: true,
+				clearIfIdle: state.loading,
+			});
+			void restoreConversationHistoryFromServer(state.conversationId);
+		});
+		window.addEventListener("online", () => {
+			void syncConversationRunState(state.conversationId, {
+				silent: true,
+				clearIfIdle: state.loading,
+			});
+		});
 		const layoutObserver = new ResizeObserver(() => {
 			window.requestAnimationFrame(syncConversationWidth);
 		});
@@ -5640,6 +5824,9 @@ function getPlaygroundScript(): string {
 		historyLoadMoreButton.addEventListener("click", () => {
 			renderMoreConversationHistory();
 		});
+		scrollToBottomButton.addEventListener("click", () => {
+			scrollTranscriptToBottom({ force: true });
+		});
 		transcript.addEventListener("scroll", handleTranscriptScroll);
 		errorBannerClose.addEventListener("click", () => {
 			clearError();
@@ -5657,14 +5844,15 @@ function getPlaygroundScript(): string {
 		});
 
 		conversationInput.addEventListener("change", () => {
-			const nextConversationId = conversationInput.value.trim();
-			if (!nextConversationId || nextConversationId === state.conversationId) {
+			const nextConversationId = GLOBAL_CONVERSATION_ID;
+			conversationInput.value = nextConversationId;
+			if (nextConversationId === state.conversationId) {
 				renderContextUsageBar();
 				return;
 			}
 			state.conversationId = nextConversationId;
-			localStorage.setItem("ugk-pi:conversation-id", state.conversationId);
 			restoreConversationHistory(state.conversationId);
+			void restoreConversationHistoryFromServer(state.conversationId);
 			resetStreamingState();
 			clearError();
 			void syncConversationRunState(state.conversationId, {
@@ -5792,6 +5980,7 @@ export function renderPlaygroundPage(): string {
 							<div id="transcript-archive" class="transcript-archive"></div>
 							<div id="transcript-current" class="transcript-current"></div>
 						</section>
+						<button id="scroll-to-bottom-button" class="scroll-to-bottom-button" type="button" hidden>回到底部</button>
 					</div>
 				</section>
 

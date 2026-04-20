@@ -84,6 +84,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 如果是要直接交付文件而不是浏览器预览，优先走 `send_file`
 - 如果页面还是旧 HTML：
   - 先重启 `ugk-pi`
+  - 再确认 `http://127.0.0.1:3000/playground` 实际返回了本轮新增的 HTML / JS 标记
   - 再强刷浏览器
   - 不要第一反应去开 `3101`、`3102` 之类临时端口
 - 临时端口只允许短时排障；排障结束必须回到 `3000` 做最终验证。
@@ -232,6 +233,9 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/status` 和 `GET /v1/chat/events` 为准；文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
+- playground Web 入口当前固定使用全局会话 `agent:global`；不同浏览器 / 设备打开后应通过 `GET /v1/chat/history`、`GET /v1/chat/status` 和 `GET /v1/chat/events` 看到同一个 agent 的历史与运行态，不要再生成设备私有 `conversationId`。
+- playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示“回到底部”按钮。
+- 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要后端状态仍是 running，前端应切到 `/v1/chat/events` 续订事件流。
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。

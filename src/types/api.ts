@@ -140,6 +140,19 @@ export interface ChatStatusResponseBody {
 	contextUsage: ChatContextUsageBody;
 }
 
+export interface ChatHistoryMessageBody {
+	id: string;
+	kind: "user" | "assistant" | "system" | "error";
+	title: string;
+	text: string;
+	createdAt: string;
+}
+
+export interface ChatHistoryResponseBody {
+	conversationId: string;
+	messages: ChatHistoryMessageBody[];
+}
+
 export type QueueMessageMode = "steer" | "followUp";
 
 export interface QueueMessageRequestBody {

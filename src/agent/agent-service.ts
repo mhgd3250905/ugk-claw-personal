@@ -74,6 +74,19 @@ export interface RunStatusResult {
 	contextUsage: ChatContextUsageBody;
 }
 
+export interface ConversationHistoryMessage {
+	id: string;
+	kind: "user" | "assistant" | "system" | "error";
+	title: string;
+	text: string;
+	createdAt: string;
+}
+
+export interface ConversationHistoryResult {
+	conversationId: string;
+	messages: ConversationHistoryMessage[];
+}
+
 export interface RunEventSubscription {
 	conversationId: string;
 	running: boolean;
@@ -189,6 +202,18 @@ export class AgentService {
 			conversationId,
 			running,
 			contextUsage,
+		};
+	}
+
+	async getConversationHistory(conversationId: string): Promise<ConversationHistoryResult> {
+		const session = await this.getContextSession(conversationId);
+		const messages = ((session?.messages as AgentMessageLike[] | undefined) ?? [])
+			.map((message, index) => this.toConversationHistoryMessage(message, index))
+			.filter((message): message is ConversationHistoryMessage => Boolean(message));
+
+		return {
+			conversationId,
+			messages,
 		};
 	}
 
@@ -628,6 +653,60 @@ export class AgentService {
 			.map((item) => item.text)
 			.join("");
 	}
+
+	private toConversationHistoryMessage(
+		message: AgentMessageLike,
+		index: number,
+	): ConversationHistoryMessage | undefined {
+		const role = typeof message.role === "string" ? message.role : "";
+		if (role !== "user" && role !== "assistant" && role !== "system") {
+			return undefined;
+		}
+
+		const text = this.extractMessageText(message);
+		if (!text.trim()) {
+			return undefined;
+		}
+
+		const kind = role === "user" ? "user" : role === "system" ? "system" : "assistant";
+		return {
+			id: `session-message-${index + 1}`,
+			kind,
+			title: kind === "user" ? conversationTitleFromRole(kind) : "助手",
+			text: rewriteUserVisibleLocalArtifactLinks(text),
+			createdAt: new Date(0).toISOString(),
+		};
+	}
+
+	private extractMessageText(message: AgentMessageLike): string {
+		if (message.role === "assistant") {
+			return this.extractAssistantText(message);
+		}
+		const { content } = message;
+		if (typeof content === "string") {
+			return content;
+		}
+		if (!Array.isArray(content)) {
+			return "";
+		}
+
+		return content
+			.map((item) => {
+				if (typeof item === "string") {
+					return item;
+				}
+				if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
+					return item.text;
+				}
+				return "";
+			})
+			.filter((text) => text.length > 0)
+			.join("");
+	}
+}
+
+function conversationTitleFromRole(kind: "user" | "assistant" | "system" | "error"): string {
+	return kind === "user" ? "agent:global" : "助手";
 }
 
 function hasStringProperty(value: object, propertyName: string): boolean {

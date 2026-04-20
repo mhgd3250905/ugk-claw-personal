@@ -12,6 +12,35 @@
 
 ## 2026-04-20
 
+### Playground 历史阅读时不强制滚底
+- 主题：修复 playground 在最新对话流式更新时无条件自动滚到底部，导致用户上滑查阅历史被打断的问题。
+- 影响范围：
+  - `src/ui/playground.ts` 新增 transcript 跟随状态，只有用户停留在底部附近时才自动跟随 `text_delta`、loading 和过程日志更新。
+  - 用户离开底部阅读历史时显示“回到底部”按钮，点击后强制回到底部并恢复自动跟随。
+  - 初次恢复本地 / 服务端历史仍会强制定位到底部，避免打开页面时停在旧消息中段。
+  - 补强前端验收口径：改完 `playground` 后不仅要跑测试，还要重启 `ugk-pi` 并确认 `3000/playground` 实际返回了新 HTML / JS 标记，避免拿旧页面误测。
+  - `test/server.test.ts` 增加页面断言，固定滚动跟随阈值、按钮入口和事件绑定。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 全局 agent 会话与断线续订
+- 主题：把 playground 从“每个浏览器各自持有本地 conversationId / 本地历史”收口为固定全局 agent 会话 `agent:global`，并修复手机前后台切换导致 `/v1/chat/stream` 断线后页面停止更新的问题。
+- 影响范围：
+  - `src/ui/playground.ts` 固定使用 `agent:global`，`conversation-id` 只展示全局 ID，不再从浏览器 `localStorage` 读取设备私有会话身份。
+  - 新增 `GET /v1/chat/history`，由 `AgentService` 从 pi session messages 还原全局会话历史；新浏览器 / 新设备打开 playground 会先用本地缓存快速渲染，再从后端同步真实 agent 历史。
+  - 当前任务运行中如果主 `/v1/chat/stream` 因手机后台、页面恢复或网络短断提前结束，前端会重新查询 `/v1/chat/status`；只要后端仍在 running，就切到 `/v1/chat/events` 继续订阅，不再把这种浏览器生命周期断线显示成任务失败。
+  - `visibilitychange`、`pageshow` 和 `online` 会触发运行态 / 历史重查，让页面重新回到真实 agent 状态。
+  - `test/server.test.ts` 增加全局会话、history 接口和 stream 断线续订的回归断言。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### 本地 artifact 链接避免二次包裹
 - 主题：修复 agent 回复里的 `/v1/local-file?path=...` 链接被用户可见文本重写器再次包裹，生成 `path=http://.../v1/local-file?path=...` 后打不开的问题。
 - 影响范围：

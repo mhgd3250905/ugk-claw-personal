@@ -31,6 +31,8 @@ agent / skill -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker C
 - Windows host IPC 只保留为 legacy fallback，不是 Docker / Linux 默认路径
 - 阶段验证命令是 `npm test` 和 `npm run docker:chrome:check`
 - `playground` 的手机端已经单独重写成移动聊天页，不是把桌面端硬压缩；后续 `/init` 如果要接手前端，先看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)，别按“桌面端缩略版”理解
+- `playground` 当前使用固定全局会话 `agent:global`；不同浏览器 / 设备打开后都应看到同一个 agent 的历史与运行态，而不是各自生成本地 `conversationId`
+- 页面前后台切换、手机浏览器挂起或 `/v1/chat/stream` 主连接短断时，如果后端任务仍在运行，前端会切到 `/v1/chat/events` 继续订阅，不把这种浏览器生命周期断线当成本轮失败
 - `.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告和本地调试目录不属于代码仓库；后续 GitHub 部署与服务器迁移都要按 `.gitignore` 边界处理
 
 ## 快速开始
@@ -87,7 +89,7 @@ docker compose up --build -d
 docker compose -f docker-compose.prod.yml up --build -d
 ```
 
-如果页面还是旧内容，先重启 `ugk-pi`，再强刷浏览器；别一上来再开一堆临时端口把状态搞脏。
+如果页面还是旧内容，先重启 `ugk-pi`，再强刷浏览器；别一上来再开一堆临时端口把状态搞脏。对 `playground` 前端行为改动，重启后还要确认 `http://127.0.0.1:3000/playground` 实际返回了本轮新增的 HTML / JS 标记，避免拿旧页面测试新逻辑。
 
 当前开发镜像已内置 `git`、`curl`、`ca-certificates` 和 `python3`。需要在容器内确认仓库状态、执行只读 git 命令，或运行用户技能里的 Python 脚本时，不用再额外临时安装。
 
@@ -178,6 +180,7 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
 - `POST /v1/chat/queue`
 - `POST /v1/chat/interrupt`
 - `GET /v1/chat/status`
+- `GET /v1/chat/history`
 - `GET /v1/chat/events`
 - `GET /v1/debug/skills`
 

@@ -4,6 +4,7 @@ import type { AgentService } from "../agent/agent-service.js";
 import type {
 	ChatAttachmentBody,
 	ChatAssetBody,
+	ChatHistoryResponseBody,
 	ChatRequestBody,
 	ChatResponseBody,
 	ChatStatusResponseBody,
@@ -165,6 +166,26 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 
 			try {
 				return await deps.agentService.getRunStatus(conversationId);
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
+		},
+	);
+
+	app.get(
+		"/v1/chat/history",
+		async (
+			request: FastifyRequest<{ Querystring: { conversationId?: string } }>,
+			reply,
+		): Promise<ChatHistoryResponseBody | FastifyReply> => {
+			const { conversationId } = request.query ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+
+			try {
+				return await deps.agentService.getConversationHistory(conversationId);
 			} catch (error) {
 				return sendInternalError(reply, error);
 			}

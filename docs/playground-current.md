@@ -24,7 +24,11 @@
 ## 2. 消息区约束
 
 - 消息宽度跟随 composer 实际宽度，不依赖写死常量
-- 当前会按 `conversationId` 在本地持久化最近对话消息；刷新页面后，优先恢复当前会话的最近一段 transcript，而不是每次都假装失忆
+- transcript 只有在用户停留在底部附近时才自动跟随最新输出；用户明显上滑阅读历史时，`text_delta`、loading 和过程日志更新都不能强制滚到底部
+- 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
+- 当前 Web 入口固定使用全局会话 `agent:global`，不再按浏览器 / 设备生成独立 `conversationId`
+- 页面会先用本地缓存快速恢复 transcript，再通过 `GET /v1/chat/history?conversationId=agent%3Aglobal` 从后端 agent session 同步真实历史；多浏览器、多设备看到的是同一个 agent 的对话记录
+- 本地 `localStorage` 只作为当前设备的快速缓存和渲染快照，不再作为会话身份事实源
 - 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部时，会自动继续补更多旧消息，顶部同时保留“加载更多历史”按钮作为兜底入口
 - `landing` 模式下，对话区底部避让按“`chat-stage` 底部到 `command-deck` 顶部的真实距离”动态计算，不再偷懒拿固定值或只拿 `command-deck` 高度瞎猜
 - `landing` 模式下 transcript 容器会被锁进可用高度内，多选文件 / 资产后应表现为对话区收缩并滚动，而不是继续向下顶进 `command-deck`
@@ -87,13 +91,12 @@
 - 最终结果会直接列出完整技能清单
 - 不再把旧的 system 调试噪音塞进 transcript
 
-## 6. 新会话行为
+## 6. 全局会话行为
 
-- 点击“全新的记忆”后，会先切到新的 `conversationId`
-- 切新会话前，当前页已经渲染出来的 transcript 不会直接蒸发，而是会被归档到当前滚动区顶部的“历史会话”区块
-- transcript 会立即追加一条助手样式气泡，明确提示“当前启用新会话”以及新的会话 ID
-- 新会话提示本身也会进入本地历史，刷新后仍可见，不再是点了按钮但界面像没响应一样装死
-- 归档区只负责保留当前页可见历史，不会把旧会话消息污染进新的 `conversationId` 持久化数据
+- 当前项目按“只有一个实际使用者、多设备访问同一个 agent”收口，playground 会话 ID 固定为 `agent:global`
+- `conversation-id` 输入框只展示当前全局 ID，前端不再允许不同设备各自写入本地会话 ID
+- 点击“全新的记忆”不会再生成设备私有会话 ID；页面会回到同一个全局 agent 会话，并尝试从后端同步历史和运行态
+- 如果未来真的要支持多用户或多 agent，不能把这个固定 ID 当成通用方案继续堆，必须重新设计认证、会话命名空间和历史隔离
 
 ## 7. 已知关联文件
 
@@ -101,6 +104,7 @@
 - 页面返回断言： [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 - 资产与文件下载： [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)、[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 - 技能真实来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/debug/skills`
+- 全局历史来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/chat/history`
 
 ## 8. 运行态与 loading 约束
 
@@ -108,6 +112,8 @@
 - loading 气泡会跟随 Agent 事件切换文案：接手任务、调用工具、等待工具返回、生成回复、完成、打断或失败。
 - `done`、`interrupted`、`error` 都必须收口当前 loading 和过程日志，并同步释放前端 loading 状态。
 - 刷新恢复运行态时，页面文案统一使用“当前任务正在运行 / 当前正在运行”，不要再写“上一轮仍在运行”。
+- 手机浏览器前后台切换、页面 `visibilitychange`、`pageshow`、`online` 后都会重新核对 `agent:global` 的运行态和历史。
+- 如果 `/v1/chat/stream` 主连接因为前后台切换或网络短断结束，但 `GET /v1/chat/status` 仍显示后端任务运行中，页面会切到 `/v1/chat/events` 继续接收事件，不再提示“网络错误”并停止更新。
 - 用户点击发送或把消息追加进运行中的会话后，composer 要立即清空，明确表示消息已经发出；如果请求在真正进入后端前失败，再把草稿恢复回输入区，不能让用户白丢内容
 
 ## 9. 排查顺序建议
@@ -118,9 +124,10 @@
 2. `test/server.test.ts` 是否覆盖到真实行为
 3. `docker compose restart ugk-pi`
 4. `http://127.0.0.1:3000/healthz`
-5. 强刷 `http://127.0.0.1:3000/playground`
+5. 用 `Invoke-WebRequest` 或浏览器源码确认 `http://127.0.0.1:3000/playground` 实际返回了本轮新增的标记，例如 `scroll-to-bottom-button` 或对应函数名
+6. 强刷 `http://127.0.0.1:3000/playground`
 
-别再靠开新端口和肉眼猜缓存来制造额外脏状态了。
+如果源码和测试都已经更新，但第 5 步看不到新标记，说明运行中的 `ugk-pi` 仍在端旧 HTML；先重启服务，不要让用户继续测旧页面。别再靠开新端口和肉眼猜缓存来制造额外脏状态了。
 
 ## 10. 手机 Web 重写口径
 
@@ -138,7 +145,8 @@
 
 ## Refresh Run Recovery
 
-- 刷新页面后，如果当前 `conversationId` 仍有后端任务运行，playground 会请求 `/v1/chat/status` 并恢复运行态。
+- 刷新页面后，playground 固定按 `agent:global` 请求 `/v1/chat/status` 并恢复运行态。
+- 页面打开和恢复前台时会请求 `/v1/chat/history`，让新设备能看到已有 agent session 的历史消息。
 - 恢复态不再把任务称为“上一轮”；页面统一渲染为“当前任务正在运行 / 当前正在运行”，因为真实 agent run 并不会因为 web 刷新变成历史任务。
 - 恢复运行态后，playground 会继续请求 `/v1/chat/events`，重新订阅当前 active run 的 SSE 事件流，后续 `text_delta`、工具事件、`done`、`interrupted`、`error` 会继续更新同一个助手气泡。
 - 如果当前助手气泡还没有正文，页面会写入最近一条用户任务摘要；如果刷新前已经有助手正文，则优先保留已有正文，避免把真实回复内容覆盖成状态说明。
@@ -148,7 +156,8 @@
 - 恢复运行态下点击打断，如果后端确认中断，原 loading 气泡会收口为“本轮已中断”，前端按钮也会退出 loading 状态。
 - 如果打断时后端已经没有运行任务，页面会把残留 loading 收口为“当前任务已结束”，不再把一个过期状态挂在对话底部装神弄鬼。
 - 注意边界：`AgentService` 目前为内存中的 active run 保留最近一段事件缓冲，足够支持同一进程内刷新重连；如果服务进程重启，仍需要持久化 run event log 才能跨进程完整回放。
-- 刷新导致的 `/v1/chat/stream` 暂态断线不算任务失败，不会再写入“网络 / network error”气泡；恢复历史时也会过滤旧的同类脏记录。
+- 刷新、前后台切换或手机浏览器挂起导致的 `/v1/chat/stream` 暂态断线不算任务失败；只要后端状态仍是 running，就切到 `/v1/chat/events` 继续追，不会再写入“网络 / network error”气泡。
+- 注意边界：`GET /v1/chat/history` 目前从 pi session messages 还原用户 / 助手正文，能满足跨设备历史读取；实时过程日志的跨进程持久化仍不是完整实现。
 
 ## Context Usage Bar
 
