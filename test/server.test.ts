@@ -284,6 +284,10 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function syncConversationWidth\(\)\s*\{/);
 	assert.match(response.body, /composerDropTarget\.getBoundingClientRect\(\)\.width/);
 	assert.match(response.body, /async function sendMessage\(\)\s*\{[\s\S]*setTranscriptState\("active"\);[\s\S]*resetStreamingState\(\);/);
+	assert.match(response.body, /const composerDraft = createComposerDraft\(\);/);
+	assert.match(response.body, /updateStreamingProcess\("system", "请求已发送", formatOutboundSummary\(message, attachments, assetRefs\)\);[\s\S]*clearComposerDraft\(\);/);
+	assert.match(response.body, /if \(!response\.ok\) \{[\s\S]*restoreComposerDraft\(composerDraft\);/);
+	assert.match(response.body, /async function queueActiveMessage\(message, attachments, assetRefs, options\) \{[\s\S]*const composerDraft = options\?\.composerDraft \|\| createComposerDraft\(\);[\s\S]*clearComposerDraft\(\);/);
 	assert.match(response.body, /window\.addEventListener\("resize", syncConversationWidth\)/);
 	assert.match(response.body, /window\.requestAnimationFrame\(syncConversationWidth\)/);
 	assert.match(response.body, /\.composer\s*\{[\s\S]*flex-shrink: 0;/);
@@ -486,6 +490,11 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /function renderMoreConversationHistory\(\)\s*\{/);
 	assert.match(response.body, /function handleTranscriptScroll\(\)\s*\{/);
 	assert.match(response.body, /transcript\.addEventListener\("scroll", handleTranscriptScroll\)/);
+	assert.match(response.body, /id="transcript-archive"/);
+	assert.match(response.body, /id="transcript-current"/);
+	assert.match(response.body, /function archiveCurrentTranscript\(conversationId\)\s*\{/);
+	assert.match(response.body, /const MAX_ARCHIVED_TRANSCRIPTS = 4;/);
+	assert.match(response.body, /archiveCurrentTranscript\(previousConversationId\);/);
 	assert.match(response.body, /id="history-load-more-button"/);
 	assert.match(response.body, /当前启用新会话/);
 	assert.match(response.body, /function announceFreshConversation\(conversationId\)\s*\{/);
@@ -498,6 +507,94 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /function buildDownloadUrl\(downloadUrl\)\s*\{/);
 	assert.match(response.body, /openLink\.textContent = "打开"/);
 	assert.match(response.body, /link\.textContent = "下载"/);
+	await app.close();
+});
+
+test("GET /playground adds a mobile-only top action strip without collapsing into a menu", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /class="mobile-action-strip"/);
+	assert.match(response.body, /id="mobile-new-conversation-button"/);
+	assert.match(response.body, /id="mobile-view-skills-button"/);
+	assert.match(response.body, /id="mobile-file-picker-action"/);
+	assert.match(response.body, /id="mobile-asset-library-button"/);
+	assert.match(response.body, /\.mobile-action-strip\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-action-strip\s*\{[\s\S]*display:\s*grid;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /\.mobile-action-button\s*\{[\s\S]*min-height:\s*40px;/);
+	assert.match(response.body, /mobileNewConversationButton\.addEventListener\("click", \(\) => \{/);
+	assert.doesNotMatch(response.body, /mobile-menu-button/);
+	assert.doesNotMatch(response.body, /mobile-menu-panel/);
+	assert.doesNotMatch(response.body, /setMobileMenuOpen/);
+	assert.doesNotMatch(response.body, /closeMobileMenu/);
+	await app.close();
+});
+
+test("GET /playground keeps code blocks compact inside the mobile layout only", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /\.transcript-pane,[\s\S]*\.history-load-more\s*\{[\s\S]*border-radius: 4px !important;/);
+	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*border: 0;/);
+	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*background: transparent;/);
+	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*box-shadow: none;/);
+	assert.match(response.body, /\.message-content \.code-block-toolbar\s*\{[\s\S]*position: absolute;/);
+	assert.match(response.body, /\.message-content \.code-block-language\s*\{\s*display: none;/);
+	assert.match(response.body, /\.message-content \.copy-code-button\s*\{[\s\S]*display: inline-flex;/);
+	assert.match(response.body, /\.message-content \.copy-code-button\s*\{[\s\S]*background: transparent;/);
+	assert.match(response.body, /\.message-content \.copy-code-button\s*\{[\s\S]*border-radius: 0;/);
+	assert.match(response.body, /\.message-content \.copy-code-button\s*\{[\s\S]*font-size: 0;/);
+	assert.match(response.body, /\.message-content \.copy-code-button\s*\{[\s\S]*text-indent: -9999px;/);
+	assert.match(response.body, /\.message-content \.copy-code-button::before\s*\{[\s\S]*content: "";/);
+	assert.match(response.body, /\.message-content \.copy-code-button::before\s*\{[\s\S]*background-image: url\("data:image\/svg\+xml,/);
+	assert.match(response.body, /\.message-content \.code-block\s*\{[\s\S]*background: transparent;/);
+	assert.match(response.body, /\.message-content pre code\s*\{[\s\S]*white-space: pre-wrap;/);
+	assert.match(response.body, /\.message-content pre code\s*\{[\s\S]*overflow-wrap: anywhere;/);
+	assert.match(response.body, /\.message-content \.code-block pre\s*\{[\s\S]*padding: 14px 12px 10px;/);
+	assert.match(response.body, /\.message-content \.code-block pre\s*\{[\s\S]*border-radius: 12px;/);
+	assert.match(response.body, /\.message-content \.code-block pre\s*\{[\s\S]*border: 1px solid rgba\(255, 255, 255, 0\);/);
+	assert.match(response.body, /\.message-content \.code-block pre\s*\{[\s\S]*background: transparent;/);
+	assert.match(response.body, /\.message\.assistant \.message-content pre,\s*\.message\.assistant \.message-content \.code-block,\s*\.message\.assistant \.message-content \.code-block pre\s*\{[\s\S]*background: transparent;/);
+	assert.match(response.body, /\.message\.assistant \.message-content code\s*\{[\s\S]*background: transparent;/);
+	await app.close();
+});
+
+test("GET /playground uses icon-only mobile send and interrupt controls", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /#send-button,\s*#interrupt-button\s*\{[\s\S]*display: inline-flex;/);
+	assert.match(response.body, /#send-button,\s*#interrupt-button\s*\{[\s\S]*background: transparent;/);
+	assert.match(response.body, /#send-button,\s*#interrupt-button\s*\{[\s\S]*box-shadow: none;/);
+	assert.match(response.body, /#send-button,\s*#interrupt-button\s*\{[\s\S]*text-indent: -9999px;/);
+	assert.match(response.body, /#send-button::before\s*\{[\s\S]*width: 28px;/);
+	assert.match(response.body, /#interrupt-button::before\s*\{[\s\S]*width: 28px;/);
+	assert.match(response.body, /#send-button::before\s*\{[\s\S]*background-image: url\("data:image\/svg\+xml,/);
+	assert.match(response.body, /#interrupt-button::before\s*\{[\s\S]*background-image: url\("data:image\/svg\+xml,/);
+	assert.match(response.body, /#interrupt-button:disabled\s*\{[\s\S]*display: inline-flex;/);
+	assert.match(response.body, /#interrupt-button:disabled\s*\{[\s\S]*opacity: 0\.38;/);
 	await app.close();
 });
 
@@ -581,7 +678,10 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /void attachActiveRunEventStream\(nextConversationId\)/);
 	assert.doesNotMatch(response.body, /上一轮/);
 	assert.match(response.body, /const liveRunState = await syncConversationRunState\(state\.conversationId, \{/);
-	assert.match(response.body, /if \(liveRunState\.running\) \{[\s\S]*await queueActiveMessage\(outboundMessage, attachments, assetRefs\);/);
+	assert.match(
+		response.body,
+		/if \(liveRunState\.running\) \{[\s\S]*await queueActiveMessage\(outboundMessage, attachments, assetRefs, \{ composerDraft \}\);/,
+	);
 	assert.match(response.body, /async function interruptRun\(\)\s*\{[\s\S]*completeAssistantLoadingBubble\("warn", "本轮已中断"\);[\s\S]*setLoading\(false\);/);
 	await app.close();
 });
@@ -1022,6 +1122,14 @@ test("renderPlaygroundMarkdown renders safe markdown html for transcript message
 	assert.match(html, /<pre><code class="language-ts">const value = 1 &lt; 2;<\/code><\/pre>/);
 	assert.doesNotMatch(html, /<script>/);
 	assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});
+
+test("renderPlaygroundMarkdown keeps fenced code blocks visible when preceded by plain text", () => {
+	const html = renderPlaygroundMarkdown(["技能结构：", "```json", '{ "name": "web-access" }', "```"].join("\n"));
+
+	assert.match(html, /<p>技能结构：<\/p>/);
+	assert.match(html, /<pre><code class="language-json">\{ &quot;name&quot;: &quot;web-access&quot; \}<\/code><\/pre>/);
+	assert.doesNotMatch(html, /CODEBLOCK0/);
 });
 
 test("POST /v1/chat returns aggregated chat response", async () => {

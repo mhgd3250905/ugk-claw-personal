@@ -29,6 +29,7 @@ agent / skill -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker C
 - sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL=http://ugk-pi:3000`
 - Windows host IPC 只保留为 legacy fallback，不是 Docker / Linux 默认路径
 - 阶段验证命令是 `npm test` 和 `npm run docker:chrome:check`
+- `playground` 的手机端已经单独重写成移动聊天页，不是把桌面端硬压缩；后续 `/init` 如果要接手前端，先看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)，别按“桌面端缩略版”理解
 
 ## 快速开始
 
@@ -192,7 +193,7 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
 - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
   - 按问题场景快速定位入口
 - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-  - playground 当前真实 UI 与交互约束
+  - playground 当前真实 UI 与交互约束；包含手机端重写后的布局、代码块和发送区口径
 - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
   - 资产、附件、`send_file`、`conn`、Feishu 运行说明
 - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)

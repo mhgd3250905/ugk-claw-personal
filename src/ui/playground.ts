@@ -20,7 +20,7 @@ export function renderPlaygroundMarkdown(source: string): string {
 		const html = `<pre><code${className}>${escapeHtml(String(code).replace(/\n$/, ""))}</code></pre>`;
 		const token = `\u0000CODEBLOCK${codeBlocks.length}\u0000`;
 		codeBlocks.push(html);
-		return token;
+		return `\n\n${token}\n\n`;
 	});
 
 	function applyInlineMarkdown(text: string): string {
@@ -177,58 +177,16 @@ function getPlaygroundStyles(): string {
 
 		.topbar {
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-columns: 1fr;
 			gap: 14px;
 			width: min(840px, calc(100% - 40px));
 			margin: 0 auto;
 			padding: 28px 0 16px;
 			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 			align-items: center;
+			justify-items: center;
 		}
 
-		.topbar-left {
-			min-width: 0;
-		}
-
-		.brand-lockup {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr);
-			gap: 0;
-			align-items: center;
-		}
-
-		.kicker {
-			display: inline-block;
-			padding: 4px 8px;
-			border: 1px solid var(--accent);
-			color: var(--accent);
-			font-size: 11px;
-			letter-spacing: 0.18em;
-			text-transform: uppercase;
-		}
-
-		h1 {
-			margin: 8px 0;
-			font-size: clamp(28px, 4vw, 42px);
-			line-height: 0.95;
-			letter-spacing: -0.08em;
-			text-transform: uppercase;
-		}
-
-		.brand-lockup h1 {
-			font-family: var(--font-mono);
-			letter-spacing: 0.12em;
-		}
-
-		.topbar p {
-			margin: 0;
-			color: var(--muted);
-			font-size: 13px;
-			line-height: 1.7;
-			max-width: 52ch;
-		}
-
-		.topbar p,
 		.topbar-right,
 		.transcript-pane .pane-head {
 			display: none !important;
@@ -242,6 +200,43 @@ function getPlaygroundStyles(): string {
 			text-transform: uppercase;
 			letter-spacing: 0.12em;
 			color: rgba(238, 244, 255, 0.42);
+		}
+
+		.mobile-action-strip {
+			display: none;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 8px;
+			width: min(var(--conversation-width), 100%);
+			margin: 0 auto 10px;
+		}
+
+		.mobile-action-button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 40px;
+			padding: 8px 6px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			background:
+				linear-gradient(180deg, rgba(14, 18, 31, 0.92), rgba(8, 11, 20, 0.94)),
+				rgba(8, 11, 20, 0.94);
+			color: rgba(238, 244, 255, 0.9);
+			font-size: 11px;
+			line-height: 1;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+		}
+
+		.mobile-action-button:hover:not(:disabled),
+		.mobile-action-button:focus-visible {
+			border-color: rgba(201, 210, 255, 0.28);
+			background:
+				linear-gradient(180deg, rgba(20, 26, 42, 0.96), rgba(10, 14, 24, 0.98)),
+				rgba(10, 14, 24, 0.98);
+			color: #f2f6ff;
+			transform: none;
+			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 		}
 
 		.status-row {
@@ -511,6 +506,55 @@ function getPlaygroundStyles(): string {
 			width: 0;
 			height: 0;
 			display: none;
+		}
+
+		.transcript-archive,
+		.transcript-current {
+			display: grid;
+			align-content: start;
+			justify-items: stretch;
+			width: 100%;
+		}
+
+		.transcript-archive {
+			gap: 12px;
+			padding-bottom: 8px;
+		}
+
+		.archived-conversation {
+			display: grid;
+			gap: 10px;
+			width: 100%;
+			padding: 12px 0 0;
+			border-top: 1px solid rgba(201, 210, 255, 0.08);
+		}
+
+		.archived-conversation-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 0 18px;
+			color: rgba(214, 220, 255, 0.46);
+			font-size: 10px;
+			letter-spacing: 0.16em;
+			text-transform: uppercase;
+		}
+
+		.archived-conversation-head strong {
+			color: rgba(238, 244, 255, 0.72);
+			font-weight: 400;
+			letter-spacing: 0.08em;
+		}
+
+		.archived-conversation-body {
+			display: grid;
+			gap: 0;
+			opacity: 0.8;
+		}
+
+		.archived-conversation-body .message-actions {
+			opacity: 0.82;
 		}
 
 		.history-load-more {
@@ -1525,10 +1569,6 @@ function getPlaygroundStyles(): string {
 		}
 
 		@media (max-width: 960px) {
-			.brand-lockup {
-				grid-template-columns: 1fr;
-			}
-
 			.stream-layout {
 				gap: 12px;
 			}
@@ -1636,14 +1676,10 @@ function getPlaygroundStyles(): string {
 			min-height: 44px;
 			margin: 0;
 			padding: 0 24px;
-			grid-template-columns: 1fr auto 1fr;
+			grid-template-columns: 1fr;
 			align-items: center;
+			justify-items: center;
 			border-bottom: 1px solid rgba(201, 210, 255, 0.06);
-		}
-
-		.topbar-left {
-			opacity: 0;
-			pointer-events: none;
 		}
 
 		.topbar-signal,
@@ -2008,24 +2044,422 @@ function getPlaygroundStyles(): string {
 			.shell {
 				width: 100vw;
 				height: 100vh;
-				border-radius: 4px;
+				border-radius: 0;
 			}
 
 			.topbar {
-				padding: 0 16px;
+				grid-template-columns: 1fr;
+				width: 100%;
+				padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+				min-height: 0;
+				border-bottom: 0;
+				background: linear-gradient(180deg, rgba(6, 8, 15, 0.96), rgba(6, 8, 15, 0.64));
+				backdrop-filter: blur(18px);
 			}
 
-			.hero-wordmark {
-				font-size: 64px;
+			.topbar-signal {
+				justify-self: center;
+				font-size: 11px;
+				letter-spacing: 0.22em;
+				color: rgba(231, 237, 255, 0.74);
+				text-shadow: none;
+			}
+
+			.landing-screen {
+				display: none !important;
+			}
+
+			.landing-side-right {
+				display: none;
+			}
+
+			.chat-stage {
+				display: grid;
+				grid-template-rows: auto minmax(0, 1fr) auto;
+				gap: 8px;
+				padding: 0 8px calc(8px + env(safe-area-inset-bottom));
+				overflow: hidden;
+			}
+
+			.error-banner {
+				top: 6px;
+				width: calc(100% - 16px);
+				padding: 10px 12px;
+			}
+
+			.transcript-pane {
+				width: 100%;
+				height: 100%;
+				min-height: 0;
+				border: 0;
+				border-radius: 14px;
+				background: transparent;
+				box-shadow: none;
+			}
+
+			.transcript {
+				padding: 8px 0 10px;
+			}
+
+			.mobile-action-strip {
+				display: grid;
+				position: relative;
+				z-index: 2;
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+				gap: 6px;
+				width: 100%;
+				margin: 0;
+			}
+
+			.archived-conversation-head {
+				padding: 0 12px;
+			}
+
+			.mobile-action-button {
+				min-height: 38px;
+				padding: 8px 4px;
+				border-radius: 12px;
+				font-size: 10px;
+				letter-spacing: 0.06em;
+				background:
+					linear-gradient(180deg, rgba(18, 23, 38, 0.94), rgba(10, 13, 22, 0.98)),
+					rgba(10, 13, 22, 0.98);
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			}
+
+			.stream-layout {
+				gap: 0;
+				flex: 1 1 auto;
+				min-height: 0;
+			}
+
+			.shell[data-stage-mode="landing"] .stream-layout {
+				position: relative;
+				inset: auto;
+				display: flex;
+				align-items: stretch;
+				justify-content: flex-start;
+				overflow: hidden;
+				z-index: 1;
+				pointer-events: auto;
+			}
+
+			.shell[data-stage-mode="landing"][data-transcript-state="idle"] .stream-layout,
+			.shell[data-stage-mode="landing"][data-transcript-state="active"] .stream-layout {
+				justify-content: flex-start;
+			}
+
+			.shell[data-stage-mode="landing"] .transcript-pane {
+				width: 100%;
+				margin: 0;
+			}
+
+			.shell[data-stage-mode="landing"] .command-deck {
+				width: 100%;
+				margin-bottom: 0;
+			}
+
+			.shell[data-transcript-state="idle"] .transcript-current:empty::before {
+				content: "开始一轮对话，或先从上方选择文件与资产。";
+				display: block;
+				margin: 16vh auto 0;
+				width: min(240px, calc(100% - 32px));
+				padding: 14px 16px;
+				border: 1px solid rgba(201, 210, 255, 0.08);
+				border-radius: 14px;
+				background: rgba(255, 255, 255, 0.03);
+				color: rgba(231, 236, 255, 0.46);
+				font-size: 13px;
+				line-height: 1.65;
+				text-align: center;
+			}
+
+			.file-strip {
+				gap: 6px;
+			}
+
+			.drop-zone {
+				display: none;
+			}
+
+			.file-list,
+			.selected-asset-list {
+				flex-wrap: nowrap;
+				overflow-x: auto;
+				overflow-y: hidden;
+				padding-bottom: 2px;
+				scrollbar-width: none;
+			}
+
+			.file-list::-webkit-scrollbar,
+			.selected-asset-list::-webkit-scrollbar {
+				display: none;
+			}
+
+			.selected-assets.visible {
+				padding: 0;
 			}
 
 			.shell[data-stage-mode="landing"] .composer {
-				grid-template-columns: 1fr;
+				grid-template-columns: minmax(0, 1fr) auto;
+				gap: 8px;
+				padding: 10px 10px 10px 12px;
+				border: 1px solid rgba(201, 210, 255, 0.08);
+				border-radius: 16px;
+				background:
+					linear-gradient(180deg, rgba(13, 17, 29, 0.96), rgba(8, 10, 19, 0.98)),
+					rgba(8, 10, 19, 0.98);
+				box-shadow:
+					0 -8px 30px rgba(0, 0, 0, 0.18),
+					inset 0 1px 0 rgba(255, 255, 255, 0.05);
 			}
 
 			.shell[data-stage-mode="landing"] .composer-side {
-				grid-template-columns: repeat(2, minmax(0, 1fr));
 				display: grid;
+				grid-auto-flow: column;
+				grid-auto-columns: 46px;
+				gap: 8px;
+				align-content: end;
+				align-items: end;
+			}
+
+			.shell[data-stage-mode="landing"] .composer textarea {
+				min-height: 44px;
+				max-height: 112px;
+				padding: 11px 0 8px;
+				font-size: 14px;
+				line-height: 1.55;
+				color: rgba(242, 246, 255, 0.92);
+			}
+
+			#send-button,
+			#interrupt-button {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				min-width: 46px;
+				min-height: 46px;
+				padding: 0;
+				border: 0;
+				border-radius: 0;
+				background: transparent;
+				box-shadow: none;
+				appearance: none;
+				-webkit-appearance: none;
+				color: transparent;
+				font-size: 0;
+				line-height: 0;
+				letter-spacing: 0;
+				text-indent: -9999px;
+				overflow: hidden;
+			}
+
+			#send-button:hover:not(:disabled),
+			#send-button:focus-visible,
+			#interrupt-button:hover:not(:disabled),
+			#interrupt-button:focus-visible {
+				border: 0;
+				background: transparent;
+				box-shadow: none;
+				transform: none;
+			}
+
+			#send-button::before {
+				content: "";
+				display: block;
+				width: 28px;
+				height: 28px;
+				background-repeat: no-repeat;
+				background-position: center;
+				background-size: 28px 28px;
+				background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 13V4' stroke='rgba(242,246,255,0.9)' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M4.75 7.25L8 4L11.25 7.25' stroke='rgba(242,246,255,0.9)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+			}
+
+			#interrupt-button::before {
+				content: "";
+				display: block;
+				width: 28px;
+				height: 28px;
+				background-repeat: no-repeat;
+				background-position: center;
+				background-size: 28px 28px;
+				background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.2' fill='rgba(255,255,255,0.96)'/%3E%3C/svg%3E");
+			}
+
+			#interrupt-button:disabled {
+				display: inline-flex;
+				opacity: 0.38;
+				background: transparent;
+				box-shadow: none;
+				cursor: default;
+			}
+
+			.message {
+				padding-top: 10px;
+			}
+
+			.message.user .message-body {
+				max-width: min(100%, 90%);
+			}
+
+			.message-body {
+				padding: 14px 14px 15px;
+				border-radius: 14px;
+				background: rgba(24, 28, 39, 0.82);
+			}
+
+			.message-content {
+				font-size: 14px;
+				line-height: 1.75;
+				min-width: 0;
+			}
+
+			.message-meta {
+				padding: 0 2px;
+				font-size: 9px;
+			}
+
+			.message-actions {
+				padding: 0 2px 0 0;
+			}
+
+			.message-copy-button {
+				font-size: 10px;
+				padding: 5px 8px;
+			}
+
+			.message,
+			.message-body,
+			.message-content,
+			.message-content .code-block,
+			.message-content pre {
+				min-width: 0;
+				max-width: 100%;
+				box-sizing: border-box;
+			}
+
+			.message-content .code-block {
+				border: 0;
+				border-radius: 0;
+				background: transparent;
+				box-shadow: none;
+				position: relative;
+				overflow: hidden;
+			}
+
+			.message-content .code-block-toolbar {
+				position: absolute;
+				top: 8px;
+				right: 8px;
+				display: flex;
+				align-items: center;
+				justify-content: flex-end;
+				padding: 0;
+				border: 0;
+				background: transparent;
+				pointer-events: none;
+				z-index: 1;
+			}
+
+			.message-content .code-block-language {
+				display: none;
+			}
+
+			.message-content .copy-code-button {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 24px;
+				height: 24px;
+				padding: 0;
+				border: 0;
+				border-radius: 0;
+				background: transparent;
+				color: transparent;
+				font-size: 0;
+				line-height: 0;
+				text-indent: -9999px;
+				overflow: hidden;
+				pointer-events: auto;
+				box-shadow: none;
+				opacity: 0.82;
+			}
+
+			.message-content .copy-code-button::before {
+				content: "";
+				width: 14px;
+				height: 14px;
+				display: block;
+				background-repeat: no-repeat;
+				background-position: center;
+				background-size: 14px 14px;
+				background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Crect x='5' y='3' width='8' height='10' rx='1.5' stroke='rgba(242,246,255,0.82)' stroke-width='1.4'/%3E%3Cpath d='M3.5 10.5V5.5C3.5 4.4 4.4 3.5 5.5 3.5' stroke='rgba(242,246,255,0.62)' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+			}
+
+			.message-content .copy-code-button:disabled {
+				opacity: 0.5;
+			}
+
+			.message-content .copy-code-button:disabled::before {
+				opacity: 0.72;
+			}
+
+			.message-content pre,
+			.message-content .code-block pre {
+				margin: 0;
+				padding: 14px 12px 10px;
+				border: 1px solid rgba(255, 255, 255, 0);
+				border-radius: 12px;
+				background: transparent;
+				box-shadow: none;
+				overflow-x: auto;
+				overflow-y: hidden;
+			}
+
+			.message.assistant .message-content pre,
+			.message.assistant .message-content .code-block,
+			.message.assistant .message-content .code-block pre {
+				background: transparent;
+			}
+
+			.message.assistant .message-content code {
+				background: transparent;
+			}
+
+			.message-content pre code {
+				font-size: 11px;
+				line-height: 1.6;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
+				word-break: break-word;
+			}
+
+			.transcript-pane,
+			.mobile-action-button,
+			.shell[data-transcript-state="idle"] .transcript-current:empty::before,
+			.shell[data-stage-mode="landing"] .composer,
+			#send-button,
+			#interrupt-button,
+			.message-body,
+			.message-copy-button,
+			.message-content .code-block,
+			.message-content .copy-code-button,
+			.message-content pre,
+			.message-content .code-block pre,
+			.file-chip,
+			.file-chip-badge,
+			.file-chip-remove,
+			.selected-assets,
+			.asset-pill,
+			.asset-empty,
+			.asset-modal-panel,
+			.asset-modal-search input,
+			.error-banner,
+			.error-banner-close,
+			.assistant-loading-card,
+			.assistant-process-shell,
+			.history-load-more {
+				border-radius: 4px !important;
 			}
 		}
 	`;
@@ -2043,6 +2477,7 @@ function getPlaygroundScript(): string {
 		const CONVERSATION_HISTORY_INDEX_KEY = "ugk-pi:conversation-history-index";
 		const MAX_STORED_CONVERSATIONS = 12;
 		const MAX_STORED_MESSAGES_PER_CONVERSATION = 160;
+		const MAX_ARCHIVED_TRANSCRIPTS = 4;
 
 		const state = {
 			loading: false,
@@ -2074,6 +2509,8 @@ function getPlaygroundScript(): string {
 		const renderedMessages = new Map();
 
 		const transcript = document.getElementById("transcript");
+		const transcriptArchive = document.getElementById("transcript-archive");
+		const transcriptCurrent = document.getElementById("transcript-current");
 		const historyLoadMoreButton = document.getElementById("history-load-more-button");
 		const errorBanner = document.getElementById("error-banner");
 		const errorBannerMessage = document.getElementById("error-banner-message");
@@ -2104,6 +2541,10 @@ function getPlaygroundScript(): string {
 		const interruptButton = document.getElementById("interrupt-button");
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
+		const mobileNewConversationButton = document.getElementById("mobile-new-conversation-button");
+		const mobileViewSkillsButton = document.getElementById("mobile-view-skills-button");
+		const mobileFilePickerAction = document.getElementById("mobile-file-picker-action");
+		const mobileAssetLibraryButton = document.getElementById("mobile-asset-library-button");
 		const statusPill = document.getElementById("status-pill");
 		const commandStatus = document.getElementById("command-status");
 
@@ -2627,8 +3068,42 @@ function getPlaygroundScript(): string {
 			persistConversationHistory(state.conversationId);
 		}
 
+		function archiveCurrentTranscript(conversationId) {
+			if (!transcriptCurrent.firstChild) {
+				return;
+			}
+
+			const archive = document.createElement("section");
+			archive.className = "archived-conversation";
+
+			const head = document.createElement("div");
+			head.className = "archived-conversation-head";
+			head.innerHTML = "<span>历史会话</span><strong></strong>";
+			head.querySelector("strong").textContent = String(conversationId || "").trim() || "untitled";
+
+			const body = document.createElement("div");
+			body.className = "archived-conversation-body";
+			while (transcriptCurrent.firstChild) {
+				body.appendChild(transcriptCurrent.firstChild);
+			}
+
+			archive.appendChild(head);
+			archive.appendChild(body);
+			if (transcriptArchive.firstChild) {
+				transcriptArchive.insertBefore(archive, transcriptArchive.firstChild);
+			} else {
+				transcriptArchive.appendChild(archive);
+			}
+
+			while (transcriptArchive.childElementCount > MAX_ARCHIVED_TRANSCRIPTS) {
+				transcriptArchive.lastElementChild?.remove();
+			}
+
+			renderedMessages.clear();
+		}
+
 		function clearRenderedTranscript() {
-			transcript.innerHTML = "";
+			transcriptCurrent.innerHTML = "";
 			renderedMessages.clear();
 		}
 
@@ -2799,10 +3274,10 @@ function getPlaygroundScript(): string {
 			card.appendChild(body);
 			card.appendChild(messageActions.actions);
 
-			if (insertMode === "prepend" && transcript.firstChild) {
-				transcript.insertBefore(card, transcript.firstChild);
+			if (insertMode === "prepend" && transcriptCurrent.firstChild) {
+				transcriptCurrent.insertBefore(card, transcriptCurrent.firstChild);
 			} else {
-				transcript.appendChild(card);
+				transcriptCurrent.appendChild(card);
 			}
 
 			const rendered = {
@@ -3288,6 +3763,30 @@ function getPlaygroundScript(): string {
 			state.selectedAssetRefs = [];
 			renderSelectedAssets();
 			renderAssetPickerList();
+		}
+
+		function createComposerDraft() {
+			return {
+				message: messageInput.value,
+				attachments: [...state.pendingAttachments],
+				assetRefs: [...state.selectedAssetRefs],
+			};
+		}
+
+		function clearComposerDraft() {
+			messageInput.value = "";
+			clearSelectedFiles();
+			clearSelectedAssetRefs();
+		}
+
+		function restoreComposerDraft(draft) {
+			messageInput.value = String(draft?.message || "");
+			state.pendingAttachments = Array.isArray(draft?.attachments) ? [...draft.attachments] : [];
+			state.selectedAssetRefs = Array.isArray(draft?.assetRefs) ? [...draft.assetRefs] : [];
+			renderAttachmentList();
+			renderSelectedAssets();
+			renderAssetPickerList();
+			messageInput.focus();
 		}
 
 		function removeSelectedAsset(assetId) {
@@ -3919,7 +4418,9 @@ function getPlaygroundScript(): string {
 		}
 
 		function resetConversation(options) {
+			const previousConversationId = state.conversationId;
 			stopActiveRunEventStream();
+			archiveCurrentTranscript(previousConversationId);
 			setStageMode("landing");
 			setTranscriptState("idle");
 			conversationInput.value = createConversationId();
@@ -4060,6 +4561,7 @@ function getPlaygroundScript(): string {
 		}
 
 		async function sendMessage() {
+			const composerDraft = createComposerDraft();
 			const message = messageInput.value.trim();
 			const attachments = [...state.pendingAttachments];
 			const assetRefs = [...state.selectedAssetRefs];
@@ -4089,7 +4591,7 @@ function getPlaygroundScript(): string {
 					await interruptRun();
 					return;
 				}
-				await queueActiveMessage(outboundMessage, attachments, assetRefs);
+				await queueActiveMessage(outboundMessage, attachments, assetRefs, { composerDraft });
 				return;
 			}
 
@@ -4098,6 +4600,7 @@ function getPlaygroundScript(): string {
 			resetStreamingState();
 			appendUserTranscriptMessage(message, attachments, assetRefs);
 			updateStreamingProcess("system", "请求已发送", formatOutboundSummary(message, attachments, assetRefs));
+			clearComposerDraft();
 			setLoading(true);
 			ensureStreamingAssistantMessage();
 			setAssistantLoadingState("正在等待 Agent 开始处理", "system");
@@ -4123,6 +4626,7 @@ function getPlaygroundScript(): string {
 				if (!response.ok) {
 					const body = await response.json().catch(() => ({}));
 					const errorMessage = body?.error?.message || body?.message || "未知错误";
+					restoreComposerDraft(composerDraft);
 					showError(errorMessage);
 					updateStreamingProcess("error", "请求被拒绝", errorMessage);
 					completeAssistantLoadingBubble("error", "本轮执行失败");
@@ -4140,9 +4644,6 @@ function getPlaygroundScript(): string {
 				}
 
 				if (state.receivedDoneEvent) {
-					messageInput.value = "";
-					clearSelectedFiles();
-					clearSelectedAssetRefs();
 					messageInput.focus();
 				}
 			} catch (error) {
@@ -4150,6 +4651,9 @@ function getPlaygroundScript(): string {
 					return;
 				}
 
+				if (!String(state.streamingText || "").trim() && !state.receivedDoneEvent) {
+					restoreComposerDraft(composerDraft);
+				}
 				const messageText = error instanceof Error ? error.message : "请求失败";
 				showError(messageText);
 				updateStreamingProcess("error", "网络错误", messageText);
@@ -4163,9 +4667,11 @@ function getPlaygroundScript(): string {
 		}
 
 		async function queueActiveMessage(message, attachments, assetRefs, options) {
+			const composerDraft = options?.composerDraft || createComposerDraft();
 			if (options?.appendTranscript !== false) {
 				appendUserTranscriptMessage(message, attachments, assetRefs);
 			}
+			clearComposerDraft();
 
 			try {
 				const payloadBody = {
@@ -4189,16 +4695,15 @@ function getPlaygroundScript(): string {
 				const payload = await response.json().catch(() => ({}));
 				if (!response.ok || !payload.queued) {
 					const errorMessage = getControlActionErrorMessage("queue", payload, "消息无法追加");
+					restoreComposerDraft(composerDraft);
 					showError(errorMessage);
 					return;
 				}
 
-				messageInput.value = "";
-				clearSelectedFiles();
-				clearSelectedAssetRefs();
 				messageInput.focus();
 				updateStreamingProcess("ok", "消息已加入队列", payload.conversationId);
 			} catch (error) {
+				restoreComposerDraft(composerDraft);
 				const messageText = error instanceof Error ? error.message : "追加请求失败";
 				showError(messageText);
 			}
@@ -4528,6 +5033,19 @@ function getPlaygroundScript(): string {
 			resetConversation();
 			messageInput.focus();
 		});
+		mobileNewConversationButton.addEventListener("click", () => {
+			resetConversation();
+			messageInput.focus();
+		});
+		mobileViewSkillsButton.addEventListener("click", () => {
+			void loadSkills();
+		});
+		mobileFilePickerAction.addEventListener("click", () => {
+			fileInput.click();
+		});
+		mobileAssetLibraryButton.addEventListener("click", () => {
+			openAssetLibrary();
+		});
 		historyLoadMoreButton.addEventListener("click", () => {
 			renderMoreConversationHistory();
 		});
@@ -4571,15 +5089,6 @@ export function renderPlaygroundPage(): string {
 		</div>
 		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
 			<header class="topbar">
-				<div class="topbar-left">
-					<div class="brand-lockup">
-						<div>
-							<div class="kicker">柯基控制台</div>
-							<h1>UGK CLAW</h1>
-							<p>深色电子星空里只保留当前会话焦点，过程细节默认收起，需要时再展开查看。</p>
-						</div>
-					</div>
-				</div>
 				<div class="topbar-signal" aria-hidden="true">UGK CLAW</div>
 				<div class="topbar-right">
 					<div class="status-row"><span>主题</span><strong>深色 / 极客</strong></div>
@@ -4589,6 +5098,12 @@ export function renderPlaygroundPage(): string {
 			</header>
 
 			<main id="chat-stage" class="chat-stage">
+				<section class="mobile-action-strip" aria-label="手机快捷操作">
+					<button id="mobile-new-conversation-button" class="mobile-action-button" type="button">新会话</button>
+					<button id="mobile-view-skills-button" class="mobile-action-button" type="button">技能</button>
+					<button id="mobile-file-picker-action" class="mobile-action-button" type="button">文件</button>
+					<button id="mobile-asset-library-button" class="mobile-action-button" type="button">文件库</button>
+				</section>
 				<div hidden>
 					<div class="meta-chip">
 						<strong>会话</strong>
@@ -4648,7 +5163,10 @@ export function renderPlaygroundPage(): string {
 							<span>单列会话舞台会把用户与 Agent 的回应自然分层，焦点始终落在当前内容。</span>
 						</header>
 						<button id="history-load-more-button" class="history-load-more" type="button" hidden>加载更多历史</button>
-						<section id="transcript" class="transcript" aria-live="polite"></section>
+						<section id="transcript" class="transcript" aria-live="polite">
+							<div id="transcript-archive" class="transcript-archive"></div>
+							<div id="transcript-current" class="transcript-current"></div>
+						</section>
 					</div>
 				</section>
 

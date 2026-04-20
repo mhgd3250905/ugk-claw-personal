@@ -22,6 +22,7 @@
 如果是云端 `/init`，再记一句：
 
 - 服务器 `~/ugk-pi-claw` 不是 Git 仓库，是 tar 解包目录；本机打包，服务器部署。
+- 如果这次 `/init` 还要接手 `playground` 前端，先读 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)；当前手机端是单独重写的移动展示层，不要按桌面端缩略版理解
 
 ## B. 聊天、流式、追加消息、打断
 
@@ -55,6 +56,10 @@
 - 过程区与 loading 气泡
 - 文件卡片“打开 / 下载”
 - 刷新后运行态恢复
+- 新会话历史归档
+- 发送后立即清空输入框
+- 手机端四按钮顶部条、底部 icon 发送区
+- 手机端代码块宽度、复制 icon 与透明壳层
 
 ## D. 文件上传、资产复用、send_file、本地报告访问
 

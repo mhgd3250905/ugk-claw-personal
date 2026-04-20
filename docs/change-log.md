@@ -10,7 +10,54 @@
 
 ---
 
+## 2026-04-20
+
+### Playground 手机端展示层重写
+- 主题：不再继续拿桌面端布局硬压手机，而是在保留现有会话、文件、技能、发送等逻辑的前提下，把手机端展示层整体重写成真正可用的移动聊天页。
+- 影响范围：
+  - `src/ui/playground.ts` 的手机断点样式整体收口为“顶部紧凑头部 + 四按钮操作条 + 全高 transcript + 底部 composer”三段式，不再让桌面 `landing` hero 占掉首屏空间；手机端 `transcript-pane` 额外去掉边框并收成全透明
+  - 手机端当前可见界面的圆角统一压到 `4px`，不再混用 `12px / 14px / 16px`
+  - 手机端底部发送区的 `send` / `interrupt` 控制改成纯 icon：发送使用居中的向上箭头 icon，打断使用白色方形中断 icon，不再显示“发 / 停”文字，同时彻底切断桌面端按钮背景、边框、阴影和默认外观在手机端的继承；当前两个 icon 调整为 `28px`，避免把按钮本体撑大；`interrupt` 在禁用态仍保留占位，只做变淡处理，不再直接隐藏
+  - 手机端直接隐藏 `landing-screen` 与拖拽上传壳子，已选文件 / 资产改成横向滚动 strip，把有限高度还给对话内容
+  - 手机端 `composer`、发送 / 打断按钮、消息气泡、字号、留白全部按触屏阅读与单手点击重新收口；桌面端现有布局不改
+  - 手机端额外收紧富文本代码块：让外层 `.code-block` 退成透明壳子，代码区域本身取消叠加半透明背景，只保留排版层次；工具条不再整条展示，只保留右上角透明背景的纯图标复制按钮，不显示文字 label；助手消息里的 `code` 背景也强制透明，并让长代码行在块内换行，避免把消息气泡横向撑爆
+  - `docs/playground-current.md` 更新为新的手机端真实口径，明确这次是“移动展示层重写”，不是继续缝补适配
+  - `README.md`、`AGENTS.md`、`docs/traceability-map.md` 同步补齐后续 `/init` 接手提醒，明确手机端已经独立收口，不要再按桌面端缩略版理解
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ## 2026-04-19
+
+### Playground 新会话历史保留、代码块渲染与手机端菜单收口
+- 主题：把 `playground` 里最影响真实使用的三个交互问题一次收口，并单独给手机 Web 做不污染桌面端的适配。
+- 影响范围：
+  - `src/ui/playground.ts` 修复 markdown 在“普通文本 + fenced code block”场景下把 `CODEBLOCK0` 占位符漏到页面的问题，保证技能结构这类回复能正常显示代码块
+  - 点击“新会话”前，会先把当前页 transcript 归档到滚动区顶部的“历史会话”区块，不再一键把当前可见历史直接清空
+  - 发送消息或向运行中会话追加消息后，composer 会立即清空；如果请求在真正进入后端前失败，会把草稿恢复回来，避免用户误以为已发出却又丢内容
+  - 手机端新增顶部菜单，接管 `新会话 / 查看技能 / 选择文件 / 项目文件库` 四个操作；桌面端原有侧边操作保持不动
+  - `test/server.test.ts` 增加回归断言，覆盖代码块渲染、新会话归档、立即清空输入框以及手机端菜单入口
+  - `docs/playground-current.md` 同步补齐当前口径，避免后续再按旧版“点新会话就清空页面历史”来理解
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 手机端从折叠菜单改回常驻四按钮条
+- 主题：撤掉手机端顶部菜单方案，改成更直接的四按钮常驻操作条，把空间还给对话区。
+- 影响范围：
+  - `src/ui/playground.ts` 删除手机端 `menu button + panel` 逻辑，改成顶部常驻 `新会话 / 技能 / 文件 / 文件库` 四按钮条
+  - 手机端布局重新收口为“顶部快捷操作 / 中间 transcript / 底部 composer”，不再为了展开菜单额外占用交互成本
+  - `test/server.test.ts` 更新断言，明确手机端是 action strip，不是折叠菜单
+  - `docs/playground-current.md` 更新当前手机端真实口径
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
 
 ### 云服务器更新方式确认规则
 - 主题：把“服务器更新前必须先确认增量更新还是整目录替换”上升到项目最高规则和部署 runbook，避免后续 agent 默认整目录替换把服务器本地状态一起覆盖。

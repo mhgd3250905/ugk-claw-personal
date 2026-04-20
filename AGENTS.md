@@ -39,6 +39,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`；当前公网入口是 `http://43.134.167.179:3000/playground`，sidecar GUI 只能走 SSH tunnel，不要开放公网 `3901`。
 - Windows host IPC fallback 仍保留，但只用于 legacy 本机调试和紧急排障。
 - 本阶段标准验证命令是 `npm test` 与 `npm run docker:chrome:check`。
+- `playground` 手机端已经单独重写成移动聊天页；后续 `/init` 如果接手前端，不要把手机端继续按桌面端压缩版理解，先看 `docs/playground-current.md`。
 
 ## 3. 全局验证规则
 
@@ -134,6 +135,11 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 服务器 `~/ugk-pi-claw` 是 tar 解包目录，不是 Git 仓库；打包在本机，部署在服务器。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
 
+如果这次 `/init` 还要接手 `playground` 前端，再记住两件事：
+
+- 手机端当前不是桌面端压缩版，而是独立收口过的移动展示层；先看 `docs/playground-current.md`，别上来就按桌面布局推断手机样式。
+- 手机端近期高频改动集中在 `src/ui/playground.ts` 的移动断点、`test/server.test.ts` 的页面断言，以及 `docs/playground-current.md` 的真实口径。
+
 ### B 场景：查聊天、会话、流式、打断
 
 - `GET /v1/chat/status`
@@ -223,6 +229,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。
+- `playground` 手机端当前采用“顶部四按钮条 / 中间 transcript / 底部 composer”结构；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
 - Docker 镜像已内置 `git`、`curl`、`ca-certificates` 与 `python3`，不要再把 `/bin/bash: git: command not found`、`/bin/bash: curl: command not found` 或 `python3: not found` 当成玄学问题。
 - `web-access` 默认真实浏览器链路走 Docker Chrome sidecar：`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223`；Windows host IPC fallback 仅保留给 legacy 本机调试和紧急排障。
 - 宿主浏览器和 sidecar Chrome 都不能直接依赖容器内 `file:///app/...`：用户可见文本要改写成 `PUBLIC_BASE_URL` 下的 `GET /v1/local-file?path=...`，sidecar 自动化要改写成 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 下的同一路由，真实文件交付优先走 `send_file`。
