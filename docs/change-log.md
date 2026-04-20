@@ -50,6 +50,25 @@
   - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
 
+### Playground 多前端终态一致性收口
+- 主题：把 `error` / `interrupted` 也收进 canonical conversation state，顺手修掉断流恢复误报失败和重复 prompt 被观察页吞掉的边界问题，别再让不同前端各看各的平行宇宙。
+- 影响范围：
+  - `src/agent/agent-service.ts` 新增 terminal run snapshot；active run 结束后会把 `error` / `interrupted` 终态短期保留给刷新页和观察页，不再随着 `activeRuns` 清理一起蒸发。
+  - `src/agent/agent-service.ts` 在 provider 失败时会先发 canonical `error` 事件，再抛给主流路由；主 `/v1/chat/stream` 和 `/v1/chat/events` 终于看到的是同一份失败语义，不再靠路由层偷偷补一条只有当前页能看到的 SSE。
+  - `src/routes/chat.ts` 的 `/v1/chat/events` 不再把“当前已经不在运行”硬翻译成 `error` 事件；这类情况直接收流，让前端优先信 `/v1/chat/state` 的最终状态。
+  - `src/ui/playground.ts` 断流恢复会先比较 canonical state 是否已经推进到终态；如果任务其实已经正常收口，就不再误报“流被中断 / 网络错误”。
+  - `src/agent/agent-service.ts` 在生成 `messages + activeRun` 视图时会剔除尾部那条与 `activeRun.input.message` 重复的历史 user message，避免连续两轮都发“继续”时观察页把当前输入吞掉。
+  - `src/types/api.ts` 给 `error` 事件补上 `conversationId`，让前端在失败收口时也能回源同步上下文占用和历史。
+  - `test/agent-service.test.ts`、`test/server.test.ts` 增加回归断言，覆盖 canonical error 终态、interrupt 终态语义、重复 prompt 观察页渲染，以及刷新恢复时不误报失败的页面脚本入口。
+- 对应入口：
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+  - [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground 历史恢复过滤内部 prompt 协议
 - 主题：修复刷新或重新打开 playground 后，从后端 session 恢复的用户历史消息会暴露 `<asset_reference_protocol>`、`<file_response_protocol>` 等内部 prompt 注入段的问题。
 - 影响范围：

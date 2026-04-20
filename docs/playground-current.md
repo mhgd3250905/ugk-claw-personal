@@ -112,9 +112,12 @@
 - 任务进行中必须在助手气泡下显示 loading 等待气泡，不能让用户猜 Agent 是运行、等待还是结束。
 - loading 气泡会跟随 Agent 事件切换文案：接手任务、调用工具、等待工具返回、生成回复、完成、打断或失败。
 - `done`、`interrupted`、`error` 都必须收口当前 loading 和过程日志，并同步释放前端 loading 状态。
+- `error` 与 `interrupted` 不再只是当前流页面里的临时视觉效果；它们也会以 terminal snapshot 形式进入 `GET /v1/chat/state` 的 canonical state，刷新页和观察页必须能看到同一份终态。
+- `interrupted` 的状态文案单独显示为“已打断”，不要再偷懒混成“已结束”；失败态继续明确显示“错误”。
 - 刷新恢复运行态时，页面文案统一使用“当前任务正在运行 / 当前正在运行”，不要再写“上一轮仍在运行”。
 - 手机浏览器前后台切换、页面 `visibilitychange`、`pageshow`、`online` 后都会重新核对 `agent:global` 的运行态和历史。
 - 如果 `/v1/chat/stream` 主连接因为前后台切换或网络短断结束，但 `GET /v1/chat/state` 仍显示后端任务运行中，页面会切到 `/v1/chat/events` 继续接收事件，不再提示“网络错误”并停止更新。
+- 如果 `/v1/chat/stream` 断开时任务其实已经刚好完成或失败，前端要先信 `GET /v1/chat/state` 的收口结果；只要 canonical state 已经推进到终态，就不应继续报“流被中断 / network error”。
 - 用户点击发送或把消息追加进运行中的会话后，composer 要立即清空，明确表示消息已经发出；如果请求在真正进入后端前失败，再把草稿恢复回输入区，不能让用户白丢内容
 
 ## 9. 排查顺序建议
@@ -153,11 +156,14 @@
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
 - `activeRun` 存在时，前端只渲染一个 active assistant 气泡；同一 run 不允许拆出多条“助手 / 思考过程”消息。
 - `activeRun.input.message` 用来补齐刷新观察者看到的当前用户任务；如果 session history 已经包含同一条用户消息，前端会避免重复渲染。
+- 这个“避免重复渲染”不能再只按文本相等拍脑袋；像连续两轮都发“继续”这种高频场景，后端会先把尾部重复的 active user message 从 `messages` 视图里剔掉，再由 `activeRun.input.message` 统一补当前输入。
 - `activeRun.process` 是后端维护的过程快照；前端不再把过程日志写回本地历史里的 `process` 字段，也不再从本地 process snapshot 恢复运行态。
 - 恢复运行态后，playground 会继续请求 `/v1/chat/events`，重新订阅当前 active run 的 SSE 事件流；后续 `text_delta`、工具事件、`done`、`interrupted`、`error` 继续更新同一个 active assistant 气泡。
 - 恢复态不再把任务称为“上一轮”；页面统一渲染为“当前任务正在运行 / 当前正在运行”，因为真实 agent run 并不会因为 web 刷新变成历史任务。
 - 恢复运行态下继续发送普通消息会进入 `/v1/chat/queue`，不会重新打开 `/v1/chat/stream` 去撞出 `Conversation ... is already running`。
 - 刷新、前后台切换或手机浏览器挂起导致的 `/v1/chat/stream` 暂态断线不算任务失败；只要 `GET /v1/chat/state` 仍显示 running，就切到 `/v1/chat/events` 继续追，不会再写入“网络 / network error”气泡。
+- `/v1/chat/events` 只负责续订同一 active run 的后续增量；如果回源时已经不在 running，不要把 `not_running` 当成失败广播给页面，真正的终态应由 `/v1/chat/state` 提供。
+- provider 真失败时，canonical `error` 事件会和 terminal snapshot 一起落到统一状态里；主流页面、观察页和刷新后的页面都应该看到同一份失败结果，而不是一个看见报错、另一个只看见任务蒸发。
 - 注意边界：本轮解决的是同一服务进程内 active run 的统一状态渲染；如果服务进程重启，实时过程日志仍需要持久化 run event log 才能跨进程完整回放。
 
 ## Context Usage Bar

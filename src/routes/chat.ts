@@ -260,10 +260,6 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			});
 
 			if (!subscription.running) {
-				writeSseEvent(reply.raw, {
-					type: "error",
-					message: `Conversation ${conversationId} is not running`,
-				});
 				closeStream();
 			}
 
@@ -346,10 +342,17 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				);
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "Unknown internal error";
-				writeSseEvent(reply.raw, {
-					type: "error",
-					message: messageText,
-				});
+				const streamEventAlreadyEmitted =
+					error instanceof Error &&
+					"chatStreamEventEmitted" in error &&
+					(error as Error & { chatStreamEventEmitted?: boolean }).chatStreamEventEmitted === true;
+				if (!streamEventAlreadyEmitted) {
+					writeSseEvent(reply.raw, {
+						type: "error",
+						conversationId: conversationId ?? "",
+						message: messageText,
+					});
+				}
 			} finally {
 				if (!reply.raw.destroyed && !reply.raw.writableEnded) {
 					reply.raw.end();

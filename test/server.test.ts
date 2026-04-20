@@ -819,6 +819,7 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
 	assert.match(response.body, /async function syncConversationRunState\(conversationId, options\)\s*\{/);
 	assert.match(response.body, /async function recoverRunningStreamAfterDisconnect\(reason\)\s*\{/);
+	assert.match(response.body, /function buildConversationStateSignature\(conversationState\)\s*\{/);
 	assert.doesNotMatch(response.body, /function formatRecoveredRunMessage\(\)\s*\{/);
 	assert.doesNotMatch(response.body, /function normalizeProcessSnapshot\(rawProcess\)\s*\{/);
 	assert.doesNotMatch(response.body, /function restoreProcessSnapshot\(entry, rendered, options\)\s*\{/);
@@ -833,6 +834,9 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /const liveRunState = await syncConversationRunState\(state\.conversationId, \{/);
 	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("missing_done"\);/);
 	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("network_error"\);/);
+	assert.match(response.body, /const previousSignature = buildConversationStateSignature\(state\.conversationState\);/);
+	assert.match(response.body, /const nextSignature = buildConversationStateSignature\(state\.conversationState\);/);
+	assert.match(response.body, /nextSignature !== previousSignature \|\| Boolean\(state\.conversationState\?\.activeRun\)/);
 	assert.match(response.body, /if \(!state\.pageUnloading && !handoffToRunEvents\) \{/);
 	assert.match(response.body, /document\.addEventListener\("visibilitychange"/);
 	assert.match(response.body, /window\.addEventListener\("pageshow"/);
@@ -840,6 +844,9 @@ test("GET /playground restores running conversations after refresh and avoids re
 		response.body,
 		/if \(liveRunState\.running\) \{[\s\S]*await queueActiveMessage\(outboundMessage, attachments, assetRefs, \{ composerDraft \}\);/,
 	);
+	assert.match(response.body, /activeRun\.status === "interrupted"[\s\S]*"已打断"/);
+	assert.match(response.body, /case "interrupted":[\s\S]*restoreConversationHistoryFromServer\(event\.conversationId\)/);
+	assert.match(response.body, /case "error":[\s\S]*restoreConversationHistoryFromServer\(event\.conversationId\)/);
 	assert.match(response.body, /async function interruptRun\(\)\s*\{[\s\S]*completeAssistantLoadingBubble\("warn", "本轮已中断"\);[\s\S]*setLoading\(false\);/);
 	await app.close();
 });

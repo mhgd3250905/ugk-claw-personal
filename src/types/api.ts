@@ -288,6 +288,7 @@ export type ChatStreamEvent =
 	  }
 	| {
 			type: "error";
+			conversationId: string;
 			message: string;
 	  };
 

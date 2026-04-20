@@ -795,6 +795,59 @@ test("getConversationState exposes the active run snapshot for refresh observers
 	assert.equal(finishedState.activeRun, null);
 });
 
+test("getConversationState hides the current active input from persisted history so repeated prompts still render on observer pages", async () => {
+	const store = await createStore();
+	const activeSession = new DeferredSession("E:/sessions/repeat.jsonl");
+	activeSession.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("继续"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "上一轮回复" }],
+			stopReason: "stop",
+		} as never,
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("继续"),
+		} as never,
+	);
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:repeat",
+			message: "继续",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+
+	const state = await (
+		service as AgentService & {
+			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+		}
+	).getConversationState("manual:repeat");
+
+	assert.equal(state.running, true);
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "继续" },
+			{ kind: "assistant", text: "上一轮回复" },
+		],
+	);
+	assert.equal(state.activeRun?.input?.message, "继续");
+
+	activeSession.finish();
+	await run;
+});
+
 test("getConversationHistory returns the original user text without internal prompt protocols", async () => {
 	const store = await createStore();
 	await store.set("manual:history-clean", "E:/sessions/history-clean.jsonl");
@@ -998,7 +1051,51 @@ test("interruptChat aborts the active session and reports interruption to the st
 	assert.equal(activeSession.abortCalls, 1);
 	await run;
 	assert.equal(events.some((event) => event.type === "interrupted"), true);
-	assert.equal(events.at(-1)?.type, "done");
+	assert.equal(events.at(-1)?.type, "interrupted");
+	const state = await (
+		service as AgentService & {
+			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+		}
+	).getConversationState("manual:interrupt");
+	assert.equal(state.running, false);
+	assert.equal(state.activeRun?.status, "interrupted");
+	assert.equal(state.activeRun?.loading, false);
+});
+
+test("streamChat emits a canonical error event and keeps a terminal error snapshot for refresh observers", async () => {
+	const store = await createStore();
+	const factory = new FakeAgentSessionFactory(
+		() => new FakeSession("E:/sessions/error-stream.jsonl", [], undefined, "401 invalid access token"),
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	const events: Array<Record<string, unknown>> = [];
+
+	await assert.rejects(
+		() =>
+			service.streamChat(
+				{
+					conversationId: "manual:error-stream",
+					message: "触发 provider 错误",
+				},
+				(event) => events.push(event as unknown as Record<string, unknown>),
+			),
+		/401 invalid access token/,
+	);
+
+	assert.deepEqual(events.at(-1), {
+		type: "error",
+		conversationId: "manual:error-stream",
+		message: "401 invalid access token",
+	});
+	const state = await (
+		service as AgentService & {
+			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+		}
+	).getConversationState("manual:error-stream");
+	assert.equal(state.running, false);
+	assert.equal(state.activeRun?.status, "error");
+	assert.equal(state.activeRun?.loading, false);
+	assert.equal(state.activeRun?.process?.isComplete, true);
 });
 
 test("queueMessage reports inactive conversations without creating a session", async () => {

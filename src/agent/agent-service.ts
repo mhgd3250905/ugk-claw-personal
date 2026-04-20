@@ -135,10 +135,15 @@ interface ActiveRunState {
 	view: ChatActiveRunBody;
 }
 
+interface TerminalRunState {
+	view: ChatActiveRunBody;
+}
+
 const MAX_BUFFERED_RUN_EVENTS = 300;
 
 export class AgentService {
 	private readonly activeRuns = new Map<string, ActiveRunState>();
+	private readonly terminalRuns = new Map<string, TerminalRunState>();
 
 	constructor(private readonly options: AgentServiceOptions) {}
 
@@ -220,6 +225,7 @@ export class AgentService {
 			};
 		}
 
+		this.terminalRuns.delete(input.conversationId);
 		await this.options.conversationStore.delete(input.conversationId);
 		return {
 			conversationId: input.conversationId,
@@ -257,23 +263,34 @@ export class AgentService {
 
 	async getConversationState(conversationId: string): Promise<ConversationStateResult> {
 		const activeRun = this.activeRuns.get(conversationId);
+		const terminalRun = activeRun ? undefined : this.terminalRuns.get(conversationId);
+		const existingConversation = await this.options.conversationStore.get(conversationId);
 		const session = await this.getContextSession(conversationId);
 		const modelContext = this.getDefaultModelContext();
 		const contextUsage = buildContextUsageSnapshot(
 			modelContext,
 			((session?.messages as AgentMessageLike[] | undefined) ?? []),
 		);
-		const messages = ((session?.messages as AgentMessageLike[] | undefined) ?? [])
-			.map((message, index) => this.toConversationHistoryMessage(message, index))
-			.filter((message): message is ConversationHistoryMessage => Boolean(message));
+		const messages = this.buildConversationHistoryMessages(
+			((session?.messages as AgentMessageLike[] | undefined) ?? []),
+			activeRun?.view,
+		);
 
 		return {
 			conversationId,
 			running: Boolean(activeRun),
 			contextUsage,
 			messages,
-			activeRun: activeRun ? cloneActiveRunView(activeRun.view) : null,
-			updatedAt: activeRun?.view.updatedAt ?? new Date().toISOString(),
+			activeRun: activeRun
+				? cloneActiveRunView(activeRun.view)
+				: terminalRun
+					? cloneActiveRunView(terminalRun.view)
+					: null,
+			updatedAt:
+				activeRun?.view.updatedAt ??
+				terminalRun?.view.updatedAt ??
+				existingConversation?.updatedAt ??
+				new Date(0).toISOString(),
 		};
 	}
 
@@ -320,6 +337,7 @@ export class AgentService {
 		if (this.activeRuns.has(conversationId)) {
 			throw new Error(`Conversation ${conversationId} is already running`);
 		}
+		this.terminalRuns.delete(conversationId);
 		const activeRun = {
 			session,
 			interrupted: false,
@@ -414,6 +432,13 @@ export class AgentService {
 					type: "interrupted",
 					conversationId,
 				});
+				return {
+					conversationId,
+					text,
+					sessionFile: session.sessionFile,
+					inputAssets: preparedAssets.uploadedAssets.length > 0 ? preparedAssets.uploadedAssets : undefined,
+					files: files && files.length > 0 ? files : undefined,
+				};
 			}
 
 			const result: ChatResult = {
@@ -439,10 +464,31 @@ export class AgentService {
 			this.emitRunEvent(activeRun, onEvent, doneEvent);
 
 			return result;
+		} catch (error) {
+			const normalizedError = toError(error);
+			this.emitRunEvent(activeRun, onEvent, {
+				type: "error",
+				conversationId,
+				message: normalizedError.message,
+			});
+			(normalizedError as Error & { chatStreamEventEmitted?: boolean }).chatStreamEventEmitted = true;
+			throw normalizedError;
 		} finally {
 			unsubscribe();
+			if (session.sessionFile) {
+				await this.options.conversationStore.set(conversationId, session.sessionFile, {
+					skillFingerprint,
+				});
+			}
 			if (this.activeRuns.get(conversationId) === activeRun) {
 				this.activeRuns.delete(conversationId);
+			}
+			if (shouldPersistTerminalRun(activeRun.view)) {
+				this.terminalRuns.set(conversationId, {
+					view: cloneActiveRunView(activeRun.view),
+				});
+			} else {
+				this.terminalRuns.delete(conversationId);
 			}
 			activeRun.subscribers.clear();
 		}
@@ -785,6 +831,21 @@ export class AgentService {
 			.join("");
 	}
 
+	private buildConversationHistoryMessages(
+		messages: readonly AgentMessageLike[],
+		activeRunView?: ChatActiveRunBody,
+	): ConversationHistoryMessage[] {
+		const normalizedMessages = messages
+			.map((message, index) => this.toConversationHistoryMessage(message, index))
+			.filter((message): message is ConversationHistoryMessage => Boolean(message));
+
+		if (!activeRunView?.loading) {
+			return normalizedMessages;
+		}
+
+		return omitTrailingActiveUserMessage(normalizedMessages, activeRunView.input.message);
+	}
+
 	private toConversationHistoryMessage(
 		message: AgentMessageLike,
 		index: number,
@@ -1043,4 +1104,29 @@ function isQueueUpdateEvent(event: RawAgentSessionEventLike): event is QueueUpda
 
 function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
 	return event.type === "done" || event.type === "interrupted" || event.type === "error";
+}
+
+function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {
+	return view.status === "error" || view.status === "interrupted";
+}
+
+function omitTrailingActiveUserMessage(
+	messages: ConversationHistoryMessage[],
+	activeInputMessage: string,
+): ConversationHistoryMessage[] {
+	const normalizedInput = activeInputMessage.trim();
+	if (!normalizedInput) {
+		return messages;
+	}
+
+	const lastMessage = messages.at(-1);
+	if (lastMessage?.kind !== "user") {
+		return messages;
+	}
+
+	return lastMessage.text.trim() === normalizedInput ? messages.slice(0, -1) : messages;
+}
+
+function toError(error: unknown): Error {
+	return error instanceof Error ? error : new Error("Unknown internal error");
 }

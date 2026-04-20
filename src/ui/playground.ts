@@ -3563,7 +3563,12 @@ function getPlaygroundScript(): string {
 				statusPill.textContent = "运行中";
 			} else {
 				setLoading(false);
-				statusPill.textContent = activeRun.status === "error" ? "错误" : "已结束";
+				statusPill.textContent =
+					activeRun.status === "error"
+						? "错误"
+						: activeRun.status === "interrupted"
+							? "已打断"
+							: "已结束";
 			}
 			syncHistoryLoadMoreButton();
 			scrollTranscriptToBottom({ force: true });
@@ -3751,6 +3756,22 @@ function getPlaygroundScript(): string {
 			};
 		}
 
+		function buildConversationStateSignature(conversationState) {
+			const source = conversationState && typeof conversationState === "object" ? conversationState : {};
+			const messages = Array.isArray(source.messages) ? source.messages : [];
+			const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+			const activeRun = normalizeActiveRun(source.activeRun);
+			return JSON.stringify({
+				updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : "",
+				running: Boolean(source.running),
+				messageCount: messages.length,
+				lastMessageId: lastMessage && typeof lastMessage.id === "string" ? lastMessage.id : "",
+				lastMessageText: lastMessage && typeof lastMessage.text === "string" ? lastMessage.text : "",
+				activeRunStatus: activeRun ? activeRun.status : "",
+				activeRunText: activeRun ? activeRun.text : "",
+			});
+		}
+
 		function formatProcessViewEntry(entry) {
 			const subject = entry.toolName ? entry.title + " · " + entry.toolName : entry.title;
 			return entry.detail ? subject + "\\n" + entry.detail : subject;
@@ -3787,12 +3808,22 @@ function getPlaygroundScript(): string {
 				return false;
 			}
 
+			const previousSignature = buildConversationStateSignature(state.conversationState);
 			const payload = await syncConversationRunState(state.conversationId, {
 				silent: true,
 				clearIfIdle: false,
 			});
 			if (!payload.running) {
-				return false;
+				const nextSignature = buildConversationStateSignature(state.conversationState);
+				const canonicalStateSettled =
+					nextSignature !== previousSignature || Boolean(state.conversationState?.activeRun);
+				if (!canonicalStateSettled) {
+					return false;
+				}
+
+				clearError();
+				setLoading(false);
+				return true;
 			}
 
 			clearError();
@@ -5329,6 +5360,7 @@ function getPlaygroundScript(): string {
 					setLoading(false);
 					statusPill.textContent = "已打断";
 					void syncContextUsage(event.conversationId, { silent: true });
+					void restoreConversationHistoryFromServer(event.conversationId);
 					break;
 				case "text_delta": {
 					state.streamingText += event.textDelta;
@@ -5364,7 +5396,8 @@ function getPlaygroundScript(): string {
 					completeAssistantLoadingBubble("error", "本轮执行失败");
 					completeProcessStream();
 					setLoading(false);
-					void syncContextUsage(state.conversationId, { silent: true });
+					void syncContextUsage(event.conversationId, { silent: true });
+					void restoreConversationHistoryFromServer(event.conversationId);
 					break;
 				default:
 					updateStreamingProcess("system", "事件", JSON.stringify(event));
