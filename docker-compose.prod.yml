@@ -58,7 +58,7 @@ services:
       - seccomp:unconfined
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "/usr/local/bin/ensure-sidecar-chrome.sh"]
+      test: ["CMD-SHELL", "sh /usr/local/bin/ensure-sidecar-chrome.sh"]
       interval: 15s
       timeout: 10s
       retries: 6
