@@ -153,6 +153,39 @@ export interface ChatHistoryResponseBody {
 	messages: ChatHistoryMessageBody[];
 }
 
+export interface ConversationCatalogItemBody {
+	conversationId: string;
+	title: string;
+	preview: string;
+	messageCount: number;
+	createdAt: string;
+	updatedAt: string;
+	running: boolean;
+}
+
+export interface ConversationCatalogResponseBody {
+	currentConversationId: string;
+	conversations: ConversationCatalogItemBody[];
+}
+
+export interface CreateConversationResponseBody {
+	conversationId: string;
+	currentConversationId: string;
+	created: boolean;
+	reason?: "running";
+}
+
+export interface SwitchConversationRequestBody {
+	conversationId: string;
+}
+
+export interface SwitchConversationResponseBody {
+	conversationId: string;
+	currentConversationId: string;
+	switched: boolean;
+	reason?: "running" | "not_found";
+}
+
 export interface ChatProcessEntryBody {
 	id: string;
 	kind: "system" | "tool" | "ok" | "error";

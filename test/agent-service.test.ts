@@ -333,10 +333,11 @@ test("creates a new conversation, prompts the session, and persists the session 
 	assert.equal(result.sessionFile, "E:/sessions/new.jsonl");
 	assert.deepEqual(factory.calls, [{ conversationId: result.conversationId, sessionFile: undefined }]);
 	assert.deepEqual(factory.calls.length, 1);
-	assert.deepEqual(await store.get(result.conversationId), {
-		sessionFile: "E:/sessions/new.jsonl",
-		updatedAt: (await store.get(result.conversationId))?.updatedAt,
-	});
+	const storedConversation = await store.get(result.conversationId);
+	assert.equal(storedConversation?.sessionFile, "E:/sessions/new.jsonl");
+	assert.equal(storedConversation?.title, "新会话");
+	assert.equal(storedConversation?.preview, "");
+	assert.equal(storedConversation?.messageCount, 0);
 });
 
 test("chat includes uploaded file attachments in the session prompt", async () => {
@@ -914,6 +915,112 @@ test("resetConversation clears the persisted conversation state when no run is a
 	assert.deepEqual(state.messages, []);
 });
 
+test("createConversation creates and activates a new empty conversation when idle", async () => {
+	const store = await createStore();
+	const factory = new FakeAgentSessionFactory(() => new FakeSession(undefined, []));
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory }) as AgentService & {
+		createConversation(): Promise<{ conversationId: string; currentConversationId: string; created: boolean; reason?: string }>;
+		getConversationCatalog(): Promise<{ currentConversationId: string; conversations: Array<{ conversationId: string }> }>;
+	};
+
+	const result = await service.createConversation();
+
+	assert.equal(result.created, true);
+	assert.equal(result.conversationId, result.currentConversationId);
+	assert.match(result.conversationId, /^manual:/);
+	assert.equal(await store.getCurrentConversationId(), result.conversationId);
+	const catalog = await service.getConversationCatalog();
+	assert.equal(catalog.currentConversationId, result.conversationId);
+	assert.equal(catalog.conversations[0]?.conversationId, result.conversationId);
+});
+
+test("switchConversation activates an existing conversation when idle", async () => {
+	const store = await createStore();
+	await store.set("manual:older", "E:/sessions/older.jsonl");
+	await store.set("manual:newer", "E:/sessions/newer.jsonl");
+	await store.setCurrentConversationId("manual:newer");
+	const factory = new FakeAgentSessionFactory(() => new FakeSession(undefined, []));
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory }) as AgentService & {
+		switchConversation(conversationId: string): Promise<{
+			conversationId: string;
+			currentConversationId: string;
+			switched: boolean;
+			reason?: string;
+		}>;
+	};
+
+	const result = await service.switchConversation("manual:older");
+
+	assert.deepEqual(result, {
+		conversationId: "manual:older",
+		currentConversationId: "manual:older",
+		switched: true,
+	});
+	assert.equal(await store.getCurrentConversationId(), "manual:older");
+});
+
+test("createConversation refuses to switch lines while any run is active", async () => {
+	const store = await createStore();
+	await store.setCurrentConversationId("manual:busy");
+	const activeSession = new DeferredSession("E:/sessions/busy.jsonl");
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory }) as AgentService & {
+		createConversation(): Promise<{ conversationId: string; currentConversationId: string; created: boolean; reason?: string }>;
+	};
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:busy",
+			message: "start",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+
+	const result = await service.createConversation();
+
+	assert.deepEqual(result, {
+		conversationId: "manual:busy",
+		currentConversationId: "manual:busy",
+		created: false,
+		reason: "running",
+	});
+
+	activeSession.finish();
+	await run;
+});
+
+test("streamChat blocks starting another conversation while one line is already running", async () => {
+	const store = await createStore();
+	const activeSession = new DeferredSession("E:/sessions/line-1.jsonl");
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:line-1",
+			message: "start",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+
+	await assert.rejects(
+		() =>
+			service.streamChat(
+				{
+					conversationId: "manual:line-2",
+					message: "should wait",
+				},
+				() => undefined,
+			),
+		/Another conversation is already running/,
+	);
+
+	activeSession.finish();
+	await run;
+});
+
 test("subscribeRunEvents replays buffered events and keeps streaming live active run updates", async () => {
 	const store = await createStore();
 	const activeSession = new DeferredSession("E:/sessions/reattach.jsonl");
@@ -1335,10 +1442,11 @@ test("streamChat emits process events and final result while persisting the sess
 		text: "STREAM_TEXT",
 		sessionFile: "E:/sessions/stream.jsonl",
 	});
-	assert.deepEqual(await store.get("manual:stream"), {
-		sessionFile: "E:/sessions/stream.jsonl",
-		updatedAt: (await store.get("manual:stream"))?.updatedAt,
-	});
+	const storedConversation = await store.get("manual:stream");
+	assert.equal(storedConversation?.sessionFile, "E:/sessions/stream.jsonl");
+	assert.equal(storedConversation?.title, "新会话");
+	assert.equal(storedConversation?.preview, "");
+	assert.equal(storedConversation?.messageCount, 0);
 });
 
 test("streamChat ignores event sink failures so disconnected clients do not kill the run", async () => {
@@ -1375,10 +1483,11 @@ test("streamChat ignores event sink failures so disconnected clients do not kill
 		),
 	);
 
-	assert.deepEqual(await store.get("manual:disconnected"), {
-		sessionFile: "E:/sessions/disconnected.jsonl",
-		updatedAt: (await store.get("manual:disconnected"))?.updatedAt,
-	});
+	const storedConversation = await store.get("manual:disconnected");
+	assert.equal(storedConversation?.sessionFile, "E:/sessions/disconnected.jsonl");
+	assert.equal(storedConversation?.title, "新会话");
+	assert.equal(storedConversation?.preview, "still running");
+	assert.equal(storedConversation?.messageCount, 1);
 });
 
 test("streamChat strips null characters and extracts readable text from tool results", async () => {
@@ -1443,9 +1552,10 @@ test("does not reuse an existing session when the skill fingerprint changes", as
 
 	assert.equal(result.sessionFile, "E:/sessions/new-after-skill-change.jsonl");
 	assert.deepEqual(factory.calls, [{ conversationId: "manual:existing", sessionFile: undefined }]);
-	assert.deepEqual(await store.get("manual:existing"), {
-		sessionFile: "E:/sessions/new-after-skill-change.jsonl",
-		updatedAt: (await store.get("manual:existing"))?.updatedAt,
-		skillFingerprint: "skills-v2",
-	});
+	const storedConversation = await store.get("manual:existing");
+	assert.equal(storedConversation?.sessionFile, "E:/sessions/new-after-skill-change.jsonl");
+	assert.equal(storedConversation?.skillFingerprint, "skills-v2");
+	assert.equal(storedConversation?.title, "新会话");
+	assert.equal(storedConversation?.preview, "");
+	assert.equal(storedConversation?.messageCount, 0);
 });

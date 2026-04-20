@@ -184,6 +184,19 @@ function getPlaygroundStyles(): string {
 			align-items: center;
 			gap: 10px;
 			min-width: 0;
+			padding: 0;
+			border: 0;
+			background: transparent;
+			box-shadow: none;
+			text-align: left;
+		}
+
+		.mobile-brand:hover:not(:disabled),
+		.mobile-brand:focus-visible {
+			border-color: transparent;
+			background: transparent;
+			box-shadow: none;
+			transform: none;
 		}
 
 		.mobile-brand-logo {
@@ -305,6 +318,144 @@ function getPlaygroundStyles(): string {
 			width: 18px;
 			height: 18px;
 			stroke: currentColor;
+		}
+
+		.mobile-drawer-backdrop {
+			position: fixed;
+			inset: 0;
+			z-index: 30;
+			background: rgba(2, 4, 10, 0.58);
+			backdrop-filter: blur(10px);
+		}
+
+		.mobile-drawer-backdrop[hidden],
+		.mobile-conversation-drawer[hidden] {
+			display: none !important;
+		}
+
+		.mobile-conversation-drawer {
+			position: fixed;
+			top: 0;
+			left: 0;
+			z-index: 31;
+			display: grid;
+			grid-template-rows: auto minmax(0, 1fr);
+			width: min(82vw, 320px);
+			height: 100dvh;
+			padding: calc(18px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom));
+			border-right: 1px solid rgba(201, 210, 255, 0.14);
+			background:
+				radial-gradient(circle at 22% 12%, rgba(116, 179, 255, 0.16), transparent 34%),
+				linear-gradient(180deg, rgba(11, 15, 27, 0.98), rgba(5, 7, 13, 0.99));
+			box-shadow: 22px 0 46px rgba(0, 0, 0, 0.42);
+		}
+
+		.mobile-drawer-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding-bottom: 14px;
+		}
+
+		.mobile-drawer-title {
+			display: grid;
+			gap: 3px;
+		}
+
+		.mobile-drawer-title strong {
+			color: #f5f8ff;
+			font-size: 15px;
+			letter-spacing: 0.04em;
+		}
+
+		.mobile-drawer-title span {
+			color: rgba(222, 230, 255, 0.58);
+			font-size: 11px;
+		}
+
+		.mobile-drawer-close {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 34px;
+			height: 34px;
+			padding: 0;
+		}
+
+		.mobile-conversation-list {
+			display: grid;
+			align-content: start;
+			gap: 8px;
+			min-height: 0;
+			overflow: auto;
+			padding-right: 2px;
+		}
+
+		.mobile-conversation-empty {
+			padding: 14px;
+			border: 1px dashed rgba(201, 210, 255, 0.16);
+			border-radius: 14px;
+			color: rgba(226, 234, 255, 0.58);
+			font-size: 12px;
+			line-height: 1.6;
+		}
+
+		.mobile-conversation-item {
+			display: grid;
+			gap: 5px;
+			width: 100%;
+			padding: 11px 12px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 14px;
+			background: rgba(255, 255, 255, 0.035);
+			box-shadow: none;
+			text-align: left;
+		}
+
+		.mobile-conversation-item:hover:not(:disabled),
+		.mobile-conversation-item:focus-visible {
+			border-color: rgba(201, 210, 255, 0.2);
+			background: rgba(255, 255, 255, 0.07);
+			transform: none;
+		}
+
+		.mobile-conversation-item.is-active {
+			border-color: rgba(101, 209, 255, 0.36);
+			background: rgba(101, 209, 255, 0.1);
+		}
+
+		.mobile-conversation-item:disabled {
+			cursor: not-allowed;
+			opacity: 0.58;
+		}
+
+		.mobile-conversation-title {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: rgba(246, 249, 255, 0.94);
+			font-size: 13px;
+			font-weight: 650;
+		}
+
+		.mobile-conversation-preview {
+			display: -webkit-box;
+			overflow: hidden;
+			color: rgba(226, 234, 255, 0.58);
+			font-size: 11px;
+			line-height: 1.35;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+		}
+
+		.mobile-conversation-meta {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			color: rgba(226, 234, 255, 0.42);
+			font-size: 10px;
 		}
 
 		.status-row {
@@ -2886,7 +3037,6 @@ function getPlaygroundScript(): string {
 		${getBrowserMarkdownRendererScript()}
 
 		const CONVERSATION_HISTORY_INDEX_KEY = "ugk-pi:conversation-history-index";
-		const GLOBAL_CONVERSATION_ID = "agent:global";
 		const TRANSCRIPT_FOLLOW_THRESHOLD_PX = 120;
 		const MAX_STORED_CONVERSATIONS = 12;
 		const MAX_STORED_MESSAGES_PER_CONVERSATION = 160;
@@ -2904,7 +3054,7 @@ function getPlaygroundScript(): string {
 		const state = {
 			loading: false,
 			stageMode: "landing",
-			conversationId: GLOBAL_CONVERSATION_ID,
+			conversationId: "",
 			streamingText: "",
 			activeAssistantContent: null,
 			activeLoadingShell: null,
@@ -2924,6 +3074,9 @@ function getPlaygroundScript(): string {
 			dragDepth: 0,
 			assetModalOpen: false,
 			mobileOverflowMenuOpen: false,
+			mobileConversationDrawerOpen: false,
+			conversationCatalog: [],
+			conversationCatalogSyncing: false,
 			conversationState: null,
 			conversationHistory: [],
 			renderedHistoryCount: 0,
@@ -2980,12 +3133,17 @@ function getPlaygroundScript(): string {
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
 		const mobileTopbar = document.getElementById("mobile-topbar");
+		const mobileBrandButton = document.getElementById("mobile-brand-button");
 		const mobileNewConversationButton = document.getElementById("mobile-new-conversation-button");
 		const mobileOverflowMenuButton = document.getElementById("mobile-overflow-menu-button");
 		const mobileOverflowMenu = document.getElementById("mobile-overflow-menu");
 		const mobileMenuSkillsButton = document.getElementById("mobile-menu-skills-button");
 		const mobileMenuFileButton = document.getElementById("mobile-menu-file-button");
 		const mobileMenuLibraryButton = document.getElementById("mobile-menu-library-button");
+		const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
+		const mobileConversationDrawer = document.getElementById("mobile-conversation-drawer");
+		const mobileConversationList = document.getElementById("mobile-conversation-list");
+		const mobileDrawerCloseButton = document.getElementById("mobile-drawer-close-button");
 		const statusPill = document.getElementById("status-pill");
 		const commandStatus = document.getElementById("command-status");
 
@@ -3002,10 +3160,6 @@ function getPlaygroundScript(): string {
 				return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 			}
 			return Date.now().toString(36) + Math.random().toString(36).slice(2);
-		}
-
-		function createConversationId() {
-			return GLOBAL_CONVERSATION_ID;
 		}
 
 		function formatTokenCount(value) {
@@ -3299,8 +3453,11 @@ function getPlaygroundScript(): string {
 
 		function ensureConversationId() {
 			const previousConversationId = state.conversationId;
-			conversationInput.value = GLOBAL_CONVERSATION_ID;
-			state.conversationId = GLOBAL_CONVERSATION_ID;
+			if (!state.conversationId) {
+				const currentCatalogItem = state.conversationCatalog.find((item) => item.conversationId);
+				state.conversationId = currentCatalogItem?.conversationId || "";
+			}
+			conversationInput.value = state.conversationId;
 			if (state.conversationId && state.conversationId !== previousConversationId) {
 				void syncContextUsage(state.conversationId, { silent: true });
 			}
@@ -3344,6 +3501,70 @@ function getPlaygroundScript(): string {
 			setMobileOverflowMenuOpen(false);
 		}
 
+		function setMobileConversationDrawerOpen(next) {
+			state.mobileConversationDrawerOpen = Boolean(next);
+			mobileDrawerBackdrop.hidden = !state.mobileConversationDrawerOpen;
+			mobileConversationDrawer.hidden = !state.mobileConversationDrawerOpen;
+			mobileBrandButton.setAttribute("aria-expanded", state.mobileConversationDrawerOpen ? "true" : "false");
+			if (state.mobileConversationDrawerOpen) {
+				closeMobileOverflowMenu();
+				renderConversationDrawer();
+			}
+		}
+
+		function closeMobileConversationDrawer() {
+			setMobileConversationDrawerOpen(false);
+		}
+
+		function formatConversationTime(value) {
+			const date = new Date(value || 0);
+			if (!Number.isFinite(date.getTime())) {
+				return "未知";
+			}
+			return date.toLocaleString("zh-CN", {
+				month: "2-digit",
+				day: "2-digit",
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+		}
+
+		function renderConversationDrawer() {
+			mobileConversationList.innerHTML = "";
+			const catalog = Array.isArray(state.conversationCatalog) ? state.conversationCatalog : [];
+			if (catalog.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "mobile-conversation-empty";
+				empty.textContent = "还没有历史会话。点右上角新会话后，这里会出现新的产线。";
+				mobileConversationList.appendChild(empty);
+				return;
+			}
+
+			for (const item of catalog) {
+				const button = document.createElement("button");
+				button.type = "button";
+				button.className = "mobile-conversation-item";
+				button.dataset.conversationId = item.conversationId;
+				if (item.conversationId === state.conversationId) {
+					button.classList.add("is-active");
+				}
+				button.disabled = state.loading || item.conversationId === state.conversationId;
+				button.innerHTML =
+					'<span class="mobile-conversation-title"></span>' +
+					'<span class="mobile-conversation-preview"></span>' +
+					'<span class="mobile-conversation-meta"><span></span><span></span></span>';
+				button.querySelector(".mobile-conversation-title").textContent = item.title || "新会话";
+				button.querySelector(".mobile-conversation-preview").textContent = item.preview || "暂无摘要";
+				const metaNodes = button.querySelectorAll(".mobile-conversation-meta span");
+				metaNodes[0].textContent = item.running ? "运行中" : formatConversationTime(item.updatedAt);
+				metaNodes[1].textContent = item.messageCount + " 条";
+				button.addEventListener("click", () => {
+					void selectConversationFromDrawer(item.conversationId);
+				});
+				mobileConversationList.appendChild(button);
+			}
+		}
+
 		function setLoading(next) {
 			state.loading = next;
 			sendButton.disabled = false;
@@ -3364,6 +3585,7 @@ function getPlaygroundScript(): string {
 			refreshAssetsButton.disabled = next;
 			if (next) {
 				closeMobileOverflowMenu();
+				renderConversationDrawer();
 			}
 			setCommandStatus(next ? "RUNNING" : "STANDBY");
 			statusPill.textContent = next ? "运行中" : "就绪";
@@ -3464,17 +3686,69 @@ function getPlaygroundScript(): string {
 			};
 		}
 
-		async function requestFreshConversation(conversationId) {
-			const nextConversationId = String(conversationId || "").trim();
-			if (!nextConversationId) {
-				return {
-					conversationId: "",
-					reset: false,
-					reason: "running",
-				};
+		function normalizeConversationCatalogItem(item) {
+			const conversationId = String(item?.conversationId || "").trim();
+			if (!conversationId) {
+				return null;
 			}
 
-			const response = await fetch("/v1/chat/reset", {
+			return {
+				conversationId,
+				title: String(item?.title || "新会话").trim() || "新会话",
+				preview: String(item?.preview || "").trim(),
+				messageCount: Number.isFinite(item?.messageCount) ? Math.max(0, Number(item.messageCount)) : 0,
+				createdAt: typeof item?.createdAt === "string" ? item.createdAt : new Date(0).toISOString(),
+				updatedAt: typeof item?.updatedAt === "string" ? item.updatedAt : new Date(0).toISOString(),
+				running: Boolean(item?.running),
+			};
+		}
+
+		async function fetchConversationCatalog() {
+			const response = await fetch("/v1/chat/conversations", {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法获取会话列表";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				currentConversationId: String(payload?.currentConversationId || "").trim(),
+				conversations: Array.isArray(payload?.conversations)
+					? payload.conversations.map(normalizeConversationCatalogItem).filter(Boolean)
+					: [],
+			};
+		}
+
+		async function createConversationOnServer() {
+			const requestOptions = {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					accept: "application/json",
+				},
+				body: JSON.stringify({}),
+			};
+			const response = await fetch("/v1/chat/conversations", requestOptions);
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法开启新会话";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				conversationId: String(payload?.conversationId || "").trim(),
+				currentConversationId: String(payload?.currentConversationId || payload?.conversationId || "").trim(),
+				created: payload?.created === true,
+				reason: typeof payload?.reason === "string" ? payload.reason : undefined,
+			};
+		}
+
+		async function switchConversationOnServer(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			const response = await fetch("/v1/chat/current", {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
@@ -3486,13 +3760,14 @@ function getPlaygroundScript(): string {
 			});
 			const payload = await response.json().catch(() => ({}));
 			if (!response.ok) {
-				const errorMessage = payload?.error?.message || payload?.message || "无法开启新会话";
+				const errorMessage = payload?.error?.message || payload?.message || "无法切换会话";
 				throw new Error(errorMessage);
 			}
 
 			return {
-				conversationId: payload?.conversationId || nextConversationId,
-				reset: payload?.reset === true,
+				conversationId: String(payload?.conversationId || nextConversationId).trim(),
+				currentConversationId: String(payload?.currentConversationId || payload?.conversationId || nextConversationId).trim(),
+				switched: payload?.switched === true,
 				reason: typeof payload?.reason === "string" ? payload.reason : undefined,
 			};
 		}
@@ -3686,6 +3961,147 @@ function getPlaygroundScript(): string {
 			}
 			syncHistoryLoadMoreButton();
 			scrollTranscriptToBottom({ force: true });
+		}
+
+		function applyConversationCatalog(payload) {
+			const currentConversationId = String(payload?.currentConversationId || "").trim();
+			state.conversationCatalog = Array.isArray(payload?.conversations)
+				? payload.conversations.map(normalizeConversationCatalogItem).filter(Boolean)
+				: [];
+			if (currentConversationId && !state.conversationCatalog.some((item) => item.conversationId === currentConversationId)) {
+				state.conversationCatalog.unshift({
+					conversationId: currentConversationId,
+					title: "新会话",
+					preview: "",
+					messageCount: 0,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+					running: false,
+				});
+			}
+			renderConversationDrawer();
+			return currentConversationId;
+		}
+
+		async function syncConversationCatalog(options) {
+			if (state.conversationCatalogSyncing) {
+				return {
+					currentConversationId: state.conversationId,
+					conversations: state.conversationCatalog,
+				};
+			}
+
+			state.conversationCatalogSyncing = true;
+			try {
+				const payload = await fetchConversationCatalog();
+				const currentConversationId = applyConversationCatalog(payload);
+				if (currentConversationId && options?.activateCurrent !== false && currentConversationId !== state.conversationId) {
+					await activateConversation(currentConversationId, {
+						silent: options?.silent,
+						skipCatalogSync: true,
+						skipServerSwitch: true,
+					});
+				}
+				return {
+					currentConversationId: currentConversationId || state.conversationId,
+					conversations: state.conversationCatalog,
+				};
+			} catch (error) {
+				if (!options?.silent) {
+					const messageText = error instanceof Error ? error.message : "无法同步会话列表";
+					showError(messageText);
+				}
+				return {
+					currentConversationId: state.conversationId,
+					conversations: state.conversationCatalog,
+				};
+			} finally {
+				state.conversationCatalogSyncing = false;
+			}
+		}
+
+		async function ensureCurrentConversation(options) {
+			const catalog = await syncConversationCatalog({
+				silent: options?.silent,
+				activateCurrent: false,
+			});
+			const currentConversationId = String(catalog.currentConversationId || state.conversationId || "").trim();
+			if (!currentConversationId) {
+				return "";
+			}
+			if (options?.activate !== false && currentConversationId !== state.conversationId) {
+				await activateConversation(currentConversationId, {
+					silent: options?.silent,
+					skipCatalogSync: true,
+					skipServerSwitch: true,
+				});
+			}
+			return currentConversationId;
+		}
+
+		async function activateConversation(conversationId, options) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId) {
+				return false;
+			}
+			if (state.loading && nextConversationId !== state.conversationId) {
+				if (!options?.silent) {
+					showError("当前任务未结束，不能切换产线");
+				}
+				return false;
+			}
+
+			stopActiveRunEventStream();
+			state.conversationId = nextConversationId;
+			conversationInput.value = nextConversationId;
+			sessionFile.textContent = "尚未分配";
+			state.contextUsage = null;
+			state.conversationState = null;
+			resetStreamingState();
+			clearError();
+			restoreConversationHistory(nextConversationId);
+			await restoreConversationHistoryFromServer(nextConversationId);
+			await syncConversationRunState(nextConversationId, {
+				silent: true,
+				clearIfIdle: true,
+			});
+			if (!options?.skipCatalogSync) {
+				void syncConversationCatalog({
+					silent: true,
+					activateCurrent: false,
+				});
+			}
+			closeMobileConversationDrawer();
+			return true;
+		}
+
+		async function selectConversationFromDrawer(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId || nextConversationId === state.conversationId) {
+				closeMobileConversationDrawer();
+				return;
+			}
+			if (state.loading) {
+				showError("当前任务未结束，不能切换产线");
+				renderConversationDrawer();
+				return;
+			}
+
+			try {
+				const result = await switchConversationOnServer(nextConversationId);
+				if (!result.switched) {
+					showError(result.reason === "running" ? "当前任务未结束，不能切换产线" : "无法切换到这个会话");
+					await syncConversationCatalog({ silent: true, activateCurrent: false });
+					return;
+				}
+				await activateConversation(result.currentConversationId || result.conversationId, {
+					skipCatalogSync: false,
+					skipServerSwitch: true,
+				});
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "切换会话失败";
+				showError(messageText);
+			}
 		}
 
 		function getConversationHistoryStorageKey(conversationId) {
@@ -5378,54 +5794,43 @@ function getPlaygroundScript(): string {
 			state.receivedDoneEvent = false;
 		}
 
-		async function resetConversation() {
-			const nextConversationId = createConversationId();
+		async function startNewConversation() {
 			clearError();
+			if (state.loading) {
+				showError("当前任务未结束，不能开启新产线");
+				return false;
+			}
 
-			let resetResult;
+			let createResult;
 			try {
-				resetResult = await requestFreshConversation(nextConversationId);
+				createResult = await createConversationOnServer();
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "无法开启新会话";
 				showError(messageText);
 				return false;
 			}
 
-			if (!resetResult?.reset) {
-				if (resetResult?.reason === "running") {
-					showError("当前任务仍在运行，请先打断再开启新会话");
+			if (!createResult?.created) {
+				if (createResult?.reason === "running") {
+					showError("当前任务未结束，不能开启新产线");
 				} else {
 					showError("无法开启新会话");
 				}
 				return false;
 			}
 
-			stopActiveRunEventStream();
-			setStageMode("landing");
-			setTranscriptState("idle");
-			conversationInput.value = nextConversationId;
-			state.conversationId = nextConversationId;
-			sessionFile.textContent = "尚未分配";
-			state.conversationHistory = [];
-			state.renderedHistoryCount = 0;
-			state.contextUsage = null;
-			clearRenderedTranscript();
-			transcriptArchive.innerHTML = "";
-			resetStreamingState();
+			const nextConversationId = createResult.currentConversationId || createResult.conversationId;
 			clearSelectedFiles();
 			clearSelectedAssetRefs();
-			syncHistoryLoadMoreButton();
-			renderConversationState({
-				conversationId: nextConversationId,
-				running: false,
-				contextUsage: createFallbackContextUsage(),
-				messages: [],
-				activeRun: null,
-				updatedAt: new Date().toISOString(),
+			setStageMode("landing");
+			await syncConversationCatalog({
+				silent: true,
+				activateCurrent: false,
 			});
-			persistConversationHistory(nextConversationId);
-			void syncContextUsage(nextConversationId, { silent: true });
-			void restoreConversationHistoryFromServer(nextConversationId);
+			await activateConversation(nextConversationId, {
+				skipCatalogSync: true,
+				skipServerSwitch: true,
+			});
 			return true;
 		}
 
@@ -5571,7 +5976,12 @@ function getPlaygroundScript(): string {
 					? "\\u8bf7\\u7ed3\\u5408\\u6211\\u5f15\\u7528\\u7684\\u8d44\\u4ea7\\u4e00\\u8d77\\u5904\\u7406"
 					: "\\u8bf7\\u67e5\\u770b\\u6211\\u53d1\\u9001\\u7684\\u9644\\u4ef6");
 
+			await ensureCurrentConversation({ silent: false });
 			ensureConversationId();
+			if (!state.conversationId) {
+				showError("无法确认当前会话");
+				return;
+			}
 			clearError();
 
 			const liveRunState = await syncConversationRunState(state.conversationId, {
@@ -5728,7 +6138,12 @@ function getPlaygroundScript(): string {
 				return;
 			}
 
+			await ensureCurrentConversation({ silent: true });
 			ensureConversationId();
+			if (!state.conversationId) {
+				showError("无法确认当前会话");
+				return;
+			}
 
 			try {
 				const response = await fetch("/v1/chat/interrupt", {
@@ -5816,7 +6231,6 @@ function getPlaygroundScript(): string {
 		}
 
 		conversationInput.value = state.conversationId;
-		conversationInput.readOnly = true;
 		setStageMode("landing");
 		setTranscriptState("idle");
 		setCommandStatus("STANDBY");
@@ -5824,21 +6238,10 @@ function getPlaygroundScript(): string {
 		renderSelectedAssets();
 		renderAssetPickerList();
 		void loadAssets(true);
-		if (!conversationInput.value) {
-			ensureConversationId();
-		} else {
-			restoreConversationHistory(state.conversationId);
-			void restoreConversationHistoryFromServer(state.conversationId);
-		}
 
 		resetStreamingState();
 		clearError();
-		if (state.conversationId) {
-			void syncConversationRunState(state.conversationId, {
-				silent: true,
-				clearIfIdle: true,
-			});
-		}
+		void ensureCurrentConversation({ silent: true });
 
 		function hasDragPayload(event) {
 			return Boolean(event.dataTransfer);
@@ -5995,25 +6398,40 @@ function getPlaygroundScript(): string {
 		});
 		document.addEventListener("visibilitychange", () => {
 			if (document.visibilityState === "visible") {
+				void ensureCurrentConversation({ silent: true }).then(() => {
+					if (!state.conversationId) {
+						return;
+					}
+					void syncConversationRunState(state.conversationId, {
+						silent: true,
+						clearIfIdle: state.loading,
+					});
+					void restoreConversationHistoryFromServer(state.conversationId);
+				});
+			}
+		});
+		window.addEventListener("pageshow", () => {
+			state.pageUnloading = false;
+			void ensureCurrentConversation({ silent: true }).then(() => {
+				if (!state.conversationId) {
+					return;
+				}
 				void syncConversationRunState(state.conversationId, {
 					silent: true,
 					clearIfIdle: state.loading,
 				});
 				void restoreConversationHistoryFromServer(state.conversationId);
-			}
-		});
-		window.addEventListener("pageshow", () => {
-			state.pageUnloading = false;
-			void syncConversationRunState(state.conversationId, {
-				silent: true,
-				clearIfIdle: state.loading,
 			});
-			void restoreConversationHistoryFromServer(state.conversationId);
 		});
 		window.addEventListener("online", () => {
-			void syncConversationRunState(state.conversationId, {
-				silent: true,
-				clearIfIdle: state.loading,
+			void ensureCurrentConversation({ silent: true }).then(() => {
+				if (!state.conversationId) {
+					return;
+				}
+				void syncConversationRunState(state.conversationId, {
+					silent: true,
+					clearIfIdle: state.loading,
+				});
 			});
 		});
 		const layoutObserver = new ResizeObserver(() => {
@@ -6070,20 +6488,30 @@ function getPlaygroundScript(): string {
 		});
 
 		newConversationButton.addEventListener("click", () => {
-			void resetConversation().then((reset) => {
-				if (reset) {
+			void startNewConversation().then((created) => {
+				if (created) {
 					messageInput.focus();
 				}
 			});
 		});
 		mobileNewConversationButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();
-			void resetConversation().then((reset) => {
-				if (reset) {
+			void startNewConversation().then((created) => {
+				if (created) {
 					messageInput.focus();
 				}
 			});
 		});
+		mobileBrandButton.addEventListener("click", (event) => {
+			event.stopPropagation();
+			setMobileConversationDrawerOpen(!state.mobileConversationDrawerOpen);
+			void syncConversationCatalog({
+				silent: true,
+				activateCurrent: false,
+			});
+		});
+		mobileDrawerBackdrop.addEventListener("click", closeMobileConversationDrawer);
+		mobileDrawerCloseButton.addEventListener("click", closeMobileConversationDrawer);
 		mobileOverflowMenuButton.addEventListener("click", (event) => {
 			event.stopPropagation();
 			setMobileOverflowMenuOpen(!state.mobileOverflowMenuOpen);
@@ -6123,21 +6551,27 @@ function getPlaygroundScript(): string {
 		});
 
 		conversationInput.addEventListener("change", () => {
-			const nextConversationId = GLOBAL_CONVERSATION_ID;
-			conversationInput.value = nextConversationId;
+			const nextConversationId = String(conversationInput.value || "").trim();
 			if (nextConversationId === state.conversationId) {
 				renderContextUsageBar();
 				return;
 			}
-			state.conversationId = nextConversationId;
-			restoreConversationHistory(state.conversationId);
-			void restoreConversationHistoryFromServer(state.conversationId);
-			resetStreamingState();
-			clearError();
-			void syncConversationRunState(state.conversationId, {
-				silent: true,
-				clearIfIdle: true,
-			});
+			void switchConversationOnServer(nextConversationId)
+				.then((result) => {
+					if (!result.switched) {
+						showError(result.reason === "running" ? "当前任务未结束，不能切换产线" : "无法切换会话");
+						conversationInput.value = state.conversationId;
+						return;
+					}
+					return activateConversation(result.currentConversationId || result.conversationId, {
+						skipServerSwitch: true,
+					});
+				})
+				.catch((error) => {
+					conversationInput.value = state.conversationId;
+					const messageText = error instanceof Error ? error.message : "切换会话失败";
+					showError(messageText);
+				});
 		});
 
 		messageInput.addEventListener("keydown", (event) => {
@@ -6159,6 +6593,9 @@ function getPlaygroundScript(): string {
 			}
 			if (event.key === "Escape" && state.mobileOverflowMenuOpen) {
 				closeMobileOverflowMenu();
+			}
+			if (event.key === "Escape" && state.mobileConversationDrawerOpen) {
+				closeMobileConversationDrawer();
 			}
 		});
 
@@ -6195,12 +6632,20 @@ export function renderPlaygroundPage(): string {
 			<header class="topbar">
 				<div class="topbar-signal" aria-hidden="true">UGK CLAW</div>
 				<section id="mobile-topbar" class="mobile-topbar" aria-label="手机状态栏">
-					<div class="mobile-brand">
+					<button
+						id="mobile-brand-button"
+						class="mobile-brand"
+						type="button"
+						aria-haspopup="dialog"
+						aria-expanded="false"
+						aria-controls="mobile-conversation-drawer"
+						title="历史会话"
+					>
 						<img class="mobile-brand-logo" src="/ugk-claw-mobile-logo.png" alt="UGK Claw logo" />
 						<div class="mobile-brand-copy">
 							<span class="mobile-brand-wordmark">UGK Claw</span>
 						</div>
-					</div>
+					</button>
 					<div></div>
 					<button
 						id="mobile-new-conversation-button"
@@ -6263,6 +6708,25 @@ export function renderPlaygroundPage(): string {
 					<div class="status-row"><span>发送</span><strong>Enter</strong></div>
 				</div>
 			</header>
+
+			<div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop" hidden></div>
+			<aside
+				id="mobile-conversation-drawer"
+				class="mobile-conversation-drawer"
+				aria-label="历史会话"
+				hidden
+			>
+				<div class="mobile-drawer-head">
+					<div class="mobile-drawer-title">
+						<strong>历史会话</strong>
+						<span>单工人，多产线；运行中不能切换</span>
+					</div>
+					<button id="mobile-drawer-close-button" class="mobile-drawer-close" type="button" aria-label="关闭历史会话">
+						×
+					</button>
+				</div>
+				<div id="mobile-conversation-list" class="mobile-conversation-list"></div>
+			</aside>
 
 			<main id="chat-stage" class="chat-stage">
 				<div hidden>

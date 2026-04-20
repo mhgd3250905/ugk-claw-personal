@@ -93,6 +93,35 @@ export interface RunStatusResult {
 	contextUsage: ChatContextUsageBody;
 }
 
+export interface ConversationCatalogItem {
+	conversationId: string;
+	title: string;
+	preview: string;
+	messageCount: number;
+	createdAt: string;
+	updatedAt: string;
+	running: boolean;
+}
+
+export interface ConversationCatalogResult {
+	currentConversationId: string;
+	conversations: ConversationCatalogItem[];
+}
+
+export interface CreateConversationResult {
+	conversationId: string;
+	currentConversationId: string;
+	created: boolean;
+	reason?: "running";
+}
+
+export interface SwitchConversationResult {
+	conversationId: string;
+	currentConversationId: string;
+	switched: boolean;
+	reason?: "running" | "not_found";
+}
+
 export interface ConversationHistoryMessage {
 	id: string;
 	kind: "user" | "assistant" | "system" | "error";
@@ -157,6 +186,78 @@ export class AgentService {
 
 	async getAvailableSkills(): Promise<RuntimeSkillInfo[]> {
 		return (await this.options.sessionFactory.getAvailableSkills?.()) ?? [];
+	}
+
+	async getConversationCatalog(): Promise<ConversationCatalogResult> {
+		const currentConversationId = await this.ensureCurrentConversationId();
+		const conversations = (await this.options.conversationStore.list()).map((entry) => ({
+			conversationId: entry.conversationId,
+			title: entry.title || "新会话",
+			preview: entry.preview || "",
+			messageCount: Number.isFinite(entry.messageCount) ? entry.messageCount ?? 0 : 0,
+			createdAt: entry.createdAt ?? entry.updatedAt,
+			updatedAt: entry.updatedAt,
+			running: this.activeRuns.has(entry.conversationId),
+		}));
+
+		return {
+			currentConversationId,
+			conversations,
+		};
+	}
+
+	async createConversation(): Promise<CreateConversationResult> {
+		const currentConversationId = await this.ensureCurrentConversationId();
+		if (this.activeRuns.size > 0) {
+			return {
+				conversationId: currentConversationId,
+				currentConversationId,
+				created: false,
+				reason: "running",
+			};
+		}
+
+		const conversationId = `manual:${randomUUID()}`;
+		await this.options.conversationStore.set(conversationId, undefined, {
+			title: "新会话",
+			preview: "",
+			messageCount: 0,
+		});
+		await this.options.conversationStore.setCurrentConversationId(conversationId);
+		return {
+			conversationId,
+			currentConversationId: conversationId,
+			created: true,
+		};
+	}
+
+	async switchConversation(conversationId: string): Promise<SwitchConversationResult> {
+		const currentConversationId = await this.ensureCurrentConversationId();
+		if (this.activeRuns.size > 0) {
+			return {
+				conversationId: currentConversationId,
+				currentConversationId,
+				switched: false,
+				reason: "running",
+			};
+		}
+
+		const existingConversation = await this.options.conversationStore.get(conversationId);
+		if (!existingConversation) {
+			return {
+				conversationId,
+				currentConversationId,
+				switched: false,
+				reason: "not_found",
+			};
+		}
+
+		await this.options.conversationStore.setCurrentConversationId(conversationId);
+		return {
+			conversationId,
+			currentConversationId: conversationId,
+			switched: true,
+		};
 	}
 
 	async queueMessage(input: QueueMessageInput): Promise<QueueMessageResult> {
@@ -332,12 +433,16 @@ export class AgentService {
 		onEvent?: ChatStreamEventSink,
 	): Promise<ChatResult> {
 		const conversationId = input.conversationId ?? `manual:${randomUUID()}`;
-		const { session, skillFingerprint } = await this.openSession(conversationId);
-		const preparedAssets = await this.preparePromptAssets(conversationId, input.attachments, input.assetRefs);
 		if (this.activeRuns.has(conversationId)) {
 			throw new Error(`Conversation ${conversationId} is already running`);
 		}
+		if (this.activeRuns.size > 0) {
+			throw new Error("Another conversation is already running");
+		}
+		const { session, skillFingerprint } = await this.openSession(conversationId);
+		const preparedAssets = await this.preparePromptAssets(conversationId, input.attachments, input.assetRefs);
 		this.terminalRuns.delete(conversationId);
+		await this.options.conversationStore.setCurrentConversationId(conversationId);
 		const activeRun = {
 			session,
 			interrupted: false,
@@ -424,6 +529,7 @@ export class AgentService {
 			if (session.sessionFile) {
 				await this.options.conversationStore.set(conversationId, session.sessionFile, {
 					skillFingerprint,
+					...this.buildConversationMetadata(session.messages),
 				});
 			}
 
@@ -478,6 +584,7 @@ export class AgentService {
 			if (session.sessionFile) {
 				await this.options.conversationStore.set(conversationId, session.sessionFile, {
 					skillFingerprint,
+					...this.buildConversationMetadata(session.messages),
 				});
 			}
 			if (this.activeRuns.get(conversationId) === activeRun) {
@@ -590,6 +697,43 @@ export class AgentService {
 		} catch {
 			// Event delivery is best-effort; a dead SSE client must not cancel the agent run.
 		}
+	}
+
+	private buildConversationMetadata(messages: readonly AgentMessageLike[] | undefined): {
+		title: string;
+		preview: string;
+		messageCount: number;
+	} {
+		const history = this.buildConversationHistoryMessages(messages ?? []);
+		const firstUserMessage = history.find((message) => message.kind === "user");
+		const lastMessage = history.at(-1);
+		return {
+			title: summarizeConversationText(firstUserMessage?.text, "新会话"),
+			preview: summarizeConversationText(lastMessage?.text, ""),
+			messageCount: history.length,
+		};
+	}
+
+	private async ensureCurrentConversationId(): Promise<string> {
+		const currentConversationId = await this.options.conversationStore.getCurrentConversationId();
+		if (currentConversationId) {
+			return currentConversationId;
+		}
+
+		const existingConversation = (await this.options.conversationStore.list()).at(0);
+		if (existingConversation) {
+			await this.options.conversationStore.setCurrentConversationId(existingConversation.conversationId);
+			return existingConversation.conversationId;
+		}
+
+		const conversationId = `manual:${randomUUID()}`;
+		await this.options.conversationStore.set(conversationId, undefined, {
+			title: "新会话",
+			preview: "",
+			messageCount: 0,
+		});
+		await this.options.conversationStore.setCurrentConversationId(conversationId);
+		return conversationId;
 	}
 
 	private async openSession(
@@ -1108,6 +1252,17 @@ function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
 
 function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {
 	return view.status === "error" || view.status === "interrupted";
+}
+
+function summarizeConversationText(value: string | undefined, fallback: string): string {
+	const compact = String(value ?? "")
+		.replace(/\s+/g, " ")
+		.trim();
+	if (!compact) {
+		return fallback;
+	}
+
+	return compact.length > 48 ? compact.slice(0, 48).trimEnd() + "..." : compact;
 }
 
 function omitTrailingActiveUserMessage(

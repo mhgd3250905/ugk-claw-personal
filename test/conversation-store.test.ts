@@ -20,11 +20,14 @@ test("creates a new store file when setting a conversation mapping", async () =>
 
 	const entry = await store.get("manual:test-1");
 	assert.deepEqual(entry, {
+		createdAt: entry?.createdAt,
+		messageCount: 0,
 		sessionFile: "E:/sessions/session-1.jsonl",
 		updatedAt: entry?.updatedAt,
 		skillFingerprint: "skills-v1",
 	});
 	assert.ok(entry?.updatedAt);
+	assert.ok(entry?.createdAt);
 });
 
 test("returns undefined for unknown conversations", async () => {
@@ -87,11 +90,39 @@ test("persists updates and overwrites previous session files", async () => {
 		skillFingerprint: "skills-v2",
 	});
 
-	const persisted = JSON.parse(await readFile(indexPath, "utf8")) as Record<
-		string,
-		{ sessionFile: string; updatedAt: string; skillFingerprint?: string }
-	>;
-	assert.equal(persisted["manual:test-3"]?.sessionFile, "E:/sessions/new.jsonl");
-	assert.ok(persisted["manual:test-3"]?.updatedAt);
-	assert.equal(persisted["manual:test-3"]?.skillFingerprint, "skills-v2");
+	const persisted = JSON.parse(await readFile(indexPath, "utf8")) as {
+		conversations: Record<string, { sessionFile?: string; updatedAt: string; skillFingerprint?: string }>;
+	};
+	assert.equal(persisted.conversations["manual:test-3"]?.sessionFile, "E:/sessions/new.jsonl");
+	assert.ok(persisted.conversations["manual:test-3"]?.updatedAt);
+	assert.equal(persisted.conversations["manual:test-3"]?.skillFingerprint, "skills-v2");
+});
+
+test("tracks and persists the current conversation pointer", async () => {
+	const indexPath = await createTempPath();
+	const store = new ConversationStore(indexPath);
+
+	await store.set("manual:test-4", undefined);
+	await store.setCurrentConversationId("manual:test-4");
+
+	assert.equal(await store.getCurrentConversationId(), "manual:test-4");
+
+	const persisted = await readFile(indexPath, "utf8");
+	assert.match(persisted, /"currentConversationId":\s*"manual:test-4"/);
+});
+
+test("lists conversations ordered by most recent update", async () => {
+	const indexPath = await createTempPath();
+	const store = new ConversationStore(indexPath);
+
+	await store.set("manual:older", "E:/sessions/older.jsonl");
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	await store.set("manual:newer", "E:/sessions/newer.jsonl");
+
+	const entries = await store.list();
+
+	assert.deepEqual(
+		entries.map((entry) => entry.conversationId),
+		["manual:newer", "manual:older"],
+	);
 });

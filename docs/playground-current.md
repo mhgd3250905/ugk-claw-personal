@@ -26,9 +26,9 @@
 - 消息宽度跟随 composer 实际宽度，不依赖写死常量
 - transcript 只有在用户停留在底部附近时才自动跟随最新输出；用户明显上滑阅读历史时，`text_delta`、loading 和过程日志更新都不能强制滚到底部
 - 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
-- 当前 Web 入口固定使用全局会话 `agent:global`，不再按浏览器 / 设备生成独立 `conversationId`
-- 页面会先用本地缓存快速恢复 transcript，再通过 `GET /v1/chat/state?conversationId=agent%3Aglobal` 从后端同步真实历史与当前 active run；多浏览器、多设备看到的是同一个 agent 的状态
-- 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份或运行态事实源
+- 当前 Web 入口采用“一个 agent、多个历史会话、一个全局当前会话”的模型；服务端维护 `currentConversationId`，不同浏览器 / 设备打开后都跟随这个当前会话
+- 页面会先通过 `GET /v1/chat/conversations` 获取服务端会话目录和当前会话，再按当前 `conversationId` 请求 `GET /v1/chat/state` 同步真实历史与 active run
+- 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部时，会自动继续补更多旧消息，顶部同时保留“加载更多历史”按钮作为兜底入口
 - `landing` 模式下，对话区底部避让按“`chat-stage` 底部到 `command-deck` 顶部的真实距离”动态计算，不再偷懒拿固定值或只拿 `command-deck` 高度瞎猜
@@ -92,12 +92,14 @@
 - 最终结果会直接列出完整技能清单
 - 不再把旧的 system 调试噪音塞进 transcript
 
-## 6. 全局会话行为
+## 6. 单工人多会话行为
 
-- 当前项目按“只有一个实际使用者、多设备访问同一个 agent”收口，playground 会话 ID 固定为 `agent:global`
-- `conversation-id` 输入框只展示当前全局 ID，前端不再允许不同设备各自写入本地会话 ID
-- 点击“全新的记忆”不会再生成设备私有会话 ID；页面会回到同一个全局 agent 会话，并尝试从后端同步历史和运行态
-- 如果未来真的要支持多用户或多 agent，不能把这个固定 ID 当成通用方案继续堆，必须重新设计认证、会话命名空间和历史隔离
+- 当前项目按“一个 agent 工人，多条历史产线，但同一时刻只有一条全局当前产线”收口
+- 服务端 `ConversationStore` 维护 `currentConversationId` 和会话目录；所有平台打开页面后都以服务端当前会话为准，不再固定写死 `agent:global`
+- 点击 `新会话` 会调用 `POST /v1/chat/conversations` 创建新的 `conversationId`，并把它设置成全局当前会话；旧会话不会被 reset 或删除
+- 手机端点击左侧品牌区会打开历史会话抽屉；点击历史项会调用 `POST /v1/chat/current`，成功后全平台下一次同步都会跟随新的当前会话
+- agent 正在运行时，后端拒绝新建或切换会话；前端显示“当前任务未结束，不能切换产线 / 开启新产线”
+- 如果未来真的要支持多用户同时操作，不能把这个单工人模型当成权限系统继续堆，必须重新设计认证、控制权和会话隔离
 
 ## 7. 已知关联文件
 
@@ -105,7 +107,9 @@
 - 页面返回断言： [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 - 资产与文件下载： [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)、[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 - 技能真实来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/debug/skills`
-- 全局会话状态来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/chat/state`
+- 会话目录与当前会话来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/chat/conversations`
+- 当前会话状态来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/chat/state`
+- 新建 / 切换会话入口： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `POST /v1/chat/conversations` 与 `POST /v1/chat/current`
 
 ## 8. 运行态与 loading 约束
 
@@ -115,7 +119,7 @@
 - `error` 与 `interrupted` 不再只是当前流页面里的临时视觉效果；它们也会以 terminal snapshot 形式进入 `GET /v1/chat/state` 的 canonical state，刷新页和观察页必须能看到同一份终态。
 - `interrupted` 的状态文案单独显示为“已打断”，不要再偷懒混成“已结束”；失败态继续明确显示“错误”。
 - 刷新恢复运行态时，页面文案统一使用“当前任务正在运行 / 当前正在运行”，不要再写“上一轮仍在运行”。
-- 手机浏览器前后台切换、页面 `visibilitychange`、`pageshow`、`online` 后都会重新核对 `agent:global` 的运行态和历史。
+- 手机浏览器前后台切换、页面 `visibilitychange`、`pageshow`、`online` 后都会先重新核对服务端 `currentConversationId`，再同步当前会话的运行态和历史。
 - 如果 `/v1/chat/stream` 主连接因为前后台切换或网络短断结束，但 `GET /v1/chat/state` 仍显示后端任务运行中，页面会切到 `/v1/chat/events` 继续接收事件，不再提示“网络错误”并停止更新。
 - 如果 `/v1/chat/stream` 断开时任务其实已经刚好完成或失败，前端要先信 `GET /v1/chat/state` 的收口结果；只要 canonical state 已经推进到终态，就不应继续报“流被中断 / network error”。
 - 用户点击发送或把消息追加进运行中的会话后，composer 要立即清空，明确表示消息已经发出；如果请求在真正进入后端前失败，再把草稿恢复回输入区，不能让用户白丢内容
@@ -138,8 +142,9 @@
 - 这一节覆盖并取代之前“只是做适配”的旧说法；当前手机端不是压缩版桌面，而是保留现有逻辑后单独重写的移动展示层
 - 手机端继续沿用桌面端的深空黑 / 暗紫星云 / 冷白星尘视觉语言，但页面组织改成更接近原生聊天页的结构
 - 手机端当前统一视觉收口规则是：所有可见圆角一律压到 `4px`，不再混用 `12px / 14px / 16px`
-- 顶部只保留紧凑品牌状态栏：左侧是 logo + `UGK Claw`，右侧只保留 `新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库` 三项收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
-- `新会话` 按钮现在走 `POST /v1/chat/reset` 真正清空 `agent:global` 的服务端会话；不再只清本地 transcript，也不再插入刷新后会消失的“当前启用新会话”提示气泡
+- 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧只保留 `新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库` 三项收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
+- 手机端品牌区点击后展开左侧历史会话抽屉，列表项展示标题、摘要、更新时间和消息数；运行中禁止切换，避免一个 agent 工人被硬拽到另一条产线
+- `新会话` 按钮现在走 `POST /v1/chat/conversations` 创建新的服务端会话并激活为 `currentConversationId`；不再 reset 旧会话，也不再只清本地 transcript
 - `landing-screen` 在手机端直接隐藏，不再让 hero、大标题和装饰块继续吞掉首屏高度
 - 中间主区收口成全高 transcript 区域，去掉额外边框和背景壳层，优先把有限空间让给对话内容；空态时会在 transcript 内直接给出起聊提示，而不是另起一块首页
 - 拖拽上传区在手机端隐藏；已选文件与资产改成横向滚动条带，避免把竖向空间浪费在触屏上几乎不好用的拖拽壳子上
@@ -150,9 +155,9 @@
 
 ## Refresh Run Recovery
 
-- 刷新页面后，playground 固定按 `agent:global` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、过程区、队列和上下文占用作为同一个 canonical state 渲染。
+- 刷新页面后，playground 先请求 `GET /v1/chat/conversations` 获取服务端当前会话，再按该 `conversationId` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、过程区、队列和上下文占用作为 canonical state 渲染。
 - `GET /v1/chat/history` 与 `GET /v1/chat/status` 继续保留兼容，但刷新恢复不再靠前端把 history、status、events、localStorage 和 DOM 指针拼成一份“猜出来的状态”。
-- 点击 `新会话` 后，页面会先请求 `POST /v1/chat/reset`，然后再以清空后的 `GET /v1/chat/state` 作为真源恢复 UI；刷新后不应该再回出上一轮历史，也不应该丢掉一个只存在于本地的假提示气泡。
+- 点击 `新会话` 后，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后以新会话的 `GET /v1/chat/state` 作为真源恢复 UI；旧会话保留在历史列表里。
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
 - `activeRun` 存在时，前端只渲染一个 active assistant 气泡；同一 run 不允许拆出多条“助手 / 思考过程”消息。
 - `activeRun.input.message` 用来补齐刷新观察者看到的当前用户任务；如果 session history 已经包含同一条用户消息，前端会避免重复渲染。

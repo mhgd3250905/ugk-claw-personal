@@ -3,6 +3,7 @@ import type { ServerResponse } from "node:http";
 import type { AgentService } from "../agent/agent-service.js";
 import type {
 	ChatAttachmentBody,
+	ConversationCatalogResponseBody,
 	ChatAssetBody,
 	ChatHistoryResponseBody,
 	ChatRequestBody,
@@ -14,11 +15,14 @@ import type {
 	ErrorResponseBody,
 	InterruptChatRequestBody,
 	InterruptChatResponseBody,
+	CreateConversationResponseBody,
 	QueueMessageMode,
 	QueueMessageRequestBody,
 	QueueMessageResponseBody,
 	ResetConversationRequestBody,
 	ResetConversationResponseBody,
+	SwitchConversationRequestBody,
+	SwitchConversationResponseBody,
 } from "../types/api.js";
 
 interface ChatRouteDependencies {
@@ -154,6 +158,34 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			skills: await deps.agentService.getAvailableSkills(),
 		};
 	});
+
+	app.get("/v1/chat/conversations", async (): Promise<ConversationCatalogResponseBody> => {
+		return await deps.agentService.getConversationCatalog();
+	});
+
+	app.post("/v1/chat/conversations", async (): Promise<CreateConversationResponseBody> => {
+		return await deps.agentService.createConversation();
+	});
+
+	app.post(
+		"/v1/chat/current",
+		async (
+			request: FastifyRequest<{ Body: Partial<SwitchConversationRequestBody> }>,
+			reply,
+		): Promise<SwitchConversationResponseBody | FastifyReply> => {
+			const { conversationId } = request.body ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+
+			try {
+				return await deps.agentService.switchConversation(conversationId);
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
+		},
+	);
 
 	app.get(
 		"/v1/chat/state",

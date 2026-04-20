@@ -148,6 +148,9 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `GET /v1/chat/state`
 - `GET /v1/chat/status`
 - `GET /v1/chat/events`
+- `GET /v1/chat/conversations`
+- `POST /v1/chat/conversations`
+- `POST /v1/chat/current`
 - `POST /v1/chat/reset`
 - `src/routes/chat.ts`
 - `src/agent/agent-service.ts`
@@ -235,14 +238,15 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
-- playground Web 入口当前固定使用全局会话 `agent:global`；不同浏览器 / 设备打开后应通过 `GET /v1/chat/state` 看到同一个 agent 的历史、当前输入、active assistant 正文和过程区，不要再生成设备私有 `conversationId`。
-- playground 的“新会话”必须走 `POST /v1/chat/reset` 真正清空全局会话状态；不要再只清当前浏览器 DOM、写一条本地提示气泡，刷新后又被服务端历史打回原形。
+- playground Web 入口当前采用“一个 agent、多条历史会话、一个全局当前会话”的模型；不同浏览器 / 设备打开后应先通过 `GET /v1/chat/conversations` 跟随服务端 `currentConversationId`，再通过 `GET /v1/chat/state` 看到当前会话的历史、当前输入、active assistant 正文和过程区。
+- playground 的“新会话”必须走 `POST /v1/chat/conversations` 创建并激活新的服务端会话；不要再 reset 旧会话，也不要只清当前浏览器 DOM 写一条本地假提示。
+- playground 历史会话切换必须走 `POST /v1/chat/current` 更新全局当前会话；当前 agent 运行中禁止新建和切换，避免一个 agent 工人同时被拖到两条产线。
 - playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示“回到底部”按钮。
 - 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要 `GET /v1/chat/state` 仍显示 running，前端应切到 `/v1/chat/events` 续订事件流。
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。
-- `playground` 手机端当前采用“顶部紧凑品牌状态栏 / 中间 transcript / 底部 composer”结构；状态栏左侧是 logo + `UGK Claw`，右侧只保留 `新会话` 和 `更多` 两个 icon 按钮，`技能 / 文件 / 文件库` 收进右上角溢出菜单；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
+- `playground` 手机端当前采用“顶部紧凑品牌状态栏 / 左侧历史会话抽屉 / 中间 transcript / 底部 composer”结构；状态栏左侧是可点击的 logo + `UGK Claw` 历史入口，右侧只保留 `新会话` 和 `更多` 两个 icon 按钮，`技能 / 文件 / 文件库` 收进右上角溢出菜单；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
 - Docker 镜像已内置 `git`、`curl`、`ca-certificates` 与 `python3`，不要再把 `/bin/bash: git: command not found`、`/bin/bash: curl: command not found` 或 `python3: not found` 当成玄学问题。
 - `web-access` 默认真实浏览器链路走 Docker Chrome sidecar：`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223`；Windows host IPC fallback 仅保留给 legacy 本机调试和紧急排障。
 - `ugk-pi-browser` 当前通过容器内 healthcheck 自举 Chrome CDP；后续排障别只看 GUI 能不能打开，至少同时确认浏览器容器 `healthy`，以及 `127.0.0.1:9222` / `172.31.250.10:9223` 探针能通。

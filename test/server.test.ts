@@ -54,6 +54,32 @@ function createAgentServiceStub(overrides?: {
 		}>;
 	}>;
 	getConversationState?: (conversationId: string) => Promise<Record<string, unknown>>;
+	getConversationCatalog?: () => Promise<{
+		currentConversationId: string;
+		conversations: Array<{
+			conversationId: string;
+			title: string;
+			preview: string;
+			messageCount: number;
+			createdAt: string;
+			updatedAt: string;
+			running: boolean;
+		}>;
+	}>;
+	createConversation?: () => Promise<{
+		conversationId: string;
+		currentConversationId: string;
+		created: boolean;
+		reason?: "running";
+	}>;
+	switchConversation?: (
+		conversationId: string,
+	) => Promise<{
+		conversationId: string;
+		currentConversationId: string;
+		switched: boolean;
+		reason?: "running" | "not_found";
+	}>;
 	getAvailableSkills?: () => Promise<Array<{ name: string; path?: string }>>;
 }): AgentService {
 	return {
@@ -158,6 +184,36 @@ function createAgentServiceStub(overrides?: {
 				messages: [],
 				activeRun: null,
 				updatedAt: "2026-04-20T00:00:00.000Z",
+			})),
+		getConversationCatalog:
+			overrides?.getConversationCatalog ??
+			(async () => ({
+				currentConversationId: "manual:catalog-1",
+				conversations: [
+					{
+						conversationId: "manual:catalog-1",
+						title: "当前产线",
+						preview: "从这里继续当前对话",
+						messageCount: 0,
+						createdAt: "2026-04-20T00:00:00.000Z",
+						updatedAt: "2026-04-20T00:00:00.000Z",
+						running: false,
+					},
+				],
+			})),
+		createConversation:
+			overrides?.createConversation ??
+			(async () => ({
+				conversationId: "manual:new-1",
+				currentConversationId: "manual:new-1",
+				created: true,
+			})),
+		switchConversation:
+			overrides?.switchConversation ??
+			(async (conversationId) => ({
+				conversationId,
+				currentConversationId: conversationId,
+				switched: true,
 			})),
 		getAvailableSkills:
 			overrides?.getAvailableSkills ??
@@ -600,8 +656,8 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /function archiveCurrentTranscript\(conversationId\)\s*\{/);
 	assert.match(response.body, /const MAX_ARCHIVED_TRANSCRIPTS = 4;/);
 	assert.match(response.body, /id="history-load-more-button"/);
-	assert.match(response.body, /async function requestFreshConversation\(conversationId\)\s*\{/);
-	assert.match(response.body, /\/v1\/chat\/reset/);
+	assert.match(response.body, /async function createConversationOnServer\(\)\s*\{/);
+	assert.match(response.body, /\/v1\/chat\/conversations/);
 	assert.match(response.body, /function createMessageActions\(entry, content\)\s*\{/);
 	assert.match(response.body, /message-actions/);
 	assert.match(response.body, /message-copy-button/);
@@ -614,7 +670,7 @@ test("GET /playground embeds conversation history restore and message copy contr
 	await app.close();
 });
 
-test("GET /playground uses one global agent conversation and restores server history", async () => {
+test("GET /playground syncs the current conversation from the server catalog", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
 	});
@@ -625,14 +681,17 @@ test("GET /playground uses one global agent conversation and restores server his
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.match(response.body, /const GLOBAL_CONVERSATION_ID = "agent:global";/);
-	assert.match(response.body, /conversationId: GLOBAL_CONVERSATION_ID,/);
-	assert.doesNotMatch(response.body, /localStorage\.getItem\("ugk-pi:conversation-id"\)/);
-	assert.match(response.body, /async function fetchConversationHistory\(conversationId\)\s*\{/);
-	assert.match(response.body, /\/v1\/chat\/history\?conversationId=/);
-	assert.match(response.body, /async function restoreConversationHistoryFromServer\(conversationId\)\s*\{/);
-	assert.match(response.body, /void restoreConversationHistoryFromServer\(state\.conversationId\)/);
-	assert.match(response.body, /conversationInput\.readOnly = true;/);
+	assert.match(response.body, /async function fetchConversationCatalog\(\)\s*\{/);
+	assert.match(response.body, /\/v1\/chat\/conversations/);
+	assert.match(response.body, /async function createConversationOnServer\(\)\s*\{/);
+	assert.match(response.body, /POST",\s*headers:[\s\S]*\/v1\/chat\/conversations/);
+	assert.match(response.body, /body: JSON\.stringify\(\{\}\),/);
+	assert.match(response.body, /async function switchConversationOnServer\(conversationId\)\s*\{/);
+	assert.match(response.body, /\/v1\/chat\/current/);
+	assert.match(response.body, /async function syncConversationCatalog\(options\)\s*\{/);
+	assert.match(response.body, /async function ensureCurrentConversation\(options\)\s*\{/);
+	assert.doesNotMatch(response.body, /const GLOBAL_CONVERSATION_ID = "agent:global";/);
+	assert.doesNotMatch(response.body, /conversationInput\.readOnly = true;/);
 	await app.close();
 });
 
@@ -863,7 +922,7 @@ test("GET /playground restores running conversations after refresh and avoids re
 	await app.close();
 });
 
-test("GET /v1/chat/history returns global conversation transcript", async () => {
+test("GET /v1/chat/history returns the requested conversation transcript", async () => {
 	const calls: string[] = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub({
@@ -875,7 +934,7 @@ test("GET /v1/chat/history returns global conversation transcript", async () => 
 						{
 							id: "history-1",
 							kind: "user",
-							title: "agent:global",
+							title: "manual:thread-1",
 							text: "跨设备任务",
 							createdAt: "2026-04-20T00:00:00.000Z",
 						},
@@ -894,17 +953,17 @@ test("GET /v1/chat/history returns global conversation transcript", async () => 
 
 	const response = await app.inject({
 		method: "GET",
-		url: "/v1/chat/history?conversationId=agent%3Aglobal",
+		url: "/v1/chat/history?conversationId=manual%3Athread-1",
 	});
 
 	assert.equal(response.statusCode, 200);
 	assert.deepEqual(response.json(), {
-		conversationId: "agent:global",
+		conversationId: "manual:thread-1",
 		messages: [
 			{
 				id: "history-1",
 				kind: "user",
-				title: "agent:global",
+				title: "manual:thread-1",
 				text: "跨设备任务",
 				createdAt: "2026-04-20T00:00:00.000Z",
 			},
@@ -917,7 +976,7 @@ test("GET /v1/chat/history returns global conversation transcript", async () => 
 			},
 		],
 	});
-	assert.deepEqual(calls, ["agent:global"]);
+	assert.deepEqual(calls, ["manual:thread-1"]);
 	await app.close();
 });
 
@@ -946,7 +1005,7 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 						{
 							id: "history-1",
 							kind: "user",
-							title: "agent:global",
+							title: "manual:thread-2",
 							text: "old task",
 							createdAt: "2026-04-20T00:00:00.000Z",
 						},
@@ -984,12 +1043,12 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 
 	const response = await app.inject({
 		method: "GET",
-		url: "/v1/chat/state?conversationId=agent%3Aglobal",
+		url: "/v1/chat/state?conversationId=manual%3Athread-2",
 	});
 
 	assert.equal(response.statusCode, 200);
 	assert.deepEqual(response.json(), {
-		conversationId: "agent:global",
+		conversationId: "manual:thread-2",
 		running: true,
 		contextUsage: {
 			provider: "dashscope-coding",
@@ -1007,7 +1066,7 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 			{
 				id: "history-1",
 				kind: "user",
-				title: "agent:global",
+				title: "manual:thread-2",
 				text: "old task",
 				createdAt: "2026-04-20T00:00:00.000Z",
 			},
@@ -1039,7 +1098,126 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 		},
 		updatedAt: "2026-04-20T00:00:02.000Z",
 	});
-	assert.deepEqual(calls, ["agent:global"]);
+	assert.deepEqual(calls, ["manual:thread-2"]);
+	await app.close();
+});
+
+test("GET /v1/chat/conversations returns the server-synced current conversation catalog", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			getConversationCatalog: async () => ({
+				currentConversationId: "manual:thread-2",
+				conversations: [
+					{
+						conversationId: "manual:thread-2",
+						title: "当前产线",
+						preview: "继续当前任务",
+						messageCount: 6,
+						createdAt: "2026-04-20T00:00:00.000Z",
+						updatedAt: "2026-04-20T00:02:00.000Z",
+						running: false,
+					},
+					{
+						conversationId: "manual:thread-1",
+						title: "上一条产线",
+						preview: "已完成的方案讨论",
+						messageCount: 12,
+						createdAt: "2026-04-19T23:50:00.000Z",
+						updatedAt: "2026-04-19T23:59:00.000Z",
+						running: false,
+					},
+				],
+			}),
+		}),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/chat/conversations",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		currentConversationId: "manual:thread-2",
+		conversations: [
+			{
+				conversationId: "manual:thread-2",
+				title: "当前产线",
+				preview: "继续当前任务",
+				messageCount: 6,
+				createdAt: "2026-04-20T00:00:00.000Z",
+				updatedAt: "2026-04-20T00:02:00.000Z",
+				running: false,
+			},
+			{
+				conversationId: "manual:thread-1",
+				title: "上一条产线",
+				preview: "已完成的方案讨论",
+				messageCount: 12,
+				createdAt: "2026-04-19T23:50:00.000Z",
+				updatedAt: "2026-04-19T23:59:00.000Z",
+				running: false,
+			},
+		],
+	});
+	await app.close();
+});
+
+test("POST /v1/chat/conversations creates and activates a new conversation", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			createConversation: async () => ({
+				conversationId: "manual:new-2",
+				currentConversationId: "manual:new-2",
+				created: true,
+			}),
+		}),
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/chat/conversations",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conversationId: "manual:new-2",
+		currentConversationId: "manual:new-2",
+		created: true,
+	});
+	await app.close();
+});
+
+test("POST /v1/chat/current switches the globally active conversation", async () => {
+	const calls: string[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			switchConversation: async (conversationId) => {
+				calls.push(conversationId);
+				return {
+					conversationId,
+					currentConversationId: conversationId,
+					switched: true,
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/chat/current",
+		payload: {
+			conversationId: "manual:thread-1",
+		},
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conversationId: "manual:thread-1",
+		currentConversationId: "manual:thread-1",
+		switched: true,
+	});
+	assert.deepEqual(calls, ["manual:thread-1"]);
 	await app.close();
 });
 

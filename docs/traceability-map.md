@@ -42,6 +42,9 @@
 - `GET /v1/chat/status`
 - `GET /v1/chat/state`
 - `GET /v1/chat/events`
+- `GET /v1/chat/conversations`
+- `POST /v1/chat/conversations`
+- `POST /v1/chat/current`
 - `POST /v1/chat/reset`
 - `POST /v1/chat`
 - `POST /v1/chat/stream`
@@ -63,9 +66,9 @@
 - 过程区与 loading 气泡
 - 文件卡片“打开 / 下载”
 - 刷新后运行态恢复
-- 新会话服务端重置与刷新后不回魂
+- 新会话创建、当前会话切换、刷新后跟随服务端当前会话
 - 发送后立即清空输入框
-- 手机端紧凑品牌状态栏、右上角溢出菜单、底部 icon 发送区
+- 手机端紧凑品牌状态栏、左侧历史会话抽屉、右上角溢出菜单、底部 icon 发送区
 - 手机端代码块宽度、复制 icon 与透明壳层
 
 ## D. 文件上传、资产复用、send_file、本地报告访问

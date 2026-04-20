@@ -12,6 +12,25 @@
 
 ## 2026-04-20
 
+### Playground 切换为单工人多会话模型
+- 主题：把 `playground` 从固定 `agent:global` + reset 旧会话，切到“一个 agent、多条历史会话、一个全局当前会话”的模型；新会话是真正新建会话，旧会话保留为历史。
+- 影响范围：
+  - `src/agent/conversation-store.ts` 的会话索引升级为 `{ currentConversationId, conversations }`，并兼容旧的平铺索引格式。
+  - `src/agent/agent-service.ts` 新增会话目录、新建会话、切换当前会话能力；运行中拒绝新建和切换，确保一个 agent 同时只在一条产线上工作。
+  - `src/routes/chat.ts` 新增 `GET /v1/chat/conversations`、`POST /v1/chat/conversations`、`POST /v1/chat/current`，`src/types/api.ts` 同步新增响应体类型。
+  - `src/ui/playground.ts` 启动时先同步服务端当前会话；`新会话` 改为创建并激活新会话；手机端品牌区新增历史会话抽屉，点击历史项后切换全局当前会话；前端创建会话的 JSON POST 明确发送 `{}` body，避免 Fastify 把空 JSON 请求拦成 `FST_ERR_CTP_EMPTY_JSON_BODY`。
+  - `test/conversation-store.test.ts`、`test/agent-service.test.ts`、`test/server.test.ts` 覆盖新索引结构、单工人运行约束、会话目录接口和前端入口脚本。
+  - `AGENTS.md`、`README.md`、`docs/playground-current.md`、`docs/traceability-map.md` 同步移除固定 `agent:global` 与 `POST /v1/chat/reset` 作为新会话主路径的旧口径。
+- 对应入口：
+  - [src/agent/conversation-store.ts](/E:/AII/ugk-pi/src/agent/conversation-store.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/conversation-store.test.ts](/E:/AII/ugk-pi/test/conversation-store.test.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground 手机端顶部收口为品牌状态栏 + 溢出菜单
 - 主题：把手机端顶部从常驻四按钮条收口成更薄的品牌状态栏，避免继续拿操作按钮堆满首屏高度；左侧恢复品牌识别，右侧只保留新会话和更多操作。
 - 影响范围：
