@@ -2831,6 +2831,7 @@ function getPlaygroundScript(): string {
 			contextUsageSyncToken: 0,
 			dragDepth: 0,
 			assetModalOpen: false,
+			conversationState: null,
 			conversationHistory: [],
 			renderedHistoryCount: 0,
 			historyPageSize: 12,
@@ -3317,6 +3318,38 @@ function getPlaygroundScript(): string {
 			};
 		}
 
+		async function fetchConversationState(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId) {
+				return {
+					conversationId: "",
+					running: false,
+					contextUsage: createFallbackContextUsage(),
+					messages: [],
+					activeRun: null,
+				};
+			}
+
+			const response = await fetch("/v1/chat/state?conversationId=" + encodeURIComponent(nextConversationId), {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法获取当前会话状态";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				conversationId: payload?.conversationId || nextConversationId,
+				running: Boolean(payload?.running),
+				contextUsage: normalizeContextUsage(payload?.contextUsage),
+				messages: Array.isArray(payload?.messages) ? payload.messages : [],
+				activeRun: normalizeActiveRun(payload?.activeRun),
+				updatedAt: typeof payload?.updatedAt === "string" ? payload.updatedAt : new Date().toISOString(),
+			};
+		}
+
 		async function fetchConversationHistory(conversationId) {
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId) {
@@ -3396,52 +3429,6 @@ function getPlaygroundScript(): string {
 			}
 		}
 
-		function findLatestUserHistoryEntry() {
-			for (let index = state.conversationHistory.length - 1; index >= 0; index -= 1) {
-				const entry = state.conversationHistory[index];
-				if (entry?.kind === "user" && String(entry.text || "").trim()) {
-					return entry;
-				}
-			}
-			return null;
-		}
-
-		function findLatestAssistantHistoryEntry() {
-			for (let index = state.conversationHistory.length - 1; index >= 0; index -= 1) {
-				const entry = state.conversationHistory[index];
-				if (entry?.kind === "assistant") {
-					return entry;
-				}
-			}
-			return null;
-		}
-
-		function ensureRecoveredStreamingAssistantMessage() {
-			const latestAssistantEntry = findLatestAssistantHistoryEntry();
-			const rendered = latestAssistantEntry ? renderedMessages.get(latestAssistantEntry.id) : null;
-			if (latestAssistantEntry && rendered?.content?.isConnected) {
-				state.activeAssistantContent = rendered.content;
-				restoreProcessSnapshot(latestAssistantEntry, rendered, {
-					activate: true,
-					running: true,
-				});
-				return rendered.content;
-			}
-
-			return ensureStreamingAssistantMessage();
-		}
-
-		function formatRecoveredRunMessage() {
-			const latestUserEntry = findLatestUserHistoryEntry();
-			if (!latestUserEntry) {
-				return "当前任务正在运行。\\n\\n刷新只断开了页面连接，后端任务还在继续。";
-			}
-
-			const taskText = String(latestUserEntry.text || "").trim();
-			const taskSummary = taskText.length > 800 ? taskText.slice(0, 800) + "..." : taskText;
-			return "当前任务正在运行。\\n\\n当前任务：\\n> " + taskSummary;
-		}
-
 		async function syncConversationRunState(conversationId, options) {
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId) {
@@ -3451,30 +3438,14 @@ function getPlaygroundScript(): string {
 			}
 
 			try {
-				const payload = await fetchConversationRunStatus(nextConversationId);
-				state.contextUsage = normalizeContextUsage(payload.contextUsage);
-				renderContextUsageBar();
-				if (payload.running) {
-					setTranscriptState("active");
-					setLoading(true);
-					const content = ensureRecoveredStreamingAssistantMessage();
-					if (!String(content.textContent || "").trim()) {
-						setMessageContent(content, formatRecoveredRunMessage());
-					}
-					setAssistantLoadingState("当前正在运行", "system");
-					if (!state.primaryStreamActive) {
-						void attachActiveRunEventStream(nextConversationId);
-					}
-					return payload;
-				}
-
-				if (state.loading && options?.clearIfIdle) {
+				const payload = await fetchConversationState(nextConversationId);
+				renderConversationState(payload);
+				if (payload.running && !state.primaryStreamActive) {
+					void attachActiveRunEventStream(nextConversationId);
+				} else if (!payload.running && state.loading && options?.clearIfIdle) {
 					stopActiveRunEventStream();
-					completeAssistantLoadingBubble("ok", "当前任务已结束");
-					completeProcessStream();
 					setLoading(false);
 				}
-
 				return payload;
 			} catch (error) {
 				renderContextUsageBar();
@@ -3489,6 +3460,80 @@ function getPlaygroundScript(): string {
 					contextUsage: normalizeContextUsage(state.contextUsage),
 				};
 			}
+		}
+
+		function renderConversationState(conversationState) {
+			const nextConversationId = String(conversationState?.conversationId || state.conversationId || "").trim();
+			const activeRun = normalizeActiveRun(conversationState?.activeRun);
+			state.conversationState = {
+				...(conversationState || {}),
+				conversationId: nextConversationId,
+				activeRun,
+			};
+			state.contextUsage = normalizeContextUsage(conversationState?.contextUsage);
+			state.conversationHistory = Array.isArray(conversationState?.messages)
+				? conversationState.messages.map(normalizeHistoryEntry).filter(Boolean).slice(-MAX_STORED_MESSAGES_PER_CONVERSATION)
+				: [];
+			state.renderedHistoryCount = 0;
+			clearRenderedTranscript();
+			resetStreamingState();
+			renderContextUsageBar();
+
+			if (state.conversationHistory.length > 0) {
+				setTranscriptState("active");
+				renderMoreConversationHistory();
+			}
+
+			if (!activeRun) {
+				if (state.conversationHistory.length === 0) {
+					setTranscriptState("idle");
+				}
+				syncHistoryLoadMoreButton();
+				if (state.loading) {
+					setLoading(false);
+				}
+				return;
+			}
+
+			setTranscriptState("active");
+			mergeRecentAssets(activeRun.input?.inputAssets || []);
+			const inputMessage = String(activeRun.input?.message || "").trim();
+			const lastHistoryEntry = state.conversationHistory.at(-1);
+			if (
+				inputMessage &&
+				!(lastHistoryEntry?.kind === "user" && String(lastHistoryEntry.text || "").trim() === inputMessage)
+			) {
+				renderTranscriptEntry(
+					buildTranscriptEntry("user", state.conversationId, inputMessage, {
+						id: "active-input-" + activeRun.runId,
+						createdAt: activeRun.startedAt,
+						assetRefs: (activeRun.input?.inputAssets || []).map((asset) => asset.assetId),
+					}),
+				);
+			}
+
+			const assistantEntry = buildTranscriptEntry("assistant", "助手", activeRun.text || "", {
+				id: activeRun.assistantMessageId,
+				createdAt: activeRun.startedAt,
+			});
+			const rendered = renderTranscriptEntry(assistantEntry);
+			state.activeAssistantContent = rendered.content;
+			state.streamingText = activeRun.text || "";
+			state.receivedDoneEvent = activeRun.status === "done";
+			applyProcessViewToRenderedMessage(activeRun.process, rendered, {
+				activate: true,
+				running: activeRun.loading,
+			});
+			if (activeRun.loading) {
+				setLoading(true);
+				setAssistantLoadingState("当前正在运行", "system");
+				statusPill.textContent = "运行中";
+			} else {
+				setLoading(false);
+				statusPill.textContent = activeRun.status === "error" ? "错误" : "已结束";
+			}
+			syncHistoryLoadMoreButton();
+			scrollTranscriptToBottom({ force: true });
 		}
 
 		function getConversationHistoryStorageKey(conversationId) {
@@ -3584,8 +3629,98 @@ function getPlaygroundScript(): string {
 							.filter((asset) => asset.assetId)
 					: [],
 				files: cloneHistoryFiles(rawEntry.files),
-				process: normalizeProcessSnapshot(rawEntry.process),
 			};
+		}
+
+		function normalizeActiveRun(rawRun) {
+			if (!rawRun || typeof rawRun !== "object") {
+				return null;
+			}
+
+			const status = ["running", "interrupted", "done", "error"].includes(rawRun.status)
+				? rawRun.status
+				: "running";
+			const input = rawRun.input && typeof rawRun.input === "object" ? rawRun.input : {};
+			const queue = rawRun.queue && typeof rawRun.queue === "object"
+				? {
+						steering: Array.isArray(rawRun.queue.steering) ? rawRun.queue.steering.map(String) : [],
+						followUp: Array.isArray(rawRun.queue.followUp) ? rawRun.queue.followUp.map(String) : [],
+					}
+				: null;
+
+			return {
+				runId: typeof rawRun.runId === "string" && rawRun.runId ? rawRun.runId : createBrowserId(),
+				status,
+				assistantMessageId:
+					typeof rawRun.assistantMessageId === "string" && rawRun.assistantMessageId
+						? rawRun.assistantMessageId
+						: "active-run-" + createBrowserId(),
+				input: {
+					message: typeof input.message === "string" ? input.message : "",
+					inputAssets: Array.isArray(input.inputAssets)
+						? input.inputAssets
+								.filter((asset) => asset && typeof asset === "object")
+								.map((asset) => ({
+									assetId: typeof asset.assetId === "string" ? asset.assetId : "",
+									fileName: typeof asset.fileName === "string" ? asset.fileName : "asset",
+									mimeType: typeof asset.mimeType === "string" ? asset.mimeType : "application/octet-stream",
+									sizeBytes: Number.isFinite(asset.sizeBytes) ? asset.sizeBytes : 0,
+									kind: typeof asset.kind === "string" ? asset.kind : "metadata",
+								}))
+								.filter((asset) => asset.assetId)
+						: [],
+				},
+				text: typeof rawRun.text === "string" ? rawRun.text : "",
+				process: normalizeProcessView(rawRun.process),
+				queue,
+				loading: rawRun.loading !== false && status === "running",
+				startedAt: typeof rawRun.startedAt === "string" ? rawRun.startedAt : new Date().toISOString(),
+				updatedAt: typeof rawRun.updatedAt === "string" ? rawRun.updatedAt : new Date().toISOString(),
+			};
+		}
+
+		function normalizeProcessView(rawProcess) {
+			if (!rawProcess || typeof rawProcess !== "object") {
+				return null;
+			}
+
+			const allowedKinds = new Set(["system", "tool", "ok", "error", "warn"]);
+			const entries = Array.isArray(rawProcess.entries)
+				? rawProcess.entries
+						.filter((entry) => entry && typeof entry === "object")
+						.map((entry, index) => ({
+							id: typeof entry.id === "string" && entry.id ? entry.id : "process-" + (index + 1),
+							kind: allowedKinds.has(entry.kind) ? entry.kind : "system",
+							title: typeof entry.title === "string" ? entry.title : "过程更新",
+							detail: typeof entry.detail === "string" ? entry.detail : "",
+							createdAt: typeof entry.createdAt === "string" ? entry.createdAt : new Date().toISOString(),
+							toolCallId: typeof entry.toolCallId === "string" ? entry.toolCallId : "",
+							toolName: typeof entry.toolName === "string" ? entry.toolName : "",
+							isError: Boolean(entry.isError),
+						}))
+				: [];
+			const narration = Array.isArray(rawProcess.narration)
+				? rawProcess.narration.map((line) => String(line || "").trim()).filter(Boolean)
+				: entries.map(formatProcessViewEntry);
+			const currentAction = String(rawProcess.currentAction || "").trim();
+			const kind = allowedKinds.has(rawProcess.kind) ? rawProcess.kind : (entries.at(-1)?.kind || "system");
+			if (!narration.length && !currentAction) {
+				return null;
+			}
+
+			return {
+				title: typeof rawProcess.title === "string" ? rawProcess.title : "思考过程",
+				narration,
+				currentAction: currentAction || entries.at(-1)?.title || "等待动作",
+				kind,
+				isComplete: Boolean(rawProcess.isComplete),
+				entries,
+			};
+		}
+
+		function formatProcessViewEntry(entry) {
+			const subject = entry.toolName ? entry.title + " · " + entry.toolName : entry.title;
+			return entry.detail ? subject + "\\n" + entry.detail : subject;
 		}
 
 		function isNetworkErrorText(text) {
@@ -3638,32 +3773,6 @@ function getPlaygroundScript(): string {
 					: "浏览器网络连接短暂断开，已重新订阅当前运行任务。",
 			);
 			return true;
-		}
-
-		function normalizeProcessSnapshot(rawProcess) {
-			if (!rawProcess || typeof rawProcess !== "object") {
-				return null;
-			}
-
-			const allowedKinds = new Set(["system", "tool", "ok", "error", "warn"]);
-			const narration = Array.isArray(rawProcess.narration)
-				? rawProcess.narration
-						.map((line) => String(line || "").trim())
-						.filter(Boolean)
-						.slice(-80)
-				: [];
-			const action = String(rawProcess.action || "").trim();
-			const kind = allowedKinds.has(rawProcess.kind) ? rawProcess.kind : "system";
-			if (!narration.length && !action) {
-				return null;
-			}
-
-			return {
-				narration,
-				action: action || "等待动作",
-				kind,
-				isComplete: Boolean(rawProcess.isComplete),
-			};
 		}
 
 		function loadConversationHistoryEntries(conversationId) {
@@ -3735,7 +3844,6 @@ function getPlaygroundScript(): string {
 				attachments: cloneHistoryAttachments(options?.attachments),
 				assetRefs: cloneHistoryAssetRefs(options?.assetRefs),
 				files: cloneHistoryFiles(options?.files),
-				process: normalizeProcessSnapshot(options?.process),
 			};
 		}
 
@@ -3971,14 +4079,13 @@ function getPlaygroundScript(): string {
 				processAction: null,
 			};
 			renderedMessages.set(entry.id, rendered);
-			restoreProcessSnapshot(entry, rendered);
 			syncMessageCopyButton(entry);
 			return rendered;
 		}
 
-		function restoreProcessSnapshot(entry, rendered, options) {
-			const snapshot = normalizeProcessSnapshot(entry?.process);
-			if (!snapshot || !rendered?.body || !rendered?.content) {
+		function applyProcessViewToRenderedMessage(processView, rendered, options) {
+			const process = normalizeProcessView(processView);
+			if (!process || !rendered?.body || !rendered?.content) {
 				return null;
 			}
 
@@ -3998,23 +4105,23 @@ function getPlaygroundScript(): string {
 			}
 
 			stream.narration.innerHTML = "";
-			for (const lineText of snapshot.narration) {
+			for (const lineText of process.narration) {
 				const line = document.createElement("p");
 				line.className = "assistant-process-line";
 				line.textContent = lineText;
 				stream.narration.appendChild(line);
 			}
 			stream.narration.scrollTop = stream.narration.scrollHeight;
-			stream.action.textContent = snapshot.action || "等待动作";
+			stream.action.textContent = process.currentAction || "等待动作";
 			stream.shell.classList.remove("tool", "ok", "error", "warn", "system", "is-running", "is-complete");
-			stream.shell.classList.add(snapshot.kind || "system");
-			stream.shell.classList.add(options?.running || !snapshot.isComplete ? "is-running" : "is-complete");
+			stream.shell.classList.add(process.kind || "system");
+			stream.shell.classList.add(options?.running || !process.isComplete ? "is-running" : "is-complete");
 
 			if (options?.activate) {
 				state.activeProcessShell = stream.shell;
 				state.activeProcessNarration = stream.narration;
 				state.activeProcessAction = stream.action;
-				state.lastProcessNarration = snapshot.narration.at(-1) || "";
+				state.lastProcessNarration = process.narration.at(-1) || "";
 			}
 
 			return stream;
@@ -4079,18 +4186,9 @@ function getPlaygroundScript(): string {
 			}
 
 			try {
-				const payload = await fetchConversationHistory(nextConversationId);
-				const serverEntries = payload.messages.map(normalizeHistoryEntry).filter(Boolean);
-				if (serverEntries.length === 0) {
-					return;
-				}
-				state.conversationHistory = serverEntries.slice(-MAX_STORED_MESSAGES_PER_CONVERSATION);
-				state.renderedHistoryCount = 0;
-				clearRenderedTranscript();
+				const payload = await fetchConversationState(nextConversationId);
+				renderConversationState(payload);
 				persistConversationHistory(nextConversationId);
-				setTranscriptState("active");
-				renderMoreConversationHistory();
-				scrollTranscriptToBottom({ force: true });
 			} catch (error) {
 				if (state.conversationHistory.length === 0) {
 					const messageText = error instanceof Error ? error.message : "无法获取全局对话历史";
@@ -4817,39 +4915,6 @@ function getPlaygroundScript(): string {
 				narration: state.activeProcessNarration,
 				action: state.activeProcessAction,
 			});
-			persistActiveProcessSnapshot();
-		}
-
-		function persistActiveProcessSnapshot() {
-			const entryId = state.activeAssistantContent?.dataset.entryId;
-			if (!entryId) {
-				return;
-			}
-
-			const historyEntry = state.conversationHistory.find((entry) => entry.id === entryId);
-			if (!historyEntry) {
-				return;
-			}
-
-			const narration = state.activeProcessNarration
-				? Array.from(state.activeProcessNarration.querySelectorAll(".assistant-process-line")).map((line) => line.textContent || "")
-				: [];
-			const shell = state.activeProcessShell;
-			const kind =
-				["tool", "ok", "error", "warn", "system"].find((className) => shell?.classList.contains(className)) || "system";
-			const process = normalizeProcessSnapshot({
-				narration,
-				action: state.activeProcessAction?.textContent || "",
-				kind,
-				isComplete: Boolean(shell?.classList.contains("is-complete")),
-			});
-
-			if (process) {
-				historyEntry.process = process;
-			} else {
-				delete historyEntry.process;
-			}
-			rememberConversationMessage(historyEntry);
 		}
 
 		function appendProcessNarrationLine(text) {
@@ -4861,14 +4926,12 @@ function getPlaygroundScript(): string {
 			const stream = ensureProcessStreamCard();
 			appendNarrationToAssistantProcess(stream, lineText);
 			state.lastProcessNarration = lineText;
-			persistActiveProcessSnapshot();
 		}
 
 		function setProcessCurrentAction(text, kind) {
 			const actionText = String(text || "").trim() || "等待动作";
 			const stream = ensureProcessStreamCard();
 			setAssistantProcessAction(stream, actionText, kind);
-			persistActiveProcessSnapshot();
 		}
 
 		function appendNarrationToAssistantProcess(stream, text) {
@@ -5238,6 +5301,7 @@ function getPlaygroundScript(): string {
 					setLoading(false);
 					statusPill.textContent = "完成";
 					void syncContextUsage(event.conversationId, { silent: true });
+					void restoreConversationHistoryFromServer(event.conversationId);
 					break;
 				}
 				case "error":

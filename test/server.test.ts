@@ -52,6 +52,7 @@ function createAgentServiceStub(overrides?: {
 			createdAt: string;
 		}>;
 	}>;
+	getConversationState?: (conversationId: string) => Promise<Record<string, unknown>>;
 	getAvailableSkills?: () => Promise<Array<{ name: string; path?: string }>>;
 }): AgentService {
 	return {
@@ -130,13 +131,34 @@ function createAgentServiceStub(overrides?: {
 				conversationId,
 				messages: [],
 			})),
+		getConversationState:
+			overrides?.getConversationState ??
+			(async (conversationId) => ({
+				conversationId,
+				running: false,
+				contextUsage: {
+					provider: "dashscope-coding",
+					model: "glm-5",
+					currentTokens: 45231,
+					contextWindow: 128000,
+					reserveTokens: 16384,
+					maxResponseTokens: 16384,
+					availableTokens: 66385,
+					percent: 35,
+					status: "safe",
+					mode: "estimate",
+				},
+				messages: [],
+				activeRun: null,
+				updatedAt: "2026-04-20T00:00:00.000Z",
+			})),
 		getAvailableSkills:
 			overrides?.getAvailableSkills ??
 			(async () => [
 				{ name: "using-superpowers", path: "E:/AII/ugk-pi/.pi/skills/superpowers/using-superpowers/SKILL.md" },
 				{ name: "web-access", path: "E:/AII/ugk-pi/runtime/skills-user/web-access/SKILL.md" },
 			]),
-	} as AgentService;
+	} as unknown as AgentService;
 }
 
 test("GET /healthz returns ok", async () => {
@@ -782,21 +804,19 @@ test("GET /playground restores running conversations after refresh and avoids re
 
 	assert.equal(response.statusCode, 200);
 	assert.match(response.body, /\/v1\/chat\/status\?/);
+	assert.match(response.body, /\/v1\/chat\/state\?/);
 	assert.match(response.body, /\/v1\/chat\/events\?/);
+	assert.match(response.body, /async function fetchConversationState\(conversationId\)\s*\{/);
+	assert.match(response.body, /function renderConversationState\(conversationState\)\s*\{/);
 	assert.match(response.body, /async function fetchConversationRunStatus\(conversationId\)\s*\{/);
 	assert.match(response.body, /function stopActiveRunEventStream\(\)\s*\{/);
 	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
 	assert.match(response.body, /async function syncConversationRunState\(conversationId, options\)\s*\{/);
 	assert.match(response.body, /async function recoverRunningStreamAfterDisconnect\(reason\)\s*\{/);
-	assert.match(response.body, /function findLatestUserHistoryEntry\(\)\s*\{/);
-	assert.match(response.body, /function formatRecoveredRunMessage\(\)\s*\{/);
-	assert.match(response.body, /setMessageContent\(content, formatRecoveredRunMessage\(\)\)/);
-	assert.match(response.body, /function normalizeProcessSnapshot\(rawProcess\)\s*\{/);
-	assert.match(response.body, /process: normalizeProcessSnapshot\(rawEntry\.process\)/);
-	assert.match(response.body, /function restoreProcessSnapshot\(entry, rendered, options\)\s*\{/);
-	assert.match(response.body, /restoreProcessSnapshot\(entry, rendered/);
-	assert.match(response.body, /function persistActiveProcessSnapshot\(\)\s*\{/);
-	assert.match(response.body, /persistActiveProcessSnapshot\(\)/);
+	assert.doesNotMatch(response.body, /function formatRecoveredRunMessage\(\)\s*\{/);
+	assert.doesNotMatch(response.body, /function normalizeProcessSnapshot\(rawProcess\)\s*\{/);
+	assert.doesNotMatch(response.body, /function restoreProcessSnapshot\(entry, rendered, options\)\s*\{/);
+	assert.doesNotMatch(response.body, /function persistActiveProcessSnapshot\(\)\s*\{/);
 	assert.match(response.body, /function isPageUnloadStreamError\(error\)\s*\{/);
 	assert.match(response.body, /if \(isPageUnloadStreamError\(error\)\) \{/);
 	assert.match(response.body, /function isTransientNetworkHistoryEntry\(entry\)\s*\{/);
@@ -871,6 +891,128 @@ test("GET /v1/chat/history returns global conversation transcript", async () => 
 				createdAt: "2026-04-20T00:00:01.000Z",
 			},
 		],
+	});
+	assert.deepEqual(calls, ["agent:global"]);
+	await app.close();
+});
+
+test("GET /v1/chat/state returns the canonical conversation state", async () => {
+	const calls: string[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			getConversationState: async (conversationId) => {
+				calls.push(conversationId);
+				return {
+					conversationId,
+					running: true,
+					contextUsage: {
+						provider: "dashscope-coding",
+						model: "glm-5",
+						currentTokens: 128,
+						contextWindow: 128000,
+						reserveTokens: 16384,
+						maxResponseTokens: 16384,
+						availableTokens: 111104,
+						percent: 1,
+						status: "safe",
+						mode: "estimate",
+					},
+					messages: [
+						{
+							id: "history-1",
+							kind: "user",
+							title: "agent:global",
+							text: "old task",
+							createdAt: "2026-04-20T00:00:00.000Z",
+						},
+					],
+					activeRun: {
+						runId: "run-agent-global-1",
+						status: "running",
+						assistantMessageId: "active-run-agent-global-1",
+						input: {
+							message: "current task",
+							inputAssets: [],
+						},
+						text: "partial",
+						process: {
+							title: "思考过程",
+							narration: ["任务开始"],
+							currentAction: "工具开始 · bash",
+							kind: "tool",
+							isComplete: false,
+							entries: [],
+						},
+						queue: {
+							steering: [],
+							followUp: [],
+						},
+						loading: true,
+						startedAt: "2026-04-20T00:00:01.000Z",
+						updatedAt: "2026-04-20T00:00:02.000Z",
+					},
+					updatedAt: "2026-04-20T00:00:02.000Z",
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/chat/state?conversationId=agent%3Aglobal",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conversationId: "agent:global",
+		running: true,
+		contextUsage: {
+			provider: "dashscope-coding",
+			model: "glm-5",
+			currentTokens: 128,
+			contextWindow: 128000,
+			reserveTokens: 16384,
+			maxResponseTokens: 16384,
+			availableTokens: 111104,
+			percent: 1,
+			status: "safe",
+			mode: "estimate",
+		},
+		messages: [
+			{
+				id: "history-1",
+				kind: "user",
+				title: "agent:global",
+				text: "old task",
+				createdAt: "2026-04-20T00:00:00.000Z",
+			},
+		],
+		activeRun: {
+			runId: "run-agent-global-1",
+			status: "running",
+			assistantMessageId: "active-run-agent-global-1",
+			input: {
+				message: "current task",
+				inputAssets: [],
+			},
+			text: "partial",
+			process: {
+				title: "思考过程",
+				narration: ["任务开始"],
+				currentAction: "工具开始 · bash",
+				kind: "tool",
+				isComplete: false,
+				entries: [],
+			},
+			queue: {
+				steering: [],
+				followUp: [],
+			},
+			loading: true,
+			startedAt: "2026-04-20T00:00:01.000Z",
+			updatedAt: "2026-04-20T00:00:02.000Z",
+		},
+		updatedAt: "2026-04-20T00:00:02.000Z",
 	});
 	assert.deepEqual(calls, ["agent:global"]);
 	await app.close();

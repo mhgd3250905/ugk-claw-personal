@@ -9,6 +9,7 @@ import type {
 	ChatResponseBody,
 	ChatStatusResponseBody,
 	ChatStreamEvent,
+	ConversationStateResponseBody,
 	DebugSkillsResponseBody,
 	ErrorResponseBody,
 	InterruptChatRequestBody,
@@ -151,6 +152,26 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			skills: await deps.agentService.getAvailableSkills(),
 		};
 	});
+
+	app.get(
+		"/v1/chat/state",
+		async (
+			request: FastifyRequest<{ Querystring: { conversationId?: string } }>,
+			reply,
+		): Promise<ConversationStateResponseBody | FastifyReply> => {
+			const { conversationId } = request.query ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+
+			try {
+				return await deps.agentService.getConversationState(conversationId);
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
+		},
+	);
 
 	app.get(
 		"/v1/chat/status",

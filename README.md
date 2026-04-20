@@ -31,8 +31,8 @@ agent / skill -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker C
 - Windows host IPC 只保留为 legacy fallback，不是 Docker / Linux 默认路径
 - 阶段验证命令是 `npm test` 和 `npm run docker:chrome:check`
 - `playground` 的手机端已经单独重写成移动聊天页，不是把桌面端硬压缩；后续 `/init` 如果要接手前端，先看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)，别按“桌面端缩略版”理解
-- `playground` 当前使用固定全局会话 `agent:global`；不同浏览器 / 设备打开后都应看到同一个 agent 的历史与运行态，而不是各自生成本地 `conversationId`
-- 页面前后台切换、手机浏览器挂起或 `/v1/chat/stream` 主连接短断时，如果后端任务仍在运行，前端会切到 `/v1/chat/events` 继续订阅，不把这种浏览器生命周期断线当成本轮失败
+- `playground` 当前使用固定全局会话 `agent:global`；不同浏览器 / 设备打开后都通过 `GET /v1/chat/state` 看到同一个 agent 的历史、运行态和 active run 过程，而不是各自生成本地 `conversationId`
+- 页面前后台切换、手机浏览器挂起或 `/v1/chat/stream` 主连接短断时，如果 `/v1/chat/state` 仍显示后端任务运行中，前端会切到 `/v1/chat/events` 继续订阅，不把这种浏览器生命周期断线当成本轮失败
 - `.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告和本地调试目录不属于代码仓库；后续 GitHub 部署与服务器迁移都要按 `.gitignore` 边界处理
 
 ## 快速开始
@@ -180,6 +180,7 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
 - `POST /v1/chat/queue`
 - `POST /v1/chat/interrupt`
 - `GET /v1/chat/status`
+- `GET /v1/chat/state`
 - `GET /v1/chat/history`
 - `GET /v1/chat/events`
 - `GET /v1/debug/skills`
@@ -258,7 +259,7 @@ http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html
 查看运行态：
 
 ```bash
-curl "http://127.0.0.1:3000/v1/chat/status?conversationId=manual:test"
+curl "http://127.0.0.1:3000/v1/chat/state?conversationId=agent%3Aglobal"
 ```
 
 ## Docker Chrome sidecar 速查

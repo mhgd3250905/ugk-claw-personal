@@ -27,8 +27,8 @@
 - transcript 只有在用户停留在底部附近时才自动跟随最新输出；用户明显上滑阅读历史时，`text_delta`、loading 和过程日志更新都不能强制滚到底部
 - 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
 - 当前 Web 入口固定使用全局会话 `agent:global`，不再按浏览器 / 设备生成独立 `conversationId`
-- 页面会先用本地缓存快速恢复 transcript，再通过 `GET /v1/chat/history?conversationId=agent%3Aglobal` 从后端 agent session 同步真实历史；多浏览器、多设备看到的是同一个 agent 的对话记录
-- 本地 `localStorage` 只作为当前设备的快速缓存和渲染快照，不再作为会话身份事实源
+- 页面会先用本地缓存快速恢复 transcript，再通过 `GET /v1/chat/state?conversationId=agent%3Aglobal` 从后端同步真实历史与当前 active run；多浏览器、多设备看到的是同一个 agent 的状态
+- 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份或运行态事实源
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部时，会自动继续补更多旧消息，顶部同时保留“加载更多历史”按钮作为兜底入口
 - `landing` 模式下，对话区底部避让按“`chat-stage` 底部到 `command-deck` 顶部的真实距离”动态计算，不再偷懒拿固定值或只拿 `command-deck` 高度瞎猜
@@ -105,7 +105,7 @@
 - 页面返回断言： [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 - 资产与文件下载： [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)、[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 - 技能真实来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/debug/skills`
-- 全局历史来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/chat/history`
+- 全局会话状态来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/chat/state`
 
 ## 8. 运行态与 loading 约束
 
@@ -114,7 +114,7 @@
 - `done`、`interrupted`、`error` 都必须收口当前 loading 和过程日志，并同步释放前端 loading 状态。
 - 刷新恢复运行态时，页面文案统一使用“当前任务正在运行 / 当前正在运行”，不要再写“上一轮仍在运行”。
 - 手机浏览器前后台切换、页面 `visibilitychange`、`pageshow`、`online` 后都会重新核对 `agent:global` 的运行态和历史。
-- 如果 `/v1/chat/stream` 主连接因为前后台切换或网络短断结束，但 `GET /v1/chat/status` 仍显示后端任务运行中，页面会切到 `/v1/chat/events` 继续接收事件，不再提示“网络错误”并停止更新。
+- 如果 `/v1/chat/stream` 主连接因为前后台切换或网络短断结束，但 `GET /v1/chat/state` 仍显示后端任务运行中，页面会切到 `/v1/chat/events` 继续接收事件，不再提示“网络错误”并停止更新。
 - 用户点击发送或把消息追加进运行中的会话后，composer 要立即清空，明确表示消息已经发出；如果请求在真正进入后端前失败，再把草稿恢复回输入区，不能让用户白丢内容
 
 ## 9. 排查顺序建议
@@ -146,25 +146,23 @@
 
 ## Refresh Run Recovery
 
-- 刷新页面后，playground 固定按 `agent:global` 请求 `/v1/chat/status` 并恢复运行态。
-- 页面打开和恢复前台时会请求 `/v1/chat/history`，让新设备能看到已有 agent session 的历史消息。
+- 刷新页面后，playground 固定按 `agent:global` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、过程区、队列和上下文占用作为同一个 canonical state 渲染。
+- `GET /v1/chat/history` 与 `GET /v1/chat/status` 继续保留兼容，但刷新恢复不再靠前端把 history、status、events、localStorage 和 DOM 指针拼成一份“猜出来的状态”。
+- `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
+- `activeRun` 存在时，前端只渲染一个 active assistant 气泡；同一 run 不允许拆出多条“助手 / 思考过程”消息。
+- `activeRun.input.message` 用来补齐刷新观察者看到的当前用户任务；如果 session history 已经包含同一条用户消息，前端会避免重复渲染。
+- `activeRun.process` 是后端维护的过程快照；前端不再把过程日志写回本地历史里的 `process` 字段，也不再从本地 process snapshot 恢复运行态。
+- 恢复运行态后，playground 会继续请求 `/v1/chat/events`，重新订阅当前 active run 的 SSE 事件流；后续 `text_delta`、工具事件、`done`、`interrupted`、`error` 继续更新同一个 active assistant 气泡。
 - 恢复态不再把任务称为“上一轮”；页面统一渲染为“当前任务正在运行 / 当前正在运行”，因为真实 agent run 并不会因为 web 刷新变成历史任务。
-- 恢复运行态后，playground 会继续请求 `/v1/chat/events`，重新订阅当前 active run 的 SSE 事件流，后续 `text_delta`、工具事件、`done`、`interrupted`、`error` 会继续更新同一个助手气泡。
-- 如果当前助手气泡还没有正文，页面会写入最近一条用户任务摘要；如果刷新前已经有助手正文，则优先保留已有正文，避免把真实回复内容覆盖成状态说明。
-- 刷新前浏览器已经收到的 Agent 过程日志会随助手消息的 `process` 快照一起恢复，包括“思考过程”列表、当前动作和运行 / 完成样式。
-- 恢复运行态时会优先复用最近的助手气泡并重新激活过程日志卡片，不再重新创建一个没有过程上下文的空助手气泡。
 - 恢复运行态下继续发送普通消息会进入 `/v1/chat/queue`，不会重新打开 `/v1/chat/stream` 去撞出 `Conversation ... is already running`。
-- 恢复运行态下点击打断，如果后端确认中断，原 loading 气泡会收口为“本轮已中断”，前端按钮也会退出 loading 状态。
-- 如果打断时后端已经没有运行任务，页面会把残留 loading 收口为“当前任务已结束”，不再把一个过期状态挂在对话底部装神弄鬼。
-- 注意边界：`AgentService` 目前为内存中的 active run 保留最近一段事件缓冲，足够支持同一进程内刷新重连；如果服务进程重启，仍需要持久化 run event log 才能跨进程完整回放。
-- 刷新、前后台切换或手机浏览器挂起导致的 `/v1/chat/stream` 暂态断线不算任务失败；只要后端状态仍是 running，就切到 `/v1/chat/events` 继续追，不会再写入“网络 / network error”气泡。
-- 注意边界：`GET /v1/chat/history` 目前从 pi session messages 还原用户 / 助手正文，能满足跨设备历史读取；实时过程日志的跨进程持久化仍不是完整实现。
+- 刷新、前后台切换或手机浏览器挂起导致的 `/v1/chat/stream` 暂态断线不算任务失败；只要 `GET /v1/chat/state` 仍显示 running，就切到 `/v1/chat/events` 继续追，不会再写入“网络 / network error”气泡。
+- 注意边界：本轮解决的是同一服务进程内 active run 的统一状态渲染；如果服务进程重启，实时过程日志仍需要持久化 run event log 才能跨进程完整回放。
 
 ## Context Usage Bar
 
 - 桌面 Web 和手机端都在对话区与输入框之间显示一个小圆环进度提示，圆环位于输入框外部，右边缘与输入区域右侧对齐。
 - 圆环中央只显示百分比；只要输入区里还有草稿、待发附件或已选资产，就按“预计发送后”口径计算。
-- 基线数据来自 `GET /v1/chat/status` 返回的 `contextUsage`；前端只负责把草稿 / 附件 / 资产的估算 token 叠加上去，所以文案必须明确是估算。
+- 基线数据来自后端状态接口返回的 `contextUsage`；草稿实时估算仍可通过 `GET /v1/chat/status` 刷新，前端只负责把草稿 / 附件 / 资产的估算 token 叠加上去，所以文案必须明确是估算。
 - 风险态统一按 `safe / caution / warning / danger` 四档收口，圆环颜色会随风险变化。
 - 桌面端 hover 或键盘 focus 时展示浮层详情；点击可临时固定展开，别再要求用户盯着一个完整状态条。
 - 手机端点击圆环后打开底部弹窗展示详情，内容包括：会话占用、待发占用、预留回复预算、provider / model、估算口径与剩余可用空间。

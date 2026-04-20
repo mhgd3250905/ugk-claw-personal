@@ -703,6 +703,98 @@ test("getRunStatus reports whether a conversation is actively streaming", async 
 	});
 });
 
+test("getConversationState exposes the active run snapshot for refresh observers", async () => {
+	const store = await createStore();
+	const activeSession = new DeferredSession("E:/sessions/state.jsonl");
+	activeSession.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("previous user"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "previous assistant" }],
+			stopReason: "stop",
+		},
+	);
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:state",
+			message: "current task",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+	activeSession.emit({
+		type: "tool_execution_start",
+		toolCallId: "tool-state",
+		toolName: "bash",
+		args: { command: "echo state" },
+	});
+	activeSession.emit(textDelta("partial answer"));
+	activeSession.emit({
+		type: "queue_update",
+		steering: ["queued steer"],
+		followUp: ["queued follow-up"],
+	});
+
+	const state = await (
+		service as AgentService & {
+			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+		}
+	).getConversationState("manual:state");
+
+	assert.equal(state.conversationId, "manual:state");
+	assert.equal(state.running, true);
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "previous user" },
+			{ kind: "assistant", text: "previous assistant" },
+		],
+	);
+	assert.ok(state.activeRun);
+	const activeRun = state.activeRun;
+	assert.equal(activeRun.status, "running");
+	assert.equal(activeRun.text, "partial answer");
+	assert.deepEqual(activeRun.input, {
+		message: "current task",
+		inputAssets: [],
+	});
+	assert.deepEqual(activeRun.queue, {
+		steering: ["queued steer"],
+		followUp: ["queued follow-up"],
+	});
+	assert.match(
+		activeRun.assistantMessageId,
+		/^active-run-manual-state-/,
+	);
+	assert.ok(activeRun.process);
+	const process = activeRun.process;
+	assert.equal(process.isComplete, false);
+	assert.equal(process.currentAction, "工具开始 · bash");
+	assert.equal(
+		process.entries.find((entry) => entry.toolName === "bash")?.toolName,
+		"bash",
+	);
+
+	activeSession.finish();
+	await run;
+	const finishedState = await (
+		service as AgentService & {
+			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+		}
+	).getConversationState("manual:state");
+	assert.equal(finishedState.running, false);
+	assert.equal(finishedState.activeRun, null);
+});
+
 test("getConversationHistory returns the original user text without internal prompt protocols", async () => {
 	const store = await createStore();
 	await store.set("manual:history-clean", "E:/sessions/history-clean.jsonl");

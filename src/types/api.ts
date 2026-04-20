@@ -153,6 +153,56 @@ export interface ChatHistoryResponseBody {
 	messages: ChatHistoryMessageBody[];
 }
 
+export interface ChatProcessEntryBody {
+	id: string;
+	kind: "system" | "tool" | "ok" | "error";
+	title: string;
+	detail: string;
+	createdAt: string;
+	toolCallId?: string;
+	toolName?: string;
+	isError?: boolean;
+}
+
+export interface ChatProcessBody {
+	title: string;
+	narration: string[];
+	currentAction?: string;
+	kind?: "system" | "tool" | "ok" | "error";
+	isComplete: boolean;
+	entries: ChatProcessEntryBody[];
+}
+
+export interface ChatActiveRunInputBody {
+	message: string;
+	inputAssets: ChatAssetBody[];
+}
+
+export interface ChatActiveRunBody {
+	runId: string;
+	status: "running" | "interrupted" | "done" | "error";
+	assistantMessageId: string;
+	input: ChatActiveRunInputBody;
+	text: string;
+	process: ChatProcessBody | null;
+	queue: {
+		steering: string[];
+		followUp: string[];
+	} | null;
+	loading: boolean;
+	startedAt: string;
+	updatedAt: string;
+}
+
+export interface ConversationStateResponseBody {
+	conversationId: string;
+	running: boolean;
+	contextUsage: ChatContextUsageBody;
+	messages: ChatHistoryMessageBody[];
+	activeRun: ChatActiveRunBody | null;
+	updatedAt: string;
+}
+
 export type QueueMessageMode = "steer" | "followUp";
 
 export interface QueueMessageRequestBody {

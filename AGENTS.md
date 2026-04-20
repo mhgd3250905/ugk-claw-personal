@@ -145,6 +145,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 ### B 场景：查聊天、会话、流式、打断
 
+- `GET /v1/chat/state`
 - `GET /v1/chat/status`
 - `GET /v1/chat/events`
 - `src/routes/chat.ts`
@@ -232,10 +233,10 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
-- playground 刷新恢复运行态以 `GET /v1/chat/status` 和 `GET /v1/chat/events` 为准；文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
-- playground Web 入口当前固定使用全局会话 `agent:global`；不同浏览器 / 设备打开后应通过 `GET /v1/chat/history`、`GET /v1/chat/status` 和 `GET /v1/chat/events` 看到同一个 agent 的历史与运行态，不要再生成设备私有 `conversationId`。
+- playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
+- playground Web 入口当前固定使用全局会话 `agent:global`；不同浏览器 / 设备打开后应通过 `GET /v1/chat/state` 看到同一个 agent 的历史、当前输入、active assistant 正文和过程区，不要再生成设备私有 `conversationId`。
 - playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示“回到底部”按钮。
-- 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要后端状态仍是 running，前端应切到 `/v1/chat/events` 续订事件流。
+- 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要 `GET /v1/chat/state` 仍显示 running，前端应切到 `/v1/chat/events` 续订事件流。
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。

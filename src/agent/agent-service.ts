@@ -16,7 +16,15 @@ import {
 	buildContextUsageSnapshot,
 	type AgentMessageLike,
 } from "./context-usage.js";
-import type { ChatContextUsageBody, ChatStreamEvent, QueueMessageMode } from "../types/api.js";
+import type {
+	ChatActiveRunBody,
+	ChatContextUsageBody,
+	ChatProcessBody,
+	ChatProcessEntryBody,
+	ChatStreamEvent,
+	ConversationStateResponseBody,
+	QueueMessageMode,
+} from "../types/api.js";
 import {
 	buildPromptWithAssetContext,
 	extractAgentFileDrafts,
@@ -88,6 +96,8 @@ export interface ConversationHistoryResult {
 	messages: ConversationHistoryMessage[];
 }
 
+export type ConversationStateResult = ConversationStateResponseBody;
+
 export interface RunEventSubscription {
 	conversationId: string;
 	running: boolean;
@@ -112,6 +122,7 @@ interface ActiveRunState {
 	interrupted: boolean;
 	events: ChatStreamEvent[];
 	subscribers: Set<ChatStreamEventSink>;
+	view: ChatActiveRunBody;
 }
 
 const MAX_BUFFERED_RUN_EVENTS = 300;
@@ -218,6 +229,28 @@ export class AgentService {
 		};
 	}
 
+	async getConversationState(conversationId: string): Promise<ConversationStateResult> {
+		const activeRun = this.activeRuns.get(conversationId);
+		const session = await this.getContextSession(conversationId);
+		const modelContext = this.getDefaultModelContext();
+		const contextUsage = buildContextUsageSnapshot(
+			modelContext,
+			((session?.messages as AgentMessageLike[] | undefined) ?? []),
+		);
+		const messages = ((session?.messages as AgentMessageLike[] | undefined) ?? [])
+			.map((message, index) => this.toConversationHistoryMessage(message, index))
+			.filter((message): message is ConversationHistoryMessage => Boolean(message));
+
+		return {
+			conversationId,
+			running: Boolean(activeRun),
+			contextUsage,
+			messages,
+			activeRun: activeRun ? cloneActiveRunView(activeRun.view) : null,
+			updatedAt: activeRun?.view.updatedAt ?? new Date().toISOString(),
+		};
+	}
+
 	subscribeRunEvents(conversationId: string, onEvent: ChatStreamEventSink): RunEventSubscription {
 		const activeRun = this.activeRuns.get(conversationId);
 		if (!activeRun) {
@@ -266,6 +299,7 @@ export class AgentService {
 			interrupted: false,
 			events: [],
 			subscribers: new Set<ChatStreamEventSink>(),
+			view: createActiveRunView(conversationId, input.message, preparedAssets.uploadedAssets),
 		};
 		this.activeRuns.set(conversationId, activeRun);
 
@@ -393,6 +427,7 @@ export class AgentService {
 		primarySink: ChatStreamEventSink | undefined,
 		event: ChatStreamEvent,
 	): void {
+		this.applyEventToActiveRunView(activeRun, event);
 		activeRun.events.push(event);
 		if (activeRun.events.length > MAX_BUFFERED_RUN_EVENTS) {
 			activeRun.events.shift();
@@ -401,6 +436,75 @@ export class AgentService {
 		this.emitEvent(primarySink, event);
 		for (const subscriber of activeRun.subscribers) {
 			this.emitEvent(subscriber, event);
+		}
+	}
+
+	private applyEventToActiveRunView(activeRun: ActiveRunState, event: ChatStreamEvent): void {
+		const view = activeRun.view;
+		view.updatedAt = new Date().toISOString();
+		switch (event.type) {
+			case "run_started":
+				appendProcessEntry(view, {
+					kind: "system",
+					title: "任务开始",
+					detail: event.conversationId,
+				});
+				break;
+			case "text_delta":
+				view.text += event.textDelta;
+				break;
+			case "tool_started":
+				appendProcessEntry(view, {
+					kind: "tool",
+					title: "工具开始",
+					detail: event.args,
+					toolCallId: event.toolCallId,
+					toolName: event.toolName,
+				});
+				break;
+			case "tool_updated":
+				appendProcessEntry(view, {
+					kind: "tool",
+					title: "工具更新",
+					detail: event.partialResult,
+					toolCallId: event.toolCallId,
+					toolName: event.toolName,
+				});
+				break;
+			case "tool_finished":
+				appendProcessEntry(view, {
+					kind: event.isError ? "error" : "ok",
+					title: "工具结束",
+					detail: event.result,
+					toolCallId: event.toolCallId,
+					toolName: event.toolName,
+					isError: event.isError,
+				});
+				break;
+			case "queue_updated":
+				view.queue = {
+					steering: [...event.steering],
+					followUp: [...event.followUp],
+				};
+				break;
+			case "interrupted":
+				view.status = "interrupted";
+				view.loading = false;
+				completeProcess(view, "system", "任务已打断", event.conversationId);
+				break;
+			case "done":
+				view.status = "done";
+				view.loading = false;
+				view.text = event.text;
+				completeProcess(view, "ok", "任务完成", event.sessionFile ?? "");
+				break;
+			case "error":
+				view.status = "error";
+				view.loading = false;
+				completeProcess(view, "error", "任务错误", event.message);
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -709,6 +813,109 @@ export class AgentService {
 
 function conversationTitleFromRole(kind: "user" | "assistant" | "system" | "error"): string {
 	return kind === "user" ? "agent:global" : "助手";
+}
+
+function createActiveRunView(
+	conversationId: string,
+	message: string,
+	inputAssets: AssetRecord[],
+): ChatActiveRunBody {
+	const now = new Date().toISOString();
+	const runId = `run-${sanitizeStateId(conversationId)}-${randomUUID()}`;
+	return {
+		runId,
+		status: "running",
+		assistantMessageId: `active-run-${sanitizeStateId(conversationId)}-${randomUUID()}`,
+		input: {
+			message,
+			inputAssets: inputAssets.map((asset) => ({ ...asset })),
+		},
+		text: "",
+		process: createEmptyProcess(),
+		queue: null,
+		loading: true,
+		startedAt: now,
+		updatedAt: now,
+	};
+}
+
+function sanitizeStateId(value: string): string {
+	return value.trim().replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "conversation";
+}
+
+function createEmptyProcess(): ChatProcessBody {
+	return {
+		title: "思考过程",
+		narration: [],
+		isComplete: false,
+		entries: [],
+	};
+}
+
+function appendProcessEntry(
+	view: ChatActiveRunBody,
+	input: Omit<ChatProcessEntryBody, "id" | "createdAt">,
+): void {
+	const process = view.process ?? createEmptyProcess();
+	const entry: ChatProcessEntryBody = {
+		id: `process-${process.entries.length + 1}`,
+		createdAt: new Date().toISOString(),
+		...input,
+	};
+	process.entries.push(entry);
+	process.kind = entry.kind;
+	process.currentAction = formatProcessCurrentAction(entry.title, entry.toolName);
+	process.narration.push(formatProcessNarration(entry));
+	process.isComplete = false;
+	view.process = process;
+}
+
+function completeProcess(
+	view: ChatActiveRunBody,
+	kind: ChatProcessEntryBody["kind"],
+	title: string,
+	detail: string,
+): void {
+	appendProcessEntry(view, {
+		kind,
+		title,
+		detail,
+	});
+	if (view.process) {
+		view.process.isComplete = true;
+	}
+}
+
+function formatProcessCurrentAction(title: string, toolName?: string): string {
+	return toolName ? `${title} · ${toolName}` : title;
+}
+
+function formatProcessNarration(entry: ChatProcessEntryBody): string {
+	const subject = entry.toolName ? `${entry.title} · ${entry.toolName}` : entry.title;
+	return entry.detail ? `${subject}\n${entry.detail}` : subject;
+}
+
+function cloneActiveRunView(view: ChatActiveRunBody): ChatActiveRunBody {
+	return {
+		...view,
+		input: {
+			message: view.input.message,
+			inputAssets: view.input.inputAssets.map((asset) => ({ ...asset })),
+		},
+		process: view.process
+			? {
+					...view.process,
+					narration: [...view.process.narration],
+					entries: view.process.entries.map((entry) => ({ ...entry })),
+				}
+			: null,
+		queue: view.queue
+			? {
+					steering: [...view.queue.steering],
+					followUp: [...view.queue.followUp],
+				}
+			: null,
+	};
 }
 
 function hasStringProperty(value: object, propertyName: string): boolean {

@@ -12,6 +12,27 @@
 
 ## 2026-04-20
 
+### Playground 统一 agent 状态渲染
+- 主题：把刷新、多浏览器和运行中任务展示收口到后端 canonical conversation state，避免前端继续把 history、status、events、localStorage 和 DOM 指针拼成多套状态。
+- 影响范围：
+  - `src/types/api.ts` 新增 `ConversationStateResponseBody`、`ChatActiveRunBody`、`ChatProcessBody` 等状态协议，明确 `messages + activeRun` 的统一渲染结构。
+  - `src/agent/agent-service.ts` 在 active run 内维护可渲染 `view` 快照，随 `run_started`、`text_delta`、工具事件、队列、`done`、`interrupted`、`error` 更新同一份状态。
+  - `src/routes/chat.ts` 新增 `GET /v1/chat/state`，返回全局会话历史、当前运行态、active assistant 正文、过程区、队列和上下文占用；旧 `/history`、`/status`、`/events` 保留兼容。
+  - `src/ui/playground.ts` 刷新恢复改为优先消费 `/v1/chat/state` 并通过 `renderConversationState()` 渲染；本地 `process` 快照恢复和写回逻辑移除，SSE 只继续更新同一个 active assistant 气泡。
+  - `test/agent-service.test.ts` 与 `test/server.test.ts` 增加 canonical state、路由和前端入口断言，防止同一 run 再被拆成多条助手过程消息。
+  - `AGENTS.md`、`README.md`、`docs/traceability-map.md`、`docs/playground-current.md` 同步更新刷新恢复、运行态和 context usage 口径。
+- 对应入口：
+  - [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground 历史恢复过滤内部 prompt 协议
 - 主题：修复刷新或重新打开 playground 后，从后端 session 恢复的用户历史消息会暴露 `<asset_reference_protocol>`、`<file_response_protocol>` 等内部 prompt 注入段的问题。
 - 影响范围：

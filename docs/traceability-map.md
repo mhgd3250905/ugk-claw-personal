@@ -40,6 +40,7 @@
 重点接口：
 
 - `GET /v1/chat/status`
+- `GET /v1/chat/state`
 - `GET /v1/chat/events`
 - `POST /v1/chat`
 - `POST /v1/chat/stream`
