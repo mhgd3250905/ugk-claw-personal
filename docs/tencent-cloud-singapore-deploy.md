@@ -22,6 +22,7 @@
 - 当前主部署目录：`/home/ubuntu/ugk-claw-repo`
 - 当前 shared 运行态目录：`/home/ubuntu/ugk-claw-shared`
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
+- 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 
 服务器初始核验结果：
 
@@ -253,6 +254,7 @@ tsconfig.json
 - `compose.env` 保存 compose 级路径和端口变量
 - `.data/chrome-sidecar` 保存 sidecar Chrome 登录态
 - `logs/` 保存 app 与 nginx 日志
+- 历史上 repo 目录里 root-owned 的旧 `logs/` 已归档到 `~/ugk-claw-shared/backups/repo-logs-from-repo-20260420-112034`，不要再回头在 `~/ugk-claw-repo/logs` 找生产日志
 
 ## 服务器 app.env
 

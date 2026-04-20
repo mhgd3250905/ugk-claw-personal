@@ -18,6 +18,8 @@
   - `docker-compose.prod.yml` 改为支持通过 `UGK_APP_ENV_FILE`、`UGK_APP_LOG_DIR`、`UGK_NGINX_LOG_DIR`、`UGK_BROWSER_CONFIG_DIR` 从 shared 目录注入生产运行态路径
   - `.env.example` 补齐这些路径变量的默认值，避免后续只会盯着仓库内相对路径发呆
   - `README.md`、`AGENTS.md`、`docs/traceability-map.md`、`docs/tencent-cloud-singapore-deploy.md` 同步更新 shared 目录口径和生产命令
+  - 腾讯云服务器已实际完成迁移验证：`healthz` 与 `playground` 均返回 `200`，`ugk-pi` / `nginx` / `chrome-sidecar` 的生产挂载已切到 `~/ugk-claw-shared/`
+  - 旧 repo 内遗留的 `logs/` 已归档到 `~/ugk-claw-shared/backups/repo-logs-from-repo-20260420-112034`
 - 对应入口：
   - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
   - [.env.example](/E:/AII/ugk-pi/.env.example)
