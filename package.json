@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
+    "worker:conn": "tsx src/workers/conn-worker.ts",
     "test": "node --test --import tsx test/**/*.test.ts",
     "docker:build": "docker build -t ugk-pi:local .",
     "docker:up": "docker compose up --build",

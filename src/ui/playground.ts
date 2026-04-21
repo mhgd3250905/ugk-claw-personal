@@ -670,6 +670,95 @@ function getPlaygroundStyles(): string {
 			transform: none;
 		}
 
+		.notification-live-region {
+			position: fixed;
+			top: 18px;
+			right: 18px;
+			z-index: 90;
+			display: grid;
+			justify-items: end;
+			gap: 10px;
+			width: min(360px, calc(100vw - 28px));
+			pointer-events: none;
+		}
+
+		.notification-live-region[hidden] {
+			display: none !important;
+		}
+
+		.notification-toast-stack {
+			display: grid;
+			justify-items: stretch;
+			gap: 10px;
+			width: 100%;
+		}
+
+		.notification-toast {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: start;
+			gap: 12px;
+			width: 100%;
+			padding: 12px 14px;
+			border: 1px solid rgba(141, 255, 178, 0.18);
+			border-radius: 4px;
+			background:
+				linear-gradient(180deg, rgba(8, 14, 24, 0.96), rgba(6, 10, 18, 0.96)),
+				rgba(6, 10, 18, 0.96);
+			box-shadow:
+				0 18px 40px rgba(0, 0, 0, 0.32),
+				inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			backdrop-filter: blur(16px);
+			pointer-events: auto;
+		}
+
+		.notification-toast-copy {
+			display: grid;
+			gap: 5px;
+			min-width: 0;
+		}
+
+		.notification-toast-title {
+			color: rgba(243, 248, 255, 0.96);
+			font-size: 12px;
+			font-weight: 600;
+			line-height: 1.45;
+			word-break: break-word;
+		}
+
+		.notification-toast-meta {
+			color: rgba(214, 221, 255, 0.62);
+			font-size: 10px;
+			line-height: 1.5;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+		}
+
+		.notification-toast-dismiss {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 24px;
+			height: 24px;
+			padding: 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			box-shadow: none;
+			color: rgba(228, 235, 255, 0.68);
+			font-size: 15px;
+			line-height: 1;
+			cursor: pointer;
+		}
+
+		.notification-toast-dismiss:hover:not(:disabled),
+		.notification-toast-dismiss:focus-visible {
+			background: rgba(255, 255, 255, 0.08);
+			color: #f5f8ff;
+			box-shadow: none;
+			transform: none;
+		}
+
 		.stream-layout {
 			display: flex;
 			flex-direction: column;
@@ -1737,6 +1826,134 @@ function getPlaygroundStyles(): string {
 			white-space: pre-line;
 		}
 
+		.conn-run-details-dialog[hidden] {
+			display: none !important;
+		}
+
+		.conn-run-details-dialog {
+			position: fixed;
+			inset: 0;
+			z-index: 72;
+			display: none;
+			align-items: flex-end;
+			justify-content: center;
+			padding: 18px;
+			background: rgba(3, 5, 10, 0.58);
+			backdrop-filter: blur(10px);
+		}
+
+		.conn-run-details-dialog.open {
+			display: flex;
+		}
+
+		.conn-run-details-panel {
+			width: min(720px, 100%);
+			max-height: min(78vh, 640px);
+			padding: 16px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 18px;
+			background: rgba(8, 11, 20, 0.98);
+			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			overflow: hidden;
+		}
+
+		.conn-run-details-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			margin-bottom: 12px;
+		}
+
+		.conn-run-details-head strong {
+			color: rgba(247, 249, 255, 0.92);
+			font-size: 13px;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.conn-run-details-close {
+			width: 32px;
+			height: 32px;
+			padding: 0;
+			border: 1px solid rgba(201, 210, 255, 0.12);
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(238, 244, 255, 0.76);
+		}
+
+		.conn-run-details-body {
+			display: grid;
+			gap: 12px;
+			max-height: calc(min(78vh, 640px) - 76px);
+			overflow: auto;
+			color: rgba(225, 232, 247, 0.76);
+			font-size: 12px;
+			line-height: 1.7;
+		}
+
+		.conn-run-section {
+			display: grid;
+			gap: 8px;
+			padding: 12px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 6px;
+			background: rgba(255, 255, 255, 0.035);
+		}
+
+		.conn-run-section code {
+			overflow-wrap: anywhere;
+			color: rgba(223, 230, 255, 0.78);
+			font-family: var(--font-mono);
+			font-size: 11px;
+		}
+
+		.conn-run-event-list {
+			display: grid;
+			gap: 8px;
+			margin: 0;
+			padding: 0;
+			list-style: none;
+		}
+
+		.conn-run-event {
+			display: grid;
+			gap: 4px;
+			padding: 8px 0;
+			border-top: 1px solid rgba(255, 255, 255, 0.06);
+		}
+
+		.conn-run-event:first-child {
+			border-top: 0;
+			padding-top: 0;
+		}
+
+		.conn-run-event span {
+			color: rgba(226, 234, 255, 0.5);
+			font-size: 10px;
+		}
+
+		.conn-run-open-button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 28px;
+			height: 28px;
+			padding: 0;
+			border: 0;
+			background: transparent;
+			box-shadow: none;
+			color: rgba(226, 234, 255, 0.58);
+		}
+
+		.conn-run-open-button:hover:not(:disabled),
+		.conn-run-open-button:focus-visible {
+			background: transparent;
+			box-shadow: none;
+			color: rgba(247, 249, 255, 0.92);
+			transform: none;
+		}
+
 		.drag-overlay {
 			position: fixed;
 			inset: 16px;
@@ -1827,13 +2044,17 @@ function getPlaygroundStyles(): string {
 		}
 
 		.file-downloads,
-		.asset-modal-list {
+		.asset-modal-list,
+		.conn-manager-list,
+		.conn-manager-run-list {
 			display: grid;
 			gap: 6px;
 		}
 
 		.file-download,
-		.asset-pill {
+		.asset-pill,
+		.conn-manager-item,
+		.conn-manager-run-item {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) auto;
 			gap: 10px;
@@ -2011,7 +2232,9 @@ function getPlaygroundStyles(): string {
 		}
 
 		.asset-modal-actions button,
-		.asset-pill button {
+		.asset-pill button,
+		.conn-manager-actions button,
+		.conn-manager-run-actions button {
 			padding: 6px 10px;
 			font-size: 10px;
 		}
@@ -2024,6 +2247,102 @@ function getPlaygroundStyles(): string {
 			border-color: rgba(201, 210, 255, 0.18);
 			background: rgba(255, 255, 255, 0.08);
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+		}
+
+		.conn-manager-item {
+			grid-template-columns: minmax(0, 1fr);
+			align-items: stretch;
+			gap: 12px;
+		}
+
+		.conn-manager-main {
+			display: grid;
+			gap: 8px;
+			min-width: 0;
+		}
+
+		.conn-manager-title-row,
+		.conn-manager-actions,
+		.conn-manager-run-actions {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			flex-wrap: wrap;
+		}
+
+		.conn-manager-title-row strong {
+			min-width: 0;
+			overflow: hidden;
+			color: rgba(246, 249, 255, 0.94);
+			font-size: 13px;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.conn-manager-status {
+			display: inline-flex;
+			align-items: center;
+			min-height: 20px;
+			padding: 3px 7px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			color: rgba(226, 234, 255, 0.72);
+			font-family: var(--font-mono);
+			font-size: 10px;
+			line-height: 1;
+			text-transform: uppercase;
+		}
+
+		.conn-manager-status.active {
+			border-color: rgba(141, 255, 178, 0.3);
+			color: rgba(141, 255, 178, 0.9);
+		}
+
+		.conn-manager-status.paused {
+			border-color: rgba(255, 209, 102, 0.3);
+			color: rgba(255, 209, 102, 0.92);
+		}
+
+		.conn-manager-meta {
+			display: grid;
+			gap: 5px;
+			color: rgba(226, 234, 255, 0.58);
+			font-size: 11px;
+			line-height: 1.55;
+		}
+
+		.conn-manager-meta code,
+		.conn-manager-run-item code {
+			overflow-wrap: anywhere;
+			color: rgba(223, 230, 255, 0.72);
+			font-family: var(--font-mono);
+			font-size: 10px;
+		}
+
+		.conn-manager-actions {
+			justify-content: flex-end;
+		}
+
+		.conn-manager-run-list {
+			padding-top: 8px;
+			border-top: 1px solid rgba(255, 255, 255, 0.06);
+		}
+
+		.conn-manager-run-item {
+			grid-template-columns: minmax(0, 1fr) auto;
+			background: rgba(255, 255, 255, 0.025);
+			padding: 7px 8px;
+		}
+
+		.conn-manager-run-copy {
+			display: grid;
+			gap: 3px;
+			min-width: 0;
+		}
+
+		.conn-manager-run-copy span {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 
 		.asset-pill span {
@@ -2647,6 +2966,13 @@ function getPlaygroundStyles(): string {
 				padding: 10px 12px;
 			}
 
+			.notification-live-region {
+				top: calc(10px + env(safe-area-inset-top));
+				right: 12px;
+				left: 12px;
+				width: auto;
+			}
+
 			.transcript-pane {
 				width: 100%;
 				height: 100%;
@@ -3208,6 +3534,10 @@ function getPlaygroundScript(): string {
 			contextUsageSyncToken: 0,
 			dragDepth: 0,
 			assetModalOpen: false,
+			connManagerOpen: false,
+			connManagerItems: [],
+			connManagerRunsByConnId: {},
+			connManagerActionConnId: "",
 			mobileOverflowMenuOpen: false,
 			mobileConversationDrawerOpen: false,
 			conversationCatalog: [],
@@ -3218,6 +3548,9 @@ function getPlaygroundScript(): string {
 			historyPageSize: 12,
 			historyLoadingMore: false,
 			activeRunEventController: null,
+			notificationEventSource: null,
+			notificationReconnectTimer: null,
+			notificationReconnectDelayMs: 0,
 			pageUnloading: false,
 			primaryStreamActive: false,
 			autoFollowTranscript: true,
@@ -3233,6 +3566,8 @@ function getPlaygroundScript(): string {
 		const errorBanner = document.getElementById("error-banner");
 		const errorBannerMessage = document.getElementById("error-banner-message");
 		const errorBannerClose = document.getElementById("error-banner-close");
+		const notificationLiveRegion = document.getElementById("notification-live-region");
+		const notificationToastStack = document.getElementById("notification-toast-stack");
 		const dragOverlay = document.getElementById("drag-overlay");
 		const pageRoot = document.documentElement;
 		const pageBody = document.body;
@@ -3258,6 +3593,14 @@ function getPlaygroundScript(): string {
 		const contextUsageDialog = document.getElementById("context-usage-dialog");
 		const contextUsageDialogBody = document.getElementById("context-usage-dialog-body");
 		const contextUsageDialogClose = document.getElementById("context-usage-dialog-close");
+		const connRunDetailsDialog = document.getElementById("conn-run-details-dialog");
+		const connRunDetailsBody = document.getElementById("conn-run-details-body");
+		const connRunDetailsClose = document.getElementById("conn-run-details-close");
+		const openConnManagerButton = document.getElementById("open-conn-manager-button");
+		const connManagerDialog = document.getElementById("conn-manager-dialog");
+		const connManagerList = document.getElementById("conn-manager-list");
+		const closeConnManagerButton = document.getElementById("close-conn-manager-button");
+		const refreshConnManagerButton = document.getElementById("refresh-conn-manager-button");
 		const openAssetLibraryButton = document.getElementById("open-asset-library-button");
 		const assetModal = document.getElementById("asset-modal");
 		const assetModalList = document.getElementById("asset-modal-list");
@@ -3275,6 +3618,7 @@ function getPlaygroundScript(): string {
 		const mobileMenuSkillsButton = document.getElementById("mobile-menu-skills-button");
 		const mobileMenuFileButton = document.getElementById("mobile-menu-file-button");
 		const mobileMenuLibraryButton = document.getElementById("mobile-menu-library-button");
+		const mobileMenuConnButton = document.getElementById("mobile-menu-conn-button");
 		const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
 		const mobileConversationDrawer = document.getElementById("mobile-conversation-drawer");
 		const mobileConversationList = document.getElementById("mobile-conversation-list");
@@ -3513,6 +3857,29 @@ function getPlaygroundScript(): string {
 			contextUsageDialog.setAttribute("aria-hidden", "true");
 		}
 
+		function closeConnRunDetailsDialog() {
+			connRunDetailsDialog.classList.remove("open");
+			connRunDetailsDialog.hidden = true;
+			connRunDetailsDialog.setAttribute("aria-hidden", "true");
+			connRunDetailsBody.innerHTML = "";
+		}
+
+		function openConnManager() {
+			state.connManagerOpen = true;
+			connManagerDialog.hidden = false;
+			connManagerDialog.classList.add("open");
+			connManagerDialog.setAttribute("aria-hidden", "false");
+			renderConnManager();
+			void loadConnManager({ silent: false });
+		}
+
+		function closeConnManager() {
+			state.connManagerOpen = false;
+			connManagerDialog.classList.remove("open");
+			connManagerDialog.hidden = true;
+			connManagerDialog.setAttribute("aria-hidden", "true");
+		}
+
 		function toggleContextUsageDetails() {
 			if (isMobileContextUsageSurface()) {
 				openContextUsageDialog();
@@ -3730,7 +4097,9 @@ function getPlaygroundScript(): string {
 			mobileMenuSkillsButton.disabled = next;
 			mobileMenuFileButton.disabled = false;
 			mobileMenuLibraryButton.disabled = next;
+			mobileMenuConnButton.disabled = false;
 			openAssetLibraryButton.disabled = next;
+			openConnManagerButton.disabled = false;
 			refreshAssetsButton.disabled = next;
 			if (next) {
 				closeMobileOverflowMenu();
@@ -3779,6 +4148,186 @@ function getPlaygroundScript(): string {
 			if (!state.loading) {
 				statusPill.textContent = "就绪";
 			}
+		}
+
+		function clearNotificationReconnectTimer() {
+			if (state.notificationReconnectTimer !== null) {
+				window.clearTimeout(state.notificationReconnectTimer);
+				state.notificationReconnectTimer = null;
+			}
+		}
+
+		function hideNotificationLiveRegionIfIdle() {
+			if (!notificationToastStack.children.length) {
+				notificationLiveRegion.hidden = true;
+			}
+		}
+
+		function removeNotificationToast(toast) {
+			if (!toast || !toast.parentNode) {
+				hideNotificationLiveRegionIfIdle();
+				return;
+			}
+			toast.parentNode.removeChild(toast);
+			hideNotificationLiveRegionIfIdle();
+		}
+
+		function formatNotificationTimestamp(value) {
+			const date = new Date(value || 0);
+			if (!Number.isFinite(date.getTime())) {
+				return "JUST NOW";
+			}
+			return date.toLocaleString("zh-CN", {
+				month: "2-digit",
+				day: "2-digit",
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+		}
+
+		function normalizeNotificationBroadcastEvent(rawEvent) {
+			if (!rawEvent || typeof rawEvent !== "object") {
+				return null;
+			}
+			const notificationId = typeof rawEvent.notificationId === "string" ? rawEvent.notificationId.trim() : "";
+			const conversationId = typeof rawEvent.conversationId === "string" ? rawEvent.conversationId.trim() : "";
+			const source = typeof rawEvent.source === "string" ? rawEvent.source.trim() : "";
+			const sourceId = typeof rawEvent.sourceId === "string" ? rawEvent.sourceId.trim() : "";
+			const kind = typeof rawEvent.kind === "string" ? rawEvent.kind.trim() : "";
+			const title = typeof rawEvent.title === "string" ? rawEvent.title.trim() : "";
+			const createdAt = typeof rawEvent.createdAt === "string" ? rawEvent.createdAt.trim() : "";
+			const runId = typeof rawEvent.runId === "string" ? rawEvent.runId.trim() : "";
+			if (!notificationId || !conversationId || !source || !sourceId || !kind || !title || !createdAt) {
+				return null;
+			}
+			return {
+				notificationId,
+				conversationId,
+				source,
+				sourceId,
+				runId: runId || undefined,
+				kind,
+				title,
+				createdAt,
+			};
+		}
+
+		function showNotificationToast(event) {
+			const notification = normalizeNotificationBroadcastEvent(event);
+			if (!notification) {
+				return;
+			}
+			notificationLiveRegion.hidden = false;
+			const toast = document.createElement("article");
+			toast.className = "notification-toast";
+			toast.dataset.notificationId = notification.notificationId;
+			const copy = document.createElement("div");
+			copy.className = "notification-toast-copy";
+			const title = document.createElement("strong");
+			title.className = "notification-toast-title";
+			title.textContent = notification.title;
+			const meta = document.createElement("span");
+			meta.className = "notification-toast-meta";
+			meta.textContent =
+				(notification.conversationId === state.conversationId ? "当前会话" : notification.conversationId) +
+				" · " +
+				formatNotificationTimestamp(notification.createdAt);
+			copy.appendChild(title);
+			copy.appendChild(meta);
+			const dismissButton = document.createElement("button");
+			dismissButton.type = "button";
+			dismissButton.className = "notification-toast-dismiss";
+			dismissButton.setAttribute("aria-label", "关闭实时通知");
+			dismissButton.textContent = "×";
+			dismissButton.addEventListener("click", () => {
+				removeNotificationToast(toast);
+			});
+			toast.appendChild(copy);
+			toast.appendChild(dismissButton);
+			notificationToastStack.prepend(toast);
+			while (notificationToastStack.children.length > 4) {
+				removeNotificationToast(notificationToastStack.lastElementChild);
+			}
+			window.setTimeout(() => {
+				removeNotificationToast(toast);
+			}, 6000);
+		}
+
+		function scheduleNotificationStreamReconnect() {
+			if (
+				state.pageUnloading ||
+				state.notificationEventSource ||
+				state.notificationReconnectTimer !== null ||
+				typeof EventSource !== "function"
+			) {
+				return;
+			}
+			const nextDelay = state.notificationReconnectDelayMs > 0 ? Math.min(state.notificationReconnectDelayMs * 2, 30000) : 1500;
+			state.notificationReconnectDelayMs = nextDelay;
+			state.notificationReconnectTimer = window.setTimeout(() => {
+				state.notificationReconnectTimer = null;
+				connectNotificationStream();
+			}, nextDelay);
+		}
+
+		function disconnectNotificationStream() {
+			clearNotificationReconnectTimer();
+			const eventSource = state.notificationEventSource;
+			state.notificationEventSource = null;
+			if (eventSource) {
+				eventSource.onopen = null;
+				eventSource.onmessage = null;
+				eventSource.onerror = null;
+				eventSource.close();
+			}
+		}
+
+		function handleNotificationBroadcastEvent(rawEvent) {
+			const event = normalizeNotificationBroadcastEvent(rawEvent);
+			if (!event) {
+				return;
+			}
+			showNotificationToast(event);
+			void syncConversationCatalog({
+				silent: true,
+				activateCurrent: false,
+			});
+			if (event.conversationId === state.conversationId) {
+				void syncConversationRunState(event.conversationId, {
+					silent: true,
+					clearIfIdle: true,
+				});
+				void restoreConversationHistoryFromServer(event.conversationId);
+			}
+		}
+
+		function connectNotificationStream() {
+			if (state.pageUnloading || state.notificationEventSource || typeof EventSource !== "function") {
+				return;
+			}
+			clearNotificationReconnectTimer();
+			const stream = new EventSource("/v1/notifications/stream");
+			state.notificationEventSource = stream;
+			stream.onopen = () => {
+				state.notificationReconnectDelayMs = 0;
+			};
+			stream.onmessage = (messageEvent) => {
+				let payload;
+				try {
+					payload = JSON.parse(String(messageEvent.data || ""));
+				} catch {
+					return;
+				}
+				handleNotificationBroadcastEvent(payload);
+			};
+			stream.onerror = () => {
+				if (state.notificationEventSource !== stream) {
+					return;
+				}
+				state.notificationEventSource = null;
+				stream.close();
+				scheduleNotificationStreamReconnect();
+			};
 		}
 
 		async function fetchConversationRunStatus(conversationId) {
@@ -3833,6 +4382,99 @@ function getPlaygroundScript(): string {
 				activeRun: normalizeActiveRun(payload?.activeRun),
 				updatedAt: typeof payload?.updatedAt === "string" ? payload.updatedAt : new Date().toISOString(),
 			};
+		}
+
+		async function fetchConnRunDetail(entry) {
+			const response = await fetch(
+				"/v1/conns/" + encodeURIComponent(entry.sourceId) + "/runs/" + encodeURIComponent(entry.runId),
+				{
+					method: "GET",
+					headers: { accept: "application/json" },
+				},
+			);
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "鏃犳硶鑾峰彇鍚庡彴浠诲姟璇︽儏";
+				throw new Error(errorMessage);
+			}
+			return payload;
+		}
+
+		async function fetchConnRunEvents(entry) {
+			const response = await fetch(
+				"/v1/conns/" + encodeURIComponent(entry.sourceId) + "/runs/" + encodeURIComponent(entry.runId) + "/events",
+				{
+					method: "GET",
+					headers: { accept: "application/json" },
+				},
+			);
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "鏃犳硶鑾峰彇鍚庡彴浠诲姟浜嬩欢";
+				throw new Error(errorMessage);
+			}
+			return payload;
+		}
+
+		async function fetchConnRunsForConn(conn) {
+			const response = await fetch("/v1/conns/" + encodeURIComponent(conn.connId) + "/runs", {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法读取后台任务运行历史";
+				throw new Error(errorMessage);
+			}
+			return Array.isArray(payload?.runs) ? payload.runs : [];
+		}
+
+		async function fetchConnList() {
+			const response = await fetch("/v1/conns", {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法读取后台任务列表";
+				throw new Error(errorMessage);
+			}
+			return Array.isArray(payload?.conns) ? payload.conns : [];
+		}
+
+		async function loadConnManager(options) {
+			if (!options?.silent) {
+				clearError();
+			}
+			refreshConnManagerButton.disabled = true;
+			connManagerList.setAttribute("aria-busy", "true");
+			try {
+				const conns = await fetchConnList();
+				const runsByConnId = {};
+				await Promise.all(
+					conns.map(async (conn) => {
+						try {
+							runsByConnId[conn.connId] = await fetchConnRunsForConn(conn);
+						} catch {
+							runsByConnId[conn.connId] = [];
+						}
+					}),
+				);
+				state.connManagerItems = conns;
+				state.connManagerRunsByConnId = runsByConnId;
+				renderConnManager();
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法读取后台任务列表";
+				showError(messageText);
+				connManagerList.innerHTML = "";
+				const empty = document.createElement("div");
+				empty.className = "asset-empty";
+				empty.textContent = messageText;
+				connManagerList.appendChild(empty);
+			} finally {
+				refreshConnManagerButton.disabled = false;
+				connManagerList.removeAttribute("aria-busy");
+			}
 		}
 
 		function normalizeConversationCatalogItem(item) {
@@ -4332,6 +4974,9 @@ function getPlaygroundScript(): string {
 					typeof rawEntry.createdAt === "string" && rawEntry.createdAt
 						? rawEntry.createdAt
 						: new Date().toISOString(),
+				source: typeof rawEntry.source === "string" ? rawEntry.source : undefined,
+				sourceId: typeof rawEntry.sourceId === "string" ? rawEntry.sourceId : undefined,
+				runId: typeof rawEntry.runId === "string" ? rawEntry.runId : undefined,
 				attachments: cloneHistoryAttachments(rawEntry.attachments),
 				assetRefs: Array.isArray(rawEntry.assetRefs)
 					? rawEntry.assetRefs
@@ -4584,6 +5229,9 @@ function getPlaygroundScript(): string {
 				title,
 				text: String(text || ""),
 				createdAt: options?.createdAt || new Date().toISOString(),
+				source: typeof options?.source === "string" ? options.source : undefined,
+				sourceId: typeof options?.sourceId === "string" ? options.sourceId : undefined,
+				runId: typeof options?.runId === "string" ? options.runId : undefined,
 				attachments: cloneHistoryAttachments(options?.attachments),
 				assetRefs: cloneHistoryAssetRefs(options?.assetRefs),
 				files: cloneHistoryFiles(options?.files),
@@ -4740,6 +5388,400 @@ function getPlaygroundScript(): string {
 			scrollTranscriptToBottom();
 		}
 
+		function canOpenConnRunDetails(entry) {
+			return entry?.kind === "notification" && entry.source === "conn" && Boolean(entry.sourceId) && Boolean(entry.runId);
+		}
+
+		function formatConnRunTimestamp(value) {
+			if (!value) {
+				return "";
+			}
+			const date = new Date(value);
+			return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+		}
+
+		function isConnRunTimedOut(run, events) {
+			const hasTimeoutEvent = Array.isArray(events) && events.some((event) => event?.eventType === "run_timed_out");
+			const errorText = String(run?.errorText || run?.resultSummary || "");
+			return hasTimeoutEvent || /exceeded maxRunMs/i.test(errorText);
+		}
+
+		function resolveConnRunHealthLabel(run, events) {
+			if (!run || typeof run !== "object") {
+				return "unknown";
+			}
+			if (run.status === "failed" && isConnRunTimedOut(run, events)) {
+				return "failed / timed out";
+			}
+			if (run.status !== "running") {
+				return run.status || "unknown";
+			}
+			if (!run.leaseUntil) {
+				return "running / lease unknown";
+			}
+			const leaseUntil = new Date(run.leaseUntil);
+			if (Number.isNaN(leaseUntil.getTime())) {
+				return "running / lease unreadable";
+			}
+			return leaseUntil.getTime() <= Date.now() ? "running / stale suspected" : "running / lease active";
+		}
+
+		function describeConnSchedule(schedule) {
+			if (!schedule || typeof schedule !== "object") {
+				return "schedule unknown";
+			}
+			if (schedule.kind === "cron") {
+				return "cron " + (schedule.expression || "") + (schedule.timezone ? " / " + schedule.timezone : "");
+			}
+			if (schedule.kind === "interval") {
+				const everyMs = Number(schedule.everyMs);
+				const everyLabel = Number.isFinite(everyMs) ? Math.round(everyMs / 1000) + "s" : "unknown";
+				return "interval " + everyLabel + (schedule.startAt ? " / start " + formatConnRunTimestamp(schedule.startAt) : "");
+			}
+			if (schedule.kind === "once") {
+				return "once " + formatConnRunTimestamp(schedule.at);
+			}
+			return String(schedule.kind || "schedule unknown");
+		}
+
+		function describeConnTarget(target) {
+			if (!target || typeof target !== "object") {
+				return "target unknown";
+			}
+			if (target.type === "conversation") {
+				return "conversation " + (target.conversationId || "");
+			}
+			if (target.type === "feishu_chat") {
+				return "feishu chat " + (target.chatId || "");
+			}
+			if (target.type === "feishu_user") {
+				return "feishu user " + (target.openId || "");
+			}
+			return String(target.type || "target unknown");
+		}
+
+		function updateConnManagerConn(nextConn) {
+			state.connManagerItems = state.connManagerItems.map((conn) =>
+				conn?.connId === nextConn?.connId ? nextConn : conn,
+			);
+		}
+
+		function prependConnManagerRun(connId, run) {
+			if (!run || !connId) {
+				return;
+			}
+			const currentRuns = Array.isArray(state.connManagerRunsByConnId[connId])
+				? state.connManagerRunsByConnId[connId]
+				: [];
+			state.connManagerRunsByConnId = {
+				...state.connManagerRunsByConnId,
+				[connId]: [run, ...currentRuns.filter((current) => current?.runId !== run.runId)],
+			};
+		}
+
+		function buildConnRunManagerEntry(conn, run) {
+			return {
+				kind: "notification",
+				source: "conn",
+				sourceId: conn.connId,
+				runId: run.runId,
+				title: (conn.title || "Conn") + " " + (run.status || "run"),
+			};
+		}
+
+		function renderConnManagerRunList(conn, container) {
+			const runs = Array.isArray(state.connManagerRunsByConnId[conn.connId])
+				? state.connManagerRunsByConnId[conn.connId].slice(0, 3)
+				: [];
+			const list = document.createElement("div");
+			list.className = "conn-manager-run-list";
+			if (runs.length === 0) {
+				const empty = document.createElement("span");
+				empty.textContent = "暂无运行记录";
+				list.appendChild(empty);
+				container.appendChild(list);
+				return;
+			}
+			for (const run of runs) {
+				const item = document.createElement("div");
+				item.className = "conn-manager-run-item";
+				const copy = document.createElement("div");
+				copy.className = "conn-manager-run-copy";
+				const title = document.createElement("code");
+				title.textContent = (run.status || "unknown") + " / " + (run.runId || "");
+				const meta = document.createElement("span");
+				meta.textContent =
+					"scheduled " +
+					formatConnRunTimestamp(run.scheduledAt) +
+					(run.finishedAt ? " / finished " + formatConnRunTimestamp(run.finishedAt) : "");
+				copy.appendChild(title);
+				copy.appendChild(meta);
+				const actions = document.createElement("div");
+				actions.className = "conn-manager-run-actions";
+				const openButton = document.createElement("button");
+				openButton.type = "button";
+				openButton.textContent = "查看";
+				openButton.addEventListener("click", () => {
+					closeConnManager();
+					void openConnRunDetails(buildConnRunManagerEntry(conn, run));
+				});
+				actions.appendChild(openButton);
+				item.appendChild(copy);
+				item.appendChild(actions);
+				list.appendChild(item);
+			}
+			container.appendChild(list);
+		}
+
+		function renderConnManager() {
+			connManagerList.innerHTML = "";
+			const conns = Array.isArray(state.connManagerItems) ? state.connManagerItems : [];
+			if (conns.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "asset-empty";
+				empty.textContent = "暂无后台任务。先用 POST /v1/conns 创建一个 conn。";
+				connManagerList.appendChild(empty);
+				return;
+			}
+			for (const conn of conns) {
+				const item = document.createElement("article");
+				item.className = "conn-manager-item";
+				const main = document.createElement("div");
+				main.className = "conn-manager-main";
+				const titleRow = document.createElement("div");
+				titleRow.className = "conn-manager-title-row";
+				const title = document.createElement("strong");
+				title.textContent = conn.title || conn.connId || "Conn";
+				const status = document.createElement("span");
+				status.className = "conn-manager-status " + (conn.status || "unknown");
+				status.textContent = conn.status || "unknown";
+				titleRow.appendChild(title);
+				titleRow.appendChild(status);
+				const meta = document.createElement("div");
+				meta.className = "conn-manager-meta";
+				const targetLine = document.createElement("span");
+				targetLine.textContent = "target: ";
+				const targetCode = document.createElement("code");
+				targetCode.textContent = describeConnTarget(conn.target);
+				targetLine.appendChild(targetCode);
+				const scheduleLine = document.createElement("span");
+				scheduleLine.textContent = "schedule: ";
+				const scheduleCode = document.createElement("code");
+				scheduleCode.textContent = describeConnSchedule(conn.schedule);
+				scheduleLine.appendChild(scheduleCode);
+				const timeLine = document.createElement("span");
+				timeLine.textContent =
+					"next: " +
+					(formatConnRunTimestamp(conn.nextRunAt) || "-") +
+					" / last: " +
+					(formatConnRunTimestamp(conn.lastRunAt) || "-") +
+					(conn.maxRunMs ? " / max " + conn.maxRunMs + "ms" : "");
+				meta.appendChild(targetLine);
+				meta.appendChild(scheduleLine);
+				meta.appendChild(timeLine);
+				main.appendChild(titleRow);
+				main.appendChild(meta);
+				renderConnManagerRunList(conn, main);
+				const actions = document.createElement("div");
+				actions.className = "conn-manager-actions";
+				const isActing = state.connManagerActionConnId === conn.connId;
+				const runButton = document.createElement("button");
+				runButton.type = "button";
+				runButton.textContent = "立即执行";
+				runButton.disabled = isActing;
+				runButton.addEventListener("click", () => {
+					void runConnNow(conn);
+				});
+				const toggleButton = document.createElement("button");
+				toggleButton.type = "button";
+				toggleButton.textContent = conn.status === "paused" ? "恢复" : "暂停";
+				toggleButton.disabled = isActing || conn.status === "completed";
+				toggleButton.addEventListener("click", () => {
+					void toggleConnPaused(conn);
+				});
+				actions.appendChild(runButton);
+				actions.appendChild(toggleButton);
+				item.appendChild(main);
+				item.appendChild(actions);
+				connManagerList.appendChild(item);
+			}
+		}
+
+		async function runConnNow(conn) {
+			if (!conn?.connId || state.connManagerActionConnId) {
+				return;
+			}
+			state.connManagerActionConnId = conn.connId;
+			renderConnManager();
+			try {
+				const response = await fetch("/v1/conns/" + encodeURIComponent(conn.connId) + "/run", {
+					method: "POST",
+					headers: { accept: "application/json" },
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.error?.message || payload?.message || "无法创建后台运行");
+				}
+				prependConnManagerRun(conn.connId, payload?.run);
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法创建后台运行";
+				showError(messageText);
+			} finally {
+				state.connManagerActionConnId = "";
+				renderConnManager();
+			}
+		}
+
+		async function toggleConnPaused(conn) {
+			if (!conn?.connId || state.connManagerActionConnId || conn.status === "completed") {
+				return;
+			}
+			state.connManagerActionConnId = conn.connId;
+			renderConnManager();
+			try {
+				const response = await fetch(
+					"/v1/conns/" + encodeURIComponent(conn.connId) + (conn.status === "paused" ? "/resume" : "/pause"),
+					{
+						method: "POST",
+						headers: { accept: "application/json" },
+					},
+				);
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.error?.message || payload?.message || "无法更新后台任务状态");
+				}
+				if (payload?.conn) {
+					updateConnManagerConn(payload.conn);
+				}
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法更新后台任务状态";
+				showError(messageText);
+			} finally {
+				state.connManagerActionConnId = "";
+				renderConnManager();
+			}
+		}
+
+		function appendConnRunDetailRow(section, label, value, options) {
+			if (!value) {
+				return;
+			}
+			const row = document.createElement("span");
+			row.textContent = label + ": ";
+			const node = document.createElement(options?.asCode ? "code" : "strong");
+			node.textContent = value;
+			row.appendChild(node);
+			section.appendChild(row);
+		}
+
+		function renderConnRunDetails(entry, detailPayload, eventsPayload) {
+			connRunDetailsBody.innerHTML = "";
+			const run = detailPayload?.run || {};
+			const files = Array.isArray(detailPayload?.files) ? detailPayload.files : [];
+			const events = Array.isArray(eventsPayload?.events) ? eventsPayload.events : [];
+
+			const summary = document.createElement("section");
+			summary.className = "conn-run-section";
+			summary.innerHTML = "<strong></strong><code></code><span></span>";
+			summary.querySelector("strong").textContent = entry.title || "Conn run";
+			summary.querySelector("code").textContent =
+				"conn=" + (entry.sourceId || run.connId || "") + " / run=" + (entry.runId || run.runId || "");
+			summary.querySelector("span").textContent =
+				"status: " +
+				(run.status || "unknown") +
+				(run.scheduledAt ? " / scheduled: " + new Date(run.scheduledAt).toLocaleString() : "") +
+				(run.finishedAt ? " / finished: " + new Date(run.finishedAt).toLocaleString() : "");
+			connRunDetailsBody.appendChild(summary);
+
+			const lifecycle = document.createElement("section");
+			lifecycle.className = "conn-run-section";
+			const lifecycleHeading = document.createElement("strong");
+			lifecycleHeading.textContent = "Lifecycle";
+			lifecycle.appendChild(lifecycleHeading);
+			appendConnRunDetailRow(lifecycle, "health", resolveConnRunHealthLabel(run, events), { asCode: true });
+			appendConnRunDetailRow(lifecycle, "claimed", formatConnRunTimestamp(run.claimedAt));
+			appendConnRunDetailRow(lifecycle, "started", formatConnRunTimestamp(run.startedAt));
+			appendConnRunDetailRow(lifecycle, "updated", formatConnRunTimestamp(run.updatedAt));
+			appendConnRunDetailRow(lifecycle, "lease owner", run.leaseOwner, { asCode: true });
+			appendConnRunDetailRow(lifecycle, "lease until", formatConnRunTimestamp(run.leaseUntil));
+			if (lifecycle.childElementCount > 1) {
+				connRunDetailsBody.appendChild(lifecycle);
+			}
+
+			if (run.workspacePath || run.resultSummary || run.errorText) {
+				const result = document.createElement("section");
+				result.className = "conn-run-section";
+				result.innerHTML = "<strong>Result</strong><span></span><code></code>";
+				result.querySelector("span").textContent = run.errorText || run.resultSummary || "No result summary yet";
+				result.querySelector("code").textContent = run.workspacePath || "";
+				connRunDetailsBody.appendChild(result);
+			}
+
+			if (files.length > 0) {
+				const fileSection = document.createElement("section");
+				fileSection.className = "conn-run-section";
+				const heading = document.createElement("strong");
+				heading.textContent = "Files";
+				fileSection.appendChild(heading);
+				for (const file of files) {
+					const line = document.createElement("code");
+					line.textContent = (file.kind || "file") + " / " + (file.relativePath || file.fileName || "");
+					fileSection.appendChild(line);
+				}
+				connRunDetailsBody.appendChild(fileSection);
+			}
+
+			const eventSection = document.createElement("section");
+			eventSection.className = "conn-run-section";
+			const heading = document.createElement("strong");
+			heading.textContent = "Events";
+			eventSection.appendChild(heading);
+			const list = document.createElement("ul");
+			list.className = "conn-run-event-list";
+			for (const event of events) {
+				const item = document.createElement("li");
+				item.className = "conn-run-event";
+				const title = document.createElement("code");
+				title.textContent = "#" + event.seq + " " + event.eventType;
+				const meta = document.createElement("span");
+				meta.textContent = event.createdAt ? new Date(event.createdAt).toLocaleString() : "";
+				const body = document.createElement("span");
+				body.textContent = JSON.stringify(event.event || {});
+				item.appendChild(title);
+				item.appendChild(meta);
+				item.appendChild(body);
+				list.appendChild(item);
+			}
+			if (events.length === 0) {
+				const empty = document.createElement("span");
+				empty.textContent = "No events recorded yet";
+				eventSection.appendChild(empty);
+			} else {
+				eventSection.appendChild(list);
+			}
+			connRunDetailsBody.appendChild(eventSection);
+		}
+
+		async function openConnRunDetails(entry) {
+			if (!canOpenConnRunDetails(entry)) {
+				return;
+			}
+			connRunDetailsBody.textContent = "Loading conn run details...";
+			connRunDetailsDialog.hidden = false;
+			connRunDetailsDialog.classList.add("open");
+			connRunDetailsDialog.setAttribute("aria-hidden", "false");
+			try {
+				const [detailPayload, eventsPayload] = await Promise.all([
+					fetchConnRunDetail(entry),
+					fetchConnRunEvents(entry),
+				]);
+				renderConnRunDetails(entry, detailPayload, eventsPayload);
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "Failed to load conn run details";
+				connRunDetailsBody.textContent = messageText;
+			}
+		}
+
 		function createMessageActions(entry, content) {
 			const actions = document.createElement("div");
 			actions.className = "message-actions";
@@ -4776,6 +5818,18 @@ function getPlaygroundScript(): string {
 			});
 
 			actions.appendChild(copyButton);
+			if (canOpenConnRunDetails(entry)) {
+				const runButton = document.createElement("button");
+				runButton.type = "button";
+				runButton.className = "conn-run-open-button";
+				runButton.setAttribute("aria-label", "查看后台任务过程");
+				runButton.title = "查看后台任务过程";
+				runButton.textContent = "⌁";
+				runButton.addEventListener("click", () => {
+					void openConnRunDetails(entry);
+				});
+				actions.appendChild(runButton);
+			}
 			return { actions, copyButton };
 		}
 
@@ -6399,6 +7453,7 @@ function getPlaygroundScript(): string {
 		renderContextUsageBar();
 		renderSelectedAssets();
 		renderAssetPickerList();
+		renderConnManager();
 		void loadAssets(true);
 
 		resetStreamingState();
@@ -6554,12 +7609,15 @@ function getPlaygroundScript(): string {
 		window.addEventListener("resize", syncConversationWidth);
 		window.addEventListener("beforeunload", () => {
 			state.pageUnloading = true;
+			disconnectNotificationStream();
 		});
 		window.addEventListener("pagehide", () => {
 			state.pageUnloading = true;
+			disconnectNotificationStream();
 		});
 		document.addEventListener("visibilitychange", () => {
 			if (document.visibilityState === "visible") {
+				connectNotificationStream();
 				void ensureCurrentConversation({ silent: true }).then(() => {
 					if (!state.conversationId) {
 						return;
@@ -6574,6 +7632,7 @@ function getPlaygroundScript(): string {
 		});
 		window.addEventListener("pageshow", () => {
 			state.pageUnloading = false;
+			connectNotificationStream();
 			void ensureCurrentConversation({ silent: true }).then(() => {
 				if (!state.conversationId) {
 					return;
@@ -6586,6 +7645,7 @@ function getPlaygroundScript(): string {
 			});
 		});
 		window.addEventListener("online", () => {
+			connectNotificationStream();
 			void ensureCurrentConversation({ silent: true }).then(() => {
 				if (!state.conversationId) {
 					return;
@@ -6634,6 +7694,24 @@ function getPlaygroundScript(): string {
 
 		refreshAssetsButton.addEventListener("click", () => {
 			void loadAssets(false);
+		});
+
+		refreshConnManagerButton.addEventListener("click", () => {
+			void loadConnManager({ silent: false });
+		});
+
+		openConnManagerButton.addEventListener("click", () => {
+			openConnManager();
+		});
+
+		closeConnManagerButton.addEventListener("click", () => {
+			closeConnManager();
+		});
+
+		connManagerDialog.addEventListener("click", (event) => {
+			if (event.target === connManagerDialog) {
+				closeConnManager();
+			}
 		});
 
 		openAssetLibraryButton.addEventListener("click", () => {
@@ -6691,6 +7769,10 @@ function getPlaygroundScript(): string {
 			closeMobileOverflowMenu();
 			openAssetLibrary();
 		});
+		mobileMenuConnButton.addEventListener("click", () => {
+			closeMobileOverflowMenu();
+			openConnManager();
+		});
 		historyLoadMoreButton.addEventListener("click", () => {
 			renderMoreConversationHistory();
 		});
@@ -6710,6 +7792,14 @@ function getPlaygroundScript(): string {
 		contextUsageDialog.addEventListener("click", (event) => {
 			if (event.target === contextUsageDialog) {
 				closeContextUsageDialog();
+			}
+		});
+		connRunDetailsClose.addEventListener("click", () => {
+			closeConnRunDetailsDialog();
+		});
+		connRunDetailsDialog.addEventListener("click", (event) => {
+			if (event.target === connRunDetailsDialog) {
+				closeConnRunDetailsDialog();
 			}
 		});
 
@@ -6752,8 +7842,14 @@ function getPlaygroundScript(): string {
 			if (event.key === "Escape" && state.assetModalOpen) {
 				closeAssetLibrary();
 			}
+			if (event.key === "Escape" && state.connManagerOpen) {
+				closeConnManager();
+			}
 			if (event.key === "Escape" && !contextUsageDialog.hidden) {
 				closeContextUsageDialog();
+			}
+			if (event.key === "Escape" && !connRunDetailsDialog.hidden) {
+				closeConnRunDetailsDialog();
 			}
 			if (event.key === "Escape" && state.mobileOverflowMenuOpen) {
 				closeMobileOverflowMenu();
@@ -6772,6 +7868,7 @@ function getPlaygroundScript(): string {
 			}
 		});
 
+		connectNotificationStream();
 		window.requestAnimationFrame(syncConversationWidth);
 	`;
 }
@@ -6864,6 +7961,15 @@ export function renderPlaygroundPage(): string {
 							</span>
 							<span>文件库</span>
 						</button>
+						<button id="mobile-menu-conn-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M6 7h12M6 12h12M6 17h8" stroke-width="1.8" stroke-linecap="round" />
+									<path d="M4 5v14M20 5v14" stroke-width="1.8" stroke-linecap="round" />
+								</svg>
+							</span>
+							<span>后台任务</span>
+						</button>
 					</div>
 				</section>
 				<div class="topbar-right">
@@ -6936,6 +8042,10 @@ export function renderPlaygroundPage(): string {
 								<span>这里不是垃圾堆</span>
 								<strong>项目文件夹</strong>
 							</button>
+							<button id="open-conn-manager-button" class="telemetry-card telemetry-action" type="button">
+								<span>后台自己干，前台别被绑架</span>
+								<strong>后台任务</strong>
+							</button>
 						</aside>
 					</div>
 				</section>
@@ -6943,6 +8053,10 @@ export function renderPlaygroundPage(): string {
 				<div id="error-banner" class="error-banner" role="alert" hidden>
 					<span id="error-banner-message" class="error-banner-message"></span>
 					<button id="error-banner-close" class="error-banner-close" type="button" aria-label="关闭错误提示">×</button>
+				</div>
+
+				<div id="notification-live-region" class="notification-live-region" aria-live="polite" aria-atomic="false" hidden>
+					<div id="notification-toast-stack" class="notification-toast-stack"></div>
 				</div>
 
 				<section class="stream-layout">
@@ -7004,6 +8118,32 @@ export function renderPlaygroundPage(): string {
 					<button id="context-usage-dialog-close" class="context-usage-dialog-close" type="button" aria-label="关闭上下文详情">×</button>
 				</div>
 				<div id="context-usage-dialog-body" class="context-usage-dialog-body">当前上下文 0 / 128,000 tokens (0%)</div>
+			</section>
+		</div>
+		<div id="conn-run-details-dialog" class="conn-run-details-dialog" aria-hidden="true" hidden>
+			<section class="conn-run-details-panel" role="dialog" aria-modal="true" aria-labelledby="conn-run-details-title">
+				<div class="conn-run-details-head">
+					<strong id="conn-run-details-title">后台任务过程</strong>
+					<button id="conn-run-details-close" class="conn-run-details-close" type="button" aria-label="关闭后台任务过程">×</button>
+				</div>
+				<div id="conn-run-details-body" class="conn-run-details-body"></div>
+			</section>
+		</div>
+		<div id="conn-manager-dialog" class="asset-modal-shell conn-manager-dialog" aria-hidden="true" hidden>
+			<section class="asset-modal conn-manager-panel" role="dialog" aria-modal="true" aria-labelledby="conn-manager-title">
+				<div class="asset-modal-head">
+					<div class="asset-modal-copy">
+						<strong id="conn-manager-title">后台任务</strong>
+						<span>查看 conn、暂停或恢复调度、立即入队一次运行，并追溯最近 run。</span>
+					</div>
+					<div class="asset-modal-actions">
+						<button id="refresh-conn-manager-button" type="button">刷新</button>
+						<button id="close-conn-manager-button" type="button">关闭</button>
+					</div>
+				</div>
+				<div class="asset-modal-body">
+					<div id="conn-manager-list" class="conn-manager-list" aria-live="polite"></div>
+				</div>
 			</section>
 		</div>
 		<div id="asset-modal" class="asset-modal-shell" aria-hidden="true" hidden>

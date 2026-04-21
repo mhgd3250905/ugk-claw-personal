@@ -202,7 +202,16 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
 ### 集成
 
 - `GET /v1/conns`
+- `POST /v1/conns`
+- `GET /v1/conns/:connId/runs`
+- `GET /v1/conns/:connId/runs/:runId`
+- `GET /v1/conns/:connId/runs/:runId/events`
+- `POST /v1/conns/:connId/run`
 - `POST /v1/integrations/feishu/events`
+
+`POST /v1/conns` 在未显式传入 `target` 时，会默认把任务结果投递到服务端当前会话 `currentConversationId`；显式传入 `conversation` / `feishu_chat` / `feishu_user` 目标时仍按请求值执行。
+
+本地 `docker compose` 默认把 `conn.sqlite` 放在 Docker named volume `ugk-pi-conn-db`，避免 Windows / macOS 上 Docker Desktop bind mount 下的多进程 SQLite 打开异常；第一次切换到这个路径时，会从 legacy `.data/agent/conn/conn.sqlite` 做一次自动迁移。
 
 ## 文档导航
 

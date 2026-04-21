@@ -83,6 +83,7 @@ export type ConnScheduleBody =
 	| {
 			kind: "cron";
 			expression: string;
+			timezone?: string;
 	  };
 
 export interface ConnBody {
@@ -92,18 +93,18 @@ export interface ConnBody {
 	target: ConnTargetBody;
 	schedule: ConnScheduleBody;
 	assetRefs: string[];
+	maxRunMs?: number;
+	profileId?: string;
+	agentSpecId?: string;
+	skillSetId?: string;
+	modelPolicyId?: string;
+	upgradePolicy?: "latest" | "pinned" | "manual";
 	status: "active" | "paused" | "completed";
 	createdAt: string;
 	updatedAt: string;
 	lastRunAt?: string;
 	nextRunAt?: string;
-	lastResult?: {
-		ok: boolean;
-		summary: string;
-		text?: string;
-		error?: string;
-		finishedAt: string;
-	};
+	lastRunId?: string;
 }
 
 export interface ConnListResponseBody {
@@ -112,6 +113,71 @@ export interface ConnListResponseBody {
 
 export interface ConnDetailResponseBody {
 	conn: ConnBody;
+}
+
+export interface ConnRunBody {
+	runId: string;
+	connId: string;
+	status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+	scheduledAt: string;
+	claimedAt?: string;
+	startedAt?: string;
+	leaseOwner?: string;
+	leaseUntil?: string;
+	finishedAt?: string;
+	workspacePath: string;
+	sessionFile?: string;
+	resultSummary?: string;
+	resultText?: string;
+	errorText?: string;
+	deliveredAt?: string;
+	retryOfRunId?: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface ConnRunDetailResponseBody {
+	run: ConnRunBody;
+	files?: ConnRunFileBody[];
+}
+
+export interface ConnRunListResponseBody {
+	runs: ConnRunBody[];
+}
+
+export interface ConnRunFileBody {
+	fileId: string;
+	runId: string;
+	kind: string;
+	relativePath: string;
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	createdAt: string;
+}
+
+export interface ConnRunEventBody {
+	eventId: string;
+	runId: string;
+	seq: number;
+	eventType: string;
+	event: Record<string, unknown>;
+	createdAt: string;
+}
+
+export interface ConnRunEventsResponseBody {
+	events: ConnRunEventBody[];
+}
+
+export interface NotificationStreamEventBody {
+	notificationId: string;
+	conversationId: string;
+	source: string;
+	sourceId: string;
+	runId?: string;
+	kind: string;
+	title: string;
+	createdAt: string;
 }
 
 export interface DebugSkillsResponseBody {
@@ -140,12 +206,23 @@ export interface ChatStatusResponseBody {
 	contextUsage: ChatContextUsageBody;
 }
 
+export interface ChatHistoryFileBody {
+	fileName: string;
+	downloadUrl: string;
+	mimeType?: string;
+	sizeBytes?: number;
+}
+
 export interface ChatHistoryMessageBody {
 	id: string;
-	kind: "user" | "assistant" | "system" | "error";
+	kind: "user" | "assistant" | "system" | "error" | "notification";
 	title: string;
 	text: string;
 	createdAt: string;
+	source?: string;
+	sourceId?: string;
+	runId?: string;
+	files?: ChatHistoryFileBody[];
 }
 
 export interface ChatHistoryResponseBody {

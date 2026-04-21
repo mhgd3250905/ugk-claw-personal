@@ -1,8 +1,5 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-
 export type ConnStatus = "active" | "paused" | "completed";
+export type ConnUpgradePolicy = "latest" | "pinned" | "manual";
 
 export type ConnTarget =
 	| {
@@ -31,15 +28,8 @@ export type ConnSchedule =
 	| {
 			kind: "cron";
 			expression: string;
+			timezone?: string;
 	  };
-
-export interface ConnRunResult {
-	ok: boolean;
-	summary: string;
-	text?: string;
-	error?: string;
-	finishedAt: string;
-}
 
 export interface ConnDefinition {
 	connId: string;
@@ -48,186 +38,18 @@ export interface ConnDefinition {
 	target: ConnTarget;
 	schedule: ConnSchedule;
 	assetRefs: string[];
+	maxRunMs?: number;
+	profileId?: string;
+	agentSpecId?: string;
+	skillSetId?: string;
+	modelPolicyId?: string;
+	upgradePolicy?: ConnUpgradePolicy;
 	status: ConnStatus;
 	createdAt: string;
 	updatedAt: string;
 	lastRunAt?: string;
 	nextRunAt?: string;
-	lastResult?: ConnRunResult;
-}
-
-type ConnIndex = Record<string, ConnDefinition>;
-
-export class ConnStore {
-	constructor(private readonly options: { indexPath: string }) {}
-
-	async list(): Promise<ConnDefinition[]> {
-		const index = await this.readIndex();
-		return Object.values(index).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-	}
-
-	async get(connId: string): Promise<ConnDefinition | undefined> {
-		const index = await this.readIndex();
-		return index[connId];
-	}
-
-	async create(input: {
-		title: string;
-		prompt: string;
-		target: ConnTarget;
-		schedule: ConnSchedule;
-		assetRefs?: string[];
-		now?: Date;
-	}): Promise<ConnDefinition> {
-		const now = input.now ?? new Date();
-		const createdAt = now.toISOString();
-		const conn: ConnDefinition = {
-			connId: randomUUID(),
-			title: input.title.trim(),
-			prompt: input.prompt.trim(),
-			target: input.target,
-			schedule: normalizeSchedule(input.schedule),
-			assetRefs: normalizeAssetRefs(input.assetRefs),
-			status: "active",
-			createdAt,
-			updatedAt: createdAt,
-			nextRunAt: computeNextRunAt(normalizeSchedule(input.schedule), undefined, now)?.toISOString(),
-		};
-
-		const index = await this.readIndex();
-		index[conn.connId] = conn;
-		await this.writeIndex(index);
-		return conn;
-	}
-
-	async update(
-		connId: string,
-		patch: Partial<Pick<ConnDefinition, "title" | "prompt" | "target" | "schedule" | "assetRefs" | "status">> & { now?: Date },
-	): Promise<ConnDefinition | undefined> {
-		const index = await this.readIndex();
-		const existing = index[connId];
-		if (!existing) {
-			return undefined;
-		}
-
-		const now = patch.now ?? new Date();
-		const nextSchedule = patch.schedule ? normalizeSchedule(patch.schedule) : existing.schedule;
-		const nextStatus = patch.status ?? existing.status;
-		const updated: ConnDefinition = {
-			...existing,
-			...(patch.title !== undefined ? { title: patch.title.trim() } : {}),
-			...(patch.prompt !== undefined ? { prompt: patch.prompt.trim() } : {}),
-			...(patch.target !== undefined ? { target: patch.target } : {}),
-			...(patch.schedule !== undefined ? { schedule: nextSchedule } : {}),
-			...(patch.assetRefs !== undefined ? { assetRefs: normalizeAssetRefs(patch.assetRefs) } : {}),
-			status: nextStatus,
-			updatedAt: now.toISOString(),
-			nextRunAt:
-				nextStatus === "active"
-					? computeNextRunAt(nextSchedule, existing.lastRunAt ? new Date(existing.lastRunAt) : undefined, now)?.toISOString()
-					: existing.nextRunAt,
-		};
-
-		if (nextStatus === "paused") {
-			delete updated.nextRunAt;
-		}
-		if (nextStatus === "completed") {
-			delete updated.nextRunAt;
-		}
-
-		index[connId] = updated;
-		await this.writeIndex(index);
-		return updated;
-	}
-
-	async delete(connId: string): Promise<boolean> {
-		const index = await this.readIndex();
-		if (!index[connId]) {
-			return false;
-		}
-		delete index[connId];
-		await this.writeIndex(index);
-		return true;
-	}
-
-	async pause(connId: string, now: Date = new Date()): Promise<ConnDefinition | undefined> {
-		return await this.update(connId, { status: "paused", now });
-	}
-
-	async resume(connId: string, now: Date = new Date()): Promise<ConnDefinition | undefined> {
-		return await this.update(connId, { status: "active", now });
-	}
-
-	async due(now: Date = new Date()): Promise<ConnDefinition[]> {
-		const index = await this.readIndex();
-		return Object.values(index)
-			.filter((conn) => conn.status === "active" && typeof conn.nextRunAt === "string" && conn.nextRunAt <= now.toISOString())
-			.sort((left, right) => (left.nextRunAt ?? "").localeCompare(right.nextRunAt ?? ""));
-	}
-
-	async recordRun(connId: string, result: ConnRunResult, now: Date = new Date()): Promise<ConnDefinition | undefined> {
-		const index = await this.readIndex();
-		const existing = index[connId];
-		if (!existing) {
-			return undefined;
-		}
-
-		const nextRunAt = computeNextRunAt(existing.schedule, now, now);
-		const updated: ConnDefinition = {
-			...existing,
-			status: nextRunAt ? existing.status : "completed",
-			lastRunAt: now.toISOString(),
-			lastResult: result,
-			nextRunAt: nextRunAt?.toISOString(),
-			updatedAt: now.toISOString(),
-		};
-
-		index[connId] = updated;
-		await this.writeIndex(index);
-		return updated;
-	}
-
-	async triggerNow(connId: string, now: Date = new Date()): Promise<ConnDefinition | undefined> {
-		const index = await this.readIndex();
-		const existing = index[connId];
-		if (!existing) {
-			return undefined;
-		}
-
-		const updated: ConnDefinition = {
-			...existing,
-			status: "active",
-			nextRunAt: now.toISOString(),
-			updatedAt: now.toISOString(),
-		};
-		index[connId] = updated;
-		await this.writeIndex(index);
-		return updated;
-	}
-
-	private async readIndex(): Promise<ConnIndex> {
-		try {
-			const content = await readFile(this.options.indexPath, "utf8");
-			if (!content.trim()) {
-				return {};
-			}
-			const parsed = JSON.parse(content) as ConnIndex;
-			return typeof parsed === "object" && parsed !== null ? parsed : {};
-		} catch (error) {
-			if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
-				return {};
-			}
-			if (error instanceof SyntaxError) {
-				return {};
-			}
-			throw error;
-		}
-	}
-
-	private async writeIndex(index: ConnIndex): Promise<void> {
-		await mkdir(dirname(this.options.indexPath), { recursive: true });
-		await writeFile(this.options.indexPath, JSON.stringify(index, null, 2), "utf8");
-	}
+	lastRunId?: string;
 }
 
 export function computeNextRunAt(schedule: ConnSchedule, lastRunAt: Date | undefined, now: Date): Date | undefined {
@@ -242,12 +64,16 @@ export function computeNextRunAt(schedule: ConnSchedule, lastRunAt: Date | undef
 		return next.getTime() > now.getTime() ? next : new Date(now.getTime() + schedule.everyMs);
 	}
 
-	return computeNextCronOccurrence(schedule.expression, now);
+	return computeNextCronOccurrence(schedule.expression, now, schedule.timezone);
 }
 
-export function computeNextCronOccurrence(expression: string, now: Date): Date | undefined {
+export function computeNextCronOccurrence(expression: string, now: Date, timeZone?: string): Date | undefined {
 	const cron = parseCronExpression(expression);
 	if (!cron) {
+		return undefined;
+	}
+	const normalizedTimeZone = normalizeCronTimeZone(timeZone);
+	if (!normalizedTimeZone) {
 		return undefined;
 	}
 
@@ -256,12 +82,13 @@ export function computeNextCronOccurrence(expression: string, now: Date): Date |
 	cursor.setMinutes(cursor.getMinutes() + 1);
 
 	for (let step = 0; step < 366 * 24 * 60; step += 1) {
+		const parts = getCronDateParts(cursor, normalizedTimeZone);
 		if (
-			cron.minute.has(cursor.getMinutes()) &&
-			cron.hour.has(cursor.getHours()) &&
-			cron.dayOfMonth.has(cursor.getDate()) &&
-			cron.month.has(cursor.getMonth() + 1) &&
-			cron.dayOfWeek.has(cursor.getDay())
+			cron.minute.has(parts.minute) &&
+			cron.hour.has(parts.hour) &&
+			cron.dayOfMonth.has(parts.dayOfMonth) &&
+			cron.month.has(parts.month) &&
+			cron.dayOfWeek.has(parts.dayOfWeek)
 		) {
 			return new Date(cursor);
 		}
@@ -269,32 +96,6 @@ export function computeNextCronOccurrence(expression: string, now: Date): Date |
 	}
 
 	return undefined;
-}
-
-function normalizeSchedule(schedule: ConnSchedule): ConnSchedule {
-	if (schedule.kind === "once") {
-		return {
-			kind: "once",
-			at: new Date(schedule.at).toISOString(),
-		};
-	}
-
-	if (schedule.kind === "interval") {
-		return {
-			kind: "interval",
-			everyMs: Math.max(60_000, Math.trunc(schedule.everyMs)),
-			...(schedule.startAt ? { startAt: new Date(schedule.startAt).toISOString() } : {}),
-		};
-	}
-
-	return {
-		kind: "cron",
-		expression: schedule.expression.trim(),
-	};
-}
-
-function normalizeAssetRefs(assetRefs: readonly string[] | undefined): string[] {
-	return Array.from(new Set((assetRefs ?? []).map((value) => value.trim()).filter((value) => value.length > 0)));
 }
 
 function parseCronExpression(expression: string): {
@@ -380,4 +181,93 @@ function parseCronField(field: string, min: number, max: number): Set<number> | 
 	}
 
 	return values;
+}
+
+interface CronDateParts {
+	minute: number;
+	hour: number;
+	dayOfMonth: number;
+	month: number;
+	dayOfWeek: number;
+}
+
+const weekdayIndexByLabel: Record<string, number> = {
+	Sun: 0,
+	Mon: 1,
+	Tue: 2,
+	Wed: 3,
+	Thu: 4,
+	Fri: 5,
+	Sat: 6,
+};
+
+const cronFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function getCronDateParts(date: Date, timeZone: string): CronDateParts {
+	const formatter = getCronFormatter(timeZone);
+	const parts = formatter.formatToParts(date);
+	const values: Partial<CronDateParts> = {};
+	let weekdayLabel = "";
+
+	for (const part of parts) {
+		if (part.type === "weekday") {
+			weekdayLabel = part.value;
+			continue;
+		}
+		if (part.type === "month") {
+			values.month = Number(part.value);
+			continue;
+		}
+		if (part.type === "day") {
+			values.dayOfMonth = Number(part.value);
+			continue;
+		}
+		if (part.type === "hour") {
+			const hour = Number(part.value);
+			values.hour = hour === 24 ? 0 : hour;
+			continue;
+		}
+		if (part.type === "minute") {
+			values.minute = Number(part.value);
+		}
+	}
+
+	return {
+		minute: values.minute ?? date.getMinutes(),
+		hour: values.hour ?? date.getHours(),
+		dayOfMonth: values.dayOfMonth ?? date.getDate(),
+		month: values.month ?? date.getMonth() + 1,
+		dayOfWeek: weekdayIndexByLabel[weekdayLabel] ?? date.getDay(),
+	};
+}
+
+function getCronFormatter(timeZone: string): Intl.DateTimeFormat {
+	const cached = cronFormatterCache.get(timeZone);
+	if (cached) {
+		return cached;
+	}
+
+	const formatter = new Intl.DateTimeFormat("en-US-u-ca-gregory", {
+		timeZone,
+		weekday: "short",
+		month: "numeric",
+		day: "numeric",
+		hour: "numeric",
+		minute: "numeric",
+		hour12: false,
+		hourCycle: "h23",
+	});
+	cronFormatterCache.set(timeZone, formatter);
+	return formatter;
+}
+
+function normalizeCronTimeZone(value: string | undefined): string | undefined {
+	const trimmed = value?.trim();
+	const timeZone = trimmed || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone }).format(0);
+		return timeZone;
+	} catch {
+		return undefined;
+	}
 }

@@ -1,6 +1,6 @@
 # Runtime / Assets / Conn / Feishu
 
-更新时间：`2026-04-19`
+更新时间：`2026-04-21`
 
 这份文档只讲四类运行能力：
 
@@ -119,17 +119,56 @@ playground 卡片当前规则：
 
 ## 6. `conn`
 
+创建 / 更新 `conn` 时，当前也支持这几类运行时索引字段：
+- `profileId`
+- `agentSpecId`
+- `skillSetId`
+- `modelPolicyId`
+- `upgradePolicy`
+
+这些字段的作用是让后台 worker 在真正执行时，按 ID 解析当前 agent 规范、skill 集和模型策略，而不是把整套运行时定义硬编码进 conn 本身。
+
+`cron` 调度当前支持显式 `timezone`：
+
+```json
+{
+  "kind": "cron",
+  "expression": "0 9 * * *",
+  "timezone": "Asia/Shanghai"
+}
+```
+
+如果创建时没有传 `timezone`，存储层会在落库时补成当前运行环境解析出的 IANA 时区，避免“每天早上 9 点”跟着容器或宿主机时区漂移。
+
 当前支持：
 
 - `once`
 - `interval`
 - `cron`
 
+Run 查询接口：
+- `GET /v1/conns/:connId/runs`：查看某个 conn 的历史 run。
+- `GET /v1/conns/:connId/runs/:runId`：查看单次 run 的状态、结果摘要和输出文件索引。
+- `GET /v1/conns/:connId/runs/:runId/events`：查看单次 run 的过程事件；如果 run 不属于该 conn，返回 `404`。
+
+当前运行口径：
+- 前台 `ugk-pi` 进程只负责创建 / 查询 / 暂停 / 恢复 conn，以及把 `POST /v1/conns/:connId/run` 写成一条 `pending` run。
+- `POST /v1/conns` 在未传 `target` 时，会自动绑定创建当下的服务端当前会话 `currentConversationId`；如果显式传了 `target`，仍以请求里的目标类型和值为准。
+- 本地 `docker compose` 会把 `conn.sqlite` 放到 named volume `ugk-pi-conn-db`，避开 Docker Desktop bind mount 上的多进程 SQLite 打开问题；如果 volume 里还是空库，而 legacy `.data/agent/conn/conn.sqlite` 已存在，初始化时会自动迁移这份旧库。
+- 后台执行由独立 `ugk-pi-conn-worker` 进程轮询 SQLite，领取 due run 后在 `.data/agent/background/runs/<runId>/` 创建独立 workspace。
+- conn 终态结果写入 `conversation_notifications`，再由 `AgentService.getConversationState()` 合并进前台对话；成功、失败和超时失败都会留下 notification，不会写入前台 pi session history。
+- playground 收到 `kind=notification` 且 `source=conn` 的消息后，会在消息底部显示“查看后台任务过程”入口；点开后分别请求 run 详情和 run 事件，展示状态、workspace、结果摘要、输出文件和过程日志
+- 这类 notification 在前端本地历史缓存里也会保留 `source / sourceId / runId`，刷新页面后仍然能继续点开 run 详情
+- 旧的进程内 `conn-scheduler` / `conn-runner` 已移除，别再按前台同步执行链路排查。
+
 关键入口：
 
 - [src/agent/conn-store.ts](/E:/AII/ugk-pi/src/agent/conn-store.ts)
-- [src/agent/conn-scheduler.ts](/E:/AII/ugk-pi/src/agent/conn-scheduler.ts)
-- [src/agent/conn-runner.ts](/E:/AII/ugk-pi/src/agent/conn-runner.ts)
+- [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
+- [src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)
+- [src/agent/conn-run-store.ts](/E:/AII/ugk-pi/src/agent/conn-run-store.ts)
+- [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
+- [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
 - [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
 
 ## 7. Feishu
@@ -174,3 +213,66 @@ GET /v1/local-file?path=...
 ```
 
 如果是给用户拿真实文件，仍然优先使用 `send_file`，不要把浏览器预览链路当文件交付链路。
+
+## Conn Realtime Broadcast
+
+- `conn-worker` 在把结果写入 `conversation_notifications` 之后，会再 best-effort 调用 `POST /v1/internal/notifications/broadcast`，把实时事件扔给前台 server 进程内的 `NotificationHub`。
+- `NotificationHub` 负责把事件扇出到 `GET /v1/notifications/stream` 的所有在线 SSE 订阅者；断线或无人在线时不会影响持久化结果。
+- 本地和生产 compose 都显式给 `ugk-pi-conn-worker` 注入 `NOTIFICATION_BROADCAST_URL=http://ugk-pi:3000/v1/internal/notifications/broadcast`，避免 worker 在容器里误把 `127.0.0.1` 打回自己。
+- 这条链路只负责“在线提醒”，不改变 notification 的真实归属；真实归属仍然以 conn 创建时固化的 `target` 为准。
+- 关键入口：
+  - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+  - [src/routes/notifications.ts](/E:/AII/ugk-pi/src/routes/notifications.ts)
+  - [src/agent/notification-hub.ts](/E:/AII/ugk-pi/src/agent/notification-hub.ts)
+  - [docker-compose.yml](/E:/AII/ugk-pi/docker-compose.yml)
+  - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
+
+## Conn Worker Parallelism
+
+- `ConnWorker.tick()` 现在会先 claim 多条 due run，再并行执行，`maxConcurrency` 不再是名义参数。
+- 本地与生产 compose 默认给 `ugk-pi-conn-worker` 注入 `CONN_WORKER_MAX_CONCURRENCY=${CONN_WORKER_MAX_CONCURRENCY:-3}`，单个 worker 容器默认可同时处理 3 条后台任务。
+- 这条并发能力依然是“单 worker 进程内并发”；如果后续要扩成多 worker 副本，还需要补 lease heartbeat / 超时回收策略，避免超长任务被别的 worker 重领。
+
+## Conn Run Heartbeat
+
+- 运行中的 conn run 现在会由 worker 周期性刷新 `updatedAt` 和 `leaseUntil`，不再长时间停在 claim 那一刻的时间戳上装死。
+- heartbeat 只允许当前 `leaseOwner` 续租，避免别的 worker 抢跑后把 lease 写乱。
+- 默认 heartbeat 间隔会按 lease 自动推导；显式传入的 heartbeat 间隔会被原样尊重，便于测试和后续调参。
+
+## Stale Run Recovery
+
+- worker 每次 tick 开头都会先扫描 `lease_until <= now` 的 `running` run，并将它们标记为失败，而不是静默重领继续跑。
+- stale run 会追加 `run_stale` 事件，保留原 lease 信息和回收时间，方便之后排查为什么被判死。
+- 这样做的取舍是：宁可把可疑 run 清晰标错，也不把同一份后台任务在不确定状态下偷偷重跑成“双份结果”。
+
+## Conn Run Detail Lease Visibility
+
+- `GET /v1/conns/:connId/runs/:runId` 现在会把 `leaseOwner` 和 `leaseUntil` 一起返回给前台，不再只暴露结果摘要。
+- `playground` 的“查看后台任务过程”弹层会额外展示 `claimed / started / updated / lease owner / lease until`，并给 `running` run 计算一个人能看懂的 health 文案：
+  - `running / lease active`
+  - `running / stale suspected`
+  - 以及非运行态直接回显真实 `status`
+- 这层展示的目标不是替代事件日志，而是让用户第一眼就知道后台任务到底还活着、已经结束，还是 lease 看起来已经悬了。
+
+## Conn Max Runtime
+
+- `conn` 现在支持可选字段 `maxRunMs`，用于限制单次后台 run 的最长执行时间。
+- 创建或更新 `conn` 时可以通过 `POST /v1/conns` / `PATCH /v1/conns/:connId` 传入正数毫秒值；未设置时保持原先不设上限的行为。
+- worker 会在执行期为设置了 `maxRunMs` 的任务挂一条真实超时闸门；一旦超时：
+  - 先写入 `run_timed_out` 事件
+  - 再中止后台 session
+  - 最终把 run 标记为 `failed`
+- 超时失败也会写入目标 conversation 的 notification，并通过实时广播推给在线 playground；通知标题使用 `<conn title> failed`，正文优先展示 `errorText`。
+- 这条超时约束是运行期硬约束，不只是前端显示字段；对应 run detail / events 可以直接看到超时留痕。
+ 
+## Conn Playground 管理入口
+
+- `playground` 现在有可视化后台任务管理面：桌面端首页右侧 `后台任务`，手机端右上角更多菜单里的 `后台任务`。
+- 管理面只复用现有后端 API，不改变调度模型：
+  - `GET /v1/conns` 读取 conn 列表
+  - `GET /v1/conns/:connId/runs` 读取最近 run
+  - `POST /v1/conns/:connId/run` 手动入队一次 run
+  - `POST /v1/conns/:connId/pause` 暂停调度
+  - `POST /v1/conns/:connId/resume` 恢复调度
+- 前台 agent 正在运行时，管理面仍可打开和操作；这是刻意保留的解耦行为。conn worker 是否执行、执行到哪里，仍以 SQLite run 状态和 worker 日志为准。
+- 从管理面点 `查看` 会复用 `conn` run 详情弹层，请求 `GET /v1/conns/:connId/runs/:runId` 和 `/events`，用于追溯 workspace、结果、文件和事件。

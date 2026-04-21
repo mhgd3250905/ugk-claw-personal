@@ -94,6 +94,17 @@
 - 最终结果会直接列出完整技能清单
 - 不再把旧的 system 调试噪音塞进 transcript
 
+## 5.1 后台 Conn Notification
+
+- `playground` 当前会把后端 `conversation_notifications` 合并进 transcript，渲染成普通助手样式消息，但真实语义仍保留在消息条目的 `kind=notification`
+- 当消息同时满足 `source=conn`、`sourceId`、`runId` 时，消息底部会出现一个小型“查看后台任务过程”入口
+- 点开后前端会分别请求：
+  - `GET /v1/conns/:connId/runs/:runId`
+  - `GET /v1/conns/:connId/runs/:runId/events`
+- 弹层里当前展示 run 状态、时间戳、workspace、sessionFile、结果摘要、输出文件索引和过程事件列表
+- 这类 conn notification 只合并进前台可见对话，不写回前台 pi session history
+- notification 的 `source / sourceId / runId` 会跟着本地历史快照一起持久化，刷新页面后仍然能继续点开 run 详情；如果这三个字段又丢了，优先查 `normalizeHistoryEntry()` 和 `buildTranscriptEntry()`
+
 ## 6. 单工人多会话行为
 
 - 当前项目按“一个 agent 工人，多条历史产线，但同一时刻只有一条全局当前产线”收口
@@ -187,3 +198,45 @@
 - 风险态统一按 `safe / caution / warning / danger` 四档收口，圆环颜色会随风险变化。
 - 桌面端 hover 或键盘 focus 时展示浮层详情；点击可临时固定展开，别再要求用户盯着一个完整状态条。
 - 手机端点击圆环后打开底部弹窗展示详情，内容包括：会话占用、待发占用、预留回复预算、provider / model、估算口径与剩余可用空间。
+
+## Realtime Notification Broadcast
+
+- `playground` 现在会常驻订阅 `GET /v1/notifications/stream`，专门接收后台 `conn` 完成后的实时广播。
+- 广播事件先走持久化，再走实时推送；页面右上角轻提示只是在线提醒层，不替代 `GET /v1/chat/state`。
+- 所有在线页面都会各自收到并展示提示；当前版本明确不做多页去重。
+- 如果广播属于当前会话，前端会静默刷新当前会话的 run 状态和历史消息；如果不属于当前会话，也会同步刷新会话目录。
+- 页面关闭、`pagehide`、断网或 SSE 断开后会自动断开连接；回到前台、`pageshow` 或重新联网后会自动重连。
+- 关键入口：
+  - [src/routes/notifications.ts](/E:/AII/ugk-pi/src/routes/notifications.ts)
+  - [src/agent/notification-hub.ts](/E:/AII/ugk-pi/src/agent/notification-hub.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+
+- 实时广播提示层必须保持高于页面其余 fixed overlay 的层级；否则 toast 已进入 DOM，用户视觉上仍会误以为没有收到通知。
+
+## Conn Run Detail Dialog
+
+- `conn` notification 右下角的过程入口除了结果、文件和事件，现在还要展示 run 生命周期关键信息：`claimed`、`started`、`updated`、`lease owner`、`lease until`。
+- 对 `running` run，弹层会在前端直接计算一条 health 文案，优先告诉用户它是：
+  - `running / lease active`
+  - 还是 `running / stale suspected`
+- 对已经失败的超时 run，弹层会根据 `run_timed_out` 事件或 `errorText` 中的 `maxRunMs` 失败信息显示 `failed / timed out`，避免和普通模型失败混在一起。
+- 这层文案只是可视化摘要，不替代真实 run status 和事件日志；真正排障仍以 `/v1/conns/:connId/runs/:runId` 与 `/events` 为准。
+
+## Conversation Catalog Notifications
+
+- `GET /v1/chat/conversations` 现在会把后台 `notification` 合并进会话目录的 `preview`、`messageCount` 与 `updatedAt`，不再只依赖 `conversationStore` 里那份旧快照。
+- 当最新的 `conn` notification 比目录里的旧消息更新时，左侧会话列表摘要会优先显示通知正文摘要，并把这条会话顶到更靠前的位置。
+- 这层目录合并只影响列表展示口径，不会把 notification 反写进 session history；真正正文仍以 `GET /v1/chat/state` 的 canonical conversation state 为准。
+ 
+## Conn Manager
+
+- `playground` 现在提供后台任务管理入口：桌面端 landing 右侧 `后台任务`，手机端右上角更多菜单里的 `后台任务`。
+- 管理弹层使用 `conn-manager-dialog` / `conn-manager-list`，打开时读取 `GET /v1/conns`，并为每个 conn 读取 `GET /v1/conns/:connId/runs` 展示最近 3 条 run。
+- 每个 conn 支持：
+  - `立即执行`：调用 `POST /v1/conns/:connId/run`，只创建 pending run，不调用前台 agent。
+  - `暂停` / `恢复`：按当前 `conn.status` 调用 `POST /v1/conns/:connId/pause` 或 `POST /v1/conns/:connId/resume`。
+  - 最近 run 的 `查看`：复用后台任务过程弹层，继续请求 run detail 和 events。
+- 前台 agent 正在运行时不会禁用后台任务管理入口；conn 是独立 worker 处理的后台产线，不该被前台聊天 loading 卡住。真要把它绑死，那前面架构白做，属于自己给自己挖坑。
+- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，真实实现入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)。

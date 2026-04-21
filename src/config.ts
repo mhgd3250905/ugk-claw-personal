@@ -14,7 +14,8 @@ export interface AppConfig {
 	agentAssetBlobsDir: string;
 	assetIndexPath: string;
 	connDataDir: string;
-	connIndexPath: string;
+	connDatabasePath: string;
+	backgroundDataDir: string;
 	feishuDataDir: string;
 	feishuConversationMapPath: string;
 }
@@ -54,7 +55,8 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 	const agentAssetBlobsDir = join(agentAssetsDir, "blobs");
 	const assetIndexPath = join(agentDataDir, "asset-index.json");
 	const connDataDir = join(agentDataDir, "conn");
-	const connIndexPath = join(connDataDir, "conn-index.json");
+	const connDatabasePath = process.env.CONN_DATABASE_PATH?.trim() || join(connDataDir, "conn.sqlite");
+	const backgroundDataDir = join(agentDataDir, "background");
 	const feishuDataDir = join(agentDataDir, "feishu");
 	const feishuConversationMapPath = join(feishuDataDir, "conversation-map.json");
 
@@ -71,7 +73,8 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 		agentAssetBlobsDir,
 		assetIndexPath,
 		connDataDir,
-		connIndexPath,
+		connDatabasePath,
+		backgroundDataDir,
 		feishuDataDir,
 		feishuConversationMapPath,
 	};

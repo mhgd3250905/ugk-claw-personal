@@ -35,8 +35,38 @@ services:
         ]
       interval: 30s
       timeout: 5s
-      retries: 3
+        retries: 3
       start_period: 20s
+    networks:
+      - ugk-pi-net
+  ugk-pi-conn-worker:
+    image: ugk-pi:prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    env_file:
+      - ${UGK_APP_ENV_FILE:-.env}
+    environment:
+      CONN_WORKER_MAX_CONCURRENCY: ${CONN_WORKER_MAX_CONCURRENCY:-3}
+      NOTIFICATION_BROADCAST_URL: http://ugk-pi:3000/v1/internal/notifications/broadcast
+      WEB_ACCESS_BROWSER_PUBLIC_BASE_URL: http://ugk-pi:3000
+      WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
+      WEB_ACCESS_CDP_HOST: 172.31.250.10
+      WEB_ACCESS_CDP_PORT: 9223
+    volumes:
+      - ${UGK_APP_LOG_DIR:-./logs/app}:/var/log/ugk-pi
+      - ${UGK_AGENT_DATA_DIR:-./.data/agent}:/app/.data/agent
+      - ./runtime/skills-user:/app/runtime/skills-user
+    depends_on:
+      ugk-pi-browser:
+        condition: service_healthy
+      ugk-pi-browser-cdp:
+        condition: service_started
+    restart: unless-stopped
+    command: /bin/sh -lc "mkdir -p /var/log/ugk-pi && npm run worker:conn 2>&1 | tee -a /var/log/ugk-pi/conn-worker.log"
+    healthcheck:
+      disable: true
     networks:
       - ugk-pi-net
   ugk-pi-browser:

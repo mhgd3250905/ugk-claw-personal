@@ -5,6 +5,11 @@ import { join } from "node:path";
 
 const projectRoot = process.cwd();
 
+function extractComposeServiceBlock(compose: string, serviceName: string): string {
+	const match = compose.match(new RegExp(`^  ${serviceName}:\\n([\\s\\S]*?)(?=^  [a-zA-Z0-9_-]+:|^networks:|$(?![\\s\\S]))`, "m"));
+	return match?.[0] ?? "";
+}
+
 test("container runtime files exist with the expected base configuration", () => {
 	const dockerfilePath = join(projectRoot, "Dockerfile");
 	const composePath = join(projectRoot, "docker-compose.yml");
@@ -35,13 +40,18 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(dockerfile, /CMD \["npm", "start"\]/);
 
 	const compose = readFileSync(composePath, "utf8");
+	const workerComposeBlock = extractComposeServiceBlock(compose, "ugk-pi-conn-worker");
 	assert.match(compose, /services:/);
 	assert.match(compose, /ugk-pi:/);
+	assert.match(compose, /ugk-pi-conn-worker:/);
 	assert.match(compose, /ugk-pi-browser:/);
 	assert.match(compose, /ugk-pi-browser-cdp:/);
 	assert.match(compose, /3000:3000/);
 	assert.match(compose, /127\.0\.0\.1:\$\{WEB_ACCESS_BROWSER_GUI_PORT:-3901\}:3001/);
 	assert.match(compose, /HOST:\s*0\.0\.0\.0/);
+	assert.match(compose, /CONN_DATABASE_PATH:\s*\/var\/lib\/ugk-pi\/conn\/conn\.sqlite/);
+	assert.match(compose, /CONN_WORKER_MAX_CONCURRENCY:\s*\$\{CONN_WORKER_MAX_CONCURRENCY:-3\}/);
+	assert.match(compose, /NOTIFICATION_BROADCAST_URL:\s*http:\/\/ugk-pi:3000\/v1\/internal\/notifications\/broadcast/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_PROVIDER:\s*direct_cdp/);
 	assert.match(compose, /WEB_ACCESS_CDP_HOST:\s*172\.31\.250\.10/);
 	assert.match(compose, /WEB_ACCESS_CDP_PORT:\s*9223/);
@@ -62,10 +72,17 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /condition:\s*service_healthy/);
 	assert.match(compose, /TCP-LISTEN:9223,fork,bind=0\.0\.0\.0,reuseaddr/);
 	assert.match(compose, /npm run dev/);
+	assert.match(compose, /npm run worker:conn/);
+	assert.match(compose, /ugk-pi-conn-db:\/var\/lib\/ugk-pi\/conn/);
+	assert.match(compose, /volumes:\s*\n\s*ugk-pi-conn-db:/);
+	assert.match(workerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
+	assert.doesNotMatch(workerComposeBlock, /ports:/);
 
 	const prodCompose = readFileSync(prodComposePath, "utf8");
+	const prodWorkerComposeBlock = extractComposeServiceBlock(prodCompose, "ugk-pi-conn-worker");
 	assert.match(prodCompose, /services:/);
 	assert.match(prodCompose, /ugk-pi:/);
+	assert.match(prodCompose, /ugk-pi-conn-worker:/);
 	assert.match(prodCompose, /ugk-pi-browser:/);
 	assert.match(prodCompose, /ugk-pi-browser-cdp:/);
 	assert.match(prodCompose, /nginx:/);
@@ -73,6 +90,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /env_file:/);
 	assert.match(prodCompose, /\.env/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_PROVIDER:\s*direct_cdp/);
+	assert.match(prodCompose, /CONN_WORKER_MAX_CONCURRENCY:\s*\$\{CONN_WORKER_MAX_CONCURRENCY:-3\}/);
+	assert.match(prodCompose, /NOTIFICATION_BROADCAST_URL:\s*http:\/\/ugk-pi:3000\/v1\/internal\/notifications\/broadcast/);
 	assert.match(prodCompose, /WEB_ACCESS_CDP_HOST:\s*172\.31\.250\.10/);
 	assert.match(prodCompose, /WEB_ACCESS_CDP_PORT:\s*9223/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL:\s*http:\/\/ugk-pi:3000/);
@@ -93,11 +112,14 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /condition:\s*service_healthy/);
 	assert.match(prodCompose, /TCP-LISTEN:9223,fork,bind=0\.0\.0\.0,reuseaddr/);
 	assert.match(prodCompose, /npm start/);
+	assert.match(prodCompose, /npm run worker:conn/);
 	assert.match(prodCompose, /healthcheck:/);
 	assert.match(prodCompose, /logs\/app/);
 	assert.match(prodCompose, /logs\/nginx/);
 	assert.match(prodCompose, /\$\{UGK_AGENT_DATA_DIR:-\.\/\.data\/agent\}:\/app\/\.data\/agent/);
 	assert.match(prodCompose, /runtime\/skills-user/);
+	assert.match(prodWorkerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
+	assert.doesNotMatch(prodWorkerComposeBlock, /ports:/);
 	assert.match(prodCompose, /default\.conf/);
 	assert.match(prodCompose, /depends_on:/);
 
@@ -109,6 +131,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /WEB_ACCESS_BROWSER_GUI_PORT=3901/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_PROFILE_DIR=\/config\/chrome-profile-sidecar/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL=http:\/\/ugk-pi:3000/);
+	assert.match(envExample, /CONN_WORKER_MAX_CONCURRENCY=3/);
 	assert.match(envExample, /UGK_AGENT_DATA_DIR=\.\/\.data\/agent/);
 
 	const dockerignore = readFileSync(dockerignorePath, "utf8");
@@ -121,6 +144,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(nginxConfig, /location \/healthz/);
 
 	const packageJson = readFileSync(packageJsonPath, "utf8");
+	assert.match(packageJson, /"worker:conn":\s*"tsx src\/workers\/conn-worker\.ts"/);
 	assert.match(packageJson, /docker:logs:prod/);
 	assert.match(packageJson, /docker:logs:nginx/);
 	assert.match(packageJson, /docker:status:prod/);

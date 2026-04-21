@@ -1,0 +1,245 @@
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { copyFile, mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+
+export const CONN_DATABASE_TABLES = [
+	"conns",
+	"conn_runs",
+	"conn_run_events",
+	"conn_run_files",
+	"conversation_notifications",
+] as const;
+
+export interface ConnDatabaseOptions {
+	dbPath: string;
+	legacyDbPath?: string;
+}
+
+export class ConnDatabase {
+	private db?: DatabaseSync;
+
+	constructor(private readonly options: ConnDatabaseOptions) {}
+
+	async initialize(): Promise<void> {
+		await this.prepareDatabasePath();
+		this.applySchema();
+	}
+
+	initializeSync(): void {
+		this.prepareDatabasePathSync();
+		this.applySchema();
+	}
+
+	exec(sql: string): void {
+		this.open().exec(sql);
+	}
+
+	run(sql: string, ...params: unknown[]): void {
+		this.open().prepare(sql).run(...normalizeSqlParams(params));
+	}
+
+	get<T>(sql: string, ...params: unknown[]): T | undefined {
+		return normalizeRow(this.open().prepare(sql).get(...normalizeSqlParams(params))) as T | undefined;
+	}
+
+	all<T>(sql: string, ...params: unknown[]): T[] {
+		return this.open().prepare(sql).all(...normalizeSqlParams(params)).map(normalizeRow) as T[];
+	}
+
+	listTableNames(): string[] {
+		const rows = this.all<{ name: string }>(
+			"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+		);
+		const existing = new Set(rows.map((row) => row.name));
+		return CONN_DATABASE_TABLES.filter((tableName) => existing.has(tableName));
+	}
+
+	getUserVersion(): number {
+		const row = this.get<{ user_version: number }>("PRAGMA user_version");
+		return row?.user_version ?? 0;
+	}
+
+	close(): void {
+		this.db?.close();
+		this.db = undefined;
+	}
+
+	private open(): DatabaseSync {
+		if (!this.db) {
+			this.db = new DatabaseSync(this.options.dbPath);
+			this.db.exec("PRAGMA journal_mode = WAL");
+			this.db.exec("PRAGMA synchronous = NORMAL");
+			this.db.exec("PRAGMA foreign_keys = ON");
+			this.db.exec("PRAGMA busy_timeout = 5000");
+		}
+		return this.db;
+	}
+
+	private applySchema(): void {
+		const db = this.open();
+		db.exec(SCHEMA_SQL);
+		this.applyMigrations(db);
+		db.exec("PRAGMA user_version = 2");
+	}
+
+	private async prepareDatabasePath(): Promise<void> {
+		await mkdir(dirname(this.options.dbPath), { recursive: true });
+		await this.copyLegacyDatabaseIfNeeded();
+	}
+
+	private prepareDatabasePathSync(): void {
+		mkdirSync(dirname(this.options.dbPath), { recursive: true });
+		this.copyLegacyDatabaseIfNeededSync();
+	}
+
+	private async copyLegacyDatabaseIfNeeded(): Promise<void> {
+		const legacyDbPath = this.options.legacyDbPath;
+		if (!legacyDbPath || legacyDbPath === this.options.dbPath || existsSync(this.options.dbPath) || !existsSync(legacyDbPath)) {
+			return;
+		}
+
+		await copyFile(legacyDbPath, this.options.dbPath);
+		await this.copySidecarFileIfExists(`${legacyDbPath}-wal`, `${this.options.dbPath}-wal`);
+		await this.copySidecarFileIfExists(`${legacyDbPath}-shm`, `${this.options.dbPath}-shm`);
+	}
+
+	private copyLegacyDatabaseIfNeededSync(): void {
+		const legacyDbPath = this.options.legacyDbPath;
+		if (!legacyDbPath || legacyDbPath === this.options.dbPath || existsSync(this.options.dbPath) || !existsSync(legacyDbPath)) {
+			return;
+		}
+
+		copyFileSync(legacyDbPath, this.options.dbPath);
+		this.copySidecarFileIfExistsSync(`${legacyDbPath}-wal`, `${this.options.dbPath}-wal`);
+		this.copySidecarFileIfExistsSync(`${legacyDbPath}-shm`, `${this.options.dbPath}-shm`);
+	}
+
+	private async copySidecarFileIfExists(sourcePath: string, targetPath: string): Promise<void> {
+		if (!existsSync(sourcePath)) {
+			return;
+		}
+		await copyFile(sourcePath, targetPath);
+	}
+
+	private copySidecarFileIfExistsSync(sourcePath: string, targetPath: string): void {
+		if (!existsSync(sourcePath)) {
+			return;
+		}
+		copyFileSync(sourcePath, targetPath);
+	}
+
+	private applyMigrations(db: DatabaseSync): void {
+		const userVersion = this.getUserVersion();
+		if (userVersion < 2 && !this.hasColumn("conns", "max_run_ms")) {
+			db.exec("ALTER TABLE conns ADD COLUMN max_run_ms INTEGER");
+		}
+	}
+
+	private hasColumn(tableName: string, columnName: string): boolean {
+		const rows = this.all<{ name: string }>(`PRAGMA table_info(${tableName})`);
+		return rows.some((row) => row.name === columnName);
+	}
+}
+
+function normalizeSqlParams(params: unknown[]): SQLInputValue[] {
+	return params.map((value) => (value === undefined ? null : value)) as SQLInputValue[];
+}
+
+function normalizeRow(row: unknown): Record<string, unknown> | undefined {
+	if (!row || typeof row !== "object") {
+		return undefined;
+	}
+	return Object.fromEntries(Object.entries(row));
+}
+
+const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS conns (
+	conn_id TEXT PRIMARY KEY,
+	title TEXT NOT NULL,
+	prompt TEXT NOT NULL,
+	target_json TEXT NOT NULL,
+	schedule_json TEXT NOT NULL,
+	asset_refs_json TEXT NOT NULL DEFAULT '[]',
+	max_run_ms INTEGER,
+	profile_id TEXT NOT NULL,
+	agent_spec_id TEXT NOT NULL,
+	skill_set_id TEXT NOT NULL,
+	model_policy_id TEXT NOT NULL,
+	upgrade_policy TEXT NOT NULL DEFAULT 'latest',
+	status TEXT NOT NULL DEFAULT 'active',
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL,
+	last_run_at TEXT,
+	next_run_at TEXT,
+	last_run_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS conn_runs (
+	run_id TEXT PRIMARY KEY,
+	conn_id TEXT NOT NULL,
+	status TEXT NOT NULL,
+	scheduled_at TEXT NOT NULL,
+	claimed_at TEXT,
+	started_at TEXT,
+	finished_at TEXT,
+	lease_owner TEXT,
+	lease_until TEXT,
+	workspace_path TEXT NOT NULL,
+	session_file TEXT,
+	resolved_snapshot_json TEXT,
+	result_summary TEXT,
+	result_text TEXT,
+	error_text TEXT,
+	delivered_at TEXT,
+	retry_of_run_id TEXT,
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL,
+	FOREIGN KEY (conn_id) REFERENCES conns(conn_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS conn_run_events (
+	event_id TEXT PRIMARY KEY,
+	run_id TEXT NOT NULL,
+	seq INTEGER NOT NULL,
+	event_type TEXT NOT NULL,
+	event_json TEXT NOT NULL,
+	created_at TEXT NOT NULL,
+	FOREIGN KEY (run_id) REFERENCES conn_runs(run_id) ON DELETE CASCADE,
+	UNIQUE (run_id, seq)
+);
+
+CREATE TABLE IF NOT EXISTS conn_run_files (
+	file_id TEXT PRIMARY KEY,
+	run_id TEXT NOT NULL,
+	kind TEXT NOT NULL,
+	relative_path TEXT NOT NULL,
+	file_name TEXT NOT NULL,
+	mime_type TEXT NOT NULL,
+	size_bytes INTEGER NOT NULL,
+	created_at TEXT NOT NULL,
+	FOREIGN KEY (run_id) REFERENCES conn_runs(run_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS conversation_notifications (
+	notification_id TEXT PRIMARY KEY,
+	conversation_id TEXT NOT NULL,
+	source TEXT NOT NULL,
+	source_id TEXT NOT NULL,
+	run_id TEXT,
+	kind TEXT NOT NULL,
+	title TEXT NOT NULL,
+	text TEXT NOT NULL,
+	files_json TEXT NOT NULL DEFAULT '[]',
+	created_at TEXT NOT NULL,
+	read_at TEXT,
+	UNIQUE (source, source_id, run_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conns_next_run_at ON conns(status, next_run_at);
+CREATE INDEX IF NOT EXISTS idx_conn_runs_conn_id ON conn_runs(conn_id, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_conn_runs_claim ON conn_runs(status, lease_until, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_conn_run_events_run_id ON conn_run_events(run_id, seq);
+CREATE INDEX IF NOT EXISTS idx_conn_run_files_run_id ON conn_run_files(run_id, kind);
+CREATE INDEX IF NOT EXISTS idx_conversation_notifications_conversation_id ON conversation_notifications(conversation_id, created_at);
+`;

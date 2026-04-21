@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { NotificationHub } from "../src/agent/notification-hub.js";
 import { buildServer } from "../src/server.js";
 import type { AgentService } from "../src/agent/agent-service.js";
 import { renderPlaygroundMarkdown } from "../src/ui/playground.js";
@@ -303,6 +304,12 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /error-banner/);
 	assert.match(response.body, /error-banner-message/);
 	assert.match(response.body, /error-banner-close/);
+	assert.match(response.body, /notification-live-region/);
+	assert.match(response.body, /notification-toast-stack/);
+	assert.match(response.body, /function connectNotificationStream\(/);
+	assert.match(response.body, /new EventSource\("\/v1\/notifications\/stream"\)/);
+	assert.match(response.body, /function showNotificationToast\(/);
+	assert.match(response.body, /function handleNotificationBroadcastEvent\(/);
 	assert.doesNotMatch(response.body, /queue-mode/);
 	assert.doesNotMatch(response.body, /interrupt \/ steer/);
 	assert.doesNotMatch(response.body, /wait \/ follow-up/);
@@ -408,6 +415,30 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /const visualKind = kind === "user" \? "user" : "assistant";/);
 	assert.match(response.body, /card\.className = "message " \+ visualKind;/);
 	assert.match(response.body, /card\.dataset\.messageKind = kind;/);
+	assert.match(response.body, /function canOpenConnRunDetails\(entry\)/);
+	assert.match(response.body, /function openConnRunDetails\(entry\)/);
+	assert.match(response.body, /open-conn-manager-button/);
+	assert.match(response.body, /conn-manager-dialog/);
+	assert.match(response.body, /conn-manager-list/);
+	assert.match(response.body, /function openConnManager\(/);
+	assert.match(response.body, /function loadConnManager\(/);
+	assert.match(response.body, /function renderConnManager\(/);
+	assert.match(response.body, /function runConnNow\(/);
+	assert.match(response.body, /function toggleConnPaused\(/);
+	assert.match(response.body, /\/v1\/conns"\s*,\s*\{\s*method:\s*"GET"/);
+	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(conn\.connId\)\s*\+\s*"\/run"/);
+	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(conn\.connId\)\s*\+\s*\(conn\.status === "paused" \? "\/resume" : "\/pause"\)/);
+	assert.match(response.body, /conn-run-details-dialog/);
+	assert.match(response.body, /conn-run-details-body/);
+	assert.match(response.body, /source:\s*typeof rawEntry\.source === "string" \? rawEntry\.source : undefined/);
+	assert.match(response.body, /sourceId:\s*typeof rawEntry\.sourceId === "string" \? rawEntry\.sourceId : undefined/);
+	assert.match(response.body, /runId:\s*typeof rawEntry\.runId === "string" \? rawEntry\.runId : undefined/);
+	assert.match(response.body, /source:\s*typeof options\?\.source === "string" \? options\.source : undefined/);
+	assert.match(response.body, /sourceId:\s*typeof options\?\.sourceId === "string" \? options\.sourceId : undefined/);
+	assert.match(response.body, /runId:\s*typeof options\?\.runId === "string" \? options\.runId : undefined/);
+	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(entry\.sourceId\)\s*\+\s*"\/runs\/"\s*\+\s*encodeURIComponent\(entry\.runId\)/);
+	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(entry\.sourceId\)\s*\+\s*"\/runs\/"\s*\+\s*encodeURIComponent\(entry\.runId\)\s*\+\s*"\/events"/);
+	assert.match(response.body, /conn-run-open-button/);
 	assert.doesNotMatch(response.body, /appendTranscriptMessage\("error"/);
 	assert.doesNotMatch(response.body, /\.message\.error/);
 	assert.match(response.body, /\.process-note\s*\{[\s\S]*width: 100%;/);
@@ -631,6 +662,226 @@ test("GET /playground embeds syntactically valid browser script", async () => {
 	assert.ok(scriptMatch, "expected inline playground script");
 	assert.doesNotThrow(() => {
 		new Function(scriptMatch[1]);
+	});
+	await app.close();
+});
+
+test("POST /v1/conns accepts cron timezone and runtime profile ids", async () => {
+	const createdInputs: unknown[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		connStore: {
+			list: async () => [],
+			get: async () => undefined,
+			create: async (input: {
+				title: string;
+				prompt: string;
+				target: { type: "conversation"; conversationId: string };
+				schedule: { kind: "cron"; expression: string; timezone?: string };
+				assetRefs?: string[];
+				profileId?: string;
+				agentSpecId?: string;
+				skillSetId?: string;
+				modelPolicyId?: string;
+				upgradePolicy?: "latest" | "pinned" | "manual";
+				maxRunMs?: number;
+			}) => {
+				createdInputs.push(input);
+				return {
+					connId: "conn-1",
+					title: input.title,
+					prompt: input.prompt,
+					target: input.target,
+					schedule: input.schedule,
+					assetRefs: input.assetRefs ?? [],
+					profileId: input.profileId,
+					agentSpecId: input.agentSpecId,
+					skillSetId: input.skillSetId,
+					modelPolicyId: input.modelPolicyId,
+					upgradePolicy: input.upgradePolicy,
+					maxRunMs: input.maxRunMs,
+					status: "active",
+					createdAt: "2026-04-21T00:00:00.000Z",
+					updatedAt: "2026-04-21T00:00:00.000Z",
+				};
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async () => [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/conns",
+		payload: {
+			title: " morning digest ",
+			prompt: " run every day ",
+			target: { type: "conversation", conversationId: "manual:digest" },
+			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
+			assetRefs: ["asset-1", " asset-2 "],
+			profileId: "background.zh",
+			agentSpecId: "agent.daily",
+			skillSetId: "skills.research",
+			modelPolicyId: "model.stable",
+			upgradePolicy: "pinned",
+			maxRunMs: 120000,
+		},
+	});
+
+	assert.equal(response.statusCode, 201);
+	assert.deepEqual(createdInputs, [
+		{
+			title: "morning digest",
+			prompt: "run every day",
+			target: { type: "conversation", conversationId: "manual:digest" },
+			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
+			assetRefs: ["asset-1", "asset-2"],
+			profileId: "background.zh",
+			agentSpecId: "agent.daily",
+			skillSetId: "skills.research",
+			modelPolicyId: "model.stable",
+			upgradePolicy: "pinned",
+			maxRunMs: 120000,
+		},
+	]);
+	assert.deepEqual(response.json(), {
+		conn: {
+			connId: "conn-1",
+			title: "morning digest",
+			prompt: "run every day",
+			target: { type: "conversation", conversationId: "manual:digest" },
+			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
+			assetRefs: ["asset-1", "asset-2"],
+			profileId: "background.zh",
+			agentSpecId: "agent.daily",
+			skillSetId: "skills.research",
+			modelPolicyId: "model.stable",
+			upgradePolicy: "pinned",
+			maxRunMs: 120000,
+			status: "active",
+			createdAt: "2026-04-21T00:00:00.000Z",
+			updatedAt: "2026-04-21T00:00:00.000Z",
+		},
+	});
+	await app.close();
+});
+
+test("POST /v1/conns defaults target to the current conversation when target is omitted", async () => {
+	const createdInputs: unknown[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			getConversationCatalog: async () => ({
+				currentConversationId: "manual:current-thread",
+				conversations: [
+					{
+						conversationId: "manual:current-thread",
+						title: "当前会话",
+						preview: "",
+						messageCount: 3,
+						createdAt: "2026-04-21T00:00:00.000Z",
+						updatedAt: "2026-04-21T00:00:00.000Z",
+						running: false,
+					},
+				],
+			}),
+		}),
+		connStore: {
+			list: async () => [],
+			get: async () => undefined,
+			create: async (input: {
+				title: string;
+				prompt: string;
+				target: { type: "conversation"; conversationId: string };
+				schedule: { kind: "cron"; expression: string; timezone?: string };
+				assetRefs?: string[];
+				profileId?: string;
+				agentSpecId?: string;
+				skillSetId?: string;
+				modelPolicyId?: string;
+				upgradePolicy?: "latest" | "pinned" | "manual";
+			}) => {
+				createdInputs.push(input);
+				return {
+					connId: "conn-default-target",
+					title: input.title,
+					prompt: input.prompt,
+					target: input.target,
+					schedule: input.schedule,
+					assetRefs: input.assetRefs ?? [],
+					profileId: input.profileId,
+					agentSpecId: input.agentSpecId,
+					skillSetId: input.skillSetId,
+					modelPolicyId: input.modelPolicyId,
+					upgradePolicy: input.upgradePolicy,
+					status: "active",
+					createdAt: "2026-04-21T00:00:00.000Z",
+					updatedAt: "2026-04-21T00:00:00.000Z",
+				};
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async () => [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/conns",
+		payload: {
+			title: " current digest ",
+			prompt: " follow current conversation ",
+			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
+		},
+	});
+
+	assert.equal(response.statusCode, 201);
+	assert.deepEqual(createdInputs, [
+		{
+			title: "current digest",
+			prompt: "follow current conversation",
+			target: { type: "conversation", conversationId: "manual:current-thread" },
+			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
+			assetRefs: undefined,
+			profileId: undefined,
+			agentSpecId: undefined,
+			skillSetId: undefined,
+			modelPolicyId: undefined,
+			upgradePolicy: undefined,
+		},
+	]);
+	assert.deepEqual(response.json(), {
+		conn: {
+			connId: "conn-default-target",
+			title: "current digest",
+			prompt: "follow current conversation",
+			target: { type: "conversation", conversationId: "manual:current-thread" },
+			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
+			assetRefs: [],
+			status: "active",
+			createdAt: "2026-04-21T00:00:00.000Z",
+			updatedAt: "2026-04-21T00:00:00.000Z",
+		},
 	});
 	await app.close();
 });
@@ -1052,6 +1303,23 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /case "interrupted":[\s\S]*restoreConversationHistoryFromServer\(event\.conversationId\)/);
 	assert.match(response.body, /case "error":[\s\S]*restoreConversationHistoryFromServer\(event\.conversationId\)/);
 	assert.match(response.body, /async function interruptRun\(\)\s*\{[\s\S]*completeAssistantLoadingBubble\("warn", "本轮已中断"\);[\s\S]*setLoading\(false\);/);
+	await app.close();
+});
+
+test("GET /playground labels timed-out conn runs distinctly in the detail dialog", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /function isConnRunTimedOut\(/);
+	assert.match(response.body, /failed \/ timed out/);
+	assert.match(response.body, /run_timed_out/);
 	await app.close();
 });
 
@@ -1712,14 +1980,15 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 			delete: async () => false,
 			pause: async () => undefined,
 			resume: async () => undefined,
-			due: async () => [],
-			recordRun: async () => undefined,
-			triggerNow: async () => undefined,
 		} as never,
-		connScheduler: {
-			start: () => undefined,
-			stop: () => undefined,
-			runNow: async () => undefined,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async () => [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
 		} as never,
 	});
 
@@ -1742,6 +2011,365 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 				createdAt: "2026-04-18T00:00:00.000Z",
 				updatedAt: "2026-04-18T00:00:00.000Z",
 				nextRunAt: "2026-04-18T00:01:00.000Z",
+			},
+		],
+	});
+	await app.close();
+});
+
+test("POST /v1/conns/:connId/run enqueues a background run without invoking the foreground agent", async () => {
+	const createdRuns: unknown[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			chat: async () => {
+				throw new Error("foreground agent should not be called");
+			},
+		}),
+		connStore: {
+			list: async () => [],
+			get: async (connId: string) =>
+				connId === "conn-1"
+					? {
+							connId: "conn-1",
+							title: "digest",
+							prompt: "summarize",
+							target: { type: "conversation", conversationId: "manual:digest" },
+							schedule: { kind: "interval", everyMs: 60000 },
+							assetRefs: ["asset-1"],
+							status: "active",
+							createdAt: "2026-04-18T00:00:00.000Z",
+							updatedAt: "2026-04-18T00:00:00.000Z",
+							nextRunAt: "2026-04-18T00:01:00.000Z",
+						}
+					: undefined,
+			create: async () => {
+				throw new Error("not used");
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async (input: { runId?: string; connId: string; scheduledAt: string; workspacePath: string }) => {
+				createdRuns.push(input);
+				return {
+					runId: input.runId ?? "run-1",
+					connId: input.connId,
+					status: "pending",
+					scheduledAt: input.scheduledAt,
+					workspacePath: input.workspacePath,
+					createdAt: "2026-04-21T00:00:00.000Z",
+					updatedAt: "2026-04-21T00:00:00.000Z",
+				};
+			},
+			listRunsForConn: async () => [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
+		} as never,
+		backgroundDataDir: "E:/AII/ugk-pi/.data/agent/background",
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/conns/conn-1/run",
+	});
+
+	assert.equal(response.statusCode, 202);
+	const body = response.json();
+	assert.equal(body.run.connId, "conn-1");
+	assert.equal(body.run.status, "pending");
+	assert.equal(body.run.scheduledAt <= new Date().toISOString(), true);
+	assert.match(body.run.workspacePath, /[\\/]background[\\/]runs[\\/][0-9a-f-]+$/);
+	assert.deepEqual(createdRuns, [
+		{
+			runId: body.run.runId,
+			connId: "conn-1",
+			scheduledAt: body.run.scheduledAt,
+			workspacePath: body.run.workspacePath,
+		},
+	]);
+	await app.close();
+});
+
+test("GET /v1/conns/:connId/runs returns background run history for the conn", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		connStore: {
+			list: async () => [],
+			get: async (connId: string) =>
+				connId === "conn-1"
+					? {
+							connId: "conn-1",
+							title: "digest",
+							prompt: "summarize",
+							target: { type: "conversation", conversationId: "manual:digest" },
+							schedule: { kind: "interval", everyMs: 60000 },
+							assetRefs: [],
+							status: "active",
+							createdAt: "2026-04-18T00:00:00.000Z",
+							updatedAt: "2026-04-18T00:00:00.000Z",
+						}
+					: undefined,
+			create: async () => {
+				throw new Error("not used");
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async (connId: string) =>
+				connId === "conn-1"
+					? [
+							{
+								runId: "run-2",
+								connId: "conn-1",
+								status: "succeeded",
+								scheduledAt: "2026-04-21T09:00:00.000Z",
+								startedAt: "2026-04-21T09:00:01.000Z",
+								finishedAt: "2026-04-21T09:00:30.000Z",
+								workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-2",
+								resultSummary: "done",
+								resultText: "daily result",
+								createdAt: "2026-04-21T09:00:00.000Z",
+								updatedAt: "2026-04-21T09:00:30.000Z",
+							},
+						]
+					: [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/conns/conn-1/runs",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		runs: [
+			{
+				runId: "run-2",
+				connId: "conn-1",
+				status: "succeeded",
+				scheduledAt: "2026-04-21T09:00:00.000Z",
+				startedAt: "2026-04-21T09:00:01.000Z",
+				finishedAt: "2026-04-21T09:00:30.000Z",
+				workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-2",
+				resultSummary: "done",
+				resultText: "daily result",
+				createdAt: "2026-04-21T09:00:00.000Z",
+				updatedAt: "2026-04-21T09:00:30.000Z",
+			},
+		],
+	});
+	await app.close();
+});
+
+test("GET /v1/conns/:connId/runs/:runId returns run detail with output files", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		connStore: {
+			list: async () => [],
+			get: async (connId: string) =>
+				connId === "conn-1"
+					? {
+							connId: "conn-1",
+							title: "digest",
+							prompt: "summarize",
+							target: { type: "conversation", conversationId: "manual:digest" },
+							schedule: { kind: "interval", everyMs: 60000 },
+							assetRefs: [],
+							status: "active",
+							createdAt: "2026-04-18T00:00:00.000Z",
+							updatedAt: "2026-04-18T00:00:00.000Z",
+						}
+					: undefined,
+			create: async () => {
+				throw new Error("not used");
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async () => [],
+			getRun: async (runId: string) =>
+				runId === "run-2"
+					? {
+							runId: "run-2",
+							connId: "conn-1",
+							status: "succeeded",
+							scheduledAt: "2026-04-21T09:00:00.000Z",
+							claimedAt: "2026-04-21T09:00:01.000Z",
+							startedAt: "2026-04-21T09:00:02.000Z",
+							leaseOwner: "worker-a",
+							leaseUntil: "2026-04-21T09:05:00.000Z",
+							workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-2",
+							resultSummary: "done",
+							createdAt: "2026-04-21T09:00:00.000Z",
+							updatedAt: "2026-04-21T09:00:30.000Z",
+						}
+					: runId === "run-other"
+						? {
+								runId: "run-other",
+								connId: "conn-other",
+								status: "succeeded",
+								scheduledAt: "2026-04-21T09:00:00.000Z",
+								workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-other",
+								createdAt: "2026-04-21T09:00:00.000Z",
+								updatedAt: "2026-04-21T09:00:30.000Z",
+							}
+						: undefined,
+			listEvents: async () => [],
+			listFiles: async (runId: string) =>
+				runId === "run-2"
+					? [
+							{
+								fileId: "file-1",
+								runId: "run-2",
+								kind: "output",
+								relativePath: "output/report.md",
+								fileName: "report.md",
+								mimeType: "text/markdown",
+								sizeBytes: 42,
+								createdAt: "2026-04-21T09:00:30.000Z",
+							},
+						]
+					: [],
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/conns/conn-1/runs/run-2",
+	});
+	const wrongConnResponse = await app.inject({
+		method: "GET",
+		url: "/v1/conns/conn-1/runs/run-other",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		run: {
+			runId: "run-2",
+			connId: "conn-1",
+			status: "succeeded",
+			scheduledAt: "2026-04-21T09:00:00.000Z",
+			claimedAt: "2026-04-21T09:00:01.000Z",
+			startedAt: "2026-04-21T09:00:02.000Z",
+			leaseOwner: "worker-a",
+			leaseUntil: "2026-04-21T09:05:00.000Z",
+			workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-2",
+			resultSummary: "done",
+			createdAt: "2026-04-21T09:00:00.000Z",
+			updatedAt: "2026-04-21T09:00:30.000Z",
+		},
+		files: [
+			{
+				fileId: "file-1",
+				runId: "run-2",
+				kind: "output",
+				relativePath: "output/report.md",
+				fileName: "report.md",
+				mimeType: "text/markdown",
+				sizeBytes: 42,
+				createdAt: "2026-04-21T09:00:30.000Z",
+			},
+		],
+	});
+	assert.equal(wrongConnResponse.statusCode, 404);
+	await app.close();
+});
+
+test("GET /v1/conns/:connId/runs/:runId/events returns ordered run events", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		connStore: {
+			list: async () => [],
+			get: async (connId: string) =>
+				connId === "conn-1"
+					? {
+							connId: "conn-1",
+							title: "digest",
+							prompt: "summarize",
+							target: { type: "conversation", conversationId: "manual:digest" },
+							schedule: { kind: "interval", everyMs: 60000 },
+							assetRefs: [],
+							status: "active",
+							createdAt: "2026-04-18T00:00:00.000Z",
+							updatedAt: "2026-04-18T00:00:00.000Z",
+						}
+					: undefined,
+			create: async () => {
+				throw new Error("not used");
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async () => [],
+			getRun: async (runId: string) =>
+				runId === "run-2"
+					? {
+							runId: "run-2",
+							connId: "conn-1",
+							status: "running",
+							scheduledAt: "2026-04-21T09:00:00.000Z",
+							workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-2",
+							createdAt: "2026-04-21T09:00:00.000Z",
+							updatedAt: "2026-04-21T09:00:01.000Z",
+						}
+					: undefined,
+			listEvents: async (runId: string) =>
+				runId === "run-2"
+					? [
+							{
+								eventId: "event-1",
+								runId: "run-2",
+								seq: 1,
+								eventType: "workspace_created",
+								event: { rootPath: "E:/AII/ugk-pi/.data/agent/background/runs/run-2" },
+								createdAt: "2026-04-21T09:00:01.000Z",
+							},
+						]
+					: [],
+			listFiles: async () => [],
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/conns/conn-1/runs/run-2/events",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		events: [
+			{
+				eventId: "event-1",
+				runId: "run-2",
+				seq: 1,
+				eventType: "workspace_created",
+				event: { rootPath: "E:/AII/ugk-pi/.data/agent/background/runs/run-2" },
+				createdAt: "2026-04-21T09:00:01.000Z",
 			},
 		],
 	});
@@ -2067,6 +2695,51 @@ test("GET /v1/chat/events attaches to the current active run event stream", asyn
 	assert.match(response.body, /"type":"text_delta"/);
 	assert.match(response.body, /"type":"done"/);
 	assert.deepEqual(calls, ["manual:events", "unsubscribed"]);
+	await app.close();
+});
+
+test("POST /v1/internal/notifications/broadcast publishes a notification event to the hub", async () => {
+	const hub = new NotificationHub();
+	const events: unknown[] = [];
+	const subscription = hub.subscribe((event) => {
+		events.push(event);
+	});
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		notificationHub: hub,
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/internal/notifications/broadcast",
+		payload: {
+			notificationId: "notice-1",
+			conversationId: "manual:notice",
+			source: "conn",
+			sourceId: "conn-1",
+			runId: "run-1",
+			kind: "conn_result",
+			title: "Daily Digest completed",
+			createdAt: "2026-04-21T10:01:05.000Z",
+		},
+	});
+
+	assert.equal(response.statusCode, 202);
+	assert.deepEqual(response.json(), { ok: true });
+	assert.deepEqual(events, [
+		{
+			notificationId: "notice-1",
+			conversationId: "manual:notice",
+			source: "conn",
+			sourceId: "conn-1",
+			runId: "run-1",
+			kind: "conn_result",
+			title: "Daily Digest completed",
+			createdAt: "2026-04-21T10:01:05.000Z",
+		},
+	]);
+
+	subscription.unsubscribe();
 	await app.close();
 });
 

@@ -65,6 +65,7 @@
 - 助手/用户消息样式
 - 过程区与 loading 气泡
 - 文件卡片“打开 / 下载”
+- 后台 conn notification 的“查看任务过程”入口
 - 刷新后运行态恢复
 - 新会话创建、当前会话切换、刷新后跟随服务端当前会话
 - 发送后立即清空输入框
@@ -85,6 +86,9 @@
 7. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 适用问题：
+- `cron` 定时不区分时区，导致“每天 9 点”在不同宿主机上漂移
+- conn runtime profile / skill set / model policy 的 ID 没透到接口层
+- notification 已经进了前台对话，但点不开 run 详情
 
 - `send_file` 没出现在文件卡片里
 - 图片/报告下载 0B
@@ -146,10 +150,13 @@
 1. [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
 2. [src/routes/feishu.ts](/E:/AII/ugk-pi/src/routes/feishu.ts)
 3. [src/agent/conn-store.ts](/E:/AII/ugk-pi/src/agent/conn-store.ts)
-4. [src/agent/conn-scheduler.ts](/E:/AII/ugk-pi/src/agent/conn-scheduler.ts)
-5. [src/agent/conn-runner.ts](/E:/AII/ugk-pi/src/agent/conn-runner.ts)
-6. [src/integrations/feishu/service.ts](/E:/AII/ugk-pi/src/integrations/feishu/service.ts)
-7. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+4. [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
+5. [src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)
+6. [src/agent/conn-run-store.ts](/E:/AII/ugk-pi/src/agent/conn-run-store.ts)
+7. [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
+8. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+9. [src/integrations/feishu/service.ts](/E:/AII/ugk-pi/src/integrations/feishu/service.ts)
+10. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 ## H. 容器、部署、健康检查、截图
 
@@ -175,3 +182,19 @@
 - `PUBLIC_BASE_URL` 不对
 - sidecar Chrome 打开本地 HTML 时访问到 `127.0.0.1:3000` 造成 404
 - `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 没有指向 `http://ugk-pi:3000`
+
+## I. Realtime Notification Broadcast
+
+先看：
+1. [src/routes/notifications.ts](/E:/AII/ugk-pi/src/routes/notifications.ts)
+2. [src/agent/notification-hub.ts](/E:/AII/ugk-pi/src/agent/notification-hub.ts)
+3. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+4. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+5. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
+6. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+
+适用问题：
+- conn 任务明明跑完了，但在线页面不弹实时提示
+- worker 广播地址在 Docker 里打到了自己
+- SSE 断线后页面不重连
+- 当前会话和非当前会话的提示表现不一致

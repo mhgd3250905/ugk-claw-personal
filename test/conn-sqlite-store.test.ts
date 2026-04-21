@@ -1,0 +1,208 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { ConnDatabase } from "../src/agent/conn-db.js";
+import { ConnSqliteStore } from "../src/agent/conn-sqlite-store.js";
+
+async function createConnSqliteStore(): Promise<{ store: ConnSqliteStore; database: ConnDatabase }> {
+	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-conn-sqlite-store-"));
+	const database = new ConnDatabase({ dbPath: join(dir, "conn.sqlite") });
+	await database.initialize();
+	return {
+		database,
+		store: new ConnSqliteStore({ database }),
+	};
+}
+
+test("ConnSqliteStore creates, gets, and lists conn definitions with runtime profile ids", async () => {
+	const { store, database } = await createConnSqliteStore();
+
+	const created = await store.create({
+		title: " daily digest ",
+		prompt: " Summarize the latest notes ",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		assetRefs: [" asset-1 ", "asset-1", "asset-2"],
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	assert.equal(created.title, "daily digest");
+	assert.equal(created.prompt, "Summarize the latest notes");
+	assert.deepEqual(created.assetRefs, ["asset-1", "asset-2"]);
+	assert.equal(created.profileId, "background.default");
+	assert.equal(created.agentSpecId, "agent.default");
+	assert.equal(created.skillSetId, "skills.default");
+	assert.equal(created.modelPolicyId, "model.default");
+	assert.equal(created.upgradePolicy, "latest");
+	assert.equal(created.nextRunAt, "2026-04-21T10:01:00.000Z");
+
+	const found = await store.get(created.connId);
+	assert.deepEqual(found, created);
+
+	const listed = await store.list();
+	assert.deepEqual(listed, [created]);
+
+	database.close();
+});
+
+test("ConnSqliteStore updates, pauses, resumes, and deletes conn definitions", async () => {
+	const { store, database } = await createConnSqliteStore();
+	const created = await store.create({
+		title: "digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	const updated = await store.update(created.connId, {
+		title: "weekly digest",
+		assetRefs: ["asset-3"],
+		schedule: {
+			kind: "once",
+			at: "2026-04-22T09:00:00.000Z",
+		},
+		now: new Date("2026-04-21T10:05:00.000Z"),
+	});
+	assert.equal(updated?.title, "weekly digest");
+	assert.deepEqual(updated?.assetRefs, ["asset-3"]);
+	assert.equal(updated?.nextRunAt, "2026-04-22T09:00:00.000Z");
+
+	const paused = await store.pause(created.connId, new Date("2026-04-21T10:06:00.000Z"));
+	assert.equal(paused?.status, "paused");
+	assert.equal(paused?.nextRunAt, undefined);
+
+	const resumed = await store.resume(created.connId, new Date("2026-04-21T10:07:00.000Z"));
+	assert.equal(resumed?.status, "active");
+	assert.equal(resumed?.nextRunAt, "2026-04-22T09:00:00.000Z");
+
+	assert.equal(await store.delete(created.connId), true);
+	assert.equal(await store.get(created.connId), undefined);
+
+	database.close();
+});
+
+test("ConnSqliteStore rejects invalid schedules with a clear validation error", async () => {
+	const { store, database } = await createConnSqliteStore();
+
+	await assert.rejects(
+		() =>
+			store.create({
+				title: "bad schedule",
+				prompt: "run",
+				target: {
+					type: "conversation",
+					conversationId: "manual:conn",
+				},
+				schedule: {
+					kind: "once",
+					at: "not-a-date",
+				},
+			}),
+		/Invalid conn schedule/,
+	);
+
+	database.close();
+});
+
+test("ConnSqliteStore persists cron timezone and explicit runtime ids", async () => {
+	const { store, database } = await createConnSqliteStore();
+
+	const created = await store.create({
+		title: "morning digest",
+		prompt: "run every morning",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "cron",
+			expression: "0 9 * * *",
+			timezone: "Asia/Shanghai",
+		},
+		profileId: "background.zh",
+		agentSpecId: "agent.daily",
+		skillSetId: "skills.research",
+		modelPolicyId: "model.stable",
+		upgradePolicy: "pinned",
+		maxRunMs: 120_000,
+		now: new Date("2026-04-21T00:30:00.000Z"),
+	});
+
+	assert.deepEqual(created.schedule, {
+		kind: "cron",
+		expression: "0 9 * * *",
+		timezone: "Asia/Shanghai",
+	});
+	assert.equal(created.profileId, "background.zh");
+	assert.equal(created.agentSpecId, "agent.daily");
+	assert.equal(created.skillSetId, "skills.research");
+	assert.equal(created.modelPolicyId, "model.stable");
+	assert.equal(created.upgradePolicy, "pinned");
+	assert.equal(created.maxRunMs, 120_000);
+	assert.equal(created.nextRunAt, "2026-04-21T01:00:00.000Z");
+
+	database.close();
+});
+
+test("ConnSqliteStore rejects invalid maxRunMs values with a clear validation error", async () => {
+	const { store, database } = await createConnSqliteStore();
+
+	await assert.rejects(
+		() =>
+			store.create({
+				title: "bad maxRunMs",
+				prompt: "run",
+				target: {
+					type: "conversation",
+					conversationId: "manual:conn",
+				},
+				schedule: {
+					kind: "once",
+					at: "2026-04-21T10:01:00.000Z",
+				},
+				maxRunMs: 0,
+			}),
+		/Invalid conn maxRunMs/,
+	);
+
+	database.close();
+});
+
+test("ConnSqliteStore rejects invalid cron timezones with a clear validation error", async () => {
+	const { store, database } = await createConnSqliteStore();
+
+	await assert.rejects(
+		() =>
+			store.create({
+				title: "bad timezone",
+				prompt: "run",
+				target: {
+					type: "conversation",
+					conversationId: "manual:conn",
+				},
+				schedule: {
+					kind: "cron",
+					expression: "0 9 * * *",
+					timezone: "Mars/Olympus",
+				},
+			}),
+		/Invalid conn schedule: cron.timezone is invalid/,
+	);
+
+	database.close();
+});

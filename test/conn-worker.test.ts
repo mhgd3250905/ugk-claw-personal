@@ -1,0 +1,485 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { ConnDatabase } from "../src/agent/conn-db.js";
+import type { ConnRunRecord } from "../src/agent/conn-run-store.js";
+import { ConnRunStore } from "../src/agent/conn-run-store.js";
+import { ConnSqliteStore } from "../src/agent/conn-sqlite-store.js";
+import type { ConnDefinition } from "../src/agent/conn-store.js";
+import { ConversationNotificationStore } from "../src/agent/conversation-notification-store.js";
+import type { NotificationBroadcastEvent } from "../src/agent/notification-hub.js";
+import { ConnWorker } from "../src/workers/conn-worker.js";
+
+class FakeRunner {
+	calls: Array<{ conn: ConnDefinition; run: ConnRunRecord }> = [];
+
+	async run(conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<ConnRunRecord | undefined> {
+		this.calls.push({ conn, run });
+		return {
+			...run,
+			status: "succeeded",
+			resultSummary: `summary for ${conn.title}`,
+			resultText: `result for ${conn.title}`,
+			finishedAt: now.toISOString(),
+		};
+	}
+}
+
+class FailingRunner {
+	calls = 0;
+
+	async run(_conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<ConnRunRecord | undefined> {
+		this.calls += 1;
+		return {
+			...run,
+			status: "failed",
+			resultSummary: "boom",
+			errorText: "boom",
+			finishedAt: now.toISOString(),
+		};
+	}
+}
+
+async function createWorker(runner: FakeRunner | FailingRunner): Promise<{
+	database: ConnDatabase;
+	connStore: ConnSqliteStore;
+	runStore: ConnRunStore;
+	notificationStore: ConversationNotificationStore;
+	broadcasts: NotificationBroadcastEvent[];
+	worker: ConnWorker;
+}> {
+	return await createWorkerWithOptions(runner, {});
+}
+
+async function createWorkerWithOptions(
+	runner: FakeRunner | FailingRunner | { run(conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<ConnRunRecord | undefined> },
+	options: {
+		maxConcurrency?: number;
+		leaseMs?: number;
+		heartbeatMs?: number;
+	},
+): Promise<{
+	database: ConnDatabase;
+	connStore: ConnSqliteStore;
+	runStore: ConnRunStore;
+	notificationStore: ConversationNotificationStore;
+	broadcasts: NotificationBroadcastEvent[];
+	worker: ConnWorker;
+}> {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-conn-worker-"));
+	const database = new ConnDatabase({ dbPath: join(root, "conn.sqlite") });
+	await database.initialize();
+	const connStore = new ConnSqliteStore({ database });
+	const runStore = new ConnRunStore({ database });
+	const notificationStore = new ConversationNotificationStore({ database });
+	const broadcasts: NotificationBroadcastEvent[] = [];
+	return {
+		database,
+		connStore,
+		runStore,
+		notificationStore,
+		broadcasts,
+		worker: new ConnWorker({
+			workerId: "worker-a",
+			backgroundDataDir: join(root, "background"),
+			connStore,
+			runStore,
+			notificationStore,
+			notificationBroadcaster: {
+				broadcast: async (event) => {
+					broadcasts.push(event);
+				},
+			},
+			runner,
+			leaseMs: options.leaseMs ?? 30_000,
+			heartbeatMs: options.heartbeatMs,
+			maxConcurrency: options.maxConcurrency ?? 1,
+		}),
+	};
+}
+
+test("ConnWorker enqueues due conn runs, executes one claim, and creates a conversation notification", async () => {
+	const runner = new FakeRunner();
+	const { database, connStore, runStore, notificationStore, broadcasts, worker } = await createWorker(runner);
+	const conn = await connStore.create({
+		title: "Daily Digest",
+		prompt: "Summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	await worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+
+	assert.equal(runner.calls.length, 1);
+	assert.equal(runner.calls[0].conn.connId, conn.connId);
+	const runs = await runStore.listRunsForConn(conn.connId);
+	assert.equal(runs.length, 1);
+	assert.equal(runs[0].status, "running");
+	assert.ok(runs[0].workspacePath.endsWith(join("background", "runs", runs[0].runId)));
+	assert.deepEqual(
+		(await notificationStore.list("manual:conn")).map((notification) => ({
+			source: notification.source,
+			sourceId: notification.sourceId,
+			runId: notification.runId,
+			title: notification.title,
+			text: notification.text,
+		})),
+		[
+			{
+				source: "conn",
+				sourceId: conn.connId,
+				runId: runs[0].runId,
+				title: "Daily Digest completed",
+				text: "result for Daily Digest",
+			},
+		],
+	);
+	assert.deepEqual(broadcasts, [
+		{
+			notificationId: (await notificationStore.list("manual:conn"))[0].notificationId,
+			conversationId: "manual:conn",
+			source: "conn",
+			sourceId: conn.connId,
+			runId: runs[0].runId,
+			kind: "conn_result",
+			title: "Daily Digest completed",
+			createdAt: "2026-04-21T10:01:05.000Z",
+		},
+	]);
+
+	database.close();
+});
+
+test("ConnWorker failure does not abort the tick loop and creates a failure notification", async () => {
+	const runner = new FailingRunner();
+	const { database, connStore, notificationStore, broadcasts, worker } = await createWorker(runner);
+	const conn = await connStore.create({
+		title: "Daily Digest",
+		prompt: "Summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	await worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+
+	assert.equal(runner.calls, 1);
+	const notifications = await notificationStore.list("manual:conn");
+	assert.deepEqual(
+		notifications.map((notification) => ({
+			source: notification.source,
+			sourceId: notification.sourceId,
+			runId: notification.runId,
+			title: notification.title,
+			text: notification.text,
+		})),
+		[
+			{
+				source: "conn",
+				sourceId: conn.connId,
+				runId: notifications[0]?.runId,
+				title: "Daily Digest failed",
+				text: "boom",
+			},
+		],
+	);
+	assert.deepEqual(broadcasts, [
+		{
+			notificationId: notifications[0]?.notificationId,
+			conversationId: "manual:conn",
+			source: "conn",
+			sourceId: conn.connId,
+			runId: notifications[0]?.runId,
+			kind: "conn_result",
+			title: "Daily Digest failed",
+			createdAt: "2026-04-21T10:01:05.000Z",
+		},
+	]);
+
+	database.close();
+});
+
+test("ConnWorker claims and starts multiple due runs before waiting for the first one to finish", async () => {
+	const pending = new Map<
+		string,
+		{
+			resolve: () => void;
+		}
+	>();
+	const started: string[] = [];
+	const runner = {
+		run: async (conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<ConnRunRecord | undefined> => {
+			started.push(conn.title);
+			return await new Promise<ConnRunRecord>((resolve) => {
+				pending.set(conn.title, {
+					resolve: () =>
+						resolve({
+							...run,
+							status: "succeeded",
+							resultSummary: `summary for ${conn.title}`,
+							resultText: `result for ${conn.title}`,
+							finishedAt: now.toISOString(),
+						}),
+				});
+			});
+		},
+	};
+	const { database, connStore, worker } = await createWorkerWithOptions(runner, {
+		maxConcurrency: 2,
+	});
+
+	await connStore.create({
+		title: "Parallel A",
+		prompt: "Summarize A",
+		target: {
+			type: "conversation",
+			conversationId: "manual:parallel",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	await connStore.create({
+		title: "Parallel B",
+		prompt: "Summarize B",
+		target: {
+			type: "conversation",
+			conversationId: "manual:parallel",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	const tickPromise = worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+	await new Promise((resolve) => setImmediate(resolve));
+
+	assert.deepEqual(started.sort(), ["Parallel A", "Parallel B"]);
+
+	pending.get("Parallel A")?.resolve();
+	pending.get("Parallel B")?.resolve();
+
+	await tickPromise;
+	database.close();
+});
+
+test("ConnWorker refreshes lease heartbeat while a claimed run is still executing", async () => {
+	const pending = new Map<
+		string,
+		{
+			resolve: () => void;
+		}
+	>();
+	const runner = {
+		run: async (conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<ConnRunRecord | undefined> =>
+			await new Promise<ConnRunRecord>((resolve) => {
+				pending.set(conn.title, {
+					resolve: () =>
+						resolve({
+							...run,
+							status: "succeeded",
+							resultSummary: `summary for ${conn.title}`,
+							resultText: `result for ${conn.title}`,
+							finishedAt: now.toISOString(),
+						}),
+				});
+			}),
+	};
+	const { database, connStore, runStore, worker } = await createWorkerWithOptions(runner, {
+		leaseMs: 60,
+		heartbeatMs: 20,
+	});
+
+	const conn = await connStore.create({
+		title: "Heartbeat Run",
+		prompt: "Summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:heartbeat",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	const tickPromise = worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+	await new Promise((resolve) => setTimeout(resolve, 90));
+
+	const runs = await runStore.listRunsForConn(conn.connId);
+	assert.equal(runs.length, 1);
+	assert.equal(runs[0].status, "running");
+	assert.ok(runs[0].leaseUntil);
+	assert.notEqual(runs[0].updatedAt, "2026-04-21T10:01:05.000Z");
+
+	pending.get("Heartbeat Run")?.resolve();
+	await tickPromise;
+
+	database.close();
+});
+
+test("ConnWorker fails stale leased runs before claiming fresh due work", async () => {
+	const runner = new FakeRunner();
+	const { database, connStore, runStore, notificationStore, worker } = await createWorkerWithOptions(runner, {
+		maxConcurrency: 1,
+	});
+
+	const staleConn = await connStore.create({
+		title: "Stale Run",
+		prompt: "Summarize stale",
+		target: {
+			type: "conversation",
+			conversationId: "manual:stale",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-stale",
+		connId: staleConn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-stale",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	await runStore.claimNextDue({
+		workerId: "worker-old",
+		now: new Date("2026-04-21T10:01:00.000Z"),
+		leaseMs: 30_000,
+	});
+
+	const freshConn = await connStore.create({
+		title: "Fresh Run",
+		prompt: "Summarize fresh",
+		target: {
+			type: "conversation",
+			conversationId: "manual:fresh",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	await worker.tick(new Date("2026-04-21T10:01:40.000Z"));
+
+	const staleRun = await runStore.getRun("run-stale");
+	assert.equal(staleRun?.status, "failed");
+	assert.match(staleRun?.errorText ?? "", /lease expired/i);
+	assert.deepEqual(
+		(await runStore.listEvents("run-stale")).map((event) => event.eventType),
+		["run_stale"],
+	);
+
+	const freshRuns = await runStore.listRunsForConn(freshConn.connId);
+	assert.equal(freshRuns.length, 1);
+	assert.equal(freshRuns[0].status, "running");
+	assert.equal(runner.calls.length, 1);
+	assert.equal(runner.calls[0].conn.connId, freshConn.connId);
+	assert.deepEqual(
+		(await notificationStore.list("manual:fresh")).map((notification) => notification.title),
+		["Fresh Run completed"],
+	);
+
+	database.close();
+});
+
+test("ConnWorker fails runs that exceed conn maxRunMs and delivers a failure notification", async () => {
+	const runner = {
+		run: async (_conn: ConnDefinition, _run: ConnRunRecord, _now: Date, signal?: AbortSignal): Promise<ConnRunRecord | undefined> =>
+			await new Promise<ConnRunRecord>((_resolve, reject) => {
+				signal?.addEventListener(
+					"abort",
+					() => {
+						reject(signal.reason instanceof Error ? signal.reason : new Error(String(signal?.reason ?? "aborted")));
+					},
+					{ once: true },
+				);
+			}),
+	};
+	const { database, connStore, runStore, notificationStore, broadcasts, worker } = await createWorkerWithOptions(runner, {
+		maxConcurrency: 1,
+	});
+
+	const conn = await connStore.create({
+		title: "Timed Run",
+		prompt: "Summarize forever",
+		target: {
+			type: "conversation",
+			conversationId: "manual:timeout",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		maxRunMs: 25,
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	await worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+
+	const runs = await runStore.listRunsForConn(conn.connId);
+	assert.equal(runs.length, 1);
+	assert.equal(runs[0].status, "failed");
+	assert.match(runs[0].errorText ?? "", /exceeded maxRunMs/i);
+	assert.deepEqual(
+		(await runStore.listEvents(runs[0].runId)).map((event) => event.eventType),
+		["run_timed_out"],
+	);
+	const notifications = await notificationStore.list("manual:timeout");
+	assert.deepEqual(
+		notifications.map((notification) => ({
+			source: notification.source,
+			sourceId: notification.sourceId,
+			runId: notification.runId,
+			title: notification.title,
+			text: notification.text,
+		})),
+		[
+			{
+				source: "conn",
+				sourceId: conn.connId,
+				runId: runs[0].runId,
+				title: "Timed Run failed",
+				text: "Conn run exceeded maxRunMs (25ms)",
+			},
+		],
+	);
+	assert.deepEqual(broadcasts, [
+		{
+			notificationId: notifications[0]?.notificationId,
+			conversationId: "manual:timeout",
+			source: "conn",
+			sourceId: conn.connId,
+			runId: runs[0].runId,
+			kind: "conn_result",
+			title: "Timed Run failed",
+			createdAt: "2026-04-21T10:01:05.000Z",
+		},
+	]);
+
+	database.close();
+});

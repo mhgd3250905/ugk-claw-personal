@@ -1,8 +1,15 @@
 import type { ChatAttachment } from "../../agent/asset-store.js";
 import type { AgentService } from "../../agent/agent-service.js";
-import type { ConnDeliveryLike } from "../../agent/conn-runner.js";
 import { FeishuConversationMapStore } from "./conversation-map-store.js";
 import { FeishuClient } from "./client.js";
+
+export interface TextDeliveryLike {
+	deliverText(
+		target: { type: "conversation"; conversationId: string } | { type: "feishu_chat"; chatId: string } | { type: "feishu_user"; openId: string },
+		text: string,
+		options?: { files?: Array<{ fileName: string; downloadUrl: string }> },
+	): Promise<void>;
+}
 
 interface FeishuServiceOptions {
 	agentService: AgentService;
@@ -11,7 +18,7 @@ interface FeishuServiceOptions {
 	publicBaseUrl?: string;
 }
 
-export class FeishuService implements ConnDeliveryLike {
+export class FeishuService implements TextDeliveryLike {
 	constructor(private readonly options: FeishuServiceOptions) {}
 
 	async handleWebhook(body: unknown): Promise<{ challenge?: string; accepted: boolean }> {

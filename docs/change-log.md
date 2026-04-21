@@ -10,7 +10,142 @@
 
 ---
 
+## 2026-04-22
+
+### Conn 失败终态也回投 notification
+- 日期：2026-04-22
+- 主题：让后台 conn run 在 `failed` / `cancelled` 等终态也向目标 conversation 写入 notification，避免超时或模型失败时前台只看到 run 记录、收不到正文反馈。
+- 影响范围：`src/workers/conn-worker.ts` 的通知出口从“仅 succeeded”收口为“所有可交付终态”；失败通知标题为 `<conn title> failed`，正文优先使用 `errorText`；stale run 回收失败也会按目标 conversation 回投；`test/conn-worker.test.ts` 覆盖普通失败与 `maxRunMs` 超时失败的持久化通知和实时广播。
+- 对应入口：`src/workers/conn-worker.ts`、`test/conn-worker.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ## 2026-04-21
+
+### Conn 默认投递目标跟随当前会话
+- 主题：把 `POST /v1/conns` 从“必须手填 `target.conversationId` 才知道结果发到哪”收口为“未传 `target` 时自动绑定服务端当前会话”，避免后台任务继续把结果投到历史示例里的固定会话上。
+- 影响范围：
+  - `src/routes/conns.ts` 新增创建时的默认目标解析；当请求未传 `target` 时，路由会向上游取 `currentConversationId` 并写成 `{ type: "conversation", conversationId }`，显式传入 `conversation` / `feishu_chat` / `feishu_user` 目标时保持原有行为不变。
+  - `src/server.ts` 把 `AgentService.getConversationCatalog()` 暴露出来给 conn 路由读取当前会话，避免 conn 路由自己重复碰会话索引。
+  - `test/server.test.ts` 新增回归测试，锁定“未传 `target` 默认跟随当前会话”的行为，并保留显式 `target` 与 `cron.timezone` / runtime id 的既有兼容性。
+  - `src/config.ts`、`src/agent/conn-db.ts` 与 `docker-compose.yml` 给本地 Docker 新增 `CONN_DATABASE_PATH` + named volume `ugk-pi-conn-db` 口径，并在首次切换路径时自动从 legacy `.data/agent/conn/conn.sqlite` 迁移旧库，绕开 Docker Desktop bind mount 下多进程 SQLite 打开失败的问题。
+  - `docker-compose.yml` 与 `docker-compose.prod.yml` 为 `ugk-pi-conn-worker` 显式关闭继承自镜像层的 HTTP `HEALTHCHECK`，避免后台 worker 因没有 `/healthz` 入口被误判成 `unhealthy`。
+  - `README.md`、`docs/runtime-assets-conn-feishu.md` 同步更新接口口径，明确 `POST /v1/conns` 的默认目标规则。
+- 对应入口：
+  - [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
+  - [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+  - [src/config.ts](/E:/AII/ugk-pi/src/config.ts)
+  - [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [test/conn-db.test.ts](/E:/AII/ugk-pi/test/conn-db.test.ts)
+  - [docker-compose.yml](/E:/AII/ugk-pi/docker-compose.yml)
+  - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn SQLite 并发写锁收口
+- 主题：修复独立 `conn-worker` 执行后台任务时，写入 `conn_run_events` 偶发触发 `database is locked`，导致 run 卡在 `running` 的问题。
+- 影响范围：
+  - `src/agent/conn-db.ts` 在 SQLite 连接初始化时统一启用 `PRAGMA journal_mode = WAL`、`PRAGMA synchronous = NORMAL`、`PRAGMA foreign_keys = ON` 与 `PRAGMA busy_timeout = 5000`，把前台 API 和后台 worker 的多进程并发写入口径收成适合 Docker / Windows / macOS / Linux 共用的默认配置。
+  - `test/conn-db.test.ts` 新增回归测试，锁定 `journal_mode=wal` 与 `busy_timeout=5000`，避免后续有人把数据库重新改回单写者心态。
+- 对应入口：
+  - [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
+  - [test/conn-db.test.ts](/E:/AII/ugk-pi/test/conn-db.test.ts)
+
+### Conn Notification 正文只保留可见内容
+- 主题：修复后台 conn 完成通知把 assistant `thinking` / `toolCall` 结构一并塞进 `resultText`，导致前台 notification 开头出现 JSON 垃圾的问题。
+- 影响范围：
+  - `src/agent/background-agent-runner.ts` 的结果提取逻辑改为只保留 assistant 的可见 `text` 内容；`thinking`、`toolCall` 等内部结构不再进入 `resultSummary` / `resultText`。
+  - `test/background-agent-runner.test.ts` 新增结构化 assistant 内容回归测试，锁定后台 run 结果只能持久化用户可见正文。
+- 对应入口：
+  - [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
+  - [test/background-agent-runner.test.ts](/E:/AII/ugk-pi/test/background-agent-runner.test.ts)
+
+### Conn Notification Playground 闭环
+- 主题：把后台 conn notification 在 playground 里真正做成可追溯闭环，而不是只弹一条“任务完成”就算完事。
+- 影响范围：
+  - `src/ui/playground.ts` 新增 conn run 详情弹层、消息底部“查看后台任务过程”入口，以及 run 详情 / 事件接口拉取逻辑。
+  - 前端历史快照现在会保留 notification 的 `source`、`sourceId`、`runId`，刷新后仍能继续打开 conn run 详情，不再出现“刚看到能点，刷新就失忆”的半残状态。
+  - `src/agent/agent-service.ts` / `src/types/api.ts` 已把 notification 元数据透到 `GET /v1/chat/state` 的消息体里。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+
+### Conn Cron 时区与运行时索引入口
+- 主题：补齐 conn 创建链路里真正影响生产行为的两个缺口：`cron.timezone` 和 runtime profile/spec/skill/model policy 索引字段。
+- 影响范围：
+  - `src/agent/conn-store.ts` / `src/agent/conn-sqlite-store.ts` 现在支持 `cron.timezone`，并在落库时校验 IANA 时区；未显式传入时会固化当前运行环境的时区，避免“每天早上 9 点”跟着容器时区漂移。
+  - `src/routes/conns.ts` 现已支持 `profileId`、`agentSpecId`、`skillSetId`、`modelPolicyId`、`upgradePolicy` 的创建 / 更新入参。
+  - `README.md`、`docs/runtime-assets-conn-feishu.md`、`docs/traceability-map.md` 同步更新排查与接口口径。
+- 对应入口：
+  - [src/agent/conn-store.ts](/E:/AII/ugk-pi/src/agent/conn-store.ts)
+  - [src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)
+  - [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
+  - [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+  - [test/conn-store.test.ts](/E:/AII/ugk-pi/test/conn-store.test.ts)
+  - [test/conn-sqlite-store.test.ts](/E:/AII/ugk-pi/test/conn-sqlite-store.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+
+### Conn Run 查询 API
+- 主题：补齐后台 conn run 的可观测 HTTP 接口，让前台和排障流程能读取 run 历史、单次详情、输出文件索引和过程事件。
+- 影响范围：
+  - `src/routes/conns.ts` 新增 `GET /v1/conns/:connId/runs`、`GET /v1/conns/:connId/runs/:runId`、`GET /v1/conns/:connId/runs/:runId/events`。
+  - `src/types/api.ts` 新增 conn run list/detail/events/files 响应体类型。
+  - run 详情和事件查询会校验 `run.connId`，run 不属于路径中的 conn 时返回 `404`。
+  - `README.md` 与 `docs/runtime-assets-conn-feishu.md` 同步记录新接口。
+- 对应入口：
+  - [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
+  - [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [README.md](/E:/AII/ugk-pi/README.md)
+  - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn 旧前台调度链路退场
+- 主题：把旧的进程内 `ConnScheduler` / `ConnRunner` / JSON `ConnStore` 运行链路移除，正式切到“前台写 run，后台 worker 执行”的 conn 架构。
+- 影响范围：
+  - `src/server.ts` 不再创建或启动前台 `ConnScheduler`，默认使用 `ConnDatabase`、`ConnSqliteStore`、`ConnRunStore` 和 `ConversationNotificationStore`。
+  - `src/routes/conns.ts` 的 `POST /v1/conns/:connId/run` 改为创建 `pending` run 并返回 `202`，不再同步调用前台 agent。
+  - `src/workers/conn-worker.ts` 增加独立 CLI 入口；`package.json` 新增 `npm run worker:conn`；compose 新增无公网端口的 `ugk-pi-conn-worker` 服务，共用 `/app/.data/agent` 持久化目录。
+  - 删除 `src/agent/conn-scheduler.ts` 与 `src/agent/conn-runner.ts`，`src/agent/conn-store.ts` 只保留 conn 类型和调度时间计算函数。
+  - `docs/runtime-assets-conn-feishu.md`、`docs/traceability-map.md` 与 `AGENTS.md` 同步改为新的 SQLite / worker 排查入口。
+- 对应入口：
+  - [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+  - [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
+  - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+  - [docker-compose.yml](/E:/AII/ugk-pi/docker-compose.yml)
+  - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [test/containerization.test.ts](/E:/AII/ugk-pi/test/containerization.test.ts)
+
+### Conn 后台 agent 持久化地基
+- 主题：为新的独立 `conn-worker` 架构落下第一批跨平台持久化地基；当前先新增基础设施，不切换现有前台 `/v1/conns` 运行链路。
+- 影响范围：
+  - 新增 `node:sqlite` 版 `ConnDatabase`，初始化 `conns`、`conn_runs`、`conn_run_events`、`conn_run_files`、`conversation_notifications` 等表；不引入 `better-sqlite3` / `sqlite3` 这类 native npm 依赖，降低 Windows / macOS / Linux 经 Docker 部署时的编译适配风险。
+  - 新增 `ConnSqliteStore`，conn definition 开始具备 `profileId`、`agentSpecId`、`skillSetId`、`modelPolicyId`、`upgradePolicy` 等运行时索引字段，为后台 agent 按 ID 解析当前规范和 skills 做准备。
+  - 新增 `ConnRunStore`，支持 pending/running/succeeded/failed run 记录、worker lease claim、lease 过期恢复领取、事件日志、输出文件索引，并在 run 完成后回写 conn 的 `lastRunAt` / `nextRunAt` / `lastRunId`。
+  - 新增 `BackgroundWorkspaceManager`，每次 run 创建独立 `input/`、`work/`、`output/`、`logs/`、`session/` 和 `manifest.json`，并把 `assetRefs` 快照到 `input/`，避免复杂任务互相覆盖中间文件。
+  - 新增 `BackgroundAgentProfileResolver`，按 `profileId / agentSpecId / skillSetId / modelPolicyId` 解析运行时 snapshot；默认 skill set version 由实际 skill 内容 hash 得出，便于追溯后台 run 当时用的是哪套能力。
+  - 新增 `BackgroundAgentRunner`，后台 run 使用独立 session factory、独立 workspace 和 run event log；成功/失败都写回 `conn_runs`，不调用前台 `AgentService.chat()`。
+  - 新增 `ConversationNotificationStore` 和 `ConnWorker`，worker tick 会把 due conn 变成 run、通过 lease 领取执行，成功后向目标 conversation 写入幂等 notification。
+  - `AgentService.getConversationState()` 支持合并后台 notification 为 `kind=notification` 的前台消息，但 `getConversationHistory()` 仍只返回真实 pi session history，避免后台结果污染前台 LLM 上下文。
+- 对应入口：
+  - [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
+  - [src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)
+  - [src/agent/conn-run-store.ts](/E:/AII/ugk-pi/src/agent/conn-run-store.ts)
+  - [src/agent/background-workspace.ts](/E:/AII/ugk-pi/src/agent/background-workspace.ts)
+  - [src/agent/background-agent-profile.ts](/E:/AII/ugk-pi/src/agent/background-agent-profile.ts)
+  - [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
+  - [src/agent/conversation-notification-store.ts](/E:/AII/ugk-pi/src/agent/conversation-notification-store.ts)
+  - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+  - [test/conn-db.test.ts](/E:/AII/ugk-pi/test/conn-db.test.ts)
+  - [test/conn-sqlite-store.test.ts](/E:/AII/ugk-pi/test/conn-sqlite-store.test.ts)
+  - [test/conn-run-store.test.ts](/E:/AII/ugk-pi/test/conn-run-store.test.ts)
+  - [test/background-workspace.test.ts](/E:/AII/ugk-pi/test/background-workspace.test.ts)
+  - [test/background-agent-profile.test.ts](/E:/AII/ugk-pi/test/background-agent-profile.test.ts)
+  - [test/background-agent-runner.test.ts](/E:/AII/ugk-pi/test/background-agent-runner.test.ts)
+  - [test/conversation-notification-store.test.ts](/E:/AII/ugk-pi/test/conversation-notification-store.test.ts)
+  - [test/conn-worker.test.ts](/E:/AII/ugk-pi/test/conn-worker.test.ts)
 
 ### 生产 agent 数据持久化挂载
 - 主题：修复生产增量更新重建 `ugk-pi` 容器后，playground 历史会话、session 与资产索引不持久的问题。
@@ -1097,3 +1232,85 @@
   - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Conn 实时广播与 Playground 在线提示
+- 主题：把后台 conn 结果从“只能靠刷新或查库发现”收口为“先持久化，再向在线页面实时广播”，补齐前后台之间的在线提醒层。
+- 影响范围：
+  - `src/routes/notifications.ts` 新增 `GET /v1/notifications/stream` SSE 订阅入口，以及 `POST /v1/internal/notifications/broadcast` 内部广播入口。
+  - `src/agent/notification-hub.ts` 新增前台 server 进程内的轻量广播中心，用来把 worker 发来的 notification 扇出给所有在线页面。
+  - `src/workers/conn-worker.ts` 在写入 `conversation_notifications` 之后，会 best-effort 调用内部广播接口；广播失败只记 warning，不影响 run 最终状态。
+  - `src/ui/playground.ts` 新增实时 SSE 订阅、右上角轻提示、断线重连，以及“当前会话收到广播后静默刷新历史与 run 状态”的前端逻辑。
+  - `docker-compose.yml` 与 `docker-compose.prod.yml` 给 `ugk-pi-conn-worker` 显式注入 `NOTIFICATION_BROADCAST_URL=http://ugk-pi:3000/v1/internal/notifications/broadcast`，避免容器内 `127.0.0.1` 指回 worker 自己。
+  - `test/server.test.ts`、`test/conn-worker.test.ts`、`test/notification-hub.test.ts`、`test/containerization.test.ts` 补齐回归断言，锁住广播接口、worker 广播行为、前台订阅脚本和 compose 环境变量。
+- 对应入口：
+  - [src/routes/notifications.ts](/E:/AII/ugk-pi/src/routes/notifications.ts)
+  - [src/agent/notification-hub.ts](/E:/AII/ugk-pi/src/agent/notification-hub.ts)
+  - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [docker-compose.yml](/E:/AII/ugk-pi/docker-compose.yml)
+  - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [test/conn-worker.test.ts](/E:/AII/ugk-pi/test/conn-worker.test.ts)
+  - [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
+  - [test/containerization.test.ts](/E:/AII/ugk-pi/test/containerization.test.ts)
+### Playground 实时广播提示层级修复
+- 日期：2026-04-21
+- 主题：修复 `/playground` 右上角实时广播 toast 被固定层遮挡的问题。
+- 影响范围：将 `src/ui/playground.ts` 中 `.notification-live-region` 的层级提升到所有现有 fixed overlay 之上，确保 SSE 已送达且 toast 已插入 DOM 时用户能实际看见提示。
+- 对应入口：`src/ui/playground.ts`、`docs/playground-current.md`
+
+### Conn Worker 真并发收口
+- 日期：2026-04-21
+- 主题：把 `ConnWorker` 的 `maxConcurrency` 从串行假并发修成真正的单进程内并发执行，并给 compose 默认注入 3 路并发。
+- 影响范围：`src/workers/conn-worker.ts` 现在会先 claim 多条 due run 再并行执行；`docker-compose.yml`、`docker-compose.prod.yml` 与 `.env.example` 新增 `CONN_WORKER_MAX_CONCURRENCY` 口径；`test/conn-worker.test.ts`、`test/containerization.test.ts` 补齐回归。
+- 对应入口：`src/workers/conn-worker.ts`、`docker-compose.yml`、`docker-compose.prod.yml`、`.env.example`、`test/conn-worker.test.ts`、`test/containerization.test.ts`
+
+### Conn run heartbeat 收口
+- 日期：2026-04-21
+- 主题：为运行中的 conn run 增加 heartbeat，周期性刷新 `updatedAt` 与 `leaseUntil`，避免长任务在详情页里看起来像卡死。
+- 影响范围：`src/agent/conn-run-store.ts` 新增 `heartbeatRun()`；`src/workers/conn-worker.ts` 在执行期间启动/停止 lease heartbeat；`test/conn-run-store.test.ts` 与 `test/conn-worker.test.ts` 补齐回归。
+- 对应入口：`src/agent/conn-run-store.ts`、`src/workers/conn-worker.ts`、`test/conn-run-store.test.ts`、`test/conn-worker.test.ts`
+
+### Conn stale run 回收收口
+- 日期：2026-04-21
+- 主题：worker 在 claim 新任务前先回收 lease 已过期的 `running` run，把它们标记为失败并补 `run_stale` 事件，不再静默重领旧 run。
+- 影响范围：`src/workers/conn-worker.ts` 新增 stale sweep；`src/agent/conn-run-store.ts` 新增 `listStaleRuns()`；`test/conn-worker.test.ts` 补齐 stale 回收回归。
+- 对应入口：`src/workers/conn-worker.ts`、`src/agent/conn-run-store.ts`、`test/conn-worker.test.ts`
+
+### Playground 展示 conn run lease / stale 信息
+- 日期：2026-04-21
+- 主题：把 conn run 的 lease 生命周期状态从“后端自己知道”收口到前台弹层可见，避免用户只看到结果摘要却不知道任务是不是还活着。
+- 影响范围：`src/types/api.ts` 与 `src/routes/conns.ts` 现在对外返回 `leaseOwner`、`leaseUntil`；`src/ui/playground.ts` 的后台任务过程弹层新增 `claimed / started / updated / lease owner / lease until` 与 health 文案展示；`test/server.test.ts` 锁定新字段回归。
+- 对应入口：`src/types/api.ts`、`src/routes/conns.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`docs/runtime-assets-conn-feishu.md`、`docs/playground-current.md`
+
+### 会话目录合并后台通知摘要
+- 日期：2026-04-21
+- 主题：修复 `GET /v1/chat/conversations` 只看旧会话快照、忽略后台 notification 的问题，避免正文已经有结果但左侧列表仍显示空摘要和旧排序。
+- 影响范围：`src/agent/agent-service.ts` 在生成 conversation catalog 时会合并 notification 的 `preview / messageCount / updatedAt` 并重新排序；`test/agent-service.test.ts` 补齐目录摘要、计数与排序回归；`docs/playground-current.md` 同步更新前台口径。
+- 对应入口：`src/agent/agent-service.ts`、`test/agent-service.test.ts`、`docs/playground-current.md`
+
+### Conn maxRunMs 超时闸门
+- 日期：2026-04-22
+- 主题：为后台 `conn` 增加可配置的 `maxRunMs`，让超长任务在 worker 侧被真实中止并失败留痕，而不是无限挂着占坑。
+- 影响范围：`src/agent/conn-store.ts`、`src/agent/conn-sqlite-store.ts`、`src/agent/conn-db.ts` 为 `conn` 定义、SQLite 存储与 schema 迁移新增 `maxRunMs`；`src/routes/conns.ts` 与 `src/types/api.ts` 开放读写接口字段；`src/workers/conn-worker.ts` 与 `src/agent/background-agent-runner.ts` 打通超时中止、`run_timed_out` 事件与失败收口；测试覆盖落在 `test/conn-db.test.ts`、`test/conn-sqlite-store.test.ts`、`test/background-agent-runner.test.ts`、`test/conn-worker.test.ts`、`test/server.test.ts`。
+- 对应入口：`src/agent/conn-store.ts`、`src/agent/conn-sqlite-store.ts`、`src/agent/conn-db.ts`、`src/routes/conns.ts`、`src/types/api.ts`、`src/workers/conn-worker.ts`、`src/agent/background-agent-runner.ts`、`docs/runtime-assets-conn-feishu.md`
+
+### Playground 标识 conn 超时失败
+- 日期：2026-04-22
+- 主题：让后台任务过程弹层把 `maxRunMs` 超时失败显示为 `failed / timed out`，不要和普通失败混成一类。
+- 影响范围：`src/ui/playground.ts` 新增超时识别逻辑，优先读取 `run_timed_out` 事件，兜底匹配 `errorText` 中的 `exceeded maxRunMs`；`test/server.test.ts` 锁定 `/playground` 脚本标记；`docs/playground-current.md` 同步说明展示口径。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`
+ 
+### Playground Conn 管理面
+- 日期：2026-04-22
+- 主题：在 `playground` 增加后台任务管理入口，让用户不用离开页面就能查看 conn 列表、暂停/恢复调度、手动入队一次运行，并打开最近 run 详情。
+- 影响范围：
+  - `src/ui/playground.ts` 新增桌面端 `后台任务` 入口、手机端溢出菜单入口、`conn-manager-dialog` 弹层、`GET /v1/conns` 列表读取、`GET /v1/conns/:connId/runs` 最近 run 读取、`POST /v1/conns/:connId/run` 手动执行、`POST /v1/conns/:connId/pause|resume` 状态切换。
+  - 前台 agent 运行中不禁用 conn 管理入口，保持后台调度和前台对话解耦。
+  - `test/server.test.ts` 锁定页面 HTML / 嵌入脚本中必须存在 conn 管理入口和真实 API 调用链。
+  - `docs/playground-current.md` 与 `docs/runtime-assets-conn-feishu.md` 同步记录新入口和排障口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+  - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)

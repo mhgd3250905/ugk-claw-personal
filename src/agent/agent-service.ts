@@ -20,6 +20,7 @@ import {
 import type {
 	ChatActiveRunBody,
 	ChatContextUsageBody,
+	ChatHistoryFileBody,
 	ChatProcessBody,
 	ChatProcessEntryBody,
 	ChatStreamEvent,
@@ -35,6 +36,7 @@ import {
 	type PromptAssetContextEntry,
 	toPromptAssetFromStoredAsset,
 } from "./file-artifacts.js";
+import type { ConversationNotification } from "./conversation-notification-store.js";
 
 export interface ChatInput {
 	conversationId?: string;
@@ -125,10 +127,14 @@ export interface SwitchConversationResult {
 
 export interface ConversationHistoryMessage {
 	id: string;
-	kind: "user" | "assistant" | "system" | "error";
+	kind: "user" | "assistant" | "system" | "error" | "notification";
 	title: string;
 	text: string;
 	createdAt: string;
+	source?: string;
+	sourceId?: string;
+	runId?: string;
+	files?: ChatHistoryFileBody[];
 }
 
 export interface ConversationHistoryResult {
@@ -153,6 +159,9 @@ export interface AgentServiceOptions {
 	conversationStore: ConversationStore;
 	sessionFactory: AgentSessionFactory;
 	assetStore?: AssetStoreLike;
+	notificationStore?: {
+		list(conversationId: string): Promise<ConversationNotification[]>;
+	};
 }
 
 type ChatStreamEventSink = (event: ChatStreamEvent) => void;
@@ -191,15 +200,32 @@ export class AgentService {
 
 	async getConversationCatalog(): Promise<ConversationCatalogResult> {
 		const currentConversationId = await this.ensureCurrentConversationId();
-		const conversations = (await this.options.conversationStore.list()).map((entry) => ({
-			conversationId: entry.conversationId,
-			title: entry.title || "新会话",
-			preview: entry.preview || "",
-			messageCount: Number.isFinite(entry.messageCount) ? entry.messageCount ?? 0 : 0,
-			createdAt: entry.createdAt ?? entry.updatedAt,
-			updatedAt: entry.updatedAt,
-			running: this.activeRuns.has(entry.conversationId),
-		}));
+		const conversations = await Promise.all(
+			(await this.options.conversationStore.list()).map(async (entry) => {
+				const notifications = (await this.options.notificationStore?.list(entry.conversationId)) ?? [];
+				const latestNotification = getLatestConversationNotification(notifications);
+				const baseMessageCount = Number.isFinite(entry.messageCount) ? entry.messageCount ?? 0 : 0;
+				const updatedAt =
+					latestNotification && latestNotification.createdAt > entry.updatedAt
+						? latestNotification.createdAt
+						: entry.updatedAt;
+				const preview =
+					latestNotification && latestNotification.createdAt >= entry.updatedAt
+						? summarizeConversationText(latestNotification.text, entry.preview || "")
+						: entry.preview || "";
+
+				return {
+					conversationId: entry.conversationId,
+					title: entry.title || "新会话",
+					preview,
+					messageCount: baseMessageCount + notifications.length,
+					createdAt: entry.createdAt ?? entry.updatedAt,
+					updatedAt,
+					running: this.activeRuns.has(entry.conversationId),
+				};
+			}),
+		);
+		conversations.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
 		return {
 			currentConversationId,
@@ -373,10 +399,13 @@ export class AgentService {
 			modelContext,
 			((session?.messages as AgentMessageLike[] | undefined) ?? []),
 		);
-		const messages = this.buildConversationHistoryMessages(
+		const sessionMessages = this.buildConversationHistoryMessages(
 			((session?.messages as AgentMessageLike[] | undefined) ?? []),
 			activeRun?.view,
 		);
+		const notifications = (await this.options.notificationStore?.list(conversationId)) ?? [];
+		const messages = mergeConversationNotifications(sessionMessages, notifications);
+		const latestNotificationAt = notifications.at(-1)?.createdAt;
 
 		return {
 			conversationId,
@@ -391,6 +420,7 @@ export class AgentService {
 			updatedAt:
 				activeRun?.view.updatedAt ??
 				terminalRun?.view.updatedAt ??
+				latestNotificationAt ??
 				existingConversation?.updatedAt ??
 				new Date(0).toISOString(),
 		};
@@ -1296,6 +1326,53 @@ function coalesceConsecutiveAssistantMessages(messages: ConversationHistoryMessa
 		coalesced.push({ ...message });
 	}
 	return coalesced;
+}
+
+function mergeConversationNotifications(
+	messages: ConversationHistoryMessage[],
+	notifications: readonly ConversationNotification[],
+): ConversationHistoryMessage[] {
+	if (notifications.length === 0) {
+		return messages;
+	}
+	return [
+		...messages,
+		...notifications.map(notificationToHistoryMessage),
+	].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+}
+
+function notificationToHistoryMessage(notification: ConversationNotification): ConversationHistoryMessage {
+	return {
+		id: `notification-${notification.notificationId}`,
+		kind: "notification",
+		title: notification.title,
+		text: notification.text,
+		createdAt: notification.createdAt,
+		source: notification.source,
+		sourceId: notification.sourceId,
+		...(notification.runId ? { runId: notification.runId } : {}),
+		...(notification.files.length > 0
+			? {
+					files: notification.files.map((file) => ({
+						fileName: file.fileName,
+						downloadUrl: file.downloadUrl,
+						...(file.mimeType ? { mimeType: file.mimeType } : {}),
+						...(typeof file.sizeBytes === "number" ? { sizeBytes: file.sizeBytes } : {}),
+					})),
+				}
+			: {}),
+	};
+}
+
+function getLatestConversationNotification(
+	notifications: readonly ConversationNotification[],
+): ConversationNotification | undefined {
+	return notifications.reduce<ConversationNotification | undefined>((latest, notification) => {
+		if (!latest) {
+			return notification;
+		}
+		return notification.createdAt > latest.createdAt ? notification : latest;
+	}, undefined);
 }
 
 function toError(error: unknown): Error {

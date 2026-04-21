@@ -11,6 +11,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 3000
+      CONN_DATABASE_PATH: /var/lib/ugk-pi/conn/conn.sqlite
       PUBLIC_BASE_URL: http://127.0.0.1:3000
       WEB_ACCESS_BROWSER_PUBLIC_BASE_URL: http://ugk-pi:3000
       WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
@@ -21,7 +22,35 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - ugk-pi-conn-db:/var/lib/ugk-pi/conn
     command: npm run dev
+    networks:
+      - ugk-pi-net
+  ugk-pi-conn-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      ugk-pi-browser:
+        condition: service_healthy
+      ugk-pi-browser-cdp:
+        condition: service_started
+    environment:
+      CONN_DATABASE_PATH: /var/lib/ugk-pi/conn/conn.sqlite
+      CONN_WORKER_MAX_CONCURRENCY: ${CONN_WORKER_MAX_CONCURRENCY:-3}
+      NOTIFICATION_BROADCAST_URL: http://ugk-pi:3000/v1/internal/notifications/broadcast
+      WEB_ACCESS_BROWSER_PUBLIC_BASE_URL: http://ugk-pi:3000
+      WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
+      WEB_ACCESS_CDP_HOST: 172.31.250.10
+      WEB_ACCESS_CDP_PORT: 9223
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ugk-pi-conn-db:/var/lib/ugk-pi/conn
+    command: npm run worker:conn
+    healthcheck:
+      disable: true
+    restart: unless-stopped
     networks:
       - ugk-pi-net
   ugk-pi-browser:
@@ -62,6 +91,9 @@ services:
       - "TCP-LISTEN:9223,fork,bind=0.0.0.0,reuseaddr"
       - "TCP:127.0.0.1:9222"
     restart: unless-stopped
+
+volumes:
+  ugk-pi-conn-db:
 
 networks:
   ugk-pi-net:

@@ -13,6 +13,7 @@ import type {
 } from "../src/agent/agent-session-factory.js";
 import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
+import type { ConversationNotification } from "../src/agent/conversation-notification-store.js";
 import { buildPromptWithAssetContext } from "../src/agent/file-artifacts.js";
 
 class FakeSession implements AgentSessionLike {
@@ -116,6 +117,14 @@ class DeferredSession extends FakeSession {
 
 	async followUp(message: string): Promise<void> {
 		this.followUpCalls.push(message);
+	}
+}
+
+class FakeNotificationStore {
+	constructor(private readonly notifications: ConversationNotification[]) {}
+
+	async list(conversationId: string): Promise<ConversationNotification[]> {
+		return this.notifications.filter((notification) => notification.conversationId === conversationId);
 	}
 }
 
@@ -946,6 +955,104 @@ test("getConversationState coalesces consecutive assistant messages from one com
 	assert.deepEqual(history.messages, state.messages);
 });
 
+test("getConversationState merges background conn notifications without writing them into session history", async () => {
+	const store = await createStore();
+	await store.set("manual:notifications", "E:/sessions/notifications.jsonl");
+	const session = new FakeSession("E:/sessions/notifications.jsonl", []);
+	session.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("original prompt"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "foreground answer" }],
+		} as never,
+	);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const notificationStore = new FakeNotificationStore([
+		{
+			notificationId: "notice-1",
+			conversationId: "manual:notifications",
+			source: "conn",
+			sourceId: "conn-1",
+			runId: "run-1",
+			kind: "conn_result",
+			title: "Daily Digest completed",
+			text: "background result",
+			files: [
+				{
+					fileName: "report.md",
+					downloadUrl: "/v1/files/file-1",
+				},
+			],
+			createdAt: new Date("2026-04-21T10:01:00.000Z").toISOString(),
+		},
+	]);
+	const service = new AgentService({
+		conversationStore: store,
+		sessionFactory: factory,
+		notificationStore,
+	});
+
+	const state = await service.getConversationState("manual:notifications");
+	const history = await service.getConversationHistory("manual:notifications");
+
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			id: message.id,
+			kind: message.kind,
+			title: message.title,
+			text: message.text,
+			source: "source" in message ? message.source : undefined,
+			sourceId: "sourceId" in message ? message.sourceId : undefined,
+			runId: "runId" in message ? message.runId : undefined,
+			files: message.files,
+		})),
+		[
+			{
+				id: "session-message-1",
+				kind: "user",
+				title: "agent:global",
+				text: "original prompt",
+				source: undefined,
+				sourceId: undefined,
+				runId: undefined,
+				files: undefined,
+			},
+			{
+				id: "session-message-2",
+				kind: "assistant",
+				title: "助手",
+				text: "foreground answer",
+				source: undefined,
+				sourceId: undefined,
+				runId: undefined,
+				files: undefined,
+			},
+			{
+				id: "notification-notice-1",
+				kind: "notification",
+				title: "Daily Digest completed",
+				text: "background result",
+				source: "conn",
+				sourceId: "conn-1",
+				runId: "run-1",
+				files: [
+					{
+						fileName: "report.md",
+						downloadUrl: "/v1/files/file-1",
+					},
+				],
+			},
+		],
+	);
+	assert.deepEqual(
+		history.messages.map((message) => message.kind),
+		["user", "assistant"],
+	);
+});
+
 test("getConversationHistory returns the original user text without internal prompt protocols", async () => {
 	const store = await createStore();
 	await store.set("manual:history-clean", "E:/sessions/history-clean.jsonl");
@@ -1029,6 +1136,64 @@ test("createConversation creates and activates a new empty conversation when idl
 	const catalog = await service.getConversationCatalog();
 	assert.equal(catalog.currentConversationId, result.conversationId);
 	assert.equal(catalog.conversations[0]?.conversationId, result.conversationId);
+});
+
+test("getConversationCatalog folds notification preview, count, and ordering into the conversation list", async () => {
+	const store = await createStore();
+	await store.set("manual:older", "E:/sessions/older.jsonl", {
+		title: "旧会话",
+		preview: "旧预览",
+		messageCount: 2,
+	});
+	await store.set("manual:newer", "E:/sessions/newer.jsonl", {
+		title: "新会话",
+		preview: "前台消息",
+		messageCount: 1,
+	});
+	await store.setCurrentConversationId("manual:newer");
+	const factory = new FakeAgentSessionFactory(() => new FakeSession(undefined, []));
+	const notificationStore = new FakeNotificationStore([
+		{
+			notificationId: "notice-older",
+			conversationId: "manual:older",
+			source: "conn",
+			sourceId: "conn-older",
+			runId: "run-older",
+			kind: "conn_result",
+			title: "旧会话任务完成",
+			text: "后台结果已经送达",
+			files: [],
+			createdAt: "2099-01-01T00:00:00.000Z",
+		},
+	]);
+	const service = new AgentService({
+		conversationStore: store,
+		sessionFactory: factory,
+		notificationStore,
+	}) as AgentService & {
+		getConversationCatalog(): Promise<{
+			currentConversationId: string;
+			conversations: Array<{
+				conversationId: string;
+				preview: string;
+				messageCount: number;
+				updatedAt: string;
+			}>;
+		}>;
+	};
+
+	const catalog = await service.getConversationCatalog();
+
+	assert.equal(catalog.currentConversationId, "manual:newer");
+	assert.deepEqual(catalog.conversations.map((conversation) => conversation.conversationId), [
+		"manual:older",
+		"manual:newer",
+	]);
+	assert.equal(catalog.conversations[0]?.preview, "后台结果已经送达");
+	assert.equal(catalog.conversations[0]?.messageCount, 3);
+	assert.equal(catalog.conversations[0]?.updatedAt, "2099-01-01T00:00:00.000Z");
+	assert.equal(catalog.conversations[1]?.preview, "前台消息");
+	assert.equal(catalog.conversations[1]?.messageCount, 1);
 });
 
 test("switchConversation activates an existing conversation when idle", async () => {
