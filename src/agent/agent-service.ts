@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
 import { ConversationStore } from "./conversation-store.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
 import type {
@@ -352,9 +353,9 @@ export class AgentService {
 
 	async getConversationHistory(conversationId: string): Promise<ConversationHistoryResult> {
 		const session = await this.getContextSession(conversationId);
-		const messages = ((session?.messages as AgentMessageLike[] | undefined) ?? [])
-			.map((message, index) => this.toConversationHistoryMessage(message, index))
-			.filter((message): message is ConversationHistoryMessage => Boolean(message));
+		const messages = this.buildConversationHistoryMessages(
+			((session?.messages as AgentMessageLike[] | undefined) ?? []),
+		);
 
 		return {
 			conversationId,
@@ -598,6 +599,7 @@ export class AgentService {
 				this.terminalRuns.delete(conversationId);
 			}
 			activeRun.subscribers.clear();
+			await closeBrowserTargetsForScope(undefined);
 		}
 	}
 
@@ -982,12 +984,13 @@ export class AgentService {
 		const normalizedMessages = messages
 			.map((message, index) => this.toConversationHistoryMessage(message, index))
 			.filter((message): message is ConversationHistoryMessage => Boolean(message));
+		const coalescedMessages = coalesceConsecutiveAssistantMessages(normalizedMessages);
 
 		if (!activeRunView?.loading) {
-			return normalizedMessages;
+			return coalescedMessages;
 		}
 
-		return omitTrailingActiveUserMessage(normalizedMessages, activeRunView.input.message);
+		return omitTrailingActiveUserMessage(coalescedMessages, activeRunView.input.message);
 	}
 
 	private toConversationHistoryMessage(
@@ -1280,6 +1283,19 @@ function omitTrailingActiveUserMessage(
 	}
 
 	return lastMessage.text.trim() === normalizedInput ? messages.slice(0, -1) : messages;
+}
+
+function coalesceConsecutiveAssistantMessages(messages: ConversationHistoryMessage[]): ConversationHistoryMessage[] {
+	const coalesced: ConversationHistoryMessage[] = [];
+	for (const message of messages) {
+		const previous = coalesced.at(-1);
+		if (previous?.kind === "assistant" && message.kind === "assistant") {
+			previous.text = [previous.text, message.text].filter((text) => text.trim().length > 0).join("\n\n");
+			continue;
+		}
+		coalesced.push({ ...message });
+	}
+	return coalesced;
 }
 
 function toError(error: unknown): Error {

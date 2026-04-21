@@ -12,6 +12,53 @@
 
 ## 2026-04-21
 
+### 近期改动文档补全
+- 主题：把最近几轮 UI 与 runtime 修复补进接手文档，避免后续 agent 只看旧索引又走回头路。
+- 影响范围：
+  - `AGENTS.md` 补充 active transcript 底部滚动缓冲的稳定事实，明确不要把 `--transcript-bottom-scroll-buffer` 当成多余 padding 删除。
+  - `docs/traceability-map.md` 在 playground 前端排查索引中补充“底部 composer 遮挡最后一条消息 / active transcript 滚动缓冲”场景。
+  - `docs/web-access-browser-bridge.md` 更新时间改为 `2026-04-21`，并在关键文件里补充 `src/agent/browser-cleanup.ts` 与 `src/agent/agent-service.ts`。
+- 对应入口：
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+  - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+
+### Playground 对话底部滚动缓冲
+- 主题：修复手机端对话最后一屏被底部 composer 遮挡、无法继续上拖查看的问题。
+- 影响范围：
+  - `src/ui/playground.ts` 新增 `--transcript-bottom-scroll-buffer`，并在 active 对话态给 `.transcript-current` 增加底部 padding；手机端按 `safe-area-inset-bottom` 放大缓冲。
+  - `test/server.test.ts` 增加 `/playground` 回归断言，锁住滚动容器底部缓冲、`scroll-padding-bottom` 与手机端覆盖值。
+  - `docs/playground-current.md` 同步记录 active transcript 底部滚动余量约束。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 刷新后连续助手消息合并
+- 主题：修复已完成任务刷新后，同一轮 assistant 处理过程从一个回复气泡散成多条“助手”气泡的问题。
+- 影响范围：
+  - `src/agent/agent-service.ts` 将连续的 assistant session messages 合并为一条 canonical history message，并让 `GET /v1/chat/state` 与 `GET /v1/chat/history` 使用同一套合并规则。
+  - `test/agent-service.test.ts` 增加回归测试，覆盖一轮用户请求后连续多条 assistant 消息恢复为一条助手回复的场景。
+  - `AGENTS.md` 与 `docs/playground-current.md` 同步记录刷新恢复口径：同一轮完成后的浏览器处理叙述和最终回答不能拆成多条气泡。
+- 对应入口：
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Agent 任务结束自动清理 web-access 浏览器页面
+- 主题：把服务器运行容器里的临时热改正式落回主仓库，修复 `web-access` 在 agent scope 下保留的浏览器页面不会随任务结束自动关闭的问题。
+- 影响范围：
+  - 新增 `src/agent/browser-cleanup.ts`，按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 解析 agent scope，并调用 `POST /session/close-all?metaAgentScope=...` 清理该 scope 下的浏览器 target。
+  - `src/agent/agent-service.ts` 在 `runChat` 的 `finally` 中 best-effort 调用 `closeBrowserTargetsForScope(undefined)`，正常完成、错误和中断都会进入清理；清理失败只 warn，不覆盖原任务结果。
+  - `test/browser-cleanup.test.ts` 覆盖 scope 解析、无 scope 跳过、代理请求、代理失败和 proxy 配置错误不抛错；`test/agent-service.test.ts` 覆盖 chat 结束后触发 scoped cleanup。
+  - `AGENTS.md`、`docs/web-access-browser-bridge.md`、`docs/traceability-map.md` 同步记录任务结束清理口径，并明确不要只在运行容器 `/app` 热改。
+- 对应入口：
+  - [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [test/browser-cleanup.test.ts](/E:/AII/ugk-pi/test/browser-cleanup.test.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+
 ### Playground 手机历史抽屉右侧遮罩去模糊
 - 主题：手机历史会话侧边栏展开后，右侧不再显示暗色毛玻璃背景，只保留透明点击遮罩用于关闭抽屉。
 - 影响范围：

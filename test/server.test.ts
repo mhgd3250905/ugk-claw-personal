@@ -975,6 +975,33 @@ test("GET /playground does not force-scroll when the user is reading history", a
 	await app.close();
 });
 
+test("GET /playground keeps bottom scroll room above the active composer", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /--transcript-bottom-scroll-buffer:\s*96px;/);
+	assert.match(
+		response.body,
+		/\.transcript\s*\{[\s\S]*scroll-padding-bottom:\s*var\(--transcript-bottom-scroll-buffer\);/,
+	);
+	assert.match(
+		response.body,
+		/\.shell\[data-transcript-state="active"\] \.transcript-current\s*\{[\s\S]*padding-bottom:\s*var\(--transcript-bottom-scroll-buffer\);/,
+	);
+	assert.match(
+		response.body,
+		/@media \(max-width: 640px\) \{[\s\S]*\.shell\s*\{[\s\S]*--transcript-bottom-scroll-buffer:\s*calc\(112px \+ env\(safe-area-inset-bottom\)\);/,
+	);
+	await app.close();
+});
+
 test("GET /playground restores running conversations after refresh and avoids reopening the same stream", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

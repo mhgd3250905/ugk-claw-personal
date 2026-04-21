@@ -35,6 +35,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
 - 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器当前主部署目录也已经迁到 GitHub 工作目录 `~/ugk-claw-repo`，不要再把 Gitee / tar 包搬运当成长期主流程理解。
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
+- agent 任务结束时，`AgentService` 会通过 `src/agent/browser-cleanup.ts` 按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 清理本轮 `web-access` scope 下保留的浏览器页面；不要只在运行容器 `/app` 里热改，否则重建镜像会直接丢修复。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
 - 当前生产更新默认不会把 sidecar 登录态洗掉，因为真实挂载目录已经外置到 `~/ugk-claw-shared/.data/chrome-sidecar`，而且 GUI 桌面启动器与 direct CDP 都收口到同一个 `chrome-profile-sidecar`；如果更新后又像两套登录态，先查浏览器容器是不是老的、desktop launcher 是否回退，不要先脑补 shared 目录被吃了。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
@@ -97,6 +98,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 静态报告路由：`src/routes/static.ts`
 - playground UI：`src/ui/playground.ts`
 - agent 服务核心：`src/agent/agent-service.ts`
+- web-access 任务结束清理：`src/agent/browser-cleanup.ts`
 - session 工厂：`src/agent/agent-session-factory.ts`
 - 资产库：`src/agent/asset-store.ts`
 - 文件交付协议：`src/agent/file-artifacts.ts`
@@ -233,15 +235,18 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 - agent 每轮 prompt 都会通过 `src/agent/file-artifacts.ts` 注入文件交付协议：内部本地 artifact 路径允许直接用于工具与浏览器自动化；用户交付时浏览器预览走宿主可访问 HTTP，真实文件优先 `send_file`，`ugk-file` 只作小文本兜底
 - `AgentService` 会在用户可见的正文、流式增量和工具过程消息里，自动把支持的 `/app/public/...`、`/app/runtime/...`、`file:///app/...` 重写成宿主可访问的 `GET /v1/local-file?path=...`；不要再指望宿主浏览器直接打开容器 `file://`
+- `AgentService.runChat` 的 `finally` 会 best-effort 调用 `closeBrowserTargetsForScope(undefined)`，通过 `POST /session/close-all?metaAgentScope=...` 清理本轮 `web-access` 保留页面；清理失败只 warn，不应盖住原始任务结果或错误。
 - 当前品牌文案为 `UGK CLAW`；桌面端顶部与首页继续使用纯文字字标，手机端顶部状态栏显示品牌 logo + `UGK Claw` 字标。
 - 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
+- playground 从后端 session 恢复已完成任务时，连续 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并成一条助手回复；不要让刷新后的同一轮浏览器处理过程拆成多条“助手”气泡。
 - playground Web 入口当前采用“一个 agent、多条历史会话、一个全局当前会话”的模型；不同浏览器 / 设备打开后应先通过 `GET /v1/chat/conversations` 跟随服务端 `currentConversationId`，再通过 `GET /v1/chat/state` 看到当前会话的历史、当前输入、active assistant 正文和过程区。
 - playground 的“新会话”必须走 `POST /v1/chat/conversations` 创建并激活新的服务端会话；不要再 reset 旧会话，也不要只清当前浏览器 DOM 写一条本地假提示。
 - playground 历史会话切换必须走 `POST /v1/chat/current` 更新全局当前会话；当前 agent 运行中禁止新建和切换，避免一个 agent 工人同时被拖到两条产线。
 - playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示“回到底部”按钮。
+- playground active 对话态的 `transcript-current` 底部保留 `--transcript-bottom-scroll-buffer` 余量；最后一条消息必须能继续上拖到 composer 上方，不要把这段 padding 当成多余空白删掉。
 - 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要 `GET /v1/chat/state` 仍显示 running，前端应切到 `/v1/chat/events` 续订事件流。
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。

@@ -85,6 +85,7 @@ function getPlaygroundStyles(): string {
 			--danger: #ff7188;
 			--warn: #ffd166;
 			--conversation-width: 640px;
+			--transcript-bottom-scroll-buffer: 96px;
 			--font-sans: "OpenAI Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 			--font-mono: "Agave", "SFMono-Regular", "Cascadia Mono", Consolas, "Lucida Console", monospace;
 		}
@@ -727,6 +728,7 @@ function getPlaygroundStyles(): string {
 			overflow-y: auto;
 			overflow-x: hidden;
 			overscroll-behavior: contain;
+			scroll-padding-bottom: var(--transcript-bottom-scroll-buffer);
 			scrollbar-width: none;
 			-ms-overflow-style: none;
 		}
@@ -778,6 +780,10 @@ function getPlaygroundStyles(): string {
 			align-content: start;
 			justify-items: stretch;
 			width: 100%;
+		}
+
+		.shell[data-transcript-state="active"] .transcript-current {
+			padding-bottom: var(--transcript-bottom-scroll-buffer);
 		}
 
 		.transcript-archive {
@@ -2584,6 +2590,7 @@ function getPlaygroundStyles(): string {
 				width: 100vw;
 				height: 100vh;
 				border-radius: 0;
+				--transcript-bottom-scroll-buffer: calc(112px + env(safe-area-inset-bottom));
 			}
 
 			.topbar {

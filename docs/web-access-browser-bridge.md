@@ -1,6 +1,6 @@
 # Web-Access Browser Bridge
 
-更新时间：`2026-04-19`
+更新时间：`2026-04-21`
 
 这份文档是 `web-access` 的正式运行手册。它回答四个问题：
 
@@ -146,6 +146,18 @@ npm run docker:chrome:status
 npm run docker:chrome:open
 npm run docker:chrome:restart
 ```
+
+### Agent-scope cleanup
+
+`web-access` 在检测到 agent scope 时会复用同一任务下的浏览器 target，避免同一轮任务里反复开新页。这个 scope 与脚本侧一致，按 `CLAUDE_AGENT_ID`、`CLAUDE_HOOK_AGENT_ID`、`agent_id` 的顺序解析。
+
+任务结束时由 `src/agent/agent-service.ts` 的 `runChat` `finally` 调用 `src/agent/browser-cleanup.ts`，向兼容代理发送：
+
+```bash
+POST http://127.0.0.1:3456/session/close-all?metaAgentScope=<scope>
+```
+
+这个清理是 best-effort：代理不可用、超时或返回错误时只写 `console.warn`，不覆盖原任务的成功、错误或中断结果。后续排障不要只看运行容器 `/app` 里有没有热改，必须确认 `src/agent/browser-cleanup.ts` 和 `AgentService` 调用已经进入 Git 仓库；否则生产重建镜像后修复会消失。
 
 命令含义：
 
@@ -341,5 +353,7 @@ Linux 云服务器上不要把 `3901` 裸露公网。这个入口能操作登录
 - [runtime/skills-user/web-access/scripts/local-cdp-browser.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/local-cdp-browser.mjs)
 - [runtime/skills-user/web-access/scripts/check-deps.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/check-deps.mjs)
 - [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+- [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
+- [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
 - [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
 - [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)

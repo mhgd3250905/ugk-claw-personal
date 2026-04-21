@@ -70,6 +70,7 @@
 - 发送后立即清空输入框
 - 手机端紧凑品牌状态栏、左侧历史会话抽屉、右上角溢出菜单、底部 icon 发送区
 - 手机端代码块宽度、复制 icon 与透明壳层
+- 底部 composer 遮挡最后一条消息、active transcript 滚动缓冲、最后一屏无法继续上拖
 
 ## D. 文件上传、资产复用、send_file、本地报告访问
 
@@ -105,6 +106,7 @@
 3. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
 4. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
 5. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+6. [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
 
 如果问题跟以下内容有关，直接进 web-access 专题文档，不要在别的地方绕：
 
@@ -112,6 +114,7 @@
 - Docker Chrome sidecar
 - `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`
 - `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`
+- `POST /session/close-all?metaAgentScope=...`
 - Chrome 持久 profile
 - `local_browser_executable_not_found`
 - `chrome_cdp_unreachable`

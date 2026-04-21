@@ -340,6 +340,48 @@ test("creates a new conversation, prompts the session, and persists the session 
 	assert.equal(storedConversation?.messageCount, 0);
 });
 
+test("chat closes scoped browser targets after the run finishes", async () => {
+	const originalFetch = globalThis.fetch;
+	const originalClaudeAgentId = process.env.CLAUDE_AGENT_ID;
+	process.env.CLAUDE_AGENT_ID = "scope-chat";
+	const cleanupCalls: Array<{ url: string; init?: RequestInit }> = [];
+	globalThis.fetch = (async (url, init) => {
+		cleanupCalls.push({ url: String(url), init });
+		return new Response(JSON.stringify({ ok: true }), {
+			status: 200,
+			headers: { "content-type": "application/json" },
+		});
+	}) as typeof fetch;
+
+	try {
+		const store = await createStore();
+		const factory = new FakeAgentSessionFactory(
+			() => new FakeSession("E:/sessions/browser-cleanup.jsonl", [textDelta("done")]),
+		);
+		const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+		const result = await service.chat({
+			conversationId: "manual:browser-cleanup",
+			message: "open a browser page",
+		});
+
+		assert.equal(result.text, "done");
+		assert.equal(cleanupCalls.length, 1);
+		assert.equal(
+			cleanupCalls[0]?.url,
+			"http://127.0.0.1:3456/session/close-all?metaAgentScope=scope-chat",
+		);
+		assert.equal(cleanupCalls[0]?.init?.method, "POST");
+	} finally {
+		globalThis.fetch = originalFetch;
+		if (originalClaudeAgentId === undefined) {
+			delete process.env.CLAUDE_AGENT_ID;
+		} else {
+			process.env.CLAUDE_AGENT_ID = originalClaudeAgentId;
+		}
+	}
+});
+
 test("chat includes uploaded file attachments in the session prompt", async () => {
 	const store = await createStore();
 	const session = new FakeSession("E:/sessions/attachments.jsonl", [textDelta("read file")]);
@@ -847,6 +889,61 @@ test("getConversationState hides the current active input from persisted history
 
 	activeSession.finish();
 	await run;
+});
+
+test("getConversationState coalesces consecutive assistant messages from one completed turn", async () => {
+	const store = await createStore();
+	await store.set("manual:coalesced", "E:/sessions/coalesced.jsonl");
+	const session = new FakeSession("E:/sessions/coalesced.jsonl", []);
+	session.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("find a price"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "I will check the browser." }],
+			stopReason: "stop",
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "The first site needs login." }],
+			stopReason: "stop",
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "Here is the final answer." }],
+			stopReason: "stop",
+		} as never,
+	);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const state = await (
+		service as AgentService & {
+			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+		}
+	).getConversationState("manual:coalesced");
+	const history = await service.getConversationHistory("manual:coalesced");
+
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "find a price" },
+			{
+				kind: "assistant",
+				text: [
+					"I will check the browser.",
+					"The first site needs login.",
+					"Here is the final answer.",
+				].join("\n\n"),
+			},
+		],
+	);
+	assert.deepEqual(history.messages, state.messages);
 });
 
 test("getConversationHistory returns the original user text without internal prompt protocols", async () => {
