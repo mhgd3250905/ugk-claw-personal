@@ -37,7 +37,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - agent 任务结束时，`AgentService` 会通过 `src/agent/browser-cleanup.ts` 按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 清理本轮 `web-access` scope 下保留的浏览器页面；不要只在运行容器 `/app` 里热改，否则重建镜像会直接丢修复。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
-- 当前生产更新默认不会把 sidecar 登录态洗掉，因为真实挂载目录已经外置到 `~/ugk-claw-shared/.data/chrome-sidecar`，而且 GUI 桌面启动器与 direct CDP 都收口到同一个 `chrome-profile-sidecar`；如果更新后又像两套登录态，先查浏览器容器是不是老的、desktop launcher 是否回退，不要先脑补 shared 目录被吃了。
+- 当前生产更新默认不能洗掉两类状态：sidecar 登录态挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，agent 会话 / session / 资产 / conn 数据挂在 `~/ugk-claw-shared/.data/agent` 并映射到容器 `/app/.data/agent`；如果更新后历史会话消失，先查 `docker inspect ugk-pi-claw-ugk-pi-1` 的 mounts 和 `UGK_AGENT_DATA_DIR`，别又让容器可写层背锅。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
 - 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`；当前公网入口是 `http://43.134.167.179:3000/playground`，sidecar GUI 只能走 SSH tunnel，不要开放公网 `3901`。
 - Windows host IPC fallback 仍保留，但只用于 legacy 本机调试和紧急排障。
@@ -238,7 +238,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `AgentService.runChat` 的 `finally` 会 best-effort 调用 `closeBrowserTargetsForScope(undefined)`，通过 `POST /session/close-all?metaAgentScope=...` 清理本轮 `web-access` 保留页面；清理失败只 warn，不应盖住原始任务结果或错误。
 - 当前品牌文案为 `UGK CLAW`；桌面端顶部与首页继续使用纯文字字标，手机端顶部状态栏显示品牌 logo + `UGK Claw` 字标。
 - 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
-- 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录。
+- 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
 - playground 从后端 session 恢复已完成任务时，连续 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并成一条助手回复；不要让刷新后的同一轮浏览器处理过程拆成多条“助手”气泡。

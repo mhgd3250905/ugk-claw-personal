@@ -12,6 +12,19 @@
 
 ## 2026-04-21
 
+### 生产 agent 数据持久化挂载
+- 主题：修复生产增量更新重建 `ugk-pi` 容器后，playground 历史会话、session 与资产索引不持久的问题。
+- 影响范围：
+  - `docker-compose.prod.yml` 为 app 容器新增 `${UGK_AGENT_DATA_DIR:-./.data/agent}:/app/.data/agent` bind mount，避免 `conversation-index.json`、`sessions/`、`asset-index.json`、`conn/` 等状态继续落在容器可写层。
+  - `.env.example`、`docs/tencent-cloud-singapore-deploy.md` 与 `docs/server-ops-quick-reference.md` 补充 `UGK_AGENT_DATA_DIR` 口径，服务器应指向 `~/ugk-claw-shared/.data/agent`。
+  - `AGENTS.md` 更新稳定事实：生产运行态外置不只包括 Chrome 登录态，还包括 agent 会话数据；更新后历史消失时先查 mount 和 compose env。
+  - `test/containerization.test.ts` 增加回归断言，防止生产 compose 再丢 agent 数据挂载。
+- 对应入口：
+  - [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
+  - [.env.example](/E:/AII/ugk-pi/.env.example)
+  - [test/containerization.test.ts](/E:/AII/ugk-pi/test/containerization.test.ts)
+  - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### 近期改动文档补全
 - 主题：把最近几轮 UI 与 runtime 修复补进接手文档，避免后续 agent 只看旧索引又走回头路。
 - 影响范围：

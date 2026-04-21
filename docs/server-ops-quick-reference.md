@@ -140,11 +140,14 @@ https://127.0.0.1:13901/
 
 - app env：`~/ugk-claw-shared/app.env`
 - compose env：`~/ugk-claw-shared/compose.env`
+- agent 会话 / 资产 / conn 数据：`~/ugk-claw-shared/.data/agent`
 - browser 登录态：`~/ugk-claw-shared/.data/chrome-sidecar`
 - app 日志：`~/ugk-claw-shared/logs/app`
 - nginx 日志：`~/ugk-claw-shared/logs/nginx`
 
 不要再去 repo 目录里找这些运行态文件。
+
+`docker-compose.prod.yml` 必须把 `${UGK_AGENT_DATA_DIR}` 挂到 `/app/.data/agent`。少了这条，重建 `ugk-pi` 容器时历史会话、session 文件和资产索引会跟着容器可写层一起没，别把这锅甩给浏览器刷新。
 
 ## sidecar 登录态备份
 

@@ -248,6 +248,7 @@ tsconfig.json
 ├─ app.env
 ├─ compose.env
 ├─ .data/
+│  ├─ agent/
 │  └─ chrome-sidecar/
 └─ logs/
    ├─ app/
@@ -258,6 +259,7 @@ tsconfig.json
 
 - `app.env` 保存应用真实环境变量和密钥
 - `compose.env` 保存 compose 级路径和端口变量
+- `.data/agent` 保存 playground 历史会话、session、资产索引、conn 与飞书映射等 app 运行态
 - `.data/chrome-sidecar` 保存 sidecar Chrome 登录态
 - `logs/` 保存 app 与 nginx 日志
 - 历史上 repo 目录里 root-owned 的旧 `logs/` 已归档到 `~/ugk-claw-shared/backups/repo-logs-from-repo-20260420-112034`，不要再回头在 `~/ugk-claw-repo/logs` 找生产日志
@@ -318,11 +320,14 @@ chmod 600 ~/ugk-claw-shared/app.env
 ```dotenv
 UGK_APP_ENV_FILE=/home/ubuntu/ugk-claw-shared/app.env
 UGK_APP_LOG_DIR=/home/ubuntu/ugk-claw-shared/logs/app
+UGK_AGENT_DATA_DIR=/home/ubuntu/ugk-claw-shared/.data/agent
 UGK_NGINX_LOG_DIR=/home/ubuntu/ugk-claw-shared/logs/nginx
 UGK_BROWSER_CONFIG_DIR=/home/ubuntu/ugk-claw-shared/.data/chrome-sidecar
 HOST_PORT=3000
 WEB_ACCESS_BROWSER_GUI_PORT=3901
 ```
+
+`UGK_AGENT_DATA_DIR` 必须存在并挂到容器 `/app/.data/agent`。这里保存的是 `conversation-index.json`、`sessions/`、`asset-index.json`、`conn/` 等真正的 agent 状态；如果漏掉它，`up --build -d` 重建 app 容器后历史会话会直接消失，这不是前端没显示，是状态被放在容器可写层里了。
 
 建议权限：
 

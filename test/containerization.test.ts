@@ -96,6 +96,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /healthcheck:/);
 	assert.match(prodCompose, /logs\/app/);
 	assert.match(prodCompose, /logs\/nginx/);
+	assert.match(prodCompose, /\$\{UGK_AGENT_DATA_DIR:-\.\/\.data\/agent\}:\/app\/\.data\/agent/);
 	assert.match(prodCompose, /runtime\/skills-user/);
 	assert.match(prodCompose, /default\.conf/);
 	assert.match(prodCompose, /depends_on:/);
@@ -108,6 +109,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /WEB_ACCESS_BROWSER_GUI_PORT=3901/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_PROFILE_DIR=\/config\/chrome-profile-sidecar/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL=http:\/\/ugk-pi:3000/);
+	assert.match(envExample, /UGK_AGENT_DATA_DIR=\.\/\.data\/agent/);
 
 	const dockerignore = readFileSync(dockerignorePath, "utf8");
 	assert.match(dockerignore, /node_modules/);
