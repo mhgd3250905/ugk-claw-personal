@@ -3352,29 +3352,6 @@ function getPlaygroundScript(): string {
 
 		${getConnActivityApiScript()}
 
-		async function fetchConversationHistory(conversationId) {
-			const nextConversationId = String(conversationId || "").trim();
-			if (!nextConversationId) {
-				return { conversationId: "", messages: [] };
-			}
-
-			const response = await fetch("/v1/chat/history?conversationId=" + encodeURIComponent(nextConversationId), {
-				method: "GET",
-				headers: { accept: "application/json" },
-			});
-			const payload = await response.json().catch(() => ({}));
-			if (!response.ok) {
-				const errorMessage = payload?.error?.message || payload?.message || "无法获取全局对话历史";
-				throw new Error(errorMessage);
-			}
-
-			return {
-				conversationId: payload?.conversationId || nextConversationId,
-				messages: Array.isArray(payload?.messages) ? payload.messages : [],
-			};
-		}
-
-
 
 		async function syncConversationRunState(conversationId, options) {
 			const nextConversationId = String(conversationId || "").trim();
@@ -4070,119 +4047,126 @@ function getPlaygroundScript(): string {
 			}
 		}
 
-		conversationInput.value = state.conversationId;
-		setStageMode("landing");
-		setTranscriptState("idle");
-		setCommandStatus("STANDBY");
-		renderContextUsageBar();
-		renderSelectedAssets();
-		renderAssetPickerList();
-		renderConnManager();
-		void loadAssets(true);
+		function bindPlaygroundAssemblerEvents() {
+			window.addEventListener("beforeunload", () => {
+				state.pageUnloading = true;
+				flushConversationHistoryPersist();
+				disconnectNotificationStream();
+			});
+			window.addEventListener("pagehide", () => {
+				state.pageUnloading = true;
+				flushConversationHistoryPersist();
+				disconnectNotificationStream();
+			});
+			${getPlaygroundAssetEventHandlersScript()}
 
-		resetStreamingState();
-		clearError();
-		void ensureCurrentConversation({ silent: true });
+			sendButton.addEventListener("click", () => {
+				void sendMessage();
+			});
 
-		window.addEventListener("beforeunload", () => {
-			state.pageUnloading = true;
-			flushConversationHistoryPersist();
-			disconnectNotificationStream();
-		});
-		window.addEventListener("pagehide", () => {
-			state.pageUnloading = true;
-			flushConversationHistoryPersist();
-			disconnectNotificationStream();
-		});
-		bindPlaygroundLayoutController();
-		bindPlaygroundTranscriptRenderer();
-		bindPlaygroundStreamController();
-		${getPlaygroundAssetEventHandlersScript()}
+			interruptButton.addEventListener("click", () => {
+				void interruptRun();
+			});
 
-		sendButton.addEventListener("click", () => {
-			void sendMessage();
-		});
-
-		interruptButton.addEventListener("click", () => {
-			void interruptRun();
-		});
-
-		viewSkillsButton.addEventListener("click", () => {
-			void loadSkills();
-		});
+			viewSkillsButton.addEventListener("click", () => {
+				void loadSkills();
+			});
 
 
-		${getConnActivityEventHandlersScript()}
+			${getConnActivityEventHandlersScript()}
 
 
-		newConversationButton.addEventListener("click", () => {
-			void startNewConversation().then((created) => {
-				if (created) {
-					messageInput.focus();
+			newConversationButton.addEventListener("click", () => {
+				void startNewConversation().then((created) => {
+					if (created) {
+						messageInput.focus();
+					}
+				});
+			});
+			${getPlaygroundMobileShellEventHandlersScript()}
+
+			historyLoadMoreButton.addEventListener("click", () => {
+				renderMoreConversationHistory();
+			});
+			errorBannerClose.addEventListener("click", () => {
+				clearError();
+			});
+			${getPlaygroundContextUsageEventHandlersScript()}
+
+			conversationInput.addEventListener("change", () => {
+				const nextConversationId = String(conversationInput.value || "").trim();
+				if (nextConversationId === state.conversationId) {
+					renderContextUsageBar();
+					return;
+				}
+				void switchConversationOnServer(nextConversationId)
+					.then((result) => {
+						if (!result.switched) {
+							showError(result.reason === "running" ? "当前任务未结束，不能切换产线" : "无法切换会话");
+							conversationInput.value = state.conversationId;
+							return;
+						}
+						return activateConversation(result.currentConversationId || result.conversationId, {
+							skipServerSwitch: true,
+						});
+					})
+					.catch((error) => {
+						conversationInput.value = state.conversationId;
+						const messageText = error instanceof Error ? error.message : "切换会话失败";
+						showError(messageText);
+					});
+			});
+
+			messageInput.addEventListener("keydown", (event) => {
+				if (event.key === "Enter" && !event.shiftKey) {
+					event.preventDefault();
+					void sendMessage();
 				}
 			});
-		});
-		${getPlaygroundMobileShellEventHandlersScript()}
+			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape" && state.assetModalOpen) {
+					closeAssetLibrary();
+				}
+				if (handleConnActivityPanelEscapeKey(event)) {
+					return;
+				}
 
-		historyLoadMoreButton.addEventListener("click", () => {
-			renderMoreConversationHistory();
-		});
-		errorBannerClose.addEventListener("click", () => {
+				if (event.key === "Escape" && !contextUsageDialog.hidden) {
+					closeContextUsageDialog();
+				}
+				handleConnRunDetailsEscapeKey(event);
+
+				if (event.key === "Escape" && state.mobileOverflowMenuOpen) {
+					closeMobileOverflowMenu();
+				}
+				if (event.key === "Escape" && state.mobileConversationDrawerOpen) {
+					closeMobileConversationDrawer();
+				}
+			});
+
+		}
+
+		function initializePlaygroundAssembler() {
+			conversationInput.value = state.conversationId;
+			setStageMode("landing");
+			setTranscriptState("idle");
+			setCommandStatus("STANDBY");
+			renderContextUsageBar();
+			renderSelectedAssets();
+			renderAssetPickerList();
+			renderConnManager();
+			void loadAssets(true);
+
+			resetStreamingState();
 			clearError();
-		});
-		${getPlaygroundContextUsageEventHandlersScript()}
+			void ensureCurrentConversation({ silent: true });
+			bindPlaygroundLayoutController();
+			bindPlaygroundTranscriptRenderer();
+			bindPlaygroundStreamController();
+			bindPlaygroundAssemblerEvents();
+		}
 
-		conversationInput.addEventListener("change", () => {
-			const nextConversationId = String(conversationInput.value || "").trim();
-			if (nextConversationId === state.conversationId) {
-				renderContextUsageBar();
-				return;
-			}
-			void switchConversationOnServer(nextConversationId)
-				.then((result) => {
-					if (!result.switched) {
-						showError(result.reason === "running" ? "当前任务未结束，不能切换产线" : "无法切换会话");
-						conversationInput.value = state.conversationId;
-						return;
-					}
-					return activateConversation(result.currentConversationId || result.conversationId, {
-						skipServerSwitch: true,
-					});
-				})
-				.catch((error) => {
-					conversationInput.value = state.conversationId;
-					const messageText = error instanceof Error ? error.message : "切换会话失败";
-					showError(messageText);
-				});
-		});
-
-		messageInput.addEventListener("keydown", (event) => {
-			if (event.key === "Enter" && !event.shiftKey) {
-				event.preventDefault();
-				void sendMessage();
-			}
-		});
-		document.addEventListener("keydown", (event) => {
-			if (event.key === "Escape" && state.assetModalOpen) {
-				closeAssetLibrary();
-			}
-			if (handleConnActivityPanelEscapeKey(event)) {
-				return;
-			}
-
-			if (event.key === "Escape" && !contextUsageDialog.hidden) {
-				closeContextUsageDialog();
-			}
-			handleConnRunDetailsEscapeKey(event);
-
-			if (event.key === "Escape" && state.mobileOverflowMenuOpen) {
-				closeMobileOverflowMenu();
-			}
-			if (event.key === "Escape" && state.mobileConversationDrawerOpen) {
-				closeMobileConversationDrawer();
-			}
-		});
-
+		initializePlaygroundAssembler();
 	`;
 }
 

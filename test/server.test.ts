@@ -1142,6 +1142,11 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /function getConversationHistoryStorageKey\(conversationId\)\s*\{/);
 	assert.match(response.body, /function restoreConversationHistory\(conversationId\)\s*\{/);
 	assert.match(response.body, /function renderMoreConversationHistory\(\)\s*\{/);
+	assert.match(response.body, /function bindPlaygroundAssemblerEvents\(\)\s*\{/);
+	assert.match(response.body, /function initializePlaygroundAssembler\(\)\s*\{/);
+	assert.match(response.body, /bindPlaygroundAssemblerEvents\(\);/);
+	assert.match(response.body, /initializePlaygroundAssembler\(\);/);
+	assert.doesNotMatch(response.body, /async function fetchConversationHistory\(conversationId\)\s*\{/);
 	assert.match(response.body, /function handleTranscriptScroll\(\)\s*\{/);
 	assert.match(response.body, /transcript\.addEventListener\("scroll", handleTranscriptScroll\)/);
 	assert.match(response.body, /id="transcript-archive"/);

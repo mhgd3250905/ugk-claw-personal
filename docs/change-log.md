@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground assembler cleanup 收口
+- 日期：2026-04-22
+- 主题：继续做 `playground.ts` 的最后一层 assembler cleanup，删掉 stream split 之后遗留的死 helper，并把页面尾部那串散装初始化 / 事件绑定收成明确入口。继续把这些零散语句摊在脚本尾巴上，文件虽然名义上叫 assembler，读起来还是像把 TODO 倒进去了。
+- 影响范围：`src/ui/playground.ts` 删除未使用的 `fetchConversationHistory()`，新增 `bindPlaygroundAssemblerEvents()` 与 `initializePlaygroundAssembler()` 收口页面初始化和事件绑定；`test/server.test.ts` 增加页面断言，锁住死 helper 已移除且 assembler 入口存在；`docs/playground-current.md` 同步当前页面装配口径。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground 桌面 topbar 合并 landing 工具栏
 - 日期：2026-04-22
 - 主题：按当前桌面 Web 交互收口，把原本悬浮在 landing hero 上方的 `landing-side-right` 菜单栏直接并入 `<header class="topbar">`，替换掉旧的 `topbar-signal` 字标占位。继续让右侧工具栏飘在首屏上面，结构上就还是两套头部，后面谁改桌面导航谁倒霉。
