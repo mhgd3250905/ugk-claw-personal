@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 布局滚动控制器拆分
+- 日期：2026-04-22
+- 主题：继续执行 playground runtime split，把 composer 高度同步、会话宽度同步、transcript 自动跟随、回到底部按钮、顶部加载更多触发、以及前后台/联网恢复同步入口拆到独立布局控制器。主文件继续吃这些滚动细节，下一次改消息渲染就又要在泥潭里摸电线，没必要。
+- 影响范围：新增 `src/ui/playground-layout-controller.ts`，导出布局常量、布局/滚动/恢复控制函数和事件绑定入口；`src/ui/playground.ts` 继续持有主 state、DOM refs、transcript 渲染、stream 生命周期和页面组装。`--conversation-width`、`--command-deck-offset`、`--transcript-bottom-scroll-buffer`、用户上滑不强制滚底、`visibilitychange/pageshow/online` 恢复同步、以及现有 DOM id 保持不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground 会话目录控制器拆分
 - 日期：2026-04-22
 - 主题：继续执行 playground runtime split，把会话目录加载、新建会话、切换当前会话、运行中禁切和手机历史抽屉列表渲染拆到独立控制器。主文件再继续包办这堆会话入口，就不是页面组装器了，是前端杂物间。

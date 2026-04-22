@@ -1446,6 +1446,28 @@ test("GET /playground does not force-scroll when the user is reading history", a
 	await app.close();
 });
 
+test("GET /playground injects layout and scroll runtime from a dedicated controller", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /function bindPlaygroundLayoutController\(\)\s*\{/);
+	assert.match(response.body, /bindPlaygroundLayoutController\(\);/);
+	assert.match(response.body, /window\.addEventListener\("resize", syncConversationWidth\)/);
+	assert.match(response.body, /const layoutObserver = new ResizeObserver\(\(\) => \{/);
+	assert.match(response.body, /scrollToBottomButton\.addEventListener\("click", \(\) => \{/);
+	assert.match(response.body, /transcript\.addEventListener\("scroll", handleTranscriptScroll\)/);
+	assert.match(response.body, /document\.visibilityState === "visible"/);
+	assert.match(response.body, /scheduleResumeConversationSync\("pageshow"/);
+	await app.close();
+});
+
 test("GET /playground keeps bottom scroll room above the active composer", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
