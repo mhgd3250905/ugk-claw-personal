@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground conn/activity 静态片段拆分
+- 日期：2026-04-22
+- 主题：把 `playground` 里继续膨胀的 conn / 全局活动静态 UI 片段先拆出主文件，避免 `src/ui/playground.ts` 继续把样式、弹窗 HTML、运行时脚本和业务状态全搅在一起。
+- 影响范围：新增 `src/ui/playground-conn-activity.ts`，承接后台任务过程弹层样式、后台任务管理 / 编辑 / 全局活动样式，以及对应弹窗 HTML；`src/ui/playground.ts` 保留运行时脚本、共享文件 / 资产样式和模块调用入口。外部页面结构、DOM id、接口调用和用户交互不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Conn 路由解析收口与编辑校验补齐
 - 日期：2026-04-22
 - 主题：把 `POST /v1/conns` 与 `PATCH /v1/conns/:connId` 里重复的 payload 解析收成一套，并补上编辑接口对空白 `title / prompt` 的显式校验，避免传了空白值却被路由悄悄当成“没改”吞掉。
