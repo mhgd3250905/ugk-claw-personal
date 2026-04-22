@@ -134,6 +134,36 @@ export function getConnRunDetailsStyles(): string {
 export function getConnManagerActivityStyles(): string {
 	return `
 
+		.agent-activity-list,
+		.conn-manager-list,
+		.conn-manager-run-list {
+			display: grid;
+			gap: 6px;
+		}
+
+		.agent-activity-item,
+		.conn-manager-item,
+		.conn-manager-run-item {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 10px;
+			align-items: center;
+			border: 1px solid var(--line);
+			background: rgba(16, 24, 44, 0.5);
+			padding: 8px 10px;
+			font-size: 11px;
+			line-height: 1.5;
+			color: var(--muted);
+		}
+
+		.agent-activity-actions button,
+		.conn-manager-actions button,
+		.conn-manager-bulk-actions button,
+		.conn-manager-run-actions button {
+			padding: 6px 10px;
+			font-size: 10px;
+		}
+
 		.conn-manager-item {
 			grid-template-columns: auto minmax(0, 1fr);
 			align-items: stretch;

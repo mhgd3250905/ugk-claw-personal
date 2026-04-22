@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 文件/资产静态片段拆分
+- 日期：2026-04-22
+- 主题：继续给 `src/ui/playground.ts` 减负，把文件上传、文件 chip、已选资产和资产库弹窗这组静态 UI 片段拆到独立文件。之前主文件已经开始像前端杂物间了，再不分区，后面每改一次 conn 或消息区都要顺手撞到资产库逻辑。
+- 影响范围：新增 `src/ui/playground-assets.ts`，承接 drop zone、file chip、selected assets、asset modal 的静态样式片段和资产弹窗 HTML；conn / 全局活动列表样式继续归在 `src/ui/playground-conn-activity.ts`，避免资产模块反向持有后台任务选择器；`src/ui/playground.ts` 保留主页面拼装入口、共享响应式约束和现有运行时逻辑。DOM id、接口路径、事件绑定和用户交互不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Conn 后台结果摘要与输出文件索引收口
 - 日期：2026-04-22
 - 主题：修复同一个 conn 两次运行时通知正文一会儿展示真实答案、一会儿只展示“输出文件已写入”的不稳定体验。根因是后台 runner 只取最后一条 assistant 可见文本，而模型在写完 `output/result.txt` 后可能用一句低信息量的文件提示收尾。

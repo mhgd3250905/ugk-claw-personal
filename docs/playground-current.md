@@ -7,6 +7,7 @@
 核心实现文件：
 
 - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+- [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
@@ -72,6 +73,7 @@
 
 ## 4. 文件与资产展示
 
+- 文件上传区、文件 chip、已选资产区和资产库弹窗的静态样式 / HTML 现在集中在 `src/ui/playground-assets.ts`；运行时选择、上传和渲染逻辑仍在 `src/ui/playground.ts`
 - 待发送附件和已选资产统一用 chip 风格展示
 - chip 包含：
   - 类型 badge
@@ -136,10 +138,11 @@
 ## 7. 已知关联文件
 
 - 页面结构、共享样式、脚本： [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+- 文件 / 资产静态样式与资产库弹窗 HTML： [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - Conn / 全局活动静态样式与弹窗 HTML： [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 - Conn / 全局活动前端运行时控制器： [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 - 页面返回断言： [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-- 资产与文件下载： [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)、[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+- 资产与文件下载： [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)、[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 - 技能真实来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/debug/skills`
 - 会话目录与当前会话来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/chat/conversations`
 - 当前会话状态来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/chat/state`
