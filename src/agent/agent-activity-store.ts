@@ -1,0 +1,196 @@
+import { randomUUID } from "node:crypto";
+import type { ConnDatabase } from "./conn-db.js";
+import type { ConversationNotificationFile } from "./conversation-notification-store.js";
+
+export interface AgentActivityItem {
+	activityId: string;
+	scope: "agent";
+	source: string;
+	sourceId: string;
+	runId?: string;
+	conversationId?: string;
+	kind: string;
+	title: string;
+	text: string;
+	files: ConversationNotificationFile[];
+	createdAt: string;
+	readAt?: string;
+}
+
+export interface CreateAgentActivityInput {
+	source: string;
+	sourceId: string;
+	runId?: string;
+	conversationId?: string;
+	kind: string;
+	title: string;
+	text: string;
+	files?: ConversationNotificationFile[];
+	createdAt?: Date;
+}
+
+export interface AgentActivityListOptions {
+	limit?: number;
+	before?: string;
+	conversationId?: string;
+}
+
+export interface AgentActivityStoreOptions {
+	database: ConnDatabase;
+}
+
+interface AgentActivityRow {
+	activity_id: string;
+	scope: string;
+	source: string;
+	source_id: string;
+	run_id?: string | null;
+	conversation_id?: string | null;
+	kind: string;
+	title: string;
+	text: string;
+	files_json: string;
+	created_at: string;
+	read_at?: string | null;
+}
+
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+
+export class AgentActivityStore {
+	constructor(private readonly options: AgentActivityStoreOptions) {}
+
+	async create(input: CreateAgentActivityInput): Promise<AgentActivityItem> {
+		const existing = input.runId
+			? this.options.database.get<AgentActivityRow>(
+					"SELECT * FROM agent_activity_items WHERE source = ? AND source_id = ? AND run_id = ?",
+					input.source,
+					input.sourceId,
+					input.runId,
+				)
+			: undefined;
+		if (existing) {
+			return rowToActivity(existing);
+		}
+
+		const activity: AgentActivityItem = {
+			activityId: randomUUID(),
+			scope: "agent",
+			source: input.source,
+			sourceId: input.sourceId,
+			...(input.runId ? { runId: input.runId } : {}),
+			...(input.conversationId ? { conversationId: input.conversationId } : {}),
+			kind: input.kind,
+			title: input.title,
+			text: input.text,
+			files: input.files ?? [],
+			createdAt: (input.createdAt ?? new Date()).toISOString(),
+		};
+
+		this.options.database.run(
+			[
+				"INSERT INTO agent_activity_items (",
+				"activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at",
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			].join(" "),
+			activity.activityId,
+			activity.scope,
+			activity.source,
+			activity.sourceId,
+			activity.runId,
+			activity.conversationId,
+			activity.kind,
+			activity.title,
+			activity.text,
+			JSON.stringify(activity.files),
+			activity.createdAt,
+		);
+
+		return activity;
+	}
+
+	async get(activityId: string): Promise<AgentActivityItem | undefined> {
+		const row = this.options.database.get<AgentActivityRow>(
+			"SELECT * FROM agent_activity_items WHERE activity_id = ?",
+			activityId,
+		);
+		return row ? rowToActivity(row) : undefined;
+	}
+
+	async list(options: AgentActivityListOptions = {}): Promise<AgentActivityItem[]> {
+		const limit = clampLimit(options.limit);
+		const conditions: string[] = [];
+		const params: unknown[] = [];
+
+		if (options.conversationId) {
+			conditions.push("conversation_id = ?");
+			params.push(options.conversationId);
+		}
+		if (options.before) {
+			conditions.push("created_at < ?");
+			params.push(options.before);
+		}
+
+		const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
+		const rows = this.options.database.all<AgentActivityRow>(
+			[
+				"SELECT * FROM agent_activity_items",
+				whereClause,
+				"ORDER BY created_at DESC, activity_id DESC",
+				"LIMIT ?",
+			].join(" "),
+			...params,
+			limit,
+		);
+		return rows.map(rowToActivity);
+	}
+
+	async markRead(activityId: string, now: Date = new Date()): Promise<boolean> {
+		const existing = this.options.database.get<AgentActivityRow>(
+			"SELECT * FROM agent_activity_items WHERE activity_id = ?",
+			activityId,
+		);
+		if (!existing) {
+			return false;
+		}
+		this.options.database.run(
+			"UPDATE agent_activity_items SET read_at = ? WHERE activity_id = ?",
+			now.toISOString(),
+			activityId,
+		);
+		return true;
+	}
+}
+
+function clampLimit(value: number | undefined): number {
+	if (!Number.isFinite(value)) {
+		return DEFAULT_LIMIT;
+	}
+	return Math.max(1, Math.min(Math.trunc(Number(value)), MAX_LIMIT));
+}
+
+function rowToActivity(row: AgentActivityRow): AgentActivityItem {
+	return {
+		activityId: row.activity_id,
+		scope: "agent",
+		source: row.source,
+		sourceId: row.source_id,
+		...(row.run_id ? { runId: row.run_id } : {}),
+		...(row.conversation_id ? { conversationId: row.conversation_id } : {}),
+		kind: row.kind,
+		title: row.title,
+		text: row.text,
+		files: parseFiles(row.files_json),
+		createdAt: row.created_at,
+		...(row.read_at ? { readAt: row.read_at } : {}),
+	};
+}
+
+function parseFiles(value: string): ConversationNotificationFile[] {
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		return Array.isArray(parsed) ? (parsed as ConversationNotificationFile[]) : [];
+	} catch {
+		return [];
+	}
+}

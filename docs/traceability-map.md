@@ -66,6 +66,7 @@
 - 过程区与 loading 气泡
 - 文件卡片“打开 / 下载”
 - 后台 conn notification 的“查看任务过程”入口
+- 全局活动列表、跨会话 conn 结果观察、`/v1/activity` 读取
 - 刷新后运行态恢复
 - 新会话创建、当前会话切换、刷新后跟随服务端当前会话
 - 发送后立即清空输入框
@@ -148,15 +149,17 @@
 先看：
 
 1. [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
-2. [src/routes/feishu.ts](/E:/AII/ugk-pi/src/routes/feishu.ts)
-3. [src/agent/conn-store.ts](/E:/AII/ugk-pi/src/agent/conn-store.ts)
-4. [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
-5. [src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)
-6. [src/agent/conn-run-store.ts](/E:/AII/ugk-pi/src/agent/conn-run-store.ts)
-7. [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
-8. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
-9. [src/integrations/feishu/service.ts](/E:/AII/ugk-pi/src/integrations/feishu/service.ts)
-10. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+2. [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
+3. [src/routes/feishu.ts](/E:/AII/ugk-pi/src/routes/feishu.ts)
+4. [src/agent/conn-store.ts](/E:/AII/ugk-pi/src/agent/conn-store.ts)
+5. [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
+6. [src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)
+7. [src/agent/conn-run-store.ts](/E:/AII/ugk-pi/src/agent/conn-run-store.ts)
+8. [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
+9. [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
+10. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+11. [src/integrations/feishu/service.ts](/E:/AII/ugk-pi/src/integrations/feishu/service.ts)
+12. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 ## H. 容器、部署、健康检查、截图
 
@@ -187,14 +190,17 @@
 
 先看：
 1. [src/routes/notifications.ts](/E:/AII/ugk-pi/src/routes/notifications.ts)
-2. [src/agent/notification-hub.ts](/E:/AII/ugk-pi/src/agent/notification-hub.ts)
-3. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
-4. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
-5. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
-6. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+2. [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
+3. [src/agent/notification-hub.ts](/E:/AII/ugk-pi/src/agent/notification-hub.ts)
+4. [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
+5. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+6. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+7. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
+8. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 
 适用问题：
 - conn 任务明明跑完了，但在线页面不弹实时提示
 - worker 广播地址在 Docker 里打到了自己
 - SSE 断线后页面不重连
 - 当前会话和非当前会话的提示表现不一致
+- conn 结果已经完成，但切换会话后只能靠全局活动找到

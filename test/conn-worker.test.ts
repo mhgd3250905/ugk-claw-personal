@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { AgentActivityStore } from "../src/agent/agent-activity-store.js";
 import { ConnDatabase } from "../src/agent/conn-db.js";
 import type { ConnRunRecord } from "../src/agent/conn-run-store.js";
 import { ConnRunStore } from "../src/agent/conn-run-store.js";
@@ -47,6 +48,7 @@ async function createWorker(runner: FakeRunner | FailingRunner): Promise<{
 	connStore: ConnSqliteStore;
 	runStore: ConnRunStore;
 	notificationStore: ConversationNotificationStore;
+	activityStore: AgentActivityStore;
 	broadcasts: NotificationBroadcastEvent[];
 	worker: ConnWorker;
 }> {
@@ -65,6 +67,7 @@ async function createWorkerWithOptions(
 	connStore: ConnSqliteStore;
 	runStore: ConnRunStore;
 	notificationStore: ConversationNotificationStore;
+	activityStore: AgentActivityStore;
 	broadcasts: NotificationBroadcastEvent[];
 	worker: ConnWorker;
 }> {
@@ -74,12 +77,14 @@ async function createWorkerWithOptions(
 	const connStore = new ConnSqliteStore({ database });
 	const runStore = new ConnRunStore({ database });
 	const notificationStore = new ConversationNotificationStore({ database });
+	const activityStore = new AgentActivityStore({ database });
 	const broadcasts: NotificationBroadcastEvent[] = [];
 	return {
 		database,
 		connStore,
 		runStore,
 		notificationStore,
+		activityStore,
 		broadcasts,
 		worker: new ConnWorker({
 			workerId: "worker-a",
@@ -87,6 +92,7 @@ async function createWorkerWithOptions(
 			connStore,
 			runStore,
 			notificationStore,
+			activityStore,
 			notificationBroadcaster: {
 				broadcast: async (event) => {
 					broadcasts.push(event);
@@ -102,7 +108,7 @@ async function createWorkerWithOptions(
 
 test("ConnWorker enqueues due conn runs, executes one claim, and creates a conversation notification", async () => {
 	const runner = new FakeRunner();
-	const { database, connStore, runStore, notificationStore, broadcasts, worker } = await createWorker(runner);
+	const { database, connStore, runStore, notificationStore, activityStore, broadcasts, worker } = await createWorker(runner);
 	const conn = await connStore.create({
 		title: "Daily Digest",
 		prompt: "Summarize",
@@ -155,13 +161,81 @@ test("ConnWorker enqueues due conn runs, executes one claim, and creates a conve
 			createdAt: "2026-04-21T10:01:05.000Z",
 		},
 	]);
+	assert.deepEqual(
+		(await activityStore.list()).map((activity) => ({
+			source: activity.source,
+			sourceId: activity.sourceId,
+			runId: activity.runId,
+			conversationId: activity.conversationId,
+			title: activity.title,
+			text: activity.text,
+		})),
+		[
+			{
+				source: "conn",
+				sourceId: conn.connId,
+				runId: runs[0].runId,
+				conversationId: "manual:conn",
+				title: "Daily Digest completed",
+				text: "result for Daily Digest",
+			},
+		],
+	);
+
+	database.close();
+});
+
+test("ConnWorker creates global activity for non-conversation targets without conversation notification", async () => {
+	const runner = new FakeRunner();
+	const { database, connStore, runStore, notificationStore, activityStore, broadcasts, worker } = await createWorker(runner);
+	const conn = await connStore.create({
+		title: "Feishu Digest",
+		prompt: "Summarize",
+		target: {
+			type: "feishu_chat",
+			chatId: "chat-1",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	await worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+
+	const runs = await runStore.listRunsForConn(conn.connId);
+	assert.equal(runs.length, 1);
+	assert.equal(runs[0].status, "running");
+	assert.deepEqual(await notificationStore.list("manual:conn"), []);
+	assert.deepEqual(broadcasts, []);
+	assert.deepEqual(
+		(await activityStore.list()).map((activity) => ({
+			source: activity.source,
+			sourceId: activity.sourceId,
+			runId: activity.runId,
+			conversationId: activity.conversationId,
+			title: activity.title,
+			text: activity.text,
+		})),
+		[
+			{
+				source: "conn",
+				sourceId: conn.connId,
+				runId: runs[0].runId,
+				conversationId: undefined,
+				title: "Feishu Digest completed",
+				text: "result for Feishu Digest",
+			},
+		],
+	);
 
 	database.close();
 });
 
 test("ConnWorker failure does not abort the tick loop and creates a failure notification", async () => {
 	const runner = new FailingRunner();
-	const { database, connStore, notificationStore, broadcasts, worker } = await createWorker(runner);
+	const { database, connStore, notificationStore, activityStore, broadcasts, worker } = await createWorker(runner);
 	const conn = await connStore.create({
 		title: "Daily Digest",
 		prompt: "Summarize",
@@ -210,6 +284,26 @@ test("ConnWorker failure does not abort the tick loop and creates a failure noti
 			createdAt: "2026-04-21T10:01:05.000Z",
 		},
 	]);
+	assert.deepEqual(
+		(await activityStore.list()).map((activity) => ({
+			source: activity.source,
+			sourceId: activity.sourceId,
+			runId: activity.runId,
+			conversationId: activity.conversationId,
+			title: activity.title,
+			text: activity.text,
+		})),
+		[
+			{
+				source: "conn",
+				sourceId: conn.connId,
+				runId: notifications[0]?.runId,
+				conversationId: "manual:conn",
+				title: "Daily Digest failed",
+				text: "boom",
+			},
+		],
+	);
 
 	database.close();
 });
@@ -420,7 +514,7 @@ test("ConnWorker fails runs that exceed conn maxRunMs and delivers a failure not
 				);
 			}),
 	};
-	const { database, connStore, runStore, notificationStore, broadcasts, worker } = await createWorkerWithOptions(runner, {
+	const { database, connStore, runStore, notificationStore, activityStore, broadcasts, worker } = await createWorkerWithOptions(runner, {
 		maxConcurrency: 1,
 	});
 
@@ -480,6 +574,26 @@ test("ConnWorker fails runs that exceed conn maxRunMs and delivers a failure not
 			createdAt: "2026-04-21T10:01:05.000Z",
 		},
 	]);
+	assert.deepEqual(
+		(await activityStore.list()).map((activity) => ({
+			source: activity.source,
+			sourceId: activity.sourceId,
+			runId: activity.runId,
+			conversationId: activity.conversationId,
+			title: activity.title,
+			text: activity.text,
+		})),
+		[
+			{
+				source: "conn",
+				sourceId: conn.connId,
+				runId: runs[0].runId,
+				conversationId: "manual:timeout",
+				title: "Timed Run failed",
+				text: "Conn run exceeded maxRunMs (25ms)",
+			},
+		],
+	);
 
 	database.close();
 });

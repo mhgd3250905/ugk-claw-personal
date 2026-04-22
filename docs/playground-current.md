@@ -1,6 +1,6 @@
 # Playground 当前状态
 
-更新时间：`2026-04-21`
+更新时间：`2026-04-22`
 
 这份文档只记录当前 `playground` 的真实前端约束，避免下一个人又拿旧截图和过时口径瞎猜。
 
@@ -20,11 +20,14 @@
 - 手机端顶部状态栏显示品牌 logo，并在右侧配套 `UGK Claw` 字标
 - 页面仍是单一 `landing` 壳子，通过 `data-transcript-state=idle|active` 切空态和会话态
 - 当前整体视觉基调已从偏冷蓝电子夜景收口为“深空黑 + 暗紫星云 + 冷白星尘”，蓝色只保留极弱余光，不再主导页面气质
+- 桌面端 landing 的工具入口已经从右侧纵向堆叠压缩为顶部紧凑工具栏；按钮只保留关键命令，减少首屏视觉负担。
+- 页面背景层数和 `backdrop-filter` 已收口，避免用多层半透明玻璃效果把每次滚动和重绘都变成性能税。
 
 ## 2. 消息区约束
 
 - 消息宽度跟随 composer 实际宽度，不依赖写死常量
 - transcript 只有在用户停留在底部附近时才自动跟随最新输出；用户明显上滑阅读历史时，`text_delta`、loading 和过程日志更新都不能强制滚到底部
+- 非强制滚底现在会做冷却合并；顶部加载历史的触发阈值也收窄到真正接近顶部，避免滚动过程中反复打断阅读。
 - 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
 - active 对话态的 `transcript-current` 底部必须保留额外可滚动余量，让最后一条消息能被用户继续上拖到 composer 上方，不被底部输入框压住
 - 当前 Web 入口采用“一个 agent、多个历史会话、一个全局当前会话”的模型；服务端维护 `currentConversationId`，不同浏览器 / 设备打开后都跟随这个当前会话
@@ -105,6 +108,18 @@
 - 这类 conn notification 只合并进前台可见对话，不写回前台 pi session history
 - notification 的 `source / sourceId / runId` 会跟着本地历史快照一起持久化，刷新页面后仍然能继续点开 run 详情；如果这三个字段又丢了，优先查 `normalizeHistoryEntry()` 和 `buildTranscriptEntry()`
 
+## 5.2 全局活动
+
+- `playground` 现在额外提供全局活动入口：桌面端 landing 右侧 `全局活动`，手机端右上角更多菜单里的 `全局活动`。
+- 全局活动读取 `GET /v1/activity?limit=50`，展示跨会话的 `agent_activity_items`，用于观察后台 conn 结果，不改变当前 conversation transcript 的上下文归属。
+- 这层是观察列表，不是新的聊天真源。当前会话仍然由 `GET /v1/chat/state` 驱动；conn 目标会话仍然收到原有 notification。
+- 活动条目里的来源、会话和文件信息现在也走人话口径：来源显示为 `后台任务 / 飞书 / 助手 / 通知`，会话显示为“来自 当前会话 / 指定会话”，文件显示为“附 N 个文件”。
+- `source=conn` 且带有 `sourceId + runId` 的 activity 条目会复用后台任务过程弹层，继续请求：
+  - `GET /v1/conns/:connId/runs/:runId`
+  - `GET /v1/conns/:connId/runs/:runId/events`
+- 收到 `/v1/notifications/stream` 广播后，页面会静默刷新全局活动列表；即使用户已经切到另一个会话，也能通过全局活动看到刚完成的 conn 结果。
+- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，真实实现入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，后端读模型入口是 [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts) 和 [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)。
+
 ## 6. 单工人多会话行为
 
 - 当前项目按“一个 agent 工人，多条历史产线，但同一时刻只有一条全局当前产线”收口
@@ -155,7 +170,7 @@
 - 这一节覆盖并取代之前“只是做适配”的旧说法；当前手机端不是压缩版桌面，而是保留现有逻辑后单独重写的移动展示层
 - 手机端继续沿用桌面端的深空黑 / 暗紫星云 / 冷白星尘视觉语言，但页面组织改成更接近原生聊天页的结构
 - 手机端当前统一视觉收口规则是：所有可见圆角一律压到 `4px`，不再混用 `12px / 14px / 16px`
-- 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧只保留 `新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库` 三项收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
+- 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧只保留 `新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库 / 后台任务 / 全局活动` 收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
 - 手机端品牌区点击后展开左侧历史会话抽屉，列表项展示标题、摘要、更新时间和消息数；列表项统一 `4px` 圆角，历史列表保留纵向滚动但隐藏侧边滚动条；抽屉右侧只保留透明点击遮罩用于关闭，不再叠加暗色或模糊背景；运行中禁止切换，避免一个 agent 工人被硬拽到另一条产线
 - `新会话` 按钮现在走 `POST /v1/chat/conversations` 创建新的服务端会话并激活为 `currentConversationId`；不再 reset 旧会话，也不再只清本地 transcript
 - `landing-screen` 在手机端直接隐藏，不再让 hero、大标题和装饰块继续吞掉首屏高度
@@ -229,14 +244,40 @@
 - `GET /v1/chat/conversations` 现在会把后台 `notification` 合并进会话目录的 `preview`、`messageCount` 与 `updatedAt`，不再只依赖 `conversationStore` 里那份旧快照。
 - 当最新的 `conn` notification 比目录里的旧消息更新时，左侧会话列表摘要会优先显示通知正文摘要，并把这条会话顶到更靠前的位置。
 - 这层目录合并只影响列表展示口径，不会把 notification 反写进 session history；真正正文仍以 `GET /v1/chat/state` 的 canonical conversation state 为准。
+
+## Frontend Performance Budget
+
+- 发送消息时，如果前端已经持有 `conversationId`，不再每次串行等待 `GET /v1/chat/conversations` 和 `GET /v1/chat/state` 预检完成；消息先进入 `/v1/chat/stream`，会话目录改为后台静默刷新。
+- composer 输入仍即时调整高度，但 context usage 估算改成 debounce，避免每个按键都触发完整占用量重算。
+- `visibilitychange`、`pageshow`、`online` 现在统一走 `scheduleResumeConversationSync()` 做去重和冷却，不再三处各自拉取 catalog/state。
+- layout 同步集中到 `scheduleConversationLayoutSync()`；`ResizeObserver` 只观察 composer 容器，不再盯住大面积页面节点。
+- 本地历史快照写入 `localStorage` 改为 debounce，并在 `pagehide` / `beforeunload` 前 flush；这层缓存只服务冷启动，不是运行真源。
+- 背景和玻璃效果已减负：删除重型 `backdrop-filter: blur(...)`，背景从多层径向堆叠收口为少量层次。
  
 ## Conn Manager
 
 - `playground` 现在提供后台任务管理入口：桌面端 landing 右侧 `后台任务`，手机端右上角更多菜单里的 `后台任务`。
 - 管理弹层使用 `conn-manager-dialog` / `conn-manager-list`，打开时读取 `GET /v1/conns`，并为每个 conn 读取 `GET /v1/conns/:connId/runs` 展示最近 3 条 run。
+- 管理弹层提供 `新建` 入口，每条 conn 提供 `编辑` 入口；编辑器使用 `conn-editor-dialog` / `conn-editor-form`，调用 `POST /v1/conns` 或 `PATCH /v1/conns/:connId`。
+- conn 创建 / 编辑器默认只露出常用字段：标题、`让它做什么`、`结果发到哪里`、调度和保存。编号输入只在选择“指定会话 / 飞书”时出现。
+- 调度入口只保留三种：`定时执行`、`间隔执行`、`每日执行`。前端负责把这三种映射回后端 `once / interval / cron` payload，创建时不再让用户接触 cron 细节。
+- conn 编辑器覆盖标题、prompt、投递目标、调度策略和高级运行字段：
+  - 目标支持当前会话、指定 conversation、`feishu_chat`、`feishu_user`。
+- 调度区只保留三种模式：`定时执行`、`间隔执行`、`每日执行`。前端仍然映射回后端 `once / interval / cron`，但不再把 cron、工作日、每周这些复杂概念直接甩给用户。
+- 三种模式对应的输入也固定下来：`定时执行` 只填 `执行时间`；`间隔执行` 只填 `首次执行时间` 和 `间隔（分钟）`；`每日执行` 只填 `每日执行时间`。
+- `每日执行时间` 解析现在兼容浏览器 `input[type=time]` 可能返回的 `HH:mm` 与 `HH:mm:ss`，保存时不会再因为模板脚本里的正则转义丢失而误报“请填写每日执行时间”。
+  - 高级字段默认收进 `高级设置`，用户可见名称分别是 `任务身份`、`执行模板`、`能力包`、`模型策略`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `profileId`、`agentSpecId`、`skillSetId`、`modelPolicyId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。
+- 目标选择区现在会显示 `conn-editor-target-preview`：把将要投递的目标会话 / 飞书目标、目标编号和“切换新会话不会改写已保存目标”的口径直接展示出来，别再靠猜。
+- 保存成功后，管理器会显示 `conn-manager-notice`，说明已创建 / 已更新的 conn 会投递到哪里，并高亮对应条目。
+- conn 列表里的最近 run 默认折叠为一行 `conn-manager-run-summary`；需要查证据时再展开最近 3 条 run，避免管理面变成一堵日志墙。
+- 后台任务列表现在按三行人话信息展示：`结果发到`、`执行方式`、`运行节奏`。不再直接向用户暴露 `target / schedule / next / last / maxRunMs` 这类后台字段名。
+- 列表状态与最近 run 结果统一显示为中文口径：`运行中 / 已暂停 / 已完成`、`待执行 / 执行中 / 成功 / 失败 / 已取消`，避免用户自己翻译状态码。
+- 目标归属不要再脑补成“当前打开哪个会话就往哪个会话冒泡”。conn 创建 / 编辑时固化的目标会话会收到气泡；全局活动只负责跨会话观察，不替代 conversation transcript。
+- 管理器顶部提供状态筛选和批量工具：`conn-manager-filter` 按全部 / 运行中 / 已暂停 / 已完成过滤；`选择当前` 会选择当前筛选结果；`删除所选` 调用 `POST /v1/conns/bulk-delete`，用于一次清理多条测试 conn。
 - 每个 conn 支持：
   - `立即执行`：调用 `POST /v1/conns/:connId/run`，只创建 pending run，不调用前台 agent。
   - `暂停` / `恢复`：按当前 `conn.status` 调用 `POST /v1/conns/:connId/pause` 或 `POST /v1/conns/:connId/resume`。
+  - `删除`：二次确认后调用 `DELETE /v1/conns/:connId`。当前后端是硬删除，SQLite 外键会级联删除该 conn 的 run / event / file 记录，并主动清理该 conn 对应的 notification / activity 脏引用；这是用来清测试任务的，不要误当成归档。
   - 最近 run 的 `查看`：复用后台任务过程弹层，继续请求 run detail 和 events。
 - 前台 agent 正在运行时不会禁用后台任务管理入口；conn 是独立 worker 处理的后台产线，不该被前台聊天 loading 卡住。真要把它绑死，那前面架构白做，属于自己给自己挖坑。
 - 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，真实实现入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)。

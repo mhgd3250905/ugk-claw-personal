@@ -4,6 +4,8 @@ import { join } from "node:path";
 import type { ConnRunEventRecord, ConnRunFileRecord, ConnRunRecord } from "../agent/conn-run-store.js";
 import type { ConnDefinition, ConnSchedule, ConnTarget } from "../agent/conn-store.js";
 import type {
+	ConnBulkDeleteRequestBody,
+	ConnBulkDeleteResponseBody,
 	ConnDetailResponseBody,
 	ConnListResponseBody,
 	ConnRunDetailResponseBody,
@@ -55,6 +57,7 @@ interface ConnStoreLike {
 		>,
 	): Promise<ConnDefinition | undefined>;
 	delete(connId: string): Promise<boolean>;
+	deleteMany?(connIds: readonly string[]): Promise<ConnBulkDeleteResponseBody>;
 	pause(connId: string): Promise<ConnDefinition | undefined>;
 	resume(connId: string): Promise<ConnDefinition | undefined>;
 }
@@ -213,6 +216,154 @@ function parseMaxRunMs(value: unknown): { value?: number; error?: string } {
 	return { value: Math.trunc(value) };
 }
 
+function parseConnIdList(value: unknown): { connIds?: string[]; error?: string } {
+	if (!Array.isArray(value)) {
+		return { error: 'Field "connIds" must be an array' };
+	}
+	const connIds: string[] = [];
+	for (const [index, entry] of value.entries()) {
+		if (!isNonEmptyString(entry)) {
+			return { error: `connIds[${index}] must be a non-empty string` };
+		}
+		const connId = entry.trim();
+		if (!connIds.includes(connId)) {
+			connIds.push(connId);
+		}
+	}
+	if (connIds.length === 0) {
+		return { error: 'Field "connIds" must include at least one id' };
+	}
+	if (connIds.length > 100) {
+		return { error: 'Field "connIds" must include at most 100 ids' };
+	}
+	return { connIds };
+}
+
+function parseTrimmedTextField(
+	value: unknown,
+	fieldName: string,
+	options: { required?: boolean } = {},
+): { value?: string; error?: string } {
+	if (value === undefined) {
+		if (options.required) {
+			return { error: `Field "${fieldName}" must be a non-empty string` };
+		}
+		return {};
+	}
+	if (!isNonEmptyString(value)) {
+		return {
+			error: `Field "${fieldName}" must be a non-empty string${options.required ? "" : " when provided"}`,
+		};
+	}
+	return { value: value.trim() };
+}
+
+interface ParsedConnMutationBody {
+	title?: string;
+	prompt?: string;
+	target?: ConnTarget;
+	schedule?: ConnSchedule;
+	assetRefs?: string[];
+	profileId?: string;
+	agentSpecId?: string;
+	skillSetId?: string;
+	modelPolicyId?: string;
+	upgradePolicy?: "latest" | "pinned" | "manual";
+	maxRunMs?: number;
+}
+
+async function parseConnMutationBody(
+	body: Record<string, unknown>,
+	options: {
+		requireTitle?: boolean;
+		requirePrompt?: boolean;
+		requireSchedule?: boolean;
+		resolveDefaultTarget?: boolean;
+		getCurrentConversationId?: () => Promise<string>;
+	},
+): Promise<{ value?: ParsedConnMutationBody; error?: string }> {
+	const parsed: ParsedConnMutationBody = {};
+
+	const parsedTitle = parseTrimmedTextField(body.title, "title", { required: options.requireTitle });
+	if (parsedTitle.error) {
+		return { error: parsedTitle.error };
+	}
+	if (parsedTitle.value !== undefined) {
+		parsed.title = parsedTitle.value;
+	}
+
+	const parsedPrompt = parseTrimmedTextField(body.prompt, "prompt", { required: options.requirePrompt });
+	if (parsedPrompt.error) {
+		return { error: parsedPrompt.error };
+	}
+	if (parsedPrompt.value !== undefined) {
+		parsed.prompt = parsedPrompt.value;
+	}
+
+	if (body.target === undefined) {
+		if (options.resolveDefaultTarget) {
+			if (!options.getCurrentConversationId) {
+				return { error: 'Field "target" is invalid' };
+			}
+			const parsedTarget = await resolveCreateTarget(undefined, options.getCurrentConversationId);
+			if (parsedTarget.error) {
+				return { error: parsedTarget.error };
+			}
+			parsed.target = parsedTarget.target;
+		}
+	} else {
+		const parsedTarget = parseTarget(body.target);
+		if (parsedTarget.error) {
+			return { error: parsedTarget.error };
+		}
+		parsed.target = parsedTarget.target;
+	}
+
+	if (body.schedule !== undefined || options.requireSchedule) {
+		const parsedSchedule = parseSchedule(body.schedule);
+		if (parsedSchedule.error) {
+			return { error: parsedSchedule.error };
+		}
+		parsed.schedule = parsedSchedule.schedule;
+	}
+
+	const parsedAssetRefs = parseAssetRefs(body.assetRefs);
+	if (parsedAssetRefs.error) {
+		return { error: parsedAssetRefs.error };
+	}
+	if (body.assetRefs !== undefined) {
+		parsed.assetRefs = parsedAssetRefs.assetRefs ?? [];
+	}
+
+	for (const fieldName of ["profileId", "agentSpecId", "skillSetId", "modelPolicyId"] as const) {
+		const parsedOptionalId = parseOptionalId(body[fieldName], fieldName);
+		if (parsedOptionalId.error) {
+			return { error: parsedOptionalId.error };
+		}
+		if (body[fieldName] !== undefined) {
+			parsed[fieldName] = parsedOptionalId.value;
+		}
+	}
+
+	const parsedUpgradePolicy = parseUpgradePolicy(body.upgradePolicy);
+	if (parsedUpgradePolicy.error) {
+		return { error: parsedUpgradePolicy.error };
+	}
+	if (body.upgradePolicy !== undefined) {
+		parsed.upgradePolicy = parsedUpgradePolicy.value;
+	}
+
+	const parsedMaxRunMs = parseMaxRunMs(body.maxRunMs);
+	if (parsedMaxRunMs.error) {
+		return { error: parsedMaxRunMs.error };
+	}
+	if (body.maxRunMs !== undefined) {
+		parsed.maxRunMs = parsedMaxRunMs.value;
+	}
+
+	return { value: parsed };
+}
+
 export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptions): void {
 	app.get("/v1/conns", async (): Promise<ConnListResponseBody> => {
 		return {
@@ -272,61 +423,29 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 	app.post("/v1/conns", async (request: FastifyRequest<{ Body: Record<string, unknown> }>, reply) => {
 		try {
 			const body = request.body ?? {};
-			if (!isNonEmptyString(body.title)) {
-				return sendBadRequest(reply, 'Field "title" must be a non-empty string');
-			}
-			if (!isNonEmptyString(body.prompt)) {
-				return sendBadRequest(reply, 'Field "prompt" must be a non-empty string');
-			}
-			const parsedTarget = await resolveCreateTarget(body.target, options.getCurrentConversationId);
-			if (parsedTarget.error) {
-				return sendBadRequest(reply, parsedTarget.error);
-			}
-			const parsedSchedule = parseSchedule(body.schedule);
-			if (parsedSchedule.error) {
-				return sendBadRequest(reply, parsedSchedule.error);
-			}
-			const parsedAssetRefs = parseAssetRefs(body.assetRefs);
-			if (parsedAssetRefs.error) {
-				return sendBadRequest(reply, parsedAssetRefs.error);
-			}
-			const parsedProfileId = parseOptionalId(body.profileId, "profileId");
-			if (parsedProfileId.error) {
-				return sendBadRequest(reply, parsedProfileId.error);
-			}
-			const parsedAgentSpecId = parseOptionalId(body.agentSpecId, "agentSpecId");
-			if (parsedAgentSpecId.error) {
-				return sendBadRequest(reply, parsedAgentSpecId.error);
-			}
-			const parsedSkillSetId = parseOptionalId(body.skillSetId, "skillSetId");
-			if (parsedSkillSetId.error) {
-				return sendBadRequest(reply, parsedSkillSetId.error);
-			}
-			const parsedModelPolicyId = parseOptionalId(body.modelPolicyId, "modelPolicyId");
-			if (parsedModelPolicyId.error) {
-				return sendBadRequest(reply, parsedModelPolicyId.error);
-			}
-			const parsedUpgradePolicy = parseUpgradePolicy(body.upgradePolicy);
-			if (parsedUpgradePolicy.error) {
-				return sendBadRequest(reply, parsedUpgradePolicy.error);
-			}
-			const parsedMaxRunMs = parseMaxRunMs(body.maxRunMs);
-			if (parsedMaxRunMs.error) {
-				return sendBadRequest(reply, parsedMaxRunMs.error);
+			const parsed = await parseConnMutationBody(body, {
+				requireTitle: true,
+				requirePrompt: true,
+				requireSchedule: true,
+				resolveDefaultTarget: true,
+				getCurrentConversationId: options.getCurrentConversationId,
+			});
+			if (parsed.error) {
+				return sendBadRequest(reply, parsed.error);
 			}
 
 			const conn = await options.connStore.create({
-				title: body.title.trim(),
-				prompt: body.prompt.trim(),
-				target: parsedTarget.target!,
-				schedule: parsedSchedule.schedule!,
-				assetRefs: parsedAssetRefs.assetRefs,
-				...(parsedMaxRunMs.value !== undefined ? { maxRunMs: parsedMaxRunMs.value } : {}),
-				profileId: parsedProfileId.value,
-				agentSpecId: parsedAgentSpecId.value,
-				skillSetId: parsedSkillSetId.value,
-				modelPolicyId: parsedModelPolicyId.value,
-				upgradePolicy: parsedUpgradePolicy.value,
+				title: parsed.value!.title!,
+				prompt: parsed.value!.prompt!,
+				target: parsed.value!.target!,
+				schedule: parsed.value!.schedule!,
+				assetRefs: parsed.value!.assetRefs,
+				...(parsed.value!.maxRunMs !== undefined ? { maxRunMs: parsed.value!.maxRunMs } : {}),
+				profileId: parsed.value!.profileId,
+				agentSpecId: parsed.value!.agentSpecId,
+				skillSetId: parsed.value!.skillSetId,
+				modelPolicyId: parsed.value!.modelPolicyId,
+				upgradePolicy: parsed.value!.upgradePolicy,
 			});
 			return reply.status(201).send({ conn } satisfies ConnDetailResponseBody);
 		} catch (error) {
@@ -334,59 +453,50 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 		}
 	});
 
+	app.post(
+		"/v1/conns/bulk-delete",
+		async (request: FastifyRequest<{ Body: ConnBulkDeleteRequestBody }>, reply): Promise<ConnBulkDeleteResponseBody | FastifyReply> => {
+			const parsed = parseConnIdList(request.body?.connIds);
+			if (parsed.error) {
+				return sendBadRequest(reply, parsed.error);
+			}
+			if (options.connStore.deleteMany) {
+				return await options.connStore.deleteMany(parsed.connIds!);
+			}
+			const deletedConnIds: string[] = [];
+			const missingConnIds: string[] = [];
+			for (const connId of parsed.connIds!) {
+				if (await options.connStore.delete(connId)) {
+					deletedConnIds.push(connId);
+				} else {
+					missingConnIds.push(connId);
+				}
+			}
+			return { deletedConnIds, missingConnIds };
+		},
+	);
+
 	app.patch("/v1/conns/:connId", async (request: FastifyRequest<{ Body: Record<string, unknown> }>, reply) => {
 		const { connId } = request.params as { connId: string };
 		const body = request.body ?? {};
-		const parsedTarget = body.target !== undefined ? parseTarget(body.target) : {};
-		if ("error" in parsedTarget && parsedTarget.error) {
-			return sendBadRequest(reply, parsedTarget.error);
-		}
-		const parsedSchedule = body.schedule !== undefined ? parseSchedule(body.schedule) : {};
-		if ("error" in parsedSchedule && parsedSchedule.error) {
-			return sendBadRequest(reply, parsedSchedule.error);
-		}
-		const parsedAssetRefs = parseAssetRefs(body.assetRefs);
-		if (parsedAssetRefs.error) {
-			return sendBadRequest(reply, parsedAssetRefs.error);
-		}
-		const parsedProfileId = parseOptionalId(body.profileId, "profileId");
-		if (parsedProfileId.error) {
-			return sendBadRequest(reply, parsedProfileId.error);
-		}
-		const parsedAgentSpecId = parseOptionalId(body.agentSpecId, "agentSpecId");
-		if (parsedAgentSpecId.error) {
-			return sendBadRequest(reply, parsedAgentSpecId.error);
-		}
-		const parsedSkillSetId = parseOptionalId(body.skillSetId, "skillSetId");
-		if (parsedSkillSetId.error) {
-			return sendBadRequest(reply, parsedSkillSetId.error);
-		}
-		const parsedModelPolicyId = parseOptionalId(body.modelPolicyId, "modelPolicyId");
-		if (parsedModelPolicyId.error) {
-			return sendBadRequest(reply, parsedModelPolicyId.error);
-		}
-		const parsedUpgradePolicy = parseUpgradePolicy(body.upgradePolicy);
-		if (parsedUpgradePolicy.error) {
-			return sendBadRequest(reply, parsedUpgradePolicy.error);
-		}
-		const parsedMaxRunMs = parseMaxRunMs(body.maxRunMs);
-		if (parsedMaxRunMs.error) {
-			return sendBadRequest(reply, parsedMaxRunMs.error);
+		const parsed = await parseConnMutationBody(body, {});
+		if (parsed.error) {
+			return sendBadRequest(reply, parsed.error);
 		}
 
 		try {
 			const conn = await options.connStore.update(connId, {
-				...(isNonEmptyString(body.title) ? { title: body.title.trim() } : {}),
-				...(isNonEmptyString(body.prompt) ? { prompt: body.prompt.trim() } : {}),
-				...(parsedTarget.target ? { target: parsedTarget.target } : {}),
-				...(parsedSchedule.schedule ? { schedule: parsedSchedule.schedule } : {}),
-				...(body.assetRefs !== undefined ? { assetRefs: parsedAssetRefs.assetRefs ?? [] } : {}),
-				...(body.profileId !== undefined ? { profileId: parsedProfileId.value } : {}),
-				...(body.agentSpecId !== undefined ? { agentSpecId: parsedAgentSpecId.value } : {}),
-				...(body.skillSetId !== undefined ? { skillSetId: parsedSkillSetId.value } : {}),
-				...(body.modelPolicyId !== undefined ? { modelPolicyId: parsedModelPolicyId.value } : {}),
-				...(body.upgradePolicy !== undefined ? { upgradePolicy: parsedUpgradePolicy.value } : {}),
-				...(body.maxRunMs !== undefined ? { maxRunMs: parsedMaxRunMs.value } : {}),
+				...(parsed.value!.title !== undefined ? { title: parsed.value!.title } : {}),
+				...(parsed.value!.prompt !== undefined ? { prompt: parsed.value!.prompt } : {}),
+				...(parsed.value!.target ? { target: parsed.value!.target } : {}),
+				...(parsed.value!.schedule ? { schedule: parsed.value!.schedule } : {}),
+				...(body.assetRefs !== undefined ? { assetRefs: parsed.value!.assetRefs ?? [] } : {}),
+				...(body.profileId !== undefined ? { profileId: parsed.value!.profileId } : {}),
+				...(body.agentSpecId !== undefined ? { agentSpecId: parsed.value!.agentSpecId } : {}),
+				...(body.skillSetId !== undefined ? { skillSetId: parsed.value!.skillSetId } : {}),
+				...(body.modelPolicyId !== undefined ? { modelPolicyId: parsed.value!.modelPolicyId } : {}),
+				...(body.upgradePolicy !== undefined ? { upgradePolicy: parsed.value!.upgradePolicy } : {}),
+				...(body.maxRunMs !== undefined ? { maxRunMs: parsed.value!.maxRunMs } : {}),
 			});
 			if (!conn) {
 				return reply.status(404).send();

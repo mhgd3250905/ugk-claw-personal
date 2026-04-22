@@ -96,6 +96,102 @@ test("ConnSqliteStore updates, pauses, resumes, and deletes conn definitions", a
 	database.close();
 });
 
+test("ConnSqliteStore hard delete removes stale conn notifications and activity items", async () => {
+	const { store, database } = await createConnSqliteStore();
+	const created = await store.create({
+		title: "test cleanup",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	database.run(
+		"INSERT INTO conversation_notifications (notification_id, conversation_id, source, source_id, run_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"notice-1",
+		"manual:conn",
+		"conn",
+		created.connId,
+		"run-1",
+		"conn_result",
+		"done",
+		"ok",
+		"[]",
+		"2026-04-21T10:01:00.000Z",
+	);
+	database.run(
+		"INSERT INTO agent_activity_items (activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"activity-1",
+		"agent",
+		"conn",
+		created.connId,
+		"run-1",
+		"manual:conn",
+		"conn_result",
+		"done",
+		"ok",
+		"[]",
+		"2026-04-21T10:01:00.000Z",
+	);
+
+	assert.equal(await store.delete(created.connId), true);
+	assert.equal(
+		database.get<{ notification_id: string }>("SELECT notification_id FROM conversation_notifications WHERE source_id = ?", created.connId),
+		undefined,
+	);
+	assert.equal(
+		database.get<{ activity_id: string }>("SELECT activity_id FROM agent_activity_items WHERE source_id = ?", created.connId),
+		undefined,
+	);
+
+	database.close();
+});
+
+test("ConnSqliteStore bulk delete reports deleted and missing conn ids", async () => {
+	const { store, database } = await createConnSqliteStore();
+	const first = await store.create({
+		title: "first",
+		prompt: "run",
+		target: {
+			type: "conversation",
+			conversationId: "manual:first",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+	});
+	const second = await store.create({
+		title: "second",
+		prompt: "run",
+		target: {
+			type: "conversation",
+			conversationId: "manual:second",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+	});
+
+	const result = await store.deleteMany([first.connId, "missing", first.connId, second.connId]);
+
+	assert.deepEqual(result, {
+		deletedConnIds: [first.connId, second.connId],
+		missingConnIds: ["missing"],
+	});
+	assert.equal(await store.get(first.connId), undefined);
+	assert.equal(await store.get(second.connId), undefined);
+
+	database.close();
+});
+
 test("ConnSqliteStore rejects invalid schedules with a clear validation error", async () => {
 	const { store, database } = await createConnSqliteStore();
 

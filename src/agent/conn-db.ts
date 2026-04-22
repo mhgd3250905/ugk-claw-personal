@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 export const CONN_DATABASE_TABLES = [
+	"agent_activity_items",
 	"conns",
 	"conn_runs",
 	"conn_run_events",
@@ -236,10 +237,28 @@ CREATE TABLE IF NOT EXISTS conversation_notifications (
 	UNIQUE (source, source_id, run_id)
 );
 
+CREATE TABLE IF NOT EXISTS agent_activity_items (
+	activity_id TEXT PRIMARY KEY,
+	scope TEXT NOT NULL,
+	source TEXT NOT NULL,
+	source_id TEXT NOT NULL,
+	run_id TEXT,
+	conversation_id TEXT,
+	kind TEXT NOT NULL,
+	title TEXT NOT NULL,
+	text TEXT NOT NULL,
+	files_json TEXT NOT NULL DEFAULT '[]',
+	created_at TEXT NOT NULL,
+	read_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_conns_next_run_at ON conns(status, next_run_at);
 CREATE INDEX IF NOT EXISTS idx_conn_runs_conn_id ON conn_runs(conn_id, scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_conn_runs_claim ON conn_runs(status, lease_until, scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_conn_run_events_run_id ON conn_run_events(run_id, seq);
 CREATE INDEX IF NOT EXISTS idx_conn_run_files_run_id ON conn_run_files(run_id, kind);
 CREATE INDEX IF NOT EXISTS idx_conversation_notifications_conversation_id ON conversation_notifications(conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_agent_activity_created_at ON agent_activity_items(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_activity_conversation_id ON agent_activity_items(conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_activity_source_run ON agent_activity_items(source, source_id, run_id);
 `;

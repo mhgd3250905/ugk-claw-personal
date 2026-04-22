@@ -1,12 +1,13 @@
 # Runtime / Assets / Conn / Feishu
 
-更新时间：`2026-04-21`
+更新时间：`2026-04-22`
 
 这份文档只讲四类运行能力：
 
 - 文件上传与统一资产库
 - `assetRefs`、`ugk-file`、`send_file`
 - `conn` 定时 / 周期任务
+- Agent Activity 全局活动时间线
 - Feishu webhook 接入
 
 如果你要查 playground 视觉和交互，去看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
@@ -128,6 +129,21 @@ playground 卡片当前规则：
 
 这些字段的作用是让后台 worker 在真正执行时，按 ID 解析当前 agent 规范、skill 集和模型策略，而不是把整套运行时定义硬编码进 conn 本身。
 
+playground 现在可以直接创建和编辑 `conn`，表单字段会映射到同一套后端定义：
+- `title` / `prompt`：后台任务名称和执行输入。
+- `prompt` 继续由用户直接填写，作为后台任务的真实执行说明。
+- `target`：支持当前服务端会话、指定 `conversationId`、`feishu_chat` 和 `feishu_user`；目标在创建 / 编辑时固化，后续切换当前会话不会改变历史 conn 的投递归属。
+- 目标预览：playground 会在编辑器里展示目标摘要和目标编号。conversation 目标会提示“结果气泡只进入这个会话”；飞书目标会提示“通过飞书 adapter 发送，全局活动仍保留追溯记录”。
+- 默认表单只展示常用字段，目标编号、调度细节和高级设置按需展开；不要再把 profile / skill / model policy 一上来甩给用户，界面不是飞控面板。
+- 时间配置收口成三种：`定时执行`、`间隔执行`、`每日执行`。playground 仍会映射成后端真正使用的 `once / interval / cron`，但界面不再暴露 cron、工作日或每周这些额外分支。
+- 三种模式的表单固定为：`定时执行` -> `执行时间`；`间隔执行` -> `首次执行时间 + 间隔（分钟）`；`每日执行` -> `每日执行时间`。
+- 后台任务列表的主要摘要已经收口为 `结果发到 / 执行方式 / 运行节奏` 三行口径，不再直接把 `target / schedule / next / last / maxRunMs` 这类字段名扔给使用者。
+- 全局活动里的来源、会话和文件摘要也统一成人话：来源显示为 `后台任务 / 飞书 / 助手 / 通知`，会话显示为“来自 当前会话 / 指定会话”，文件显示为“附 N 个文件”。
+- `schedule`：支持 `once`、`interval`、`cron`；`interval` 表单按分钟输入，落库仍是毫秒。
+- `maxRunMs`：表单按秒输入，提交时转换成毫秒；空值表示不设置单次运行上限。
+- `assetRefs`：用户侧文案叫“附加资料”，表单按“一行一个 assetId”输入，提交为数组，供后台 workspace 快照输入文件。
+- `profileId` / `agentSpecId` / `skillSetId` / `modelPolicyId` / `upgradePolicy`：在界面上分别叫“任务身份 / 执行模板 / 能力包 / 模型策略 / 版本跟随方式”，底层仍作为运行时索引字段传给 worker 解析快照。
+
 `cron` 调度当前支持显式 `timezone`：
 
 ```json
@@ -167,9 +183,11 @@ Run 查询接口：
 - [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
 - [src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)
 - [src/agent/conn-run-store.ts](/E:/AII/ugk-pi/src/agent/conn-run-store.ts)
+- [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
 - [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
 - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
 - [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
+- [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
 
 ## 7. Feishu
 
@@ -270,9 +288,35 @@ GET /v1/local-file?path=...
 - `playground` 现在有可视化后台任务管理面：桌面端首页右侧 `后台任务`，手机端右上角更多菜单里的 `后台任务`。
 - 管理面只复用现有后端 API，不改变调度模型：
   - `GET /v1/conns` 读取 conn 列表
+  - `POST /v1/conns` 创建 conn
+  - `PATCH /v1/conns/:connId` 更新 conn
   - `GET /v1/conns/:connId/runs` 读取最近 run
   - `POST /v1/conns/:connId/run` 手动入队一次 run
   - `POST /v1/conns/:connId/pause` 暂停调度
   - `POST /v1/conns/:connId/resume` 恢复调度
+  - `DELETE /v1/conns/:connId` 删除 conn
+  - `POST /v1/conns/bulk-delete` 批量删除 conn，入参是去重后的 `connIds`
+- `POST /v1/conns` 与 `PATCH /v1/conns/:connId` 现在共用同一套 payload 解析逻辑：创建时统一 trim 文本并按当前服务端会话补默认 `target`；编辑时如果显式传入 `title` 或 `prompt`，则必须是去空白后仍非空的字符串，不再把空白值默默吞掉。
+- 当前删除是硬删除：`conns` 删除后会通过外键级联删除该 conn 的 run / event / file 记录；`ConnSqliteStore` 也会主动清理 `source=conn` 且 `source_id=<connId>` 的 conversation notification 和全局 activity，避免测试任务删掉后还在活动流里留下点不开的脏引用。这个入口主要用于清测试任务，正式任务要归档时别拿它冒充软删除。
+- 保存成功后，管理面会保留一条状态提示并高亮对应 conn；最近 run 历史默认折叠，只展示最新状态摘要，需要排障时再展开。
+- 管理面现在有状态筛选、选择当前、清空选择和删除所选，用来批量清掉测试 conn；单个正式任务仍建议先暂停确认，再决定是否硬删。
 - 前台 agent 正在运行时，管理面仍可打开和操作；这是刻意保留的解耦行为。conn worker 是否执行、执行到哪里，仍以 SQLite run 状态和 worker 日志为准。
 - 从管理面点 `查看` 会复用 `conn` run 详情弹层，请求 `GET /v1/conns/:connId/runs/:runId` 和 `/events`，用于追溯 workspace、结果、文件和事件。
+
+## Agent Activity Timeline
+
+- `agent_activity_items` 是跨会话的全局活动读模型，不替代 conversation transcript。别把主聊天流硬改成“全局伪对话”，那是把上下文和观察层搅成一锅，后面一定会炸。
+- `conn-worker` 对所有终态 conn run 都会 best-effort 写入一条 `agent_activity_items`；如果目标是 conversation，才额外写入目标 `conversation_notifications`。成功、失败和超时结果都会进入全局活动。
+- activity item 保留 `source / sourceId / runId / conversationId / title / text / files / createdAt / readAt`。其中 `source=conn` 且带有 `sourceId + runId` 的条目可以继续打开原有 conn run detail。
+- API：
+  - `GET /v1/activity?limit=50`：按时间倒序读取全局活动，支持 `limit`、`conversationId`、`before`。
+  - `POST /v1/activity/:activityId/read`：标记活动已读。
+- `playground` 桌面端首页右侧新增 `全局活动`，手机端更多菜单新增 `全局活动`。打开后读取 `/v1/activity?limit=50`，并从条目跳转到已有的后台任务过程弹层。
+- 实时广播到达时，页面会刷新 activity 列表；即便当前会话不是 conn 的目标会话，也能在全局活动里看到结果。在线 toast 仍只是提醒层，真实记录以 SQLite activity 表为准。
+- 关键入口：
+  - [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
+  - [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
+  - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/agent-activity-store.test.ts](/E:/AII/ugk-pi/test/agent-activity-store.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)

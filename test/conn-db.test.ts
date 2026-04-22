@@ -56,6 +56,42 @@ test("ConnDatabase enables WAL mode and busy timeout for worker-safe multi-proce
 	database.close();
 });
 
+test("ConnDatabase initializes the agent activity timeline schema", async () => {
+	const dbPath = await createTempDbPath();
+	const database = new ConnDatabase({ dbPath });
+
+	await database.initialize();
+
+	assert.equal(database.listTableNames().includes("agent_activity_items"), true);
+	assert.equal(database.listTableNames().includes("conversation_notifications"), true);
+
+	const activityColumns = database.all<{ name: string }>("PRAGMA table_info(agent_activity_items)");
+	assert.deepEqual(
+		activityColumns.map((column) => column.name),
+		[
+			"activity_id",
+			"scope",
+			"source",
+			"source_id",
+			"run_id",
+			"conversation_id",
+			"kind",
+			"title",
+			"text",
+			"files_json",
+			"created_at",
+			"read_at",
+		],
+	);
+
+	const indexes = database.all<{ name: string }>("PRAGMA index_list(agent_activity_items)");
+	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_created_at"), true);
+	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_conversation_id"), true);
+	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_source_run"), true);
+
+	database.close();
+});
+
 test("ConnDatabase migrates an existing legacy database into a new runtime path when configured", async () => {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-conn-db-migrate-"));
 	const legacyDbPath = join(root, "legacy", "conn.sqlite");

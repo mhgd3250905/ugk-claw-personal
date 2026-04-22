@@ -12,6 +12,66 @@
 
 ## 2026-04-22
 
+### Conn 路由解析收口与编辑校验补齐
+- 日期：2026-04-22
+- 主题：把 `POST /v1/conns` 与 `PATCH /v1/conns/:connId` 里重复的 payload 解析收成一套，并补上编辑接口对空白 `title / prompt` 的显式校验，避免传了空白值却被路由悄悄当成“没改”吞掉。
+- 影响范围：`src/routes/conns.ts` 新增统一的 conn mutation 解析逻辑，创建与编辑共享 `title / prompt / target / schedule / assetRefs / runtime policy / maxRunMs` 校验；创建继续支持按当前服务端会话补默认目标；编辑在显式传入空白 `title` 或 `prompt` 时返回 `400`；`test/server.test.ts` 新增 PATCH 回归用例；`docs/runtime-assets-conn-feishu.md` 同步接口口径。
+- 对应入口：[src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn 列表与活动口径收口
+- 日期：2026-04-22
+- 主题：继续给 conn 管理界面减负，把后台任务列表和全局活动里的机器口径收成用户能直接读懂的人话，同时顺手清理 `playground` 里 conn 渲染辅助函数的职责边界。
+- 影响范围：`src/ui/playground.ts` 为 conn 状态、run 状态、执行方式、结果目标和运行节奏补统一的说明函数；后台任务列表改成 `结果发到 / 执行方式 / 运行节奏` 三行摘要；最近 run 与全局活动里的 `source / conversation / files` 也改成中文口径；`test/server.test.ts` 锁定新 helper 和页面文案；`docs/playground-current.md` 同步当前交互事实。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Conn 每日执行时间校验修复
+- 日期：2026-04-22
+- 主题：修复 conn 创建 / 编辑里 `每日执行` 明明填了 `09:00` 仍然报“请填写每日执行时间”的问题；根因不是用户没填，而是 `playground` 内联脚本模板把正则里的 `\d`、`\s` 转义吃掉了，浏览器实际执行到的是失效正则。
+- 影响范围：`src/ui/playground.ts` 修正 `parseConnCronExpression()`、`parseConnTimeOfDay()` 以及相关脚本里的正则转义，`每日执行时间` 现在兼容 `HH:mm` 和 `HH:mm:ss`；`test/server.test.ts` 与类型检查继续通过；文档同步补齐当前口径。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Conn 创建表单降噪
+- 日期：2026-04-22
+- 主题：这是当天早些时候的一版中间探索，目标是先把 conn 创建 / 编辑界面从“工程控制台”收成常用优先的产品表单。
+- 影响范围：当时尝试过 `conn-editor-schedule-preset`、`conn-editor-schedule-details`、`applyConnSchedulePreset()` 和 `updateConnEditorComplexity()` 这套快捷调度入口；这套口径后来没有保留，已在同日被更晚的“三种调度模式”实现替代。保留这条记录只是为了追溯当天演进路径，不代表当前界面事实。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn 表单字段人话化
+- 日期：2026-04-22
+- 主题：把 conn 创建 / 编辑表单里过于工程化的字段改成用户意图文案，避免 `profileId / agentSpecId / skillSetId / modelPolicyId / assetRefs` 这类内部术语直接砸到使用者脸上。
+- 影响范围：`src/ui/playground.ts` 把 `任务提示词` 改成 `让它做什么`、把 `目标` 改成 `结果发到哪里`，并把高级区改成 `高级设置`；其中 `profileId / agentSpecId / skillSetId / modelPolicyId / upgradePolicy / maxRunMs / assetRefs` 在前台分别显示为 `任务身份 / 执行模板 / 能力包 / 模型策略 / 版本跟随方式 / 最长等待时长（秒） / 附加资料`，同时补充简短解释；`test/server.test.ts` 增加文案与辅助函数断言；文档同步更新。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn 触发时间配置收口成人话调度器
+- 日期：2026-04-22
+- 主题：这是当天早些时候的一版时间配置探索，曾尝试把调度规则扩成六种人话模式。
+- 影响范围：当时前端短暂出现过 `一次 / 每隔一段时间 / 每天固定时间 / 工作日固定时间 / 每周固定时间 / Conn 定时表达式` 六种规则；这套交互后来没有保留，已在同日被更晚的 `定时执行 / 间隔执行 / 每日执行` 三种模式替代。保留这条记录用于追溯，不代表当前界面事实。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn 管理器批量清理与硬删除收口
+- 日期：2026-04-22
+- 主题：把后台任务管理器从单条删除补齐到可筛选、可多选、可批量删除，并让硬删除同步清理对应 notification / activity，避免测试 conn 删了但全局活动里还残留点不开的旧引用。
+- 影响范围：`src/routes/conns.ts` 新增 `POST /v1/conns/bulk-delete`；`src/agent/conn-sqlite-store.ts` 新增 `deleteMany()`，单条 / 批量删除都会清理 `conversation_notifications` 与 `agent_activity_items` 中 `source=conn` 的对应记录；`src/ui/playground.ts` 新增状态筛选、选择当前、清空选择、删除所选和选择计数；`test/server.test.ts`、`test/conn-sqlite-store.test.ts` 补齐回归；文档同步当前硬删除口径。
+- 对应入口：[src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)、[src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[test/conn-sqlite-store.test.ts](/E:/AII/ugk-pi/test/conn-sqlite-store.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn 管理器补删除入口
+- 日期：2026-04-22
+- 主题：给 playground 后台任务管理器补 `删除` 操作，用二次确认调用已有 `DELETE /v1/conns/:connId`，方便清理测试创建的 conn。
+- 影响范围：`src/ui/playground.ts` 新增 `deleteConn(conn)`、危险按钮样式和删除后列表移除 / notice 反馈；`test/server.test.ts` 增加页面断言和 `DELETE /v1/conns/:connId` 路由断言；文档明确当前删除是硬删除，会级联清理该 conn 的 run / event / file 记录。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn 目标归属可视化与管理器减负
+- 日期：2026-04-22
+- 主题：在 conn 创建 / 编辑链路里直接展示投递目标、目标 ID 和跨会话观察口径；保存成功后高亮对应 conn，并把最近 run 历史默认折叠，避免后台任务管理面继续堆成日志墙。
+- 影响范围：`src/ui/playground.ts` 新增 `conn-editor-target-preview`、`conn-manager-notice`、目标描述辅助函数、保存后高亮反馈和折叠 run 摘要；`test/server.test.ts` 增加页面断言；`docs/playground-current.md` 与 `docs/runtime-assets-conn-feishu.md` 同步口径。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Conn 创建 / 编辑 UI 与 playground 前端减负
+- 日期：2026-04-22
+- 主题：把后台任务管理从“只能看和手动执行”推进到可在 playground 里创建 / 编辑 conn，同时按前端性能报告收口首屏工具堆叠、发送前串行预检、输入重算、页面恢复重复请求、滚动和本地缓存写入等问题。
+- 影响范围：`src/ui/playground.ts` 新增 `conn-editor-dialog` / `conn-editor-form`、`POST /v1/conns` / `PATCH /v1/conns/:connId` 提交流程、桌面 landing 顶部紧凑工具栏、layout / resume / scroll / localStorage 调度合并；`test/server.test.ts` 增加 conn editor 与性能减负断言；`docs/playground-current.md` 与 `docs/runtime-assets-conn-feishu.md` 同步当前口径。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
 ### Conn 失败终态也回投 notification
 - 日期：2026-04-22
 - 主题：让后台 conn run 在 `failed` / `cancelled` 等终态也向目标 conversation 写入 notification，避免超时或模型失败时前台只看到 run 记录、收不到正文反馈。
@@ -1314,3 +1374,33 @@
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
   - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Agent Activity 全局活动时间线
+- 日期：2026-04-22
+- 主题：新增跨会话的 Agent Activity 时间线，让后台 conn 结果不再只藏在目标 conversation 里；当前会话 transcript 继续作为上下文真源，全局活动只做观察和追溯。
+- 影响范围：
+  - `src/agent/conn-db.ts` 新增 `agent_activity_items` schema、索引和表初始化。
+  - `src/agent/agent-activity-store.ts` 新增全局活动 store，支持创建、去重、列表、读取和已读标记。
+  - `src/workers/conn-worker.ts` 对所有终态 conn run best-effort 写入全局 activity；conversation 目标继续写 `conversation_notifications`，成功、失败、超时结果都会留痕。
+  - `src/routes/activity.ts` 新增 `GET /v1/activity` 与 `POST /v1/activity/:activityId/read`。
+  - `src/server.ts` 注册 activity store 和路由，`src/types/api.ts` 补齐 API 类型。
+  - `src/ui/playground.ts` 新增桌面端与手机端 `全局活动` 入口、activity 弹层、`/v1/activity?limit=50` 拉取、广播后刷新，以及从 activity 条目跳转既有 conn run 详情弹层。
+  - `test/agent-activity-store.test.ts`、`test/conn-db.test.ts`、`test/conn-worker.test.ts`、`test/server.test.ts` 补齐回归。
+  - `docs/runtime-assets-conn-feishu.md`、`docs/playground-current.md`、`docs/traceability-map.md` 同步新的读模型、API 和前端入口。
+- 对应入口：
+  - [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
+  - [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
+  - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/agent-activity-store.test.ts](/E:/AII/ugk-pi/test/agent-activity-store.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+### Conn 固定时间规则补齐具体时间入口
+- 日期：2026-04-22
+- 主题：这是当天中途那版“固定时间规则”交互的补丁记录；它解决的是当时 `每天固定时间 / 工作日固定时间 / 每周固定时间` 那套设计里的联动显示问题。
+- 影响范围：这套固定时间规则后来已整体退场，被更晚的三种调度模式替代，所以这条记录只保留历史背景，不再代表当前页面结构。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`
+### Conn 调度表单收口成三种模式
+- 日期：2026-04-22
+- 主题：按最新产品口径把后台任务调度区简化成 `定时执行 / 间隔执行 / 每日执行` 三种，删除原先那堆 `每天早上 / 每小时 / 工作日 / 每周 / Conn 定时表达式` 的前台选择分支。
+- 影响范围：`src/ui/playground.ts` 只保留三种调度模式及对应字段，并继续映射到后端 `once / interval / cron`；`test/server.test.ts` 更新页面断言；`docs/playground-current.md` 与 `docs/runtime-assets-conn-feishu.md` 同步新的用户口径。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md`

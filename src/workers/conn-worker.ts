@@ -21,6 +21,8 @@ import {
 } from "../agent/background-agent-runner.js";
 import { BackgroundAgentProfileResolver } from "../agent/background-agent-profile.js";
 import { BackgroundWorkspaceManager, type RunWorkspace } from "../agent/background-workspace.js";
+import type { AgentActivityStore, CreateAgentActivityInput } from "../agent/agent-activity-store.js";
+import { AgentActivityStore as DefaultAgentActivityStore } from "../agent/agent-activity-store.js";
 import { AssetStore } from "../agent/asset-store.js";
 import { ConnDatabase } from "../agent/conn-db.js";
 import type { ConnRunRecord, ConnRunStore } from "../agent/conn-run-store.js";
@@ -42,6 +44,7 @@ export interface ConnWorkerOptions {
 	connStore: Pick<ConnSqliteStore, "list" | "get">;
 	runStore: ConnRunStore;
 	notificationStore: ConversationNotificationStore;
+	activityStore?: Pick<AgentActivityStore, "create">;
 	notificationBroadcaster?: NotificationBroadcaster;
 	runner: ConnWorkerRunner;
 	leaseMs?: number;
@@ -101,7 +104,7 @@ export class ConnWorker {
 			});
 			const conn = await this.options.connStore.get(run.connId);
 			if (conn && failedRun) {
-				await this.deliverConversationNotification(conn, failedRun, now);
+				await this.deliverRunResult(conn, failedRun, now);
 			}
 		}
 	}
@@ -180,7 +183,7 @@ export class ConnWorker {
 			}
 			await timeoutEventPromise;
 			if (isDeliverableFinalStatus(result?.status)) {
-				await this.deliverConversationNotification(conn, result, now);
+				await this.deliverRunResult(conn, result, now);
 			}
 		} catch (error) {
 			await heartbeat.stop();
@@ -191,7 +194,7 @@ export class ConnWorker {
 			const message = error instanceof Error ? error.message : "Unknown conn worker error";
 			const latestRun = await this.options.runStore.getRun(run.runId);
 			if (latestRun && ["failed", "succeeded", "cancelled"].includes(latestRun.status)) {
-				await this.deliverConversationNotification(conn, latestRun, now);
+				await this.deliverRunResult(conn, latestRun, now);
 				return;
 			}
 			const failedRun = await this.options.runStore.failRun({
@@ -201,12 +204,17 @@ export class ConnWorker {
 				finishedAt: now,
 			});
 			if (failedRun) {
-				await this.deliverConversationNotification(conn, failedRun, now);
+				await this.deliverRunResult(conn, failedRun, now);
 			}
 		}
 	}
 
-	private async deliverConversationNotification(conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<void> {
+	private async deliverRunResult(conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<void> {
+		try {
+			await this.options.activityStore?.create(toAgentActivityInput(conn, run, now));
+		} catch (error) {
+			console.warn("[conn-worker] activity write failed:", error);
+		}
 		if (conn.target.type !== "conversation") {
 			return;
 		}
@@ -373,6 +381,7 @@ async function main(): Promise<void> {
 	const connStore = new DefaultConnSqliteStore({ database });
 	const runStore = new DefaultConnRunStore({ database });
 	const notificationStore = new DefaultConversationNotificationStore({ database });
+	const activityStore = new DefaultAgentActivityStore({ database });
 	const notificationBroadcaster = new HttpNotificationBroadcaster(
 		process.env.NOTIFICATION_BROADCAST_URL?.trim() ||
 			`http://127.0.0.1:${config.port}/v1/internal/notifications/broadcast`,
@@ -394,6 +403,7 @@ async function main(): Promise<void> {
 		connStore,
 		runStore,
 		notificationStore,
+		activityStore,
 		notificationBroadcaster,
 		runner,
 		leaseMs: Number(process.env.CONN_WORKER_LEASE_MS ?? 300_000),
@@ -442,6 +452,19 @@ function toNotificationBroadcastEvent(notification: ConversationNotification): N
 		kind: notification.kind,
 		title: notification.title,
 		createdAt: notification.createdAt,
+	};
+}
+
+function toAgentActivityInput(conn: ConnDefinition, run: ConnRunRecord, now: Date): CreateAgentActivityInput {
+	return {
+		source: "conn",
+		sourceId: conn.connId,
+		runId: run.runId,
+		...(conn.target.type === "conversation" ? { conversationId: conn.target.conversationId } : {}),
+		kind: "conn_result",
+		title: `${conn.title} ${resolveNotificationTitleSuffix(run.status)}`,
+		text: resolveNotificationText(run),
+		createdAt: now,
 	};
 }
 

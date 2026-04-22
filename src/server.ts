@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { getAppConfig } from "./config.js";
 import { AgentService } from "./agent/agent-service.js";
+import { AgentActivityStore } from "./agent/agent-activity-store.js";
 import { AssetStore, type AssetStoreLike } from "./agent/asset-store.js";
 import { createDefaultAgentSessionFactory } from "./agent/agent-session-factory.js";
 import { ConversationStore } from "./agent/conversation-store.js";
@@ -15,6 +16,7 @@ import { FeishuClient } from "./integrations/feishu/client.js";
 import { FeishuConversationMapStore } from "./integrations/feishu/conversation-map-store.js";
 import { FeishuService } from "./integrations/feishu/service.js";
 import { registerAssetRoutes } from "./routes/assets.js";
+import { registerActivityRoutes } from "./routes/activity.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerConnRoutes } from "./routes/conns.js";
 import { registerFeishuRoutes } from "./routes/feishu.js";
@@ -28,6 +30,7 @@ export interface BuildServerOptions {
 	assetStore?: AssetStoreLike;
 	connStore?: ConnSqliteStore;
 	connRunStore?: ConnRunStore;
+	activityStore?: AgentActivityStore;
 	notificationStore?: ConversationNotificationStore;
 	notificationHub?: NotificationHub;
 	backgroundDataDir?: string;
@@ -78,7 +81,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	const assetStore = options.assetStore ?? createDefaultAssetStore();
 	const config = getAppConfig();
 	const connDatabase =
-		options.connStore && options.connRunStore && options.notificationStore
+		options.connStore && options.connRunStore && options.notificationStore && options.activityStore
 			? undefined
 			: createDefaultConnDatabase(config.connDatabasePath);
 	const notificationStore = options.notificationStore ?? new ConversationNotificationStore({ database: connDatabase! });
@@ -100,6 +103,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		});
 	const connStore = options.connStore ?? new ConnSqliteStore({ database: connDatabase! });
 	const connRunStore = options.connRunStore ?? new ConnRunStore({ database: connDatabase! });
+	const activityStore = options.activityStore ?? new AgentActivityStore({ database: connDatabase! });
 
 	app.get("/healthz", async () => {
 		return { ok: true };
@@ -116,6 +120,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	});
 	registerPlaygroundRoute(app);
 	registerStaticRoutes(app, { projectRoot: config.projectRoot });
+	registerActivityRoutes(app, { activityStore });
 	registerChatRoutes(app, { agentService });
 	registerNotificationRoutes(app, { notificationHub });
 	registerConnRoutes(app, {

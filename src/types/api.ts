@@ -115,6 +115,15 @@ export interface ConnDetailResponseBody {
 	conn: ConnBody;
 }
 
+export interface ConnBulkDeleteRequestBody {
+	connIds: string[];
+}
+
+export interface ConnBulkDeleteResponseBody {
+	deletedConnIds: string[];
+	missingConnIds: string[];
+}
+
 export interface ConnRunBody {
 	runId: string;
 	connId: string;
@@ -178,6 +187,36 @@ export interface NotificationStreamEventBody {
 	kind: string;
 	title: string;
 	createdAt: string;
+}
+
+export interface AgentActivityFileBody {
+	fileName: string;
+	downloadUrl: string;
+	mimeType?: string;
+	sizeBytes?: number;
+}
+
+export interface AgentActivityItemBody {
+	activityId: string;
+	scope: "agent";
+	source: string;
+	sourceId: string;
+	runId?: string;
+	conversationId?: string;
+	kind: string;
+	title: string;
+	text: string;
+	files: AgentActivityFileBody[];
+	createdAt: string;
+	readAt?: string;
+}
+
+export interface AgentActivityListResponseBody {
+	activities: AgentActivityItemBody[];
+}
+
+export interface AgentActivityReadResponseBody {
+	activity: AgentActivityItemBody;
 }
 
 export interface DebugSkillsResponseBody {

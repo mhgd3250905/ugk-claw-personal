@@ -1,0 +1,155 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { AgentActivityStore } from "../src/agent/agent-activity-store.js";
+import { ConnDatabase } from "../src/agent/conn-db.js";
+
+async function createStore(): Promise<{ store: AgentActivityStore; database: ConnDatabase }> {
+	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-agent-activity-"));
+	const database = new ConnDatabase({ dbPath: join(dir, "conn.sqlite") });
+	await database.initialize();
+	return {
+		database,
+		store: new AgentActivityStore({ database }),
+	};
+}
+
+test("AgentActivityStore creates and lists global activity items", async () => {
+	const { store, database } = await createStore();
+
+	const activity = await store.create({
+		source: "conn",
+		sourceId: "conn-1",
+		runId: "run-1",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "Daily Digest completed",
+		text: "result text",
+		files: [
+			{
+				fileName: "report.md",
+				downloadUrl: "/v1/files/file-1",
+			},
+		],
+		createdAt: new Date("2026-04-22T10:01:05.000Z"),
+	});
+
+	assert.equal(activity.scope, "agent");
+	assert.equal(activity.source, "conn");
+	assert.equal(activity.sourceId, "conn-1");
+	assert.equal(activity.runId, "run-1");
+	assert.equal(activity.conversationId, "manual:conn");
+	assert.equal(activity.createdAt, "2026-04-22T10:01:05.000Z");
+	assert.deepEqual(activity.files, [
+		{
+			fileName: "report.md",
+			downloadUrl: "/v1/files/file-1",
+		},
+	]);
+	assert.deepEqual(await store.get(activity.activityId), activity);
+	assert.deepEqual(await store.list(), [activity]);
+
+	database.close();
+});
+
+test("AgentActivityStore deduplicates delivery for the same source and run", async () => {
+	const { store, database } = await createStore();
+
+	const first = await store.create({
+		source: "conn",
+		sourceId: "conn-1",
+		runId: "run-1",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "first",
+		text: "first text",
+		createdAt: new Date("2026-04-22T10:01:05.000Z"),
+	});
+	const second = await store.create({
+		source: "conn",
+		sourceId: "conn-1",
+		runId: "run-1",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "second",
+		text: "second text",
+		createdAt: new Date("2026-04-22T10:02:05.000Z"),
+	});
+
+	assert.deepEqual(second, first);
+	assert.equal((await store.list()).length, 1);
+
+	database.close();
+});
+
+test("AgentActivityStore lists newest-first, filters by conversation, and limits results", async () => {
+	const { store, database } = await createStore();
+
+	const older = await store.create({
+		source: "conn",
+		sourceId: "conn-1",
+		runId: "run-1",
+		conversationId: "manual:one",
+		kind: "conn_result",
+		title: "older",
+		text: "older text",
+		createdAt: new Date("2026-04-22T10:01:05.000Z"),
+	});
+	const newest = await store.create({
+		source: "conn",
+		sourceId: "conn-2",
+		runId: "run-2",
+		conversationId: "manual:two",
+		kind: "conn_result",
+		title: "newest",
+		text: "newest text",
+		createdAt: new Date("2026-04-22T10:03:05.000Z"),
+	});
+	const middle = await store.create({
+		source: "conn",
+		sourceId: "conn-3",
+		runId: "run-3",
+		conversationId: "manual:one",
+		kind: "conn_result",
+		title: "middle",
+		text: "middle text",
+		createdAt: new Date("2026-04-22T10:02:05.000Z"),
+	});
+
+	assert.deepEqual(
+		(await store.list()).map((item) => item.activityId),
+		[newest.activityId, middle.activityId, older.activityId],
+	);
+	assert.deepEqual(
+		(await store.list({ conversationId: "manual:one" })).map((item) => item.activityId),
+		[middle.activityId, older.activityId],
+	);
+	assert.deepEqual(
+		(await store.list({ limit: 2 })).map((item) => item.activityId),
+		[newest.activityId, middle.activityId],
+	);
+
+	database.close();
+});
+
+test("AgentActivityStore marks activity items as read", async () => {
+	const { store, database } = await createStore();
+	const activity = await store.create({
+		source: "conn",
+		sourceId: "conn-1",
+		runId: "run-1",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "Daily Digest completed",
+		text: "result text",
+		createdAt: new Date("2026-04-22T10:01:05.000Z"),
+	});
+
+	assert.equal(await store.markRead(activity.activityId, new Date("2026-04-22T10:03:00.000Z")), true);
+	assert.equal(await store.markRead("missing", new Date("2026-04-22T10:03:00.000Z")), false);
+	assert.equal((await store.list())[0].readAt, "2026-04-22T10:03:00.000Z");
+
+	database.close();
+});

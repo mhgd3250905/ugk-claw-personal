@@ -47,6 +47,11 @@ export type UpdateConnInput = Partial<
 	>
 > & { now?: Date };
 
+export interface DeleteManyConnsResult {
+	deletedConnIds: string[];
+	missingConnIds: string[];
+}
+
 interface ConnRow {
 	conn_id: string;
 	title: string;
@@ -203,12 +208,43 @@ export class ConnSqliteStore {
 	}
 
 	async delete(connId: string): Promise<boolean> {
-		const existing = await this.get(connId);
-		if (!existing) {
-			return false;
+		const result = await this.deleteMany([connId]);
+		return result.deletedConnIds.includes(connId);
+	}
+
+	async deleteMany(connIds: readonly string[]): Promise<DeleteManyConnsResult> {
+		const uniqueConnIds = Array.from(
+			new Set(connIds.map((connId) => connId.trim()).filter((connId) => connId.length > 0)),
+		);
+		const result: DeleteManyConnsResult = {
+			deletedConnIds: [],
+			missingConnIds: [],
+		};
+		if (uniqueConnIds.length === 0) {
+			return result;
 		}
-		this.options.database.run("DELETE FROM conns WHERE conn_id = ?", connId);
-		return true;
+
+		try {
+			this.options.database.exec("BEGIN IMMEDIATE");
+			for (const connId of uniqueConnIds) {
+				const existing = this.options.database.get<Pick<ConnRow, "conn_id">>(
+					"SELECT conn_id FROM conns WHERE conn_id = ?",
+					connId,
+				);
+				if (!existing) {
+					result.missingConnIds.push(connId);
+					continue;
+				}
+				this.deleteConnReferences(connId);
+				this.options.database.run("DELETE FROM conns WHERE conn_id = ?", connId);
+				result.deletedConnIds.push(connId);
+			}
+			this.options.database.exec("COMMIT");
+		} catch (error) {
+			this.rollbackQuietly();
+			throw error;
+		}
+		return result;
 	}
 
 	async pause(connId: string, now: Date = new Date()): Promise<ConnDefinition | undefined> {
@@ -217,6 +253,19 @@ export class ConnSqliteStore {
 
 	async resume(connId: string, now: Date = new Date()): Promise<ConnDefinition | undefined> {
 		return await this.update(connId, { status: "active", now });
+	}
+
+	private deleteConnReferences(connId: string): void {
+		this.options.database.run("DELETE FROM conversation_notifications WHERE source = 'conn' AND source_id = ?", connId);
+		this.options.database.run("DELETE FROM agent_activity_items WHERE source = 'conn' AND source_id = ?", connId);
+	}
+
+	private rollbackQuietly(): void {
+		try {
+			this.options.database.exec("ROLLBACK");
+		} catch {
+			// SQLite may have already closed the transaction.
+		}
 	}
 }
 
