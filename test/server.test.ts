@@ -1468,6 +1468,27 @@ test("GET /playground injects layout and scroll runtime from a dedicated control
 	await app.close();
 });
 
+test("GET /playground injects transcript rendering from a dedicated renderer", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /function bindPlaygroundTranscriptRenderer\(\)\s*\{/);
+	assert.match(response.body, /bindPlaygroundTranscriptRenderer\(\);/);
+	assert.match(response.body, /function renderMessageMarkdown\(source\)\s*\{/);
+	assert.match(response.body, /function renderTranscriptEntry\(entry, insertMode\)\s*\{/);
+	assert.match(response.body, /function hydrateMarkdownContent\(root\)\s*\{/);
+	assert.match(response.body, /function createMessageActions\(entry, content\)\s*\{/);
+	assert.match(response.body, /function ensureStreamingAssistantMessage\(\)\s*\{/);
+	await app.close();
+});
+
 test("GET /playground keeps bottom scroll room above the active composer", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

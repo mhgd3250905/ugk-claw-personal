@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground transcript renderer 拆分
+- 日期：2026-04-22
+- 主题：继续执行 playground runtime split，把 transcript 条目渲染、assistant loading / process shell、正文复制按钮、markdown hydration、代码块 copy toolbar 和 `bindPlaygroundTranscriptRenderer()` 初始化入口拆到独立 renderer。主文件继续一边拼页面一边手搓消息渲染，迟早又会把 stream 生命周期和消息展示搅成一锅。
+- 影响范围：新增 `src/ui/playground-transcript-renderer.ts`，导出浏览器端 markdown renderer 和 transcript renderer inline classic script；`src/ui/playground.ts` 继续持有主 state、会话恢复、流式事件和页面组装，只保留对 transcript 渲染函数的调用点。消息 DOM 结构、复制按钮样式、markdown / code block 展示、历史恢复合并口径和现有 DOM id 保持不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground 布局滚动控制器拆分
 - 日期：2026-04-22
 - 主题：继续执行 playground runtime split，把 composer 高度同步、会话宽度同步、transcript 自动跟随、回到底部按钮、顶部加载更多触发、以及前后台/联网恢复同步入口拆到独立布局控制器。主文件继续吃这些滚动细节，下一次改消息渲染就又要在泥潭里摸电线，没必要。
