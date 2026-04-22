@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### 交接文档与发布口径补齐
+- 日期：2026-04-22
+- 主题：把当前交接所需的发布事实、线上提交、稳定 tag、回滚锚点和推荐阅读顺序补成显式文档入口，免得后续接手继续在 `README`、部署手册、change-log 和聊天记录之间来回抽搐。文档系统如果没有一个交接总览页，表面上看资料不少，实际上还是靠运气找真相。
+- 影响范围：新增 [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md) 作为当前交接总览；[README.md](/E:/AII/ugk-pi/README.md) 的稳定事实与文档导航补齐最新稳定 tag 和 handoff 入口；[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md) 在快速接手与部署场景补 handoff 入口；[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md) 增加当前线上提交与稳妥增量更新步骤；[docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md) 记录 2026-04-22 最新增量发布结果与 `v4.1.1 -> v4.1.2` 的修正口径。
+- 对应入口：[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)、[README.md](/E:/AII/ugk-pi/README.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)、[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)、[docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### 生产 compose YAML 缩进修正
 - 日期：2026-04-22
 - 主题：在服务器做增量更新时，`docker-compose.prod.yml` 因为 healthcheck 下的 `retries` 缩进错误直接解析失败，导致 `up --build -d` 根本起不来。这个坑不修，前面 tag 打得再漂亮也只是给自己做纪念册。

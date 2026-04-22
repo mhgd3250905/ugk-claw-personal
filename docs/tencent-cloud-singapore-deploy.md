@@ -25,6 +25,11 @@
 - 当前 shared 运行态目录：`/home/ubuntu/ugk-claw-shared`
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
+- 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
+- 当前线上提交：`21f1a5ac131e2638f7806126c7d322d77edaece0`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260422-231020`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260422-231020.tar.gz`
+- 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
 
@@ -167,6 +172,35 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-22 最新增量发布记录
+
+这次发布不是整目录替换，而是沿用 GitHub 工作目录做的增量更新。
+
+实际顺序：
+
+1. 本地先跑 `npx tsc --noEmit`、`npm test`
+2. 本地额外跑 `docker compose -f docker-compose.prod.yml config`
+3. 打 tag：
+   - `snapshot-20260422-v4.1.1-stable`
+   - 后来发现生产 compose 语法问题后，补发 `snapshot-20260422-v4.1.2-stable`
+4. 服务器先备份 sidecar 登录态
+5. 服务器给旧 `HEAD` 打 `server-pre-deploy-*` 本地 tag
+6. `git pull --ff-only origin main`
+7. `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+8. 发布后验证：
+   - `curl -fsS http://127.0.0.1:3000/healthz`
+   - `curl -I http://127.0.0.1:3000/playground`
+   - `check-deps.mjs`
+   - `docker compose ... ps`
+
+这次真正卡住发布的根因不是服务器，也不是 Docker 版本，而是仓库里的 [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml) 写坏了：
+
+```text
+yaml: line 38, column 16: mapping values are not allowed in this context
+```
+
+所以后面别再跳过本地的 `docker compose -f docker-compose.prod.yml config`。这种坑不值得在线上现学现卖。
 
 ## 历史代码传输方式
 

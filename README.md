@@ -34,6 +34,7 @@ agent / skill -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker C
 - `playground` 当前采用“一个 agent、多条历史会话、一个全局当前会话”的模型；不同浏览器 / 设备打开后先通过 `GET /v1/chat/conversations` 跟随服务端 `currentConversationId`，再用 `GET /v1/chat/state` 同步当前会话的历史、运行态和 active run 过程
 - 页面前后台切换、手机浏览器挂起或 `/v1/chat/stream` 主连接短断时，如果 `/v1/chat/state` 仍显示后端任务运行中，前端会切到 `/v1/chat/events` 继续订阅，不把这种浏览器生命周期断线当成本轮失败
 - `新会话` 按钮现在走 `POST /v1/chat/conversations` 创建并激活新的服务端会话；旧会话保留为历史，运行中禁止新建或切换，避免一个 agent 同时被拖到两条产线
+- 当前推荐稳定发布 tag 是 `snapshot-20260422-v4.1.2-stable`；`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 YAML 缩进错误，不应再作为交接后的部署基线
 - `.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告和本地调试目录不属于代码仓库；后续 GitHub 部署与服务器迁移都要按 `.gitignore` 边界处理
 
 ## 快速开始
@@ -219,6 +220,8 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
   - 最高准则、固定运行口径、关键路径、场景索引
 - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
   - 按问题场景快速定位入口
+- [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
+  - 当前交接总览；包含最新稳定 tag、线上已部署提交、回滚锚点与接手顺序
 - [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
   - `playground` 本轮 runtime 拆分、竞态修复与边界收口的阶段总结
 - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)

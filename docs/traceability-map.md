@@ -13,6 +13,7 @@
 3. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
 4. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
 5. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+6. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
 6. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
 7. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
 8. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
@@ -38,6 +39,7 @@
 - 服务器当前 shared 运行态目录是 `~/ugk-claw-shared`；如果你在仓库目录里找 `.env`、`.data/chrome-sidecar` 或生产日志，先想想自己是不是又走回头路了。
 - 如果这次 `/init` 还要接手 `playground` 前端，先读 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)；当前手机端是单独重写的移动展示层，不要按桌面端缩略版理解
 - 如果这次还要接着改 `playground` runtime，而不是只看当前 UI 口径，再补读 [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)；这轮 controller / renderer / sync ownership / stream lifecycle 是怎么收口的，都在那里，别重复考古
+- 如果这次目标是直接交接、发布或接线上盘，优先读 [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)；当前稳定 tag、线上已部署提交、回滚点和推荐阅读顺序都在那里，别再拿旧 tag 当新基线
 
 ## B. 聊天、流式、追加消息、打断
 
@@ -200,6 +202,7 @@
 3. [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
 4. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 5. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+6. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
 6. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
 7. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
 8. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)

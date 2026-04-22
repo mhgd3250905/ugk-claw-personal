@@ -13,6 +13,9 @@
 - 生产 compose：`docker-compose.prod.yml`
 - 公网入口：`http://43.134.167.179:3000/playground`
 - 健康检查：`http://43.134.167.179:3000/healthz`
+- 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
+- 当前线上提交：`21f1a5ac131e2638f7806126c7d322d77edaece0`
+- 不要再用：`snapshot-20260422-v4.1.1-stable`；那个 tag 打出来后才发现生产 compose YAML 缩进有病
 
 ## 登录
 
@@ -35,6 +38,30 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 ```
 
 别在 `~/ugk-pi-claw` 里更新。那是旧目录，不是当前主入口。
+
+## 稳妥增量更新
+
+如果这次是正式发布，不是你自己图省事的热更新，建议按这个顺序来：
+
+```bash
+# 本地先做
+npx tsc --noEmit
+npm test
+docker compose -f docker-compose.prod.yml config
+```
+
+```bash
+# 服务器先做备份
+cd ~/ugk-claw-repo
+mkdir -p ~/ugk-claw-shared/backups
+tar -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
+git tag -a server-pre-deploy-$(date +%Y%m%d-%H%M%S) -m "server pre deploy backup" HEAD
+git fetch --tags origin
+git pull --ff-only origin main
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+```
+
+别嫌麻烦。你真等到 sidecar 登录态和线上回滚点都没留，再开始后悔，就已经晚了。
 
 ## 只重启 app
 
