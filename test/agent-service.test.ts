@@ -137,6 +137,81 @@ class StrictQueueSession extends DeferredSession {
 	}
 }
 
+class InterruptHistorySession implements AgentSessionLike {
+	public prompts: Array<{ message: string; options?: PromptOptionsLike }> = [];
+	public abortCalls = 0;
+	public messages: Array<{
+		role: string;
+		content?: Array<{ type: string; text?: string }> | string;
+		stopReason?: string;
+		errorMessage?: string;
+	}> = [];
+	public steerCalls: string[] = [];
+	public promptStarted: Promise<void>;
+
+	private resolvePrompt?: () => void;
+	private resolvePromptStarted?: () => void;
+	private listener?: (event: RawAgentSessionEventLike) => void;
+
+	constructor(public sessionFile: string | undefined) {
+		this.promptStarted = new Promise((resolve) => {
+			this.resolvePromptStarted = resolve;
+		});
+	}
+
+	subscribe(listener: (event: RawAgentSessionEventLike) => void): () => void {
+		this.listener = listener;
+		return () => {
+			this.listener = undefined;
+		};
+	}
+
+	async prompt(message: string, options?: PromptOptionsLike): Promise<void> {
+		this.prompts.push({ message, options });
+		if (options?.streamingBehavior) {
+			return;
+		}
+
+		this.messages.push({
+			role: "user",
+			content: buildPromptWithAssetContext(message),
+		});
+		this.resolvePromptStarted?.();
+		await new Promise<void>((resolve) => {
+			this.resolvePrompt = resolve;
+		});
+	}
+
+	async abort(): Promise<void> {
+		this.abortCalls += 1;
+		this.finish();
+	}
+
+	async steer(message: string): Promise<void> {
+		this.steerCalls.push(message);
+		this.messages.push({
+			role: "user",
+			content: buildPromptWithAssetContext(message),
+		});
+	}
+
+	emit(event: RawAgentSessionEventLike): void {
+		this.listener?.(event);
+	}
+
+	finish(): void {
+		this.resolvePrompt?.();
+	}
+
+	appendAssistant(text: string): void {
+		this.messages.push({
+			role: "assistant",
+			content: [{ type: "text", text }],
+			stopReason: "stop",
+		});
+	}
+}
+
 class FakeAgentSessionFactory implements AgentSessionFactory {
 	public calls: Array<{ conversationId: string; sessionFile?: string }> = [];
 	public availableSkills: Array<{ name: string; path?: string }> = [];
@@ -1429,6 +1504,100 @@ test("interruptChat aborts the active session and reports interruption to the st
 	assert.equal(state.running, false);
 	assert.equal(state.activeRun?.status, "interrupted");
 	assert.equal(state.activeRun?.loading, false);
+});
+
+test("getConversationState does not return a duplicate interrupted terminal snapshot when history already contains the partial reply and queued steer", async () => {
+	const store = await createStore();
+	const session = new InterruptHistorySession("E:/sessions/interrupted-history.jsonl");
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:interrupted-history",
+			message: "帮我查询知乎热榜",
+		},
+		() => undefined,
+	);
+	await session.promptStarted;
+
+	session.emit(textDelta("我来帮你查询知乎热榜。"));
+	session.appendAssistant("我来帮你查询知乎热榜。");
+	await service.queueMessage({
+		conversationId: "manual:interrupted-history",
+		message: "就查三条就好",
+		mode: "steer",
+	});
+	await service.interruptChat({
+		conversationId: "manual:interrupted-history",
+	});
+	await run;
+
+	const state = await (
+		service as AgentService & {
+			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+		}
+	).getConversationState("manual:interrupted-history");
+
+	assert.equal(state.running, false);
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "帮我查询知乎热榜" },
+			{ kind: "assistant", text: "我来帮你查询知乎热榜。" },
+			{ kind: "user", text: "就查三条就好" },
+		],
+	);
+	assert.equal(state.activeRun, null);
+});
+
+test("getConversationState keeps terminal interrupted status without re-echoing the original input when only queued user messages remain in history", async () => {
+	const store = await createStore();
+	const session = new InterruptHistorySession("E:/sessions/interrupted-empty-text.jsonl");
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:interrupted-empty-text",
+			message: "帮我查询知乎热榜",
+		},
+		() => undefined,
+	);
+	await session.promptStarted;
+
+	await service.queueMessage({
+		conversationId: "manual:interrupted-empty-text",
+		message: "就查三条就好",
+		mode: "steer",
+	});
+	await service.interruptChat({
+		conversationId: "manual:interrupted-empty-text",
+	});
+	await run;
+
+	const state = await (
+		service as AgentService & {
+			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+		}
+	).getConversationState("manual:interrupted-empty-text");
+
+	assert.equal(state.running, false);
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "帮我查询知乎热榜" },
+			{ kind: "user", text: "就查三条就好" },
+		],
+	);
+	assert.equal(state.activeRun?.status, "interrupted");
+	assert.equal(state.activeRun?.input?.message, "");
 });
 
 test("streamChat emits a canonical error event and keeps a terminal error snapshot for refresh observers", async () => {

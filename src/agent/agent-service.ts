@@ -391,7 +391,6 @@ export class AgentService {
 
 	async getConversationState(conversationId: string): Promise<ConversationStateResult> {
 		const activeRun = this.activeRuns.get(conversationId);
-		const terminalRun = activeRun ? undefined : this.terminalRuns.get(conversationId);
 		const existingConversation = await this.options.conversationStore.get(conversationId);
 		const session = await this.getContextSession(conversationId);
 		const modelContext = this.getDefaultModelContext();
@@ -403,6 +402,7 @@ export class AgentService {
 			((session?.messages as AgentMessageLike[] | undefined) ?? []),
 			activeRun?.view,
 		);
+		const terminalRun = activeRun ? undefined : this.getRenderableTerminalRun(conversationId, sessionMessages);
 		const notifications = (await this.options.notificationStore?.list(conversationId)) ?? [];
 		const messages = mergeConversationNotifications(sessionMessages, notifications);
 		const latestNotificationAt = notifications.at(-1)?.createdAt;
@@ -424,6 +424,27 @@ export class AgentService {
 				existingConversation?.updatedAt ??
 				new Date(0).toISOString(),
 		};
+	}
+
+	private getRenderableTerminalRun(
+		conversationId: string,
+		sessionMessages: readonly ConversationHistoryMessage[],
+	): TerminalRunState | undefined {
+		const terminalRun = this.terminalRuns.get(conversationId);
+		if (!terminalRun) {
+			return undefined;
+		}
+
+		if (!shouldExposeTerminalRunSnapshot(sessionMessages, terminalRun.view)) {
+			return undefined;
+		}
+
+		const view = cloneActiveRunView(terminalRun.view);
+		if (shouldHideTerminalInputEcho(sessionMessages, view.input.message)) {
+			view.input.message = "";
+		}
+
+		return { view };
 	}
 
 	subscribeRunEvents(conversationId: string, onEvent: ChatStreamEventSink): RunEventSubscription {
@@ -1285,6 +1306,53 @@ function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
 
 function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {
 	return view.status === "error" || view.status === "interrupted";
+}
+
+function shouldExposeTerminalRunSnapshot(
+	messages: readonly ConversationHistoryMessage[],
+	view: ChatActiveRunBody,
+): boolean {
+	const terminalText = normalizeComparableMessageText(view.text);
+	if (!terminalText) {
+		return true;
+	}
+
+	return !messages.some((message) => {
+		if (message.kind !== "assistant") {
+			return false;
+		}
+
+		const messageText = normalizeComparableMessageText(message.text);
+		return messageText === terminalText || messageText.includes(terminalText);
+	});
+}
+
+function normalizeComparableMessageText(value: string | undefined): string {
+	return String(value ?? "")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function shouldHideTerminalInputEcho(
+	messages: readonly ConversationHistoryMessage[],
+	inputMessage: string,
+): boolean {
+	const normalizedInput = normalizeComparableMessageText(inputMessage);
+	if (!normalizedInput) {
+		return false;
+	}
+
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const message = messages[index];
+		if (message.kind === "assistant" || message.kind === "system" || message.kind === "error") {
+			break;
+		}
+		if (message.kind === "user" && normalizeComparableMessageText(message.text) === normalizedInput) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 function summarizeConversationText(value: string | undefined, fallback: string): string {

@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground interrupted refresh duplicate 收口
+- 日期：2026-04-22
+- 主题：修复 `playground` 在“运行中补充消息 -> 中断 -> 刷新”之后，把已经写进 canonical history 的 interrupted partial reply 又作为 terminal `activeRun` 重新返回一遍，导致刷新页同时看到旧助手正文、补充消息和一份重复的中断过程壳子。
+- 影响范围：`src/agent/agent-service.ts` 现在会在 `getConversationState()` 内先看 session history 是否已经覆盖 terminal snapshot；如果 interrupted / error 的 terminal run 正文已经存在于 canonical history 里，就不再重复把它塞回 `activeRun`。对于仍需保留的 terminal snapshot，如果 history 末尾已经带上当前轮 user 输入，也会把 `activeRun.input.message` 清空，避免刷新页再把原提问补画第二遍。`test/agent-service.test.ts` 新增两条回归断言，分别锁死“部分回复 + steer + interrupt”的重复 terminal snapshot，以及“无正文即中断”时的输入重复回显。
+- 对应入口：[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground 会话恢复竞态收口
 - 日期：2026-04-22
 - 主题：修复 `playground` 在新会话、刷新恢复和异步状态同步时偶发混入旧会话消息的问题。根因不是后端 current conversation 指针错了，而是前端对异步 `GET /v1/chat/state` 回包缺少“当前仍是这条会话”的校验，旧请求慢回时会覆盖当前页面；同时 transcript 清空时没有同步清掉 `transcript-archive`，给旧 DOM 残留留了口子。
