@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 会话目录控制器拆分
+- 日期：2026-04-22
+- 主题：继续执行 playground runtime split，把会话目录加载、新建会话、切换当前会话、运行中禁切和手机历史抽屉列表渲染拆到独立控制器。主文件再继续包办这堆会话入口，就不是页面组装器了，是前端杂物间。
+- 影响范围：新增 `src/ui/playground-conversations-controller.ts`，导出会话目录、创建、切换、激活和抽屉列表渲染相关的 inline classic script 片段；`src/ui/playground.ts` 继续持有主 state、transcript 恢复、stream 生命周期、布局滚动和页面组装。`GET /v1/chat/conversations`、`POST /v1/chat/conversations`、`POST /v1/chat/current` 的外部行为、运行中禁止新建/切换、手机历史抽屉展示和现有 DOM id 保持不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground 手机外壳控制器拆分
 - 日期：2026-04-22
 - 主题：继续给 `src/ui/playground.ts` 减负，把手机端 topbar、更多菜单、历史抽屉开关、遮罩关闭、外部点击关闭和移动端入口绑定拆到独立控制器。注意，这一刀只拆移动外壳，不把 conversation catalog 渲染、切换和服务端同步一起硬搬；那是下一阶段的活，混着拆只会把边界拆成一锅粥。

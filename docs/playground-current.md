@@ -10,6 +10,7 @@
 - [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
 - [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)
+- [src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)
 - [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
 - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
@@ -135,6 +136,7 @@
 
 - 当前项目按“一个 agent 工人，多条历史产线，但同一时刻只有一条全局当前产线”收口
 - 服务端 `ConversationStore` 维护 `currentConversationId` 和会话目录；所有平台打开页面后都以服务端当前会话为准，不再固定写死 `agent:global`
+- 浏览器端会话目录、新建会话、切换当前会话、运行中禁切、以及手机历史抽屉列表渲染集中在 `src/ui/playground-conversations-controller.ts`；`src/ui/playground.ts` 仍持有主 state、transcript 恢复、stream 生命周期和布局滚动逻辑
 - 点击 `新会话` 会调用 `POST /v1/chat/conversations` 创建新的 `conversationId`，并把它设置成全局当前会话；旧会话不会被 reset 或删除
 - 手机端点击左侧品牌区会打开历史会话抽屉；点击历史项会调用 `POST /v1/chat/current`，成功后全平台下一次同步都会跟随新的当前会话
 - agent 正在运行时，后端拒绝新建或切换会话；前端显示“当前任务未结束，不能切换产线 / 开启新产线”
@@ -146,6 +148,7 @@
 - 文件 / 资产静态样式与资产库弹窗 HTML： [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - 文件 / 资产前端运行时控制器： [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
 - 上下文用量进度环、估算和详情弹层控制器： [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)
+- 会话目录、新建、切换和手机历史抽屉列表控制器： [src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)
 - 手机端 topbar、更多菜单和历史抽屉外壳控制器： [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
 - Conn / 全局活动静态样式与弹窗 HTML： [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 - Conn / 全局活动前端运行时控制器： [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
@@ -188,7 +191,7 @@
 - 手机端继续沿用桌面端的深空黑 / 暗紫星云 / 冷白星尘视觉语言，但页面组织改成更接近原生聊天页的结构
 - 手机端当前统一视觉收口规则是：所有可见圆角一律压到 `4px`，不再混用 `12px / 14px / 16px`
 - 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧只保留 `新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库 / 后台任务 / 全局活动` 收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
-- 手机端 topbar、更多菜单、历史抽屉开关、遮罩关闭、外部点击关闭和移动端入口绑定集中在 `src/ui/playground-mobile-shell-controller.ts`；历史列表渲染和会话切换仍留在 `src/ui/playground.ts`，不要把 Phase 2 的 conversation catalog 逻辑混进移动外壳控制器
+- 手机端 topbar、更多菜单、历史抽屉开关、遮罩关闭、外部点击关闭和移动端入口绑定集中在 `src/ui/playground-mobile-shell-controller.ts`；历史列表渲染和会话切换由 `src/ui/playground-conversations-controller.ts` 负责，移动外壳控制器不反向持有 conversation catalog 逻辑
 - 手机端品牌区点击后展开左侧历史会话抽屉，列表项展示标题、摘要、更新时间和消息数；列表项统一 `4px` 圆角，历史列表保留纵向滚动但隐藏侧边滚动条；抽屉右侧只保留透明点击遮罩用于关闭，不再叠加暗色或模糊背景；运行中禁止切换，避免一个 agent 工人被硬拽到另一条产线
 - `新会话` 按钮现在走 `POST /v1/chat/conversations` 创建新的服务端会话并激活为 `currentConversationId`；不再 reset 旧会话，也不再只清本地 transcript
 - `landing-screen` 在手机端直接隐藏，不再让 hero、大标题和装饰块继续吞掉首屏高度
