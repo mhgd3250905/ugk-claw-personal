@@ -1480,3 +1480,13 @@
   - `test/server.test.ts` 更新 `/playground` 页面断言，锁定新的 sync token 契约和 `renderConversationState(conversationState, syncToken)` 入口。
   - `docs/playground-current.md` 同步当前前端对会话同步 ownership 的真实口径。
 - 对应入口：`src/ui/playground.ts`、`src/ui/playground-conversations-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
+### Playground 拆分 stream lifecycle controller
+- 日期：2026-04-22
+- 主题：把 `playground` 的通知广播 SSE、active run 事件流、断线恢复，以及 `send / queue / interrupt` 主链路从 `src/ui/playground.ts` 拆到独立 `playground-stream-controller.ts`，避免主文件继续兼任事件泵站。
+- 影响范围：
+  - `src/ui/playground-stream-controller.ts` 新增 `bindPlaygroundStreamController()`，承接 `connectNotificationStream()`、`attachActiveRunEventStream()`、`recoverRunningStreamAfterDisconnect()`、`readEventStream()`、`handleStreamEvent()`、`sendMessage()`、`queueActiveMessage()`、`interruptRun()` 等流式运行时入口。
+  - `src/ui/playground.ts` 只保留 canonical state、会话恢复、DOM refs 和页面组装；旧的 stream lifecycle 函数从主文件移除，改为注入新 controller。
+  - `test/server.test.ts` 新增 `/playground` 页面断言，锁定 `bindPlaygroundStreamController()` 注入和关键 stream runtime 入口。
+  - `docs/playground-current.md`、`docs/traceability-map.md` 同步新的前端边界和排查入口。
+- 对应入口：`src/ui/playground-stream-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`

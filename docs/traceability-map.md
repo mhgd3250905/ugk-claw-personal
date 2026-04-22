@@ -23,9 +23,10 @@
 13. [src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)
 14. [src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)
 15. [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
-16. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
-17. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-18. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+16. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
+17. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
+18. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+19. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
@@ -71,12 +72,13 @@
 5. [src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)
 6. [src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)
 7. [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
-8. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
-9. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-10. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
-11. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-12. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-13. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+8. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
+9. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
+10. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+11. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+12. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+13. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+14. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
 
 适用问题：
 
@@ -94,6 +96,7 @@
 - 手机端代码块宽度、复制 icon 与透明壳层
 - 底部 composer 遮挡最后一条消息、active transcript 滚动缓冲、最后一屏无法继续上拖
 - composer 高度同步、回到底部按钮、用户上滑读历史时不抢滚动、`visibilitychange/pageshow/online` 恢复入口
+- `/v1/chat/stream`、`/v1/chat/events`、`/v1/notifications/stream`、断线恢复、`send / queue / interrupt`
 
 ## D. 文件上传、资产复用、send_file、本地报告访问
 
@@ -220,9 +223,10 @@
 4. [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
 5. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
 6. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
-7. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
-8. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
-9. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+7. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
+8. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+9. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
+10. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 
 适用问题：
 - conn 任务明明跑完了，但在线页面不弹实时提示

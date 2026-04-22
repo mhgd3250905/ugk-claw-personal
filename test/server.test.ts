@@ -1549,6 +1549,31 @@ test("GET /playground injects transcript rendering from a dedicated renderer", a
 	await app.close();
 });
 
+test("GET /playground injects stream lifecycle runtime from a dedicated controller", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /function bindPlaygroundStreamController\(\)\s*\{/);
+	assert.match(response.body, /bindPlaygroundStreamController\(\);/);
+	assert.match(response.body, /function connectNotificationStream\(\)\s*\{/);
+	assert.match(response.body, /function handleNotificationBroadcastEvent\(rawEvent\)\s*\{/);
+	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
+	assert.match(response.body, /async function recoverRunningStreamAfterDisconnect\(reason\)\s*\{/);
+	assert.match(response.body, /function handleStreamEvent\(event\)\s*\{/);
+	assert.match(response.body, /async function readEventStream\(response, onEvent\)\s*\{/);
+	assert.match(response.body, /async function sendMessage\(\)\s*\{/);
+	assert.match(response.body, /async function queueActiveMessage\(message, attachments, assetRefs, options\)\s*\{/);
+	assert.match(response.body, /async function interruptRun\(\)\s*\{/);
+	await app.close();
+});
+
 test("GET /playground keeps bottom scroll room above the active composer", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
