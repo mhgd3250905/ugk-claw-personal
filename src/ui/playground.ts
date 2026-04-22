@@ -21,6 +21,11 @@ import {
 	getPlaygroundContextUsageEventHandlersScript,
 } from "./playground-context-usage-controller.js";
 import {
+	getPlaygroundMobileShellControllerScript,
+	getPlaygroundMobileShellElementRefsScript,
+	getPlaygroundMobileShellEventHandlersScript,
+} from "./playground-mobile-shell-controller.js";
+import {
 	getConnActivityApiScript,
 	getConnActivityConstantsScript,
 	getConnActivityEditorScript,
@@ -3050,20 +3055,7 @@ function getPlaygroundScript(): string {
 		const interruptButton = document.getElementById("interrupt-button");
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
-		const mobileTopbar = document.getElementById("mobile-topbar");
-		const mobileBrandButton = document.getElementById("mobile-brand-button");
-		const mobileNewConversationButton = document.getElementById("mobile-new-conversation-button");
-		const mobileOverflowMenuButton = document.getElementById("mobile-overflow-menu-button");
-		const mobileOverflowMenu = document.getElementById("mobile-overflow-menu");
-		const mobileMenuSkillsButton = document.getElementById("mobile-menu-skills-button");
-		const mobileMenuFileButton = document.getElementById("mobile-menu-file-button");
-		const mobileMenuLibraryButton = document.getElementById("mobile-menu-library-button");
-		const mobileMenuActivityButton = document.getElementById("mobile-menu-activity-button");
-		const mobileMenuConnButton = document.getElementById("mobile-menu-conn-button");
-		const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
-		const mobileConversationDrawer = document.getElementById("mobile-conversation-drawer");
-		const mobileConversationList = document.getElementById("mobile-conversation-list");
-		const mobileDrawerCloseButton = document.getElementById("mobile-drawer-close-button");
+		${getPlaygroundMobileShellElementRefsScript()}
 		const statusPill = document.getElementById("status-pill");
 		const commandStatus = document.getElementById("command-status");
 
@@ -3272,30 +3264,7 @@ function getPlaygroundScript(): string {
 			}
 		}
 
-		function setMobileOverflowMenuOpen(next) {
-			state.mobileOverflowMenuOpen = Boolean(next);
-			mobileOverflowMenu.hidden = !state.mobileOverflowMenuOpen;
-			mobileOverflowMenuButton.setAttribute("aria-expanded", state.mobileOverflowMenuOpen ? "true" : "false");
-		}
-
-		function closeMobileOverflowMenu() {
-			setMobileOverflowMenuOpen(false);
-		}
-
-		function setMobileConversationDrawerOpen(next) {
-			state.mobileConversationDrawerOpen = Boolean(next);
-			mobileDrawerBackdrop.hidden = !state.mobileConversationDrawerOpen;
-			mobileConversationDrawer.hidden = !state.mobileConversationDrawerOpen;
-			mobileBrandButton.setAttribute("aria-expanded", state.mobileConversationDrawerOpen ? "true" : "false");
-			if (state.mobileConversationDrawerOpen) {
-				closeMobileOverflowMenu();
-				renderConversationDrawer();
-			}
-		}
-
-		function closeMobileConversationDrawer() {
-			setMobileConversationDrawerOpen(false);
-		}
+		${getPlaygroundMobileShellControllerScript()}
 
 		function formatConversationTime(value) {
 			const date = new Date(value || 0);
@@ -5829,40 +5798,7 @@ function getPlaygroundScript(): string {
 				}
 			});
 		});
-		mobileNewConversationButton.addEventListener("click", () => {
-			closeMobileOverflowMenu();
-			void startNewConversation().then((created) => {
-				if (created) {
-					messageInput.focus();
-				}
-			});
-		});
-		mobileBrandButton.addEventListener("click", (event) => {
-			event.stopPropagation();
-			setMobileConversationDrawerOpen(!state.mobileConversationDrawerOpen);
-			void syncConversationCatalog({
-				silent: true,
-				activateCurrent: false,
-			});
-		});
-		mobileDrawerBackdrop.addEventListener("click", closeMobileConversationDrawer);
-		mobileDrawerCloseButton.addEventListener("click", closeMobileConversationDrawer);
-		mobileOverflowMenuButton.addEventListener("click", (event) => {
-			event.stopPropagation();
-			setMobileOverflowMenuOpen(!state.mobileOverflowMenuOpen);
-		});
-		mobileMenuSkillsButton.addEventListener("click", () => {
-			closeMobileOverflowMenu();
-			void loadSkills();
-		});
-		mobileMenuFileButton.addEventListener("click", () => {
-			closeMobileOverflowMenu();
-			fileInput.click();
-		});
-		mobileMenuLibraryButton.addEventListener("click", () => {
-			closeMobileOverflowMenu();
-			openAssetLibrary();
-		});
+		${getPlaygroundMobileShellEventHandlersScript()}
 
 		historyLoadMoreButton.addEventListener("click", () => {
 			renderMoreConversationHistory();
@@ -5924,15 +5860,6 @@ function getPlaygroundScript(): string {
 			}
 			if (event.key === "Escape" && state.mobileConversationDrawerOpen) {
 				closeMobileConversationDrawer();
-			}
-		});
-
-		document.addEventListener("click", (event) => {
-			if (!state.mobileOverflowMenuOpen) {
-				return;
-			}
-			if (!mobileTopbar.contains(event.target)) {
-				closeMobileOverflowMenu();
 			}
 		});
 

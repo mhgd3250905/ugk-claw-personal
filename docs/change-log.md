@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 手机外壳控制器拆分
+- 日期：2026-04-22
+- 主题：继续给 `src/ui/playground.ts` 减负，把手机端 topbar、更多菜单、历史抽屉开关、遮罩关闭、外部点击关闭和移动端入口绑定拆到独立控制器。注意，这一刀只拆移动外壳，不把 conversation catalog 渲染、切换和服务端同步一起硬搬；那是下一阶段的活，混着拆只会把边界拆成一锅粥。
+- 影响范围：新增 `src/ui/playground-mobile-shell-controller.ts`，导出移动端 DOM 引用、shell 控制函数和事件绑定脚本片段；`src/ui/playground.ts` 继续持有主 state、conversation drawer 列表渲染、会话创建/切换和 inline classic script 组装入口。页面 DOM id、移动端视觉、`新会话`、`更多`、`技能 / 文件 / 文件库 / 后台任务 / 全局活动` 入口行为保持不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground 上下文用量控制器拆分
 - 日期：2026-04-22
 - 主题：继续拆 `src/ui/playground.ts`，把上下文 token 估算、进度环渲染、详情弹层、状态同步和输入实时重算逻辑拆成独立控制器。这个东西继续挂在主脚本里，后面谁改 composer、文件上传或会话恢复都要顺手绕过一堆 token 计算，纯属给自己找罪受。
