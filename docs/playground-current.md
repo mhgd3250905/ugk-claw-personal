@@ -8,6 +8,7 @@
 
 - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+- [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
 回归入口：
 
@@ -119,7 +120,7 @@
   - `GET /v1/conns/:connId/runs/:runId`
   - `GET /v1/conns/:connId/runs/:runId/events`
 - 收到 `/v1/notifications/stream` 广播后，页面会静默刷新全局活动列表；即使用户已经切到另一个会话，也能通过全局活动看到刚完成的 conn 结果。
-- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，运行时实现入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，全局活动 / conn 弹层静态片段在 [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)，后端读模型入口是 [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts) 和 [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)。
+- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，运行时拼装入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，全局活动 / conn 弹层静态片段在 [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)，前端运行时控制器片段在 [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)，后端读模型入口是 [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts) 和 [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)。
 
 ## 6. 单工人多会话行为
 
@@ -134,6 +135,7 @@
 
 - 页面结构、共享样式、脚本： [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 - Conn / 全局活动静态样式与弹窗 HTML： [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+- Conn / 全局活动前端运行时控制器： [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 - 页面返回断言： [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 - 资产与文件下载： [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)、[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 - 技能真实来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/debug/skills`
@@ -282,4 +284,4 @@
   - `删除`：二次确认后调用 `DELETE /v1/conns/:connId`。当前后端是硬删除，SQLite 外键会级联删除该 conn 的 run / event / file 记录，并主动清理该 conn 对应的 notification / activity 脏引用；这是用来清测试任务的，不要误当成归档。
   - 最近 run 的 `查看`：复用后台任务过程弹层，继续请求 run detail 和 events。
 - 前台 agent 正在运行时不会禁用后台任务管理入口；conn 是独立 worker 处理的后台产线，不该被前台聊天 loading 卡住。真要把它绑死，那前面架构白做，属于自己给自己挖坑。
-- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，运行时实现入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，conn 管理 / 全局活动弹层的静态样式与 HTML 在 [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)。
+- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，运行时拼装入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，conn 管理 / 全局活动弹层的静态样式与 HTML 在 [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)，创建 / 编辑、管理器、全局活动和 run 详情的前端控制器在 [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)。

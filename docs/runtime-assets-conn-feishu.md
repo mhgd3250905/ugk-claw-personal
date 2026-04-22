@@ -319,5 +319,6 @@ GET /v1/local-file?path=...
   - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
   - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
   - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+  - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
   - [test/agent-activity-store.test.ts](/E:/AII/ugk-pi/test/agent-activity-store.test.ts)
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)

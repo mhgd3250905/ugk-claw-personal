@@ -18,6 +18,7 @@
 8. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
 9. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 10. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+11. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
@@ -58,17 +59,18 @@
 
 1. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 2. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-3. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-4. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-5. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+3. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+4. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+5. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+6. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
 
 适用问题：
 
 - 助手/用户消息样式
 - 过程区与 loading 气泡
 - 文件卡片“打开 / 下载”
-- 后台 conn notification 的“查看任务过程”入口；静态样式 / 弹窗 HTML 先看 `src/ui/playground-conn-activity.ts`
-- 全局活动列表、跨会话 conn 结果观察、`/v1/activity` 读取；静态弹层入口同样在 `src/ui/playground-conn-activity.ts`
+- 后台 conn notification 的“查看任务过程”入口；静态样式 / 弹窗 HTML 先看 `src/ui/playground-conn-activity.ts`，浏览器运行时逻辑看 `src/ui/playground-conn-activity-controller.ts`
+- 全局活动列表、跨会话 conn 结果观察、`/v1/activity` 读取；静态弹层入口在 `src/ui/playground-conn-activity.ts`，渲染和事件绑定在 `src/ui/playground-conn-activity-controller.ts`
 - 刷新后运行态恢复
 - 新会话创建、当前会话切换、刷新后跟随服务端当前会话
 - 发送后立即清空输入框
@@ -163,6 +165,7 @@
 11. [src/integrations/feishu/service.ts](/E:/AII/ugk-pi/src/integrations/feishu/service.ts)
 12. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 13. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+14. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
 ## H. 容器、部署、健康检查、截图
 
@@ -198,8 +201,9 @@
 4. [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
 5. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
 6. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
-7. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
-8. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+7. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+8. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
+9. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 
 适用问题：
 - conn 任务明明跑完了，但在线页面不弹实时提示

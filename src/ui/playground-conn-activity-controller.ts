@@ -1,0 +1,1730 @@
+export function getConnActivityConstantsScript(): string {
+	return `
+		const CONN_STATUS_LABELS = {
+			active: "运行中",
+			paused: "已暂停",
+			completed: "已完成",
+		};
+		const CONN_RUN_STATUS_LABELS = {
+			pending: "待执行",
+			running: "执行中",
+			succeeded: "成功",
+			failed: "失败",
+			cancelled: "已取消",
+		};
+		const ACTIVITY_SOURCE_LABELS = {
+			conn: "后台任务",
+			feishu: "飞书",
+			notification: "通知",
+			agent: "助手",
+		};
+
+	`;
+}
+
+export function getConnActivityElementRefsScript(): string {
+	return `
+		const connRunDetailsDialog = document.getElementById("conn-run-details-dialog");
+		const connRunDetailsBody = document.getElementById("conn-run-details-body");
+		const connRunDetailsClose = document.getElementById("conn-run-details-close");
+		const openAgentActivityButton = document.getElementById("open-agent-activity-button");
+		const agentActivityDialog = document.getElementById("agent-activity-dialog");
+		const agentActivityList = document.getElementById("agent-activity-list");
+		const closeAgentActivityButton = document.getElementById("close-agent-activity-button");
+		const refreshAgentActivityButton = document.getElementById("refresh-agent-activity-button");
+		const openConnManagerButton = document.getElementById("open-conn-manager-button");
+		const connManagerDialog = document.getElementById("conn-manager-dialog");
+		const connManagerNotice = document.getElementById("conn-manager-notice");
+		const connManagerFilter = document.getElementById("conn-manager-filter");
+		const connManagerSelectedCount = document.getElementById("conn-manager-selected-count");
+		const selectVisibleConnsButton = document.getElementById("select-visible-conns-button");
+		const clearSelectedConnsButton = document.getElementById("clear-selected-conns-button");
+		const deleteSelectedConnsButton = document.getElementById("delete-selected-conns-button");
+		const connManagerList = document.getElementById("conn-manager-list");
+		const closeConnManagerButton = document.getElementById("close-conn-manager-button");
+		const refreshConnManagerButton = document.getElementById("refresh-conn-manager-button");
+		const openConnEditorButton = document.getElementById("open-conn-editor-button");
+		const connEditorDialog = document.getElementById("conn-editor-dialog");
+		const connEditorForm = document.getElementById("conn-editor-form");
+		const connEditorTitle = document.getElementById("conn-editor-title");
+		const connEditorError = document.getElementById("conn-editor-error");
+		const connEditorTitleInput = document.getElementById("conn-editor-title-input");
+		const connEditorPrompt = document.getElementById("conn-editor-prompt");
+		const connEditorTargetType = document.getElementById("conn-editor-target-type");
+		const connEditorTargetId = document.getElementById("conn-editor-target-id");
+		const connEditorTargetIdLabel = document.getElementById("conn-editor-target-id-label");
+		const connEditorTargetIdHint = document.getElementById("conn-editor-target-id-hint");
+		const connEditorTargetCurrent = document.getElementById("conn-editor-target-current");
+		const connEditorTargetPreview = document.getElementById("conn-editor-target-preview");
+		const connEditorScheduleKind = document.getElementById("conn-editor-schedule-kind");
+		const connEditorOnceAt = document.getElementById("conn-editor-once-at");
+		const connEditorIntervalMinutes = document.getElementById("conn-editor-interval-minutes");
+		const connEditorIntervalStart = document.getElementById("conn-editor-interval-start");
+		const connEditorTimeOfDay = document.getElementById("conn-editor-time-of-day");
+		const connEditorProfileId = document.getElementById("conn-editor-profile-id");
+		const connEditorAgentSpecId = document.getElementById("conn-editor-agent-spec-id");
+		const connEditorSkillSetId = document.getElementById("conn-editor-skill-set-id");
+		const connEditorModelPolicyId = document.getElementById("conn-editor-model-policy-id");
+		const connEditorUpgradePolicy = document.getElementById("conn-editor-upgrade-policy");
+		const connEditorMaxRunSeconds = document.getElementById("conn-editor-max-run-seconds");
+		const connEditorAssetRefs = document.getElementById("conn-editor-asset-refs");
+		const saveConnEditorButton = document.getElementById("save-conn-editor-button");
+		const cancelConnEditorButton = document.getElementById("cancel-conn-editor-button");
+		const closeConnEditorButton = document.getElementById("close-conn-editor-button");
+	`;
+}
+
+export function getConnActivityEditorScript(): string {
+	return `
+		function closeConnRunDetailsDialog() {
+			connRunDetailsDialog.classList.remove("open");
+			connRunDetailsDialog.hidden = true;
+			connRunDetailsDialog.setAttribute("aria-hidden", "true");
+			connRunDetailsBody.innerHTML = "";
+		}
+
+		function openAgentActivity() {
+			state.agentActivityOpen = true;
+			agentActivityDialog.hidden = false;
+			agentActivityDialog.classList.add("open");
+			agentActivityDialog.setAttribute("aria-hidden", "false");
+			renderAgentActivity();
+			void loadAgentActivity({ silent: false });
+		}
+
+		function closeAgentActivity() {
+			state.agentActivityOpen = false;
+			agentActivityDialog.classList.remove("open");
+			agentActivityDialog.hidden = true;
+			agentActivityDialog.setAttribute("aria-hidden", "true");
+		}
+
+		function openConnManager() {
+			state.connManagerOpen = true;
+			connManagerDialog.hidden = false;
+			connManagerDialog.classList.add("open");
+			connManagerDialog.setAttribute("aria-hidden", "false");
+			renderConnManager();
+			void loadConnManager({ silent: false });
+		}
+
+		function closeConnManager() {
+			state.connManagerOpen = false;
+			connManagerDialog.classList.remove("open");
+			connManagerDialog.hidden = true;
+			connManagerDialog.setAttribute("aria-hidden", "true");
+		}
+
+		function openConnEditor(mode, conn) {
+			const editing = mode === "edit" && conn?.connId;
+			state.connEditorOpen = true;
+			state.connEditorMode = editing ? "edit" : "create";
+			state.connEditorConnId = editing ? conn.connId : "";
+			state.connEditorSaving = false;
+			state.connEditorError = "";
+			fillConnEditor(buildConnEditorDraft(editing ? conn : null));
+			renderConnEditor();
+			connEditorDialog.hidden = false;
+			connEditorDialog.classList.add("open");
+			connEditorDialog.setAttribute("aria-hidden", "false");
+			connEditorTitleInput.focus();
+		}
+
+		function closeConnEditor() {
+			state.connEditorOpen = false;
+			state.connEditorSaving = false;
+			state.connEditorError = "";
+			connEditorDialog.classList.remove("open");
+			connEditorDialog.hidden = true;
+			connEditorDialog.setAttribute("aria-hidden", "true");
+		}
+
+		function padDatePart(value) {
+			return String(value).padStart(2, "0");
+		}
+
+		function formatConnDateTimeLocal(value) {
+			const date = value ? new Date(value) : new Date(Date.now() + 5 * 60 * 1000);
+			if (Number.isNaN(date.getTime())) {
+				return "";
+			}
+			return [
+				date.getFullYear(),
+				"-",
+				padDatePart(date.getMonth() + 1),
+				"-",
+				padDatePart(date.getDate()),
+				"T",
+				padDatePart(date.getHours()),
+				":",
+				padDatePart(date.getMinutes()),
+			].join("");
+		}
+
+		function parseConnDateTimeLocal(value) {
+			const text = String(value || "").trim();
+			if (!text) {
+				return "";
+			}
+			const date = new Date(text);
+			if (Number.isNaN(date.getTime())) {
+				return "";
+			}
+			return date.toISOString();
+		}
+
+		function normalizeConnAssetRefsText(value) {
+			return String(value || "")
+				.split(/\\\\r?\\\\n|,/)
+				.map((entry) => entry.trim())
+				.filter(Boolean);
+		}
+
+		function getLocalTimezone() {
+			try {
+				return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+			} catch {
+				return "UTC";
+			}
+		}
+
+		function buildConnEditorDraft(conn) {
+			const target = conn?.target || {};
+			const schedule = conn?.schedule || {};
+			const targetType =
+				target.type === "feishu_chat" || target.type === "feishu_user"
+					? target.type
+					: target.type === "conversation" && target.conversationId && target.conversationId !== state.conversationId
+						? "conversation"
+						: "current_conversation";
+			const targetId =
+				targetType === "feishu_chat"
+					? target.chatId || ""
+					: targetType === "feishu_user"
+						? target.openId || ""
+						: targetType === "conversation"
+							? target.conversationId || ""
+							: "";
+			return {
+				title: conn?.title || "",
+				prompt: conn?.prompt || "",
+				targetType,
+				targetId,
+				scheduleKind: inferConnScheduleMode(schedule),
+				onceAt: formatConnDateTimeLocal(schedule.kind === "once" ? schedule.at : undefined),
+				intervalMinutes:
+					schedule.kind === "interval" && Number.isFinite(Number(schedule.everyMs))
+						? String(Math.max(1, Math.round(Number(schedule.everyMs) / 60000)))
+						: "60",
+				intervalStart: formatConnDateTimeLocal(schedule.kind === "interval" ? schedule.startAt : undefined),
+				timeOfDay: inferConnScheduleTimeOfDay(schedule),
+				profileId: conn?.profileId || "",
+				agentSpecId: conn?.agentSpecId || "",
+				skillSetId: conn?.skillSetId || "",
+				modelPolicyId: conn?.modelPolicyId || "",
+				upgradePolicy: conn?.upgradePolicy || "latest",
+				maxRunSeconds: conn?.maxRunMs ? String(Math.round(Number(conn.maxRunMs) / 1000)) : "",
+				assetRefs: Array.isArray(conn?.assetRefs) ? conn.assetRefs.join("\\\\n") : "",
+			};
+		}
+
+		function fillConnEditor(draft) {
+			connEditorTitleInput.value = draft.title;
+			connEditorPrompt.value = draft.prompt;
+			connEditorTargetType.value = draft.targetType;
+			connEditorTargetId.value = draft.targetId;
+			connEditorScheduleKind.value = draft.scheduleKind;
+			connEditorOnceAt.value = draft.onceAt;
+			connEditorIntervalMinutes.value = draft.intervalMinutes;
+			connEditorIntervalStart.value = draft.intervalStart;
+			connEditorTimeOfDay.value = draft.timeOfDay;
+			connEditorProfileId.value = draft.profileId;
+			connEditorAgentSpecId.value = draft.agentSpecId;
+			connEditorSkillSetId.value = draft.skillSetId;
+			connEditorModelPolicyId.value = draft.modelPolicyId;
+			connEditorUpgradePolicy.value = draft.upgradePolicy;
+			connEditorMaxRunSeconds.value = draft.maxRunSeconds;
+			connEditorAssetRefs.value = draft.assetRefs;
+		}
+
+		function parseConnCronExpression(expression) {
+			const parts = String(expression || "")
+				.trim()
+				.split(/\\\\s+/)
+				.filter(Boolean);
+			if (parts.length !== 5) {
+				return null;
+			}
+			const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+			if (!/^\\\\d+$/.test(minute) || !/^\\\\d+$/.test(hour)) {
+				return null;
+			}
+			return {
+				minute: Number(minute),
+				hour: Number(hour),
+				dayOfMonth,
+				month,
+				dayOfWeek,
+			};
+		}
+
+		function formatConnTimeOfDay(hours, minutes) {
+			if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+				return "";
+			}
+			return padDatePart(hours) + ":" + padDatePart(minutes);
+		}
+
+		function parseConnTimeOfDay(value) {
+			const match = String(value || "")
+				.trim()
+				.match(/^(\\\\d{2}):(\\\\d{2})(?::(\\\\d{2})(?:\\\\.\\\\d+)?)?$/);
+			if (!match) {
+				return null;
+			}
+			const hours = Number(match[1]);
+			const minutes = Number(match[2]);
+			const seconds = match[3] === undefined ? 0 : Number(match[3]);
+			if (
+				!Number.isFinite(hours) ||
+				!Number.isFinite(minutes) ||
+				!Number.isFinite(seconds) ||
+				hours < 0 ||
+				hours > 23 ||
+				minutes < 0 ||
+				minutes > 59 ||
+				seconds < 0 ||
+				seconds > 59
+			) {
+				return null;
+			}
+			return { hours, minutes };
+		}
+
+		function inferConnScheduleMode(schedule) {
+			if (!schedule || typeof schedule !== "object") {
+				return "once";
+			}
+			if (schedule.kind === "interval") {
+				return "interval";
+			}
+			if (schedule.kind === "once" || !schedule.kind) {
+				return "once";
+			}
+			return "daily";
+		}
+
+		function inferConnScheduleTimeOfDay(schedule) {
+			if (!schedule || schedule.kind !== "cron") {
+				return "09:00";
+			}
+			const parsed = parseConnCronExpression(schedule.expression);
+			if (!parsed) {
+				return "09:00";
+			}
+			return formatConnTimeOfDay(parsed.hour, parsed.minute) || "09:00";
+		}
+
+		function buildConnDailyCronExpression() {
+			const timeOfDay = parseConnTimeOfDay(connEditorTimeOfDay.value);
+			if (!timeOfDay) {
+				return "";
+			}
+			return String(timeOfDay.minutes) + " " + String(timeOfDay.hours) + " * * *";
+		}
+
+		function describeConnTargetInput(targetType) {
+			if (targetType === "feishu_chat") {
+				return {
+					label: "飞书群编号",
+					placeholder: "oc_xxx / chat id",
+					hint: "填飞书群的 chat id。",
+				};
+			}
+			if (targetType === "feishu_user") {
+				return {
+					label: "飞书用户编号",
+					placeholder: "ou_xxx / open id",
+					hint: "填飞书用户的 open id。",
+				};
+			}
+			return {
+				label: "会话编号",
+				placeholder: "conversation id",
+				hint: "填要接收结果的会话编号；保存后不会跟着当前页面自动切换。",
+			};
+		}
+
+		function setConnEditorSectionVisibility() {
+			const targetType = connEditorTargetType.value;
+			connEditorTargetCurrent.hidden = targetType !== "current_conversation";
+			connEditorTargetId.parentElement.hidden = targetType === "current_conversation";
+			const targetInput = describeConnTargetInput(targetType);
+			connEditorTargetIdLabel.textContent = targetInput.label;
+			connEditorTargetId.placeholder = targetInput.placeholder;
+			connEditorTargetIdHint.textContent = targetInput.hint;
+			renderConnEditorTargetPreview();
+
+			const scheduleKind = String(connEditorScheduleKind.value || "once").trim();
+			for (const panel of connEditorForm.querySelectorAll("[data-schedule-panel]")) {
+				panel.classList.toggle(
+					"is-hidden",
+					String(panel.dataset.schedulePanel || "").trim() !== scheduleKind,
+				);
+			}
+		}
+
+		function findConversationCatalogItem(conversationId) {
+			const targetConversationId = String(conversationId || "").trim();
+			if (!targetConversationId) {
+				return null;
+			}
+			return state.conversationCatalog.find((item) => item.conversationId === targetConversationId) || null;
+		}
+
+		function describeConversationTarget(conversationId, fallbackLabel) {
+			const targetConversationId = String(conversationId || "").trim();
+			const catalogItem = findConversationCatalogItem(targetConversationId);
+			const title = catalogItem?.title || fallbackLabel || "会话";
+			const preview = catalogItem?.preview || "";
+			return {
+				title,
+				id: targetConversationId,
+				preview,
+				active: targetConversationId && targetConversationId === state.conversationId,
+				known: Boolean(catalogItem),
+			};
+		}
+
+		function renderConnEditorTargetPreview() {
+			const targetType = String(connEditorTargetType.value || "").trim();
+			const targetId =
+				targetType === "current_conversation"
+					? state.conversationId
+					: String(connEditorTargetId.value || "").trim();
+			connEditorTargetPreview.innerHTML = "";
+
+			const label = document.createElement("strong");
+			const detail = document.createElement("span");
+			const id = document.createElement("code");
+			const footnote = document.createElement("span");
+			footnote.className = "conn-editor-target-note";
+
+			if (targetType === "feishu_chat") {
+				label.textContent = "投递到飞书群";
+				detail.textContent = "后台 run 结束后由飞书 adapter 发送；全局活动仍保留追溯记录。";
+				id.textContent = targetId || "等待填写 chat id";
+			} else if (targetType === "feishu_user") {
+				label.textContent = "投递到飞书用户";
+				detail.textContent = "后台 run 结束后由飞书 adapter 发送；全局活动仍保留追溯记录。";
+				id.textContent = targetId || "等待填写 open id";
+			} else {
+				const conversation = describeConversationTarget(
+					targetId,
+					targetType === "current_conversation" ? "当前会话" : "指定会话",
+				);
+				label.textContent =
+					"投递到 " +
+					(conversation.active ? "当前会话" : conversation.known ? conversation.title : "指定会话");
+				detail.textContent = conversation.preview || "保存后，conn 结果气泡只进入这个目标会话。";
+				id.textContent = conversation.id || "当前会话尚未同步";
+				footnote.textContent = "切到新会话不会改写已保存 conn 的目标；跨会话观察请看全局活动。";
+			}
+
+			connEditorTargetPreview.appendChild(label);
+			connEditorTargetPreview.appendChild(detail);
+			connEditorTargetPreview.appendChild(id);
+			if (footnote.textContent) {
+				connEditorTargetPreview.appendChild(footnote);
+			}
+		}
+
+		function renderConnEditorError(message) {
+			state.connEditorError = String(message || "").trim();
+			connEditorError.textContent = state.connEditorError;
+			connEditorError.hidden = !state.connEditorError;
+		}
+
+		function renderConnEditor() {
+			connEditorTitle.textContent = state.connEditorMode === "edit" ? "编辑后台任务" : "新建后台任务";
+			connEditorTargetCurrent.textContent = state.conversationId || "当前会话尚未同步";
+			saveConnEditorButton.disabled = state.connEditorSaving;
+			saveConnEditorButton.textContent = state.connEditorSaving ? "保存中" : "保存";
+			renderConnEditorError(state.connEditorError);
+			setConnEditorSectionVisibility();
+		}
+
+		function buildConnTargetPayload() {
+			const targetType = String(connEditorTargetType.value || "").trim();
+			if (targetType === "current_conversation") {
+				if (!state.conversationId) {
+					throw new Error("无法确认当前会话");
+				}
+				return { type: "conversation", conversationId: state.conversationId };
+			}
+			const targetId = String(connEditorTargetId.value || "").trim();
+			if (!targetId) {
+				throw new Error("请填写目标 ID");
+			}
+			if (targetType === "feishu_chat") {
+				return { type: "feishu_chat", chatId: targetId };
+			}
+			if (targetType === "feishu_user") {
+				return { type: "feishu_user", openId: targetId };
+			}
+			return { type: "conversation", conversationId: targetId };
+		}
+
+		function buildConnSchedulePayload() {
+			const kind = String(connEditorScheduleKind.value || "once").trim();
+			if (kind === "interval") {
+				const minutes = Number.parseInt(String(connEditorIntervalMinutes.value || ""), 10);
+				if (!Number.isFinite(minutes) || minutes < 1) {
+					throw new Error("间隔分钟必须大于 0");
+				}
+				const startAt = parseConnDateTimeLocal(connEditorIntervalStart.value);
+				if (!startAt) {
+					throw new Error("请填写首次执行时间");
+				}
+				return { kind: "interval", everyMs: minutes * 60 * 1000, startAt };
+			}
+			if (kind === "daily") {
+				const expression = buildConnDailyCronExpression();
+				if (!expression) {
+					throw new Error("请填写每日执行时间");
+				}
+				return { kind: "cron", expression, timezone: getLocalTimezone() };
+			}
+			const at = parseConnDateTimeLocal(connEditorOnceAt.value);
+			if (!at) {
+				throw new Error("请填写执行时间");
+			}
+			return { kind: "once", at };
+		}
+
+		function readConnEditorPayload() {
+			const title = String(connEditorTitleInput.value || "").trim();
+			const prompt = String(connEditorPrompt.value || "").trim();
+			if (!title) {
+				throw new Error("请填写标题");
+			}
+			if (!prompt) {
+				throw new Error("请填写让它做什么");
+			}
+			const payload = {
+				title,
+				prompt,
+				target: buildConnTargetPayload(),
+				schedule: buildConnSchedulePayload(),
+			};
+			const assetRefs = normalizeConnAssetRefsText(connEditorAssetRefs.value);
+			if (assetRefs.length > 0 || state.connEditorMode === "edit") {
+				payload.assetRefs = assetRefs;
+			}
+			const maxRunSeconds = String(connEditorMaxRunSeconds.value || "").trim();
+			if (maxRunSeconds) {
+				const seconds = Number(maxRunSeconds);
+				if (!Number.isFinite(seconds) || seconds <= 0) {
+					throw new Error("最长运行秒数必须大于 0");
+				}
+				payload.maxRunMs = Math.round(seconds * 1000);
+			}
+			for (const [field, node] of [
+				["profileId", connEditorProfileId],
+				["agentSpecId", connEditorAgentSpecId],
+				["skillSetId", connEditorSkillSetId],
+				["modelPolicyId", connEditorModelPolicyId],
+			]) {
+				const value = String(node.value || "").trim();
+				if (value) {
+					payload[field] = value;
+				}
+			}
+			const upgradePolicy = String(connEditorUpgradePolicy.value || "").trim();
+			if (upgradePolicy) {
+				payload.upgradePolicy = upgradePolicy;
+			}
+			return payload;
+		}
+
+		async function submitConnEditor() {
+			if (state.connEditorSaving) {
+				return;
+			}
+			let payload;
+			try {
+				payload = readConnEditorPayload();
+			} catch (error) {
+				renderConnEditorError(error instanceof Error ? error.message : "表单校验失败");
+				return;
+			}
+
+			state.connEditorSaving = true;
+			renderConnEditor();
+			try {
+				const isEditing = state.connEditorMode === "edit" && state.connEditorConnId;
+				const response = await fetch(
+					isEditing ? "/v1/conns/" + encodeURIComponent(state.connEditorConnId) : "/v1/conns",
+					{
+						method: isEditing ? "PATCH" : "POST",
+						headers: {
+							accept: "application/json",
+							"content-type": "application/json",
+						},
+						body: JSON.stringify(payload),
+					},
+				);
+				const responsePayload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(responsePayload?.error?.message || responsePayload?.message || "保存后台任务失败");
+				}
+				const savedConn = responsePayload?.conn || null;
+				if (savedConn) {
+					updateConnManagerConn(savedConn);
+				}
+				const targetLabel = describeConnTargetSummary(savedConn?.target || payload.target);
+				setConnManagerNotice(
+					(isEditing ? "已更新" : "已创建") +
+						"：" +
+						(savedConn?.title || payload.title) +
+						"。结果会投递到 " +
+						targetLabel +
+						"，全局活动同步可见。",
+					savedConn?.connId || state.connEditorConnId,
+				);
+				closeConnEditor();
+				await loadConnManager({ silent: true });
+			} catch (error) {
+				renderConnEditorError(error instanceof Error ? error.message : "保存后台任务失败");
+			} finally {
+				state.connEditorSaving = false;
+				if (state.connEditorOpen) {
+					renderConnEditor();
+				}
+			}
+		}
+
+	`;
+}
+
+export function getConnActivityApiScript(): string {
+	return `
+		async function fetchConnRunDetail(entry) {
+			const response = await fetch(
+				"/v1/conns/" + encodeURIComponent(entry.sourceId) + "/runs/" + encodeURIComponent(entry.runId),
+				{
+					method: "GET",
+					headers: { accept: "application/json" },
+				},
+			);
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法获取后台任务详情";
+				throw new Error(errorMessage);
+			}
+			return payload;
+		}
+
+		async function fetchConnRunEvents(entry) {
+			const response = await fetch(
+				"/v1/conns/" + encodeURIComponent(entry.sourceId) + "/runs/" + encodeURIComponent(entry.runId) + "/events",
+				{
+					method: "GET",
+					headers: { accept: "application/json" },
+				},
+			);
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法获取后台任务事件";
+				throw new Error(errorMessage);
+			}
+			return payload;
+		}
+
+		async function fetchConnRunsForConn(conn) {
+			const response = await fetch("/v1/conns/" + encodeURIComponent(conn.connId) + "/runs", {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法读取后台任务运行历史";
+				throw new Error(errorMessage);
+			}
+			return Array.isArray(payload?.runs) ? payload.runs : [];
+		}
+
+		async function fetchConnList() {
+			const response = await fetch("/v1/conns", {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法读取后台任务列表";
+				throw new Error(errorMessage);
+			}
+			return Array.isArray(payload?.conns) ? payload.conns : [];
+		}
+
+		async function bulkDeleteConns(connIds) {
+			const response = await fetch("/v1/conns/bulk-delete", {
+				method: "POST",
+				headers: {
+					accept: "application/json",
+					"content-type": "application/json",
+				},
+				body: JSON.stringify({ connIds }),
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法批量删除后台任务";
+				throw new Error(errorMessage);
+			}
+			return {
+				deletedConnIds: Array.isArray(payload?.deletedConnIds) ? payload.deletedConnIds : [],
+				missingConnIds: Array.isArray(payload?.missingConnIds) ? payload.missingConnIds : [],
+			};
+		}
+
+		function normalizeAgentActivityItem(item) {
+			const activityId = String(item?.activityId || "").trim();
+			if (!activityId) {
+				return null;
+			}
+			return {
+				activityId,
+				scope: String(item?.scope || "agent").trim() || "agent",
+				source: String(item?.source || "").trim() || "unknown",
+				sourceId: typeof item?.sourceId === "string" ? item.sourceId : undefined,
+				runId: typeof item?.runId === "string" ? item.runId : undefined,
+				conversationId: typeof item?.conversationId === "string" ? item.conversationId : undefined,
+				kind: String(item?.kind || "activity").trim() || "activity",
+				title: String(item?.title || "活动").trim() || "活动",
+				text: String(item?.text || "").trim(),
+				files: Array.isArray(item?.files) ? item.files : [],
+				createdAt: typeof item?.createdAt === "string" ? item.createdAt : new Date(0).toISOString(),
+				readAt: typeof item?.readAt === "string" ? item.readAt : undefined,
+			};
+		}
+
+		async function fetchAgentActivity() {
+			const response = await fetch("/v1/activity?limit=50", {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法读取全局活动";
+				throw new Error(errorMessage);
+			}
+			return Array.isArray(payload?.activities)
+				? payload.activities.map(normalizeAgentActivityItem).filter(Boolean)
+				: [];
+		}
+
+		async function loadAgentActivity(options) {
+			if (!options?.silent) {
+				clearError();
+			}
+			state.agentActivityLoading = true;
+			state.agentActivityError = "";
+			refreshAgentActivityButton.disabled = true;
+			agentActivityList.setAttribute("aria-busy", "true");
+			if (state.agentActivityOpen) {
+				renderAgentActivity();
+			}
+			try {
+				state.agentActivityItems = await fetchAgentActivity();
+				state.agentActivityError = "";
+				if (state.agentActivityOpen) {
+					renderAgentActivity();
+				}
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法读取全局活动";
+				state.agentActivityError = messageText;
+				if (!options?.silent) {
+					showError(messageText);
+				}
+				if (state.agentActivityOpen) {
+					renderAgentActivity();
+				}
+			} finally {
+				state.agentActivityLoading = false;
+				refreshAgentActivityButton.disabled = false;
+				agentActivityList.removeAttribute("aria-busy");
+				if (state.agentActivityOpen) {
+					renderAgentActivity();
+				}
+			}
+		}
+
+		async function loadConnManager(options) {
+			if (!options?.silent) {
+				clearError();
+			}
+			refreshConnManagerButton.disabled = true;
+			connManagerList.setAttribute("aria-busy", "true");
+			try {
+				const conns = await fetchConnList();
+				const runsByConnId = {};
+				await Promise.all(
+					conns.map(async (conn) => {
+						try {
+							runsByConnId[conn.connId] = await fetchConnRunsForConn(conn);
+						} catch {
+							runsByConnId[conn.connId] = [];
+						}
+					}),
+				);
+				state.connManagerItems = conns;
+				state.connManagerRunsByConnId = runsByConnId;
+				syncConnManagerSelectionWithItems();
+				renderConnManager();
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法读取后台任务列表";
+				showError(messageText);
+				connManagerList.innerHTML = "";
+				const empty = document.createElement("div");
+				empty.className = "asset-empty";
+				empty.textContent = messageText;
+				connManagerList.appendChild(empty);
+			} finally {
+				refreshConnManagerButton.disabled = false;
+				connManagerList.removeAttribute("aria-busy");
+			}
+		}
+
+	`;
+}
+
+export function getConnActivityRendererScript(): string {
+	return `
+		function canOpenConnRunDetails(entry) {
+			return entry?.source === "conn" && Boolean(entry.sourceId) && Boolean(entry.runId);
+		}
+
+		function formatConnRunTimestamp(value) {
+			if (!value) {
+				return "";
+			}
+			const date = new Date(value);
+			return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+		}
+
+		function isConnRunTimedOut(run, events) {
+			const hasTimeoutEvent = Array.isArray(events) && events.some((event) => event?.eventType === "run_timed_out");
+			const errorText = String(run?.errorText || run?.resultSummary || "");
+			return hasTimeoutEvent || /exceeded maxRunMs/i.test(errorText);
+		}
+
+		function resolveConnRunHealthLabel(run, events) {
+			if (!run || typeof run !== "object") {
+				return "unknown";
+			}
+			if (run.status === "failed" && isConnRunTimedOut(run, events)) {
+				return "failed / timed out";
+			}
+			if (run.status !== "running") {
+				return run.status || "unknown";
+			}
+			if (!run.leaseUntil) {
+				return "running / lease unknown";
+			}
+			const leaseUntil = new Date(run.leaseUntil);
+			if (Number.isNaN(leaseUntil.getTime())) {
+				return "running / lease unreadable";
+			}
+			return leaseUntil.getTime() <= Date.now() ? "running / stale suspected" : "running / lease active";
+		}
+
+		function describeConnStatusLabel(status) {
+			return CONN_STATUS_LABELS[String(status || "").trim()] || String(status || "未知状态");
+		}
+
+		function describeConnRunStatusLabel(status) {
+			return CONN_RUN_STATUS_LABELS[String(status || "").trim()] || String(status || "未知结果");
+		}
+
+		function describeActivitySourceLabel(source, kind) {
+			const normalizedSource = String(source || "").trim();
+			if (normalizedSource && ACTIVITY_SOURCE_LABELS[normalizedSource]) {
+				return ACTIVITY_SOURCE_LABELS[normalizedSource];
+			}
+			return String(kind || source || "活动").trim() || "活动";
+		}
+
+		function formatConnIntervalLabel(everyMs) {
+			const minutes = Math.round(Number(everyMs) / 60000);
+			if (!Number.isFinite(minutes) || minutes <= 0) {
+				return "按间隔重复";
+			}
+			if (minutes % (24 * 60) === 0) {
+				return "每 " + minutes / (24 * 60) + " 天";
+			}
+			if (minutes % 60 === 0) {
+				return "每 " + minutes / 60 + " 小时";
+			}
+			return "每 " + minutes + " 分钟";
+		}
+
+		function formatConnMaxRunLabel(maxRunMs) {
+			const seconds = Math.round(Number(maxRunMs) / 1000);
+			if (!Number.isFinite(seconds) || seconds <= 0) {
+				return "";
+			}
+			if (seconds % 60 === 0) {
+				return seconds / 60 + " 分钟";
+			}
+			return seconds + " 秒";
+		}
+
+		function describeConnScheduleSummary(schedule) {
+			if (!schedule || typeof schedule !== "object") {
+				return "执行方式未配置";
+			}
+			if (schedule.kind === "cron") {
+				const parsed = parseConnCronExpression(schedule.expression);
+				if (
+					parsed &&
+					parsed.dayOfMonth === "*" &&
+					parsed.month === "*" &&
+					parsed.dayOfWeek === "*"
+				) {
+					return "每日执行 · " + (formatConnTimeOfDay(parsed.hour, parsed.minute) || "时间待定");
+				}
+				return "按规则执行 · " + (schedule.expression || "未配置");
+			}
+			if (schedule.kind === "interval") {
+				const parts = ["间隔执行 · " + formatConnIntervalLabel(schedule.everyMs)];
+				if (schedule.startAt) {
+					parts.push("首次 " + formatConnRunTimestamp(schedule.startAt));
+				}
+				return parts.join(" · ");
+			}
+			if (schedule.kind === "once") {
+				return "定时执行 · " + formatConnRunTimestamp(schedule.at);
+			}
+			return String(schedule.kind || "执行方式未配置");
+		}
+
+		function describeConnTargetSummary(target) {
+			if (!target || typeof target !== "object") {
+				return "结果去向未配置";
+			}
+			if (target.type === "conversation") {
+				const conversation = describeConversationTarget(target.conversationId, "会话");
+				const parts = [conversation.active ? "当前会话" : conversation.title || "指定会话"];
+				if (conversation.id && !conversation.active) {
+					parts.push(conversation.id);
+				}
+				return parts.join(" · ");
+			}
+			if (target.type === "feishu_chat") {
+				return "飞书群 · " + (target.chatId || "待填写");
+			}
+			if (target.type === "feishu_user") {
+				return "飞书用户 · " + (target.openId || "待填写");
+			}
+			return String(target.type || "结果去向未配置");
+		}
+
+		function describeConnTimingSummary(conn) {
+			const parts = [];
+			if (conn?.nextRunAt) {
+				parts.push("下次 " + formatConnRunTimestamp(conn.nextRunAt));
+			} else if (conn?.status === "completed") {
+				parts.push("已完成，不再自动执行");
+			} else {
+				parts.push("下次执行待定");
+			}
+			if (conn?.lastRunAt) {
+				parts.push("最近 " + formatConnRunTimestamp(conn.lastRunAt));
+			}
+			if (conn?.maxRunMs) {
+				const maxRunLabel = formatConnMaxRunLabel(conn.maxRunMs);
+				if (maxRunLabel) {
+					parts.push("最长等待 " + maxRunLabel);
+				}
+			}
+			return parts.join(" · ");
+		}
+
+		function createConnActionButton(text, onClick, options) {
+			const button = document.createElement("button");
+			button.type = "button";
+			button.textContent = text;
+			button.disabled = Boolean(options?.disabled);
+			if (options?.className) {
+				button.className = options.className;
+			}
+			button.addEventListener("click", onClick);
+			return button;
+		}
+
+		function setConnManagerNotice(message, connId) {
+			state.connManagerNotice = String(message || "").trim();
+			state.connManagerHighlightedConnId = String(connId || "").trim();
+			if (connManagerNotice) {
+				connManagerNotice.textContent = state.connManagerNotice;
+				connManagerNotice.hidden = !state.connManagerNotice;
+			}
+		}
+
+		function getConnManagerSelectedSet() {
+			return new Set(
+				(Array.isArray(state.connManagerSelectedConnIds) ? state.connManagerSelectedConnIds : [])
+					.map((connId) => String(connId || "").trim())
+					.filter(Boolean),
+			);
+		}
+
+		function setConnManagerSelectedIds(connIds) {
+			state.connManagerSelectedConnIds = Array.from(
+				new Set(
+					(Array.isArray(connIds) ? connIds : [])
+						.map((connId) => String(connId || "").trim())
+						.filter(Boolean),
+				),
+			);
+		}
+
+		function syncConnManagerSelectionWithItems() {
+			const existingConnIds = new Set(
+				(Array.isArray(state.connManagerItems) ? state.connManagerItems : [])
+					.map((conn) => String(conn?.connId || "").trim())
+					.filter(Boolean),
+			);
+			setConnManagerSelectedIds(state.connManagerSelectedConnIds.filter((connId) => existingConnIds.has(connId)));
+		}
+
+		function getVisibleConnManagerItems() {
+			const filter = String(state.connManagerFilter || "all");
+			const conns = Array.isArray(state.connManagerItems) ? state.connManagerItems : [];
+			if (filter === "all") {
+				return conns;
+			}
+			return conns.filter((conn) => conn?.status === filter);
+		}
+
+		function updateConnManagerToolbar() {
+			syncConnManagerSelectionWithItems();
+			const selectedCount = state.connManagerSelectedConnIds.length;
+			const visibleCount = getVisibleConnManagerItems().length;
+			if (connManagerFilter && connManagerFilter.value !== state.connManagerFilter) {
+				connManagerFilter.value = state.connManagerFilter;
+			}
+			if (connManagerSelectedCount) {
+				connManagerSelectedCount.textContent = "已选 " + selectedCount;
+			}
+			if (selectVisibleConnsButton) {
+				selectVisibleConnsButton.disabled = visibleCount === 0 || Boolean(state.connManagerActionConnId);
+			}
+			if (clearSelectedConnsButton) {
+				clearSelectedConnsButton.disabled = selectedCount === 0 || Boolean(state.connManagerActionConnId);
+			}
+			if (deleteSelectedConnsButton) {
+				deleteSelectedConnsButton.disabled = selectedCount === 0 || Boolean(state.connManagerActionConnId);
+			}
+		}
+
+		function selectVisibleConns() {
+			setConnManagerSelectedIds(getVisibleConnManagerItems().map((conn) => conn.connId));
+			renderConnManager();
+		}
+
+		function clearSelectedConns() {
+			setConnManagerSelectedIds([]);
+			renderConnManager();
+		}
+
+		function toggleConnManagerSelection(conn, checked) {
+			if (!conn?.connId || state.connManagerActionConnId) {
+				return;
+			}
+			const selected = getConnManagerSelectedSet();
+			if (checked) {
+				selected.add(conn.connId);
+			} else {
+				selected.delete(conn.connId);
+			}
+			setConnManagerSelectedIds(Array.from(selected));
+			renderConnManager();
+		}
+
+		function updateConnManagerConn(nextConn) {
+			if (!nextConn?.connId) {
+				return;
+			}
+			let replaced = false;
+			state.connManagerItems = state.connManagerItems.map((conn) => {
+				if (conn?.connId !== nextConn.connId) {
+					return conn;
+				}
+				replaced = true;
+				return nextConn;
+			});
+			if (!replaced) {
+				state.connManagerItems = [nextConn, ...state.connManagerItems];
+			}
+		}
+
+		function prependConnManagerRun(connId, run) {
+			if (!run || !connId) {
+				return;
+			}
+			const currentRuns = Array.isArray(state.connManagerRunsByConnId[connId])
+				? state.connManagerRunsByConnId[connId]
+				: [];
+			state.connManagerRunsByConnId = {
+				...state.connManagerRunsByConnId,
+				[connId]: [run, ...currentRuns.filter((current) => current?.runId !== run.runId)],
+			};
+		}
+
+		function buildConnRunManagerEntry(conn, run) {
+			return {
+				kind: "notification",
+				source: "conn",
+				sourceId: conn.connId,
+				runId: run.runId,
+				title: (conn.title || "Conn") + " · " + describeConnRunStatusLabel(run.status),
+			};
+		}
+
+		function renderAgentActivity() {
+			agentActivityList.innerHTML = "";
+			if (state.agentActivityLoading && state.agentActivityItems.length === 0) {
+				const loading = document.createElement("div");
+				loading.className = "asset-empty";
+				loading.textContent = "正在读取全局活动。";
+				agentActivityList.appendChild(loading);
+				return;
+			}
+			if (state.agentActivityError && state.agentActivityItems.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "asset-empty";
+				empty.textContent = state.agentActivityError;
+				agentActivityList.appendChild(empty);
+				return;
+			}
+			const activities = Array.isArray(state.agentActivityItems) ? state.agentActivityItems : [];
+			if (activities.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "asset-empty";
+				empty.textContent = "暂时没有全局活动。conn 跑完以后，这里会跨会话留痕。";
+				agentActivityList.appendChild(empty);
+				return;
+			}
+			for (const activity of activities) {
+				const item = document.createElement("article");
+				item.className = "agent-activity-item";
+
+				const copy = document.createElement("div");
+				copy.className = "agent-activity-copy";
+				const titleRow = document.createElement("div");
+				titleRow.className = "agent-activity-title-row";
+				const title = document.createElement("strong");
+				title.textContent = activity.title || "活动";
+				const source = document.createElement("span");
+				source.className = "agent-activity-source";
+				source.textContent = describeActivitySourceLabel(activity.source, activity.kind);
+				titleRow.appendChild(title);
+				titleRow.appendChild(source);
+
+				const text = document.createElement("div");
+				text.className = "agent-activity-text";
+				text.textContent = activity.text || "没有正文摘要。";
+
+				const meta = document.createElement("div");
+				meta.className = "agent-activity-meta";
+				const created = document.createElement("span");
+				created.textContent = formatConnRunTimestamp(activity.createdAt) || activity.createdAt || "";
+				meta.appendChild(created);
+				if (activity.conversationId) {
+					const targetConversation = describeConversationTarget(activity.conversationId, "会话");
+					const conversation = document.createElement("span");
+					conversation.textContent =
+						"来自 " + (targetConversation.active ? "当前会话 " : (targetConversation.title || "会话") + " ");
+					const code = document.createElement("code");
+					code.textContent = activity.conversationId;
+					conversation.appendChild(code);
+					meta.appendChild(conversation);
+				}
+				if (activity.runId) {
+					const run = document.createElement("span");
+					run.textContent = "运行 ";
+					const code = document.createElement("code");
+					code.textContent = activity.runId;
+					run.appendChild(code);
+					meta.appendChild(run);
+				}
+				if (activity.files.length > 0) {
+					const files = document.createElement("span");
+					files.textContent = "附 " + activity.files.length + " 个文件";
+					meta.appendChild(files);
+				}
+
+				copy.appendChild(titleRow);
+				copy.appendChild(text);
+				copy.appendChild(meta);
+				item.appendChild(copy);
+
+				if (canOpenConnRunDetails(activity)) {
+					const actions = document.createElement("div");
+					actions.className = "agent-activity-actions";
+					const openButton = document.createElement("button");
+					openButton.type = "button";
+					openButton.textContent = "查看执行过程";
+					openButton.addEventListener("click", () => {
+						closeAgentActivity();
+						void openConnRunDetails(activity);
+					});
+					actions.appendChild(openButton);
+					item.appendChild(actions);
+				}
+
+				agentActivityList.appendChild(item);
+			}
+		}
+
+		function renderConnManagerRunList(conn, container) {
+			const runs = Array.isArray(state.connManagerRunsByConnId[conn.connId])
+				? state.connManagerRunsByConnId[conn.connId].slice(0, 3)
+				: [];
+			const details = document.createElement("details");
+			details.className = "conn-manager-run-details";
+			const summary = document.createElement("summary");
+			summary.className = "conn-manager-run-summary";
+			if (runs.length === 0) {
+				summary.textContent = "暂无运行记录";
+				details.appendChild(summary);
+				container.appendChild(details);
+				return;
+			}
+
+			const latestRun = runs[0];
+			summary.textContent =
+				"最近执行：" +
+				describeConnRunStatusLabel(latestRun.status) +
+				" · " +
+				formatConnRunTimestamp(latestRun.finishedAt || latestRun.startedAt || latestRun.scheduledAt || "");
+			details.appendChild(summary);
+
+			const list = document.createElement("div");
+			list.className = "conn-manager-run-list";
+			for (const run of runs) {
+				const item = document.createElement("div");
+				item.className = "conn-manager-run-item";
+				const copy = document.createElement("div");
+				copy.className = "conn-manager-run-copy";
+				const title = document.createElement("code");
+				title.textContent = describeConnRunStatusLabel(run.status) + " / " + (run.runId || "");
+				const meta = document.createElement("span");
+				meta.textContent =
+					"计划 " +
+					formatConnRunTimestamp(run.scheduledAt) +
+					(run.finishedAt ? " · 完成 " + formatConnRunTimestamp(run.finishedAt) : "");
+				copy.appendChild(title);
+				copy.appendChild(meta);
+				const actions = document.createElement("div");
+				actions.className = "conn-manager-run-actions";
+				const openButton = document.createElement("button");
+				openButton.type = "button";
+				openButton.textContent = "查看执行过程";
+				openButton.addEventListener("click", () => {
+					closeConnManager();
+					void openConnRunDetails(buildConnRunManagerEntry(conn, run));
+				});
+				actions.appendChild(openButton);
+				item.appendChild(copy);
+				item.appendChild(actions);
+				list.appendChild(item);
+			}
+			details.appendChild(list);
+			container.appendChild(details);
+		}
+
+		function renderConnManager() {
+			connManagerList.innerHTML = "";
+			setConnManagerNotice(state.connManagerNotice, state.connManagerHighlightedConnId);
+			updateConnManagerToolbar();
+			const conns = Array.isArray(state.connManagerItems) ? state.connManagerItems : [];
+			const visibleConns = getVisibleConnManagerItems();
+			if (conns.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "asset-empty";
+				empty.textContent = "暂无后台任务。点击新建创建一个 conn。";
+				connManagerList.appendChild(empty);
+				return;
+			}
+			if (visibleConns.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "asset-empty";
+				empty.textContent = "当前筛选下没有后台任务。";
+				connManagerList.appendChild(empty);
+				return;
+			}
+			const selected = getConnManagerSelectedSet();
+			const isBulkAction = state.connManagerActionConnId === "__bulk_delete__";
+			for (const conn of visibleConns) {
+				const item = document.createElement("article");
+				item.className = "conn-manager-item";
+				if (state.connManagerHighlightedConnId && conn.connId === state.connManagerHighlightedConnId) {
+					item.classList.add("is-highlighted");
+				}
+				const selectLabel = document.createElement("label");
+				selectLabel.className = "conn-manager-select";
+				const selectInput = document.createElement("input");
+				selectInput.type = "checkbox";
+				selectInput.checked = selected.has(conn.connId);
+				selectInput.disabled = Boolean(state.connManagerActionConnId);
+				selectInput.setAttribute("aria-label", "选择后台任务 " + (conn.title || conn.connId));
+				selectInput.addEventListener("change", () => {
+					toggleConnManagerSelection(conn, selectInput.checked);
+				});
+				selectLabel.appendChild(selectInput);
+				const main = document.createElement("div");
+				main.className = "conn-manager-main";
+				const titleRow = document.createElement("div");
+				titleRow.className = "conn-manager-title-row";
+				const title = document.createElement("strong");
+				title.textContent = conn.title || conn.connId || "Conn";
+				const status = document.createElement("span");
+				status.className = "conn-manager-status " + (conn.status || "unknown");
+				status.textContent = describeConnStatusLabel(conn.status);
+				titleRow.appendChild(title);
+				titleRow.appendChild(status);
+				const meta = document.createElement("div");
+				meta.className = "conn-manager-meta";
+				const targetLine = document.createElement("span");
+				targetLine.textContent = "结果发到：";
+				const targetCode = document.createElement("code");
+				targetCode.textContent = describeConnTargetSummary(conn.target);
+				targetLine.appendChild(targetCode);
+				const scheduleLine = document.createElement("span");
+				scheduleLine.textContent = "执行方式：";
+				const scheduleCode = document.createElement("code");
+				scheduleCode.textContent = describeConnScheduleSummary(conn.schedule);
+				scheduleLine.appendChild(scheduleCode);
+				const timeLine = document.createElement("span");
+				timeLine.textContent = "运行节奏：" + describeConnTimingSummary(conn);
+				meta.appendChild(targetLine);
+				meta.appendChild(scheduleLine);
+				meta.appendChild(timeLine);
+				main.appendChild(titleRow);
+				main.appendChild(meta);
+				renderConnManagerRunList(conn, main);
+				const actions = document.createElement("div");
+				actions.className = "conn-manager-actions";
+				const isActing = isBulkAction || state.connManagerActionConnId === conn.connId;
+				const runButton = createConnActionButton(
+					"立即执行",
+					() => {
+						void runConnNow(conn);
+					},
+					{ disabled: isActing },
+				);
+				const editButton = createConnActionButton(
+					"编辑",
+					() => {
+						openConnEditor("edit", conn);
+					},
+					{ disabled: isActing },
+				);
+				const toggleButton = createConnActionButton(
+					conn.status === "paused" ? "恢复" : "暂停",
+					() => {
+						void toggleConnPaused(conn);
+					},
+					{ disabled: isActing || conn.status === "completed" },
+				);
+				const deleteButton = createConnActionButton(
+					"删除",
+					() => {
+						void deleteConn(conn);
+					},
+					{ disabled: isActing, className: "danger-action" },
+				);
+				actions.appendChild(runButton);
+				actions.appendChild(editButton);
+				actions.appendChild(toggleButton);
+				actions.appendChild(deleteButton);
+				item.appendChild(selectLabel);
+				item.appendChild(main);
+				item.appendChild(actions);
+				connManagerList.appendChild(item);
+			}
+		}
+
+		async function runConnNow(conn) {
+			if (!conn?.connId || state.connManagerActionConnId) {
+				return;
+			}
+			state.connManagerActionConnId = conn.connId;
+			renderConnManager();
+			try {
+				const response = await fetch("/v1/conns/" + encodeURIComponent(conn.connId) + "/run", {
+					method: "POST",
+					headers: { accept: "application/json" },
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.error?.message || payload?.message || "无法创建后台运行");
+				}
+				prependConnManagerRun(conn.connId, payload?.run);
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法创建后台运行";
+				showError(messageText);
+			} finally {
+				state.connManagerActionConnId = "";
+				renderConnManager();
+			}
+		}
+
+		async function toggleConnPaused(conn) {
+			if (!conn?.connId || state.connManagerActionConnId || conn.status === "completed") {
+				return;
+			}
+			state.connManagerActionConnId = conn.connId;
+			renderConnManager();
+			try {
+				const response = await fetch(
+					"/v1/conns/" + encodeURIComponent(conn.connId) + (conn.status === "paused" ? "/resume" : "/pause"),
+					{
+						method: "POST",
+						headers: { accept: "application/json" },
+					},
+				);
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.error?.message || payload?.message || "无法更新后台任务状态");
+				}
+				if (payload?.conn) {
+					updateConnManagerConn(payload.conn);
+				}
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法更新后台任务状态";
+				showError(messageText);
+			} finally {
+				state.connManagerActionConnId = "";
+				renderConnManager();
+			}
+		}
+
+		async function deleteConn(conn) {
+			if (!conn?.connId || state.connManagerActionConnId) {
+				return;
+			}
+			const confirmed = window.confirm(
+				"删除会移除这个 conn 和它的 run 历史。\\\\n\\\\n" +
+					"任务：" +
+					(conn.title || conn.connId) +
+					"\\\\n\\\\n这个操作不能撤销。",
+			);
+			if (!confirmed) {
+				return;
+			}
+			state.connManagerActionConnId = conn.connId;
+			renderConnManager();
+			try {
+				const response = await fetch("/v1/conns/" + encodeURIComponent(conn.connId), {
+					method: "DELETE",
+					headers: { accept: "application/json" },
+				});
+				if (!response.ok && response.status !== 204) {
+					const payload = await response.json().catch(() => ({}));
+					throw new Error(payload?.error?.message || payload?.message || "无法删除后台任务");
+				}
+				state.connManagerItems = state.connManagerItems.filter((item) => item?.connId !== conn.connId);
+				setConnManagerSelectedIds(state.connManagerSelectedConnIds.filter((connId) => connId !== conn.connId));
+				const nextRunsByConnId = { ...state.connManagerRunsByConnId };
+				delete nextRunsByConnId[conn.connId];
+				state.connManagerRunsByConnId = nextRunsByConnId;
+				setConnManagerNotice("已删除：" + (conn.title || conn.connId), "");
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法删除后台任务";
+				showError(messageText);
+			} finally {
+				state.connManagerActionConnId = "";
+				renderConnManager();
+			}
+		}
+
+		async function deleteSelectedConns() {
+			if (state.connManagerActionConnId) {
+				return;
+			}
+			const selectedIds = Array.isArray(state.connManagerSelectedConnIds)
+				? state.connManagerSelectedConnIds.slice()
+				: [];
+			if (selectedIds.length === 0) {
+				return;
+			}
+			const selectedTitles = state.connManagerItems
+				.filter((conn) => selectedIds.includes(conn?.connId))
+				.map((conn) => conn.title || conn.connId)
+				.slice(0, 6);
+			const confirmed = window.confirm(
+				"删除会移除所选 conn 和它们的 run 历史。\\\\n\\\\n" +
+					"数量：" +
+					selectedIds.length +
+					(selectedTitles.length > 0 ? "\\\\n任务：" + selectedTitles.join("、") : "") +
+					(selectedIds.length > selectedTitles.length ? "\\\\n另有 " + (selectedIds.length - selectedTitles.length) + " 个任务" : "") +
+					"\\\\n\\\\n这个操作不能撤销。",
+			);
+			if (!confirmed) {
+				return;
+			}
+			state.connManagerActionConnId = "__bulk_delete__";
+			renderConnManager();
+			try {
+				const result = await bulkDeleteConns(selectedIds);
+				const deletedIds = new Set(result.deletedConnIds);
+				state.connManagerItems = state.connManagerItems.filter((conn) => !deletedIds.has(conn?.connId));
+				const nextRunsByConnId = { ...state.connManagerRunsByConnId };
+				for (const connId of deletedIds) {
+					delete nextRunsByConnId[connId];
+				}
+				state.connManagerRunsByConnId = nextRunsByConnId;
+				setConnManagerSelectedIds(state.connManagerSelectedConnIds.filter((connId) => !deletedIds.has(connId)));
+				const missingText = result.missingConnIds.length > 0 ? "，" + result.missingConnIds.length + " 个已不存在" : "";
+				setConnManagerNotice("已删除 " + result.deletedConnIds.length + " 个后台任务" + missingText, "");
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法批量删除后台任务";
+				showError(messageText);
+			} finally {
+				state.connManagerActionConnId = "";
+				renderConnManager();
+			}
+		}
+
+		function appendConnRunDetailRow(section, label, value, options) {
+			if (!value) {
+				return;
+			}
+			const row = document.createElement("span");
+			row.textContent = label + ": ";
+			const node = document.createElement(options?.asCode ? "code" : "strong");
+			node.textContent = value;
+			row.appendChild(node);
+			section.appendChild(row);
+		}
+
+		function renderConnRunDetails(entry, detailPayload, eventsPayload) {
+			connRunDetailsBody.innerHTML = "";
+			const run = detailPayload?.run || {};
+			const files = Array.isArray(detailPayload?.files) ? detailPayload.files : [];
+			const events = Array.isArray(eventsPayload?.events) ? eventsPayload.events : [];
+
+			const summary = document.createElement("section");
+			summary.className = "conn-run-section";
+			summary.innerHTML = "<strong></strong><code></code><span></span>";
+			summary.querySelector("strong").textContent = entry.title || "Conn run";
+			summary.querySelector("code").textContent =
+				"conn=" + (entry.sourceId || run.connId || "") + " / run=" + (entry.runId || run.runId || "");
+			summary.querySelector("span").textContent =
+				"status: " +
+				(run.status || "unknown") +
+				(run.scheduledAt ? " / scheduled: " + new Date(run.scheduledAt).toLocaleString() : "") +
+				(run.finishedAt ? " / finished: " + new Date(run.finishedAt).toLocaleString() : "");
+			connRunDetailsBody.appendChild(summary);
+
+			const lifecycle = document.createElement("section");
+			lifecycle.className = "conn-run-section";
+			const lifecycleHeading = document.createElement("strong");
+			lifecycleHeading.textContent = "Lifecycle";
+			lifecycle.appendChild(lifecycleHeading);
+			appendConnRunDetailRow(lifecycle, "health", resolveConnRunHealthLabel(run, events), { asCode: true });
+			appendConnRunDetailRow(lifecycle, "claimed", formatConnRunTimestamp(run.claimedAt));
+			appendConnRunDetailRow(lifecycle, "started", formatConnRunTimestamp(run.startedAt));
+			appendConnRunDetailRow(lifecycle, "updated", formatConnRunTimestamp(run.updatedAt));
+			appendConnRunDetailRow(lifecycle, "lease owner", run.leaseOwner, { asCode: true });
+			appendConnRunDetailRow(lifecycle, "lease until", formatConnRunTimestamp(run.leaseUntil));
+			if (lifecycle.childElementCount > 1) {
+				connRunDetailsBody.appendChild(lifecycle);
+			}
+
+			if (run.workspacePath || run.resultSummary || run.errorText) {
+				const result = document.createElement("section");
+				result.className = "conn-run-section";
+				result.innerHTML = "<strong>Result</strong><span></span><code></code>";
+				result.querySelector("span").textContent = run.errorText || run.resultSummary || "No result summary yet";
+				result.querySelector("code").textContent = run.workspacePath || "";
+				connRunDetailsBody.appendChild(result);
+			}
+
+			if (files.length > 0) {
+				const fileSection = document.createElement("section");
+				fileSection.className = "conn-run-section";
+				const heading = document.createElement("strong");
+				heading.textContent = "Files";
+				fileSection.appendChild(heading);
+				for (const file of files) {
+					const line = document.createElement("code");
+					line.textContent = (file.kind || "file") + " / " + (file.relativePath || file.fileName || "");
+					fileSection.appendChild(line);
+				}
+				connRunDetailsBody.appendChild(fileSection);
+			}
+
+			const eventSection = document.createElement("section");
+			eventSection.className = "conn-run-section";
+			const heading = document.createElement("strong");
+			heading.textContent = "Events";
+			eventSection.appendChild(heading);
+			const list = document.createElement("ul");
+			list.className = "conn-run-event-list";
+			for (const event of events) {
+				const item = document.createElement("li");
+				item.className = "conn-run-event";
+				const title = document.createElement("code");
+				title.textContent = "#" + event.seq + " " + event.eventType;
+				const meta = document.createElement("span");
+				meta.textContent = event.createdAt ? new Date(event.createdAt).toLocaleString() : "";
+				const body = document.createElement("span");
+				body.textContent = JSON.stringify(event.event || {});
+				item.appendChild(title);
+				item.appendChild(meta);
+				item.appendChild(body);
+				list.appendChild(item);
+			}
+			if (events.length === 0) {
+				const empty = document.createElement("span");
+				empty.textContent = "No events recorded yet";
+				eventSection.appendChild(empty);
+			} else {
+				eventSection.appendChild(list);
+			}
+			connRunDetailsBody.appendChild(eventSection);
+		}
+
+		async function openConnRunDetails(entry) {
+			if (!canOpenConnRunDetails(entry)) {
+				return;
+			}
+			connRunDetailsBody.textContent = "Loading conn run details...";
+			connRunDetailsDialog.hidden = false;
+			connRunDetailsDialog.classList.add("open");
+			connRunDetailsDialog.setAttribute("aria-hidden", "false");
+			try {
+				const [detailPayload, eventsPayload] = await Promise.all([
+					fetchConnRunDetail(entry),
+					fetchConnRunEvents(entry),
+				]);
+				renderConnRunDetails(entry, detailPayload, eventsPayload);
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "Failed to load conn run details";
+				connRunDetailsBody.textContent = messageText;
+			}
+		}
+
+	`;
+}
+
+export function getConnActivityEventHandlersScript(): string {
+	return `
+		refreshConnManagerButton.addEventListener("click", () => {
+			void loadConnManager({ silent: false });
+		});
+
+		connManagerFilter.addEventListener("change", () => {
+			state.connManagerFilter = connManagerFilter.value || "all";
+			renderConnManager();
+		});
+
+		selectVisibleConnsButton.addEventListener("click", selectVisibleConns);
+		clearSelectedConnsButton.addEventListener("click", clearSelectedConns);
+		deleteSelectedConnsButton.addEventListener("click", () => {
+			void deleteSelectedConns();
+		});
+
+		openConnManagerButton.addEventListener("click", () => {
+			openConnManager();
+		});
+
+		openConnEditorButton.addEventListener("click", () => {
+			openConnEditor("create");
+		});
+
+		closeConnManagerButton.addEventListener("click", () => {
+			closeConnManager();
+		});
+
+		connManagerDialog.addEventListener("click", (event) => {
+			if (event.target === connManagerDialog) {
+				closeConnManager();
+			}
+		});
+
+		connEditorTargetType.addEventListener("change", renderConnEditor);
+		connEditorTargetId.addEventListener("input", renderConnEditorTargetPreview);
+		connEditorScheduleKind.addEventListener("change", renderConnEditor);
+		connEditorForm.addEventListener("submit", (event) => {
+			event.preventDefault();
+			void submitConnEditor();
+		});
+		cancelConnEditorButton.addEventListener("click", closeConnEditor);
+		closeConnEditorButton.addEventListener("click", closeConnEditor);
+		connEditorDialog.addEventListener("click", (event) => {
+			if (event.target === connEditorDialog) {
+				closeConnEditor();
+			}
+		});
+
+		mobileMenuActivityButton.addEventListener("click", () => {
+			closeMobileOverflowMenu();
+			openAgentActivity();
+		});
+		mobileMenuConnButton.addEventListener("click", () => {
+			closeMobileOverflowMenu();
+			openConnManager();
+		});
+		connRunDetailsClose.addEventListener("click", () => {
+			closeConnRunDetailsDialog();
+		});
+		connRunDetailsDialog.addEventListener("click", (event) => {
+			if (event.target === connRunDetailsDialog) {
+				closeConnRunDetailsDialog();
+			}
+		});
+		openAgentActivityButton.addEventListener("click", () => {
+			openAgentActivity();
+		});
+		closeAgentActivityButton.addEventListener("click", () => {
+			closeAgentActivity();
+		});
+		refreshAgentActivityButton.addEventListener("click", () => {
+			void loadAgentActivity({ silent: false });
+		});
+		agentActivityDialog.addEventListener("click", (event) => {
+			if (event.target === agentActivityDialog) {
+				closeAgentActivity();
+			}
+		});
+
+		function handleConnActivityPanelEscapeKey(event) {
+			if (event.key !== "Escape") {
+				return false;
+			}
+			if (state.connEditorOpen) {
+				closeConnEditor();
+				return true;
+			}
+			if (state.connManagerOpen) {
+				closeConnManager();
+			}
+			if (state.agentActivityOpen) {
+				closeAgentActivity();
+			}
+			return false;
+		}
+
+		function handleConnRunDetailsEscapeKey(event) {
+			if (event.key === "Escape" && !connRunDetailsDialog.hidden) {
+				closeConnRunDetailsDialog();
+			}
+		}
+
+	`;
+}

@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground conn/activity 运行时控制器拆分
+- 日期：2026-04-22
+- 主题：继续把 `src/ui/playground.ts` 里的 conn / 全局活动前端运行时代码拆出去，把创建 / 编辑、管理器、全局活动、run 详情、API 拉取和事件绑定集中到独立控制器片段里。之前这个文件已经涨到离谱，再继续硬塞，后面每改一次 UI 都像在拆炸弹。
+- 影响范围：新增 `src/ui/playground-conn-activity-controller.ts`，承接浏览器内联脚本里的 conn/activity 常量、DOM 引用、编辑器逻辑、API helper、渲染函数和事件绑定；`src/ui/playground.ts` 只保留主页面拼装入口并通过模板片段注入这些脚本。外部 DOM id、接口路径、弹层结构和用户交互不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)、[src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground conn/activity 静态片段拆分
 - 日期：2026-04-22
 - 主题：把 `playground` 里继续膨胀的 conn / 全局活动静态 UI 片段先拆出主文件，避免 `src/ui/playground.ts` 继续把样式、弹窗 HTML、运行时脚本和业务状态全搅在一起。
