@@ -43,11 +43,11 @@ export function getPlaygroundStreamControllerScript(): string {
 				activateCurrent: false,
 			});
 			if (event.conversationId === state.conversationId) {
-				void syncConversationRunState(event.conversationId, {
+				void restoreConversationHistoryFromServer(event.conversationId, {
 					silent: true,
 					clearIfIdle: true,
+					attachIfRunning: true,
 				});
-				void restoreConversationHistoryFromServer(event.conversationId);
 			}
 		}
 

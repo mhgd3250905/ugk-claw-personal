@@ -25,7 +25,7 @@ export function getConnRunDetailsStyles(): string {
 			max-height: min(78vh, 640px);
 			padding: 16px;
 			border: 1px solid rgba(201, 210, 255, 0.14);
-			border-radius: 18px;
+			border-radius: 4px;
 			background: rgba(8, 11, 20, 0.98);
 			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 			overflow: hidden;
@@ -51,7 +51,7 @@ export function getConnRunDetailsStyles(): string {
 			height: 32px;
 			padding: 0;
 			border: 1px solid rgba(201, 210, 255, 0.12);
-			border-radius: 50%;
+			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.05);
 			color: rgba(238, 244, 255, 0.76);
 		}
@@ -71,7 +71,7 @@ export function getConnRunDetailsStyles(): string {
 			gap: 8px;
 			padding: 12px;
 			border: 1px solid rgba(201, 210, 255, 0.1);
-			border-radius: 6px;
+			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.035);
 		}
 
@@ -444,6 +444,111 @@ export function getConnManagerActivityStyles(): string {
 			padding: 7px 9px;
 		}
 
+		.conn-editor-field .flatpickr-input,
+		.conn-editor-field .flatpickr-input[readonly],
+		.conn-editor-time-input + .flatpickr-input {
+			cursor: pointer;
+			caret-color: transparent;
+		}
+
+		.conn-editor-time-input + .flatpickr-input {
+			border-color: rgba(101, 209, 255, 0.22);
+			background:
+				linear-gradient(135deg, rgba(101, 209, 255, 0.08), rgba(201, 210, 255, 0.035)),
+				rgba(5, 7, 13, 0.94);
+			color: rgba(246, 250, 255, 0.96);
+			font-family: var(--font-mono);
+			letter-spacing: 0.02em;
+		}
+
+		.conn-editor-time-input + .flatpickr-input::placeholder {
+			color: rgba(201, 210, 255, 0.42);
+			font-family: var(--font-sans);
+			letter-spacing: 0;
+		}
+
+		.conn-time-picker-calendar {
+			z-index: 1000;
+			border: 1px solid rgba(101, 209, 255, 0.2);
+			border-radius: 4px;
+			background:
+				radial-gradient(circle at 20% 0%, rgba(101, 209, 255, 0.12), transparent 35%),
+				rgba(5, 7, 13, 0.98);
+			box-shadow:
+				0 22px 56px rgba(0, 0, 0, 0.48),
+				inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			color: rgba(238, 244, 255, 0.9);
+			font-family: var(--font-sans);
+		}
+
+		.conn-time-picker-calendar::before,
+		.conn-time-picker-calendar::after {
+			border-bottom-color: rgba(5, 7, 13, 0.98);
+		}
+
+		.conn-time-picker-calendar.arrowBottom::before,
+		.conn-time-picker-calendar.arrowBottom::after {
+			border-top-color: rgba(5, 7, 13, 0.98);
+		}
+
+		.conn-time-picker-calendar .flatpickr-months,
+		.conn-time-picker-calendar .flatpickr-weekdays,
+		.conn-time-picker-calendar .flatpickr-time {
+			background: transparent;
+		}
+
+		.conn-time-picker-calendar .flatpickr-month,
+		.conn-time-picker-calendar .flatpickr-current-month,
+		.conn-time-picker-calendar .flatpickr-weekday,
+		.conn-time-picker-calendar .flatpickr-day,
+		.conn-time-picker-calendar .numInput,
+		.conn-time-picker-calendar .flatpickr-am-pm {
+			color: rgba(238, 244, 255, 0.88);
+		}
+
+		.conn-time-picker-calendar .flatpickr-day {
+			border-radius: 4px;
+		}
+
+		.conn-time-picker-calendar .flatpickr-day.today {
+			border-color: rgba(101, 209, 255, 0.45);
+		}
+
+		.conn-time-picker-calendar .flatpickr-day.selected,
+		.conn-time-picker-calendar .flatpickr-day.startRange,
+		.conn-time-picker-calendar .flatpickr-day.endRange {
+			border-color: rgba(101, 209, 255, 0.9);
+			background: rgba(101, 209, 255, 0.22);
+			color: rgba(246, 250, 255, 0.98);
+		}
+
+		.conn-time-picker-calendar .flatpickr-day:hover,
+		.conn-time-picker-calendar .flatpickr-day:focus {
+			border-color: rgba(201, 210, 255, 0.22);
+			background: rgba(201, 210, 255, 0.1);
+		}
+
+		.conn-time-picker-calendar .flatpickr-day.flatpickr-disabled,
+		.conn-time-picker-calendar .flatpickr-day.prevMonthDay,
+		.conn-time-picker-calendar .flatpickr-day.nextMonthDay {
+			color: rgba(226, 234, 255, 0.24);
+		}
+
+		.conn-time-picker-calendar .flatpickr-time {
+			border-top: 1px solid rgba(201, 210, 255, 0.12);
+		}
+
+		.conn-time-picker-calendar .flatpickr-time input:hover,
+		.conn-time-picker-calendar .flatpickr-time input:focus,
+		.conn-time-picker-calendar .flatpickr-time .flatpickr-am-pm:hover,
+		.conn-time-picker-calendar .flatpickr-time .flatpickr-am-pm:focus {
+			background: rgba(201, 210, 255, 0.08);
+		}
+
+		.conn-time-picker-calendar-time-only {
+			width: 220px;
+		}
+
 		.conn-editor-field textarea {
 			resize: vertical;
 			padding: 9px;
@@ -700,11 +805,27 @@ export function getConnActivityDialogs(): string {
 						<div class="conn-editor-grid conn-editor-schedule-grid">
 							<label class="conn-editor-field conn-editor-schedule-panel" data-schedule-panel="once">
 								<span>执行时间</span>
-								<input id="conn-editor-once-at" name="onceAt" type="datetime-local" />
+								<input
+									id="conn-editor-once-at"
+									name="onceAt"
+									type="text"
+									autocomplete="off"
+									inputmode="none"
+									placeholder="点选日期和时间"
+									data-conn-time-picker="datetime"
+								/>
 							</label>
 							<label class="conn-editor-field conn-editor-schedule-panel" data-schedule-panel="interval">
 								<span>首次执行时间</span>
-								<input id="conn-editor-interval-start" name="intervalStart" type="datetime-local" />
+								<input
+									id="conn-editor-interval-start"
+									name="intervalStart"
+									type="text"
+									autocomplete="off"
+									inputmode="none"
+									placeholder="点选首次执行时间"
+									data-conn-time-picker="datetime"
+								/>
 							</label>
 							<label class="conn-editor-field conn-editor-schedule-panel" data-schedule-panel="interval">
 								<span>间隔（分钟）</span>
@@ -712,7 +833,15 @@ export function getConnActivityDialogs(): string {
 							</label>
 							<label class="conn-editor-field conn-editor-schedule-panel" data-schedule-panel="daily">
 								<span>每日执行时间</span>
-								<input id="conn-editor-time-of-day" name="timeOfDay" type="time" />
+								<input
+									id="conn-editor-time-of-day"
+									name="timeOfDay"
+									type="text"
+									autocomplete="off"
+									inputmode="none"
+									placeholder="点选每日时间"
+									data-conn-time-picker="time"
+								/>
 							</label>
 						</div>
 						<details class="conn-editor-advanced">

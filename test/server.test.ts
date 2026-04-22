@@ -337,12 +337,15 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /context-usage-summary/);
 	assert.match(response.body, /context-usage-meta/);
 	assert.match(response.body, /context-usage-toggle/);
-	assert.match(response.body, /context-usage-ring/);
+	assert.match(response.body, /context-usage-battery/);
+	assert.doesNotMatch(response.body, /context-usage-ring/);
 	assert.match(response.body, /context-usage-dialog/);
 	assert.match(response.body, /context-usage-dialog-body/);
-	assert.match(response.body, /selected-assets[\s\S]*context-usage-row[\s\S]*composer-drop-target/);
-	assert.match(response.body, /\.context-usage-row\s*\{\s*display:\s*flex;/);
-	assert.match(response.body, /\.context-usage-row\s*\{[\s\S]*justify-content:\s*flex-end;/);
+	assert.equal(response.body.indexOf('<div class="context-usage-row">'), -1);
+	assert.match(response.body, /\.context-usage-row\s*\{\s*display:\s*none;/);
+	assert.match(response.body, /\.context-usage-shell\s*\{[\s\S]*grid-template-columns:\s*48px auto;/);
+	assert.match(response.body, /\.context-usage-shell\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /\.context-usage-progress\s*\{[\s\S]*repeating-linear-gradient/);
 	assert.match(response.body, /function renderContextUsageBar\(/);
 	assert.match(response.body, /function syncContextUsage\(/);
 	assert.match(response.body, /function estimateDraftContextTokens\(/);
@@ -417,7 +420,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /card\.className = "message " \+ visualKind;/);
 	assert.match(response.body, /card\.dataset\.messageKind = kind;/);
 	assert.match(response.body, /function canOpenConnRunDetails\(entry\)/);
-	assert.match(response.body, /function openConnRunDetails\(entry\)/);
+	assert.match(response.body, /function openConnRunDetails\(entry, restoreFocusElement\)/);
 	assert.match(response.body, /open-conn-manager-button/);
 	assert.match(response.body, /conn-manager-dialog/);
 	assert.match(response.body, /conn-manager-list/);
@@ -451,13 +454,30 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /conn-editor-once-at/);
 	assert.match(response.body, /conn-editor-interval-start/);
 	assert.match(response.body, /conn-editor-interval-minutes/);
+	assert.match(response.body, /\/vendor\/flatpickr\/flatpickr\.min\.css/);
+	assert.match(response.body, /\/vendor\/flatpickr\/flatpickr\.min\.js/);
+	assert.match(response.body, /\/vendor\/flatpickr\/l10n\/zh\.js/);
+	assert.match(response.body, /id="conn-editor-once-at"[\s\S]*type="text"[\s\S]*data-conn-time-picker="datetime"/);
+	assert.match(response.body, /id="conn-editor-interval-start"[\s\S]*type="text"[\s\S]*data-conn-time-picker="datetime"/);
+	assert.match(response.body, /id="conn-editor-time-of-day"[\s\S]*type="text"[\s\S]*data-conn-time-picker="time"/);
 	assert.match(response.body, /data-schedule-panel="once"/);
 	assert.match(response.body, /data-schedule-panel="interval"/);
 	assert.match(response.body, /data-schedule-panel="daily"/);
 	assert.match(response.body, /conn-editor-advanced/);
 	assert.match(response.body, /conn-editor-time-of-day/);
+	assert.match(response.body, /function initializeConnEditorTimePickers\(/);
+	assert.match(response.body, /initializeConnEditorTimePickers\(\);/);
+	assert.match(response.body, /disableMobile:\s*true/);
+	assert.match(response.body, /enableTime:\s*true/);
+	assert.match(response.body, /time_24hr:\s*true/);
+	assert.match(response.body, /noCalendar:\s*timeOnly/);
+	assert.match(response.body, /dateFormat:\s*timeOnly \? "H:i" : "Y-m-d\\\\TH:i"/);
+	assert.match(response.body, /minuteIncrement:\s*5/);
+	assert.match(response.body, /\.conn-time-picker-calendar\s*\{/);
 	assert.match(response.body, /function parseConnCronExpression\(/);
 	assert.match(response.body, /function parseConnTimeOfDay\(/);
+	assert.match(response.body, /match\(\/\^\(\\d\{1,2\}\):\(\\d\{2\}\)/);
+	assert.doesNotMatch(response.body, /match\(\/\^\(\\\\d\{1,2\}\):\(\\\\d\{2\}\)/);
 	assert.match(response.body, /function inferConnScheduleMode\(/);
 	assert.match(response.body, /function buildConnDailyCronExpression\(/);
 	assert.match(response.body, /conn-editor-profile-id/);
@@ -622,6 +642,8 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /id="hero-version"/);
 	assert.match(response.body, /id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle"/);
 	assert.match(response.body, /id="command-deck"/);
+	assert.match(response.body, /id="desktop-conversation-rail"/);
+	assert.match(response.body, /id="desktop-conversation-list"/);
 	assert.match(response.body, /id="command-status">/);
 	assert.match(response.body, /id="new-conversation-button"/);
 	assert.match(response.body, /id="view-skills-button"/);
@@ -670,21 +692,34 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border-radius: 4px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*box-shadow: 0 8px 18px rgba\(0, 0, 0, 0\.22\);/);
+	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*center;/);
+	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*padding:\s*5px 92px;/);
+	assert.match(response.body, /\.topbar-context-slot\s*\{[\s\S]*position:\s*absolute;[\s\S]*right:\s*5px;/);
+	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*2;/);
+	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*2;/);
+	assert.match(response.body, /function renderConversationListInto\(container\)/);
+	assert.match(response.body, /renderConversationListInto\(desktopConversationList\);/);
 	const headerIndex = response.body.indexOf('<header class="topbar">');
 	const asideIndex = response.body.indexOf('<aside class="landing-side landing-side-right">');
 	const mobileTopbarIndex = response.body.indexOf('<section id="mobile-topbar" class="mobile-topbar"');
+	const contextUsageIndex = response.body.indexOf('id="context-usage-shell"');
 	const filePickerActionIndex = response.body.indexOf('id="file-picker-action"');
 	const assetActionIndex = response.body.indexOf('id="open-asset-library-button"');
+	const activityActionIndex = response.body.indexOf('id="open-agent-activity-button"');
 	const fileStripIndex = response.body.indexOf('<div class="file-strip">');
 	const selectedAssetsIndex = response.body.indexOf('id="selected-assets"');
 	const composerIndex = response.body.indexOf('<section id="composer-drop-target" class="composer">');
 	const messageInputIndex = response.body.indexOf('<textarea id="message"');
 	assert.ok(headerIndex >= 0);
 	assert.ok(asideIndex >= 0);
+	assert.ok(contextUsageIndex >= 0);
 	assert.ok(asideIndex > headerIndex);
 	assert.ok(mobileTopbarIndex > asideIndex);
 	assert.ok(filePickerActionIndex > asideIndex);
 	assert.ok(assetActionIndex > asideIndex);
+	assert.ok(activityActionIndex > asideIndex);
+	assert.ok(contextUsageIndex > activityActionIndex);
+	assert.ok(contextUsageIndex < mobileTopbarIndex);
 	assert.ok(fileStripIndex >= 0);
 	assert.ok(selectedAssetsIndex >= 0);
 	assert.ok(composerIndex >= 0);
@@ -705,9 +740,14 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /asset\.fileName/);
 	assert.match(response.body, /removeSelectedAsset\(asset\.assetId\)/);
 	assert.match(response.body, /removePendingAttachment\(index\)/);
-	assert.match(response.body, /\.file-chip\s*\{[\s\S]*display:\s*inline-flex;/);
+	assert.match(response.body, /\.file-chip\s*\{[\s\S]*display:\s*inline-grid;/);
+	assert.match(response.body, /\.file-chip\s*\{[\s\S]*grid-template-columns:\s*22px minmax\(0, 1fr\) auto;/);
+	assert.match(response.body, /\.file-chip-label\s*\{[\s\S]*-webkit-line-clamp:\s*2;/);
 	assert.match(response.body, /\.file-chip-badge\s*\{[\s\S]*font-family:\s*var\(--font-mono\);/);
-	assert.match(response.body, /\.file-chip-remove\s*\{[\s\S]*border-radius:\s*999px;/);
+	assert.match(response.body, /\.file-chip-remove\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /const MAX_COMPOSER_ATTACHMENTS = 5;/);
+	assert.match(response.body, /function appendComposerSystemNotice\(message\)/);
+	assert.match(response.body, /function isAttachmentLimitProcessNote\(title, detail\)/);
 	assert.match(response.body, /\.message-file-strip\s*\{[\s\S]*display:\s*flex;/);
 	assert.match(response.body, /\.message\.user \.message-file-strip\s*\{[\s\S]*justify-content:\s*flex-end;/);
 	assert.match(response.body, /appendUserTranscriptMessage\(message, attachments, assetRefs\)/);
@@ -1202,7 +1242,7 @@ test("GET /playground ignores stale conversation history responses and clears ar
 	);
 	assert.match(
 		response.body,
-		/const syncToken = issueConversationSyncToken\(nextConversationId\);[\s\S]*const payload = await fetchConversationState\(nextConversationId\);[\s\S]*if \(!renderConversationState\(payload, syncToken\)\)\s*\{\s*return;\s*\}/,
+		/const syncToken = issueConversationSyncToken\(nextConversationId\);[\s\S]*const payload = await fetchConversationState\(nextConversationId\);[\s\S]*if \(!renderConversationState\(payload, syncToken\)\)\s*\{\s*return payload;\s*\}/,
 	);
 	assert.match(
 		response.body,
@@ -1263,8 +1303,43 @@ test("GET /playground syncs the current conversation from the server catalog", a
 	assert.match(response.body, /\/v1\/chat\/current/);
 	assert.match(response.body, /async function syncConversationCatalog\(options\)\s*\{/);
 	assert.match(response.body, /async function ensureCurrentConversation\(options\)\s*\{/);
+	assert.match(response.body, /function upsertConversationCatalogItem\(item, options\)\s*\{/);
 	assert.doesNotMatch(response.body, /const GLOBAL_CONVERSATION_ID = "agent:global";/);
 	assert.doesNotMatch(response.body, /conversationInput\.readOnly = true;/);
+	await app.close();
+});
+
+test("GET /playground activates conversations without redundant state and catalog round-trips", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(
+		response.body,
+		/async function activateConversation\(conversationId, options\)\s*\{[\s\S]*await restoreConversationHistoryFromServer\(nextConversationId, \{\s*silent: true,\s*clearIfIdle: true,\s*attachIfRunning: true,\s*\}\);/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/async function activateConversation\(conversationId, options\)\s*\{[\s\S]*await restoreConversationHistoryFromServer\(nextConversationId\);[\s\S]*await syncConversationRunState\(nextConversationId,/,
+	);
+	assert.match(
+		response.body,
+		/async function selectConversationFromDrawer\(conversationId\)\s*\{[\s\S]*closeMobileConversationDrawer\(\);[\s\S]*const result = await switchConversationOnServer\(nextConversationId\);[\s\S]*await activateConversation\(result\.currentConversationId \|\| result\.conversationId, \{\s*skipCatalogSync: true,\s*skipServerSwitch: true,\s*\}\);/,
+	);
+	assert.match(
+		response.body,
+		/async function startNewConversation\(\)\s*\{[\s\S]*const optimisticTimestamp = new Date\(\)\.toISOString\(\);[\s\S]*upsertConversationCatalogItem\([\s\S]*conversationId: nextConversationId,[\s\S]*\{ isNew: true \},[\s\S]*await activateConversation\(nextConversationId, \{\s*skipCatalogSync: true,\s*skipServerSwitch: true,\s*\}\);/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/async function startNewConversation\(\)\s*\{[\s\S]*await syncConversationCatalog\(/,
+	);
 	await app.close();
 });
 
@@ -1292,7 +1367,8 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /id="mobile-menu-library-button"/);
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*min-height:\s*48px;/);
 	assert.match(response.body, /\.mobile-topbar-button\s*\{[\s\S]*width:\s*36px;/);
@@ -1319,6 +1395,57 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /mobileMenuFileButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /mobileMenuLibraryButton\.addEventListener\("click", \(\) => \{/);
 	assert.doesNotMatch(response.body, /class="mobile-action-strip"/);
+	await app.close();
+});
+
+test("GET /playground uses touch-first mobile panels for library, tasks, activity, and history", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-shell\.open\s*\{[\s\S]*align-items:\s*flex-end;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal\s*\{[\s\S]*height:\s*min\(88dvh, calc\(100dvh - 48px\)\);/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal::before\s*\{[\s\S]*width:\s*42px;[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-head\s*\{[\s\S]*position:\s*sticky;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-actions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-actions button\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-pill,\s*\.agent-activity-item,\s*\.conn-manager-item\s*\{[\s\S]*min-height:\s*64px;[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-toolbar\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-filter-field select\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-actions\s*\{[\s\S]*display:\s*grid;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.agent-activity-actions\s*\{[\s\S]*display:\s*grid;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-actions button,[\s\S]*\.conn-manager-run-actions button\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-run-item\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-run-details-dialog\.open\s*\{[\s\S]*align-items:\s*flex-end;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-run-details-panel\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-backdrop\s*\{[\s\S]*background:\s*rgba\(1, 3, 10, 0\.42\);/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-drawer\s*\{[\s\S]*width:\s*min\(94vw, 380px\);/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*position:\s*sticky;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*background:\s*transparent;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-close\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-empty\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*min-height:\s*108px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*grid-template-rows:\s*auto auto auto;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*line-height:\s*normal;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\.is-active\s*\{[\s\S]*background:\s*rgba\(8, 11, 20, 0\.82\);/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item:disabled\s*\{[\s\S]*opacity:\s*1;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\.is-active::before\s*\{/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-title\s*\{[\s\S]*line-height:\s*1\.35;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-preview\s*\{[\s\S]*line-height:\s*1\.45;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-preview\s*\{[\s\S]*-webkit-line-clamp:\s*2;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-meta\s*\{[\s\S]*line-height:\s*1\.4;/);
+	assert.match(response.body, /function restoreFocusAfterPanelClose\(panelElement, fallbackElement\)\s*\{/);
+	assert.match(response.body, /function closeAssetLibrary\(\)\s*\{[\s\S]*restoreFocusAfterPanelClose\(assetModal, state\.assetModalRestoreFocusElement\);/);
+	assert.match(response.body, /function closeConnManager\(\)\s*\{[\s\S]*restoreFocusAfterPanelClose\(connManagerDialog, state\.connManagerRestoreFocusElement\);/);
+	assert.match(response.body, /mobileMenuLibraryButton\.addEventListener\("click", \(\) => \{[\s\S]*openAssetLibrary\(mobileOverflowMenuButton\);/);
 	await app.close();
 });
 
@@ -1506,14 +1633,34 @@ test("GET /playground does not force-scroll when the user is reading history", a
 	assert.match(response.body, /autoFollowTranscript: true,/);
 	assert.match(response.body, /function isTranscriptNearBottom\(\)\s*\{/);
 	assert.match(response.body, /function syncTranscriptFollowState\(\)\s*\{/);
+	assert.match(response.body, /function cancelScheduledTranscriptAutoScroll\(\)\s*\{/);
 	assert.match(response.body, /function updateScrollToBottomButton\(\)\s*\{/);
 	assert.match(response.body, /function scrollTranscriptToBottom\(options\)\s*\{/);
 	assert.match(response.body, /TRANSCRIPT_BOTTOM_SYNC_COOLDOWN_MS/);
 	assert.match(response.body, /if \(!\(options\?\.force \|\| state\.autoFollowTranscript \|\| isTranscriptNearBottom\(\)\)\) \{/);
+	assert.match(
+		response.body,
+		/function syncTranscriptFollowState\(\)\s*\{[\s\S]*state\.autoFollowTranscript = isTranscriptNearBottom\(\);[\s\S]*if \(!state\.autoFollowTranscript\) \{[\s\S]*cancelScheduledTranscriptAutoScroll\(\);[\s\S]*\}[\s\S]*updateScrollToBottomButton\(\);[\s\S]*\}/,
+	);
 	assert.match(response.body, /scrollToBottomButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /transcript\.addEventListener\("scroll", handleTranscriptScroll\)/);
 	assert.match(response.body, /syncTranscriptFollowState\(\);/);
 	assert.match(response.body, /scrollTranscriptToBottom\(\{ force: true \}\);/);
+	assert.doesNotMatch(
+		response.body,
+		/function restoreConversationHistory\(conversationId\)\s*\{[\s\S]*scrollTranscriptToBottom\(\{ force: true \}\);/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/function renderConversationState\(conversationState, syncToken\)\s*\{[\s\S]*scrollTranscriptToBottom\(\{ force: true \}\);/,
+	);
+	assert.match(response.body, /const shouldPreserveTranscriptViewport =[\s\S]*!state\.autoFollowTranscript/);
+	assert.match(response.body, /const preservedTranscriptScrollTop = shouldPreserveTranscriptViewport \? transcript\.scrollTop : null;/);
+	assert.match(response.body, /if \(typeof preservedTranscriptScrollTop === "number"\) \{/);
+	assert.match(response.body, /const maxScrollTop = Math\.max\(0, transcript\.scrollHeight - transcript\.clientHeight\);/);
+	assert.match(response.body, /transcript\.scrollTop = Math\.min\(preservedTranscriptScrollTop, maxScrollTop\);/);
+	assert.match(response.body, /state\.autoFollowTranscript = false;/);
+	assert.match(response.body, /updateScrollToBottomButton\(\);/);
 	await app.close();
 });
 
@@ -1995,6 +2142,36 @@ test("GET /assets/fonts/Agave-Regular.ttf returns the bundled Agave font", async
 	assert.equal(response.statusCode, 200);
 	assert.match(response.headers["content-type"] ?? "", /font\/ttf|application\/octet-stream/);
 	assert.ok(response.rawPayload.length > 1000);
+	await app.close();
+});
+
+test("GET /vendor/flatpickr assets serves the bundled time picker", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const scriptResponse = await app.inject({
+		method: "GET",
+		url: "/vendor/flatpickr/flatpickr.min.js",
+	});
+	assert.equal(scriptResponse.statusCode, 200);
+	assert.match(scriptResponse.headers["content-type"] ?? "", /^text\/javascript/);
+	assert.match(scriptResponse.body, /flatpickr/);
+
+	const localeResponse = await app.inject({
+		method: "GET",
+		url: "/vendor/flatpickr/l10n/zh.js",
+	});
+	assert.equal(localeResponse.statusCode, 200);
+	assert.match(localeResponse.headers["content-type"] ?? "", /^text\/javascript/);
+	assert.match(localeResponse.body, /zh/);
+
+	const blockedResponse = await app.inject({
+		method: "GET",
+		url: "/vendor/flatpickr/package.json",
+	});
+	assert.equal(blockedResponse.statusCode, 404);
+
 	await app.close();
 });
 

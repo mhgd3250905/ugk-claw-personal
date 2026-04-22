@@ -82,8 +82,22 @@ export function getPlaygroundLayoutControllerScript(): string {
 			scrollToBottomButton.classList.toggle("visible", shouldShow);
 		}
 
+		function cancelScheduledTranscriptAutoScroll() {
+			if (state.transcriptScrollTimer !== null) {
+				window.clearTimeout(state.transcriptScrollTimer);
+				state.transcriptScrollTimer = null;
+			}
+			if (state.transcriptScrollRaf) {
+				window.cancelAnimationFrame(state.transcriptScrollRaf);
+				state.transcriptScrollRaf = 0;
+			}
+		}
+
 		function syncTranscriptFollowState() {
 			state.autoFollowTranscript = isTranscriptNearBottom();
+			if (!state.autoFollowTranscript) {
+				cancelScheduledTranscriptAutoScroll();
+			}
 			updateScrollToBottomButton();
 		}
 
@@ -149,13 +163,11 @@ export function getPlaygroundLayoutControllerScript(): string {
 					if (!state.conversationId) {
 						return;
 					}
-					await syncConversationRunState(state.conversationId, {
+					await restoreConversationHistoryFromServer(state.conversationId, {
 						silent: true,
 						clearIfIdle: state.loading,
+						attachIfRunning: true,
 					});
-					if (options?.restoreHistory !== false) {
-						await restoreConversationHistoryFromServer(state.conversationId);
-					}
 				})()
 					.catch(() => undefined)
 					.finally(() => {

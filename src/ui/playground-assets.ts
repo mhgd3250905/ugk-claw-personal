@@ -81,6 +81,12 @@ export function getPlaygroundAssetBaseStyles(): string {
 			flex-wrap: wrap;
 			gap: 8px;
 			align-items: flex-start;
+			max-height: 118px;
+			overflow-y: auto;
+			overflow-x: hidden;
+			padding-right: 2px;
+			scrollbar-width: thin;
+			scrollbar-color: rgba(201, 210, 255, 0.18) transparent;
 		}
 
 		.selected-asset-list {
@@ -88,17 +94,25 @@ export function getPlaygroundAssetBaseStyles(): string {
 			flex-wrap: wrap;
 			gap: 8px;
 			align-items: flex-start;
+			max-height: 118px;
+			overflow-y: auto;
+			overflow-x: hidden;
+			padding-right: 2px;
+			scrollbar-width: thin;
+			scrollbar-color: rgba(201, 210, 255, 0.18) transparent;
 		}
 
 		.file-chip {
-			display: inline-flex;
+			display: inline-grid;
+			grid-template-columns: 22px minmax(0, 1fr) auto;
 			align-items: center;
 			gap: 10px;
-			min-width: 0;
-			max-width: 100%;
+			flex: 0 1 min(180px, 100%);
+			min-width: min(132px, 100%);
+			max-width: min(220px, 100%);
 			padding: 6px 10px 6px 8px;
 			border: 1px solid rgba(255, 255, 255, 0.08);
-			border-radius: 14px;
+			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.035);
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 		}
@@ -111,7 +125,7 @@ export function getPlaygroundAssetBaseStyles(): string {
 			height: 22px;
 			flex-shrink: 0;
 			border: 1px solid rgba(255, 255, 255, 0.08);
-			border-radius: 7px;
+			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.06);
 			color: rgba(238, 244, 255, 0.72);
 			font-family: var(--font-mono);
@@ -124,11 +138,14 @@ export function getPlaygroundAssetBaseStyles(): string {
 		.file-chip-label {
 			min-width: 0;
 			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+			white-space: normal;
+			overflow-wrap: anywhere;
 			color: rgba(238, 244, 255, 0.88);
 			font-size: 12px;
-			line-height: 1.5;
+			line-height: 1.28;
 		}
 
 		.file-chip-remove {
@@ -140,7 +157,7 @@ export function getPlaygroundAssetBaseStyles(): string {
 			flex-shrink: 0;
 			padding: 0;
 			border: 0;
-			border-radius: 999px;
+			border-radius: 4px;
 			background: transparent;
 			box-shadow: none;
 			color: rgba(238, 244, 255, 0.58);
@@ -390,15 +407,363 @@ export function getPlaygroundAssetLandingStyles(): string {
 
 export function getPlaygroundAssetMobileStyles(): string {
 	return `
+			.asset-modal-shell.open {
+				align-items: flex-end;
+				justify-content: center;
+				padding: 0 8px;
+				background:
+					linear-gradient(180deg, rgba(1, 3, 10, 0.18), rgba(1, 3, 10, 0.82)),
+					rgba(1, 3, 10, 0.58);
+			}
+
+			.asset-modal {
+				position: relative;
+				width: 100%;
+				height: min(88dvh, calc(100dvh - 48px));
+				max-height: min(88dvh, calc(100dvh - 48px));
+				border: 1px solid rgba(201, 210, 255, 0.14);
+				border-bottom: 0;
+				border-radius: 4px;
+				background:
+					radial-gradient(circle at 22% 0%, rgba(101, 209, 255, 0.12), transparent 34%),
+					linear-gradient(180deg, rgba(12, 16, 28, 0.98), rgba(5, 7, 13, 0.99));
+				box-shadow:
+					0 -24px 70px rgba(0, 0, 0, 0.48),
+					inset 0 1px 0 rgba(255, 255, 255, 0.05);
+				overflow: hidden;
+			}
+
+			.asset-modal::before {
+				content: "";
+				position: absolute;
+				top: 9px;
+				left: 50%;
+				width: 42px;
+				height: 4px;
+				border-radius: 4px;
+				background: rgba(226, 234, 255, 0.22);
+				transform: translateX(-50%);
+			}
+
+			.asset-modal-head {
+				position: sticky;
+				top: 0;
+				z-index: 2;
+				display: grid;
+				grid-template-columns: minmax(0, 1fr);
+				gap: 12px;
+				padding: 24px 16px 12px;
+				border-bottom: 1px solid rgba(201, 210, 255, 0.1);
+				background:
+					linear-gradient(180deg, rgba(12, 16, 28, 0.99), rgba(12, 16, 28, 0.92));
+			}
+
+			.asset-modal-copy {
+				gap: 5px;
+			}
+
+			.asset-modal-copy strong {
+				font-size: 14px;
+				letter-spacing: 0.08em;
+			}
+
+			.asset-modal-copy span {
+				max-width: 28em;
+				color: rgba(226, 234, 255, 0.56);
+				font-size: 11px;
+				line-height: 1.55;
+			}
+
+			.asset-modal-actions {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 8px;
+			}
+
+			.asset-modal-actions button {
+				min-height: 42px;
+				padding: 0 12px;
+				border-radius: 4px;
+				background: rgba(255, 255, 255, 0.055);
+				text-transform: none;
+				letter-spacing: 0.02em;
+			}
+
+			.conn-editor-form .asset-modal-actions button:first-child {
+				grid-column: 1 / -1;
+				border-color: rgba(141, 255, 178, 0.22);
+				background: rgba(141, 255, 178, 0.08);
+				color: rgba(218, 255, 230, 0.94);
+			}
+
+			.asset-modal-body {
+				padding: 12px 12px calc(18px + env(safe-area-inset-bottom));
+				overflow-y: auto;
+				overscroll-behavior: contain;
+				border-top: 0;
+			}
+
+			.asset-modal-list,
+			.agent-activity-list,
+			.conn-manager-list,
+			.conn-manager-run-list {
+				gap: 10px;
+			}
+
+			.asset-pill,
+			.agent-activity-item,
+			.conn-manager-item {
+				min-height: 64px;
+				padding: 12px;
+				border-color: rgba(201, 210, 255, 0.11);
+				border-radius: 4px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)),
+					rgba(8, 11, 20, 0.86);
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			}
+
+			.asset-pill {
+				grid-template-columns: minmax(0, 1fr);
+			}
+
+			.asset-pill button {
+				min-height: 38px;
+				border-radius: 4px;
+				text-transform: none;
+				letter-spacing: 0.02em;
+			}
+
+			.conn-manager-toolbar {
+				position: sticky;
+				top: 0;
+				z-index: 1;
+				grid-template-columns: 1fr;
+				gap: 10px;
+				padding: 10px;
+				border-radius: 4px;
+				background: rgba(255, 255, 255, 0.045);
+			}
+
+			.conn-manager-filter-field {
+				grid-template-columns: 1fr;
+			}
+
+			.conn-manager-filter-field select {
+				min-height: 42px;
+				border-radius: 4px;
+			}
+
+			.conn-manager-bulk-actions,
+			.conn-manager-actions,
+			.agent-activity-actions {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 8px;
+				justify-content: stretch;
+			}
+
+			.conn-manager-actions button,
+			.conn-manager-bulk-actions button,
+			.agent-activity-actions button,
+			.conn-manager-run-actions button {
+				min-height: 40px;
+				border-radius: 4px;
+				text-transform: none;
+				letter-spacing: 0.02em;
+			}
+
+			.conn-manager-item {
+				grid-template-columns: minmax(0, 1fr);
+			}
+
+			.conn-manager-select {
+				justify-content: flex-start;
+				padding-top: 0;
+			}
+
+			.conn-manager-select input {
+				width: 22px;
+				height: 22px;
+			}
+
+			.conn-manager-actions {
+				grid-column: auto;
+			}
+
+			.conn-manager-meta,
+			.agent-activity-meta {
+				font-size: 11px;
+				line-height: 1.6;
+			}
+
+			.conn-manager-run-item {
+				border-radius: 4px;
+			}
+
+			.agent-activity-title-row {
+				align-items: flex-start;
+				flex-direction: column;
+				gap: 4px;
+			}
+
+			.agent-activity-text {
+				-webkit-line-clamp: 4;
+			}
+
+			.conn-run-details-dialog.open {
+				align-items: flex-end;
+				padding: 0 8px;
+			}
+
+			.conn-run-details-panel {
+				width: 100%;
+				max-height: min(86dvh, calc(100dvh - 56px));
+				border-bottom: 0;
+				border-radius: 4px;
+				background:
+					radial-gradient(circle at 24% 0%, rgba(101, 209, 255, 0.12), transparent 34%),
+					rgba(8, 11, 20, 0.98);
+			}
+
+			.mobile-drawer-backdrop {
+				background: rgba(1, 3, 10, 0.42);
+			}
+
+			.mobile-conversation-drawer {
+				width: min(94vw, 380px);
+				max-width: calc(100vw - 10px);
+				padding: calc(16px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom));
+				overflow: hidden;
+				border-right-color: rgba(201, 210, 255, 0.18);
+				background:
+					radial-gradient(circle at 18% 6%, rgba(101, 209, 255, 0.18), transparent 34%),
+					radial-gradient(circle at 88% 32%, rgba(201, 210, 255, 0.06), transparent 28%),
+					linear-gradient(180deg, rgba(10, 14, 26, 0.995), rgba(4, 6, 12, 0.998));
+				box-shadow:
+					28px 0 70px rgba(0, 0, 0, 0.62),
+					inset -1px 0 0 rgba(255, 255, 255, 0.04);
+			}
+
+			.mobile-drawer-head {
+				position: sticky;
+				top: 0;
+				z-index: 2;
+				padding: 6px 2px 14px;
+				border-bottom: 1px solid rgba(201, 210, 255, 0.1);
+				background: transparent;
+			}
+
+			.mobile-drawer-close {
+				width: 40px;
+				height: 40px;
+				border-radius: 4px;
+			}
+
+			.mobile-conversation-list {
+				gap: 8px;
+				padding: 12px 0 2px;
+			}
+
+			.mobile-conversation-empty {
+				border-radius: 4px;
+			}
+
+			.mobile-conversation-item {
+				position: relative;
+				grid-template-rows: auto auto auto;
+				gap: 7px;
+				min-height: 108px;
+				padding: 13px 14px 12px 18px;
+				border-radius: 4px;
+				border-color: rgba(201, 210, 255, 0.1);
+				background: rgba(8, 11, 20, 0.82);
+				align-content: start;
+				line-height: normal;
+				letter-spacing: 0;
+				text-transform: none;
+				overflow: hidden;
+				opacity: 1;
+			}
+
+			.mobile-conversation-item > * {
+				position: relative;
+				z-index: 1;
+				min-width: 0;
+			}
+
+			.mobile-conversation-item:disabled {
+				opacity: 1;
+				cursor: default;
+			}
+
+			.mobile-conversation-item.is-active {
+				border-color: rgba(101, 209, 255, 0.48);
+				background: rgba(8, 11, 20, 0.82);
+				box-shadow:
+					inset 0 0 0 1px rgba(101, 209, 255, 0.08),
+					0 12px 28px rgba(0, 0, 0, 0.16);
+			}
+
+			.mobile-conversation-item.is-active::before {
+				content: "";
+				position: absolute;
+				left: 8px;
+				top: 12px;
+				bottom: 12px;
+				width: 3px;
+				border-radius: 4px;
+				background: rgba(101, 209, 255, 0.9);
+				box-shadow: none;
+				z-index: 0;
+			}
+
+			.mobile-conversation-title {
+				color: rgba(248, 251, 255, 0.98);
+				font-size: 14px;
+				line-height: 1.35;
+				letter-spacing: 0.01em;
+			}
+
+			.mobile-conversation-preview {
+				display: -webkit-box;
+				font-size: 12px;
+				line-height: 1.45;
+				color: rgba(226, 234, 255, 0.66);
+				white-space: normal;
+				overflow-wrap: anywhere;
+				word-break: break-word;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: 2;
+			}
+
+			.mobile-conversation-meta {
+				color: rgba(226, 234, 255, 0.5);
+				font-size: 11px;
+				line-height: 1.4;
+				letter-spacing: 0.02em;
+			}
+
+			.mobile-conversation-meta span:first-child {
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.mobile-conversation-meta span:last-child {
+				flex: 0 0 auto;
+			}
+
 			.drop-zone {
 				display: none;
 			}
 
 			.file-list,
 			.selected-asset-list {
-				flex-wrap: nowrap;
-				overflow-x: auto;
-				overflow-y: hidden;
+				flex-wrap: wrap;
+				max-height: 96px;
+				overflow-x: hidden;
+				overflow-y: auto;
 				padding-bottom: 2px;
 				scrollbar-width: none;
 			}

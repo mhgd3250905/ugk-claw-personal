@@ -77,14 +77,19 @@ export function getConnActivityElementRefsScript(): string {
 export function getConnActivityEditorScript(): string {
 	return `
 		function closeConnRunDetailsDialog() {
+			restoreFocusAfterPanelClose(connRunDetailsDialog, state.connRunDetailsRestoreFocusElement);
+			state.connRunDetailsRestoreFocusElement = null;
 			connRunDetailsDialog.classList.remove("open");
 			connRunDetailsDialog.hidden = true;
 			connRunDetailsDialog.setAttribute("aria-hidden", "true");
 			connRunDetailsBody.innerHTML = "";
 		}
 
-		function openAgentActivity() {
+		function openAgentActivity(restoreFocusElement) {
 			state.agentActivityOpen = true;
+			state.agentActivityRestoreFocusElement = rememberPanelReturnFocus(
+				restoreFocusElement || openAgentActivityButton,
+			);
 			agentActivityDialog.hidden = false;
 			agentActivityDialog.classList.add("open");
 			agentActivityDialog.setAttribute("aria-hidden", "false");
@@ -94,13 +99,18 @@ export function getConnActivityEditorScript(): string {
 
 		function closeAgentActivity() {
 			state.agentActivityOpen = false;
+			restoreFocusAfterPanelClose(agentActivityDialog, state.agentActivityRestoreFocusElement);
+			state.agentActivityRestoreFocusElement = null;
 			agentActivityDialog.classList.remove("open");
 			agentActivityDialog.hidden = true;
 			agentActivityDialog.setAttribute("aria-hidden", "true");
 		}
 
-		function openConnManager() {
+		function openConnManager(restoreFocusElement) {
 			state.connManagerOpen = true;
+			state.connManagerRestoreFocusElement = rememberPanelReturnFocus(
+				restoreFocusElement || openConnManagerButton,
+			);
 			connManagerDialog.hidden = false;
 			connManagerDialog.classList.add("open");
 			connManagerDialog.setAttribute("aria-hidden", "false");
@@ -110,14 +120,18 @@ export function getConnActivityEditorScript(): string {
 
 		function closeConnManager() {
 			state.connManagerOpen = false;
+			restoreFocusAfterPanelClose(connManagerDialog, state.connManagerRestoreFocusElement);
 			connManagerDialog.classList.remove("open");
 			connManagerDialog.hidden = true;
 			connManagerDialog.setAttribute("aria-hidden", "true");
 		}
 
-		function openConnEditor(mode, conn) {
+		function openConnEditor(mode, conn, restoreFocusElement) {
 			const editing = mode === "edit" && conn?.connId;
 			state.connEditorOpen = true;
+			state.connEditorRestoreFocusElement = rememberPanelReturnFocus(
+				restoreFocusElement || openConnEditorButton,
+			);
 			state.connEditorMode = editing ? "edit" : "create";
 			state.connEditorConnId = editing ? conn.connId : "";
 			state.connEditorSaving = false;
@@ -134,6 +148,8 @@ export function getConnActivityEditorScript(): string {
 			state.connEditorOpen = false;
 			state.connEditorSaving = false;
 			state.connEditorError = "";
+			restoreFocusAfterPanelClose(connEditorDialog, state.connEditorRestoreFocusElement);
+			state.connEditorRestoreFocusElement = null;
 			connEditorDialog.classList.remove("open");
 			connEditorDialog.hidden = true;
 			connEditorDialog.setAttribute("aria-hidden", "true");
@@ -245,6 +261,7 @@ export function getConnActivityEditorScript(): string {
 			connEditorUpgradePolicy.value = draft.upgradePolicy;
 			connEditorMaxRunSeconds.value = draft.maxRunSeconds;
 			connEditorAssetRefs.value = draft.assetRefs;
+			syncConnEditorTimePickers();
 		}
 
 		function parseConnCronExpression(expression) {
@@ -278,7 +295,7 @@ export function getConnActivityEditorScript(): string {
 		function parseConnTimeOfDay(value) {
 			const match = String(value || "")
 				.trim()
-				.match(/^(\\\\d{2}):(\\\\d{2})(?::(\\\\d{2})(?:\\\\.\\\\d+)?)?$/);
+				.match(/^(\\d{1,2}):(\\d{2})(?::(\\d{2})(?:\\.\\d+)?)?$/);
 			if (!match) {
 				return null;
 			}
@@ -299,6 +316,77 @@ export function getConnActivityEditorScript(): string {
 				return null;
 			}
 			return { hours, minutes };
+		}
+
+		function decorateConnTimePicker(instance) {
+			const calendar = instance?.calendarContainer;
+			if (!calendar) {
+				return;
+			}
+			calendar.classList.add("conn-time-picker-calendar");
+			const input = instance.input;
+			if (input?.dataset?.connTimePicker === "time") {
+				calendar.classList.add("conn-time-picker-calendar-time-only");
+			}
+		}
+
+		function syncConnTimePickerInput(input) {
+			if (!input?._flatpickr) {
+				return;
+			}
+			const value = String(input.value || "").trim();
+			if (!value) {
+				input._flatpickr.clear(false);
+				return;
+			}
+			input._flatpickr.setDate(value, false, input._flatpickr.config.dateFormat);
+		}
+
+		function syncConnEditorTimePickers() {
+			for (const input of [connEditorOnceAt, connEditorIntervalStart, connEditorTimeOfDay]) {
+				syncConnTimePickerInput(input);
+			}
+		}
+
+		function initializeConnEditorTimePickers() {
+			if (typeof window.flatpickr !== "function") {
+				for (const input of [connEditorOnceAt, connEditorIntervalStart, connEditorTimeOfDay]) {
+					input.removeAttribute("readonly");
+				}
+				return;
+			}
+			const locale = window.flatpickr.l10ns?.zh || window.flatpickr.l10ns?.default || undefined;
+			for (const input of [connEditorOnceAt, connEditorIntervalStart, connEditorTimeOfDay]) {
+				if (!input || input._flatpickr) {
+					continue;
+				}
+				const timeOnly = input.dataset.connTimePicker === "time";
+				input.classList.add("conn-editor-time-input");
+				input.setAttribute("readonly", "readonly");
+				window.flatpickr(input, {
+					allowInput: false,
+					altInput: true,
+					altFormat: timeOnly ? "H:i" : "m月d日 H:i",
+					appendTo: document.body,
+					dateFormat: timeOnly ? "H:i" : "Y-m-d\\\\TH:i",
+					defaultHour: timeOnly ? 9 : 8,
+					defaultMinute: 0,
+					disableMobile: true,
+					enableTime: true,
+					locale,
+					minDate: timeOnly ? undefined : "today",
+					minuteIncrement: 5,
+					noCalendar: timeOnly,
+					time_24hr: true,
+					onReady: (_selectedDates, _dateStr, instance) => {
+						decorateConnTimePicker(instance);
+					},
+					onOpen: (_selectedDates, _dateStr, instance) => {
+						decorateConnTimePicker(instance);
+					},
+				});
+			}
+			syncConnEditorTimePickers();
 		}
 
 		function inferConnScheduleMode(schedule) {
@@ -1178,7 +1266,7 @@ export function getConnActivityRendererScript(): string {
 					openButton.textContent = "查看执行过程";
 					openButton.addEventListener("click", () => {
 						closeAgentActivity();
-						void openConnRunDetails(activity);
+						void openConnRunDetails(activity, state.agentActivityRestoreFocusElement || openAgentActivityButton);
 					});
 					actions.appendChild(openButton);
 					item.appendChild(actions);
@@ -1234,7 +1322,10 @@ export function getConnActivityRendererScript(): string {
 				openButton.textContent = "查看执行过程";
 				openButton.addEventListener("click", () => {
 					closeConnManager();
-					void openConnRunDetails(buildConnRunManagerEntry(conn, run));
+					void openConnRunDetails(
+						buildConnRunManagerEntry(conn, run),
+						state.connManagerRestoreFocusElement || openConnManagerButton,
+					);
 				});
 				actions.appendChild(openButton);
 				item.appendChild(copy);
@@ -1327,8 +1418,8 @@ export function getConnActivityRendererScript(): string {
 				);
 				const editButton = createConnActionButton(
 					"编辑",
-					() => {
-						openConnEditor("edit", conn);
+					(event) => {
+						openConnEditor("edit", conn, event.currentTarget);
 					},
 					{ disabled: isActing },
 				);
@@ -1599,10 +1690,11 @@ export function getConnActivityRendererScript(): string {
 			connRunDetailsBody.appendChild(eventSection);
 		}
 
-		async function openConnRunDetails(entry) {
+		async function openConnRunDetails(entry, restoreFocusElement) {
 			if (!canOpenConnRunDetails(entry)) {
 				return;
 			}
+			state.connRunDetailsRestoreFocusElement = rememberPanelReturnFocus(restoreFocusElement);
 			connRunDetailsBody.textContent = "Loading conn run details...";
 			connRunDetailsDialog.hidden = false;
 			connRunDetailsDialog.classList.add("open");
@@ -1624,6 +1716,8 @@ export function getConnActivityRendererScript(): string {
 
 export function getConnActivityEventHandlersScript(): string {
 	return `
+		initializeConnEditorTimePickers();
+
 		refreshConnManagerButton.addEventListener("click", () => {
 			void loadConnManager({ silent: false });
 		});
@@ -1640,11 +1734,11 @@ export function getConnActivityEventHandlersScript(): string {
 		});
 
 		openConnManagerButton.addEventListener("click", () => {
-			openConnManager();
+			openConnManager(openConnManagerButton);
 		});
 
 		openConnEditorButton.addEventListener("click", () => {
-			openConnEditor("create");
+			openConnEditor("create", null, openConnEditorButton);
 		});
 
 		closeConnManagerButton.addEventListener("click", () => {
@@ -1674,11 +1768,11 @@ export function getConnActivityEventHandlersScript(): string {
 
 		mobileMenuActivityButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();
-			openAgentActivity();
+			openAgentActivity(mobileOverflowMenuButton);
 		});
 		mobileMenuConnButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();
-			openConnManager();
+			openConnManager(mobileOverflowMenuButton);
 		});
 		connRunDetailsClose.addEventListener("click", () => {
 			closeConnRunDetailsDialog();
@@ -1689,7 +1783,7 @@ export function getConnActivityEventHandlersScript(): string {
 			}
 		});
 		openAgentActivityButton.addEventListener("click", () => {
-			openAgentActivity();
+			openAgentActivity(openAgentActivityButton);
 		});
 		closeAgentActivityButton.addEventListener("click", () => {
 			closeAgentActivity();

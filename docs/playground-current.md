@@ -36,6 +36,8 @@
 
 - 消息宽度跟随 composer 实际宽度，不依赖写死常量
 - transcript 只有在用户停留在底部附近时才自动跟随最新输出；用户明显上滑阅读历史时，`text_delta`、loading 和过程日志更新都不能强制滚到底部
+- 除了用户主动点击“回到底部”、或页面本来就停留在底部附近的自然跟随外，会话切换、新会话恢复、后台静默同步、广播补同步这类接口回包都不能强制打断当前滚动位置，更不能一有 `GET /v1/chat/state` 回来就把 transcript 硬拽到底部
+- 如果用户是在同一条会话里先看到本地恢复内容、随后又上滑阅读历史，晚到的 canonical `GET /v1/chat/state` 回包也必须保住当前阅读位置；不能因为整段 transcript 重绘或排队中的自动滚底 timer 继续执行，就把页面重新甩回底部
 - 非强制滚底现在会做冷却合并；顶部加载历史的触发阈值也收窄到真正接近顶部，避免滚动过程中反复打断阅读。
 - 浏览器端布局同步、composer textarea 自适应高度、`--conversation-width` / `--command-deck-offset` 更新、transcript 自动跟随、回到底部按钮、顶部加载更多触发、以及 `visibilitychange/pageshow/online` 恢复同步入口集中在 `src/ui/playground-layout-controller.ts`；`src/ui/playground.ts` 只保留主 state、DOM refs 和页面装配
 - 浏览器端 transcript 条目拼装、assistant loading / process shell、正文复制按钮、markdown hydration、代码块 copy toolbar、历史恢复后的消息渲染，以及 `bindPlaygroundTranscriptRenderer()` 初始化入口集中在 `src/ui/playground-transcript-renderer.ts`；`src/ui/playground.ts` 只保留会话恢复、流式事件和这些渲染函数的调用点
@@ -44,7 +46,8 @@
 - 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
 - active 对话态的 `transcript-current` 底部必须保留额外可滚动余量，让最后一条消息能被用户继续上拖到 composer 上方，不被底部输入框压住
 - 当前 Web 入口采用“一个 agent、多个历史会话、一个全局当前会话”的模型；服务端维护 `currentConversationId`，不同浏览器 / 设备打开后都跟随这个当前会话
-- 页面会先通过 `GET /v1/chat/conversations` 获取服务端会话目录和当前会话，再按当前 `conversationId` 请求 `GET /v1/chat/state` 同步真实历史与 active run
+- 页面冷启动或刷新时，会先通过 `GET /v1/chat/conversations` 获取服务端会话目录和当前会话，再按当前 `conversationId` 请求一次 `GET /v1/chat/state` 同步真实历史与 active run
+- 会话激活现在统一收口到单次 canonical `GET /v1/chat/state`：切换会话、新会话创建成功后的进入、以及 `visibilitychange/pageshow/online` 恢复同步，都不该再为了同一条会话先后重复拉两次 state
 - 前端对会话历史恢复和运行态同步的异步 `GET /v1/chat/state` 回包现在统一走会话 sync ownership：会话切换会使旧 generation 失效，同一会话内较新的同步请求也会压过较早请求；如果旧会话请求慢回、或同会话旧请求晚于新请求返回，这个 stale response 都必须被直接丢弃，不能再把旧消息覆盖回当前 transcript
 - 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
@@ -88,7 +91,10 @@
 - 文件上传区、文件 chip、已选资产区和资产库弹窗的静态样式 / HTML 现在集中在 `src/ui/playground-assets.ts`
 - 文件上传、拖拽投放、附件 chip 渲染、资产库刷新 / 复用、已选资产和文件下载卡片运行时逻辑集中在 `src/ui/playground-assets-controller.ts`
 - `src/ui/playground.ts` 只负责把文件 / 资产控制器片段注入到主浏览器脚本，并在发送、恢复、上下文估算等主流程里调用这些函数
+- 手机端文件库不再按桌面居中弹窗压缩显示，而是底部抽屉式面板：面板贴底、最高约 `88dvh`、顶部有短 handle、标题区 sticky、动作按钮按两列触摸网格排布，底部保留 `safe-area` 空间，避免拇指操作时被系统手势区吃掉
 - 待发送附件和已选资产统一用 chip 风格展示
+- 待发送附件和已选资产的 chip 列表必须允许多行换行，文件名最多两行展示，列表自身最多占一小段高度后内部滚动；不要再把多个 PNG / TXT chip 挤成一条横向小火车，标题看不清就是失败。
+- 一次最多只发送 5 个文件；用户选择超过 5 个时，提示要作为 transcript 里的“系统提示”消息出现，不再渲染成孤零零的 `process-note-text`。
 - chip 包含：
   - 类型 badge
   - 文件名
@@ -133,6 +139,7 @@
 - `playground` 现在额外提供全局活动入口：桌面端 landing 右侧 `全局活动`，手机端右上角更多菜单里的 `全局活动`。
 - 全局活动读取 `GET /v1/activity?limit=50`，展示跨会话的 `agent_activity_items`，用于观察后台 conn 结果，不改变当前 conversation transcript 的上下文归属。
 - 这层是观察列表，不是新的聊天真源。当前会话仍然由 `GET /v1/chat/state` 驱动；conn 目标会话仍然收到原有 notification。
+- 手机端全局活动复用底部抽屉语言：列表卡片最小触摸高度为 `64px`，来源 / 会话 / 文件信息在卡片内垂直扫读，查看过程等操作以双列按钮区呈现，不再把桌面横排工具条硬塞进窄屏。
 - 活动条目里的来源、会话和文件信息现在也走人话口径：来源显示为 `后台任务 / 飞书 / 助手 / 通知`，会话显示为“来自 当前会话 / 指定会话”，文件显示为“附 N 个文件”。
 - `source=conn` 且带有 `sourceId + runId` 的 activity 条目会复用后台任务过程弹层，继续请求：
   - `GET /v1/conns/:connId/runs/:runId`
@@ -145,8 +152,11 @@
 - 当前项目按“一个 agent 工人，多条历史产线，但同一时刻只有一条全局当前产线”收口
 - 服务端 `ConversationStore` 维护 `currentConversationId` 和会话目录；所有平台打开页面后都以服务端当前会话为准，不再固定写死 `agent:global`
 - 浏览器端会话目录、新建会话、切换当前会话、运行中禁切、以及手机历史抽屉列表渲染集中在 `src/ui/playground-conversations-controller.ts`；`src/ui/playground.ts` 仍持有主 state，布局滚动与恢复入口已交给 `src/ui/playground-layout-controller.ts`，transcript 渲染入口已交给 `src/ui/playground-transcript-renderer.ts`，stream lifecycle 已交给 `src/ui/playground-stream-controller.ts`
+- 桌面 Web 现在常驻左侧历史会话栏，和手机历史抽屉共用同一份 conversation catalog 渲染与切换逻辑；不能再让桌面端完全没有历史入口。移动端仍走左侧抽屉，避免小屏再塞一条常驻侧栏。
 - 点击 `新会话` 会调用 `POST /v1/chat/conversations` 创建新的 `conversationId`，并把它设置成全局当前会话；旧会话不会被 reset 或删除
-- 手机端点击左侧品牌区会打开历史会话抽屉；点击历史项会调用 `POST /v1/chat/current`，成功后全平台下一次同步都会跟随新的当前会话
+- 点击 `新会话` 时，前端优先进入新会话；创建成功后会先本地插入会话目录，再用新会话的一次 canonical `GET /v1/chat/state` 收口 UI，不再先额外 round-trip 一轮 `GET /v1/chat/conversations` 把切换手感拖慢
+- 手机端点击左侧品牌区会打开历史会话抽屉；点击历史项时前端应先立即关闭抽屉，再调用 `POST /v1/chat/current`，不能傻等服务端回包后才把侧边栏收起来
+- 会话切换成功后，前端会直接以目标会话的一次 canonical `GET /v1/chat/state` 收口真实历史与 active run；不再对同一条会话先拉 history restore、再补拉 run state，制造重复请求和重复滚底
 - agent 正在运行时，后端拒绝新建或切换会话；前端显示“当前任务未结束，不能切换产线 / 开启新产线”
 - 浏览器端当前通过 `conversationSyncGeneration + requestId` 管住 `/v1/chat/state` 的落地资格：会话切换时先失效旧 generation，再给新的同步请求发 token；只有仍属于当前 generation、且没被更新请求压过的响应，才允许写进当前页面
 - 如果未来真的要支持多用户同时操作，不能把这个单工人模型当成权限系统继续堆，必须重新设计认证、控制权和会话隔离
@@ -202,15 +212,20 @@
 
 - 这一节覆盖并取代之前“只是做适配”的旧说法；当前手机端不是压缩版桌面，而是保留现有逻辑后单独重写的移动展示层
 - 手机端继续沿用桌面端的深空黑 / 暗紫星云 / 冷白星尘视觉语言，但页面组织改成更接近原生聊天页的结构
-- 手机端当前统一视觉收口规则是：所有可见圆角一律压到 `4px`，不再混用 `12px / 14px / 16px`
-- 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧只保留 `新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库 / 后台任务 / 全局活动` 收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
+- 手机端面板继续保持贴底抽屉和深色卡片结构，但圆角统一服从用户偏好：文件库 / 后台任务 / 新建后台任务 / 全局活动 / 后台 run 详情里的面板、卡片、工具栏和操作按钮都只使用 `4px` 圆角，不再回到 `22px` 或 `16px` 的大圆角语言。
+- 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧保留上下文电池条、`新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库 / 后台任务 / 全局活动` 收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
 - 手机端 topbar、更多菜单、历史抽屉开关、遮罩关闭、外部点击关闭和移动端入口绑定集中在 `src/ui/playground-mobile-shell-controller.ts`；历史列表渲染和会话切换由 `src/ui/playground-conversations-controller.ts` 负责，移动外壳控制器不反向持有 conversation catalog 逻辑
-- 手机端品牌区点击后展开左侧历史会话抽屉，列表项展示标题、摘要、更新时间和消息数；列表项统一 `4px` 圆角，历史列表保留纵向滚动但隐藏侧边滚动条；抽屉右侧只保留透明点击遮罩用于关闭，不再叠加暗色或模糊背景；运行中禁止切换，避免一个 agent 工人被硬拽到另一条产线
+- 手机端品牌区点击后展开左侧历史会话抽屉，宽度收口为 `min(94vw, 380px)`，右侧保留深色半透明遮罩压住主聊天区，避免背景文字贴着抽屉边缘干扰阅读；抽屉头部 sticky，列表项展示标题、两行摘要、更新时间和消息数，最小触摸高度 `108px`，标题 / 摘要 / meta 必须显式设置移动端行高，不能继续继承全局 button 的紧缩排版；当前会话只用左侧冷白蓝亮条和细边框标记，不再铺大面积蓝色块；侧边栏内关闭按钮、空态和会话项统一 `4px` 圆角；历史列表保留纵向滚动但隐藏侧边滚动条；运行中禁止切换，避免一个 agent 工人被硬拽到另一条产线
+- 手机端历史抽屉头部背景保持透明，不再盖一层额外色块。
 - `新会话` 按钮现在走 `POST /v1/chat/conversations` 创建新的服务端会话并激活为 `currentConversationId`；不再 reset 旧会话，也不再只清本地 transcript
+- 手机端 `文件库`、`后台任务`、`全局活动` 和后台 run 详情统一走贴底抽屉：点击入口后先立刻打开对应面板，面板内部再刷新数据；用户点按钮切界面不能等接口回完才出现反馈，这种体验慢得像在拨号上网。
+- 这些手机面板的共同约束是：标题区 sticky，内容区独立滚动并 `overscroll-behavior: contain`，主操作按钮最小高度约 `40px`，列表项最小高度 `64px`，底部 padding 包含 `env(safe-area-inset-bottom)`。
+- 这些手机面板的视觉约束是硬朗、低圆角、少装饰；如果后续新增类似管理面板，默认按 `4px` 收口，别又把大圆角当移动端高级感，真的会很像套模板。
+- 所有这类面板关闭前都要先把焦点归还给可见触发入口或底部输入框，不能让焦点继续留在即将 `aria-hidden=true` 的关闭按钮、列表按钮或编辑器字段里；不然浏览器会直接给无障碍警告，用户用键盘 / 读屏时也会被塞进隐藏层。
 - `landing-screen` 在手机端直接隐藏，不再让 hero、大标题和装饰块继续吞掉首屏高度
 - 中间主区收口成全高 transcript 区域，去掉额外边框和背景壳层，优先把有限空间让给对话内容；空态时 transcript 中央展示方块字符组成的 `UGK` 标识，不再显示“开始一轮对话...”提示方块
 - 手机端 active transcript 底部使用安全区感知的滚动缓冲，最后一条回复在滚到底后仍能被继续上拖一点，避免被底部 composer 遮挡
-- 拖拽上传区在手机端隐藏；已选文件与资产改成横向滚动条带，避免把竖向空间浪费在触屏上几乎不好用的拖拽壳子上
+- 拖拽上传区在手机端隐藏；已选文件与资产改成可换行 chip 列表，超过可用高度后列表内部纵向滚动，避免多文件预览挤在同一行导致标题完全看不清。
 - Landing 空态底部 `#composer-drop-target.composer` 不再使用大输入框口径；桌面 landing composer 使用 `6px 8px 6px 10px` padding，textarea 初始最小高度为 `40px`，发送 / 打断按钮最小高度为 `40px`，并通过 `align-self: end`、`height: fit-content`、`max-height: none` 防止外层 section 被旧高度规则卡死
 - 底部 composer 改成手机优先结构：输入区单列铺满，右侧只保留紧凑 icon 控制；移动端 composer 背景使用单层纯色，不再叠加渐变；发送按钮使用居中的向上箭头 icon，打断按钮使用白色方形中断 icon，不再显示文字，也不再沿用桌面端按钮背景、边框和阴影；当前手机端这两个 icon 调整为 `28px`，避免把按钮本体撑大；中断按钮在未运行时也保留占位，只是禁用态变淡，不会直接消失；发送后的输入框立即清空，失败才回填草稿
 - composer 输入框 placeholder 统一为“和我聊聊吧”；不要再让脚本初始化把 HTML 里的中文占位符覆盖成英文调试口吻；手机端单行空态按 line-height + 对称 padding 计算，让 placeholder 和正文视觉居中
@@ -225,7 +240,7 @@
 - 刷新页面后，playground 先请求 `GET /v1/chat/conversations` 获取服务端当前会话，再按该 `conversationId` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、过程区、队列和上下文占用作为 canonical state 渲染。
 - `GET /v1/chat/history` 与 `GET /v1/chat/status` 继续保留兼容，但刷新恢复不再靠前端把 history、status、events、localStorage 和 DOM 指针拼成一份“猜出来的状态”。
 - `/v1/chat/state` 与 `/v1/chat/history` 都会合并连续 assistant 历史消息，保证同一轮完成后的浏览器处理叙述和最终回答恢复为一个助手气泡，而不是刷新后散成多条独立消息。
-- 点击 `新会话` 后，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后以新会话的 `GET /v1/chat/state` 作为真源恢复 UI；旧会话保留在历史列表里。
+- 点击 `新会话` 后，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后以新会话的一次 `GET /v1/chat/state` 作为真源恢复 UI；旧会话保留在历史列表里，不再先额外同步一轮 `GET /v1/chat/conversations` 才给用户切过去。
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
 - `activeRun` 存在时，前端只渲染一个 active assistant 气泡；同一 run 不允许拆出多条“助手 / 思考过程”消息。
 - `activeRun.input.message` 用来补齐刷新观察者看到的当前用户任务；如果 session history 已经包含同一条用户消息，前端会避免重复渲染。
@@ -242,21 +257,21 @@
 
 ## Context Usage Bar
 
-- 上下文用量常量、DOM 引用、token 估算、进度环渲染、详情弹层和输入实时重算逻辑集中在 `src/ui/playground-context-usage-controller.ts`
+- 上下文用量常量、DOM 引用、token 估算、电池式分段进度条渲染、详情弹层和输入实时重算逻辑集中在 `src/ui/playground-context-usage-controller.ts`
 - `src/ui/playground.ts` 仍保留 `state.contextUsage` / `contextUsageExpanded` / `contextUsageSyncToken`，因为这些状态会被会话恢复、流式事件和发送流程共同更新
-- 桌面 Web 和手机端都在对话区与输入框之间显示一个小圆环进度提示，圆环位于输入框外部，右边缘与输入区域右侧对齐。
+- 桌面 Web 把上下文入口放进 `landing-side-right` 工具栏内部最右侧，手机端仍显示在顶部状态栏右侧；二者都不再占用 composer 底部区域。视觉上使用 `4px` 圆角的水平电池式分段进度条，颜色随 safe / caution / warning / danger 状态变化。
 - 圆环中央只显示百分比；只要输入区里还有草稿、待发附件或已选资产，就按“预计发送后”口径计算。
 - 基线数据来自后端状态接口返回的 `contextUsage`；草稿实时估算仍可通过 `GET /v1/chat/status` 刷新，前端只负责把草稿 / 附件 / 资产的估算 token 叠加上去，所以文案必须明确是估算。
 - 风险态统一按 `safe / caution / warning / danger` 四档收口，圆环颜色会随风险变化。
 - 桌面端 hover 或键盘 focus 时展示浮层详情；点击可临时固定展开，别再要求用户盯着一个完整状态条。
-- 手机端点击圆环后打开底部弹窗展示详情，内容包括：会话占用、待发占用、预留回复预算、provider / model、估算口径与剩余可用空间。
+- 手机端点击上下文电池条后打开底部弹窗展示详情，内容包括：会话占用、待发占用、预留回复预算、provider / model、估算口径与剩余可用空间。
 
 ## Realtime Notification Broadcast
 
 - `playground` 现在会常驻订阅 `GET /v1/notifications/stream`，专门接收后台 `conn` 完成后的实时广播。
 - 广播事件先走持久化，再走实时推送；页面右上角轻提示只是在线提醒层，不替代 `GET /v1/chat/state`。
 - 所有在线页面都会各自收到并展示提示；当前版本明确不做多页去重。
-- 如果广播属于当前会话，前端会静默刷新当前会话的 run 状态和历史消息；如果不属于当前会话，也会同步刷新会话目录。
+- 如果广播属于当前会话，前端会静默用一次 canonical `GET /v1/chat/state` 刷新当前会话的 run 状态和历史消息；如果不属于当前会话，也会同步刷新会话目录。两种情况都不应强制把用户当前的 transcript 滚到底部。
 - 页面关闭、`pagehide`、断网或 SSE 断开后会自动断开连接；回到前台、`pageshow` 或重新联网后会自动重连。
 - 关键入口：
   - [src/routes/notifications.ts](/E:/AII/ugk-pi/src/routes/notifications.ts)
@@ -286,7 +301,8 @@
 
 - 发送消息时，如果前端已经持有 `conversationId`，不再每次串行等待 `GET /v1/chat/conversations` 和 `GET /v1/chat/state` 预检完成；消息先进入 `/v1/chat/stream`，会话目录改为后台静默刷新。
 - composer 输入仍即时调整高度，但 context usage 估算改成 debounce，避免每个按键都触发完整占用量重算。
-- `visibilitychange`、`pageshow`、`online` 现在统一走 `scheduleResumeConversationSync()` 做去重和冷却，不再三处各自拉取 catalog/state。
+- `visibilitychange`、`pageshow`、`online` 现在统一走 `scheduleResumeConversationSync()` 做去重和冷却，不再三处各自拉取 catalog/state；恢复同步对当前会话只做一次 canonical `GET /v1/chat/state`，不再双拉 state 把页面抖成多余动画。
+- 用户离开底部后，前端会取消尚未执行的自动滚底计划；同一会话的 async state 重绘也会恢复当前 scrollTop，而不是拿“重新渲染了一遍”当借口把阅读位置洗掉。
 - layout 同步集中到 `scheduleConversationLayoutSync()`；`ResizeObserver` 只观察 composer 容器，不再盯住大面积页面节点。
 - 本地历史快照写入 `localStorage` 改为 debounce，并在 `pagehide` / `beforeunload` 前 flush；这层缓存只服务冷启动，不是运行真源。
 - 背景和玻璃效果已减负：删除重型 `backdrop-filter: blur(...)`，背景从多层径向堆叠收口为少量层次。
@@ -295,14 +311,15 @@
 
 - `playground` 现在提供后台任务管理入口：桌面端 landing 右侧 `后台任务`，手机端右上角更多菜单里的 `后台任务`。
 - 管理弹层使用 `conn-manager-dialog` / `conn-manager-list`，打开时读取 `GET /v1/conns`，并为每个 conn 读取 `GET /v1/conns/:connId/runs` 展示最近 3 条 run。
+- 手机端后台任务管理器是贴底抽屉，不是桌面管理表格的缩小版；顶部筛选和批量操作改成单列 / 双列触摸区，conn 条目改成单列卡片，`立即执行 / 暂停 / 恢复 / 删除 / 查看` 这类操作以整宽网格按钮呈现，避免横向挤成一排小字按钮。
 - 管理弹层提供 `新建` 入口，每条 conn 提供 `编辑` 入口；编辑器使用 `conn-editor-dialog` / `conn-editor-form`，调用 `POST /v1/conns` 或 `PATCH /v1/conns/:connId`。
 - conn 创建 / 编辑器默认只露出常用字段：标题、`让它做什么`、`结果发到哪里`、调度和保存。编号输入只在选择“指定会话 / 飞书”时出现。
 - 调度入口只保留三种：`定时执行`、`间隔执行`、`每日执行`。前端负责把这三种映射回后端 `once / interval / cron` payload，创建时不再让用户接触 cron 细节。
 - conn 编辑器覆盖标题、prompt、投递目标、调度策略和高级运行字段：
   - 目标支持当前会话、指定 conversation、`feishu_chat`、`feishu_user`。
 - 调度区只保留三种模式：`定时执行`、`间隔执行`、`每日执行`。前端仍然映射回后端 `once / interval / cron`，但不再把 cron、工作日、每周这些复杂概念直接甩给用户。
-- 三种模式对应的输入也固定下来：`定时执行` 只填 `执行时间`；`间隔执行` 只填 `首次执行时间` 和 `间隔（分钟）`；`每日执行` 只填 `每日执行时间`。
-- `每日执行时间` 解析现在兼容浏览器 `input[type=time]` 可能返回的 `HH:mm` 与 `HH:mm:ss`，保存时不会再因为模板脚本里的正则转义丢失而误报“请填写每日执行时间”。
+- 三种模式对应的输入也固定下来：`定时执行` 只点选 `执行时间`；`间隔执行` 只点选 `首次执行时间` 并填写 `间隔（分钟）`；`每日执行` 只点选 `每日执行时间`。时间选择统一使用本地打包的 `flatpickr`，配置 `enableTime / time_24hr / disableMobile`，不再依赖系统原生 `datetime-local` / `time` 控件。
+- `每日执行时间` 解析现在兼容 `07:00`、`7:00` 与 `HH:mm:ss`，保存时不会再因为用户输入或浏览器差异误报“请填写每日执行时间”。
   - 高级字段默认收进 `高级设置`，用户可见名称分别是 `任务身份`、`执行模板`、`能力包`、`模型策略`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `profileId`、`agentSpecId`、`skillSetId`、`modelPolicyId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。
 - 目标选择区现在会显示 `conn-editor-target-preview`：把将要投递的目标会话 / 飞书目标、目标编号和“切换新会话不会改写已保存目标”的口径直接展示出来，别再靠猜。
 - 保存成功后，管理器会显示 `conn-manager-notice`，说明已创建 / 已更新的 conn 会投递到哪里，并高亮对应条目。

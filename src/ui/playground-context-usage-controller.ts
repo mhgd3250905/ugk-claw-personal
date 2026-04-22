@@ -213,8 +213,7 @@ export function getPlaygroundContextUsageControllerScript(): string {
 			contextUsageShell.setAttribute("aria-label", "上下文使用 " + projectedUsage.percent + "%，" + statusLabel);
 			contextUsageMeta.textContent = detailText;
 			contextUsageDialogBody.textContent = detailText;
-			contextUsageProgress.style.strokeDasharray = projectedUsage.percent + " 100";
-			contextUsageProgress.setAttribute("stroke-dasharray", projectedUsage.percent + " 100");
+			contextUsageProgress.style.setProperty("--context-usage-percent", projectedUsage.percent + "%");
 			contextUsageProgress.setAttribute("aria-valuenow", String(projectedUsage.percent));
 			contextUsageToggle.textContent = "上下文详情";
 			contextUsageToggle.setAttribute("aria-expanded", state.contextUsageExpanded ? "true" : "false");

@@ -26,6 +26,8 @@ const CONTENT_TYPES: Record<string, string> = {
 export function registerStaticRoutes(app: FastifyInstance, options: StaticRouteOptions): void {
 	const publicDir = resolve(options.publicDir ?? join(options.projectRoot, "public"));
 	const runtimeDir = resolve(options.runtimeDir ?? join(options.projectRoot, "runtime"));
+	const flatpickrDir = resolve(join(options.projectRoot, "node_modules", "flatpickr", "dist"));
+	const flatpickrLocaleDir = resolve(join(flatpickrDir, "l10n"));
 
 	app.get("/:fileName", async (request, reply) => {
 		const { fileName } = request.params as { fileName: string };
@@ -41,6 +43,24 @@ export function registerStaticRoutes(app: FastifyInstance, options: StaticRouteO
 			rootDir: runtimeDir,
 			fileName,
 			allowedExtensions: new Set([".html", ".png", ".jpg", ".jpeg", ".webp", ".pdf", ".txt", ".md", ".json", ".csv"]),
+		});
+	});
+
+	app.get("/vendor/flatpickr/:fileName", async (request, reply) => {
+		const { fileName } = request.params as { fileName: string };
+		return await sendStaticFile(reply, {
+			rootDir: flatpickrDir,
+			fileName,
+			allowedExtensions: new Set([".css", ".js"]),
+		});
+	});
+
+	app.get("/vendor/flatpickr/l10n/:fileName", async (request, reply) => {
+		const { fileName } = request.params as { fileName: string };
+		return await sendStaticFile(reply, {
+			rootDir: flatpickrLocaleDir,
+			fileName,
+			allowedExtensions: new Set([".js"]),
 		});
 	});
 }

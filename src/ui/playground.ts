@@ -174,11 +174,15 @@ function getPlaygroundStyles(): string {
 			box-shadow: none;
 			backdrop-filter: none;
 			display: grid;
+			grid-template-columns: 238px minmax(0, 1fr);
 			grid-template-rows: auto minmax(0, 1fr);
+			column-gap: 18px;
 			overflow: hidden;
 		}
 
 		.topbar {
+			position: relative;
+			grid-column: 1 / -1;
 			display: grid;
 			grid-template-columns: 1fr;
 			gap: 14px;
@@ -511,6 +515,8 @@ function getPlaygroundStyles(): string {
 		}
 
 		.chat-stage {
+			grid-column: 2;
+			grid-row: 2;
 			display: flex;
 			flex-direction: column;
 			position: relative;
@@ -1689,22 +1695,20 @@ function getPlaygroundStyles(): string {
 		}
 
 		.context-usage-row {
-			display: flex;
-			justify-content: flex-end;
-			align-items: center;
-			min-height: 26px;
-			margin: -2px 0 -4px;
+			display: none;
 		}
 
 		.context-usage-shell {
 			position: relative;
 			display: inline-grid;
-			place-items: center;
-			width: 36px;
-			height: 36px;
-			padding: 0;
+			grid-template-columns: 48px auto;
+			align-items: center;
+			gap: 7px;
+			width: 82px;
+			height: 28px;
+			padding: 5px 7px;
 			border: 1px solid rgba(201, 210, 255, 0.1);
-			border-radius: 50%;
+			border-radius: 4px;
 			background: rgba(9, 12, 22, 0.72);
 			color: rgba(247, 249, 255, 0.9);
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -1717,27 +1721,43 @@ function getPlaygroundStyles(): string {
 			background: rgba(14, 18, 31, 0.96);
 		}
 
-		.context-usage-ring {
-			position: absolute;
-			inset: 3px;
-			width: 28px;
-			height: 28px;
-			transform: rotate(-90deg);
+		.context-usage-battery {
+			position: relative;
+			display: block;
+			width: 48px;
+			height: 13px;
+			padding: 2px;
+			border: 1px solid rgba(201, 210, 255, 0.22);
+			border-radius: 4px;
+			background: rgba(255, 255, 255, 0.035);
+			overflow: hidden;
 		}
 
-		.context-usage-track {
-			fill: none;
-			stroke: rgba(255, 255, 255, 0.12);
-			stroke-width: 3;
+		.context-usage-battery::after {
+			content: "";
+			position: absolute;
+			top: 3px;
+			right: 2px;
+			bottom: 3px;
+			width: 2px;
+			border-radius: 1px;
+			background: rgba(201, 210, 255, 0.22);
 		}
 
 		.context-usage-progress {
-			fill: none;
-			stroke: rgba(143, 255, 199, 0.94);
-			stroke-linecap: round;
-			stroke-width: 3;
-			stroke-dasharray: 0 100;
-			transition: stroke-dasharray 160ms ease, stroke 160ms ease;
+			--context-usage-percent: 0%;
+			display: block;
+			width: var(--context-usage-percent);
+			height: 100%;
+			max-width: 100%;
+			border-radius: 2px;
+			background:
+				repeating-linear-gradient(
+					90deg,
+					rgba(143, 255, 199, 0.96) 0 5px,
+					transparent 5px 7px
+				);
+			transition: width 160ms ease, background 160ms ease;
 		}
 
 		.context-usage-summary {
@@ -1786,15 +1806,30 @@ function getPlaygroundStyles(): string {
 		}
 
 		.context-usage-shell[data-status="caution"] .context-usage-progress {
-			stroke: rgba(255, 214, 125, 0.96);
+			background:
+				repeating-linear-gradient(
+					90deg,
+					rgba(255, 214, 125, 0.96) 0 5px,
+					transparent 5px 7px
+				);
 		}
 
 		.context-usage-shell[data-status="warning"] .context-usage-progress {
-			stroke: rgba(255, 156, 92, 0.98);
+			background:
+				repeating-linear-gradient(
+					90deg,
+					rgba(255, 156, 92, 0.98) 0 5px,
+					transparent 5px 7px
+				);
 		}
 
 		.context-usage-shell[data-status="danger"] .context-usage-progress {
-			stroke: rgba(255, 113, 136, 1);
+			background:
+				repeating-linear-gradient(
+					90deg,
+					rgba(255, 113, 136, 1) 0 5px,
+					transparent 5px 7px
+				);
 		}
 
 		.context-usage-dialog[hidden] {
@@ -1821,7 +1856,7 @@ function getPlaygroundStyles(): string {
 			width: min(420px, 100%);
 			padding: 16px;
 			border: 1px solid rgba(201, 210, 255, 0.14);
-			border-radius: 18px;
+			border-radius: 4px;
 			background: rgba(8, 11, 20, 0.98);
 			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 		}
@@ -1846,7 +1881,7 @@ function getPlaygroundStyles(): string {
 			height: 32px;
 			padding: 0;
 			border: 1px solid rgba(201, 210, 255, 0.12);
-			border-radius: 50%;
+			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.05);
 			color: rgba(238, 244, 255, 0.76);
 		}
@@ -2116,13 +2151,15 @@ function getPlaygroundStyles(): string {
 			top: auto;
 			z-index: 1;
 			display: flex;
+			flex-wrap: wrap;
 			gap: 6px;
 			align-items: center;
+			justify-content: center;
 			justify-self: center;
 			width: min(720px, 100%);
 			max-width: min(720px, calc(100% - 48px));
 			margin: 0 auto;
-			padding: 5px;
+			padding: 5px 92px;
 			border: 1px solid rgba(201, 210, 255, 0.08);
 			border-radius: 4px;
 			background: rgba(5, 7, 13, 0.78);
@@ -2192,6 +2229,90 @@ function getPlaygroundStyles(): string {
 			flex-shrink: 0;
 		}
 
+		.topbar-context-slot {
+			position: absolute;
+			top: 50%;
+			right: 5px;
+			z-index: 5;
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			flex: 0 0 auto;
+			margin-left: 0;
+			transform: translateY(-50%);
+		}
+
+		.desktop-conversation-rail {
+			grid-column: 1;
+			grid-row: 2;
+			display: grid;
+			grid-template-rows: auto minmax(0, 1fr);
+			min-height: 0;
+			margin: 0 0 12px;
+			padding: 12px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 4px;
+			background:
+				radial-gradient(circle at 20% 0%, rgba(101, 209, 255, 0.08), transparent 32%),
+				rgba(5, 7, 13, 0.72);
+			box-shadow:
+				inset 0 1px 0 rgba(255, 255, 255, 0.04),
+				0 18px 38px rgba(0, 0, 0, 0.18);
+			overflow: hidden;
+		}
+
+		.desktop-conversation-rail-head {
+			display: flex;
+			align-items: flex-end;
+			justify-content: space-between;
+			gap: 10px;
+			padding: 2px 2px 10px;
+			border-bottom: 1px solid rgba(201, 210, 255, 0.08);
+		}
+
+		.desktop-conversation-rail-head strong {
+			color: rgba(246, 249, 255, 0.94);
+			font-size: 12px;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.desktop-conversation-rail-head span {
+			color: rgba(226, 234, 255, 0.44);
+			font-size: 10px;
+			white-space: nowrap;
+		}
+
+		.desktop-conversation-list {
+			display: grid;
+			align-content: start;
+			gap: 8px;
+			min-height: 0;
+			padding: 10px 0 0;
+			overflow-y: auto;
+			overflow-x: hidden;
+			scrollbar-width: thin;
+			scrollbar-color: rgba(201, 210, 255, 0.18) transparent;
+		}
+
+		.desktop-conversation-list::-webkit-scrollbar {
+			width: 4px;
+		}
+
+		.desktop-conversation-list::-webkit-scrollbar-thumb {
+			background: rgba(201, 210, 255, 0.18);
+		}
+
+		.desktop-conversation-list .mobile-conversation-empty,
+		.desktop-conversation-list .mobile-conversation-item {
+			border-radius: 4px;
+		}
+
+		.desktop-conversation-list .mobile-conversation-item {
+			min-height: 86px;
+			background: rgba(8, 11, 20, 0.72);
+		}
+
 		.shell[data-stage-mode="landing"] .stream-layout {
 			position: absolute;
 			inset: 86px 34px var(--command-deck-offset, 176px) 34px;
@@ -2239,8 +2360,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"] .context-usage-row {
-			min-height: 22px;
-			margin: -6px 0 -3px;
+			display: none;
 		}
 
 		.shell[data-stage-mode="landing"] .composer {
@@ -2341,6 +2461,7 @@ function getPlaygroundStyles(): string {
 				width: 100vw;
 				height: 100vh;
 				border-radius: 0;
+				grid-template-columns: minmax(0, 1fr);
 				--transcript-bottom-scroll-buffer: calc(112px + env(safe-area-inset-bottom));
 			}
 
@@ -2362,6 +2483,27 @@ function getPlaygroundStyles(): string {
 				min-height: 48px;
 			}
 
+			.topbar-context-slot {
+				position: absolute;
+				top: max(15px, calc(env(safe-area-inset-top) + 15px));
+				right: 100px;
+				margin-left: 0;
+				transform: none;
+			}
+
+			.context-usage-shell {
+				width: 72px;
+				height: 34px;
+				grid-template-columns: 38px auto;
+				gap: 5px;
+				padding: 6px 7px;
+			}
+
+			.context-usage-battery {
+				width: 38px;
+				height: 12px;
+			}
+
 			.mobile-brand-logo {
 				width: 26px;
 				height: 26px;
@@ -2377,10 +2519,20 @@ function getPlaygroundStyles(): string {
 			}
 
 			.landing-side-right {
+				display: contents;
+			}
+
+			.landing-side-right > .telemetry-action {
+				display: none;
+			}
+
+			.desktop-conversation-rail {
 				display: none;
 			}
 
 			.chat-stage {
+				grid-column: auto;
+				grid-row: auto;
 				display: grid;
 				grid-template-rows: auto minmax(0, 1fr) auto;
 				gap: 8px;
@@ -2478,22 +2630,6 @@ function getPlaygroundStyles(): string {
 
 			.file-strip {
 				gap: 6px;
-			}
-
-			.context-usage-row {
-				min-height: 24px;
-				margin: -2px 0 -5px;
-			}
-
-			.context-usage-shell {
-				width: 32px;
-				height: 32px;
-			}
-
-			.context-usage-ring {
-				inset: 3px;
-				width: 24px;
-				height: 24px;
 			}
 
 			.context-usage-summary {
@@ -2918,6 +3054,11 @@ function getPlaygroundScript(): string {
 			connEditorConnId: "",
 			connEditorSaving: false,
 			connEditorError: "",
+			assetModalRestoreFocusElement: null,
+			agentActivityRestoreFocusElement: null,
+			connManagerRestoreFocusElement: null,
+			connEditorRestoreFocusElement: null,
+			connRunDetailsRestoreFocusElement: null,
 			mobileOverflowMenuOpen: false,
 			mobileConversationDrawerOpen: false,
 			conversationCatalog: [],
@@ -2985,10 +3126,50 @@ function getPlaygroundScript(): string {
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
 		${getPlaygroundMobileShellElementRefsScript()}
+		const topbarContextSlot = document.querySelector(".topbar-context-slot");
+		if (topbarContextSlot?.parentElement === mobileTopbar) {
+			mobileTopbar.after(topbarContextSlot);
+		}
 		const statusPill = document.getElementById("status-pill");
 		const commandStatus = document.getElementById("command-status");
 
 		messageInput.placeholder = "和我聊聊吧";
+
+		function isPanelReturnFocusTarget(element) {
+			return Boolean(
+				element &&
+					typeof element.focus === "function" &&
+					!element.hidden &&
+					!element.disabled &&
+					element.getAttribute?.("aria-hidden") !== "true" &&
+					!element.closest?.("[hidden], [aria-hidden='true']"),
+			);
+		}
+
+		function focusPanelReturnTarget(element) {
+			const target = isPanelReturnFocusTarget(element) ? element : messageInput;
+			try {
+				target.focus({ preventScroll: true });
+			} catch {
+				target.focus();
+			}
+		}
+
+		function rememberPanelReturnFocus(preferredElement) {
+			if (isPanelReturnFocusTarget(preferredElement)) {
+				return preferredElement;
+			}
+			if (isPanelReturnFocusTarget(document.activeElement)) {
+				return document.activeElement;
+			}
+			return messageInput;
+		}
+
+		function restoreFocusAfterPanelClose(panelElement, fallbackElement) {
+			if (panelElement?.contains(document.activeElement)) {
+				focusPanelReturnTarget(fallbackElement);
+			}
+		}
 
 		function createBrowserId() {
 			const cryptoApi = globalThis.crypto;
@@ -3401,6 +3582,10 @@ function getPlaygroundScript(): string {
 				return false;
 			}
 			const nextConversationId = String(conversationState?.conversationId || state.conversationId || "").trim();
+			const shouldPreserveTranscriptViewport =
+				!state.autoFollowTranscript &&
+				transcript.scrollHeight > transcript.clientHeight + TRANSCRIPT_FOLLOW_THRESHOLD_PX;
+			const preservedTranscriptScrollTop = shouldPreserveTranscriptViewport ? transcript.scrollTop : null;
 			if (syncToken?.requestId) {
 				state.conversationAppliedSyncRequestId = Math.max(
 					state.conversationAppliedSyncRequestId,
@@ -3425,6 +3610,13 @@ function getPlaygroundScript(): string {
 			if (state.conversationHistory.length > 0) {
 				setTranscriptState("active");
 				renderMoreConversationHistory();
+			}
+			if (typeof preservedTranscriptScrollTop === "number") {
+				const maxScrollTop = Math.max(0, transcript.scrollHeight - transcript.clientHeight);
+				transcript.scrollTop = Math.min(preservedTranscriptScrollTop, maxScrollTop);
+				state.lastTranscriptScrollAt = Date.now();
+				state.autoFollowTranscript = false;
+				updateScrollToBottomButton();
 			}
 
 			if (!activeRun) {
@@ -3481,7 +3673,7 @@ function getPlaygroundScript(): string {
 							: "已结束";
 			}
 			syncHistoryLoadMoreButton();
-			scrollTranscriptToBottom({ force: true });
+			scrollTranscriptToBottom();
 			return true;
 		}
 
@@ -3799,10 +3991,10 @@ function getPlaygroundScript(): string {
 
 			setTranscriptState("active");
 			renderMoreConversationHistory();
-			scrollTranscriptToBottom({ force: true });
+			scrollTranscriptToBottom();
 		}
 
-		async function restoreConversationHistoryFromServer(conversationId) {
+		async function restoreConversationHistoryFromServer(conversationId, options) {
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId) {
 				return;
@@ -3812,14 +4004,23 @@ function getPlaygroundScript(): string {
 			try {
 				const payload = await fetchConversationState(nextConversationId);
 				if (!renderConversationState(payload, syncToken)) {
-					return;
+					return payload;
+				}
+				if (payload.running) {
+					if (options?.attachIfRunning !== false && !state.primaryStreamActive) {
+						void attachActiveRunEventStream(nextConversationId);
+					}
+				} else if (state.loading && options?.clearIfIdle) {
+					stopActiveRunEventStream();
+					setLoading(false);
 				}
 				scheduleConversationHistoryPersist(nextConversationId);
+				return payload;
 			} catch (error) {
 				if (!isConversationSyncTokenCurrent(syncToken, nextConversationId)) {
 					return;
 				}
-				if (state.conversationHistory.length === 0) {
+				if (state.conversationHistory.length === 0 && !options?.silent) {
 					const messageText = error instanceof Error ? error.message : "无法获取全局对话历史";
 					showError(messageText);
 				}
@@ -3959,6 +4160,10 @@ function getPlaygroundScript(): string {
 		}
 
 		function appendProcessEvent(kind, title, detail) {
+			if (typeof isAttachmentLimitProcessNote === "function" && isAttachmentLimitProcessNote(title, detail)) {
+				appendComposerSystemNotice("\\u4e00\\u6b21\\u6700\\u591a\\u53d1\\u9001 5 \\u4e2a\\u6587\\u4ef6\\uff0c\\u8d85\\u51fa\\u7684\\u6587\\u4ef6\\u8bf7\\u5206\\u6279\\u53d1\\u9001\\u3002");
+				return;
+			}
 			const summaryBlock = summarizeDetail(detail);
 			setTranscriptState("active");
 			const note = document.createElement("div");
@@ -4107,6 +4312,7 @@ function getPlaygroundScript(): string {
 							return;
 						}
 						return activateConversation(result.currentConversationId || result.conversationId, {
+							skipCatalogSync: true,
 							skipServerSwitch: true,
 						});
 					})
@@ -4178,6 +4384,7 @@ export function renderPlaygroundPage(): string {
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>UGK Claw</title>
 		<link rel="icon" href="/ugk-claw-mobile-logo.png" />
+		<link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css" />
 		<style>${getPlaygroundStyles()}</style>
 	</head>
 	<body>
@@ -4214,6 +4421,16 @@ export function renderPlaygroundPage(): string {
 						<span>跨会话收结果，别让消息失踪</span>
 						<strong>全局活动</strong>
 					</button>
+					<div class="topbar-context-slot">
+						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
+							<span class="context-usage-battery" aria-hidden="true">
+								<span id="context-usage-progress" class="context-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
+							</span>
+							<span id="context-usage-summary" class="context-usage-summary">0%</span>
+							<span id="context-usage-toggle" class="context-usage-toggle">&#19978;&#19979;&#25991;&#35814;&#24773;</span>
+							<span id="context-usage-meta" class="context-usage-meta" role="tooltip">&#24403;&#21069;&#19978;&#19979;&#25991; 0 / 128,000 tokens (0%)</span>
+						</button>
+					</div>
 				</aside>
 				<section id="mobile-topbar" class="mobile-topbar" aria-label="手机状态栏">
 					<button
@@ -4231,6 +4448,18 @@ export function renderPlaygroundPage(): string {
 						</div>
 					</button>
 					<div></div>
+					<template hidden>
+					<div class="topbar-context-slot">
+						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="涓婁笅鏂囦娇鐢?0%" aria-describedby="context-usage-meta">
+							<span class="context-usage-battery" aria-hidden="true">
+								<span id="context-usage-progress" class="context-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
+							</span>
+							<span id="context-usage-summary" class="context-usage-summary">0%</span>
+							<span id="context-usage-toggle" class="context-usage-toggle">涓婁笅鏂囪鎯?/span>
+							<span id="context-usage-meta" class="context-usage-meta" role="tooltip">褰撳墠涓婁笅鏂?0 / 128,000 tokens (0%)</span>
+						</button>
+					</div>
+					</template>
 					<button
 						id="mobile-new-conversation-button"
 						class="mobile-topbar-button"
@@ -4330,6 +4559,14 @@ export function renderPlaygroundPage(): string {
 				<div id="mobile-conversation-list" class="mobile-conversation-list"></div>
 			</aside>
 
+			<aside id="desktop-conversation-rail" class="desktop-conversation-rail" aria-label="&#21382;&#21490;&#20250;&#35805;">
+				<div class="desktop-conversation-rail-head">
+					<strong>&#21382;&#21490;&#20250;&#35805;</strong>
+					<span>&#24120;&#39547;</span>
+				</div>
+				<div id="desktop-conversation-list" class="desktop-conversation-list"></div>
+			</aside>
+
 			<main id="chat-stage" class="chat-stage">
 				<div hidden>
 					<div class="meta-chip">
@@ -4394,17 +4631,6 @@ export function renderPlaygroundPage(): string {
 							<div id="selected-asset-list" class="selected-asset-list"></div>
 						</section>
 					</div>
-					<div class="context-usage-row">
-						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="上下文使用 0%" aria-describedby="context-usage-meta">
-							<svg class="context-usage-ring" viewBox="0 0 36 36" aria-hidden="true">
-								<circle class="context-usage-track" cx="18" cy="18" r="15.5" pathLength="100"></circle>
-								<circle id="context-usage-progress" class="context-usage-progress" cx="18" cy="18" r="15.5" pathLength="100"></circle>
-							</svg>
-							<span id="context-usage-summary" class="context-usage-summary">0%</span>
-							<span id="context-usage-toggle" class="context-usage-toggle">上下文详情</span>
-							<span id="context-usage-meta" class="context-usage-meta" role="tooltip">当前上下文 0 / 128,000 tokens (0%)</span>
-						</button>
-					</div>
 					<section id="composer-drop-target" class="composer">
 						<div class="composer-main">
 							<div class="composer-header">
@@ -4432,6 +4658,8 @@ export function renderPlaygroundPage(): string {
 		</div>
 		${getConnActivityDialogs()}
 		${getPlaygroundAssetDialogs()}
+		<script src="/vendor/flatpickr/flatpickr.min.js"></script>
+		<script src="/vendor/flatpickr/l10n/zh.js"></script>
 		<script>${getMarkedBrowserScript()}
 ${getPlaygroundScript()}</script>
 	</body>

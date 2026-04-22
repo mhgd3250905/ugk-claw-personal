@@ -61,6 +61,50 @@ export function getPlaygroundConversationControllerScript(): string {
 			}
 		}
 
+		function renderConversationListInto(container) {
+			if (!container) {
+				return;
+			}
+			container.innerHTML = "";
+			const catalog = Array.isArray(state.conversationCatalog) ? state.conversationCatalog : [];
+			if (catalog.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "mobile-conversation-empty";
+				empty.textContent = "\\u8fd8\\u6ca1\\u6709\\u5386\\u53f2\\u4f1a\\u8bdd\\u3002\\u70b9\\u65b0\\u4f1a\\u8bdd\\u540e\\uff0c\\u8fd9\\u91cc\\u4f1a\\u51fa\\u73b0\\u65b0\\u7684\\u4ea7\\u7ebf\\u3002";
+				container.appendChild(empty);
+				return;
+			}
+
+			for (const item of catalog) {
+				const button = document.createElement("button");
+				button.type = "button";
+				button.className = "mobile-conversation-item";
+				button.dataset.conversationId = item.conversationId;
+				if (item.conversationId === state.conversationId) {
+					button.classList.add("is-active");
+				}
+				button.disabled = state.loading || item.conversationId === state.conversationId;
+				button.innerHTML =
+					'<span class="mobile-conversation-title"></span>' +
+					'<span class="mobile-conversation-preview"></span>' +
+					'<span class="mobile-conversation-meta"><span></span><span></span></span>';
+				button.querySelector(".mobile-conversation-title").textContent = item.title || "\\u65b0\\u4f1a\\u8bdd";
+				button.querySelector(".mobile-conversation-preview").textContent = item.preview || "\\u6682\\u65e0\\u6458\\u8981";
+				const metaNodes = button.querySelectorAll(".mobile-conversation-meta span");
+				metaNodes[0].textContent = item.running ? "\\u8fd0\\u884c\\u4e2d" : formatConversationTime(item.updatedAt);
+				metaNodes[1].textContent = item.messageCount + " \\u6761";
+				button.addEventListener("click", () => {
+					void selectConversationFromDrawer(item.conversationId);
+				});
+				container.appendChild(button);
+			}
+		}
+
+		function renderConversationDrawer() {
+			renderConversationListInto(mobileConversationList);
+			renderConversationListInto(desktopConversationList);
+		}
+
 		function normalizeConversationCatalogItem(item) {
 			const conversationId = String(item?.conversationId || "").trim();
 			if (!conversationId) {
@@ -167,6 +211,40 @@ export function getPlaygroundConversationControllerScript(): string {
 			return currentConversationId;
 		}
 
+		function upsertConversationCatalogItem(item, options) {
+			const normalized = normalizeConversationCatalogItem(item);
+			if (!normalized) {
+				return "";
+			}
+
+			const existingIndex = state.conversationCatalog.findIndex(
+				(entry) => entry.conversationId === normalized.conversationId,
+			);
+			const existingEntry = existingIndex >= 0 ? state.conversationCatalog[existingIndex] : null;
+			const merged = {
+				conversationId: normalized.conversationId,
+				title: normalized.title || existingEntry?.title || "新会话",
+				preview: normalized.preview || existingEntry?.preview || "",
+				messageCount: normalized.messageCount,
+				createdAt: normalized.createdAt || existingEntry?.createdAt || new Date().toISOString(),
+				updatedAt: normalized.updatedAt || existingEntry?.updatedAt || new Date().toISOString(),
+				running: normalized.running,
+			};
+
+			if (existingIndex >= 0) {
+				state.conversationCatalog.splice(existingIndex, 1);
+			}
+
+			if (options?.isNew || options?.prepend) {
+				state.conversationCatalog.unshift(merged);
+			} else {
+				state.conversationCatalog.push(merged);
+			}
+
+			renderConversationDrawer();
+			return merged.conversationId;
+		}
+
 		async function syncConversationCatalog(options) {
 			if (state.conversationCatalogSyncing) {
 				return {
@@ -244,11 +322,12 @@ export function getPlaygroundConversationControllerScript(): string {
 			state.conversationState = null;
 			resetStreamingState();
 			clearError();
+			renderConversationDrawer();
 			restoreConversationHistory(nextConversationId);
-			await restoreConversationHistoryFromServer(nextConversationId);
-			await syncConversationRunState(nextConversationId, {
+			await restoreConversationHistoryFromServer(nextConversationId, {
 				silent: true,
 				clearIfIdle: true,
+				attachIfRunning: true,
 			});
 			if (!options?.skipCatalogSync) {
 				void syncConversationCatalog({
@@ -256,7 +335,6 @@ export function getPlaygroundConversationControllerScript(): string {
 					activateCurrent: false,
 				});
 			}
-			closeMobileConversationDrawer();
 			return true;
 		}
 
@@ -272,6 +350,7 @@ export function getPlaygroundConversationControllerScript(): string {
 				return;
 			}
 
+			closeMobileConversationDrawer();
 			try {
 				const result = await switchConversationOnServer(nextConversationId);
 				if (!result.switched) {
@@ -280,7 +359,7 @@ export function getPlaygroundConversationControllerScript(): string {
 					return;
 				}
 				await activateConversation(result.currentConversationId || result.conversationId, {
-					skipCatalogSync: false,
+					skipCatalogSync: true,
 					skipServerSwitch: true,
 				});
 			} catch (error) {
@@ -315,13 +394,22 @@ export function getPlaygroundConversationControllerScript(): string {
 			}
 
 			const nextConversationId = createResult.currentConversationId || createResult.conversationId;
+			const optimisticTimestamp = new Date().toISOString();
+			upsertConversationCatalogItem(
+				{
+					conversationId: nextConversationId,
+					title: "新会话",
+					preview: "",
+					messageCount: 0,
+					createdAt: optimisticTimestamp,
+					updatedAt: optimisticTimestamp,
+					running: false,
+				},
+				{ isNew: true },
+			);
 			clearSelectedFiles();
 			clearSelectedAssetRefs();
 			setStageMode("landing");
-			await syncConversationCatalog({
-				silent: true,
-				activateCurrent: false,
-			});
 			await activateConversation(nextConversationId, {
 				skipCatalogSync: true,
 				skipServerSwitch: true,

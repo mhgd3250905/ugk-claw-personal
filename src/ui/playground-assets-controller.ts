@@ -58,8 +58,10 @@ export function getPlaygroundAssetControllerScript(): string {
 			return btoa(binary);
 		}
 
+		const MAX_COMPOSER_ATTACHMENTS = 5;
+
 		async function collectAttachments(files) {
-			const selected = Array.from(files || []).slice(0, 5);
+			const selected = Array.from(files || []).slice(0, MAX_COMPOSER_ATTACHMENTS);
 			const attachments = [];
 
 			for (const file of selected) {
@@ -77,6 +79,44 @@ export function getPlaygroundAssetControllerScript(): string {
 			}
 
 			return attachments;
+		}
+
+		function appendComposerSystemNotice(message) {
+			const text = String(message || "").trim();
+			if (!text) {
+				return;
+			}
+			if (!state.conversationId) {
+				ensureConversationId();
+			}
+			appendTranscriptMessage("notification", "\\u7cfb\\u7edf\\u63d0\\u793a", text, {
+				forceScroll: true,
+			});
+		}
+
+		function isAttachmentLimitProcessNote(title, detail) {
+			const text = (String(title || "") + " " + String(detail || "")).toLowerCase();
+			return (
+				text.includes("\\u6587\\u4ef6\\u5df2\\u622a\\u65ad") ||
+				text.includes("\\u4e00\\u6b21\\u6700\\u591a\\u53d1\\u9001 5 \\u4e2a\\u6587\\u4ef6") ||
+				text.includes("max 5 files")
+			);
+		}
+
+		function notifyAttachmentLimitIfNeeded(files) {
+			const totalCount = Array.from(files || []).length;
+			if (totalCount <= MAX_COMPOSER_ATTACHMENTS) {
+				return;
+			}
+			appendComposerSystemNotice(
+				"\\u4e00\\u6b21\\u6700\\u591a\\u53d1\\u9001 " +
+					MAX_COMPOSER_ATTACHMENTS +
+					" \\u4e2a\\u6587\\u4ef6\\uff0c\\u5df2\\u4fdd\\u7559\\u524d " +
+					MAX_COMPOSER_ATTACHMENTS +
+					" \\u4e2a\\u3002\\u591a\\u51fa\\u7684 " +
+					(totalCount - MAX_COMPOSER_ATTACHMENTS) +
+					" \\u4e2a\\u8bf7\\u5206\\u6279\\u53d1\\u9001\\u3002",
+			);
 		}
 
 		function renderAttachmentList() {
@@ -349,8 +389,11 @@ export function getPlaygroundAssetControllerScript(): string {
 			renderAttachmentList();
 		}
 
-		function openAssetLibrary() {
+		function openAssetLibrary(restoreFocusElement) {
 			state.assetModalOpen = true;
+			state.assetModalRestoreFocusElement = rememberPanelReturnFocus(
+				restoreFocusElement || openAssetLibraryButton,
+			);
 			assetModal.hidden = false;
 			assetModal.classList.add("open");
 			assetModal.setAttribute("aria-hidden", "false");
@@ -359,6 +402,8 @@ export function getPlaygroundAssetControllerScript(): string {
 
 		function closeAssetLibrary() {
 			state.assetModalOpen = false;
+			restoreFocusAfterPanelClose(assetModal, state.assetModalRestoreFocusElement);
+			state.assetModalRestoreFocusElement = null;
 			assetModal.classList.remove("open");
 			assetModal.hidden = true;
 			assetModal.setAttribute("aria-hidden", "true");
@@ -491,6 +536,7 @@ export function getPlaygroundAssetControllerScript(): string {
 			try {
 				state.pendingAttachments = await collectAttachments(files);
 				renderAttachmentList();
+				notifyAttachmentLimitIfNeeded(files);
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "\\u6587\\u4ef6\\u8bfb\\u53d6\\u5931\\u8d25";
 				showError(messageText);
@@ -703,7 +749,7 @@ export function getPlaygroundAssetEventHandlersScript(): string {
 		});
 
 		openAssetLibraryButton.addEventListener("click", () => {
-			openAssetLibrary();
+			openAssetLibrary(openAssetLibraryButton);
 		});
 
 		closeAssetModalButton.addEventListener("click", () => {

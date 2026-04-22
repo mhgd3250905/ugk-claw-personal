@@ -12,6 +12,54 @@
 
 ## 2026-04-22
 
+### Playground 桌面与文件预览体验再收口
+- 日期：2026-04-23
+- 主题：按用户最新反馈继续收口桌面与移动细节：桌面 topbar 工具按钮居中、桌面常驻左侧历史会话栏、桌面上下文电池条放进 `landing-side-right` 内部最右侧、手机历史抽屉头部透明、文件 / 资产 chip 多选后可换行可读、超过 5 个文件改成系统对话提示、上下文入口从 composer 底部移到顶部并改成电池式分段进度条。底部再挂一个小圆环和一行莫名文字，确实很像 UI 自己在碎碎念。
+- 影响范围：`src/ui/playground.ts` 调整 shell 双栏布局、桌面历史会话栏、顶部上下文电池条和 composer 底部结构；`src/ui/playground-conversations-controller.ts` 让桌面常驻栏与手机抽屉共用同一份会话目录渲染；`src/ui/playground-mobile-shell-controller.ts` 增加桌面会话列表 DOM 引用；`src/ui/playground-context-usage-controller.ts` 改为驱动 CSS 分段电池进度；`src/ui/playground-assets.ts` 收口文件 chip 换行、4px 圆角、列表内部滚动和手机抽屉头部透明；`src/ui/playground-assets-controller.ts` 把超过 5 个文件的提醒转为 transcript 系统提示，并拦截对应 process-note；`test/server.test.ts` 和 `docs/playground-current.md` 同步新口径。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)、[src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)、[src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)、[src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 手机端操作面板体验收口
+- 日期：2026-04-22
+- 主题：把手机端 `文件库`、`后台任务`、`全局活动`、后台 run 详情和历史会话侧边栏，从“桌面弹窗压缩版”收口成统一的移动端抽屉 / 卡片交互。继续让用户在窄屏上点一排小按钮，那不是高级，是折磨拇指。
+- 影响范围：`src/ui/playground-assets.ts` 在 `max-width: 640px` 内新增贴底抽屉、sticky 标题区、safe-area 底部留白、触摸网格按钮、文件库 / 后台任务 / 全局活动的 64px 列表卡片、后台任务单列工具栏、run 详情贴底面板，以及历史会话抽屉的宽屏卡片化外观、sticky 头部和 active 左侧亮条；`src/ui/playground.ts` 新增面板关闭后的焦点归还 helper，`src/ui/playground-assets-controller.ts`、`src/ui/playground-mobile-shell-controller.ts`、`src/ui/playground-conn-activity-controller.ts` 在打开 / 关闭文件库、后台任务、全局活动、run 详情和编辑器时记录并归还焦点，避免关闭弹层后焦点还卡在 `aria-hidden` 容器里；`test/server.test.ts` 新增页面断言锁住这些手机端 UI 与焦点约束；`docs/playground-current.md` 同步移动端真实交互口径。
+- 对应入口：[src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)、[src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)、[src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 手机历史会话抽屉文字可读性修复
+- 日期：2026-04-23
+- 主题：修复手机端会话选择侧边栏里标题、摘要和时间文字被压扁到几乎看不见的问题。根因是历史项作为 `button` 继承了全局按钮排版和 disabled 压暗，上轮只改了卡片外观，没有把移动列表文字自己的 `line-height / opacity / letter-spacing` 收回来，这种半截字 UI 看着就像被门夹过。
+- 影响范围：`src/ui/playground-assets.ts` 仅调整移动历史会话抽屉：宽度改为 `min(94vw, 380px)`，右侧遮罩加深，历史项最小高度改为 `78px`，标题 / 摘要 / meta 显式设置移动行高，active 当前项不再因 disabled 整体压暗，active 左侧亮条退到文字层下方；`test/server.test.ts` 更新页面断言锁住这些真实视觉约束；`docs/playground-current.md` 同步最新手机历史抽屉口径。
+- 对应入口：[src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 手机历史会话抽屉 4px 与去色块二次收口
+- 日期：2026-04-23
+- 主题：按实机截图继续修手机会话选择侧边栏：第一条 active 会话仍然横向挤压，蓝色选中块过重，圆角也没有遵守用户要求的 `4px`。上一轮能读了，但还丑，这种“能用但碍眼”的状态不能当完成。
+- 影响范围：`src/ui/playground-assets.ts` 在移动历史抽屉内把关闭按钮、空态、会话项和 active 亮条统一收成 `4px` 圆角；历史项最小高度提高到 `108px`，采用三行网格排版，摘要显式允许两行换行；active 当前项取消大面积蓝色填充，仅保留细边框和左侧亮条；`test/server.test.ts` 增加断言锁住 `108px`、两行摘要、`4px` 和去色块约束；`docs/playground-current.md` 同步最新口径。
+- 对应入口：[src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground Conn 编辑器时间选择改为点选控件
+- 日期：2026-04-23
+- 主题：把后台任务编辑器里的 `定时执行`、`间隔执行`、`每日执行` 时间输入从系统原生控件改成点选式时间选择。用户填 `07:00` 还提示“请填写每日执行时间”，这就不是用户问题，是控件和校验在给人添堵。
+- 影响范围：新增 `flatpickr` 本地依赖，`src/routes/static.ts` 只暴露 `/vendor/flatpickr/` 下的 JS/CSS 与中文 locale；`src/ui/playground.ts` 加载本地 flatpickr 资源；`src/ui/playground-conn-activity.ts` 把 once / interval start / daily time 输入改为 flatpickr 文本入口并补齐深色主题样式；`src/ui/playground-conn-activity-controller.ts` 初始化 `enableTime / time_24hr / disableMobile` 点选控件，并让每日时间解析兼容 `7:00`、`07:00`、`HH:mm:ss`；`test/server.test.ts` 增加页面和静态资源断言；`docs/playground-current.md` 同步当前交互口径。
+- 对应入口：[package.json](/E:/AII/ugk-pi/package.json)、[src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)、[src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 手机后台面板 4px 圆角统一
+- 日期：2026-04-23
+- 主题：按用户明确偏好，把 `新建后台任务`、`后台任务`、`全局活动` 和后台 run 详情这些手机面板的大圆角全部收成 `4px`。继续保留 22px / 16px 这种“移动端默认圆润感”，就是跟用户主题对着干，没必要。
+- 影响范围：`src/ui/playground-assets.ts` 在移动端覆写里把 `asset-modal`、面板 handle、操作按钮、后台任务 / 全局活动列表卡片、后台任务工具栏、筛选器、run 条目和 run 详情面板统一改为 `4px`；`src/ui/playground-conn-activity.ts` 同步基础 run detail 圆角；顺手修正 `src/ui/playground-conn-activity-controller.ts` 的每日时间正则多转义问题，避免 `07:00` 被误判为空；`test/server.test.ts` 更新断言锁住 `4px` 与正则不再多转义；`docs/playground-current.md` 同步当前视觉规则。
+- 对应入口：[src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)、[src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 同会话异步回包保住阅读位置
+- 日期：2026-04-22
+- 主题：修复用户点击一个历史较长的会话后，先看到本地恢复内容并上滑阅读，结果晚到的 `GET /v1/chat/state` 回包又把 transcript 甩回底部的问题。根因不只是一句 `scrollTranscriptToBottom()`，而是同一会话的 canonical state 重绘会整段清空再重画，同时旧的自动滚底 timer 还可能排队补刀，双管齐下把用户阅读位置当不存在。
+- 影响范围：`src/ui/playground-layout-controller.ts` 新增取消排队自动滚底的逻辑，用户离开底部后会立即清掉尚未执行的 transcript auto-scroll；`src/ui/playground.ts` 在同一会话的 canonical state 重绘前记录当前 `scrollTop`，重绘后恢复阅读位置并维持 `autoFollowTranscript = false`；`test/server.test.ts` 新增页面断言锁住“用户上滑后取消排队滚底”和“同会话 async state 重绘保住 scrollTop”这两条行为；`docs/playground-current.md` 同步补齐当前交互口径。
+- 对应入口：[src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 会话切换与新会话交互减重
+- 日期：2026-04-22
+- 主题：收口 `playground` 在切换会话、新会话、恢复同步和广播补同步时的重复请求与强制滚底。之前那套“点一下先等一串 catalog/state round-trip，再顺手把 transcript 拽回底部”的交互，体验烂得很稳定，属于自己给自己找骂。
+- 影响范围：`src/ui/playground-conversations-controller.ts` 现在在切换会话时只做一次 canonical `GET /v1/chat/state` 收口，不再先 restore 再 sync run；手机历史抽屉点击后会先立即关闭，再等待 `POST /v1/chat/current` 回包；点击 `新会话` 后会先乐观插入新目录项，再直接激活新会话，不再额外立刻同步 `GET /v1/chat/conversations`。`src/ui/playground-layout-controller.ts` 与 `src/ui/playground-stream-controller.ts` 的恢复 / 广播补同步也改为单次 state 收口；`src/ui/playground.ts` 的历史恢复与状态渲染不再默认 `force` 滚到底部；`test/server.test.ts` 补了回归断言锁住这些行为；`docs/playground-current.md` 同步当前交互口径。
+- 对应入口：[src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)、[src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)、[src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### 交接文档与发布口径补齐
 - 日期：2026-04-22
 - 主题：把当前交接所需的发布事实、线上提交、稳定 tag、回滚锚点和推荐阅读顺序补成显式文档入口，免得后续接手继续在 `README`、部署手册、change-log 和聊天记录之间来回抽搐。文档系统如果没有一个交接总览页，表面上看资料不少，实际上还是靠运气找真相。

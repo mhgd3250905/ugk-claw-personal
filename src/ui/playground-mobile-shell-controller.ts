@@ -13,6 +13,7 @@ export function getPlaygroundMobileShellElementRefsScript(): string {
 		const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
 		const mobileConversationDrawer = document.getElementById("mobile-conversation-drawer");
 		const mobileConversationList = document.getElementById("mobile-conversation-list");
+		const desktopConversationList = document.getElementById("desktop-conversation-list");
 		const mobileDrawerCloseButton = document.getElementById("mobile-drawer-close-button");
 	`;
 }
@@ -80,7 +81,7 @@ export function getPlaygroundMobileShellEventHandlersScript(): string {
 		});
 		mobileMenuLibraryButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();
-			openAssetLibrary();
+			openAssetLibrary(mobileOverflowMenuButton);
 		});
 
 		document.addEventListener("click", (event) => {
