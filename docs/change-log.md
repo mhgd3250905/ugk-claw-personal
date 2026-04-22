@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Conn 后台结果摘要与输出文件索引收口
+- 日期：2026-04-22
+- 主题：修复同一个 conn 两次运行时通知正文一会儿展示真实答案、一会儿只展示“输出文件已写入”的不稳定体验。根因是后台 runner 只取最后一条 assistant 可见文本，而模型在写完 `output/result.txt` 后可能用一句低信息量的文件提示收尾。
+- 影响范围：`src/agent/background-agent-runner.ts` 现在会避开“仅说明输出文件已写入”的尾句，优先保留前面更有用的答案；同时在 run 成功后扫描 workspace 的 `output/` 目录，把实际产物写入 `conn_run_files`，让 run 详情里的输出文件索引和后台生成物对齐。`test/background-agent-runner.test.ts` 增加结果抽取和 output 文件索引回归。
+- 对应入口：[src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)、[test/background-agent-runner.test.ts](/E:/AII/ugk-pi/test/background-agent-runner.test.ts)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground conn/activity 运行时控制器拆分
 - 日期：2026-04-22
 - 主题：继续把 `src/ui/playground.ts` 里的 conn / 全局活动前端运行时代码拆出去，把创建 / 编辑、管理器、全局活动、run 详情、API 拉取和事件绑定集中到独立控制器片段里。之前这个文件已经涨到离谱，再继续硬塞，后面每改一次 UI 都像在拆炸弹。

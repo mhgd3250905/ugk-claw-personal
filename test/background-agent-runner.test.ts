@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { writeFile, mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { BackgroundAgentProfileResolver } from "../src/agent/background-agent-profile.js";
@@ -144,6 +144,69 @@ class StructuredAssistantSession extends FakeSession {
 	}
 }
 
+class TrailingOutputSummarySession extends FakeSession {
+	constructor() {
+		super({});
+	}
+
+	override async prompt(message: string): Promise<void> {
+		this.messages.push({ role: "user", content: message });
+		this.messages.push({
+			role: "assistant",
+			content: [
+				{
+					type: "text",
+					text: "任务名字是：**2min**",
+				},
+				{
+					type: "toolCall",
+					id: "tool-write",
+					name: "write",
+					arguments: {
+						path: "output/result.txt",
+					},
+				},
+			],
+		});
+		this.messages.push({
+			role: "toolResult",
+			content: [
+				{
+					type: "text",
+					text: "Successfully wrote 10 bytes to output/result.txt",
+				},
+			],
+		});
+		this.messages.push({
+			role: "assistant",
+			content: [
+				{
+					type: "text",
+					text: "任务完成。输出文件已写入 `output/result.txt`。",
+				},
+			],
+		});
+	}
+}
+
+class OutputWritingSession extends FakeSession {
+	constructor() {
+		super({ resultText: "任务完成。输出文件已写入 `output/result.txt`。" });
+	}
+
+	override async prompt(message: string): Promise<void> {
+		const outputDir = extractPromptPath(message, "- Write final deliverables to:");
+		await writeFile(join(outputDir, "result.txt"), "任务名字: 2min", "utf8");
+		await super.prompt(message);
+	}
+}
+
+function extractPromptPath(message: string, prefix: string): string {
+	const line = message.split(/\r?\n/).find((entry) => entry.startsWith(prefix));
+	assert.ok(line, `expected prompt to include ${prefix}`);
+	return line.slice(prefix.length).trim();
+}
+
 async function createRunner(options?: { session?: AgentSessionLike }) {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-runner-"));
 	const database = new ConnDatabase({ dbPath: join(root, "conn.sqlite") });
@@ -276,6 +339,91 @@ test("BackgroundAgentRunner only persists visible assistant text into conn run r
 	assert.equal(completed?.status, "succeeded");
 	assert.equal(completed?.resultText, "visible answer");
 	assert.equal(completed?.resultSummary, "visible answer");
+
+	database.close();
+});
+
+test("BackgroundAgentRunner keeps the useful answer when the final assistant message only mentions output files", async () => {
+	const { database, connStore, runStore, runner } = await createRunner({
+		session: new TrailingOutputSummarySession(),
+	});
+	const conn = await connStore.create({
+		title: "2min",
+		prompt: "告诉我任务名字",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-useful-answer",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	const completed = await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	assert.equal(completed?.status, "succeeded");
+	assert.equal(completed?.resultText, "任务名字是：**2min**");
+	assert.equal(completed?.resultSummary, "任务名字是：**2min**");
+
+	database.close();
+});
+
+test("BackgroundAgentRunner records files written to the run output directory", async () => {
+	const { database, connStore, runStore, runner } = await createRunner({
+		session: new OutputWritingSession(),
+	});
+	const conn = await connStore.create({
+		title: "2min",
+		prompt: "告诉我任务名字",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-output-file",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	const completed = await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+	const files = await runStore.listFiles(run.runId);
+
+	assert.equal(completed?.status, "succeeded");
+	assert.deepEqual(
+		files.map((file) => ({
+			kind: file.kind,
+			relativePath: file.relativePath,
+			fileName: file.fileName,
+			mimeType: file.mimeType,
+			sizeBytes: file.sizeBytes,
+		})),
+		[
+			{
+				kind: "output",
+				relativePath: "output/result.txt",
+				fileName: "result.txt",
+				mimeType: "text/plain; charset=utf-8",
+				sizeBytes: 18,
+			},
+		],
+	);
 
 	database.close();
 });

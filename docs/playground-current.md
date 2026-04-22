@@ -107,6 +107,8 @@
   - `GET /v1/conns/:connId/runs/:runId`
   - `GET /v1/conns/:connId/runs/:runId/events`
 - 弹层里当前展示 run 状态、时间戳、workspace、sessionFile、结果摘要、输出文件索引和过程事件列表
+- 后台 conn 通知正文来自 `conn_runs.resultText`。runner 会避免把“输出文件已写入”这种低信息量尾句当成唯一结果；如果模型先回答了问题、后面只是补一句文件写入提示，通知应优先展示真正回答。
+- 后台 run 成功后会扫描该次 workspace 的 `output/` 目录并写入 `conn_run_files`；所以弹层里的输出文件索引应该能看到真实产物，而不是只在正文里出现一个打不开的路径。
 - 这类 conn notification 只合并进前台可见对话，不写回前台 pi session history
 - notification 的 `source / sourceId / runId` 会跟着本地历史快照一起持久化，刷新页面后仍然能继续点开 run 详情；如果这三个字段又丢了，优先查 `normalizeHistoryEntry()` 和 `buildTranscriptEntry()`
 

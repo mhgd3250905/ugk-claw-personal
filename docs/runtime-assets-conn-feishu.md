@@ -172,6 +172,8 @@ Run 查询接口：
 - `POST /v1/conns` 在未传 `target` 时，会自动绑定创建当下的服务端当前会话 `currentConversationId`；如果显式传了 `target`，仍以请求里的目标类型和值为准。
 - 本地 `docker compose` 会把 `conn.sqlite` 放到 named volume `ugk-pi-conn-db`，避开 Docker Desktop bind mount 上的多进程 SQLite 打开问题；如果 volume 里还是空库，而 legacy `.data/agent/conn/conn.sqlite` 已存在，初始化时会自动迁移这份旧库。
 - 后台执行由独立 `ugk-pi-conn-worker` 进程轮询 SQLite，领取 due run 后在 `.data/agent/background/runs/<runId>/` 创建独立 workspace。
+- 后台 runner 生成 `resultText` 时会优先保留用户真正要的可见答案；如果最后一条 assistant 文本只是“输出文件已写入”这类低信息量收尾，会回退到前面更有用的回答。别再让通知正文只剩一个文件路径，用户不是来猜谜的。
+- run 成功后会扫描该 workspace 的 `output/` 目录，并把真实输出文件写入 `conn_run_files`；因此 run 详情里的“输出文件索引”应与后台生成物对齐。
 - conn 终态结果写入 `conversation_notifications`，再由 `AgentService.getConversationState()` 合并进前台对话；成功、失败和超时失败都会留下 notification，不会写入前台 pi session history。
 - playground 收到 `kind=notification` 且 `source=conn` 的消息后，会在消息底部显示“查看后台任务过程”入口；点开后分别请求 run 详情和 run 事件，展示状态、workspace、结果摘要、输出文件和过程日志
 - 这类 notification 在前端本地历史缓存里也会保留 `source / sourceId / runId`，刷新页面后仍然能继续点开 run 详情
@@ -315,6 +317,7 @@ GET /v1/local-file?path=...
 - 实时广播到达时，页面会刷新 activity 列表；即便当前会话不是 conn 的目标会话，也能在全局活动里看到结果。在线 toast 仍只是提醒层，真实记录以 SQLite activity 表为准。
 - 关键入口：
   - [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
+  - [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
   - [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
   - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
   - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)

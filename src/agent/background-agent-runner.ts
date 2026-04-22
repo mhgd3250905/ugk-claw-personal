@@ -1,3 +1,5 @@
+import { readdir, stat } from "node:fs/promises";
+import { basename, extname, join, relative } from "node:path";
 import type { AgentSessionLike, RawAgentSessionEventLike } from "./agent-session-factory.js";
 import type { ResolvedBackgroundAgentSnapshot, BackgroundAgentProfileResolver } from "./background-agent-profile.js";
 import type { BackgroundWorkspaceManager, RunWorkspace } from "./background-workspace.js";
@@ -92,6 +94,7 @@ export class BackgroundAgentRunner {
 			unsubscribe?.();
 			unsubscribe = undefined;
 
+			await recordOutputFiles(this.options.runStore, run.runId, workspace, now);
 			const resultText = extractAssistantText(session);
 			const summary = resultText.slice(0, 200) || "Conn run completed";
 			await this.options.runStore.updateRuntimeInfo({
@@ -191,13 +194,24 @@ function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace): s
 
 function extractAssistantText(session: AgentSessionLike): string {
 	const messages = session.messages ?? [];
+	const visibleAssistantTexts: string[] = [];
 	for (let index = messages.length - 1; index >= 0; index -= 1) {
 		const message = messages[index];
 		if (message.role === "assistant") {
-			return stringifyVisibleAssistantContent(message.content).trim();
+			const text = stringifyVisibleAssistantContent(message.content).trim();
+			if (text) {
+				visibleAssistantTexts.push(text);
+			}
 		}
 	}
-	return "";
+	const [latestText, ...earlierTexts] = visibleAssistantTexts;
+	if (!latestText) {
+		return "";
+	}
+	if (isOutputOnlySummary(latestText)) {
+		return earlierTexts.find((text) => !isOutputOnlySummary(text)) ?? latestText;
+	}
+	return latestText;
 }
 
 function stringifyVisibleAssistantContent(content: unknown): string {
@@ -217,6 +231,76 @@ function stringifyVisibleAssistantContent(content: unknown): string {
 		return "";
 	}
 	return "";
+}
+
+async function recordOutputFiles(runStore: ConnRunStore, runId: string, workspace: RunWorkspace, now: Date): Promise<void> {
+	const files = await listOutputFiles(workspace.outputDir);
+	for (const filePath of files) {
+		const fileStats = await stat(filePath);
+		const relativePath = join("output", relative(workspace.outputDir, filePath)).replace(/\\/g, "/");
+		await runStore.recordFile({
+			runId,
+			kind: "output",
+			relativePath,
+			fileName: basename(filePath),
+			mimeType: inferOutputMimeType(filePath),
+			sizeBytes: fileStats.size,
+			createdAt: now,
+		});
+	}
+}
+
+async function listOutputFiles(outputDir: string): Promise<string[]> {
+	const entries = await readdir(outputDir, { withFileTypes: true });
+	const files: string[] = [];
+	for (const entry of entries) {
+		const entryPath = join(outputDir, entry.name);
+		if (entry.isDirectory()) {
+			files.push(...(await listOutputFiles(entryPath)));
+			continue;
+		}
+		if (entry.isFile()) {
+			files.push(entryPath);
+		}
+	}
+	return files.sort();
+}
+
+function inferOutputMimeType(filePath: string): string {
+	const extension = extname(filePath).toLowerCase();
+	if (extension === ".txt" || extension === ".md" || extension === ".csv") {
+		return "text/plain; charset=utf-8";
+	}
+	if (extension === ".json") {
+		return "application/json";
+	}
+	if (extension === ".html" || extension === ".htm") {
+		return "text/html; charset=utf-8";
+	}
+	if (extension === ".png") {
+		return "image/png";
+	}
+	if (extension === ".jpg" || extension === ".jpeg") {
+		return "image/jpeg";
+	}
+	if (extension === ".webp") {
+		return "image/webp";
+	}
+	if (extension === ".pdf") {
+		return "application/pdf";
+	}
+	return "application/octet-stream";
+}
+
+function isOutputOnlySummary(text: string): boolean {
+	const normalized = text.replace(/\s+/g, " ").trim();
+	if (normalized.length > 120) {
+		return false;
+	}
+	return (
+		/^(任务完成。?)?\s*(输出文件|结果文件|文件).*(已写入|写入|已保存|保存)/.test(normalized) ||
+		/^(done|completed)[\s.:;-]+(output|file).*(written|saved)/i.test(normalized)
+	);
 }
 
 function normalizeEvent(event: RawAgentSessionEventLike): Record<string, unknown> {
