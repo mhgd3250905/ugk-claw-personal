@@ -3475,6 +3475,9 @@ function getPlaygroundScript(): string {
 
 			try {
 				const payload = await fetchConversationState(nextConversationId);
+				if (state.conversationId && nextConversationId !== state.conversationId) {
+					return payload;
+				}
 				renderConversationState(payload);
 				if (payload.running && !state.primaryStreamActive) {
 					void attachActiveRunEventStream(nextConversationId);
@@ -3500,6 +3503,9 @@ function getPlaygroundScript(): string {
 
 		function renderConversationState(conversationState) {
 			const nextConversationId = String(conversationState?.conversationId || state.conversationId || "").trim();
+			if (nextConversationId && state.conversationId && nextConversationId !== state.conversationId) {
+				return;
+			}
 			const activeRun = normalizeActiveRun(conversationState?.activeRun);
 			state.conversationState = {
 				...(conversationState || {}),
@@ -3957,6 +3963,9 @@ function getPlaygroundScript(): string {
 
 			try {
 				const payload = await fetchConversationState(nextConversationId);
+				if (state.conversationId && nextConversationId !== state.conversationId) {
+					return;
+				}
 				renderConversationState(payload);
 				scheduleConversationHistoryPersist(nextConversationId);
 			} catch (error) {

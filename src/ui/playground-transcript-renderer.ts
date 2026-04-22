@@ -159,6 +159,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 
 		function clearRenderedTranscript() {
 			transcriptCurrent.innerHTML = "";
+			transcriptArchive.innerHTML = "";
 			renderedMessages.clear();
 		}
 

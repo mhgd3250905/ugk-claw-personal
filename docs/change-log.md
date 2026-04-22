@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 会话恢复竞态收口
+- 日期：2026-04-22
+- 主题：修复 `playground` 在新会话、刷新恢复和异步状态同步时偶发混入旧会话消息的问题。根因不是后端 current conversation 指针错了，而是前端对异步 `GET /v1/chat/state` 回包缺少“当前仍是这条会话”的校验，旧请求慢回时会覆盖当前页面；同时 transcript 清空时没有同步清掉 `transcript-archive`，给旧 DOM 残留留了口子。
+- 影响范围：`src/ui/playground.ts` 现在会在 `syncConversationRunState()`、`restoreConversationHistoryFromServer()` 和 `renderConversationState()` 内忽略 stale conversation response；`src/ui/playground-transcript-renderer.ts` 的 `clearRenderedTranscript()` 会同时清空 `transcript-current` 与 `transcript-archive`；`test/server.test.ts` 新增对应回归断言，锁死旧会话异步回包覆盖当前 transcript 的竞态。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground transcript renderer 拆分
 - 日期：2026-04-22
 - 主题：继续执行 playground runtime split，把 transcript 条目渲染、assistant loading / process shell、正文复制按钮、markdown hydration、代码块 copy toolbar 和 `bindPlaygroundTranscriptRenderer()` 初始化入口拆到独立 renderer。主文件继续一边拼页面一边手搓消息渲染，迟早又会把 stream 生命周期和消息展示搅成一锅。

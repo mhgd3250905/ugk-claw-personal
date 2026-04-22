@@ -1172,6 +1172,34 @@ test("GET /playground embeds conversation history restore and message copy contr
 	await app.close();
 });
 
+test("GET /playground ignores stale conversation history responses and clears archived transcript DOM", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /function clearRenderedTranscript\(\)\s*\{[\s\S]*transcriptCurrent\.innerHTML = "";/);
+	assert.match(response.body, /function clearRenderedTranscript\(\)\s*\{[\s\S]*transcriptArchive\.innerHTML = "";/);
+	assert.match(
+		response.body,
+		/if \(state\.conversationId && nextConversationId !== state\.conversationId\)\s*\{\s*return payload;\s*\}/,
+	);
+	assert.match(
+		response.body,
+		/if \(state\.conversationId && nextConversationId !== state\.conversationId\)\s*\{\s*return;\s*\}[\s\S]*renderConversationState\(payload\);/,
+	);
+	assert.match(
+		response.body,
+		/const nextConversationId = String\(conversationState\?\.conversationId \|\| state\.conversationId \|\| ""\)\.trim\(\);[\s\S]*if \(nextConversationId && state\.conversationId && nextConversationId !== state\.conversationId\)\s*\{\s*return;\s*\}/,
+	);
+	await app.close();
+});
+
 test("GET /playground syncs the current conversation from the server catalog", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
