@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 文件/资产运行时控制器拆分
+- 日期：2026-04-22
+- 主题：继续拆 `src/ui/playground.ts`，把文件上传、拖拽投放、附件 chip、资产库刷新 / 复用、已选资产和输出文件下载这组浏览器运行时逻辑拆到独立控制器。主文件继续包办这些细枝末节，那就不是入口文件，是前端垃圾压缩包。
+- 影响范围：新增 `src/ui/playground-assets-controller.ts`，导出文件 / 资产 DOM 引用、运行时 helper 和事件绑定脚本片段；`src/ui/playground.ts` 只保留主页面拼装、会话 / transcript 主流程和对资产控制器函数的调用。顺手移除未使用的 `formatMessageWithContext()` 内联函数。DOM id、HTTP 接口、上传限制、资产复用和下载行为不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground 文件/资产静态片段拆分
 - 日期：2026-04-22
 - 主题：继续给 `src/ui/playground.ts` 减负，把文件上传、文件 chip、已选资产和资产库弹窗这组静态 UI 片段拆到独立文件。之前主文件已经开始像前端杂物间了，再不分区，后面每改一次 conn 或消息区都要顺手撞到资产库逻辑。

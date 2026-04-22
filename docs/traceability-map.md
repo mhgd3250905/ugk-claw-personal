@@ -18,8 +18,9 @@
 8. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
 9. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 10. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
-11. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-12. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+11. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+12. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+13. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
@@ -60,17 +61,18 @@
 
 1. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 2. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
-3. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-4. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
-5. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-6. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-7. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+3. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+4. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+5. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+6. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+7. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+8. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
 
 适用问题：
 
 - 助手/用户消息样式
 - 过程区与 loading 气泡
-- 文件卡片“打开 / 下载”；文件上传区、文件 chip、资产库弹窗静态片段先看 `src/ui/playground-assets.ts`
+- 文件卡片“打开 / 下载”；文件上传区、文件 chip、资产库弹窗静态片段先看 `src/ui/playground-assets.ts`，运行时上传、拖拽、复用和下载卡片逻辑看 `src/ui/playground-assets-controller.ts`
 - 后台 conn notification 的“查看任务过程”入口；静态样式 / 弹窗 HTML 先看 `src/ui/playground-conn-activity.ts`，浏览器运行时逻辑看 `src/ui/playground-conn-activity-controller.ts`
 - 全局活动列表、跨会话 conn 结果观察、`/v1/activity` 读取；静态弹层入口在 `src/ui/playground-conn-activity.ts`，渲染和事件绑定在 `src/ui/playground-conn-activity-controller.ts`
 - 刷新后运行态恢复
@@ -88,10 +90,11 @@
 2. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
 3. [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
 4. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
-5. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
-6. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-7. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
-8. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+5. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+6. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+7. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+8. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+9. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 适用问题：
 - `cron` 定时不区分时区，导致“每天 9 点”在不同宿主机上漂移
