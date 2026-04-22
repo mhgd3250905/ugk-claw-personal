@@ -2025,7 +2025,6 @@ function getPlaygroundStyles(): string {
 			border-bottom: 1px solid rgba(201, 210, 255, 0.06);
 		}
 
-		.topbar-signal,
 		.hero-wordmark {
 			font-family: var(--font-mono);
 			font-weight: 700;
@@ -2033,17 +2032,6 @@ function getPlaygroundStyles(): string {
 			font-smooth: never;
 			-webkit-font-smoothing: none;
 			text-rendering: optimizeSpeed;
-		}
-
-		.topbar-signal {
-			justify-self: center;
-			color: #35cfff;
-			font-size: 13px;
-			letter-spacing: 0.22em;
-			text-shadow:
-				2px 0 0 rgba(8, 14, 24, 0.95),
-				0 2px 0 rgba(8, 14, 24, 0.95),
-				0 0 12px rgba(53, 207, 255, 0.22);
 		}
 
 		.chat-stage {
@@ -2068,7 +2056,7 @@ function getPlaygroundStyles(): string {
 		.landing-grid {
 			position: relative;
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto minmax(180px, 220px);
+			grid-template-columns: 1fr;
 			align-items: center;
 			width: 100%;
 			height: 100%;
@@ -2123,20 +2111,23 @@ function getPlaygroundStyles(): string {
 		}
 
 		.landing-side-right {
-			position: absolute;
-			right: 50%;
-			top: 72px;
-			z-index: 3;
+			position: relative;
+			right: auto;
+			top: auto;
+			z-index: 1;
 			display: flex;
 			gap: 6px;
 			align-items: center;
+			justify-self: center;
+			width: min(720px, 100%);
 			max-width: min(720px, calc(100% - 48px));
+			margin: 0 auto;
 			padding: 5px;
 			border: 1px solid rgba(201, 210, 255, 0.08);
 			border-radius: 4px;
 			background: rgba(5, 7, 13, 0.78);
 			box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
-			transform: translateX(50%);
+			transform: none;
 		}
 
 		.telemetry-card {
@@ -2328,11 +2319,8 @@ function getPlaygroundStyles(): string {
 			}
 
 			.landing-side-right {
-				right: 50%;
-				top: 66px;
 				gap: 5px;
 				max-width: calc(100% - 32px);
-				transform: translateX(50%);
 			}
 
 			.telemetry-card {
@@ -2365,10 +2353,6 @@ function getPlaygroundStyles(): string {
 				border-bottom: 0;
 				background: linear-gradient(180deg, rgba(6, 8, 15, 0.96), rgba(6, 8, 15, 0.64));
 				backdrop-filter: none;
-			}
-
-			.topbar-signal {
-				display: none;
 			}
 
 			.mobile-topbar {
@@ -4221,7 +4205,32 @@ export function renderPlaygroundPage(): string {
 		</div>
 		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
 			<header class="topbar">
-				<div class="topbar-signal" aria-hidden="true">UGK CLAW</div>
+				<aside class="landing-side landing-side-right">
+					<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button">
+						<span>全新的记忆</span>
+						<strong id="command-status">新会话</strong>
+					</button>
+					<button id="view-skills-button" class="telemetry-card telemetry-action" type="button">
+						<span>技能越多，能力越强？</span>
+						<strong>查看技能</strong>
+					</button>
+					<button id="file-picker-action" class="telemetry-card telemetry-action" type="button">
+						<span>文件或许更稳定</span>
+						<strong>选择文件</strong>
+					</button>
+					<button id="open-asset-library-button" class="telemetry-card telemetry-action" type="button">
+						<span>这里不是垃圾堆</span>
+						<strong>项目文件夹</strong>
+					</button>
+					<button id="open-conn-manager-button" class="telemetry-card telemetry-action" type="button">
+						<span>后台自己干，前台别被绑架</span>
+						<strong>后台任务</strong>
+					</button>
+					<button id="open-agent-activity-button" class="telemetry-card telemetry-action" type="button">
+						<span>跨会话收结果，别让消息失踪</span>
+						<strong>全局活动</strong>
+					</button>
+				</aside>
 				<section id="mobile-topbar" class="mobile-topbar" aria-label="手机状态栏">
 					<button
 						id="mobile-brand-button"
@@ -4364,32 +4373,6 @@ export function renderPlaygroundPage(): string {
 								<span></span>
 							</div>
 						</section>
-						<aside class="landing-side landing-side-right">
-							<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button">
-								<span>全新的记忆</span>
-								<strong id="command-status">新会话</strong>
-							</button>
-							<button id="view-skills-button" class="telemetry-card telemetry-action" type="button">
-								<span>技能越多，能力越强？</span>
-								<strong>查看技能</strong>
-							</button>
-							<button id="file-picker-action" class="telemetry-card telemetry-action" type="button">
-								<span>文件或许更稳定</span>
-								<strong>选择文件</strong>
-							</button>
-							<button id="open-asset-library-button" class="telemetry-card telemetry-action" type="button">
-								<span>这里不是垃圾堆</span>
-								<strong>项目文件夹</strong>
-							</button>
-							<button id="open-conn-manager-button" class="telemetry-card telemetry-action" type="button">
-								<span>后台自己干，前台别被绑架</span>
-								<strong>后台任务</strong>
-							</button>
-							<button id="open-agent-activity-button" class="telemetry-card telemetry-action" type="button">
-								<span>跨会话收结果，别让消息失踪</span>
-								<strong>全局活动</strong>
-							</button>
-						</aside>
 					</div>
 				</section>
 

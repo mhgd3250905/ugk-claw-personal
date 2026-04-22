@@ -25,11 +25,11 @@
 ## 1. 品牌与页面骨架
 
 - 当前品牌文案为 `UGK CLAW`
-- 桌面端顶部 `topbar-signal` 与首页 `hero-wordmark` 继续使用文字字标
+- 桌面端首页仍保留 `hero-wordmark` 作为 landing 主视觉；原 `topbar-signal` 已移除，桌面工具栏直接占用 `topbar` 主位
 - 手机端顶部状态栏显示品牌 logo，并在右侧配套 `UGK Claw` 字标
 - 页面仍是单一 `landing` 壳子，通过 `data-transcript-state=idle|active` 切空态和会话态
 - 当前整体视觉基调已从偏冷蓝电子夜景收口为“深空黑 + 暗紫星云 + 冷白星尘”，蓝色只保留极弱余光，不再主导页面气质
-- 桌面端 landing 的工具入口已经从右侧纵向堆叠压缩为顶部紧凑工具栏；按钮只保留关键命令，减少首屏视觉负担。
+- 桌面端 landing 的工具入口现在直接挂在 `topbar` 内，替换掉旧的 `UGK CLAW` 顶部字标；按钮只保留关键命令，减少首屏视觉负担。
 - 页面背景层数和 `backdrop-filter` 已收口，避免用多层半透明玻璃效果把每次滚动和重绘都变成性能税。
 
 ## 2. 消息区约束

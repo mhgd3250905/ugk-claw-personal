@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 桌面 topbar 合并 landing 工具栏
+- 日期：2026-04-22
+- 主题：按当前桌面 Web 交互收口，把原本悬浮在 landing hero 上方的 `landing-side-right` 菜单栏直接并入 `<header class="topbar">`，替换掉旧的 `topbar-signal` 字标占位。继续让右侧工具栏飘在首屏上面，结构上就还是两套头部，后面谁改桌面导航谁倒霉。
+- 影响范围：`src/ui/playground.ts` 调整桌面 topbar DOM 结构与 `landing-side-right` 布局，移除 `topbar-signal` 标记和对应旧样式；`test/server.test.ts` 改为断言桌面工具栏已经进入 `topbar` 且不再渲染旧字标；`docs/playground-current.md` 同步桌面头部当前事实。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground 历史消息时间戳透传修复
 - 日期：2026-04-22
 - 主题：修复刷新后历史消息气泡时间统一显示 `08:00:00` 的问题。根因不是前端时间格式化，而是 `AgentService` 在把 session message 转成 canonical history 时把 `createdAt` 硬写成了 Unix epoch，东八区一格式化就整排早八。
