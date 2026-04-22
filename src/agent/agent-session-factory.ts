@@ -74,6 +74,7 @@ export interface AgentSessionLike {
 		content?: unknown;
 		stopReason?: string;
 		errorMessage?: string;
+		timestamp?: number | string;
 	}>;
 	subscribe(listener: (event: RawAgentSessionEventLike) => void): () => void;
 	prompt(message: string, options?: PromptOptionsLike): Promise<void>;

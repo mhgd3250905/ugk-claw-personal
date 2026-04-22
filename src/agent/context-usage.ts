@@ -13,6 +13,7 @@ export interface AgentMessageLike {
 	role: string;
 	content?: unknown;
 	stopReason?: string;
+	timestamp?: number | string;
 	usage?: UsageLike;
 	command?: string;
 	output?: string;

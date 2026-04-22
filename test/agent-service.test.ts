@@ -1156,8 +1156,34 @@ test("getConversationHistory returns the original user text without internal pro
 		createdAt: new Date(0).toISOString(),
 	});
 	assert.equal(history.messages[1]?.text, "讨论的是第一条热点");
-	assert.equal(history.messages.some((message) => message.text.includes("<asset_reference_protocol>")), false);
-	assert.equal(history.messages.some((message) => message.text.includes("<file_response_protocol>")), false);
+assert.equal(history.messages.some((message) => message.text.includes("<asset_reference_protocol>")), false);
+assert.equal(history.messages.some((message) => message.text.includes("<file_response_protocol>")), false);
+});
+
+test("getConversationHistory preserves session message timestamps when available", async () => {
+	const store = await createStore();
+	await store.set("manual:history-timestamps", "E:/sessions/history-timestamps.jsonl");
+	const session = new FakeSession("E:/sessions/history-timestamps.jsonl", []);
+	session.messages.push(
+		{
+			role: "user",
+			content: [{ type: "text", text: "first prompt" }],
+			timestamp: Date.parse("2026-04-22T14:08:07.000Z"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "first answer" }],
+			stopReason: "stop",
+			timestamp: Date.parse("2026-04-22T14:08:10.000Z"),
+		} as never,
+	);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const history = await service.getConversationHistory("manual:history-timestamps");
+
+	assert.equal(history.messages[0]?.createdAt, "2026-04-22T14:08:07.000Z");
+	assert.equal(history.messages[1]?.createdAt, "2026-04-22T14:08:10.000Z");
 });
 
 test("resetConversation clears the persisted conversation state when no run is active", async () => {

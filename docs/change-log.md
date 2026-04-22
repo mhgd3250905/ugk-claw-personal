@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 历史消息时间戳透传修复
+- 日期：2026-04-22
+- 主题：修复刷新后历史消息气泡时间统一显示 `08:00:00` 的问题。根因不是前端时间格式化，而是 `AgentService` 在把 session message 转成 canonical history 时把 `createdAt` 硬写成了 Unix epoch，东八区一格式化就整排早八。
+- 影响范围：`src/agent/agent-service.ts` 现在会优先读取 session message 的 `timestamp`（支持 number / ISO string）并透传成 `createdAt`；只有源消息确实没有时间时才继续回退到 epoch。`src/agent/context-usage.ts` 与 `src/agent/agent-session-factory.ts` 同步补了 `timestamp` 类型；`test/agent-service.test.ts` 新增回归断言，锁死 history 时间戳透传。
+- 对应入口：[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[src/agent/context-usage.ts](/E:/AII/ugk-pi/src/agent/context-usage.ts)、[src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)、[test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Playground interrupted refresh duplicate 收口
 - 日期：2026-04-22
 - 主题：修复 `playground` 在“运行中补充消息 -> 中断 -> 刷新”之后，把已经写进 canonical history 的 interrupted partial reply 又作为 terminal `activeRun` 重新返回一遍，导致刷新页同时看到旧助手正文、补充消息和一份重复的中断过程壳子。

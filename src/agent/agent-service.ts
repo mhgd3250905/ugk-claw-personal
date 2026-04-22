@@ -1065,7 +1065,7 @@ export class AgentService {
 			kind,
 			title: kind === "user" ? conversationTitleFromRole(kind) : "助手",
 			text: rewriteUserVisibleLocalArtifactLinks(text),
-			createdAt: new Date(0).toISOString(),
+			createdAt: resolveConversationMessageCreatedAt(message),
 		};
 	}
 
@@ -1331,6 +1331,20 @@ function normalizeComparableMessageText(value: string | undefined): string {
 	return String(value ?? "")
 		.replace(/\s+/g, " ")
 		.trim();
+}
+
+function resolveConversationMessageCreatedAt(message: AgentMessageLike): string {
+	const rawTimestamp = message.timestamp;
+	if (typeof rawTimestamp === "number" && Number.isFinite(rawTimestamp)) {
+		return new Date(rawTimestamp).toISOString();
+	}
+	if (typeof rawTimestamp === "string" && rawTimestamp.trim()) {
+		const normalized = new Date(rawTimestamp);
+		if (!Number.isNaN(normalized.getTime())) {
+			return normalized.toISOString();
+		}
+	}
+	return new Date(0).toISOString();
 }
 
 function shouldHideTerminalInputEcho(
