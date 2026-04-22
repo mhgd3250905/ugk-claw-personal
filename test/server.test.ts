@@ -1187,15 +1187,47 @@ test("GET /playground ignores stale conversation history responses and clears ar
 	assert.match(response.body, /function clearRenderedTranscript\(\)\s*\{[\s\S]*transcriptArchive\.innerHTML = "";/);
 	assert.match(
 		response.body,
-		/if \(state\.conversationId && nextConversationId !== state\.conversationId\)\s*\{\s*return payload;\s*\}/,
+		/function isConversationSyncTokenCurrent\(syncToken, conversationId\)\s*\{[\s\S]*syncToken\.requestId >= state\.conversationAppliedSyncRequestId/,
 	);
 	assert.match(
 		response.body,
-		/if \(state\.conversationId && nextConversationId !== state\.conversationId\)\s*\{\s*return;\s*\}[\s\S]*renderConversationState\(payload\);/,
+		/const syncToken = issueConversationSyncToken\(nextConversationId\);[\s\S]*const payload = await fetchConversationState\(nextConversationId\);[\s\S]*if \(!renderConversationState\(payload, syncToken\)\)\s*\{\s*return;\s*\}/,
 	);
 	assert.match(
 		response.body,
-		/const nextConversationId = String\(conversationState\?\.conversationId \|\| state\.conversationId \|\| ""\)\.trim\(\);[\s\S]*if \(nextConversationId && state\.conversationId && nextConversationId !== state\.conversationId\)\s*\{\s*return;\s*\}/,
+		/function renderConversationState\(conversationState, syncToken\)\s*\{[\s\S]*if \(!shouldApplyConversationState\(conversationState, syncToken\)\)\s*\{\s*return false;\s*\}/,
+	);
+	await app.close();
+});
+
+test("GET /playground unifies conversation sync ownership with invalidation tokens", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /conversationSyncGeneration:\s*0,/);
+	assert.match(response.body, /conversationSyncRequestId:\s*0,/);
+	assert.match(response.body, /function invalidateConversationSyncOwnership\(nextConversationId\)\s*\{/);
+	assert.match(response.body, /function issueConversationSyncToken\(conversationId\)\s*\{/);
+	assert.match(response.body, /function isConversationSyncTokenCurrent\(syncToken, conversationId\)\s*\{/);
+	assert.match(response.body, /function shouldApplyConversationState\(conversationState, syncToken\)\s*\{/);
+	assert.match(
+		response.body,
+		/stopActiveRunEventStream\(\);[\s\S]*invalidateConversationSyncOwnership\(nextConversationId\);[\s\S]*state\.conversationId = nextConversationId;/,
+	);
+	assert.match(
+		response.body,
+		/const syncToken = issueConversationSyncToken\(nextConversationId\);[\s\S]*const payload = await fetchConversationState\(nextConversationId\);[\s\S]*if \(!renderConversationState\(payload, syncToken\)\)\s*\{/,
+	);
+	assert.match(
+		response.body,
+		/function renderConversationState\(conversationState, syncToken\)\s*\{[\s\S]*if \(!shouldApplyConversationState\(conversationState, syncToken\)\)\s*\{\s*return false;\s*\}/,
 	);
 	await app.close();
 });
@@ -1559,7 +1591,7 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /\/v1\/chat\/state\?/);
 	assert.match(response.body, /\/v1\/chat\/events\?/);
 	assert.match(response.body, /async function fetchConversationState\(conversationId\)\s*\{/);
-	assert.match(response.body, /function renderConversationState\(conversationState\)\s*\{/);
+	assert.match(response.body, /function renderConversationState\(conversationState, syncToken\)\s*\{/);
 	assert.match(response.body, /async function fetchConversationRunStatus\(conversationId\)\s*\{/);
 	assert.match(response.body, /function stopActiveRunEventStream\(\)\s*\{/);
 	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);

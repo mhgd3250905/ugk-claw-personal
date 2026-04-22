@@ -236,6 +236,7 @@ export function getPlaygroundConversationControllerScript(): string {
 			}
 
 			stopActiveRunEventStream();
+			invalidateConversationSyncOwnership(nextConversationId);
 			state.conversationId = nextConversationId;
 			conversationInput.value = nextConversationId;
 			sessionFile.textContent = "尚未分配";

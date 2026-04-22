@@ -43,7 +43,7 @@
 - active 对话态的 `transcript-current` 底部必须保留额外可滚动余量，让最后一条消息能被用户继续上拖到 composer 上方，不被底部输入框压住
 - 当前 Web 入口采用“一个 agent、多个历史会话、一个全局当前会话”的模型；服务端维护 `currentConversationId`，不同浏览器 / 设备打开后都跟随这个当前会话
 - 页面会先通过 `GET /v1/chat/conversations` 获取服务端会话目录和当前会话，再按当前 `conversationId` 请求 `GET /v1/chat/state` 同步真实历史与 active run
-- 前端对会话历史恢复和运行态同步的异步 `GET /v1/chat/state` 回包现在带有当前会话校验；如果旧会话请求慢回、而用户已经切到别的会话，这个 stale response 必须被直接丢弃，不能再把旧消息覆盖回当前 transcript
+- 前端对会话历史恢复和运行态同步的异步 `GET /v1/chat/state` 回包现在统一走会话 sync ownership：会话切换会使旧 generation 失效，同一会话内较新的同步请求也会压过较早请求；如果旧会话请求慢回、或同会话旧请求晚于新请求返回，这个 stale response 都必须被直接丢弃，不能再把旧消息覆盖回当前 transcript
 - 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 从后端 session 恢复已完成任务时，连续的 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并为同一条助手回复；不要让刷新后的页面把同一轮浏览器处理过程拆成多条“助手”气泡
@@ -145,6 +145,7 @@
 - 点击 `新会话` 会调用 `POST /v1/chat/conversations` 创建新的 `conversationId`，并把它设置成全局当前会话；旧会话不会被 reset 或删除
 - 手机端点击左侧品牌区会打开历史会话抽屉；点击历史项会调用 `POST /v1/chat/current`，成功后全平台下一次同步都会跟随新的当前会话
 - agent 正在运行时，后端拒绝新建或切换会话；前端显示“当前任务未结束，不能切换产线 / 开启新产线”
+- 浏览器端当前通过 `conversationSyncGeneration + requestId` 管住 `/v1/chat/state` 的落地资格：会话切换时先失效旧 generation，再给新的同步请求发 token；只有仍属于当前 generation、且没被更新请求压过的响应，才允许写进当前页面
 - 如果未来真的要支持多用户同时操作，不能把这个单工人模型当成权限系统继续堆，必须重新设计认证、控制权和会话隔离
 
 ## 7. 已知关联文件

@@ -1470,3 +1470,13 @@
 - 主题：按最新产品口径把后台任务调度区简化成 `定时执行 / 间隔执行 / 每日执行` 三种，删除原先那堆 `每天早上 / 每小时 / 工作日 / 每周 / Conn 定时表达式` 的前台选择分支。
 - 影响范围：`src/ui/playground.ts` 只保留三种调度模式及对应字段，并继续映射到后端 `once / interval / cron`；`test/server.test.ts` 更新页面断言；`docs/playground-current.md` 与 `docs/runtime-assets-conn-feishu.md` 同步新的用户口径。
 - 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md`
+
+### Playground 统一会话同步 ownership
+- 日期：2026-04-22
+- 主题：把 `playground` 会话历史恢复和运行态同步统一收口到 request generation ownership，避免旧会话回包或同会话旧请求晚回时把当前 transcript 冲脏。
+- 影响范围：
+  - `src/ui/playground.ts` 新增 `conversationSyncGeneration / conversationSyncRequestId / conversationAppliedSyncRequestId`，并统一通过 `invalidateConversationSyncOwnership()`、`issueConversationSyncToken()`、`isConversationSyncTokenCurrent()`、`shouldApplyConversationState()` 管住 `/v1/chat/state` 的落地资格。
+  - `src/ui/playground-conversations-controller.ts` 在切换会话前先停止当前 run event stream，再失效旧会话 sync ownership，避免新旧会话并发同步互相污染。
+  - `test/server.test.ts` 更新 `/playground` 页面断言，锁定新的 sync token 契约和 `renderConversationState(conversationState, syncToken)` 入口。
+  - `docs/playground-current.md` 同步当前前端对会话同步 ownership 的真实口径。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-conversations-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`

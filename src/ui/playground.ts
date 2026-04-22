@@ -2937,6 +2937,9 @@ function getPlaygroundScript(): string {
 			mobileConversationDrawerOpen: false,
 			conversationCatalog: [],
 			conversationCatalogSyncing: false,
+			conversationSyncGeneration: 0,
+			conversationSyncRequestId: 0,
+			conversationAppliedSyncRequestId: 0,
 			conversationState: null,
 			conversationHistory: [],
 			renderedHistoryCount: 0,
@@ -3384,6 +3387,60 @@ function getPlaygroundScript(): string {
 			};
 		}
 
+		function invalidateConversationSyncOwnership(nextConversationId) {
+			const normalizedConversationId = String(nextConversationId || "").trim();
+			if (normalizedConversationId && normalizedConversationId === String(state.conversationId || "").trim()) {
+				return;
+			}
+			state.conversationSyncGeneration += 1;
+			state.conversationAppliedSyncRequestId = 0;
+		}
+
+		function issueConversationSyncToken(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			const requestId = state.conversationSyncRequestId + 1;
+			state.conversationSyncRequestId = requestId;
+			return {
+				requestId,
+				generation: state.conversationSyncGeneration,
+				conversationId: nextConversationId,
+			};
+		}
+
+		function isConversationSyncTokenCurrent(syncToken, conversationId) {
+			if (!syncToken || typeof syncToken !== "object") {
+				return false;
+			}
+			const nextConversationId = String(conversationId || syncToken.conversationId || "").trim();
+			if (!nextConversationId) {
+				return false;
+			}
+			return (
+				syncToken.generation === state.conversationSyncGeneration &&
+				nextConversationId === String(state.conversationId || "").trim() &&
+				syncToken.requestId >= state.conversationAppliedSyncRequestId
+			);
+		}
+
+		function shouldApplyConversationState(conversationState, syncToken) {
+			const nextConversationId = String(
+				conversationState?.conversationId || syncToken?.conversationId || state.conversationId || "",
+			).trim();
+			if (!nextConversationId) {
+				return false;
+			}
+			if (!state.conversationId) {
+				return true;
+			}
+			if (nextConversationId !== state.conversationId) {
+				return false;
+			}
+			if (!syncToken) {
+				return true;
+			}
+			return isConversationSyncTokenCurrent(syncToken, nextConversationId);
+		}
+
 		${getConnActivityApiScript()}
 
 		async function fetchConversationHistory(conversationId) {
@@ -3473,12 +3530,12 @@ function getPlaygroundScript(): string {
 				return { conversationId: "", running: false, contextUsage: createFallbackContextUsage() };
 			}
 
+			const syncToken = issueConversationSyncToken(nextConversationId);
 			try {
 				const payload = await fetchConversationState(nextConversationId);
-				if (state.conversationId && nextConversationId !== state.conversationId) {
+				if (!renderConversationState(payload, syncToken)) {
 					return payload;
 				}
-				renderConversationState(payload);
 				if (payload.running && !state.primaryStreamActive) {
 					void attachActiveRunEventStream(nextConversationId);
 				} else if (!payload.running && state.loading && options?.clearIfIdle) {
@@ -3487,6 +3544,13 @@ function getPlaygroundScript(): string {
 				}
 				return payload;
 			} catch (error) {
+				if (!isConversationSyncTokenCurrent(syncToken, nextConversationId)) {
+					return {
+						conversationId: nextConversationId,
+						running: Boolean(state.loading),
+						contextUsage: normalizeContextUsage(state.contextUsage),
+					};
+				}
 				renderContextUsageBar();
 				if (!options?.silent) {
 					const messageText = error instanceof Error ? error.message : "无法获取当前会话状态";
@@ -3501,10 +3565,16 @@ function getPlaygroundScript(): string {
 			}
 		}
 
-		function renderConversationState(conversationState) {
+		function renderConversationState(conversationState, syncToken) {
+			if (!shouldApplyConversationState(conversationState, syncToken)) {
+				return false;
+			}
 			const nextConversationId = String(conversationState?.conversationId || state.conversationId || "").trim();
-			if (nextConversationId && state.conversationId && nextConversationId !== state.conversationId) {
-				return;
+			if (syncToken?.requestId) {
+				state.conversationAppliedSyncRequestId = Math.max(
+					state.conversationAppliedSyncRequestId,
+					syncToken.requestId,
+				);
 			}
 			const activeRun = normalizeActiveRun(conversationState?.activeRun);
 			state.conversationState = {
@@ -3534,7 +3604,7 @@ function getPlaygroundScript(): string {
 				if (state.loading) {
 					setLoading(false);
 				}
-				return;
+				return true;
 			}
 
 			setTranscriptState("active");
@@ -3581,6 +3651,7 @@ function getPlaygroundScript(): string {
 			}
 			syncHistoryLoadMoreButton();
 			scrollTranscriptToBottom({ force: true });
+			return true;
 		}
 
 		function getConversationHistoryStorageKey(conversationId) {
@@ -3961,14 +4032,17 @@ function getPlaygroundScript(): string {
 				return;
 			}
 
+			const syncToken = issueConversationSyncToken(nextConversationId);
 			try {
 				const payload = await fetchConversationState(nextConversationId);
-				if (state.conversationId && nextConversationId !== state.conversationId) {
+				if (!renderConversationState(payload, syncToken)) {
 					return;
 				}
-				renderConversationState(payload);
 				scheduleConversationHistoryPersist(nextConversationId);
 			} catch (error) {
+				if (!isConversationSyncTokenCurrent(syncToken, nextConversationId)) {
+					return;
+				}
 				if (state.conversationHistory.length === 0) {
 					const messageText = error instanceof Error ? error.message : "无法获取全局对话历史";
 					showError(messageText);
