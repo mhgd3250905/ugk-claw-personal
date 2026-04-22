@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上提交：`21f1a5ac131e2638f7806126c7d322d77edaece0`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260422-231020`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260422-231020.tar.gz`
+- 当前线上提交：`0a34e81c2b81b93c7e459dfdae90a6e01c5a790f`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-014636`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-014636.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,30 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-23 最新增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新。
+
+实际结果：
+1. 本地已验证 `npx tsc --noEmit`、`npm test`、`docker compose -f docker-compose.prod.yml config`
+2. 本地 `main` 已推送到 GitHub：`0a34e81c2b81b93c7e459dfdae90a6e01c5a790f`
+3. 服务器进入 `~/ugk-claw-repo`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-014636.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260423-014636`
+6. 执行 `git pull --ff-only origin main`，从 `21f1a5a` fast-forward 到 `0a34e81`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+8. 发布后验收通过：
+   - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - `curl -I http://127.0.0.1:3000/playground` 返回 `HTTP/1.1 200 OK`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.134.167.179:3000/playground` 返回 `HTTP/1.1 200 OK`
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` 健康，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+
+发布过程踩到两个小坑：
+- Windows PowerShell 会抢先解析双引号里的 `$(date ...)`，远程 SSH 发布脚本要用单引号包住整段远程命令，别把本机 shell 和远端 shell 混成一锅粥。
+- live sidecar profile 正在写入时，普通 `tar` 可能因为 `file changed as we read it` 返回失败；在线备份可使用 `tar --ignore-failed-read --warning=no-file-changed --warning=no-file-ignored ...`，不要为了备份登录态反手停掉浏览器。
 
 ## 2026-04-22 最新增量发布记录
 
@@ -500,7 +524,7 @@ bind [127.0.0.1]:3901: Permission denied
 ```bash
 cd ~/ugk-claw-repo
 mkdir -p ~/ugk-claw-shared/backups
-tar -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
+tar --ignore-failed-read --warning=no-file-changed --warning=no-file-ignored -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
 ```
 
 如果后续 X 搜索、网页登录态异常，先确认：

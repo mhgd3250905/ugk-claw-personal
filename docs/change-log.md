@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-04-23
+
+### 腾讯云生产环境增量更新到 0a34e81
+- 日期：2026-04-23
+- 主题：按用户确认的“增量更新”方式把腾讯云新加坡生产环境从 `21f1a5a` 更新到 `0a34e81 feat: refine playground desktop and mobile UX`，并同步记录最新线上 commit、发布前回滚 tag、sidecar 登录态备份和验收结果。生产事实不写文档，下一次接手就会继续拿旧 commit 当真相，这种坑属于自己挖给未来的自己跳。
+- 影响范围：`docs/handoff-current.md` 更新当前本地最新提交、服务器已部署提交、最新回滚 tag 与 sidecar 备份；`docs/server-ops-quick-reference.md` 更新当前线上提交；`docs/tencent-cloud-singapore-deploy.md` 更新部署快照并追加 2026-04-23 增量发布记录，包含 `git pull --ff-only`、`up --build -d`、`healthz`、`playground`、`check-deps.mjs` 和 `docker compose ps` 验收结果。
+- 对应入口：[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)、[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)、[docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ## 2026-04-22
 
 ### Playground 桌面与文件预览体验再收口

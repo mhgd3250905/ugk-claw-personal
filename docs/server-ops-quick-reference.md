@@ -14,7 +14,7 @@
 - 公网入口：`http://43.134.167.179:3000/playground`
 - 健康检查：`http://43.134.167.179:3000/healthz`
 - 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上提交：`21f1a5ac131e2638f7806126c7d322d77edaece0`
+- 当前线上提交：`0a34e81c2b81b93c7e459dfdae90a6e01c5a790f`
 - 不要再用：`snapshot-20260422-v4.1.1-stable`；那个 tag 打出来后才发现生产 compose YAML 缩进有病
 
 ## 登录
@@ -54,7 +54,7 @@ docker compose -f docker-compose.prod.yml config
 # 服务器先做备份
 cd ~/ugk-claw-repo
 mkdir -p ~/ugk-claw-shared/backups
-tar -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
+tar --ignore-failed-read --warning=no-file-changed --warning=no-file-ignored -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
 git tag -a server-pre-deploy-$(date +%Y%m%d-%H%M%S) -m "server pre deploy backup" HEAD
 git fetch --tags origin
 git pull --ff-only origin main
@@ -183,7 +183,7 @@ https://127.0.0.1:13901/
 ```bash
 cd ~/ugk-claw-repo
 mkdir -p ~/ugk-claw-shared/backups
-tar -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
+tar --ignore-failed-read --warning=no-file-changed --warning=no-file-ignored -czf ~/ugk-claw-shared/backups/chrome-sidecar-$(date +%Y%m%d-%H%M%S).tar.gz -C ~/ugk-claw-shared/.data chrome-sidecar
 ```
 
 ## sidecar 登录态验收
