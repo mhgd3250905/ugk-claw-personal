@@ -219,6 +219,8 @@ container agent -> direct_cdp -> LocalCdpBrowser -> 172.31.250.10:9223 -> Docker
   - 最高准则、固定运行口径、关键路径、场景索引
 - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
   - 按问题场景快速定位入口
+- [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
+  - `playground` 本轮 runtime 拆分、竞态修复与边界收口的阶段总结
 - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
   - playground 当前真实 UI 与交互约束；包含手机端重写后的布局、代码块和发送区口径
 - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)

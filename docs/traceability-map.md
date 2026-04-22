@@ -37,6 +37,7 @@
 - 服务器当前默认工作目录是 `~/ugk-claw-repo`，已经能直接 `git pull`；但旧的 `~/ugk-pi-claw` 还在，别在错误目录里更新完了还以为自己部署成功。
 - 服务器当前 shared 运行态目录是 `~/ugk-claw-shared`；如果你在仓库目录里找 `.env`、`.data/chrome-sidecar` 或生产日志，先想想自己是不是又走回头路了。
 - 如果这次 `/init` 还要接手 `playground` 前端，先读 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)；当前手机端是单独重写的移动展示层，不要按桌面端缩略版理解
+- 如果这次还要接着改 `playground` runtime，而不是只看当前 UI 口径，再补读 [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)；这轮 controller / renderer / sync ownership / stream lifecycle 是怎么收口的，都在那里，别重复考古
 
 ## B. 聊天、流式、追加消息、打断
 
@@ -79,6 +80,7 @@
 12. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 13. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
 14. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+15. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
 
 适用问题：
 

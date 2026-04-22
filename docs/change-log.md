@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground runtime 阶段总结文档补齐
+- 日期：2026-04-22
+- 主题：把这轮 `playground` runtime 拆分、竞态修复和 assembler 收口补成一份独立阶段总结文档，免得后续 `/init` 或继续改前端的人只能翻 `change-log` 和提交记录拼拼图。只靠零散记录追溯 controller 边界、sync ownership、stream lifecycle 和已修过的坑，效率低得像在拿牙签挖地基。
+- 影响范围：新增 [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)，集中记录本轮 `playground` 拆分阶段、当前边界、关键提交、备份锚点、已修真实问题和后续接手建议；[README.md](/E:/AII/ugk-pi/README.md) 的文档导航新增该文档入口；[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md) 在快速接手与 playground 场景里补了这份阶段总结入口。
+- 对应入口：[docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)、[README.md](/E:/AII/ugk-pi/README.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground assembler cleanup 收口
 - 日期：2026-04-22
 - 主题：继续做 `playground.ts` 的最后一层 assembler cleanup，删掉 stream split 之后遗留的死 helper，并把页面尾部那串散装初始化 / 事件绑定收成明确入口。继续把这些零散语句摊在脚本尾巴上，文件虽然名义上叫 assembler，读起来还是像把 TODO 倒进去了。
