@@ -9,6 +9,7 @@
 - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 - [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+- [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)
 - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
@@ -143,6 +144,7 @@
 - 页面结构、共享样式、脚本： [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 - 文件 / 资产静态样式与资产库弹窗 HTML： [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - 文件 / 资产前端运行时控制器： [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+- 上下文用量进度环、估算和详情弹层控制器： [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)
 - Conn / 全局活动静态样式与弹窗 HTML： [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 - Conn / 全局活动前端运行时控制器： [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 - 页面返回断言： [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
@@ -220,6 +222,8 @@
 
 ## Context Usage Bar
 
+- 上下文用量常量、DOM 引用、token 估算、进度环渲染、详情弹层和输入实时重算逻辑集中在 `src/ui/playground-context-usage-controller.ts`
+- `src/ui/playground.ts` 仍保留 `state.contextUsage` / `contextUsageExpanded` / `contextUsageSyncToken`，因为这些状态会被会话恢复、流式事件和发送流程共同更新
 - 桌面 Web 和手机端都在对话区与输入框之间显示一个小圆环进度提示，圆环位于输入框外部，右边缘与输入区域右侧对齐。
 - 圆环中央只显示百分比；只要输入区里还有草稿、待发附件或已选资产，就按“预计发送后”口径计算。
 - 基线数据来自后端状态接口返回的 `contextUsage`；草稿实时估算仍可通过 `GET /v1/chat/status` 刷新，前端只负责把草稿 / 附件 / 资产的估算 token 叠加上去，所以文案必须明确是估算。

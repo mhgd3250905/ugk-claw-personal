@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### Playground 上下文用量控制器拆分
+- 日期：2026-04-22
+- 主题：继续拆 `src/ui/playground.ts`，把上下文 token 估算、进度环渲染、详情弹层、状态同步和输入实时重算逻辑拆成独立控制器。这个东西继续挂在主脚本里，后面谁改 composer、文件上传或会话恢复都要顺手绕过一堆 token 计算，纯属给自己找罪受。
+- 影响范围：新增 `src/ui/playground-context-usage-controller.ts`，导出上下文用量常量、DOM 引用、控制器函数和事件绑定脚本片段；`src/ui/playground.ts` 保留 `state.contextUsage*` 状态字段和会话主流程里的调用点。进度环 DOM id、详情弹层、估算规则、`GET /v1/chat/status` 同步口径和用户交互不变。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Playground 文件/资产运行时控制器拆分
 - 日期：2026-04-22
 - 主题：继续拆 `src/ui/playground.ts`，把文件上传、拖拽投放、附件 chip、资产库刷新 / 复用、已选资产和输出文件下载这组浏览器运行时逻辑拆到独立控制器。主文件继续包办这些细枝末节，那就不是入口文件，是前端垃圾压缩包。
