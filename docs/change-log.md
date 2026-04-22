@@ -12,6 +12,12 @@
 
 ## 2026-04-22
 
+### 生产 compose YAML 缩进修正
+- 日期：2026-04-22
+- 主题：在服务器做增量更新时，`docker-compose.prod.yml` 因为 healthcheck 下的 `retries` 缩进错误直接解析失败，导致 `up --build -d` 根本起不来。这个坑不修，前面 tag 打得再漂亮也只是给自己做纪念册。
+- 影响范围：修正 [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml) 中 `ugk-pi` 服务 healthcheck 的 YAML 缩进，使生产 compose 能重新通过解析并执行标准增量发布；本条记录补进 [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md) 方便后续追溯这次线上发布阻塞点。
+- 对应入口：[docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)、[docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
+
 ### Playground runtime 阶段总结文档补齐
 - 日期：2026-04-22
 - 主题：把这轮 `playground` runtime 拆分、竞态修复和 assembler 收口补成一份独立阶段总结文档，免得后续 `/init` 或继续改前端的人只能翻 `change-log` 和提交记录拼拼图。只靠零散记录追溯 controller 边界、sync ownership、stream lifecycle 和已修过的坑，效率低得像在拿牙签挖地基。
