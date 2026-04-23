@@ -255,6 +255,74 @@ test("ConnSqliteStore persists cron timezone and explicit runtime ids", async ()
 	database.close();
 });
 
+test("ConnSqliteStore defaults cron schedules to the user timezone instead of the host timezone", async () => {
+	const previousTz = process.env.TZ;
+	process.env.TZ = "UTC";
+	const { store, database } = await createConnSqliteStore();
+	try {
+		const created = await store.create({
+			title: "下午提醒",
+			prompt: "北京时间下午 1 点提醒我",
+			target: {
+				type: "conversation",
+				conversationId: "manual:conn",
+			},
+			schedule: {
+				kind: "cron",
+				expression: "0 13 * * *",
+			},
+			now: new Date("2026-04-23T04:30:00.000Z"),
+		});
+
+		assert.deepEqual(created.schedule, {
+			kind: "cron",
+			expression: "0 13 * * *",
+			timezone: "Asia/Shanghai",
+		});
+		assert.equal(created.nextRunAt, "2026-04-23T05:00:00.000Z");
+	} finally {
+		database.close();
+		if (previousTz === undefined) {
+			delete process.env.TZ;
+		} else {
+			process.env.TZ = previousTz;
+		}
+	}
+});
+
+test("ConnSqliteStore interprets one-time wall-clock schedules in the provided timezone", async () => {
+	const previousTz = process.env.TZ;
+	process.env.TZ = "UTC";
+	const { store, database } = await createConnSqliteStore();
+	try {
+		const created = await store.create({
+			title: "一次性提醒",
+			prompt: "北京时间下午 1 点提醒我",
+			target: {
+				type: "conversation",
+				conversationId: "manual:conn",
+			},
+			schedule: {
+				kind: "once",
+				at: "2099-04-23T13:00:00",
+				timezone: "Asia/Shanghai",
+			} as never,
+			now: new Date("2099-04-23T04:30:00.000Z"),
+		});
+
+		assert.equal(created.schedule.kind, "once");
+		assert.equal(created.schedule.at, "2099-04-23T05:00:00.000Z");
+		assert.equal(created.nextRunAt, "2099-04-23T05:00:00.000Z");
+	} finally {
+		database.close();
+		if (previousTz === undefined) {
+			delete process.env.TZ;
+		} else {
+			process.env.TZ = previousTz;
+		}
+	}
+});
+
 test("ConnSqliteStore rejects invalid maxRunMs values with a clear validation error", async () => {
 	const { store, database } = await createConnSqliteStore();
 

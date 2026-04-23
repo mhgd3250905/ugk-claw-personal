@@ -144,7 +144,13 @@ function parseSchedule(value: unknown): { schedule?: ConnSchedule; error?: strin
 
 	const schedule = value as Record<string, unknown>;
 	if (schedule.kind === "once" && isNonEmptyString(schedule.at)) {
-		return { schedule: { kind: "once", at: schedule.at.trim() } };
+		return {
+			schedule: {
+				kind: "once",
+				at: schedule.at.trim(),
+				...(isNonEmptyString(schedule.timezone) ? { timezone: schedule.timezone.trim() } : {}),
+			},
+		};
 	}
 	if (schedule.kind === "interval" && typeof schedule.everyMs === "number" && Number.isFinite(schedule.everyMs)) {
 		return {
@@ -152,6 +158,7 @@ function parseSchedule(value: unknown): { schedule?: ConnSchedule; error?: strin
 				kind: "interval",
 				everyMs: schedule.everyMs,
 				...(isNonEmptyString(schedule.startAt) ? { startAt: schedule.startAt.trim() } : {}),
+				...(isNonEmptyString(schedule.timezone) ? { timezone: schedule.timezone.trim() } : {}),
 			},
 		};
 	}

@@ -65,6 +65,41 @@ test("conn extension creates cron tasks with timezone and asset refs", async () 
 	assert.deepEqual(conn.assetRefs, ["asset-a", "asset-b"]);
 });
 
+test("conn extension treats one-time wall-clock schedules as the provided timezone", async () => {
+	const previousTz = process.env.TZ;
+	process.env.TZ = "UTC";
+	const tool = registerConnTool();
+	const projectRoot = await createProjectRoot();
+	try {
+		const result = await tool.execute(
+			"call-local-once",
+			{
+				action: "create",
+				title: "下午提醒",
+				prompt: "北京时间下午 1 点提醒我",
+				target: { type: "conversation", conversationId: "manual:reminder" },
+				schedule: { kind: "once", at: "2099-04-23T13:00:00", timezone: "Asia/Shanghai" },
+			},
+			new AbortController().signal,
+			() => {},
+			{ cwd: projectRoot },
+		);
+
+		assert.equal(result.isError, undefined);
+		const conn = result.details?.conn as { schedule: { kind: string; at: string; timezone?: string }; nextRunAt?: string };
+		assert.equal(conn.schedule.kind, "once");
+		assert.equal(conn.schedule.at, "2099-04-23T05:00:00.000Z");
+		assert.equal(conn.schedule.timezone, "Asia/Shanghai");
+		assert.equal(conn.nextRunAt, "2099-04-23T05:00:00.000Z");
+	} finally {
+		if (previousTz === undefined) {
+			delete process.env.TZ;
+		} else {
+			process.env.TZ = previousTz;
+		}
+	}
+});
+
 test("conn extension lists and reads queued runs for a task", async () => {
 	const tool = registerConnTool();
 	const projectRoot = await createProjectRoot();

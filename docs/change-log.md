@@ -12,6 +12,12 @@
 
 ## 2026-04-23
 
+### Conn 调度默认时区修复
+- 日期：2026-04-23
+- 主题：修复 agent 创建后台任务时把用户说的“北京时间下午 1 点”落成 `13:00Z`、导致实际北京时间晚上 9 点才执行的问题。根因是 `cron` 缺省时区原先跟随容器 / 宿主机运行环境，Docker 里通常就是 UTC；一次性任务和间隔任务的 `at / startAt` 也没有本地 wall-clock 时区语义，agent 一旦传错，后端只能照单全收。让提醒准时这件事不该靠 agent 每次心算时区，系统层要兜住。
+- 影响范围：`src/agent/conn-store.ts` 将 conn 默认用户时区固定为 `CONN_DEFAULT_TIMEZONE` 或 `Asia/Shanghai`，不再跟随宿主环境；`src/agent/conn-sqlite-store.ts` 支持 `once.timezone` 与 `interval.timezone`，并把无偏移量的本地时间按 IANA 时区归一化成 UTC ISO；`src/routes/conns.ts`、`src/types/api.ts` 与 `.pi/extensions/conn/index.ts` 放开 once / interval 的 timezone 字段；`.pi/skills/conn-orchestrator/SKILL.md` 明确 agent 默认按 `Asia/Shanghai` 解释用户时间，不要把北京时间 `13:00` 直接写成 `13:00Z`；`docs/runtime-assets-conn-feishu.md` 同步新的调度口径。
+- 对应入口：`src/agent/conn-store.ts`、`src/agent/conn-sqlite-store.ts`、`src/routes/conns.ts`、`src/types/api.ts`、`.pi/extensions/conn/index.ts`、`.pi/skills/conn-orchestrator/SKILL.md`、`docs/runtime-assets-conn-feishu.md`、`test/conn-sqlite-store.test.ts`、`test/conn-extension.test.ts`
+
 ### 腾讯云生产环境增量更新到 b896f05
 - 日期：2026-04-23
 - 主题：按用户确认的“增量更新”方式把腾讯云新加坡生产环境从 `0a34e81` 更新到 `b896f05 fix: consolidate playground conversation view state`，让线上拿到后端 `viewMessages` 会话状态收口、当前会话抽屉点击修复和重复问答根因治理。本次仍走 `~/ugk-claw-repo` GitHub 工作目录，不碰旧目录 `~/ugk-pi-claw`，也不洗 shared 运行态。部署这种事最怕“应该是新的吧”，所以 commit、tag、备份和验收结果都落文档。

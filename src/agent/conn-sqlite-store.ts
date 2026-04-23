@@ -8,6 +8,7 @@ import {
 	type ConnStatus,
 	type ConnTarget,
 	type ConnUpgradePolicy,
+	normalizeConnTimeZone,
 } from "./conn-store.js";
 
 export interface ConnSqliteStoreOptions {
@@ -302,10 +303,15 @@ function parseJsonField<T>(value: string, fieldName: string): T {
 
 function normalizeSchedule(schedule: ConnSchedule, now: Date): ConnSchedule {
 	if (schedule.kind === "once") {
-		const at = parseValidDate(schedule.at, "Invalid conn schedule: once.at must be a valid date");
+		const timezone = normalizeConnTimeZone(schedule.timezone);
+		if (!timezone) {
+			throw new Error("Invalid conn schedule: once.timezone is invalid");
+		}
+		const at = parseScheduleDate(schedule.at, timezone, "Invalid conn schedule: once.at must be a valid date");
 		return {
 			kind: "once",
 			at: at.toISOString(),
+			...(schedule.timezone ? { timezone } : {}),
 		};
 	}
 
@@ -313,17 +319,22 @@ function normalizeSchedule(schedule: ConnSchedule, now: Date): ConnSchedule {
 		if (!Number.isFinite(schedule.everyMs)) {
 			throw new Error("Invalid conn schedule: interval.everyMs must be finite");
 		}
+		const timezone = normalizeConnTimeZone(schedule.timezone);
+		if (!timezone) {
+			throw new Error("Invalid conn schedule: interval.timezone is invalid");
+		}
 		return {
 			kind: "interval",
 			everyMs: Math.max(60_000, Math.trunc(schedule.everyMs)),
 			...(schedule.startAt
-				? { startAt: parseValidDate(schedule.startAt, "Invalid conn schedule: interval.startAt must be a valid date").toISOString() }
+				? { startAt: parseScheduleDate(schedule.startAt, timezone, "Invalid conn schedule: interval.startAt must be a valid date").toISOString() }
 				: {}),
+			...(schedule.timezone ? { timezone } : {}),
 		};
 	}
 
 	const expression = schedule.expression.trim();
-	const timezone = normalizeCronTimeZone(schedule.timezone);
+	const timezone = normalizeConnTimeZone(schedule.timezone);
 	if (!timezone) {
 		throw new Error("Invalid conn schedule: cron.timezone is invalid");
 	}
@@ -335,6 +346,24 @@ function normalizeSchedule(schedule: ConnSchedule, now: Date): ConnSchedule {
 		expression,
 		timezone,
 	};
+}
+
+function parseScheduleDate(value: string, timeZone: string, message: string): Date {
+	const trimmed = value.trim();
+	if (hasExplicitTimeZoneOffset(trimmed)) {
+		return parseValidDate(trimmed, message);
+	}
+
+	const localParts = parseLocalDateTimeParts(trimmed);
+	if (!localParts) {
+		return parseValidDate(trimmed, message);
+	}
+
+	const date = localDateTimeToUtc(localParts, timeZone);
+	if (!date || !localDateTimePartsEqual(getTimeZoneDateTimeParts(date, timeZone), localParts)) {
+		throw new Error(message);
+	}
+	return date;
 }
 
 function parseValidDate(value: string, message: string): Date {
@@ -369,13 +398,101 @@ function normalizeMaxRunMs(value: number): number {
 	return Math.trunc(value);
 }
 
-function normalizeCronTimeZone(value: string | undefined): string | undefined {
-	const trimmed = value?.trim();
-	const timeZone = trimmed || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-	try {
-		new Intl.DateTimeFormat("en-US", { timeZone }).format(0);
-		return timeZone;
-	} catch {
+function hasExplicitTimeZoneOffset(value: string): boolean {
+	return /(?:z|[+-]\d{2}:?\d{2})$/i.test(value);
+}
+
+interface LocalDateTimeParts {
+	year: number;
+	month: number;
+	day: number;
+	hour: number;
+	minute: number;
+	second: number;
+	millisecond: number;
+}
+
+function parseLocalDateTimeParts(value: string): LocalDateTimeParts | undefined {
+	const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/);
+	if (!match) {
 		return undefined;
 	}
+	return {
+		year: Number(match[1]),
+		month: Number(match[2]),
+		day: Number(match[3]),
+		hour: Number(match[4] ?? 0),
+		minute: Number(match[5] ?? 0),
+		second: Number(match[6] ?? 0),
+		millisecond: Number((match[7] ?? "0").padEnd(3, "0")),
+	};
+}
+
+function localDateTimeToUtc(parts: LocalDateTimeParts, timeZone: string): Date | undefined {
+	const targetMs = partsToUtcMs(parts);
+	let utcMs = targetMs;
+	for (let attempt = 0; attempt < 4; attempt += 1) {
+		const actualParts = getTimeZoneDateTimeParts(new Date(utcMs), timeZone);
+		const diffMs = partsToUtcMs(actualParts) - targetMs;
+		if (diffMs === 0) {
+			return new Date(utcMs);
+		}
+		utcMs -= diffMs;
+	}
+	return new Date(utcMs);
+}
+
+function partsToUtcMs(parts: LocalDateTimeParts): number {
+	return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second, parts.millisecond);
+}
+
+function getTimeZoneDateTimeParts(date: Date, timeZone: string): LocalDateTimeParts {
+	const formatter = new Intl.DateTimeFormat("en-US-u-ca-gregory", {
+		timeZone,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false,
+		hourCycle: "h23",
+	});
+	const values: Partial<LocalDateTimeParts> = {};
+	for (const part of formatter.formatToParts(date)) {
+		if (part.type === "year") {
+			values.year = Number(part.value);
+		} else if (part.type === "month") {
+			values.month = Number(part.value);
+		} else if (part.type === "day") {
+			values.day = Number(part.value);
+		} else if (part.type === "hour") {
+			values.hour = Number(part.value);
+		} else if (part.type === "minute") {
+			values.minute = Number(part.value);
+		} else if (part.type === "second") {
+			values.second = Number(part.value);
+		}
+	}
+	return {
+		year: values.year ?? 0,
+		month: values.month ?? 0,
+		day: values.day ?? 0,
+		hour: values.hour ?? 0,
+		minute: values.minute ?? 0,
+		second: values.second ?? 0,
+		millisecond: date.getUTCMilliseconds(),
+	};
+}
+
+function localDateTimePartsEqual(left: LocalDateTimeParts, right: LocalDateTimeParts): boolean {
+	return (
+		left.year === right.year &&
+		left.month === right.month &&
+		left.day === right.day &&
+		left.hour === right.hour &&
+		left.minute === right.minute &&
+		left.second === right.second &&
+		left.millisecond === right.millisecond
+	);
 }

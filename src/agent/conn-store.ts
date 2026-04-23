@@ -19,11 +19,13 @@ export type ConnSchedule =
 	| {
 			kind: "once";
 			at: string;
+			timezone?: string;
 	  }
 	| {
 			kind: "interval";
 			everyMs: number;
 			startAt?: string;
+			timezone?: string;
 	  }
 	| {
 			kind: "cron";
@@ -72,7 +74,7 @@ export function computeNextCronOccurrence(expression: string, now: Date, timeZon
 	if (!cron) {
 		return undefined;
 	}
-	const normalizedTimeZone = normalizeCronTimeZone(timeZone);
+	const normalizedTimeZone = normalizeConnTimeZone(timeZone);
 	if (!normalizedTimeZone) {
 		return undefined;
 	}
@@ -261,9 +263,9 @@ function getCronFormatter(timeZone: string): Intl.DateTimeFormat {
 	return formatter;
 }
 
-function normalizeCronTimeZone(value: string | undefined): string | undefined {
+export function normalizeConnTimeZone(value: string | undefined): string | undefined {
 	const trimmed = value?.trim();
-	const timeZone = trimmed || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+	const timeZone = trimmed || process.env.CONN_DEFAULT_TIMEZONE?.trim() || "Asia/Shanghai";
 	try {
 		new Intl.DateTimeFormat("en-US", { timeZone }).format(0);
 		return timeZone;

@@ -101,11 +101,13 @@ const ConnScheduleSchema = Type.Union([
 	Type.Object({
 		kind: Type.Literal("once"),
 		at: Type.String(),
+		timezone: Type.Optional(Type.String()),
 	}),
 	Type.Object({
 		kind: Type.Literal("interval"),
 		everyMs: Type.Number(),
 		startAt: Type.Optional(Type.String()),
+		timezone: Type.Optional(Type.String()),
 	}),
 	Type.Object({
 		kind: Type.Literal("cron"),

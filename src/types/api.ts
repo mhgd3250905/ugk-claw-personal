@@ -83,11 +83,13 @@ export type ConnScheduleBody =
 	| {
 			kind: "once";
 			at: string;
+			timezone?: string;
 	  }
 	| {
 			kind: "interval";
 			everyMs: number;
 			startAt?: string;
+			timezone?: string;
 	  }
 	| {
 			kind: "cron";
