@@ -606,6 +606,7 @@ export class AgentService {
 		});
 
 		try {
+			await closeBrowserTargetsForScope(browserCleanupScope);
 			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
 				await session.prompt(buildPromptWithAssetContext(input.message, preparedAssets.promptAssets));
 			});
@@ -1093,7 +1094,7 @@ export class AgentService {
 
 			const files = extractConversationHistoryFiles(message);
 			if (files) {
-				attachConversationHistoryFiles(coalescedMessages, files);
+				attachConversationHistoryFiles(coalescedMessages, files, resolveConversationMessageCreatedAt(message), index + 1);
 			}
 		});
 
@@ -1526,6 +1527,8 @@ function appendConversationHistoryMessage(
 function attachConversationHistoryFiles(
 	messages: ConversationHistoryMessage[],
 	files: readonly ChatHistoryFileBody[],
+	createdAt: string,
+	messageIndex: number,
 ): void {
 	for (let index = messages.length - 1; index >= 0; index -= 1) {
 		const message = messages[index];
@@ -1535,10 +1538,19 @@ function attachConversationHistoryFiles(
 		message.files = mergeConversationHistoryFiles(message.files, files);
 		return;
 	}
+
+	messages.push({
+		id: `session-message-file-${messageIndex}`,
+		kind: "assistant",
+		title: conversationTitleFromRole("assistant"),
+		text: "",
+		createdAt,
+		files: mergeConversationHistoryFiles(undefined, files),
+	});
 }
 
 function createBrowserCleanupScope(conversationId: string): string {
-	return `${sanitizeStateId(conversationId)}-${randomUUID()}`;
+	return sanitizeStateId(conversationId);
 }
 
 async function runWithScopedAgentEnvironment<T>(scope: string, operation: () => Promise<T>): Promise<T> {

@@ -86,9 +86,10 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 			return reply.status(404).send();
 		}
 
-		reply.type(asset.mimeType);
+		const contentType = resolveFileResponseContentType(asset.mimeType);
+		reply.header("content-type", contentType);
 		reply.header("content-length", asset.sizeBytes);
-		const disposition = shouldForceDownload(query?.download) || !supportsInlinePreview(asset.mimeType) ? "attachment" : "inline";
+		const disposition = shouldForceDownload(query?.download) || !supportsInlinePreview(contentType) ? "attachment" : "inline";
 		reply.header("content-disposition", buildContentDispositionHeader(disposition, asset.fileName));
 		return reply.send(asset.content);
 	});
@@ -298,8 +299,23 @@ function shouldForceDownload(value: string | number | boolean | undefined): bool
 	return normalized === "1" || normalized === "true" || normalized === "yes";
 }
 
-function supportsInlinePreview(mimeType: string): boolean {
+function resolveFileResponseContentType(mimeType: string): string {
 	const normalized = String(mimeType ?? "").trim().toLowerCase();
+	if (!normalized) {
+		return "application/octet-stream";
+	}
+	if (/\bcharset\s*=/.test(normalized)) {
+		return normalized;
+	}
+	const baseMimeType = stripMimeParameters(normalized);
+	if (baseMimeType.startsWith("text/") || UTF8_TEXT_MIME_TYPES.has(baseMimeType)) {
+		return `${baseMimeType}; charset=utf-8`;
+	}
+	return normalized;
+}
+
+function supportsInlinePreview(mimeType: string): boolean {
+	const normalized = stripMimeParameters(String(mimeType ?? "").trim().toLowerCase());
 	return (
 		normalized.startsWith("image/png") ||
 		normalized.startsWith("image/jpeg") ||
@@ -312,3 +328,15 @@ function supportsInlinePreview(mimeType: string): boolean {
 		normalized === "text/csv"
 	);
 }
+
+function stripMimeParameters(mimeType: string): string {
+	return mimeType.split(";", 1)[0]?.trim() ?? "";
+}
+
+const UTF8_TEXT_MIME_TYPES = new Set([
+	"application/javascript",
+	"application/json",
+	"application/x-yaml",
+	"application/xml",
+	"image/svg+xml",
+]);

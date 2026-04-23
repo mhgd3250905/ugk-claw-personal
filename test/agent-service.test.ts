@@ -485,13 +485,18 @@ test("chat closes scoped browser targets after the run finishes", async () => {
 		});
 
 		assert.equal(result.text, "done");
-		assert.match(session.observedAgentScope ?? "", /^manual-browser-cleanup-/);
-		assert.equal(cleanupCalls.length, 1);
+		assert.equal(session.observedAgentScope, "manual-browser-cleanup");
+		assert.equal(cleanupCalls.length, 2);
 		assert.equal(
 			cleanupCalls[0]?.url,
+			"http://127.0.0.1:3456/session/close-all?metaAgentScope=manual-browser-cleanup",
+		);
+		assert.equal(
+			cleanupCalls[1]?.url,
 			`http://127.0.0.1:3456/session/close-all?metaAgentScope=${encodeURIComponent(session.observedAgentScope ?? "")}`,
 		);
 		assert.equal(cleanupCalls[0]?.init?.method, "POST");
+		assert.equal(cleanupCalls[1]?.init?.method, "POST");
 		assert.equal(process.env.CLAUDE_AGENT_ID, undefined);
 	} finally {
 		globalThis.fetch = originalFetch;
@@ -758,6 +763,62 @@ test("getConversationState preserves files delivered by send_file tool results i
 		},
 	]);
 	assert.deepEqual(history.messages, state.messages);
+});
+
+test("getConversationState preserves send_file results even when the tool output has no assistant text message", async () => {
+	const store = await createStore();
+	await store.set("manual:send-file-only-history", "E:/sessions/send-file-only-history.jsonl");
+	const session = new FakeSession("E:/sessions/send-file-only-history.jsonl", []);
+	session.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("send the generated csv"),
+			timestamp: Date.parse("2026-04-23T11:00:00.000Z"),
+		} as never,
+		{
+			role: "toolResult",
+			toolCallId: "tool-send-file-only",
+			toolName: "send_file",
+			content: [{ type: "text", text: "File ready: report.csv" }],
+			details: {
+				action: "send",
+				file: {
+					id: "file-tool-history-2",
+					assetId: "file-tool-history-2",
+					reference: "@asset[file-tool-history-2]",
+					fileName: "report.csv",
+					mimeType: "text/csv",
+					sizeBytes: 96,
+					downloadUrl: "/v1/files/file-tool-history-2",
+				},
+			},
+			isError: false,
+			timestamp: Date.parse("2026-04-23T11:00:02.000Z"),
+		} as never,
+	);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const state = await service.getConversationState("manual:send-file-only-history");
+	const assistantMessages = state.messages.filter((message) => message.kind === "assistant");
+
+	assert.deepEqual(assistantMessages, [
+		{
+			id: "session-message-file-2",
+			kind: "assistant",
+			title: "助手",
+			text: "",
+			createdAt: "2026-04-23T11:00:02.000Z",
+			files: [
+				{
+					fileName: "report.csv",
+					mimeType: "text/csv",
+					sizeBytes: 96,
+					downloadUrl: "/v1/files/file-tool-history-2",
+				},
+			],
+		},
+	]);
 });
 
 test("chat can reference previously stored assets without re-uploading them", async () => {

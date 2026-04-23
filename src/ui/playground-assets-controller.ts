@@ -167,6 +167,54 @@ export function getPlaygroundAssetControllerScript(): string {
 				.filter(Boolean);
 		}
 
+		async function loadAssetDetails(assetIds, options) {
+			const pendingAssetIds = Array.isArray(assetIds)
+				? Array.from(
+						new Set(
+							assetIds
+								.map((assetId) => String(assetId || "").trim())
+								.filter((assetId) => assetId && !state.recentAssets.some((asset) => asset.assetId === assetId)),
+						),
+					)
+				: [];
+			if (pendingAssetIds.length === 0) {
+				return [];
+			}
+
+			const assets = (
+				await Promise.all(
+					pendingAssetIds.map(async (assetId) => {
+						try {
+							const response = await fetch("/v1/assets/" + encodeURIComponent(assetId), {
+								method: "GET",
+								headers: { accept: "application/json" },
+							});
+							if (!response.ok) {
+								return null;
+							}
+							const payload = await response.json().catch(() => ({}));
+							return payload?.asset && typeof payload.asset === "object" ? payload.asset : null;
+						} catch (error) {
+							if (!options?.silent) {
+								const messageText = error instanceof Error ? error.message : "加载资产详情失败";
+								showError(messageText);
+							}
+							return null;
+						}
+					}),
+				)
+			).filter(Boolean);
+
+			if (assets.length > 0) {
+				mergeRecentAssets(assets);
+			}
+			return assets;
+		}
+
+		async function ensureRecentAssetsForRefs(assetRefs, options) {
+			return await loadAssetDetails(assetRefs, options);
+		}
+
 		function renderSelectedAssets() {
 			selectedAssetList.innerHTML = "";
 			const selectedAssets = getSelectedAssets();
@@ -673,12 +721,9 @@ export function getPlaygroundAssetControllerScript(): string {
 
 				const payload = await response.json();
 				state.recentAssets = Array.isArray(payload?.assets) ? payload.assets : [];
-				state.selectedAssetRefs = state.selectedAssetRefs.filter((assetId) =>
-					state.recentAssets.some((asset) => asset.assetId === assetId),
-				);
-				state.connEditorSelectedAssetRefs = state.connEditorSelectedAssetRefs.filter((assetId) =>
-					state.recentAssets.some((asset) => asset.assetId === assetId),
-				);
+				await ensureRecentAssetsForRefs([...state.selectedAssetRefs, ...state.connEditorSelectedAssetRefs], {
+					silent: true,
+				});
 				renderSelectedAssets();
 				if (typeof renderConnEditorSelectedAssets === "function") {
 					renderConnEditorSelectedAssets();

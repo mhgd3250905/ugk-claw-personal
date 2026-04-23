@@ -18,6 +18,18 @@
 - 影响范围：`src/agent/agent-service.ts` 的 `openSession()` 不再因为技能指纹变化拒绝复用已有会话的 `sessionFile`，旧会话继续发送消息时仍沿用原上下文；`test/agent-service.test.ts` 新增回归断言，锁住“技能目录变化后仍要按旧会话 session 继续跑”的行为；`docs/playground-current.md` 补充该运行时约束，避免下次接手又把这个坑挖回来。
 - 对应入口：[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
 
+### Runtime 文件交付与 conn 资料选择收口
+- 日期：2026-04-23
+- 主题：继续收口三条烦人的稳定性问题：`web-access` 任务结束后残页会越积越多、agent 通过 `send_file` 交付的文件会在 state 回包后消失、`conn` 编辑器会因为 recent 资产列表裁剪偷偷洗掉已选“附加资料”。这种问题最恶心的地方就在于表面像偶发，实际是代码自己在背后拆台。
+- 影响范围：`src/agent/agent-service.ts` 把 browser cleanup scope 从随机 run 级收成稳定的会话级 scope，并在 `session.prompt(...)` 前先预清一轮旧页面、在 `finally` 再收尾清理；同文件的 canonical history 组装逻辑会在只有 `toolResult(send_file)`、没有 assistant 正文时补 synthetic assistant history entry，保证文件卡片不会被 `/v1/chat/state` 洗掉；`src/ui/playground-assets-controller.ts` 不再按 recent 资产列表批量过滤 `selectedAssetRefs` / `connEditorSelectedAssetRefs`，而是按需请求 `/v1/assets/:assetId` 补齐缺失详情；`test/agent-service.test.ts` 与 `test/server.test.ts` 补了对应回归断言，文档同步更新真实口径。
+- 对应入口：[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)、[test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Markdown 文件预览编码修复
+- 日期：2026-04-23
+- 主题：修复 agent 通过 `send_file` 发出的中文 Markdown 文件在浏览器里“打开”后可能显示乱码的问题。根因不是 agent 写坏了 `.md`，而是 `/v1/files/:fileId` 对 `text/markdown` 这类文本资产只返回裸 MIME，没有声明 `charset=utf-8`，浏览器就有机会自作聪明按错编码解析。让浏览器猜编码，这种设计属于把锅外包给玄学。
+- 影响范围：`src/routes/files.ts` 对文本型文件响应统一补 `charset=utf-8`，并让 inline 预览判断忽略 MIME 参数，避免加了 charset 后反而从预览退化成下载；`test/server.test.ts` 新增中文 Markdown 回归用例，锁住 `/v1/files/:fileId` 的 `text/markdown; charset=utf-8` 响应头；运行文档同步补充文本文件预览编码口径。
+- 对应入口：[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Runtime / Conn / Feishu 稳定性与交互收口
 - 日期：2026-04-23
 - 主题：收口一轮真正会影响运行与交互体验的改动：`web-access` 任务结束后按本轮 scope 清理遗留页面，`send_file` 产物不再在会话恢复后消失，`playground` 历史会话支持删除与自定义确认弹窗，输入框纵向居中，上下文详情弹层上移，`/v1/chat/current` 周边的会话目录同步去重降噪，`conn` 编辑器不再逼用户手填 `assetId`，并把 `conn` 系统技能与 Feishu 单窗口接入链路按模块拆开。继续让稳定链路带着重复请求、消失文件和系统弹窗满街跑，那不叫迭代，叫放任脏活长期驻场。

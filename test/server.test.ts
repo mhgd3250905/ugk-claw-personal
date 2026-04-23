@@ -770,6 +770,9 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /asset\.fileName/);
 	assert.match(response.body, /removeSelectedAsset\(asset\.assetId\)/);
 	assert.match(response.body, /removePendingAttachment\(index\)/);
+	assert.match(response.body, /async function loadAssetDetails\(assetIds, options\)\s*\{/);
+	assert.match(response.body, /async function ensureRecentAssetsForRefs\(assetRefs, options\)\s*\{/);
+	assert.match(response.body, /fetch\("\/v1\/assets\/" \+ encodeURIComponent\(assetId\)/);
 	assert.match(response.body, /\.file-chip\s*\{[\s\S]*display:\s*inline-grid;/);
 	assert.match(response.body, /\.file-chip\s*\{[\s\S]*grid-template-columns:\s*22px minmax\(0, 1fr\) auto;/);
 	assert.match(response.body, /\.file-chip-label\s*\{[\s\S]*-webkit-line-clamp:\s*2;/);
@@ -782,6 +785,10 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.message\.user \.message-file-strip\s*\{[\s\S]*justify-content:\s*flex-end;/);
 	assert.match(response.body, /appendUserTranscriptMessage\(message, attachments, assetRefs\)/);
 	assert.doesNotMatch(response.body, /appendTranscriptMessage\("user", state\.conversationId, formatMessageWithContext\(outboundMessage, attachments, assetRefs\)\)/);
+	assert.doesNotMatch(
+		response.body,
+		/state\.connEditorSelectedAssetRefs = state\.connEditorSelectedAssetRefs\.filter\(\(assetId\) =>[\s\S]*state\.recentAssets\.some/,
+	);
 	assert.doesNotMatch(response.body, /selected-assets-head/);
 	assert.doesNotMatch(response.body, /drop-zone-actions/);
 	assert.doesNotMatch(response.body, /file-picker-button/);
@@ -2400,6 +2407,48 @@ test("GET /v1/files/:fileId downloads a stored agent file", async () => {
 	assert.match(response.headers["content-type"] ?? "", /^text\/plain/);
 	assert.match(response.headers["content-disposition"] ?? "", /filename="hello\.txt"/);
 	assert.equal(response.body, "hello world");
+	await app.close();
+});
+
+test("GET /v1/files/:fileId serves markdown text with utf-8 charset", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		assetStore: {
+			registerAttachments: async () => [],
+			saveFiles: async () => [],
+			listAssets: async () => [],
+			getAsset: async () => undefined,
+			resolveAssets: async () => [],
+			readText: async () => undefined,
+			getFile: async (fileId: string) =>
+				fileId === "markdown-1"
+					? {
+							assetId: "markdown-1",
+							reference: "@asset[markdown-1]",
+							fileName: "报告.md",
+							mimeType: "text/markdown",
+							sizeBytes: Buffer.byteLength("# 标题\n\n你好，世界", "utf8"),
+							kind: "text",
+							hasContent: true,
+							source: "agent_output",
+							conversationId: "manual:markdown",
+							createdAt: "2026-04-23T00:00:00.000Z",
+							downloadUrl: "/v1/files/markdown-1",
+							content: Buffer.from("# 标题\n\n你好，世界", "utf8"),
+						}
+					: undefined,
+		},
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/files/markdown-1",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] ?? "", /^text\/markdown;\s*charset=utf-8$/i);
+	assert.match(response.headers["content-disposition"] ?? "", /^inline;/);
+	assert.equal(response.body, "# 标题\n\n你好，世界");
 	await app.close();
 });
 

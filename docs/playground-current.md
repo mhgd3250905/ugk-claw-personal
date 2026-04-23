@@ -111,9 +111,13 @@
   - 安全可预览文件（如 `png`、`jpg`、`gif`、`webp`、`pdf`、`txt`、`md`、`json`、`csv`）会显示“打开”按钮
   - “下载”按钮会显式走 `?download=1`，不再跟预览复用同一条附件响应
 - agent 通过 `send_file` 交付的文件必须保留在 canonical conversation history 里；刷新会话或晚到的 `GET /v1/chat/state` 不能把已经出现过的文件卡片洗掉
+- 如果某一轮只有 `toolResult(send_file)`、没有自然语言 assistant 正文，后端也必须补一条可见的 assistant history entry 承接文件卡片；别再让用户看着文件先出来、过一会儿又被 state 回包洗没
+- 与 `web-access` 相关的页面清理现在走“会话级稳定 scope + 运行前预清理 + finally 收尾清理”；这层收口不改用户交互，但会直接影响长时间使用后的浏览器残页数量
 - `/v1/files/:fileId` 对安全可预览文件默认使用 `inline`；不安全或不可预览类型仍保持 `attachment`
+- `/v1/files/:fileId` 对 Markdown / 纯文本 / JSON / CSV 等文本型文件会补 `charset=utf-8`，避免中文 `.md` 预览被浏览器按错误编码打开成乱码
 - `html`、`svg`、`js` 这类可执行或脚本风险较高的文件不会直接作为同源预览打开，别为了省事把安全边界拆了
 - `conn` 创建 / 编辑器里的“附加资料”不再让用户硬填 `assetId`；界面提供“选择复用文件”和“上传新文件”两个入口，最终仍映射为内部 `assetRefs`
+- 已选“附加资料”不再依赖最近 40 条资产列表死活；如果某个已选资产不在当前 recent 列表里，前端会按需补拉 `/v1/assets/:assetId`，而不是偷偷把它从表单里抹掉
 
 ## 5. “查看技能”按钮行为
 
