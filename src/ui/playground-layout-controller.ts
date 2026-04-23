@@ -55,12 +55,26 @@ export function getPlaygroundLayoutControllerScript(): string {
 			const lineHeight = Number.parseFloat(style.lineHeight) || 20;
 			const paddingTop = Number.parseFloat(style.paddingTop) || 0;
 			const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+			const borderTop = Number.parseFloat(style.borderTopWidth) || 0;
+			const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0;
+			const minHeight =
+				Number.parseFloat(style.minHeight) ||
+				Math.ceil(lineHeight + paddingTop + paddingBottom + borderTop + borderBottom);
 			const maxLines = 10;
-			const maxHeight = Math.ceil(lineHeight * maxLines + paddingTop + paddingBottom);
+			const maxHeight = Math.ceil(lineHeight * maxLines + paddingTop + paddingBottom + borderTop + borderBottom);
+			const expectedSingleLineScrollHeight = Math.ceil(lineHeight + paddingTop + paddingBottom);
+			const singleLineTolerance = Math.max(6, lineHeight * 0.3);
 			messageInput.style.height = "auto";
-			const nextHeight = Math.min(messageInput.scrollHeight, maxHeight);
-			messageInput.style.height = nextHeight + "px";
-			messageInput.style.overflowY = messageInput.scrollHeight > maxHeight ? "auto" : "hidden";
+			const scrollHeight = messageInput.scrollHeight;
+			const rawValue = String(messageInput.value || "");
+			const hasExplicitLineBreak = rawValue.includes("\\n");
+			const shouldUseMinHeight =
+				rawValue.trim().length === 0 ||
+				(!hasExplicitLineBreak && scrollHeight <= expectedSingleLineScrollHeight + singleLineTolerance);
+			const contentHeight = Math.ceil(scrollHeight + borderTop + borderBottom);
+			const nextHeight = Math.min(Math.max(contentHeight, minHeight), maxHeight);
+			messageInput.style.height = (shouldUseMinHeight ? minHeight : nextHeight) + "px";
+			messageInput.style.overflowY = !shouldUseMinHeight && contentHeight > maxHeight ? "auto" : "hidden";
 			scheduleConversationLayoutSync();
 		}
 

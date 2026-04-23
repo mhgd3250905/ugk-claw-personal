@@ -231,9 +231,11 @@ export function getPlaygroundAssetBaseStyles(): string {
 
 		.asset-modal-head {
 			display: flex;
+			flex-direction: row;
 			justify-content: space-between;
 			align-items: center;
 			gap: 12px;
+			background: transparent;
 			color: var(--muted);
 			font-size: 11px;
 			line-height: 1.5;
@@ -245,10 +247,22 @@ export function getPlaygroundAssetBaseStyles(): string {
 			display: flex;
 			align-items: center;
 			gap: 8px;
+			flex-wrap: nowrap;
+			min-width: 0;
+			overflow-x: auto;
+			overflow-y: hidden;
+			scrollbar-width: none;
+			-ms-overflow-style: none;
+		}
+
+		.asset-modal-actions::-webkit-scrollbar {
+			display: none;
 		}
 
 		.asset-modal-actions button,
 		.asset-pill button {
+			flex: 0 0 auto;
+			white-space: nowrap;
 			padding: 6px 10px;
 			font-size: 10px;
 		}
@@ -449,13 +463,14 @@ export function getPlaygroundAssetMobileStyles(): string {
 				position: sticky;
 				top: 0;
 				z-index: 2;
-				display: grid;
-				grid-template-columns: minmax(0, 1fr);
-				gap: 12px;
-				padding: 24px 16px 12px;
-				border-bottom: 1px solid rgba(201, 210, 255, 0.1);
-				background:
-					linear-gradient(180deg, rgba(12, 16, 28, 0.99), rgba(12, 16, 28, 0.92));
+				display: flex;
+				flex-direction: row;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+				padding: 24px 16px 8px;
+				border-bottom: 0;
+				background: transparent;
 			}
 
 			.asset-modal-copy {
@@ -475,9 +490,10 @@ export function getPlaygroundAssetMobileStyles(): string {
 			}
 
 			.asset-modal-actions {
-				display: grid;
-				grid-template-columns: repeat(2, minmax(0, 1fr));
-				gap: 8px;
+				display: flex;
+				gap: 6px;
+				justify-content: flex-end;
+				overflow-x: auto;
 			}
 
 			.asset-modal-actions button {
@@ -540,7 +556,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				gap: 10px;
 				padding: 10px;
 				border-radius: 4px;
-				background: rgba(255, 255, 255, 0.045);
+				background: transparent;
 			}
 
 			.conn-manager-filter-field {
@@ -771,7 +787,6 @@ export function getPlaygroundAssetDialogs(): string {
 				<div class="asset-modal-head">
 					<div class="asset-modal-copy">
 						<strong id="asset-modal-title">可复用资产</strong>
-						<span>选中后会立刻回到当前输入区，并在文件区域显示为已复用资产。</span>
 					</div>
 					<div class="asset-modal-actions">
 						<button id="refresh-assets-button" type="button">刷新</button>

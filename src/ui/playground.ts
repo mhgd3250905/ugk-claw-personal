@@ -1296,27 +1296,75 @@ function getPlaygroundStyles(): string {
 		}
 
 		.message.assistant .message-content,
-		.message.assistant .message-content a,
-		.message.assistant .message-content code,
 		.message.assistant .message-content .code-block-language {
 			color: #edf5ff;
 		}
 
+		.message.assistant .message-content {
+			font-size: 12px;
+			line-height: 1.75;
+		}
+
+		.message.assistant .message-content h1 {
+			color: #ffffff;
+			font-size: 18px;
+			line-height: 1.35;
+		}
+
+		.message.assistant .message-content h2 {
+			color: #d7e5ff;
+			font-size: 16px;
+			line-height: 1.38;
+		}
+
+		.message.assistant .message-content h3 {
+			color: #bdf0df;
+			font-size: 14px;
+			line-height: 1.42;
+		}
+
+		.message.assistant .message-content h4,
+		.message.assistant .message-content h5,
+		.message.assistant .message-content h6 {
+			color: #ffdca8;
+			font-size: 13px;
+			line-height: 1.45;
+		}
+
+		.message.assistant .message-content a {
+			color: #8fd6ff;
+			text-decoration-color: rgba(143, 214, 255, 0.42);
+		}
+
+		.message.assistant .message-content strong {
+			color: #fff4c7;
+		}
+
 		.message.assistant .message-content code {
+			color: #ffe6ad;
 			border-color: rgba(255, 255, 255, 0.12);
-			background: rgba(255, 255, 255, 0.12);
+			background: rgba(255, 220, 168, 0.12);
 		}
 
 		.message.assistant .message-content blockquote {
-			border-left-color: rgba(201, 210, 255, 0.32);
-			background: rgba(255, 255, 255, 0.08);
-			color: #edf5ff;
+			border-left-color: rgba(128, 232, 198, 0.46);
+			background: rgba(128, 232, 198, 0.08);
+			color: rgba(223, 255, 244, 0.9);
 		}
 
 		.message.assistant .message-content pre,
 		.message.assistant .message-content .code-block {
-			border-color: rgba(255, 255, 255, 0.1);
-			background: rgba(255, 255, 255, 0.08);
+			border-color: rgba(255, 220, 168, 0.16);
+			background: rgba(7, 10, 18, 0.5);
+		}
+
+		.message.assistant .message-content th {
+			color: #d7e5ff;
+			background: rgba(143, 214, 255, 0.1);
+		}
+
+		.message.assistant .message-content td {
+			color: rgba(237, 245, 255, 0.84);
 		}
 
 		.message.assistant .copy-code-button {
@@ -1700,7 +1748,7 @@ function getPlaygroundStyles(): string {
 			--composer-line-height: 22px;
 			--composer-textarea-max-lines: 10;
 			min-height: 52px;
-			max-height: calc(var(--composer-line-height) * var(--composer-textarea-max-lines) + 24px);
+			max-height: calc(var(--composer-line-height) * var(--composer-textarea-max-lines) + 30px);
 			resize: none;
 			line-height: var(--composer-line-height);
 			overflow-y: auto;
@@ -4820,7 +4868,7 @@ export function renderPlaygroundPage(): string {
 								<span>消息</span>
 								<span>Shift+Enter 换行</span>
 							</div>
-							<textarea id="message" name="message" placeholder="和我聊聊吧"></textarea>
+							<textarea id="message" name="message" rows="1" placeholder="和我聊聊吧"></textarea>
 						</div>
 						<div class="composer-side">
 							<button id="interrupt-button" type="button" disabled>打断</button>

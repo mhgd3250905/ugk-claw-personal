@@ -12,6 +12,42 @@
 
 ## 2026-04-23
 
+### 管理面板头部背景透明化
+- 日期：2026-04-23
+- 主题：统一去掉任务消息、文件库和后台任务管理器头部这块区域的独立背景，尤其是手机端 sticky 头部原来的深色渐变。刚把说明文案拿掉、菜单收成一行，结果又留一块深色底板，视觉上还是在占地盘；这次直接改成透明，让它融进页面。
+- 影响范围：`src/ui/playground-task-inbox.ts` 将 `.task-inbox-head` 基础与移动端背景都设为 `transparent`；`src/ui/playground-assets.ts` 将文件库 / 后台任务共享弹层头部改成透明单行动作工具栏，并去掉文件库说明句；`src/ui/playground-conn-activity.ts` 去掉后台任务管理器说明句，并把管理工具条背景改透明；`test/server.test.ts` 增加页面 CSS / DOM 断言锁住透明背景、单行动作区和说明句移除；`docs/playground-current.md` 同步三类面板头部口径；`AGENTS.md` 补充当前稳定事实，避免后续接手把头部又改回旧布局。
+- 对应入口：[src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)、[src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+
+### 任务消息页头部收口
+- 日期：2026-04-23
+- 主题：压缩任务消息页顶部占用面积，移除“后台任务跑完的结果统一收在这里，不再往当前会话里乱塞。”说明句，把 `未读 / 全部 / 全部已读 / 刷新 / 返回对话` 收进同一行工具栏。之前标题、说明、筛选、动作拆了好几层，信息密度低得像在给按钮办展览；这次让入口回到工具栏该有的样子。
+- 影响范围：`src/ui/playground-task-inbox.ts` 调整任务消息页 DOM 和 CSS，桌面与手机端头部均使用不换行横向工具栏；`test/server.test.ts` 锁定说明句移除、筛选按钮位置和移动端单行样式；`docs/playground-current.md` 同步当前交互口径。
+- 对应入口：[src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Composer 单行输入纵向居中
+- 日期：2026-04-23
+- 主题：修复底部输入框 placeholder 和正文单行状态看起来没有纵向居中的老问题。根因不是 placeholder 单独缺样式，而是 `#message` 没写 `rows="1"`，浏览器把 textarea 默认当 2 行算，`syncComposerTextareaHeight()` 又在空内容 / 单行内容时直接用这个 `scrollHeight` 写内联高度，绕开了 CSS `min-height` 这条真正负责居中的约束；这就是典型的“CSS 说居中，JS 和浏览器默认值联手抢方向盘”。
+- 影响范围：`src/ui/playground.ts` 把主 composer textarea 明确设为 `rows="1"`，并修正桌面 composer textarea 的 `max-height` 计算，让 10 行高度包含 `14px` 对称 padding 和边框；`src/ui/playground-layout-controller.ts` 在空内容和单行内容时保留 computed `min-height`，多行时才按内容高度增长，并把 overflow 判断改成基于内容高度；`test/server.test.ts` 锁住单行最小高度逻辑和 `rows="1"`；`docs/playground-current.md` 同步 composer 真实口径。
+- 对应入口：[src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### 助手对话 Markdown 层级同步收口
+- 日期：2026-04-23
+- 主题：把任务结果里已经验证过的 Markdown 视觉层级同步到普通助手对话气泡。助手正文从 `14px` 收到 `12px`，`h1 / h2 / h3` 收口到 `18px / 16px / 14px`，链接、inline code、引用块和表格头沿用任务结果那套轻量颜色区分；用户气泡不跟着改，别把用户输入也设计得像系统输出。
+- 影响范围：`src/ui/playground.ts` 在 `.message.assistant .message-content` 下新增助手专属 Markdown 字号和格式色彩覆盖；`test/server.test.ts` 增加页面 CSS 断言并确认 `.message.user` 没有被套同款标题规则；`docs/playground-current.md` 同步 transcript Markdown 真实口径。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### 任务结果卡片按对话气泡规格渲染
+- 日期：2026-04-23
+- 主题：把任务消息页里的任务结果卡片从干巴巴的纯文本块收口成对话气泡规格。结果正文现在复用 transcript 的 markdown 渲染和 hydration，代码块、表格、链接和文件下载卡片都按消息正文处理；卡片结构也调整为“消息元信息 / 结果气泡 / 底部动作”。点开“查看过程”后的 run detail `Result` 同步改成 `.message-content` 气泡，并优先渲染完整 `resultText`，别再把后台结果做成一条灰色日志。
+- 影响范围：`src/ui/playground-task-inbox.ts` 新增 `task-inbox-result-bubble` 结构与样式，任务结果正文改用 `.message-content`、`renderMessageMarkdown()`、`hydrateMarkdownContent()` 和 `appendFileDownloadList()`；`src/ui/playground-conn-activity-controller.ts` 与 `src/ui/playground-conn-activity.ts` 补齐 run detail `Result` 的 markdown 渲染和气泡样式；`test/server.test.ts` 增加页面断言锁住任务结果气泡、run detail markdown 渲染和文件卡片复用；`docs/playground-current.md` 同步任务消息页真实口径。
+- 对应入口：[src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)、[src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)、[src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### 任务结果 Markdown 层级收口
+- 日期：2026-04-23
+- 主题：继续收小任务结果 Markdown 的排版层级。任务结果列表和 run detail `Result` 的正文从 `14px` 收到 `12px`，`h1 / h2 / h3` 分别收口到 `18px / 16px / 14px`，同时给链接、inline code、引用块和表格头做轻量颜色区分，避免后台结果看起来像一整坨同色日志，或者标题大到像在宣读圣旨。
+- 影响范围：`src/ui/playground-task-inbox.ts` 调整 `task-inbox-result-bubble` 内 `.message-content` 的字号、标题和格式色彩；`src/ui/playground-conn-activity.ts` 对 `conn-run-result-bubble` 使用同一套收口规则；`test/server.test.ts` 增加 CSS 断言锁住字号和格式色彩；`docs/playground-current.md` 同步任务结果 Markdown 视觉口径。
+- 对应入口：[src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)、[src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### 阶段交接文档与下阶段入口整理
 - 日期：2026-04-23
 - 主题：在任务消息、标准上传和生产增量发布完成后，重写当前交接总览并整理追溯入口，为下一个阶段准备清晰起点。继续拿旧的 `b896f05 / viewMessages` 交接文档当当前事实，那就等于下阶段一开局先踩自己埋的坑。

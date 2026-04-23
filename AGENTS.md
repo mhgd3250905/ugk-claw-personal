@@ -254,8 +254,10 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示。
 - `playground` 消息气泡底部的复制正文操作是小型灰色裸 icon：无可见文字、无背景、无边框、无阴影；文字只保留在 `aria-label` / 隐藏文本里，不要再改回占高度的“复制正文”按钮。
-- `playground` 底部 composer textarea 当前按内容自适应，最多显示 10 行，超过后只在 textarea 内部纵向滚动；placeholder 固定为“和我聊聊吧”，手机端单行状态用对称 padding 保持 placeholder 和正文视觉居中。
-- `playground` 手机端当前采用“顶部紧凑品牌状态栏 / 左侧历史会话抽屉 / 中间 transcript / 底部 composer”结构；状态栏左侧是可点击的 logo + `UGK Claw` 历史入口，右侧只保留 `新会话` 和 `更多` 两个 icon 按钮，`技能 / 文件 / 文件库` 收进右上角溢出菜单；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
+- `playground` 底部 composer textarea 当前按内容自适应，最多显示 10 行，超过后只在 textarea 内部纵向滚动；textarea 必须显式 `rows="1"`，空内容和单行内容保留 CSS `min-height` 来保证 placeholder / 正文纵向居中，placeholder 固定为“和我聊聊吧”。
+- `playground` 助手气泡、任务消息结果气泡和后台 run detail `Result` 都走 markdown 渲染与 hydration；正文收口为 `12px`，标题按 `18px / 16px / 14px` 分级，链接、inline code、blockquote 和表格头用轻量颜色区分。用户气泡不要套这组助手输出规则。
+- `playground` 手机端当前采用“顶部紧凑品牌状态栏 / 左侧历史会话抽屉 / 中间 transcript / 底部 composer”结构；状态栏左侧是可点击的 logo + `UGK Claw` 历史入口，右侧只保留 `新会话` 和 `更多` 两个 icon 按钮，`技能 / 文件 / 文件库 / 后台任务 / 任务消息` 收进右上角溢出菜单；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
+- `playground` 文件库、后台任务管理器和任务消息页的头部统一按透明单行工具栏收口：只保留标题和必要动作，不显示解释性说明句，不铺独立深色渐变背景；手机端允许横向滚动按钮行，但不要拆回筛选区 / 动作区两层。
 - `playground` 手机端历史会话抽屉右侧只保留透明点击遮罩用于关闭，不再叠加暗色或 blur；历史列表保留纵向滚动但隐藏侧边滚动条，列表项统一 `4px` 圆角。
 - Docker 镜像已内置 `git`、`curl`、`ca-certificates` 与 `python3`，不要再把 `/bin/bash: git: command not found`、`/bin/bash: curl: command not found` 或 `python3: not found` 当成玄学问题。
 - `web-access` 默认真实浏览器链路走 Docker Chrome sidecar：`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223`；Windows host IPC fallback 仅保留给 legacy 本机调试和紧急排障。

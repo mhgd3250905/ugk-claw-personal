@@ -1481,12 +1481,29 @@ export function getConnActivityRendererScript(): string {
 				connRunDetailsBody.appendChild(lifecycle);
 			}
 
-			if (run.workspacePath || run.resultSummary || run.errorText) {
+			if (run.workspacePath || run.resultText || run.resultSummary || run.errorText) {
 				const result = document.createElement("section");
-				result.className = "conn-run-section";
-				result.innerHTML = "<strong>Result</strong><span></span><code></code>";
-				result.querySelector("span").textContent = run.errorText || run.resultSummary || "No result summary yet";
-				result.querySelector("code").textContent = run.workspacePath || "";
+				result.className = "conn-run-section conn-run-result-bubble";
+				const resultHeading = document.createElement("strong");
+				resultHeading.textContent = "Result";
+				result.appendChild(resultHeading);
+				const resultText = document.createElement("div");
+				resultText.className = "conn-run-result-text message-content";
+				const runResultText = run.errorText || run.resultText || run.resultSummary || "No result summary yet";
+				if (typeof renderMessageMarkdown === "function") {
+					resultText.innerHTML = renderMessageMarkdown(runResultText);
+					if (typeof hydrateMarkdownContent === "function") {
+						hydrateMarkdownContent(resultText);
+					}
+				} else {
+					resultText.textContent = runResultText;
+				}
+				result.appendChild(resultText);
+				if (run.workspacePath) {
+					const workspace = document.createElement("code");
+					workspace.textContent = run.workspacePath;
+					result.appendChild(workspace);
+				}
 				connRunDetailsBody.appendChild(result);
 			}
 

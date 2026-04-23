@@ -82,6 +82,96 @@ export function getConnRunDetailsStyles(): string {
 			font-size: 11px;
 		}
 
+		.conn-run-result-bubble {
+			gap: 12px;
+			padding: 16px 18px;
+			background: rgba(34, 38, 46, 0.72);
+			color: #edf5ff;
+		}
+
+		.conn-run-result-bubble > strong {
+			color: rgba(247, 249, 255, 0.84);
+			font-size: 10px;
+			font-weight: 650;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+
+		.conn-run-result-bubble .message-content,
+		.conn-run-result-bubble .message-content .code-block-language {
+			color: #edf5ff;
+		}
+
+		.conn-run-result-bubble .message-content {
+			font-size: 12px;
+			line-height: 1.75;
+		}
+
+		.conn-run-result-bubble .message-content h1 {
+			color: #ffffff;
+			font-size: 18px;
+			line-height: 1.35;
+		}
+
+		.conn-run-result-bubble .message-content h2 {
+			color: #d7e5ff;
+			font-size: 16px;
+			line-height: 1.38;
+		}
+
+		.conn-run-result-bubble .message-content h3 {
+			color: #bdf0df;
+			font-size: 14px;
+			line-height: 1.42;
+		}
+
+		.conn-run-result-bubble .message-content h4,
+		.conn-run-result-bubble .message-content h5,
+		.conn-run-result-bubble .message-content h6 {
+			color: #ffdca8;
+			font-size: 13px;
+			line-height: 1.45;
+		}
+
+		.conn-run-result-bubble .message-content a {
+			color: #8fd6ff;
+			text-decoration-color: rgba(143, 214, 255, 0.42);
+		}
+
+		.conn-run-result-bubble .message-content strong {
+			color: #fff4c7;
+		}
+
+		.conn-run-result-bubble .message-content code {
+			color: #ffe6ad;
+			background: rgba(255, 220, 168, 0.12);
+		}
+
+		.conn-run-result-bubble .message-content blockquote {
+			border-left-color: rgba(128, 232, 198, 0.46);
+			background: rgba(128, 232, 198, 0.08);
+			color: rgba(223, 255, 244, 0.9);
+		}
+
+		.conn-run-result-bubble .message-content pre,
+		.conn-run-result-bubble .message-content .code-block {
+			background: rgba(7, 10, 18, 0.42);
+			border-color: rgba(255, 220, 168, 0.16);
+		}
+
+		.conn-run-result-bubble .message-content th {
+			color: #d7e5ff;
+			background: rgba(143, 214, 255, 0.1);
+		}
+
+		.conn-run-result-bubble .message-content td {
+			color: rgba(237, 245, 255, 0.84);
+		}
+
+		.conn-run-result-bubble .copy-code-button {
+			color: rgba(237, 245, 255, 0.62);
+		}
+
 		.conn-run-event-list {
 			display: grid;
 			gap: 8px;
@@ -206,7 +296,7 @@ export function getConnManagerActivityStyles(): string {
 			align-items: center;
 			padding: 8px 10px;
 			border: 1px solid rgba(201, 210, 255, 0.1);
-			background: rgba(255, 255, 255, 0.035);
+			background: transparent;
 		}
 
 		.conn-manager-filter-field {
@@ -651,7 +741,6 @@ export function getConnActivityDialogs(): string {
 				<div class="asset-modal-head">
 					<div class="asset-modal-copy">
 						<strong id="conn-manager-title">后台任务</strong>
-						<span>查看 conn、暂停或恢复调度、立即入队一次运行，并追溯最近 run。</span>
 					</div>
 					<div class="asset-modal-actions">
 						<button id="open-conn-editor-button" type="button">新建</button>

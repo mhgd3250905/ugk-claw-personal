@@ -97,15 +97,15 @@ export function getPlaygroundTaskInboxStyles(): string {
 
 		.task-inbox-head {
 			display: flex;
-			align-items: flex-start;
+			align-items: center;
 			justify-content: space-between;
-			gap: 14px;
-			padding: 8px 12px 12px;
+			gap: 12px;
+			padding: 8px 12px;
+			background: transparent;
 		}
 
 		.task-inbox-head-copy {
 			display: grid;
-			gap: 4px;
 			min-width: 0;
 		}
 
@@ -124,6 +124,20 @@ export function getPlaygroundTaskInboxStyles(): string {
 			justify-content: flex-end;
 		}
 
+		.task-inbox-head-actions {
+			flex-wrap: nowrap;
+			gap: 6px;
+			min-width: 0;
+			overflow-x: auto;
+			overflow-y: hidden;
+			scrollbar-width: none;
+			-ms-overflow-style: none;
+		}
+
+		.task-inbox-head-actions::-webkit-scrollbar {
+			display: none;
+		}
+
 		.task-inbox-head-button,
 		.task-inbox-action {
 			min-height: 28px;
@@ -133,10 +147,17 @@ export function getPlaygroundTaskInboxStyles(): string {
 
 		.task-inbox-filter-row {
 			display: flex;
-			flex-wrap: wrap;
+			flex: 0 0 auto;
+			flex-wrap: nowrap;
 			align-items: center;
-			gap: 8px;
-			padding: 0 12px 12px;
+			gap: 6px;
+			padding: 0;
+		}
+
+		.task-inbox-head-button,
+		.task-inbox-filter-button {
+			flex: 0 0 auto;
+			white-space: nowrap;
 		}
 
 		.task-inbox-filter-button {
@@ -186,19 +207,38 @@ export function getPlaygroundTaskInboxStyles(): string {
 		.task-inbox-item-shell {
 			display: grid;
 			gap: 8px;
-			padding: 14px 16px;
-			border: 1px solid rgba(201, 210, 255, 0.12);
-			border-radius: 4px;
-			background: rgba(34, 38, 46, 0.72);
+			padding: 0;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
 		}
 
-		.task-inbox-item.is-unread .task-inbox-item-shell {
-			border-color: rgba(101, 209, 255, 0.24);
+		.task-inbox-result-bubble {
+			display: grid;
+			gap: 14px;
+			width: 100%;
+			min-width: 0;
+			padding: 16px 18px;
+			border: 0;
+			border-radius: 4px;
+			background: rgba(34, 38, 46, 0.72);
+			color: #edf5ff;
+			box-shadow: none;
+			backdrop-filter: none;
+		}
+
+		.task-inbox-item.is-unread .task-inbox-result-bubble {
 			box-shadow: inset 3px 0 0 rgba(101, 209, 255, 0.5);
 		}
 
 		.task-inbox-item-head {
 			justify-content: space-between;
+			background: transparent;
+			color: rgba(238, 244, 255, 0.42);
+			font-size: 10px;
+			line-height: 1.6;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
 		}
 
 		.task-inbox-item-title-row {
@@ -210,9 +250,18 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-item-head strong {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
 			min-width: 0;
-			color: rgba(246, 249, 255, 0.94);
-			font-size: 13px;
+			padding: 6px 10px;
+			border: 1px solid rgba(255, 255, 255, 0.16);
+			border-radius: 4px;
+			background: rgba(255, 255, 255, 0.08);
+			color: #f3fbff;
+			font-size: 10px;
+			font-weight: 650;
+			line-height: 1.2;
 		}
 
 		.task-inbox-item-unread-dot {
@@ -227,18 +276,91 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-item-kind {
-			color: rgba(201, 210, 255, 0.68);
+			color: rgba(238, 244, 255, 0.42);
 			font-family: var(--font-mono);
 			font-size: 10px;
+			letter-spacing: 0.14em;
 			text-transform: uppercase;
 		}
 
 		.task-inbox-item-text {
-			color: rgba(226, 234, 255, 0.78);
+			color: #edf5ff;
 			font-size: 12px;
-			line-height: 1.65;
-			white-space: pre-wrap;
+			line-height: 1.75;
 			word-break: break-word;
+		}
+
+		.task-inbox-result-bubble .message-content,
+		.task-inbox-result-bubble .message-content .code-block-language {
+			color: #edf5ff;
+		}
+
+		.task-inbox-result-bubble .message-content h1 {
+			color: #ffffff;
+			font-size: 18px;
+			line-height: 1.35;
+		}
+
+		.task-inbox-result-bubble .message-content h2 {
+			color: #d7e5ff;
+			font-size: 16px;
+			line-height: 1.38;
+		}
+
+		.task-inbox-result-bubble .message-content h3 {
+			color: #bdf0df;
+			font-size: 14px;
+			line-height: 1.42;
+		}
+
+		.task-inbox-result-bubble .message-content h4,
+		.task-inbox-result-bubble .message-content h5,
+		.task-inbox-result-bubble .message-content h6 {
+			color: #ffdca8;
+			font-size: 13px;
+			line-height: 1.45;
+		}
+
+		.task-inbox-result-bubble .message-content a {
+			color: #8fd6ff;
+			text-decoration-color: rgba(143, 214, 255, 0.42);
+		}
+
+		.task-inbox-result-bubble .message-content strong {
+			color: #fff4c7;
+		}
+
+		.task-inbox-result-bubble .message-content code {
+			color: #ffe6ad;
+			border-color: rgba(255, 255, 255, 0.12);
+			background: rgba(255, 220, 168, 0.12);
+		}
+
+		.task-inbox-result-bubble .message-content blockquote {
+			border-left-color: rgba(128, 232, 198, 0.46);
+			background: rgba(128, 232, 198, 0.08);
+			color: rgba(223, 255, 244, 0.9);
+		}
+
+		.task-inbox-result-bubble .message-content pre,
+		.task-inbox-result-bubble .message-content .code-block {
+			border-color: rgba(255, 220, 168, 0.16);
+			background: rgba(7, 10, 18, 0.5);
+		}
+
+		.task-inbox-result-bubble .message-content th {
+			color: #d7e5ff;
+			background: rgba(143, 214, 255, 0.1);
+		}
+
+		.task-inbox-result-bubble .message-content td {
+			color: rgba(237, 245, 255, 0.84);
+		}
+
+		.task-inbox-result-bubble .copy-code-button {
+			border-color: rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.12);
+			color: #edf5ff;
 		}
 
 		.task-inbox-item-meta {
@@ -271,23 +393,22 @@ export function getPlaygroundTaskInboxStyles(): string {
 				position: sticky;
 				top: 0;
 				z-index: 2;
-				display: grid;
-				grid-template-columns: minmax(0, 1fr);
-				gap: 12px;
-				padding: 20px 0 12px;
-				background:
-					linear-gradient(180deg, rgba(12, 16, 28, 0.99), rgba(12, 16, 28, 0.92));
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				padding: 8px 0;
+				background: transparent;
 			}
 
 			.task-inbox-head-actions {
-				display: grid;
-				grid-template-columns: repeat(3, minmax(0, 1fr));
+				display: flex;
+				justify-content: flex-start;
+				overflow-x: auto;
 			}
 
 			.task-inbox-filter-row {
-				display: grid;
-				grid-template-columns: repeat(2, minmax(0, 1fr));
-				padding: 0 0 12px;
+				display: flex;
+				padding: 0;
 			}
 
 			.task-inbox-list {
@@ -295,7 +416,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 				padding: 0 0 16px;
 			}
 
-			.task-inbox-item-shell {
+			.task-inbox-result-bubble {
 				min-height: 64px;
 				padding: 14px;
 				border-radius: 4px;
@@ -321,18 +442,17 @@ export function getPlaygroundTaskInboxView(): string {
 						<header class="pane-head task-inbox-head">
 							<div class="task-inbox-head-copy">
 								<strong>任务消息</strong>
-								<span>后台任务跑完的结果统一收在这里，不再往当前会话里乱塞。</span>
 							</div>
 							<div class="task-inbox-head-actions">
+								<div class="task-inbox-filter-row" role="group" aria-label="任务消息筛选">
+									<button id="task-inbox-filter-unread-button" class="task-inbox-filter-button" type="button">未读</button>
+									<button id="task-inbox-filter-all-button" class="task-inbox-filter-button" type="button">全部</button>
+								</div>
 								<button id="mark-all-task-inbox-read-button" class="task-inbox-head-button" type="button">全部已读</button>
 								<button id="refresh-task-inbox-button" class="task-inbox-head-button" type="button">刷新</button>
 								<button id="close-task-inbox-button" class="task-inbox-head-button" type="button">返回对话</button>
 							</div>
 						</header>
-						<div class="task-inbox-filter-row" role="group" aria-label="任务消息筛选">
-							<button id="task-inbox-filter-unread-button" class="task-inbox-filter-button" type="button">未读</button>
-							<button id="task-inbox-filter-all-button" class="task-inbox-filter-button" type="button">全部</button>
-						</div>
 						<section id="task-inbox-list" class="task-inbox-list" aria-live="polite"></section>
 					</div>
 				</section>
@@ -756,9 +876,19 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				head.appendChild(titleRow);
 				head.appendChild(source);
 
+				const body = document.createElement("div");
+				body.className = "task-inbox-result-bubble";
 				const text = document.createElement("div");
-				text.className = "task-inbox-item-text";
-				text.textContent = activity.text || "没有正文摘要。";
+				text.className = "task-inbox-item-text message-content";
+				const resultText = activity.text || "没有正文摘要。";
+				if (typeof renderMessageMarkdown === "function") {
+					text.innerHTML = renderMessageMarkdown(resultText);
+					if (typeof hydrateMarkdownContent === "function") {
+						hydrateMarkdownContent(text);
+					}
+				} else {
+					text.textContent = resultText;
+				}
 
 				const meta = document.createElement("div");
 				meta.className = "task-inbox-item-meta";
@@ -779,9 +909,14 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 					files.textContent = "附 " + activity.files.length + " 个文件";
 					meta.appendChild(files);
 				}
+				body.appendChild(text);
+				if (activity.files.length > 0 && typeof appendFileDownloadList === "function") {
+					appendFileDownloadList(body, activity.files);
+				}
+				body.appendChild(meta);
 
 				const actions = document.createElement("div");
-				actions.className = "task-inbox-item-actions";
+				actions.className = "task-inbox-item-actions message-actions";
 				const taskIdButton = createTaskInboxAction("任务ID", async () => {
 					await markTaskInboxItemReadAndSync(activity.activityId, { silent: true });
 					const original = taskIdButton.textContent;
@@ -833,8 +968,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				});
 
 				shell.appendChild(head);
-				shell.appendChild(text);
-				shell.appendChild(meta);
+				shell.appendChild(body);
 				shell.appendChild(actions);
 				item.appendChild(shell);
 				taskInboxList.appendChild(item);
