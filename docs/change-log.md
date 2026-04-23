@@ -12,6 +12,12 @@
 
 ## 2026-04-23
 
+### 腾讯云生产环境增量更新到 conn 时区修复基线
+- 日期：2026-04-23
+- 主题：按用户确认的“增量更新”方式，将腾讯云新加坡生产环境从 `b896f05` 快进到 `dbb682d fix: normalize conn schedule timezone`，让线上新增 / 编辑 `conn` 任务时也使用新的用户时区语义，避免“北京时间下午 1 点”被错误存成 `13:00Z` 后拖到北京时间晚上 9 点执行。
+- 影响范围：服务器仍使用 GitHub 工作目录 `~/ugk-claw-repo` 与 shared 运行态 `~/ugk-claw-shared`，执行 `git pull --ff-only origin main` 与 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`；未触碰旧目录 `~/ugk-pi-claw`，未清理 `.data/agent`、`.data/chrome-sidecar` 或日志目录。
+- 验证结果：生产 compose config 通过；`GET /healthz` 返回 `{"ok":true}`；`HEAD /playground` 返回 `200 OK`；web-access 依赖检查返回 `host-browser: ok` 与 `proxy: ready`；compose 状态显示 `ugk-pi` healthy、`ugk-pi-browser` healthy、`nginx` healthy、`ugk-pi-conn-worker` running；线上临时创建 `2099-04-23T13:00:00 + Asia/Shanghai` 的一次性 conn 后，实际归一化为 `2099-04-23T05:00:00.000Z`，临时 conn 已删除且无残留。
+
 ### Conn 调度默认时区修复
 - 日期：2026-04-23
 - 主题：修复 agent 创建后台任务时把用户说的“北京时间下午 1 点”落成 `13:00Z`、导致实际北京时间晚上 9 点才执行的问题。根因是 `cron` 缺省时区原先跟随容器 / 宿主机运行环境，Docker 里通常就是 UTC；一次性任务和间隔任务的 `at / startAt` 也没有本地 wall-clock 时区语义，agent 一旦传错，后端只能照单全收。让提醒准时这件事不该靠 agent 每次心算时区，系统层要兜住。
