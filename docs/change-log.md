@@ -12,12 +12,6 @@
 
 ## 2026-04-23
 
-### 交接文档收口
-- 日期：2026-04-23
-- 主题：为准备项目交接，把当前交接入口收口成可直接转交给下一任接手者的版本，明确 GitHub `main` 文档提交可能晚于服务器运行代码、线上运行代码仍对应 `b896f05`，并把接手第一小时该看的文档、该跑的核验命令、绝对不要踩的坑放到文档前半段。交接文档如果还让人靠聊天记录拼上下文，那不是交接，是把谜题包装成工作。
-- 影响范围：`docs/handoff-current.md` 新增“交接时直接复制这一段”“接手当天核验清单”“绝对不要踩的坑”，同时强调 `viewMessages` 是后端 canonical view、服务器更新目录是 `~/ugk-claw-repo`、shared 运行态不能被仓库化、旧目录 `~/ugk-pi-claw` 只用于回滚和比对。
-- 对应入口：[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
-
 ### 腾讯云生产环境增量更新到 b896f05
 - 日期：2026-04-23
 - 主题：按用户确认的“增量更新”方式把腾讯云新加坡生产环境从 `0a34e81` 更新到 `b896f05 fix: consolidate playground conversation view state`，让线上拿到后端 `viewMessages` 会话状态收口、当前会话抽屉点击修复和重复问答根因治理。本次仍走 `~/ugk-claw-repo` GitHub 工作目录，不碰旧目录 `~/ugk-pi-claw`，也不洗 shared 运行态。部署这种事最怕“应该是新的吧”，所以 commit、tag、备份和验收结果都落文档。
