@@ -3170,6 +3170,7 @@ function getPlaygroundScript(): string {
 			notificationReconnectTimer: null,
 			notificationReconnectDelayMs: 0,
 			pageUnloading: false,
+			skipNextPageShowResumeSync: true,
 			primaryStreamActive: false,
 			autoFollowTranscript: true,
 			layoutSyncRaf: 0,

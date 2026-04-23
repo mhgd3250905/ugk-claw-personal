@@ -2126,7 +2126,7 @@ test("streamChat strips null characters and extracts readable text from tool res
 	});
 });
 
-test("does not reuse an existing session when the skill fingerprint changes", async () => {
+test("reuses an existing session when the skill fingerprint changes", async () => {
 	const store = await createStore();
 	await store.set("manual:existing", "E:/sessions/existing.jsonl", {
 		skillFingerprint: "skills-v1",
@@ -2144,7 +2144,7 @@ test("does not reuse an existing session when the skill fingerprint changes", as
 	});
 
 	assert.equal(result.sessionFile, "E:/sessions/new-after-skill-change.jsonl");
-	assert.deepEqual(factory.calls, [{ conversationId: "manual:existing", sessionFile: undefined }]);
+	assert.deepEqual(factory.calls, [{ conversationId: "manual:existing", sessionFile: "E:/sessions/existing.jsonl" }]);
 	const storedConversation = await store.get("manual:existing");
 	assert.equal(storedConversation?.sessionFile, "E:/sessions/new-after-skill-change.jsonl");
 	assert.equal(storedConversation?.skillFingerprint, "skills-v2");

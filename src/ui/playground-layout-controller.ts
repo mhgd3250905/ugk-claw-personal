@@ -191,7 +191,13 @@ export function getPlaygroundLayoutControllerScript(): string {
 					void scheduleResumeConversationSync("visibilitychange", { restoreHistory: true });
 				}
 			});
-			window.addEventListener("pageshow", () => {
+			window.addEventListener("pageshow", (event) => {
+				if (!event.persisted && state.skipNextPageShowResumeSync) {
+					state.skipNextPageShowResumeSync = false;
+					state.pageUnloading = false;
+					return;
+				}
+				state.skipNextPageShowResumeSync = false;
 				state.pageUnloading = false;
 				void scheduleResumeConversationSync("pageshow", { restoreHistory: true });
 			});

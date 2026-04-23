@@ -707,6 +707,11 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /layoutObserver\.observe\(composerDropTarget\);/);
 	assert.doesNotMatch(response.body, /layoutObserver\.observe\(commandDeck\);/);
 	assert.doesNotMatch(response.body, /layoutObserver\.observe\(chatStage\);/);
+	assert.match(response.body, /skipNextPageShowResumeSync:\s*true/);
+	assert.match(
+		response.body,
+		/window\.addEventListener\("pageshow",\s*\(event\)\s*=>\s*\{[\s\S]*if\s*\(!event\.persisted\s*&&\s*state\.skipNextPageShowResumeSync\)\s*\{[\s\S]*state\.skipNextPageShowResumeSync\s*=\s*false;[\s\S]*state\.pageUnloading\s*=\s*false;[\s\S]*return;[\s\S]*\}[\s\S]*state\.skipNextPageShowResumeSync\s*=\s*false;[\s\S]*state\.pageUnloading\s*=\s*false;[\s\S]*scheduleResumeConversationSync\("pageshow",\s*\{\s*restoreHistory:\s*true\s*\}\)/,
+	);
 	assert.match(response.body, /function syncComposerTextareaHeight\(\)\s*\{/);
 	assert.match(response.body, /const maxLines = 10;/);
 	assert.match(response.body, /messageInput\.style\.height = "auto";/);

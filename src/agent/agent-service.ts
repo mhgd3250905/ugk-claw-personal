@@ -848,9 +848,7 @@ export class AgentService {
 	): Promise<{ session: AgentSessionLike; skillFingerprint?: string }> {
 		const existingConversation = await this.options.conversationStore.get(conversationId);
 		const skillFingerprint = await this.options.sessionFactory.getSkillFingerprint?.();
-		const shouldReuseExistingSession =
-			existingConversation?.sessionFile !== undefined &&
-			(skillFingerprint === undefined || existingConversation.skillFingerprint === skillFingerprint);
+		const shouldReuseExistingSession = existingConversation?.sessionFile !== undefined;
 
 		const session = await this.options.sessionFactory.createSession({
 			conversationId,

@@ -12,6 +12,12 @@
 
 ## 2026-04-23
 
+### 旧会话继续对话时保持原会话记忆
+- 日期：2026-04-23
+- 主题：修复旧会话切回后继续对话时，agent 因 `skillFingerprint` 变化误开空白 session、导致“历史还在但记忆失效、上下文重新从零开始”的问题。会话能显示历史却一开口就失忆，这种行为跟装傻没有区别。
+- 影响范围：`src/agent/agent-service.ts` 的 `openSession()` 不再因为技能指纹变化拒绝复用已有会话的 `sessionFile`，旧会话继续发送消息时仍沿用原上下文；`test/agent-service.test.ts` 新增回归断言，锁住“技能目录变化后仍要按旧会话 session 继续跑”的行为；`docs/playground-current.md` 补充该运行时约束，避免下次接手又把这个坑挖回来。
+- 对应入口：[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### Runtime / Conn / Feishu 稳定性与交互收口
 - 日期：2026-04-23
 - 主题：收口一轮真正会影响运行与交互体验的改动：`web-access` 任务结束后按本轮 scope 清理遗留页面，`send_file` 产物不再在会话恢复后消失，`playground` 历史会话支持删除与自定义确认弹窗，输入框纵向居中，上下文详情弹层上移，`/v1/chat/current` 周边的会话目录同步去重降噪，`conn` 编辑器不再逼用户手填 `assetId`，并把 `conn` 系统技能与 Feishu 单窗口接入链路按模块拆开。继续让稳定链路带着重复请求、消失文件和系统弹窗满街跑，那不叫迭代，叫放任脏活长期驻场。
