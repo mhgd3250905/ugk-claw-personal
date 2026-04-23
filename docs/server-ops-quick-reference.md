@@ -61,6 +61,13 @@ git pull --ff-only origin main
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
+如果本次改过 `deploy/nginx/default.conf`，不要以为 nginx 会自动吃到新配置。生产 nginx 是单文件 bind mount，`git pull` 后可能还挂着旧 inode。继续补这两步：
+
+```bash
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T nginx nginx -T 2>/dev/null | grep client_max_body_size
+```
+
 别嫌麻烦。你真等到 sidecar 登录态和线上回滚点都没留，再开始后悔，就已经晚了。
 
 ## 只重启 app

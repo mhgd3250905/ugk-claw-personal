@@ -8,72 +8,88 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- 当前本地最新提交：以 GitHub `main` 最新 `HEAD` 为准；服务器运行代码当前对应 `b896f05 fix: consolidate playground conversation view state`
-- 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前服务器已增量更新到：`b896f05b303bdb210073743e83ee1c74a14c19b4`
+- GitHub 最新提交：`47e6e16 docs: record task inbox production deploy`
+- 生产实际运行代码提交：`4b78f21 feat: consolidate task inbox and asset uploads`
+- 生产文档记录提交：`47e6e16` 已推送 GitHub；服务器工作目录可 `git pull --ff-only origin main` 同步文档，不需要重启容器
 - 当前公网入口：`http://43.134.167.179:3000/playground`
 - 当前健康检查：`http://43.134.167.179:3000/healthz`
-
-## 这一轮到底做了什么
-
-### 1. `playground` runtime 做完了一轮系统性收口
-
-本轮已经不是零碎修 UI，而是把 `playground` 的主要运行时边界拆开并稳定下来，包括：
-
-- mobile shell
-- conversations controller
-- layout controller
-- transcript renderer
-- stream controller
-- assets / context usage / conn activity controller
-- assembler cleanup
-
-配套修掉的真实问题包括：
-
-- 旧会话异步回包污染当前页面
-- 中断后刷新重复过程壳子 / 重复提问
-- 历史时间戳全变成 `08:00:00`
-- 桌面 topbar 结构仍然两套并存
-
-详细拆分与边界说明看：
-
-- [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
-- [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-
-### 2. 线上已经完成一轮增量发布
-
-这次不是整目录替换，而是按 Git 工作目录做的增量更新：
-
-- 服务器目录：`~/ugk-claw-repo`
+- 当前服务器目录：`~/ugk-claw-repo`
 - shared 运行态目录：`~/ugk-claw-shared`
-- sidecar 登录态、agent 会话、资产和日志都没有被洗掉
-- 2026-04-23 已完成最新一次增量发布：`git pull --ff-only origin main` 后执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，发布后 `/healthz`、`/playground`、`check-deps.mjs`、`docker compose ps` 和 `/v1/chat/state` 的 `viewMessages` 均已验收通过
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-180038`
+- 当前 sidecar 登录态备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
 
-### 3. 发布过程中真抓到一个生产配置坑
+## 本阶段完成了什么
 
-第一次准备发 `snapshot-20260422-v4.1.1-stable` 时，服务器 `docker compose` 直接报错：
+### 1. 文件上传链路标准化
 
-```text
-yaml: line 38, column 16: mapping values are not allowed in this context
+- 浏览器侧文件上传统一走 `POST /v1/assets/upload`
+- 上传协议改为 `multipart/form-data` / `FormData`
+- 旧的 base64 JSON 上传链路已经从主前端路径清理掉
+- 主 chat 选择 / 拖拽文件后，先注册成可复用资产，再发送 `assetRefs`
+- `conn` 创建 / 编辑器里的“上传新文件”也走同一套标准上传入口
+- 后端默认单文件上限是 64MiB，一次最多 5 个文件；生产 nginx 已确认 `client_max_body_size 80m`
+
+关键入口：
+
+- [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+- [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+- [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+- [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### 2. 后台任务结果改为任务消息页
+
+- 后台 `conn` 结果的主投递面已经是 `agent_activity_items` + `任务消息` 页面
+- 默认目标是 `{ "type": "task_inbox" }`
+- 不再把后台结果默认硬塞进当前会话 transcript
+- 旧的 `conversation` 目标只保留后端兼容读取，不再作为前台主路径
+- 任务消息页是独立观察页，视觉像 chat，但语义不是 conversation
+
+关键入口：
+
+- [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
+- [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
+- [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+- [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+
+### 3. 任务消息未读策略收口
+
+- 顶部 badge 统计来自 `/v1/activity/summary`
+- 打开任务消息页不会自动清空未读
+- 有未读时默认进入 `未读` 筛选
+- `GET /v1/activity` 支持 `unreadOnly=true`、`before`、`hasMore`、`nextBefore`
+- 未读条目点击后按条标记已读
+- `全部已读` 是显式按钮，走 `POST /v1/activity/read-all`
+- 手机端 `更多` 按钮自己显示未读数字徽标，超过 99 显示 `99+`
+- 未读提醒统一使用鲜红色 `#ff1744`
+
+### 4. 生产增量发布已完成
+
+这次不是整目录替换，而是 GitHub 工作目录增量更新：
+
+- 发布前生产 `HEAD`：`bbd8735`
+- 发布后生产运行代码：`4b78f21`
+- 发布记录文档提交：`47e6e16`
+- 发布前 sidecar 登录态备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
+- 发布前回滚 tag：`server-pre-deploy-20260423-180038`
+
+验收已经通过：
+
+- 内网 `/healthz` 返回 `{"ok":true}`
+- 内网 `/playground` 返回 `HTTP/1.1 200 OK`
+- 公网 `/healthz` 返回 `{"ok":true}`
+- 公网 `/playground` 返回 `200`
+- `check-deps.mjs` 返回 `host-browser: ok` 和 `proxy: ready`
+- compose 状态显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+- 页面源码包含 `mobile-overflow-task-inbox-badge`、`task-inbox-filter-unread-button`、`/v1/assets/upload`
+- nginx 容器内已确认 `client_max_body_size 80m`
+
+本次生产踩坑也要记住：改 `deploy/nginx/default.conf` 后，nginx 单文件 bind mount 可能继续挂旧 inode。以后改 nginx 配置，发布后必须：
+
+```bash
+cd ~/ugk-claw-repo
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T nginx nginx -T 2>/dev/null | grep client_max_body_size
 ```
-
-根因是 [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml) 里 healthcheck 的 `retries` 缩进写坏了。
-
-所以要记住：
-
-- `snapshot-20260422-v4.1.1-stable` 已经存在，但**不是最终可用发布点**
-- 真正应该交接和继续部署的是 `snapshot-20260422-v4.1.2-stable`
-
-### 4. 2026-04-23 已增量发布：会话状态 `viewMessages` 收口
-
-本地已完成并验证一轮会话状态根因治理，并已增量发布到腾讯云新加坡生产环境：`GET /v1/chat/state` 现在由后端返回已归并好的 `viewMessages`，前端只负责渲染，不再自己猜 `messages + activeRun` 怎么合并。
-
-这次主要解决两类体验坑：
-
-- 同一轮刚结束时，历史已落盘但 terminal `activeRun` 还短暂存在，页面不应显示成“问题 / 回答 / 问题 / 回答”。
-- 连续两轮发送相同文本（例如“继续”）时，后端不能把上一轮同文本误判成当前轮，导致当前输入被吞。
-
-这次更新走的是服务器 GitHub 工作目录增量更新，不是整目录替换；上线后已验收 `/healthz`、`/playground`、`check-deps.mjs`、`docker compose ps` 和 `/v1/chat/state` 的 `viewMessages` 字段。后续如果继续改会话恢复，仍建议额外打开浏览器实测旧会话继续对话、刷新恢复和连续发送“继续”。
 
 ## 当前推荐阅读顺序
 
@@ -85,19 +101,21 @@ yaml: line 38, column 16: mapping values are not allowed in this context
 4. [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
 5. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 6. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
-7. `playground` 相关时再看：
-   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-   - [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
+7. `playground` 当前交互看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+8. 上传、资产、任务消息、conn、Feishu 看 [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 ## 当前交付与回滚锚点
 
 ### Git 发布点
 
-- 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
-- 上一个错误发布 tag：`snapshot-20260422-v4.1.1-stable`
+- 功能版本：`4b78f21 feat: consolidate task inbox and asset uploads`
+- 部署记录版本：`47e6e16 docs: record task inbox production deploy`
+- 旧推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
+- 不要使用：`snapshot-20260422-v4.1.1-stable`
 
 ### 服务器发布前回滚 tag
 
+- `server-pre-deploy-20260423-180038`
 - `server-pre-deploy-20260423-113909`
 - `server-pre-deploy-20260423-014636`
 - `server-pre-deploy-20260422-231020`
@@ -105,54 +123,68 @@ yaml: line 38, column 16: mapping values are not allowed in this context
 
 ### sidecar 登录态备份
 
+- `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-113909.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-014636.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260422-231020.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260422-230750.tar.gz`
 
-### `playground` 高风险修改前锚点
-
-- `backup/playground-pre-sync-ownership-2026-04-22`
-- `backup/playground-pre-stream-split-2026-04-22`
-- `backup/playground-pre-timestamp-fix-2026-04-22`
-- `backup/playground-pre-assembler-trim-2026-04-22`
-
 ## 现在怎么发版才算稳
 
 以后继续增量发布，建议最少按这个顺序：
 
-1. 本地确认工作区干净
+1. 本地确认工作区干净，运行态临时文件不要乱提交
 2. 本地先跑：
    - `npx tsc --noEmit`
    - `npm test`
    - `docker compose -f docker-compose.prod.yml config`
-3. 打新的 snapshot tag
-4. 推送 `main` 和 tag 到 `origin`
-5. 服务器上先备份 sidecar 登录态
-6. 服务器上给当前 `HEAD` 打 `server-pre-deploy-*` 本地 tag
-7. 再执行：
+3. 推送 `main` 到 `origin`
+4. 服务器上先备份 sidecar 登录态
+5. 服务器上给当前 `HEAD` 打 `server-pre-deploy-*` 本地 tag
+6. 再执行：
 
 ```bash
 cd ~/ugk-claw-repo
 git pull --ff-only origin main
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+```
+
+7. 如果改过 `deploy/nginx/default.conf`，额外强制重建 nginx：
+
+```bash
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx
 ```
 
 8. 发布后至少验：
    - `curl -fsS http://127.0.0.1:3000/healthz`
    - `curl -I http://127.0.0.1:3000/playground`
-   - `check-deps.mjs`
    - `docker compose ... ps`
+   - `check-deps.mjs`
+   - 如果涉及上传：`nginx -T | grep client_max_body_size`
+   - 如果涉及任务消息：`GET /v1/activity/summary` 和页面源码标记
 
-## 还没做、但值得继续的方向
+## 下一个阶段建议
 
-到目前为止，`playground` 这条线已经该收就收了。继续死抠主文件边角，收益开始变低。
+现在 `playground`、上传和任务消息主链路已经能作为下一阶段基础。继续死抠“当前会话接收后台结果”这条旧路，收益很低，还容易把系统拉回混乱状态。
 
-后续更值得投时间的方向：
+更值得进入下一阶段的方向：
 
-1. `conn / activity / Feishu` 继续做业务闭环
-2. 后台任务与通知流的真实用户工作流回归
-3. 生产部署与回滚流程再做一轮自动化收口
+1. **Feishu / 外部 IM 闭环**
+   - 让飞书入站文件、文本、后台任务结果和文件回传形成稳定用户路径。
+   - 优先验证真实用户在飞书里创建任务、补充资料、查看结果、拿到文件的闭环。
+
+2. **任务消息页产品化**
+   - 增加搜索、按来源筛选、按任务 / run 分组、失败重试入口。
+   - 当前页已经有未读、分页和过程查看，可以继续加管理能力。
+
+3. **后台任务稳定性**
+   - 补 run event log 跨进程持久化，避免服务重启后过程回放断层。
+   - 梳理超时、失败、取消、重试、输出文件保留策略。
+
+4. **生产发布自动化**
+   - 把当前手工增量发布流程脚本化。
+   - 特别是 sidecar 备份、回滚 tag、compose config、nginx force recreate、验收清单，别再靠人工临场发挥。
 
 ## 相关文档
 
@@ -161,5 +193,6 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 - [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
 - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+- [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 - [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
 - [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)

@@ -12,6 +12,12 @@
 
 ## 2026-04-23
 
+### 阶段交接文档与下阶段入口整理
+- 日期：2026-04-23
+- 主题：在任务消息、标准上传和生产增量发布完成后，重写当前交接总览并整理追溯入口，为下一个阶段准备清晰起点。继续拿旧的 `b896f05 / viewMessages` 交接文档当当前事实，那就等于下阶段一开局先踩自己埋的坑。
+- 影响范围：`docs/handoff-current.md` 更新为当前阶段交接版，明确 GitHub 最新提交、生产实际运行代码、回滚 tag、sidecar 备份、已完成能力、发布验收和下阶段建议；`docs/traceability-map.md` 修正任务消息页真实入口到 `src/ui/playground-task-inbox.ts`，并清理文件上传章节里混进来的旧 conn 排障项；`docs/server-ops-quick-reference.md` 补充改 nginx 配置后必须 `--force-recreate nginx` 并验证 `client_max_body_size` 的运维口径。
+- 对应入口：[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)、[docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)、[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+
 ### 腾讯云生产环境增量更新到任务消息与标准上传版本
 - 日期：2026-04-23
 - 主题：按增量更新流程把腾讯云新加坡生产环境从 `bbd8735` 更新到 `4b78f21 feat: consolidate task inbox and asset uploads`，上线标准 multipart 文件上传、任务消息独立收件箱、未读筛选分页、手机端更多按钮数字徽标和后台结果不再默认写回当前会话的收口。

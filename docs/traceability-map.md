@@ -79,10 +79,11 @@
 9. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
 10. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 11. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
-12. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-13. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-14. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-15. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
+12. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+13. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+14. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+15. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+16. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
 
 适用问题：
 
@@ -92,7 +93,7 @@
 - 上下文用量进度环、token 估算、详情弹层和输入实时重算；运行时逻辑看 `src/ui/playground-context-usage-controller.ts`
 - 文件卡片“打开 / 下载”；文件上传区、文件 chip、资产库弹窗静态片段先看 `src/ui/playground-assets.ts`，运行时上传、拖拽、复用和下载卡片逻辑看 `src/ui/playground-assets-controller.ts`
 - 后台 conn 结果的“查看任务过程”入口；静态样式 / 弹窗 HTML 先看 `src/ui/playground-conn-activity.ts`，浏览器运行时逻辑看 `src/ui/playground-conn-activity-controller.ts`
-- 任务消息页、跨会话 conn 结果观察、`/v1/activity` 读取；静态弹层入口在 `src/ui/playground-conn-activity.ts`，渲染和事件绑定在 `src/ui/playground-conn-activity-controller.ts`
+- 任务消息页、跨会话 conn 结果观察、`/v1/activity` 读取；任务消息主体在 `src/ui/playground-task-inbox.ts`，后台 run 详情弹层仍复用 `src/ui/playground-conn-activity.ts` 和 `src/ui/playground-conn-activity-controller.ts`
 - 刷新后运行态恢复
 - 新会话创建、当前会话切换、刷新后跟随服务端当前会话
 - 发送后立即清空输入框
@@ -117,10 +118,9 @@
 9. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 适用问题：
-- `cron` 定时不区分时区，导致“每天 9 点”在不同宿主机上漂移
-- conn runtime profile / skill set / model policy 的 ID 没透到接口层
-- 任务消息已经显示出来，但点不开 run 详情
-
+- 浏览器选择文件后没反应、上传接口返回 `413` 或 `400`
+- 大文件不应该再被 base64 塞进 JSON body
+- `conn` 编辑器上传新文件失败，或者上传后没有进入“附加资料”
 - `send_file` 没出现在文件卡片里
 - 图片/报告下载 0B
 - 用户拿到的是容器 `file:///app/...`
@@ -192,6 +192,7 @@
 12. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 13. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 14. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+15. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
 
 ## H. 容器、部署、健康检查、截图
 
@@ -203,11 +204,11 @@
 4. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 5. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
 6. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
-6. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-7. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
-8. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
-9. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
-10. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
+7. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+8. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+9. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+10. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+11. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
 
 适用问题：
 
@@ -230,8 +231,9 @@
 6. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 7. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
 8. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
-9. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
-10. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+9. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+10. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
+11. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 
 适用问题：
 - conn 任务明明跑完了，但在线页面不弹实时提示
