@@ -566,6 +566,27 @@ export function getConnManagerActivityStyles(): string {
 			font-size: 10px;
 		}
 
+		.conn-editor-assets-panel {
+			display: grid;
+			gap: 10px;
+		}
+
+		.conn-editor-assets-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+
+		.conn-editor-selected-assets {
+			display: none;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+
+		.conn-editor-selected-assets.visible {
+			display: flex;
+		}
+
 		.conn-editor-target-preview {
 			display: grid;
 			gap: 5px;
@@ -885,8 +906,16 @@ export function getConnActivityDialogs(): string {
 							</div>
 							<label class="conn-editor-field">
 								<span>附加资料</span>
-								<textarea id="conn-editor-asset-refs" rows="3" spellcheck="false"></textarea>
-								<small class="conn-editor-field-hint">填资产 ID，一行一个；让任务运行时顺带带上这些资料。</small>
+								<div class="conn-editor-assets-panel">
+									<div class="conn-editor-assets-actions">
+										<button id="conn-editor-pick-assets-button" type="button">选择复用文件</button>
+										<button id="conn-editor-upload-assets-button" type="button">上传新文件</button>
+									</div>
+									<input id="conn-editor-asset-file-input" type="file" multiple hidden />
+									<div id="conn-editor-selected-assets" class="conn-editor-selected-assets" aria-live="polite"></div>
+									<textarea id="conn-editor-asset-refs" rows="3" spellcheck="false" hidden></textarea>
+								</div>
+								<small class="conn-editor-field-hint">资源 ID 只留给系统内部管理；这里直接选复用文件或上传新文件即可。</small>
 							</label>
 						</details>
 					</div>

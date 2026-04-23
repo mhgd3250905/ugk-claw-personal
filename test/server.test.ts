@@ -73,6 +73,14 @@ function createAgentServiceStub(overrides?: {
 		created: boolean;
 		reason?: "running";
 	}>;
+	deleteConversation?: (
+		conversationId: string,
+	) => Promise<{
+		conversationId: string;
+		currentConversationId: string;
+		deleted: boolean;
+		reason?: "running" | "not_found";
+	}>;
 	switchConversation?: (
 		conversationId: string,
 	) => Promise<{
@@ -208,6 +216,13 @@ function createAgentServiceStub(overrides?: {
 				conversationId: "manual:new-1",
 				currentConversationId: "manual:new-1",
 				created: true,
+			})),
+		deleteConversation:
+			overrides?.deleteConversation ??
+			(async (conversationId) => ({
+				conversationId,
+				currentConversationId: "manual:test-1",
+				deleted: true,
 			})),
 		switchConversation:
 			overrides?.switchConversation ??
@@ -487,6 +502,10 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /conn-editor-upgrade-policy/);
 	assert.match(response.body, /conn-editor-max-run-seconds/);
 	assert.match(response.body, /conn-editor-asset-refs/);
+	assert.match(response.body, /conn-editor-pick-assets-button/);
+	assert.match(response.body, /conn-editor-upload-assets-button/);
+	assert.match(response.body, /conn-editor-asset-file-input/);
+	assert.match(response.body, /conn-editor-selected-assets/);
 	assert.match(response.body, /conn-editor-target-id-label/);
 	assert.match(response.body, /conn-editor-target-id-hint/);
 	assert.match(response.body, /function describeConnTargetInput\(/);
@@ -543,6 +562,12 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /assistant-process-toggle/);
 	assert.match(response.body, /assistant-process-body/);
 	assert.match(response.body, /assistant-process-current-action/);
+	assert.match(response.body, /conversation-item-delete/);
+	assert.match(response.body, /confirm-dialog/);
+	assert.match(response.body, /confirm-dialog-title/);
+	assert.match(response.body, /confirm-dialog-confirm/);
+	assert.match(response.body, /function openConfirmDialog\(options\)/);
+	assert.match(response.body, /function closeConfirmDialog\(confirmed\)/);
 	assert.match(response.body, /\.assistant-process-shell\s*\{[\s\S]*border:\s*0;/);
 	assert.match(response.body, /\.assistant-process-shell\s*\{[\s\S]*background:\s*rgba\(9, 13, 22, 0\.92\);/);
 	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-head\s*\{[\s\S]*justify-content:\s*flex-end;/);
@@ -1301,7 +1326,11 @@ test("GET /playground syncs the current conversation from the server catalog", a
 	assert.match(response.body, /body: JSON\.stringify\(\{\}\),/);
 	assert.match(response.body, /async function switchConversationOnServer\(conversationId\)\s*\{/);
 	assert.match(response.body, /\/v1\/chat\/current/);
+	assert.match(response.body, /conversationCatalogSyncPromise:\s*null,/);
+	assert.match(response.body, /conversationCatalogSyncedAt:\s*0,/);
 	assert.match(response.body, /async function syncConversationCatalog\(options\)\s*\{/);
+	assert.match(response.body, /const hasFreshCatalog =[\s\S]*CONVERSATION_CATALOG_FRESH_MS;/);
+	assert.match(response.body, /if \(state\.conversationCatalogSyncPromise\) \{[\s\S]*return await state\.conversationCatalogSyncPromise;/);
 	assert.match(response.body, /async function ensureCurrentConversation\(options\)\s*\{/);
 	assert.match(response.body, /function upsertConversationCatalogItem\(item, options\)\s*\{/);
 	assert.doesNotMatch(response.body, /const GLOBAL_CONVERSATION_ID = "agent:global";/);
@@ -1558,9 +1587,11 @@ test("GET /playground keeps the default active composer compact before mobile ov
 	assert.equal(response.statusCode, 200);
 	assert.match(response.body, /\.composer\s*\{[\s\S]*padding:\s*12px 0 14px;/);
 	assert.match(response.body, /\.composer-main\s*\{[\s\S]*gap:\s*8px;/);
-	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*min-height:\s*72px;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*min-height:\s*52px;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*--composer-textarea-max-lines:\s*10;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*max-height:\s*calc\(var\(--composer-line-height\) \* var\(--composer-textarea-max-lines\) \+ 24px\);/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*padding-top:\s*14px;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*padding-bottom:\s*14px;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*resize:\s*none;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*overflow-y:\s*auto;/);
 	assert.match(response.body, /@media \(max-width: 960px\) \{[\s\S]*\.composer-side\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
@@ -2129,6 +2160,36 @@ test("POST /v1/chat/current switches the globally active conversation", async ()
 	await app.close();
 });
 
+test("DELETE /v1/chat/conversations/:conversationId removes a conversation", async () => {
+	const calls: string[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			deleteConversation: async (conversationId) => {
+				calls.push(conversationId);
+				return {
+					conversationId,
+					currentConversationId: "manual:thread-2",
+					deleted: true,
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "DELETE",
+		url: "/v1/chat/conversations/manual%3Athread-1",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conversationId: "manual:thread-1",
+		currentConversationId: "manual:thread-2",
+		deleted: true,
+	});
+	assert.deepEqual(calls, ["manual:thread-1"]);
+	await app.close();
+});
+
 test("GET /assets/fonts/Agave-Regular.ttf returns the bundled Agave font", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -2488,6 +2549,91 @@ test("GET /v1/assets returns reusable asset metadata", async () => {
 			},
 		],
 	});
+	await app.close();
+});
+
+test("POST /v1/assets registers uploaded assets for later reuse", async () => {
+	const calls: Array<{ conversationId: string; attachments: unknown[] }> = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		assetStore: {
+			registerAttachments: async (conversationId, attachments) => {
+				calls.push({ conversationId, attachments: [...attachments] });
+				return [
+					{
+						assetId: "asset-upload-1",
+						reference: "@asset[asset-upload-1]",
+						fileName: "notes.txt",
+						mimeType: "text/plain",
+						sizeBytes: 11,
+						kind: "text",
+						hasContent: true,
+						source: "user_upload",
+						conversationId,
+						createdAt: "2026-04-23T00:00:00.000Z",
+						textPreview: "hello file",
+						downloadUrl: "/v1/files/asset-upload-1",
+					},
+				];
+			},
+			saveFiles: async () => [],
+			listAssets: async () => [],
+			getAsset: async () => undefined,
+			resolveAssets: async () => [],
+			readText: async () => undefined,
+			getFile: async () => undefined,
+		},
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/assets",
+		payload: {
+			conversationId: "manual:conn",
+			attachments: [
+				{
+					fileName: "notes.txt",
+					mimeType: "text/plain",
+					sizeBytes: 11,
+					text: "hello file",
+				},
+			],
+		},
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		assets: [
+			{
+				assetId: "asset-upload-1",
+				reference: "@asset[asset-upload-1]",
+				fileName: "notes.txt",
+				mimeType: "text/plain",
+				sizeBytes: 11,
+				kind: "text",
+				hasContent: true,
+				source: "user_upload",
+				conversationId: "manual:conn",
+				createdAt: "2026-04-23T00:00:00.000Z",
+				textPreview: "hello file",
+				downloadUrl: "/v1/files/asset-upload-1",
+			},
+		],
+	});
+	assert.deepEqual(calls, [
+		{
+			conversationId: "manual:conn",
+			attachments: [
+				{
+					fileName: "notes.txt",
+					mimeType: "text/plain",
+					sizeBytes: 11,
+					text: "hello file",
+					base64: undefined,
+				},
+			],
+		},
+	]);
 	await app.close();
 });
 

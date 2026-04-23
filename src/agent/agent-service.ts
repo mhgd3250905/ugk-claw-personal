@@ -118,6 +118,13 @@ export interface CreateConversationResult {
 	reason?: "running";
 }
 
+export interface DeleteConversationResult {
+	conversationId: string;
+	currentConversationId: string;
+	deleted: boolean;
+	reason?: "running" | "not_found";
+}
+
 export interface SwitchConversationResult {
 	conversationId: string;
 	currentConversationId: string;
@@ -161,6 +168,10 @@ export interface AgentServiceOptions {
 	assetStore?: AssetStoreLike;
 	notificationStore?: {
 		list(conversationId: string): Promise<ConversationNotification[]>;
+		summarize?(
+			conversationIds: readonly string[],
+		): Promise<Map<string, { count: number; latest?: ConversationNotification }>>;
+		deleteConversation?(conversationId: string): Promise<void>;
 	};
 }
 
@@ -200,10 +211,18 @@ export class AgentService {
 
 	async getConversationCatalog(): Promise<ConversationCatalogResult> {
 		const currentConversationId = await this.ensureCurrentConversationId();
+		const conversationEntries = await this.options.conversationStore.list();
+		const notificationSummaries = this.options.notificationStore?.summarize
+			? await this.options.notificationStore.summarize(conversationEntries.map((entry) => entry.conversationId))
+			: undefined;
 		const conversations = await Promise.all(
-			(await this.options.conversationStore.list()).map(async (entry) => {
-				const notifications = (await this.options.notificationStore?.list(entry.conversationId)) ?? [];
-				const latestNotification = getLatestConversationNotification(notifications);
+			conversationEntries.map(async (entry) => {
+				const notificationSummary = notificationSummaries?.get(entry.conversationId);
+				const notifications =
+					notificationSummary === undefined
+						? ((await this.options.notificationStore?.list(entry.conversationId)) ?? [])
+						: undefined;
+				const latestNotification = notificationSummary?.latest ?? getLatestConversationNotification(notifications ?? []);
 				const baseMessageCount = Number.isFinite(entry.messageCount) ? entry.messageCount ?? 0 : 0;
 				const updatedAt =
 					latestNotification && latestNotification.createdAt > entry.updatedAt
@@ -218,7 +237,7 @@ export class AgentService {
 					conversationId: entry.conversationId,
 					title: entry.title || "新会话",
 					preview,
-					messageCount: baseMessageCount + notifications.length,
+					messageCount: baseMessageCount + (notificationSummary?.count ?? notifications?.length ?? 0),
 					createdAt: entry.createdAt ?? entry.updatedAt,
 					updatedAt,
 					running: this.activeRuns.has(entry.conversationId),
@@ -255,6 +274,38 @@ export class AgentService {
 			conversationId,
 			currentConversationId: conversationId,
 			created: true,
+		};
+	}
+
+	async deleteConversation(conversationId: string): Promise<DeleteConversationResult> {
+		const currentConversationId = await this.ensureCurrentConversationId();
+		if (this.activeRuns.size > 0) {
+			return {
+				conversationId: currentConversationId,
+				currentConversationId,
+				deleted: false,
+				reason: "running",
+			};
+		}
+
+		const existingConversation = await this.options.conversationStore.get(conversationId);
+		if (!existingConversation) {
+			return {
+				conversationId,
+				currentConversationId,
+				deleted: false,
+				reason: "not_found",
+			};
+		}
+
+		await this.options.notificationStore?.deleteConversation?.(conversationId);
+		await this.options.conversationStore.delete(conversationId);
+		this.terminalRuns.delete(conversationId);
+		const nextCurrentConversationId = await this.ensureCurrentConversationId();
+		return {
+			conversationId,
+			currentConversationId: nextCurrentConversationId,
+			deleted: true,
 		};
 	}
 
@@ -485,6 +536,7 @@ export class AgentService {
 		onEvent?: ChatStreamEventSink,
 	): Promise<ChatResult> {
 		const conversationId = input.conversationId ?? `manual:${randomUUID()}`;
+		const browserCleanupScope = createBrowserCleanupScope(conversationId);
 		if (this.activeRuns.has(conversationId)) {
 			throw new Error(`Conversation ${conversationId} is already running`);
 		}
@@ -554,7 +606,9 @@ export class AgentService {
 		});
 
 		try {
-			await session.prompt(buildPromptWithAssetContext(input.message, preparedAssets.promptAssets));
+			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
+				await session.prompt(buildPromptWithAssetContext(input.message, preparedAssets.promptAssets));
+			});
 
 			const lastAssistantMessage = [...(session.messages ?? [])].reverse().find((message) => message.role === "assistant");
 			if (lastAssistantMessage?.stopReason === "error") {
@@ -650,7 +704,7 @@ export class AgentService {
 				this.terminalRuns.delete(conversationId);
 			}
 			activeRun.subscribers.clear();
-			await closeBrowserTargetsForScope(undefined);
+			await closeBrowserTargetsForScope(browserCleanupScope);
 		}
 	}
 
@@ -1032,10 +1086,18 @@ export class AgentService {
 		messages: readonly AgentMessageLike[],
 		activeRunView?: ChatActiveRunBody,
 	): ConversationHistoryMessage[] {
-		const normalizedMessages = messages
-			.map((message, index) => this.toConversationHistoryMessage(message, index))
-			.filter((message): message is ConversationHistoryMessage => Boolean(message));
-		const coalescedMessages = coalesceConsecutiveAssistantMessages(normalizedMessages);
+		const coalescedMessages: ConversationHistoryMessage[] = [];
+		messages.forEach((message, index) => {
+			const normalizedMessage = this.toConversationHistoryMessage(message, index);
+			if (normalizedMessage) {
+				appendConversationHistoryMessage(coalescedMessages, normalizedMessage);
+			}
+
+			const files = extractConversationHistoryFiles(message);
+			if (files) {
+				attachConversationHistoryFiles(coalescedMessages, files);
+			}
+		});
 
 		if (!activeRunView?.loading) {
 			return coalescedMessages;
@@ -1224,6 +1286,41 @@ function extractSendFileArtifact(event: ToolExecutionEndEventLike): AgentFileArt
 	return normalizeAgentFileArtifact(file);
 }
 
+function extractConversationHistoryFiles(message: AgentMessageLike): ChatHistoryFileBody[] | undefined {
+	if (message.role !== "toolResult") {
+		return undefined;
+	}
+
+	const candidate = message as AgentMessageLike & {
+		toolName?: string;
+		details?: unknown;
+		isError?: boolean;
+	};
+	if (candidate.toolName !== "send_file" || candidate.isError === true) {
+		return undefined;
+	}
+
+	const details = candidate.details;
+	if (!details || typeof details !== "object") {
+		return undefined;
+	}
+
+	const file = "file" in details ? (details as { file?: unknown }).file : undefined;
+	const normalized = normalizeAgentFileArtifact(file);
+	if (!normalized) {
+		return undefined;
+	}
+
+	return [
+		{
+			fileName: normalized.fileName,
+			downloadUrl: normalized.downloadUrl,
+			mimeType: normalized.mimeType,
+			sizeBytes: normalized.sizeBytes,
+		},
+	];
+}
+
 function normalizeAgentFileArtifact(value: unknown): AgentFileArtifact | undefined {
 	if (!value || typeof value !== "object") {
 		return undefined;
@@ -1258,6 +1355,23 @@ function mergeAgentFiles(existingFiles: AgentFileArtifact[] | undefined, sentFil
 			continue;
 		}
 		merged.set(key, file);
+	}
+
+	const files = [...merged.values()];
+	return files.length > 0 ? files : undefined;
+}
+
+function mergeConversationHistoryFiles(
+	existingFiles: ChatHistoryFileBody[] | undefined,
+	incomingFiles: readonly ChatHistoryFileBody[],
+): ChatHistoryFileBody[] | undefined {
+	const merged = new Map<string, ChatHistoryFileBody>();
+	for (const file of [...(existingFiles ?? []), ...incomingFiles]) {
+		const key = `${file.downloadUrl}|${file.fileName}`;
+		if (merged.has(key)) {
+			continue;
+		}
+		merged.set(key, { ...file });
 	}
 
 	const files = [...merged.values()];
@@ -1397,17 +1511,66 @@ function omitTrailingActiveUserMessage(
 	return lastMessage.text.trim() === normalizedInput ? messages.slice(0, -1) : messages;
 }
 
-function coalesceConsecutiveAssistantMessages(messages: ConversationHistoryMessage[]): ConversationHistoryMessage[] {
-	const coalesced: ConversationHistoryMessage[] = [];
-	for (const message of messages) {
-		const previous = coalesced.at(-1);
-		if (previous?.kind === "assistant" && message.kind === "assistant") {
-			previous.text = [previous.text, message.text].filter((text) => text.trim().length > 0).join("\n\n");
+function appendConversationHistoryMessage(
+	messages: ConversationHistoryMessage[],
+	message: ConversationHistoryMessage,
+): void {
+	const previous = messages.at(-1);
+	if (previous?.kind === "assistant" && message.kind === "assistant") {
+		previous.text = [previous.text, message.text].filter((text) => text.trim().length > 0).join("\n\n");
+		previous.files = mergeConversationHistoryFiles(previous.files, message.files ?? []);
+		return;
+	}
+
+	messages.push({ ...message });
+}
+
+function attachConversationHistoryFiles(
+	messages: ConversationHistoryMessage[],
+	files: readonly ChatHistoryFileBody[],
+): void {
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const message = messages[index];
+		if (message.kind !== "assistant") {
 			continue;
 		}
-		coalesced.push({ ...message });
+		message.files = mergeConversationHistoryFiles(message.files, files);
+		return;
 	}
-	return coalesced;
+}
+
+function createBrowserCleanupScope(conversationId: string): string {
+	return `${sanitizeStateId(conversationId)}-${randomUUID()}`;
+}
+
+async function runWithScopedAgentEnvironment<T>(scope: string, operation: () => Promise<T>): Promise<T> {
+	const previousValues = {
+		CLAUDE_AGENT_ID: process.env.CLAUDE_AGENT_ID,
+		CLAUDE_HOOK_AGENT_ID: process.env.CLAUDE_HOOK_AGENT_ID,
+		agent_id: process.env.agent_id,
+	};
+	process.env.CLAUDE_AGENT_ID = scope;
+	process.env.CLAUDE_HOOK_AGENT_ID = scope;
+	process.env.agent_id = scope;
+
+	try {
+		return await operation();
+	} finally {
+		restoreScopedAgentEnvironment("CLAUDE_AGENT_ID", previousValues.CLAUDE_AGENT_ID);
+		restoreScopedAgentEnvironment("CLAUDE_HOOK_AGENT_ID", previousValues.CLAUDE_HOOK_AGENT_ID);
+		restoreScopedAgentEnvironment("agent_id", previousValues.agent_id);
+	}
+}
+
+function restoreScopedAgentEnvironment(
+	key: "CLAUDE_AGENT_ID" | "CLAUDE_HOOK_AGENT_ID" | "agent_id",
+	value: string | undefined,
+): void {
+	if (value === undefined) {
+		delete process.env[key];
+		return;
+	}
+	process.env[key] = value;
 }
 
 function mergeConversationNotifications(

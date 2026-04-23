@@ -56,6 +56,15 @@ export interface AssetDetailResponseBody {
 	asset: ChatAssetBody;
 }
 
+export interface CreateAssetRequestBody {
+	conversationId?: string;
+	attachments: ChatAttachmentBody[];
+}
+
+export interface CreateAssetResponseBody {
+	assets: ChatAssetBody[];
+}
+
 export type ConnTargetBody =
 	| {
 			type: "conversation";
@@ -289,6 +298,13 @@ export interface CreateConversationResponseBody {
 	currentConversationId: string;
 	created: boolean;
 	reason?: "running";
+}
+
+export interface DeleteConversationResponseBody {
+	conversationId: string;
+	currentConversationId: string;
+	deleted: boolean;
+	reason?: "running" | "not_found";
 }
 
 export interface SwitchConversationRequestBody {

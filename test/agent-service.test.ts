@@ -120,11 +120,47 @@ class DeferredSession extends FakeSession {
 	}
 }
 
+class EnvAwareSession extends FakeSession {
+	public observedAgentScope?: string;
+
+	override async prompt(message: string, options?: PromptOptionsLike): Promise<void> {
+		this.observedAgentScope = process.env.CLAUDE_AGENT_ID;
+		await super.prompt(message, options);
+	}
+}
+
 class FakeNotificationStore {
 	constructor(private readonly notifications: ConversationNotification[]) {}
 
 	async list(conversationId: string): Promise<ConversationNotification[]> {
 		return this.notifications.filter((notification) => notification.conversationId === conversationId);
+	}
+
+	async summarize(
+		conversationIds: readonly string[],
+	): Promise<Map<string, { count: number; latest?: ConversationNotification }>> {
+		const summaries = new Map<string, { count: number; latest?: ConversationNotification }>();
+		for (const conversationId of conversationIds) {
+			const notifications = this.notifications
+				.filter((notification) => notification.conversationId === conversationId)
+				.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+			if (notifications.length === 0) {
+				continue;
+			}
+			summaries.set(conversationId, {
+				count: notifications.length,
+				latest: notifications[0],
+			});
+		}
+		return summaries;
+	}
+
+	async deleteConversation(conversationId: string): Promise<void> {
+		for (let index = this.notifications.length - 1; index >= 0; index -= 1) {
+			if (this.notifications[index]?.conversationId === conversationId) {
+				this.notifications.splice(index, 1);
+			}
+		}
 	}
 }
 
@@ -427,7 +463,7 @@ test("creates a new conversation, prompts the session, and persists the session 
 test("chat closes scoped browser targets after the run finishes", async () => {
 	const originalFetch = globalThis.fetch;
 	const originalClaudeAgentId = process.env.CLAUDE_AGENT_ID;
-	process.env.CLAUDE_AGENT_ID = "scope-chat";
+	delete process.env.CLAUDE_AGENT_ID;
 	const cleanupCalls: Array<{ url: string; init?: RequestInit }> = [];
 	globalThis.fetch = (async (url, init) => {
 		cleanupCalls.push({ url: String(url), init });
@@ -439,9 +475,8 @@ test("chat closes scoped browser targets after the run finishes", async () => {
 
 	try {
 		const store = await createStore();
-		const factory = new FakeAgentSessionFactory(
-			() => new FakeSession("E:/sessions/browser-cleanup.jsonl", [textDelta("done")]),
-		);
+		const session = new EnvAwareSession("E:/sessions/browser-cleanup.jsonl", [textDelta("done")]);
+		const factory = new FakeAgentSessionFactory(() => session);
 		const service = new AgentService({ conversationStore: store, sessionFactory: factory });
 
 		const result = await service.chat({
@@ -450,12 +485,14 @@ test("chat closes scoped browser targets after the run finishes", async () => {
 		});
 
 		assert.equal(result.text, "done");
+		assert.match(session.observedAgentScope ?? "", /^manual-browser-cleanup-/);
 		assert.equal(cleanupCalls.length, 1);
 		assert.equal(
 			cleanupCalls[0]?.url,
-			"http://127.0.0.1:3456/session/close-all?metaAgentScope=scope-chat",
+			`http://127.0.0.1:3456/session/close-all?metaAgentScope=${encodeURIComponent(session.observedAgentScope ?? "")}`,
 		);
 		assert.equal(cleanupCalls[0]?.init?.method, "POST");
+		assert.equal(process.env.CLAUDE_AGENT_ID, undefined);
 	} finally {
 		globalThis.fetch = originalFetch;
 		if (originalClaudeAgentId === undefined) {
@@ -666,6 +703,61 @@ test("chat includes files returned by the send_file tool in the final done event
 	];
 	assert.deepEqual(result.files, expectedFiles);
 	assert.deepEqual(events.find((event) => event.type === "done")?.files, expectedFiles);
+});
+
+test("getConversationState preserves files delivered by send_file tool results in canonical history", async () => {
+	const store = await createStore();
+	await store.set("manual:send-file-history", "E:/sessions/send-file-history.jsonl");
+	const session = new FakeSession("E:/sessions/send-file-history.jsonl", []);
+	session.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("send the report"),
+			timestamp: Date.parse("2026-04-23T10:00:00.000Z"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "报告已经准备好了。" }],
+			stopReason: "stop",
+			timestamp: Date.parse("2026-04-23T10:00:05.000Z"),
+		} as never,
+		{
+			role: "toolResult",
+			toolCallId: "tool-send-file",
+			toolName: "send_file",
+			content: [{ type: "text", text: "File ready: report.md" }],
+			details: {
+				action: "send",
+				file: {
+					id: "file-tool-history-1",
+					assetId: "file-tool-history-1",
+					reference: "@asset[file-tool-history-1]",
+					fileName: "report.md",
+					mimeType: "text/markdown",
+					sizeBytes: 128,
+					downloadUrl: "/v1/files/file-tool-history-1",
+				},
+			},
+			isError: false,
+			timestamp: Date.parse("2026-04-23T10:00:06.000Z"),
+		} as never,
+	);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const state = await service.getConversationState("manual:send-file-history");
+	const history = await service.getConversationHistory("manual:send-file-history");
+	const assistantMessage = state.messages.find((message) => message.kind === "assistant");
+
+	assert.deepEqual(assistantMessage?.files, [
+		{
+			fileName: "report.md",
+			mimeType: "text/markdown",
+			sizeBytes: 128,
+			downloadUrl: "/v1/files/file-tool-history-1",
+		},
+	]);
+	assert.deepEqual(history.messages, state.messages);
 });
 
 test("chat can reference previously stored assets without re-uploading them", async () => {
@@ -1320,6 +1412,50 @@ test("switchConversation activates an existing conversation when idle", async ()
 		switched: true,
 	});
 	assert.equal(await store.getCurrentConversationId(), "manual:older");
+});
+
+test("deleteConversation removes an existing conversation and advances the current pointer", async () => {
+	const store = await createStore();
+	await store.set("manual:older", "E:/sessions/older.jsonl");
+	await store.set("manual:newer", "E:/sessions/newer.jsonl");
+	await store.setCurrentConversationId("manual:newer");
+	const factory = new FakeAgentSessionFactory(() => new FakeSession(undefined, []));
+	const notificationStore = new FakeNotificationStore([
+		{
+			notificationId: "notice-delete",
+			conversationId: "manual:newer",
+			source: "conn",
+			sourceId: "conn-delete",
+			kind: "conn_result",
+			title: "cleanup",
+			text: "delete me too",
+			files: [],
+			createdAt: "2026-04-23T00:00:00.000Z",
+		},
+	]);
+	const service = new AgentService({
+		conversationStore: store,
+		sessionFactory: factory,
+		notificationStore,
+	}) as AgentService & {
+		deleteConversation(conversationId: string): Promise<{
+			conversationId: string;
+			currentConversationId: string;
+			deleted: boolean;
+			reason?: string;
+		}>;
+	};
+
+	const result = await service.deleteConversation("manual:newer");
+
+	assert.deepEqual(result, {
+		conversationId: "manual:newer",
+		currentConversationId: "manual:older",
+		deleted: true,
+	});
+	assert.equal(await store.get("manual:newer"), undefined);
+	assert.equal(await store.getCurrentConversationId(), "manual:older");
+	assert.deepEqual(await notificationStore.list("manual:newer"), []);
 });
 
 test("createConversation refuses to switch lines while any run is active", async () => {

@@ -76,6 +76,8 @@ export function getPlaygroundConversationControllerScript(): string {
 			}
 
 			for (const item of catalog) {
+				const shell = document.createElement("div");
+				shell.className = "conversation-item-shell";
 				const button = document.createElement("button");
 				button.type = "button";
 				button.className = "mobile-conversation-item";
@@ -96,7 +98,19 @@ export function getPlaygroundConversationControllerScript(): string {
 				button.addEventListener("click", () => {
 					void selectConversationFromDrawer(item.conversationId);
 				});
-				container.appendChild(button);
+				shell.appendChild(button);
+				const deleteButton = document.createElement("button");
+				deleteButton.type = "button";
+				deleteButton.className = "conversation-item-delete";
+				deleteButton.textContent = "删";
+				deleteButton.disabled = state.loading || item.running;
+				deleteButton.setAttribute("aria-label", "删除会话 " + (item.title || item.conversationId));
+				deleteButton.addEventListener("click", (event) => {
+					event.stopPropagation();
+					void requestDeleteConversation(item, deleteButton);
+				});
+				shell.appendChild(deleteButton);
+				container.appendChild(shell);
 			}
 		}
 
@@ -120,6 +134,23 @@ export function getPlaygroundConversationControllerScript(): string {
 				updatedAt: typeof item?.updatedAt === "string" ? item.updatedAt : new Date(0).toISOString(),
 				running: Boolean(item?.running),
 			};
+		}
+
+		const CONVERSATION_CATALOG_FRESH_MS = 1600;
+
+		function getConversationCatalogSnapshot() {
+			return {
+				currentConversationId: state.conversationId,
+				conversations: state.conversationCatalog,
+			};
+		}
+
+		function markConversationCatalogFresh() {
+			state.conversationCatalogSyncedAt = Date.now();
+		}
+
+		function invalidateConversationCatalog() {
+			state.conversationCatalogSyncedAt = 0;
 		}
 
 		async function fetchConversationCatalog() {
@@ -191,6 +222,28 @@ export function getPlaygroundConversationControllerScript(): string {
 			};
 		}
 
+		async function deleteConversationOnServer(conversationId) {
+			const targetConversationId = String(conversationId || "").trim();
+			const response = await fetch("/v1/chat/conversations/" + encodeURIComponent(targetConversationId), {
+				method: "DELETE",
+				headers: {
+					accept: "application/json",
+				},
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法删除会话";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				conversationId: String(payload?.conversationId || targetConversationId).trim(),
+				currentConversationId: String(payload?.currentConversationId || "").trim(),
+				deleted: payload?.deleted === true,
+				reason: typeof payload?.reason === "string" ? payload.reason : undefined,
+			};
+		}
+
 		function applyConversationCatalog(payload) {
 			const currentConversationId = String(payload?.currentConversationId || "").trim();
 			state.conversationCatalog = Array.isArray(payload?.conversations)
@@ -207,6 +260,7 @@ export function getPlaygroundConversationControllerScript(): string {
 					running: false,
 				});
 			}
+			markConversationCatalogFresh();
 			renderConversationDrawer();
 			return currentConversationId;
 		}
@@ -245,41 +299,58 @@ export function getPlaygroundConversationControllerScript(): string {
 			return merged.conversationId;
 		}
 
+		function removeConversationCatalogItem(conversationId) {
+			state.conversationCatalog = state.conversationCatalog.filter(
+				(item) => item?.conversationId !== conversationId,
+			);
+			renderConversationDrawer();
+		}
+
 		async function syncConversationCatalog(options) {
-			if (state.conversationCatalogSyncing) {
-				return {
-					currentConversationId: state.conversationId,
-					conversations: state.conversationCatalog,
-				};
+			const hasFreshCatalog =
+				!options?.force &&
+				state.conversationCatalog.length > 0 &&
+				Date.now() - Number(state.conversationCatalogSyncedAt || 0) < CONVERSATION_CATALOG_FRESH_MS;
+			if (hasFreshCatalog) {
+				return getConversationCatalogSnapshot();
+			}
+
+			if (state.conversationCatalogSyncPromise) {
+				return await state.conversationCatalogSyncPromise;
 			}
 
 			state.conversationCatalogSyncing = true;
-			try {
-				const payload = await fetchConversationCatalog();
-				const currentConversationId = applyConversationCatalog(payload);
-				if (currentConversationId && options?.activateCurrent !== false && currentConversationId !== state.conversationId) {
-					await activateConversation(currentConversationId, {
-						silent: options?.silent,
-						skipCatalogSync: true,
-						skipServerSwitch: true,
-					});
+			state.conversationCatalogSyncPromise = (async () => {
+				try {
+					const payload = await fetchConversationCatalog();
+					const currentConversationId = applyConversationCatalog(payload);
+					if (
+						currentConversationId &&
+						options?.activateCurrent !== false &&
+						currentConversationId !== state.conversationId
+					) {
+						await activateConversation(currentConversationId, {
+							silent: options?.silent,
+							skipCatalogSync: true,
+							skipServerSwitch: true,
+						});
+					}
+					return {
+						currentConversationId: currentConversationId || state.conversationId,
+						conversations: state.conversationCatalog,
+					};
+				} catch (error) {
+					if (!options?.silent) {
+						const messageText = error instanceof Error ? error.message : "无法同步会话列表";
+						showError(messageText);
+					}
+					return getConversationCatalogSnapshot();
+				} finally {
+					state.conversationCatalogSyncing = false;
+					state.conversationCatalogSyncPromise = null;
 				}
-				return {
-					currentConversationId: currentConversationId || state.conversationId,
-					conversations: state.conversationCatalog,
-				};
-			} catch (error) {
-				if (!options?.silent) {
-					const messageText = error instanceof Error ? error.message : "无法同步会话列表";
-					showError(messageText);
-				}
-				return {
-					currentConversationId: state.conversationId,
-					conversations: state.conversationCatalog,
-				};
-			} finally {
-				state.conversationCatalogSyncing = false;
-			}
+			})();
+			return await state.conversationCatalogSyncPromise;
 		}
 
 		async function ensureCurrentConversation(options) {
@@ -323,6 +394,7 @@ export function getPlaygroundConversationControllerScript(): string {
 			resetStreamingState();
 			clearError();
 			renderConversationDrawer();
+			markConversationCatalogFresh();
 			restoreConversationHistory(nextConversationId);
 			await restoreConversationHistoryFromServer(nextConversationId, {
 				silent: true,
@@ -355,15 +427,80 @@ export function getPlaygroundConversationControllerScript(): string {
 				const result = await switchConversationOnServer(nextConversationId);
 				if (!result.switched) {
 					showError(result.reason === "running" ? "当前任务未结束，不能切换产线" : "无法切换到这个会话");
-					await syncConversationCatalog({ silent: true, activateCurrent: false });
+					invalidateConversationCatalog();
+					await syncConversationCatalog({ silent: true, activateCurrent: false, force: true });
 					return;
 				}
+				markConversationCatalogFresh();
 				await activateConversation(result.currentConversationId || result.conversationId, {
 					skipCatalogSync: true,
 					skipServerSwitch: true,
 				});
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "切换会话失败";
+				showError(messageText);
+			}
+		}
+
+		async function requestDeleteConversation(item, restoreFocusElement) {
+			if (!item?.conversationId) {
+				return;
+			}
+			if (state.loading || item.running) {
+				showError("当前任务未结束，不能删除会话");
+				return;
+			}
+			const confirmed = await openConfirmDialog({
+				title: "删除会话？",
+				description:
+					"会话：" +
+					(item.title || item.conversationId) +
+					"\\n\\n删除后这条历史会话会从列表移除，这个操作不能撤销。",
+				confirmText: "删除",
+				cancelText: "取消",
+				tone: "danger",
+				restoreFocusElement,
+			});
+			if (!confirmed) {
+				return;
+			}
+
+			try {
+				const result = await deleteConversationOnServer(item.conversationId);
+				if (!result.deleted) {
+					showError(result.reason === "running" ? "当前任务未结束，不能删除会话" : "无法删除这个会话");
+					return;
+				}
+				removeConversationCatalogItem(item.conversationId);
+				markConversationCatalogFresh();
+				if (state.conversationId === item.conversationId) {
+					const nextConversationId = result.currentConversationId;
+					if (nextConversationId && !state.conversationCatalog.some((entry) => entry.conversationId === nextConversationId)) {
+						const optimisticTimestamp = new Date().toISOString();
+						upsertConversationCatalogItem(
+							{
+								conversationId: nextConversationId,
+								title: "新会话",
+								preview: "",
+								messageCount: 0,
+								createdAt: optimisticTimestamp,
+								updatedAt: optimisticTimestamp,
+								running: false,
+							},
+							{ prepend: true },
+						);
+					}
+					if (nextConversationId) {
+						await activateConversation(nextConversationId, {
+							skipCatalogSync: true,
+							skipServerSwitch: true,
+						});
+					}
+				}
+				invalidateConversationCatalog();
+				void syncConversationCatalog({ silent: true, activateCurrent: false, force: true });
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "删除会话失败";
 				showError(messageText);
 			}
 		}
@@ -407,6 +544,7 @@ export function getPlaygroundConversationControllerScript(): string {
 				},
 				{ isNew: true },
 			);
+			markConversationCatalogFresh();
 			clearSelectedFiles();
 			clearSelectedAssetRefs();
 			setStageMode("landing");

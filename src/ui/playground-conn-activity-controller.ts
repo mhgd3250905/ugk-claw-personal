@@ -67,6 +67,10 @@ export function getConnActivityElementRefsScript(): string {
 		const connEditorModelPolicyId = document.getElementById("conn-editor-model-policy-id");
 		const connEditorUpgradePolicy = document.getElementById("conn-editor-upgrade-policy");
 		const connEditorMaxRunSeconds = document.getElementById("conn-editor-max-run-seconds");
+		const connEditorPickAssetsButton = document.getElementById("conn-editor-pick-assets-button");
+		const connEditorUploadAssetsButton = document.getElementById("conn-editor-upload-assets-button");
+		const connEditorAssetFileInput = document.getElementById("conn-editor-asset-file-input");
+		const connEditorSelectedAssets = document.getElementById("conn-editor-selected-assets");
 		const connEditorAssetRefs = document.getElementById("conn-editor-asset-refs");
 		const saveConnEditorButton = document.getElementById("save-conn-editor-button");
 		const cancelConnEditorButton = document.getElementById("cancel-conn-editor-button");
@@ -138,6 +142,7 @@ export function getConnActivityEditorScript(): string {
 			state.connEditorError = "";
 			fillConnEditor(buildConnEditorDraft(editing ? conn : null));
 			renderConnEditor();
+			void loadAssets(true);
 			connEditorDialog.hidden = false;
 			connEditorDialog.classList.add("open");
 			connEditorDialog.setAttribute("aria-hidden", "false");
@@ -148,6 +153,9 @@ export function getConnActivityEditorScript(): string {
 			state.connEditorOpen = false;
 			state.connEditorSaving = false;
 			state.connEditorError = "";
+			if (connEditorAssetFileInput) {
+				connEditorAssetFileInput.value = "";
+			}
 			restoreFocusAfterPanelClose(connEditorDialog, state.connEditorRestoreFocusElement);
 			state.connEditorRestoreFocusElement = null;
 			connEditorDialog.classList.remove("open");
@@ -240,7 +248,7 @@ export function getConnActivityEditorScript(): string {
 				modelPolicyId: conn?.modelPolicyId || "",
 				upgradePolicy: conn?.upgradePolicy || "latest",
 				maxRunSeconds: conn?.maxRunMs ? String(Math.round(Number(conn.maxRunMs) / 1000)) : "",
-				assetRefs: Array.isArray(conn?.assetRefs) ? conn.assetRefs.join("\\\\n") : "",
+				assetRefs: Array.isArray(conn?.assetRefs) ? [...conn.assetRefs] : [],
 			};
 		}
 
@@ -260,7 +268,9 @@ export function getConnActivityEditorScript(): string {
 			connEditorModelPolicyId.value = draft.modelPolicyId;
 			connEditorUpgradePolicy.value = draft.upgradePolicy;
 			connEditorMaxRunSeconds.value = draft.maxRunSeconds;
-			connEditorAssetRefs.value = draft.assetRefs;
+			state.connEditorSelectedAssetRefs = Array.isArray(draft.assetRefs) ? [...draft.assetRefs] : [];
+			connEditorAssetRefs.value = state.connEditorSelectedAssetRefs.join("\\\\n");
+			renderConnEditorSelectedAssets();
 			syncConnEditorTimePickers();
 		}
 
@@ -533,13 +543,83 @@ export function getConnActivityEditorScript(): string {
 			connEditorError.hidden = !state.connEditorError;
 		}
 
+		function renderConnEditorSelectedAssets() {
+			if (!connEditorSelectedAssets) {
+				return;
+			}
+			connEditorSelectedAssets.innerHTML = "";
+			const selectedAssets = state.connEditorSelectedAssetRefs
+				.map((assetId) => state.recentAssets.find((asset) => asset.assetId === assetId))
+				.filter(Boolean);
+			connEditorSelectedAssets.classList.toggle("visible", selectedAssets.length > 0);
+			for (const asset of selectedAssets) {
+				connEditorSelectedAssets.appendChild(
+					createFileChip({
+						tone: "asset",
+						fileName: asset.fileName,
+						meta:
+							(asset.kind || "metadata") +
+							" / " +
+							(asset.mimeType || "application/octet-stream") +
+							" / " +
+							formatFileSize(asset.sizeBytes),
+						onRemove: () => {
+							state.connEditorSelectedAssetRefs = state.connEditorSelectedAssetRefs.filter(
+								(currentId) => currentId !== asset.assetId,
+							);
+							connEditorAssetRefs.value = state.connEditorSelectedAssetRefs.join("\\\\n");
+							renderConnEditorSelectedAssets();
+							renderAssetPickerList();
+						},
+					}),
+				);
+			}
+		}
+
 		function renderConnEditor() {
 			connEditorTitle.textContent = state.connEditorMode === "edit" ? "编辑后台任务" : "新建后台任务";
 			connEditorTargetCurrent.textContent = state.conversationId || "当前会话尚未同步";
 			saveConnEditorButton.disabled = state.connEditorSaving;
 			saveConnEditorButton.textContent = state.connEditorSaving ? "保存中" : "保存";
 			renderConnEditorError(state.connEditorError);
+			renderConnEditorSelectedAssets();
 			setConnEditorSectionVisibility();
+		}
+
+		async function uploadConnEditorFiles(files) {
+			const selectedFiles = Array.from(files || []);
+			if (selectedFiles.length === 0) {
+				return;
+			}
+			const attachments = await collectAttachments(selectedFiles);
+			const response = await fetch("/v1/assets", {
+				method: "POST",
+				headers: {
+					accept: "application/json",
+					"content-type": "application/json",
+				},
+				body: JSON.stringify({
+					conversationId: state.conversationId,
+					attachments,
+				}),
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw new Error(payload?.error?.message || payload?.message || "文件上传失败");
+			}
+			const assets = Array.isArray(payload?.assets) ? payload.assets : [];
+			mergeRecentAssets(assets);
+			state.connEditorSelectedAssetRefs = Array.from(
+				new Set([
+					...state.connEditorSelectedAssetRefs,
+					...assets
+						.map((asset) => String(asset?.assetId || "").trim())
+						.filter(Boolean),
+				]),
+			);
+			connEditorAssetRefs.value = state.connEditorSelectedAssetRefs.join("\\\\n");
+			renderConnEditorSelectedAssets();
+			renderAssetPickerList();
 		}
 
 		function buildConnTargetPayload() {
@@ -605,7 +685,9 @@ export function getConnActivityEditorScript(): string {
 				target: buildConnTargetPayload(),
 				schedule: buildConnSchedulePayload(),
 			};
-			const assetRefs = normalizeConnAssetRefsText(connEditorAssetRefs.value);
+			const assetRefs = Array.isArray(state.connEditorSelectedAssetRefs)
+				? state.connEditorSelectedAssetRefs.map((assetId) => String(assetId || "").trim()).filter(Boolean)
+				: [];
 			if (assetRefs.length > 0 || state.connEditorMode === "edit") {
 				payload.assetRefs = assetRefs;
 			}
@@ -1507,12 +1589,13 @@ export function getConnActivityRendererScript(): string {
 			if (!conn?.connId || state.connManagerActionConnId) {
 				return;
 			}
-			const confirmed = window.confirm(
-				"删除会移除这个 conn 和它的 run 历史。\\\\n\\\\n" +
-					"任务：" +
-					(conn.title || conn.connId) +
-					"\\\\n\\\\n这个操作不能撤销。",
-			);
+			const confirmed = await openConfirmDialog({
+				title: "删除后台任务？",
+				description: "任务：" + (conn.title || conn.connId) + "\\n\\n删除后会一并移除该任务和它的 run 历史，这个操作不能撤销。",
+				confirmText: "删除",
+				cancelText: "取消",
+				tone: "danger",
+			});
 			if (!confirmed) {
 				return;
 			}
@@ -1556,14 +1639,18 @@ export function getConnActivityRendererScript(): string {
 				.filter((conn) => selectedIds.includes(conn?.connId))
 				.map((conn) => conn.title || conn.connId)
 				.slice(0, 6);
-			const confirmed = window.confirm(
-				"删除会移除所选 conn 和它们的 run 历史。\\\\n\\\\n" +
+			const confirmed = await openConfirmDialog({
+				title: "批量删除后台任务？",
+				description:
 					"数量：" +
 					selectedIds.length +
-					(selectedTitles.length > 0 ? "\\\\n任务：" + selectedTitles.join("、") : "") +
-					(selectedIds.length > selectedTitles.length ? "\\\\n另有 " + (selectedIds.length - selectedTitles.length) + " 个任务" : "") +
-					"\\\\n\\\\n这个操作不能撤销。",
-			);
+					(selectedTitles.length > 0 ? "\\n任务：" + selectedTitles.join("、") : "") +
+					(selectedIds.length > selectedTitles.length ? "\\n另有 " + (selectedIds.length - selectedTitles.length) + " 个任务" : "") +
+					"\\n\\n删除后会一并移除这些任务和它们的 run 历史，这个操作不能撤销。",
+				confirmText: "批量删除",
+				cancelText: "取消",
+				tone: "danger",
+			});
 			if (!confirmed) {
 				return;
 			}
@@ -1760,6 +1847,21 @@ export function getConnActivityEventHandlersScript(): string {
 		});
 		cancelConnEditorButton.addEventListener("click", closeConnEditor);
 		closeConnEditorButton.addEventListener("click", closeConnEditor);
+		connEditorPickAssetsButton.addEventListener("click", () => {
+			openAssetLibrary(connEditorPickAssetsButton, { target: "connEditor" });
+		});
+		connEditorUploadAssetsButton.addEventListener("click", () => {
+			connEditorAssetFileInput.click();
+		});
+		connEditorAssetFileInput.addEventListener("change", async () => {
+			try {
+				await uploadConnEditorFiles(connEditorAssetFileInput.files);
+			} catch (error) {
+				renderConnEditorError(error instanceof Error ? error.message : "文件上传失败");
+			} finally {
+				connEditorAssetFileInput.value = "";
+			}
+		});
 		connEditorDialog.addEventListener("click", (event) => {
 			if (event.target === connEditorDialog) {
 				closeConnEditor();

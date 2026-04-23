@@ -459,6 +459,39 @@ function getPlaygroundStyles(): string {
 			text-align: left;
 		}
 
+		.conversation-item-shell {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 8px;
+			align-items: stretch;
+		}
+
+		.conversation-item-shell .mobile-conversation-item {
+			min-width: 0;
+		}
+
+		.conversation-item-delete {
+			width: 36px;
+			min-width: 36px;
+			padding: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			align-self: stretch;
+			border: 1px solid rgba(255, 120, 140, 0.16);
+			background: rgba(255, 120, 140, 0.06);
+			color: rgba(255, 184, 198, 0.82);
+			box-shadow: none;
+		}
+
+		.conversation-item-delete:hover:not(:disabled),
+		.conversation-item-delete:focus-visible {
+			border-color: rgba(255, 138, 157, 0.34);
+			background: rgba(255, 120, 140, 0.12);
+			color: rgba(255, 214, 223, 0.96);
+			transform: none;
+		}
+
 		.mobile-conversation-item:hover:not(:disabled),
 		.mobile-conversation-item:focus-visible {
 			border-color: rgba(201, 210, 255, 0.2);
@@ -1657,12 +1690,18 @@ function getPlaygroundStyles(): string {
 		.composer textarea {
 			--composer-line-height: 22px;
 			--composer-textarea-max-lines: 10;
-			min-height: 72px;
+			min-height: 52px;
 			max-height: calc(var(--composer-line-height) * var(--composer-textarea-max-lines) + 24px);
 			resize: none;
 			line-height: var(--composer-line-height);
 			overflow-y: auto;
+			padding-top: 14px;
+			padding-bottom: 14px;
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+		}
+
+		.composer textarea::placeholder {
+			line-height: var(--composer-line-height);
 		}
 
 		.composer textarea:focus,
@@ -1841,9 +1880,9 @@ function getPlaygroundStyles(): string {
 			inset: 0;
 			z-index: 70;
 			display: none;
-			align-items: flex-end;
+			align-items: flex-start;
 			justify-content: center;
-			padding: 18px;
+			padding: 72px 18px 18px;
 			background: rgba(3, 5, 10, 0.58);
 			backdrop-filter: none;
 		}
@@ -1891,6 +1930,57 @@ function getPlaygroundStyles(): string {
 			font-size: 12px;
 			line-height: 1.8;
 			white-space: pre-line;
+		}
+
+		.confirm-dialog[hidden] {
+			display: none !important;
+		}
+
+		.confirm-dialog {
+			position: fixed;
+			inset: 0;
+			z-index: 88;
+			display: none;
+			align-items: center;
+			justify-content: center;
+			padding: 18px;
+			background: rgba(3, 5, 10, 0.72);
+		}
+
+		.confirm-dialog.open {
+			display: flex;
+		}
+
+		.confirm-dialog-panel {
+			width: min(420px, 100%);
+			display: grid;
+			gap: 14px;
+			padding: 16px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 4px;
+			background: rgba(8, 11, 20, 0.98);
+			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+		}
+
+		.confirm-dialog-head strong {
+			display: block;
+			color: rgba(247, 249, 255, 0.94);
+			font-size: 13px;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.confirm-dialog-body {
+			color: rgba(225, 232, 247, 0.76);
+			font-size: 12px;
+			line-height: 1.8;
+			white-space: pre-line;
+		}
+
+		.confirm-dialog-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 10px;
 		}
 
 		${getConnRunDetailsStyles()}
@@ -3032,6 +3122,8 @@ function getPlaygroundScript(): string {
 			pendingAttachments: [],
 			recentAssets: [],
 			selectedAssetRefs: [],
+			connEditorSelectedAssetRefs: [],
+			assetPickerTarget: "composer",
 			contextUsage: null,
 			contextUsageExpanded: false,
 			contextUsageSyncToken: 0,
@@ -3063,6 +3155,8 @@ function getPlaygroundScript(): string {
 			mobileConversationDrawerOpen: false,
 			conversationCatalog: [],
 			conversationCatalogSyncing: false,
+			conversationCatalogSyncPromise: null,
+			conversationCatalogSyncedAt: 0,
 			conversationSyncGeneration: 0,
 			conversationSyncRequestId: 0,
 			conversationAppliedSyncRequestId: 0,
@@ -3088,6 +3182,8 @@ function getPlaygroundScript(): string {
 			lastTranscriptScrollAt: 0,
 			historyPersistTimer: null,
 			historyPersistConversationId: "",
+			confirmDialogResolve: null,
+			confirmDialogRestoreFocusElement: null,
 		};
 
 		const renderedMessages = new Map();
@@ -3116,6 +3212,11 @@ function getPlaygroundScript(): string {
 		${getPlaygroundAssetElementRefsScript()}
 		${getPlaygroundContextUsageElementRefsScript()}
 		${getConnActivityElementRefsScript()}
+		const confirmDialog = document.getElementById("confirm-dialog");
+		const confirmDialogTitle = document.getElementById("confirm-dialog-title");
+		const confirmDialogBody = document.getElementById("confirm-dialog-body");
+		const confirmDialogConfirm = document.getElementById("confirm-dialog-confirm");
+		const confirmDialogCancel = document.getElementById("confirm-dialog-cancel");
 		const openAssetLibraryButton = document.getElementById("open-asset-library-button");
 		const assetModal = document.getElementById("asset-modal");
 		const assetModalList = document.getElementById("asset-modal-list");
@@ -3171,6 +3272,49 @@ function getPlaygroundScript(): string {
 			}
 		}
 
+		function closeConfirmDialog(confirmed) {
+			const resolve = typeof state.confirmDialogResolve === "function" ? state.confirmDialogResolve : null;
+			state.confirmDialogResolve = null;
+			confirmDialog.classList.remove("open");
+			confirmDialog.hidden = true;
+			confirmDialog.setAttribute("aria-hidden", "true");
+			restoreFocusAfterPanelClose(confirmDialog, state.confirmDialogRestoreFocusElement);
+			state.confirmDialogRestoreFocusElement = null;
+			if (resolve) {
+				resolve(Boolean(confirmed));
+			}
+		}
+
+		function openConfirmDialog(options) {
+			const title = String(options?.title || "请确认").trim() || "请确认";
+			const description = String(options?.description || "").trim();
+			const confirmText = String(options?.confirmText || "确认").trim() || "确认";
+			const cancelText = String(options?.cancelText || "取消").trim() || "取消";
+			const tone = String(options?.tone || "danger").trim() || "danger";
+			if (typeof state.confirmDialogResolve === "function") {
+				closeConfirmDialog(false);
+			}
+			state.confirmDialogRestoreFocusElement = rememberPanelReturnFocus(options?.restoreFocusElement);
+			confirmDialog.dataset.tone = tone;
+			confirmDialogTitle.textContent = title;
+			confirmDialogBody.textContent = description;
+			confirmDialogConfirm.textContent = confirmText;
+			confirmDialogCancel.textContent = cancelText;
+			confirmDialog.hidden = false;
+			confirmDialog.classList.add("open");
+			confirmDialog.setAttribute("aria-hidden", "false");
+			window.setTimeout(() => {
+				try {
+					confirmDialogConfirm.focus({ preventScroll: true });
+				} catch {
+					confirmDialogConfirm.focus();
+				}
+			}, 0);
+			return new Promise((resolve) => {
+				state.confirmDialogResolve = resolve;
+			});
+		}
+
 		function createBrowserId() {
 			const cryptoApi = globalThis.crypto;
 			if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
@@ -3183,6 +3327,24 @@ function getPlaygroundScript(): string {
 			}
 			return Date.now().toString(36) + Math.random().toString(36).slice(2);
 		}
+
+		confirmDialogConfirm.addEventListener("click", () => {
+			closeConfirmDialog(true);
+		});
+		confirmDialogCancel.addEventListener("click", () => {
+			closeConfirmDialog(false);
+		});
+		confirmDialog.addEventListener("click", (event) => {
+			if (event.target === confirmDialog) {
+				closeConfirmDialog(false);
+			}
+		});
+		document.addEventListener("keydown", (event) => {
+			if (event.key === "Escape" && confirmDialog.classList.contains("open")) {
+				event.preventDefault();
+				closeConfirmDialog(false);
+			}
+		});
 
 		${getPlaygroundContextUsageControllerScript()}
 
@@ -4654,6 +4816,18 @@ export function renderPlaygroundPage(): string {
 					<button id="context-usage-dialog-close" class="context-usage-dialog-close" type="button" aria-label="关闭上下文详情">×</button>
 				</div>
 				<div id="context-usage-dialog-body" class="context-usage-dialog-body">当前上下文 0 / 128,000 tokens (0%)</div>
+			</section>
+		</div>
+		<div id="confirm-dialog" class="confirm-dialog" aria-hidden="true" hidden>
+			<section class="confirm-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+				<div class="confirm-dialog-head">
+					<strong id="confirm-dialog-title">请确认</strong>
+				</div>
+				<div id="confirm-dialog-body" class="confirm-dialog-body"></div>
+				<div class="confirm-dialog-actions">
+					<button id="confirm-dialog-cancel" type="button">取消</button>
+					<button id="confirm-dialog-confirm" class="danger-action" type="button">确认</button>
+				</div>
 			</section>
 		</div>
 		${getConnActivityDialogs()}

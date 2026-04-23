@@ -138,6 +138,29 @@ export function getPlaygroundAssetControllerScript(): string {
 			renderContextUsageBar();
 		}
 
+		function getAssetPickerTarget() {
+			return state.assetPickerTarget === "connEditor" ? "connEditor" : "composer";
+		}
+
+		function getSelectedAssetRefsForTarget(target) {
+			return target === "connEditor" ? state.connEditorSelectedAssetRefs : state.selectedAssetRefs;
+		}
+
+		function setSelectedAssetRefsForTarget(target, assetRefs) {
+			const normalized = Array.isArray(assetRefs)
+				? Array.from(new Set(assetRefs.map((assetId) => String(assetId || "").trim()).filter(Boolean)))
+				: [];
+			if (target === "connEditor") {
+				state.connEditorSelectedAssetRefs = normalized;
+				if (typeof renderConnEditorSelectedAssets === "function") {
+					renderConnEditorSelectedAssets();
+				}
+				return;
+			}
+			state.selectedAssetRefs = normalized;
+			renderSelectedAssets();
+		}
+
 		function getSelectedAssets() {
 			return state.selectedAssetRefs
 				.map((assetId) => state.recentAssets.find((asset) => asset.assetId === assetId))
@@ -344,6 +367,7 @@ export function getPlaygroundAssetControllerScript(): string {
 
 		function renderAssetPickerList() {
 			assetModalList.innerHTML = "";
+			const selectedAssetRefs = getSelectedAssetRefsForTarget(getAssetPickerTarget());
 			if (!Array.isArray(state.recentAssets) || state.recentAssets.length === 0) {
 				const empty = document.createElement("div");
 				empty.className = "asset-empty";
@@ -354,7 +378,7 @@ export function getPlaygroundAssetControllerScript(): string {
 
 			for (const asset of state.recentAssets) {
 				const item = document.createElement("div");
-				item.className = "asset-pill" + (state.selectedAssetRefs.includes(asset.assetId) ? " active" : "");
+				item.className = "asset-pill" + (selectedAssetRefs.includes(asset.assetId) ? " active" : "");
 				item.innerHTML = "<div><strong></strong><span></span></div><button type=\\"button\\"></button>";
 				item.querySelector("strong").textContent = asset.fileName;
 				item.querySelector("span").textContent =
@@ -366,8 +390,8 @@ export function getPlaygroundAssetControllerScript(): string {
 					" / " +
 					asset.assetId.slice(0, 12);
 				const toggleButton = item.querySelector("button");
-				toggleButton.textContent = state.selectedAssetRefs.includes(asset.assetId) ? "已选" : "复用";
-				toggleButton.disabled = state.selectedAssetRefs.includes(asset.assetId);
+				toggleButton.textContent = selectedAssetRefs.includes(asset.assetId) ? "已选" : "复用";
+				toggleButton.disabled = selectedAssetRefs.includes(asset.assetId);
 				toggleButton.addEventListener("click", () => {
 					selectAssetForReuse(asset.assetId);
 				});
@@ -389,8 +413,9 @@ export function getPlaygroundAssetControllerScript(): string {
 			renderAttachmentList();
 		}
 
-		function openAssetLibrary(restoreFocusElement) {
+		function openAssetLibrary(restoreFocusElement, options) {
 			state.assetModalOpen = true;
+			state.assetPickerTarget = options?.target === "connEditor" ? "connEditor" : "composer";
 			state.assetModalRestoreFocusElement = rememberPanelReturnFocus(
 				restoreFocusElement || openAssetLibraryButton,
 			);
@@ -402,6 +427,7 @@ export function getPlaygroundAssetControllerScript(): string {
 
 		function closeAssetLibrary() {
 			state.assetModalOpen = false;
+			state.assetPickerTarget = "composer";
 			restoreFocusAfterPanelClose(assetModal, state.assetModalRestoreFocusElement);
 			state.assetModalRestoreFocusElement = null;
 			assetModal.classList.remove("open");
@@ -410,10 +436,11 @@ export function getPlaygroundAssetControllerScript(): string {
 		}
 
 		function selectAssetForReuse(assetId) {
-			if (!state.selectedAssetRefs.includes(assetId)) {
-				state.selectedAssetRefs = [...state.selectedAssetRefs, assetId];
+			const target = getAssetPickerTarget();
+			const selectedAssetRefs = getSelectedAssetRefsForTarget(target);
+			if (!selectedAssetRefs.includes(assetId)) {
+				setSelectedAssetRefsForTarget(target, [...selectedAssetRefs, assetId]);
 			}
-			renderSelectedAssets();
 			renderAssetPickerList();
 			closeAssetLibrary();
 		}
@@ -616,6 +643,9 @@ export function getPlaygroundAssetControllerScript(): string {
 			}
 			state.recentAssets = [...byId.values()];
 			renderSelectedAssets();
+			if (typeof renderConnEditorSelectedAssets === "function") {
+				renderConnEditorSelectedAssets();
+			}
 			renderAssetPickerList();
 		}
 
@@ -646,7 +676,13 @@ export function getPlaygroundAssetControllerScript(): string {
 				state.selectedAssetRefs = state.selectedAssetRefs.filter((assetId) =>
 					state.recentAssets.some((asset) => asset.assetId === assetId),
 				);
+				state.connEditorSelectedAssetRefs = state.connEditorSelectedAssetRefs.filter((assetId) =>
+					state.recentAssets.some((asset) => asset.assetId === assetId),
+				);
 				renderSelectedAssets();
+				if (typeof renderConnEditorSelectedAssets === "function") {
+					renderConnEditorSelectedAssets();
+				}
 				renderAssetPickerList();
 				if (!silent) {
 					appendProcessEvent("ok", "\\u8d44\\u4ea7\\u6e05\\u5355\\u5df2\\u52a0\\u8f7d", String(state.recentAssets.length));

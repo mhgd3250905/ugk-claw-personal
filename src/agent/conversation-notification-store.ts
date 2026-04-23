@@ -38,6 +38,11 @@ export interface CreateConversationNotificationInput {
 	createdAt?: Date;
 }
 
+export interface ConversationNotificationSummary {
+	count: number;
+	latest?: ConversationNotification;
+}
+
 interface ConversationNotificationRow {
 	notification_id: string;
 	conversation_id: string;
@@ -108,6 +113,56 @@ export class ConversationNotificationStore {
 			conversationId,
 		);
 		return rows.map(rowToNotification);
+	}
+
+	async summarize(conversationIds: readonly string[]): Promise<Map<string, ConversationNotificationSummary>> {
+		const normalizedConversationIds = [...new Set(conversationIds.map((conversationId) => conversationId.trim()).filter(Boolean))];
+		if (normalizedConversationIds.length === 0) {
+			return new Map();
+		}
+
+		const placeholders = normalizedConversationIds.map(() => "?").join(", ");
+		const countRows = this.options.database.all<Array<{ conversation_id: string; notification_count: number }>[number]>(
+			[
+				"SELECT conversation_id, COUNT(*) AS notification_count",
+				"FROM conversation_notifications",
+				`WHERE conversation_id IN (${placeholders})`,
+				"GROUP BY conversation_id",
+			].join(" "),
+			...normalizedConversationIds,
+		);
+		const latestRows = this.options.database.all<ConversationNotificationRow>(
+			[
+				"SELECT * FROM conversation_notifications",
+				`WHERE conversation_id IN (${placeholders})`,
+				"ORDER BY conversation_id ASC, created_at DESC",
+			].join(" "),
+			...normalizedConversationIds,
+		);
+
+		const summaries = new Map<string, ConversationNotificationSummary>();
+		for (const row of countRows) {
+			summaries.set(row.conversation_id, {
+				count: row.notification_count,
+			});
+		}
+		for (const row of latestRows) {
+			if (summaries.get(row.conversation_id)?.latest) {
+				continue;
+			}
+			const summary = summaries.get(row.conversation_id) ?? { count: 0 };
+			summary.latest = rowToNotification(row);
+			summaries.set(row.conversation_id, summary);
+		}
+
+		return summaries;
+	}
+
+	async deleteConversation(conversationId: string): Promise<void> {
+		this.options.database.run(
+			"DELETE FROM conversation_notifications WHERE conversation_id = ?",
+			conversationId,
+		);
 	}
 
 	async markRead(notificationId: string, now: Date = new Date()): Promise<boolean> {

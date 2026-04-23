@@ -1,9 +1,16 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { extname, resolve } from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { AssetStoreLike } from "../agent/asset-store.js";
-import type { AssetDetailResponseBody, AssetListResponseBody } from "../types/api.js";
+import type {
+	AssetDetailResponseBody,
+	AssetListResponseBody,
+	CreateAssetRequestBody,
+	CreateAssetResponseBody,
+	ErrorResponseBody,
+} from "../types/api.js";
 
 export interface FileRouteOptions {
 	assetStore: AssetStoreLike;
@@ -42,6 +49,27 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 
 			return {
 				asset,
+			};
+		},
+	);
+
+	app.post(
+		"/v1/assets",
+		async (request, reply): Promise<CreateAssetResponseBody | ReturnType<typeof reply.status>> => {
+			const body = (request.body ?? {}) as Partial<CreateAssetRequestBody>;
+			const parsedAttachments = parseAttachments(body.attachments);
+			if (parsedAttachments.error) {
+				return reply.status(400).send({
+					error: {
+						code: "BAD_REQUEST",
+						message: parsedAttachments.error,
+					},
+				} satisfies ErrorResponseBody);
+			}
+
+			const conversationId = String(body.conversationId || "").trim() || `manual:asset-upload:${randomUUID()}`;
+			return {
+				assets: await options.assetStore.registerAttachments(conversationId, parsedAttachments.attachments ?? []),
 			};
 		},
 	);
@@ -86,6 +114,53 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 			return reply.status(404).send();
 		}
 	});
+}
+
+function parseAttachments(
+	value: unknown,
+): { attachments?: Array<Parameters<AssetStoreLike["registerAttachments"]>[1][number]>; error?: string } {
+	if (!Array.isArray(value) || value.length === 0) {
+		return { error: 'Field "attachments" must be a non-empty array' };
+	}
+	if (value.length > 5) {
+		return { error: 'Field "attachments" supports at most 5 files' };
+	}
+
+	const attachments: Array<Parameters<AssetStoreLike["registerAttachments"]>[1][number]> = [];
+	for (const [index, rawAttachment] of value.entries()) {
+		if (!rawAttachment || typeof rawAttachment !== "object") {
+			return { error: `attachments[${index}] must be an object` };
+		}
+		const attachment = rawAttachment as Record<string, unknown>;
+		if (typeof attachment.fileName !== "string" || attachment.fileName.trim().length === 0) {
+			return { error: `attachments[${index}].fileName must be a non-empty string` };
+		}
+		if (attachment.mimeType !== undefined && typeof attachment.mimeType !== "string") {
+			return { error: `attachments[${index}].mimeType must be a string when provided` };
+		}
+		if (attachment.sizeBytes !== undefined && (typeof attachment.sizeBytes !== "number" || !Number.isFinite(attachment.sizeBytes) || attachment.sizeBytes < 0)) {
+			return { error: `attachments[${index}].sizeBytes must be a non-negative number when provided` };
+		}
+		if (attachment.text !== undefined && typeof attachment.text !== "string") {
+			return { error: `attachments[${index}].text must be a string when provided` };
+		}
+		if (attachment.base64 !== undefined && typeof attachment.base64 !== "string") {
+			return { error: `attachments[${index}].base64 must be a string when provided` };
+		}
+		if (attachment.text !== undefined && attachment.base64 !== undefined) {
+			return { error: `attachments[${index}] cannot provide both text and base64` };
+		}
+
+		attachments.push({
+			fileName: attachment.fileName,
+			mimeType: typeof attachment.mimeType === "string" ? attachment.mimeType : undefined,
+			sizeBytes: typeof attachment.sizeBytes === "number" ? attachment.sizeBytes : undefined,
+			text: typeof attachment.text === "string" ? attachment.text : undefined,
+			base64: typeof attachment.base64 === "string" ? attachment.base64 : undefined,
+		});
+	}
+
+	return { attachments };
 }
 
 function escapeContentDispositionFileName(fileName: string): string {

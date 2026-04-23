@@ -1,6 +1,6 @@
 # Playground 当前状态
 
-更新时间：`2026-04-22`
+更新时间：`2026-04-23`
 
 这份文档只记录当前 `playground` 的真实前端约束，避免下一个人又拿旧截图和过时口径瞎猜。
 
@@ -49,6 +49,7 @@
 - 页面冷启动或刷新时，会先通过 `GET /v1/chat/conversations` 获取服务端会话目录和当前会话，再按当前 `conversationId` 请求一次 `GET /v1/chat/state` 同步真实历史与 active run
 - 会话激活现在统一收口到单次 canonical `GET /v1/chat/state`：切换会话、新会话创建成功后的进入、以及 `visibilitychange/pageshow/online` 恢复同步，都不该再为了同一条会话先后重复拉两次 state
 - 前端对会话历史恢复和运行态同步的异步 `GET /v1/chat/state` 回包现在统一走会话 sync ownership：会话切换会使旧 generation 失效，同一会话内较新的同步请求也会压过较早请求；如果旧会话请求慢回、或同会话旧请求晚于新请求返回，这个 stale response 都必须被直接丢弃，不能再把旧消息覆盖回当前 transcript
+- 会话目录同步现在带 `conversationCatalogSyncPromise` 复用与短时 freshness 冷却；切换 / 新建 / 删除会话后优先复用当前 catalog 结果并按需失效，避免把 `/v1/chat/current` 的切换手感拖成重复目录 round-trip
 - 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 从后端 session 恢复已完成任务时，连续的 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并为同一条助手回复；不要让刷新后的页面把同一轮浏览器处理过程拆成多条“助手”气泡
@@ -60,6 +61,7 @@
 - 用户消息 `message-meta` 只显示时间，并贴右展示
 - 历史消息时间优先使用 session message 自带的 `timestamp` 透传成 `createdAt`；不要再把所有恢复消息默认写成 Unix epoch，否则前端会整排显示 `08:00:00`
 - 每个消息气泡底部统一带小型灰色复制 icon，只复制当前消息正文，不复制时间、角色标签和文件按钮；icon 视觉上贴近气泡，使用透明背景、无边框、无阴影，文字只保留在 `aria-label` / 隐藏文本里，不再占用纵向空间
+- composer textarea 默认最小高度已收口到 `52px`，桌面端使用 `14px` 上下内边距，placeholder 与正文按同一行高做纵向居中；不要再把输入框做成“看起来像没对齐但谁也说不清哪里歪了”的状态
 - markdown 正文渲染使用 `marked`，不是项目内手写解析器；后续补 Markdown 能力时优先配置/升级渲染库，不要继续追加临时正则
 - markdown 正文里的“普通段落 + 紧跟 fenced code block”必须能正常渲染，不能再把 `CODEBLOCK0` 之类占位符漏到用户界面上
 - markdown 正文里的 pipe table 与 `---` 分割线必须渲染为真正的 HTML 结构，不能继续把 `|------|` 或 `---` 当普通字符显示
@@ -107,8 +109,10 @@
 - 助手返回的文件下载卡片现在区分“打开”和“下载”两个动作：
   - 安全可预览文件（如 `png`、`jpg`、`gif`、`webp`、`pdf`、`txt`、`md`、`json`、`csv`）会显示“打开”按钮
   - “下载”按钮会显式走 `?download=1`，不再跟预览复用同一条附件响应
+- agent 通过 `send_file` 交付的文件必须保留在 canonical conversation history 里；刷新会话或晚到的 `GET /v1/chat/state` 不能把已经出现过的文件卡片洗掉
 - `/v1/files/:fileId` 对安全可预览文件默认使用 `inline`；不安全或不可预览类型仍保持 `attachment`
 - `html`、`svg`、`js` 这类可执行或脚本风险较高的文件不会直接作为同源预览打开，别为了省事把安全边界拆了
+- `conn` 创建 / 编辑器里的“附加资料”不再让用户硬填 `assetId`；界面提供“选择复用文件”和“上传新文件”两个入口，最终仍映射为内部 `assetRefs`
 
 ## 5. “查看技能”按钮行为
 
@@ -157,6 +161,8 @@
 - 点击 `新会话` 时，前端优先进入新会话；创建成功后会先本地插入会话目录，再用新会话的一次 canonical `GET /v1/chat/state` 收口 UI，不再先额外 round-trip 一轮 `GET /v1/chat/conversations` 把切换手感拖慢
 - 手机端点击左侧品牌区会打开历史会话抽屉；点击历史项时前端应先立即关闭抽屉，再调用 `POST /v1/chat/current`，不能傻等服务端回包后才把侧边栏收起来
 - 会话切换成功后，前端会直接以目标会话的一次 canonical `GET /v1/chat/state` 收口真实历史与 active run；不再对同一条会话先拉 history restore、再补拉 run state，制造重复请求和重复滚底
+- 历史会话项现在提供显式删除入口，调用 `DELETE /v1/chat/conversations/:conversationId`；删除后服务端会重算 `currentConversationId`，前端再按新的当前会话收口 UI
+- 所有删除类动作都统一走自定义 `confirm-dialog`，不再调用系统 `confirm()`。风格、圆角、按钮语气都跟页面保持同一套，不再把原生弹窗硬插进来破坏节奏
 - agent 正在运行时，后端拒绝新建或切换会话；前端显示“当前任务未结束，不能切换产线 / 开启新产线”
 - 浏览器端当前通过 `conversationSyncGeneration + requestId` 管住 `/v1/chat/state` 的落地资格：会话切换时先失效旧 generation，再给新的同步请求发 token；只有仍属于当前 generation、且没被更新请求压过的响应，才允许写进当前页面
 - 如果未来真的要支持多用户同时操作，不能把这个单工人模型当成权限系统继续堆，必须重新设计认证、控制权和会话隔离
@@ -264,7 +270,8 @@
 - 基线数据来自后端状态接口返回的 `contextUsage`；草稿实时估算仍可通过 `GET /v1/chat/status` 刷新，前端只负责把草稿 / 附件 / 资产的估算 token 叠加上去，所以文案必须明确是估算。
 - 风险态统一按 `safe / caution / warning / danger` 四档收口，圆环颜色会随风险变化。
 - 桌面端 hover 或键盘 focus 时展示浮层详情；点击可临时固定展开，别再要求用户盯着一个完整状态条。
-- 手机端点击上下文电池条后打开底部弹窗展示详情，内容包括：会话占用、待发占用、预留回复预算、provider / model、估算口径与剩余可用空间。
+- 上下文详情弹层统一显示在页面上半区，和顶部入口保持同一视觉重心；不要把按钮放顶部、详情却从底部冒出来，像两个设计师隔空打架。
+- 手机端点击上下文电池条后也在上半区展开详情，内容包括：会话占用、待发占用、预留回复预算、provider / model、估算口径与剩余可用空间。
 
 ## Realtime Notification Broadcast
 
@@ -320,6 +327,7 @@
 - 调度区只保留三种模式：`定时执行`、`间隔执行`、`每日执行`。前端仍然映射回后端 `once / interval / cron`，但不再把 cron、工作日、每周这些复杂概念直接甩给用户。
 - 三种模式对应的输入也固定下来：`定时执行` 只点选 `执行时间`；`间隔执行` 只点选 `首次执行时间` 并填写 `间隔（分钟）`；`每日执行` 只点选 `每日执行时间`。时间选择统一使用本地打包的 `flatpickr`，配置 `enableTime / time_24hr / disableMobile`，不再依赖系统原生 `datetime-local` / `time` 控件。
 - `每日执行时间` 解析现在兼容 `07:00`、`7:00` 与 `HH:mm:ss`，保存时不会再因为用户输入或浏览器差异误报“请填写每日执行时间”。
+- “附加资料”区域现在提供显式文件入口：可从文件库复用已有资产，也可直接上传新文件；用户看到的是文件名与选中状态，内部才映射成 `assetRefs`
   - 高级字段默认收进 `高级设置`，用户可见名称分别是 `任务身份`、`执行模板`、`能力包`、`模型策略`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `profileId`、`agentSpecId`、`skillSetId`、`modelPolicyId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。
 - 目标选择区现在会显示 `conn-editor-target-preview`：把将要投递的目标会话 / 飞书目标、目标编号和“切换新会话不会改写已保存目标”的口径直接展示出来，别再靠猜。
 - 保存成功后，管理器会显示 `conn-manager-notice`，说明已创建 / 已更新的 conn 会投递到哪里，并高亮对应条目。

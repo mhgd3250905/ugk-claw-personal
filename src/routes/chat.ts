@@ -16,6 +16,7 @@ import type {
 	InterruptChatRequestBody,
 	InterruptChatResponseBody,
 	CreateConversationResponseBody,
+	DeleteConversationResponseBody,
 	QueueMessageMode,
 	QueueMessageRequestBody,
 	QueueMessageResponseBody,
@@ -166,6 +167,26 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 	app.post("/v1/chat/conversations", async (): Promise<CreateConversationResponseBody> => {
 		return await deps.agentService.createConversation();
 	});
+
+	app.delete(
+		"/v1/chat/conversations/:conversationId",
+		async (
+			request: FastifyRequest<{ Params: { conversationId: string } }>,
+			reply,
+		): Promise<DeleteConversationResponseBody | FastifyReply> => {
+			const { conversationId } = request.params ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+
+			try {
+				return await deps.agentService.deleteConversation(conversationId);
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
+		},
+	);
 
 	app.post(
 		"/v1/chat/current",
