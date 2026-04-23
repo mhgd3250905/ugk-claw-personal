@@ -12,6 +12,13 @@
 
 ## 2026-04-23
 
+### 腾讯云生产环境增量更新到任务消息与标准上传版本
+- 日期：2026-04-23
+- 主题：按增量更新流程把腾讯云新加坡生产环境从 `bbd8735` 更新到 `4b78f21 feat: consolidate task inbox and asset uploads`，上线标准 multipart 文件上传、任务消息独立收件箱、未读筛选分页、手机端更多按钮数字徽标和后台结果不再默认写回当前会话的收口。
+- 影响范围：服务器继续使用 GitHub 工作目录 `~/ugk-claw-repo` 与 shared 运行态 `~/ugk-claw-shared`；发布前备份 sidecar 登录态到 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260423-180038`；执行 `git pull --ff-only origin main`、生产 compose config、`up --build -d`，随后因 nginx 单文件 bind mount 旧 inode 问题额外 `--force-recreate nginx`，确认 `client_max_body_size 80m` 真正在容器内生效。
+- 验证结果：内网 `/healthz` 返回 `{"ok":true}`，内网 `/playground` 返回 `HTTP/1.1 200 OK`；公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`，公网 `/playground` 返回 `200`；`check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`；compose 状态显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行；页面源码包含 `mobile-overflow-task-inbox-badge`、`task-inbox-filter-unread-button` 和 `/v1/assets/upload`；`GET /v1/activity/summary` 正常返回未读数。
+- 对应入口：[docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)、[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+
 ### 本轮上传与任务消息收口整理备份
 - 日期：2026-04-23
 - 主题：整理最近一组上传、任务消息和手机端未读提醒改动的文档口径与备份记录。重点是把 `conn` 默认目标从旧的“当前会话”彻底改成“任务消息页”，并记录当前本地备份包，避免下次接手又拿旧会话投递逻辑当真。

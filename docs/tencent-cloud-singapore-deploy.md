@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上提交：`b896f05b303bdb210073743e83ee1c74a14c19b4`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-113909`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-113909.tar.gz`
+- 当前线上提交：`4b78f21f514dc81c7e93b7be5b105ff34320afdc`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-180038`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,36 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-23 任务消息与标准上传增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不要把 `.data`、sidecar 登录态或日志拖回仓库目录里。
+
+实际结果：
+
+1. 本地已验证 `npx tsc --noEmit`、`git diff --check`、`npm test`
+2. 本地 `main` 已推送到 GitHub：`4b78f21f514dc81c7e93b7be5b105ff34320afdc`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `bbd8735`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260423-180038`
+6. 执行 `git pull --ff-only origin main`，从 `bbd8735` fast-forward 到 `4b78f21`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config` 验证生产 compose
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+9. 发布后发现 nginx 容器仍持有旧单文件 bind mount inode，容器内 `client_max_body_size` 仍是 `4m`；已执行 `docker compose ... up -d --force-recreate nginx` 只重建 nginx，确认容器内配置变为 `client_max_body_size 80m`
+10. 发布后验收通过：
+    - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+    - `curl -I http://127.0.0.1:3000/playground` 返回 `HTTP/1.1 200 OK`
+    - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+    - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+    - `GET /v1/activity/summary` 返回任务消息未读数，`GET /playground` 页面源码包含 `mobile-overflow-task-inbox-badge`、`task-inbox-filter-unread-button` 和 `/v1/assets/upload`
+    - 空 multipart 上传探针返回 `400 BAD_REQUEST` / `the request is not multipart`，说明新上传入口在线且由应用层接管错误
+
+本次额外踩到两个小坑：
+
+- 远端 `git tag -m "..."` 的 message 引号被 shell 拆词，第一次在打 tag 阶段报 `fatal: too many arguments`；当时尚未执行 `git pull` 和 `compose up`，没有进入部署阶段。后续改用无空格 tag message 继续。
+- nginx 单文件 bind mount 在 `git pull` 后可能继续挂着旧 inode，宿主文件已经是 `80m`，容器内仍可能是旧 `4m`。以后凡是改 `deploy/nginx/default.conf`，发布后必须 `--force-recreate nginx` 并用 `nginx -T | grep client_max_body_size` 验证，别以为 `up --build -d` 一定会替你重建 nginx。
 
 ## 2026-04-23 viewMessages 会话状态增量发布记录
 

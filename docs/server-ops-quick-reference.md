@@ -14,7 +14,7 @@
 - 公网入口：`http://43.134.167.179:3000/playground`
 - 健康检查：`http://43.134.167.179:3000/healthz`
 - 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上提交：`b896f05b303bdb210073743e83ee1c74a14c19b4`
+- 当前线上提交：`4b78f21f514dc81c7e93b7be5b105ff34320afdc`
 - 不要再用：`snapshot-20260422-v4.1.1-stable`；那个 tag 打出来后才发现生产 compose YAML 缩进有病
 
 ## 登录
