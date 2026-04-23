@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上提交：`4b78f21f514dc81c7e93b7be5b105ff34320afdc`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-180038`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
+- 当前线上应用提交：`42ef655f80ab7089c844a81a7bf896e78b6963d7`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-200708`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-200708.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,35 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-23 Playground 任务面板体验增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+
+1. 本地已验证 `npx tsc --noEmit`、`npm test`、`git diff --check`、`docker compose -f docker-compose.prod.yml config` 和 `npm run docker:chrome:check`
+2. 本地 `main` 已推送到 GitHub：`42ef655f80ab7089c844a81a7bf896e78b6963d7`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `59b7e95`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-200708.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260423-200708`
+6. 执行 `git pull --ff-only origin main`，从 `59b7e95` fast-forward 到 `42ef655`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config` 验证生产 compose
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+9. 发布后额外删除一次失败命令误生成的 `~/ugk-claw-repo/-C` 大文件，并重新执行 `up --build -d`，确认 Docker build context 从约 `1.4GB` 恢复到几十 KB
+10. 发布后验收通过：
+    - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+    - `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/playground` 返回 `200`
+    - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+    - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+    - 页面源码包含 `rows="1"`、`task-inbox-result-bubble` 和三类面板透明头部样式；不再包含任务消息、文件库、后台任务管理器的旧说明句
+    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+
+本次额外踩到一个老坑的新皮肤：
+
+- 第一次远程发布命令被 Windows PowerShell 抢先解析 `$(date ...)`，导致远端 `tar` 参数错位，在仓库根目录生成了一个 `-C` 大文件。该文件已删除，并已在删除后重新构建镜像。后续远程发布脚本继续用单引号包住整段 SSH 命令，别再让本机 shell 替远端 shell 表演。
+- 删除 `-C` 并重新构建前，nginx 曾短暂返回 `502`；直接容器健康和重新构建后验收均已恢复。这不是 nginx 配置变更，本次没有改 `deploy/nginx/default.conf`，无需额外 `--force-recreate nginx`。
 
 ## 2026-04-23 任务消息与标准上传增量发布记录
 

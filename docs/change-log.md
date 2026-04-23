@@ -12,6 +12,12 @@
 
 ## 2026-04-23
 
+### 生产增量更新到任务面板体验收口版本
+- 日期：2026-04-23
+- 主题：按增量更新流程把腾讯云新加坡生产环境更新到 `42ef655f80ab7089c844a81a7bf896e78b6963d7`，上线任务结果 Markdown / 对话气泡渲染、composer 单行居中，以及任务消息 / 文件库 / 后台任务管理器透明单行头部。发布过程中还顺手抓住一个 PowerShell 远程命令事故生成的 `-C` 大文件，不然下次构建还得背着 1.4GB 垃圾跑，纯属给服务器负重训练。
+- 影响范围：`docs/tencent-cloud-singapore-deploy.md` 追加本次生产增量发布记录、sidecar 备份、回滚 tag、验收结果和事故处理；`docs/server-ops-quick-reference.md` 更新当前线上应用提交。
+- 对应入口：[docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)、[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+
 ### 管理面板头部背景透明化
 - 日期：2026-04-23
 - 主题：统一去掉任务消息、文件库和后台任务管理器头部这块区域的独立背景，尤其是手机端 sticky 头部原来的深色渐变。刚把说明文案拿掉、菜单收成一行，结果又留一块深色底板，视觉上还是在占地盘；这次直接改成透明，让它融进页面。
