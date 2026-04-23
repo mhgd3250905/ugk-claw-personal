@@ -30,8 +30,6 @@ import { ConnRunStore as DefaultConnRunStore } from "../agent/conn-run-store.js"
 import type { ConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import { ConnSqliteStore as DefaultConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import type { ConnDefinition } from "../agent/conn-store.js";
-import type { ConversationNotification, ConversationNotificationStore } from "../agent/conversation-notification-store.js";
-import { ConversationNotificationStore as DefaultConversationNotificationStore } from "../agent/conversation-notification-store.js";
 import type { NotificationBroadcastEvent } from "../agent/notification-hub.js";
 
 export interface ConnWorkerRunner {
@@ -43,7 +41,6 @@ export interface ConnWorkerOptions {
 	backgroundDataDir: string;
 	connStore: Pick<ConnSqliteStore, "list" | "get">;
 	runStore: ConnRunStore;
-	notificationStore: ConversationNotificationStore;
 	activityStore?: Pick<AgentActivityStore, "create">;
 	notificationBroadcaster?: NotificationBroadcaster;
 	runner: ConnWorkerRunner;
@@ -211,27 +208,16 @@ export class ConnWorker {
 
 	private async deliverRunResult(conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<void> {
 		try {
-			await this.options.activityStore?.create(toAgentActivityInput(conn, run, now));
+			const activity = await this.options.activityStore?.create(toAgentActivityInput(conn, run, now));
+			if (activity) {
+				try {
+					await this.options.notificationBroadcaster?.broadcast(toNotificationBroadcastEvent(activity));
+				} catch (error) {
+					console.warn("[conn-worker] notification broadcast failed:", error);
+				}
+			}
 		} catch (error) {
 			console.warn("[conn-worker] activity write failed:", error);
-		}
-		if (conn.target.type !== "conversation") {
-			return;
-		}
-		const notification = await this.options.notificationStore.create({
-			conversationId: conn.target.conversationId,
-			source: "conn",
-			sourceId: conn.connId,
-			runId: run.runId,
-			kind: "conn_result",
-			title: `${conn.title} ${resolveNotificationTitleSuffix(run.status)}`,
-			text: resolveNotificationText(run),
-			createdAt: now,
-		});
-		try {
-			await this.options.notificationBroadcaster?.broadcast(toNotificationBroadcastEvent(notification));
-		} catch (error) {
-			console.warn("[conn-worker] notification broadcast failed:", error);
 		}
 	}
 }
@@ -380,7 +366,6 @@ async function main(): Promise<void> {
 	});
 	const connStore = new DefaultConnSqliteStore({ database });
 	const runStore = new DefaultConnRunStore({ database });
-	const notificationStore = new DefaultConversationNotificationStore({ database });
 	const activityStore = new DefaultAgentActivityStore({ database });
 	const notificationBroadcaster = new HttpNotificationBroadcaster(
 		process.env.NOTIFICATION_BROADCAST_URL?.trim() ||
@@ -402,7 +387,6 @@ async function main(): Promise<void> {
 		backgroundDataDir: config.backgroundDataDir,
 		connStore,
 		runStore,
-		notificationStore,
 		activityStore,
 		notificationBroadcaster,
 		runner,
@@ -442,16 +426,16 @@ async function main(): Promise<void> {
 	process.once("SIGTERM", shutdown);
 }
 
-function toNotificationBroadcastEvent(notification: ConversationNotification): NotificationBroadcastEvent {
+function toNotificationBroadcastEvent(activity: Awaited<ReturnType<AgentActivityStore["create"]>>): NotificationBroadcastEvent {
 	return {
-		notificationId: notification.notificationId,
-		conversationId: notification.conversationId,
-		source: notification.source,
-		sourceId: notification.sourceId,
-		...(notification.runId ? { runId: notification.runId } : {}),
-		kind: notification.kind,
-		title: notification.title,
-		createdAt: notification.createdAt,
+		activityId: activity.activityId,
+		...(activity.conversationId ? { conversationId: activity.conversationId } : {}),
+		source: activity.source,
+		sourceId: activity.sourceId,
+		...(activity.runId ? { runId: activity.runId } : {}),
+		kind: activity.kind,
+		title: activity.title,
+		createdAt: activity.createdAt,
 	};
 }
 
@@ -460,7 +444,6 @@ function toAgentActivityInput(conn: ConnDefinition, run: ConnRunRecord, now: Dat
 		source: "conn",
 		sourceId: conn.connId,
 		runId: run.runId,
-		...(conn.target.type === "conversation" ? { conversationId: conn.target.conversationId } : {}),
 		kind: "conn_result",
 		title: `${conn.title} ${resolveNotificationTitleSuffix(run.status)}`,
 		text: resolveNotificationText(run),

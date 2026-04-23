@@ -2,12 +2,12 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { extname, resolve } from "node:path";
+import multipart from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
-import type { AssetStoreLike } from "../agent/asset-store.js";
+import type { AssetStoreLike, ChatAttachment } from "../agent/asset-store.js";
 import type {
 	AssetDetailResponseBody,
 	AssetListResponseBody,
-	CreateAssetRequestBody,
 	CreateAssetResponseBody,
 	ErrorResponseBody,
 } from "../types/api.js";
@@ -17,7 +17,21 @@ export interface FileRouteOptions {
 	projectRoot: string;
 }
 
+const DEFAULT_MULTIPART_ASSET_FILE_LIMIT_BYTES = 64 * 1024 * 1024;
+const MAX_ASSET_UPLOAD_FILES = 5;
+const TEXT_UPLOAD_PREVIEW_LIMIT_BYTES = 512 * 1024;
+
 export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptions): void {
+	const multipartAssetFileLimitBytes = resolveMultipartAssetFileLimitBytes();
+	app.register(multipart, {
+		limits: {
+			files: MAX_ASSET_UPLOAD_FILES,
+			fileSize: multipartAssetFileLimitBytes,
+			fields: 4,
+			parts: MAX_ASSET_UPLOAD_FILES + 4,
+		},
+	});
+
 	app.get(
 		"/v1/assets",
 		async (request): Promise<AssetListResponseBody> => {
@@ -53,26 +67,62 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 		},
 	);
 
-	app.post(
-		"/v1/assets",
-		async (request, reply): Promise<CreateAssetResponseBody | ReturnType<typeof reply.status>> => {
-			const body = (request.body ?? {}) as Partial<CreateAssetRequestBody>;
-			const parsedAttachments = parseAttachments(body.attachments);
-			if (parsedAttachments.error) {
-				return reply.status(400).send({
-					error: {
-						code: "BAD_REQUEST",
-						message: parsedAttachments.error,
-					},
-				} satisfies ErrorResponseBody);
-			}
+	app.post("/v1/assets/upload", async (request, reply): Promise<CreateAssetResponseBody | ReturnType<typeof reply.status>> => {
+		const attachments: ChatAttachment[] = [];
+		let conversationId = "";
 
-			const conversationId = String(body.conversationId || "").trim() || `manual:asset-upload:${randomUUID()}`;
-			return {
-				assets: await options.assetStore.registerAttachments(conversationId, parsedAttachments.attachments ?? []),
-			};
-		},
-	);
+		try {
+			for await (const part of request.parts()) {
+				if (part.type === "field") {
+					if (part.fieldname === "conversationId") {
+						conversationId = String(part.value || "").trim();
+					}
+					continue;
+				}
+
+				if (attachments.length >= MAX_ASSET_UPLOAD_FILES) {
+					return reply.status(400).send({
+						error: {
+							code: "BAD_REQUEST",
+							message: `Field "files" supports at most ${MAX_ASSET_UPLOAD_FILES} files`,
+						},
+					} satisfies ErrorResponseBody);
+				}
+
+				const content = await part.toBuffer();
+				attachments.push(toMultipartAttachment(part.filename, part.mimetype, content));
+			}
+		} catch (error) {
+			const statusCode = isMultipartUploadTooLargeError(error) ? 413 : 400;
+			return reply.status(statusCode).send({
+				error: {
+					code: statusCode === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST",
+					message:
+						statusCode === 413
+							? `Uploaded files must be ${formatByteLimit(multipartAssetFileLimitBytes)} or smaller`
+							: error instanceof Error
+								? error.message
+								: "Invalid multipart upload",
+				},
+			} satisfies ErrorResponseBody);
+		}
+
+		if (attachments.length === 0) {
+			return reply.status(400).send({
+				error: {
+					code: "BAD_REQUEST",
+					message: 'Field "files" must include at least one file',
+				},
+			} satisfies ErrorResponseBody);
+		}
+
+		return {
+			assets: await options.assetStore.registerAttachments(
+				conversationId || `manual:asset-upload:${randomUUID()}`,
+				attachments,
+			),
+		};
+	});
 
 	app.get("/v1/files/:fileId", async (request, reply) => {
 		const { fileId } = request.params as { fileId: string };
@@ -117,51 +167,56 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 	});
 }
 
-function parseAttachments(
-	value: unknown,
-): { attachments?: Array<Parameters<AssetStoreLike["registerAttachments"]>[1][number]>; error?: string } {
-	if (!Array.isArray(value) || value.length === 0) {
-		return { error: 'Field "attachments" must be a non-empty array' };
-	}
-	if (value.length > 5) {
-		return { error: 'Field "attachments" supports at most 5 files' };
-	}
-
-	const attachments: Array<Parameters<AssetStoreLike["registerAttachments"]>[1][number]> = [];
-	for (const [index, rawAttachment] of value.entries()) {
-		if (!rawAttachment || typeof rawAttachment !== "object") {
-			return { error: `attachments[${index}] must be an object` };
-		}
-		const attachment = rawAttachment as Record<string, unknown>;
-		if (typeof attachment.fileName !== "string" || attachment.fileName.trim().length === 0) {
-			return { error: `attachments[${index}].fileName must be a non-empty string` };
-		}
-		if (attachment.mimeType !== undefined && typeof attachment.mimeType !== "string") {
-			return { error: `attachments[${index}].mimeType must be a string when provided` };
-		}
-		if (attachment.sizeBytes !== undefined && (typeof attachment.sizeBytes !== "number" || !Number.isFinite(attachment.sizeBytes) || attachment.sizeBytes < 0)) {
-			return { error: `attachments[${index}].sizeBytes must be a non-negative number when provided` };
-		}
-		if (attachment.text !== undefined && typeof attachment.text !== "string") {
-			return { error: `attachments[${index}].text must be a string when provided` };
-		}
-		if (attachment.base64 !== undefined && typeof attachment.base64 !== "string") {
-			return { error: `attachments[${index}].base64 must be a string when provided` };
-		}
-		if (attachment.text !== undefined && attachment.base64 !== undefined) {
-			return { error: `attachments[${index}] cannot provide both text and base64` };
-		}
-
-		attachments.push({
-			fileName: attachment.fileName,
-			mimeType: typeof attachment.mimeType === "string" ? attachment.mimeType : undefined,
-			sizeBytes: typeof attachment.sizeBytes === "number" ? attachment.sizeBytes : undefined,
-			text: typeof attachment.text === "string" ? attachment.text : undefined,
-			base64: typeof attachment.base64 === "string" ? attachment.base64 : undefined,
-		});
+function toMultipartAttachment(fileName: string | undefined, mimeType: string | undefined, content: Buffer): ChatAttachment {
+	const normalizedMimeType = typeof mimeType === "string" && mimeType.trim() ? mimeType : "application/octet-stream";
+	if (isTextUpload(fileName, normalizedMimeType) && content.byteLength <= TEXT_UPLOAD_PREVIEW_LIMIT_BYTES) {
+		return {
+			fileName: fileName?.trim() || "attachment",
+			mimeType: normalizedMimeType,
+			sizeBytes: content.byteLength,
+			text: content.toString("utf8"),
+		};
 	}
 
-	return { attachments };
+	return {
+		fileName: fileName?.trim() || "attachment",
+		mimeType: normalizedMimeType,
+		sizeBytes: content.byteLength,
+		base64: content.toString("base64"),
+	};
+}
+
+function isTextUpload(fileName: string | undefined, mimeType: string): boolean {
+	return (
+		mimeType.startsWith("text/") ||
+		/\.(txt|md|markdown|json|csv|tsv|log|xml|html|css|js|ts|tsx|jsx|py|java|go|rs|c|cpp|h|hpp|cs|php|rb|yml|yaml|toml|ini|sql)$/i.test(
+			fileName || "",
+		)
+	);
+}
+
+function isMultipartUploadTooLargeError(error: unknown): boolean {
+	const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "";
+	const message = error instanceof Error ? error.message : "";
+	return code === "FST_REQ_FILE_TOO_LARGE" || /too large|fileSize|limit/i.test(message);
+}
+
+function resolveMultipartAssetFileLimitBytes(): number {
+	const configuredLimit = Number(process.env.ASSET_UPLOAD_FILE_LIMIT_BYTES);
+	if (Number.isFinite(configuredLimit) && configuredLimit >= 1024) {
+		return Math.floor(configuredLimit);
+	}
+	return DEFAULT_MULTIPART_ASSET_FILE_LIMIT_BYTES;
+}
+
+function formatByteLimit(bytes: number): string {
+	if (bytes >= 1024 * 1024) {
+		return `${Math.round((bytes / (1024 * 1024)) * 10) / 10}MiB`;
+	}
+	if (bytes >= 1024) {
+		return `${Math.round((bytes / 1024) * 10) / 10}KiB`;
+	}
+	return `${bytes}B`;
 }
 
 function escapeContentDispositionFileName(fileName: string): string {

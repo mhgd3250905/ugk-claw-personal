@@ -37,18 +37,8 @@ export function getPlaygroundStreamControllerScript(): string {
 				return;
 			}
 			showNotificationToast(event);
-			void loadAgentActivity({ silent: true });
-			void syncConversationCatalog({
-				silent: true,
-				activateCurrent: false,
-			});
-			if (event.conversationId === state.conversationId) {
-				void restoreConversationHistoryFromServer(event.conversationId, {
-					silent: true,
-					clearIfIdle: true,
-					attachIfRunning: true,
-				});
-			}
+			void loadTaskInbox({ silent: true });
+			void syncTaskInboxSummary({ silent: true });
 		}
 
 		function connectNotificationStream() {
@@ -331,8 +321,12 @@ export function getPlaygroundStreamControllerScript(): string {
 		async function sendMessage() {
 			const composerDraft = createComposerDraft();
 			const message = messageInput.value.trim();
-			const attachments = [...state.pendingAttachments];
+			const attachments = [];
 			const assetRefs = [...state.selectedAssetRefs];
+			if (state.composerUploadingAssets) {
+				showError("文件仍在上传中，请稍后再发送");
+				return;
+			}
 			if (!message && attachments.length === 0 && assetRefs.length === 0) {
 				showError("请输入消息");
 				return;
@@ -387,9 +381,6 @@ export function getPlaygroundStreamControllerScript(): string {
 					message: outboundMessage,
 					userId: "web-playground",
 				};
-				if (attachments.length > 0) {
-					payload.attachments = attachments;
-				}
 				if (assetRefs.length > 0) {
 					payload.assetRefs = assetRefs;
 				}
@@ -473,9 +464,6 @@ export function getPlaygroundStreamControllerScript(): string {
 					mode: "steer",
 					userId: "web-playground",
 				};
-				if (attachments.length > 0) {
-					payloadBody.attachments = attachments;
-				}
 				if (assetRefs.length > 0) {
 					payloadBody.assetRefs = assetRefs;
 				}

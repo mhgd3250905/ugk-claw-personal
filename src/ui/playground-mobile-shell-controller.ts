@@ -8,7 +8,8 @@ export function getPlaygroundMobileShellElementRefsScript(): string {
 		const mobileMenuSkillsButton = document.getElementById("mobile-menu-skills-button");
 		const mobileMenuFileButton = document.getElementById("mobile-menu-file-button");
 		const mobileMenuLibraryButton = document.getElementById("mobile-menu-library-button");
-		const mobileMenuActivityButton = document.getElementById("mobile-menu-activity-button");
+		const mobileMenuTaskInboxButton = document.getElementById("mobile-menu-task-inbox-button");
+		const mobileTaskInboxUnreadBadge = document.getElementById("mobile-task-inbox-unread-badge");
 		const mobileMenuConnButton = document.getElementById("mobile-menu-conn-button");
 		const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
 		const mobileConversationDrawer = document.getElementById("mobile-conversation-drawer");

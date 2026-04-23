@@ -11,6 +11,7 @@ logs/
 references/pi-mono/
 runtime/skills-user/*
 !runtime/skills-user/.gitkeep
+runtime/backups/
 .gh-cli-config/
 output/
 tmp/

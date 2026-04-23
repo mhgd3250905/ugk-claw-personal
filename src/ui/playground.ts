@@ -28,6 +28,13 @@ import {
 	getPlaygroundMobileShellEventHandlersScript,
 } from "./playground-mobile-shell-controller.js";
 import {
+	getPlaygroundTaskInboxControllerScript,
+	getPlaygroundTaskInboxElementRefsScript,
+	getPlaygroundTaskInboxEventHandlersScript,
+	getPlaygroundTaskInboxStyles,
+	getPlaygroundTaskInboxView,
+} from "./playground-task-inbox.js";
+import {
 	getBrowserMarkdownRendererScript,
 	getPlaygroundTranscriptRendererScript,
 } from "./playground-transcript-renderer.js";
@@ -318,7 +325,7 @@ function getPlaygroundStyles(): string {
 
 		.mobile-overflow-menu-item {
 			display: grid;
-			grid-template-columns: 18px minmax(0, 1fr);
+			grid-template-columns: 18px minmax(0, 1fr) auto;
 			align-items: center;
 			gap: 10px;
 			width: 100%;
@@ -333,6 +340,7 @@ function getPlaygroundStyles(): string {
 			text-transform: none;
 			text-align: left;
 		}
+
 
 		.mobile-overflow-menu-item:hover:not(:disabled),
 		.mobile-overflow-menu-item:focus-visible {
@@ -839,6 +847,7 @@ function getPlaygroundStyles(): string {
 			min-height: 0;
 			background: transparent;
 		}
+
 
 		.transcript-pane {
 			display: flex;
@@ -2029,6 +2038,7 @@ function getPlaygroundStyles(): string {
 
 		${getPlaygroundAssetBaseStyles()}
 		${getConnManagerActivityStyles()}
+		${getPlaygroundTaskInboxStyles()}
 
 		${getPlaygroundAssetModalStyles()}
 
@@ -2308,6 +2318,7 @@ function getPlaygroundStyles(): string {
 			color: rgba(246, 249, 255, 0.96);
 			text-shadow: none;
 		}
+
 
 		.telemetry-action:disabled {
 			cursor: wait;
@@ -3108,6 +3119,7 @@ function getPlaygroundScript(): string {
 		const state = {
 			loading: false,
 			stageMode: "landing",
+			primaryView: "chat",
 			conversationId: "",
 			streamingText: "",
 			activeAssistantContent: null,
@@ -3119,20 +3131,26 @@ function getPlaygroundScript(): string {
 			activeProcessAction: null,
 			lastProcessNarration: "",
 			receivedDoneEvent: false,
-			pendingAttachments: [],
+			composerUploadingAssets: false,
 			recentAssets: [],
 			selectedAssetRefs: [],
 			connEditorSelectedAssetRefs: [],
+			connEditorUploadingAssets: false,
 			assetPickerTarget: "composer",
 			contextUsage: null,
 			contextUsageExpanded: false,
 			contextUsageSyncToken: 0,
 			dragDepth: 0,
 			assetModalOpen: false,
-			agentActivityOpen: false,
-			agentActivityItems: [],
-			agentActivityLoading: false,
-			agentActivityError: "",
+			taskInboxItems: [],
+			taskInboxLoading: false,
+			taskInboxError: "",
+			taskInboxUnreadCount: 0,
+			taskInboxMarkingRead: false,
+			taskInboxFilter: "unread",
+			taskInboxHasMore: false,
+			taskInboxNextBefore: "",
+			taskInboxLoadingMore: false,
 			connManagerOpen: false,
 			connManagerItems: [],
 			connManagerRunsByConnId: {},
@@ -3147,7 +3165,6 @@ function getPlaygroundScript(): string {
 			connEditorSaving: false,
 			connEditorError: "",
 			assetModalRestoreFocusElement: null,
-			agentActivityRestoreFocusElement: null,
 			connManagerRestoreFocusElement: null,
 			connEditorRestoreFocusElement: null,
 			connRunDetailsRestoreFocusElement: null,
@@ -3212,6 +3229,7 @@ function getPlaygroundScript(): string {
 		const composerDropTarget = document.getElementById("composer-drop-target");
 		${getPlaygroundAssetElementRefsScript()}
 		${getPlaygroundContextUsageElementRefsScript()}
+		${getPlaygroundTaskInboxElementRefsScript()}
 		${getConnActivityElementRefsScript()}
 		const confirmDialog = document.getElementById("confirm-dialog");
 		const confirmDialogTitle = document.getElementById("confirm-dialog-title");
@@ -3397,6 +3415,7 @@ function getPlaygroundScript(): string {
 			landingScreen.setAttribute("aria-hidden", next === "landing" ? "false" : "true");
 		}
 
+
 		${getPlaygroundLayoutControllerScript()}
 
 		function setCommandStatus(next) {
@@ -3426,10 +3445,10 @@ function getPlaygroundScript(): string {
 			mobileMenuSkillsButton.disabled = next;
 			mobileMenuFileButton.disabled = false;
 			mobileMenuLibraryButton.disabled = next;
-			mobileMenuActivityButton.disabled = false;
+			mobileMenuTaskInboxButton.disabled = false;
 			mobileMenuConnButton.disabled = false;
 			openAssetLibraryButton.disabled = next;
-			openAgentActivityButton.disabled = false;
+			openTaskInboxButton.disabled = false;
 			openConnManagerButton.disabled = false;
 			refreshAssetsButton.disabled = next;
 			if (next) {
@@ -3520,7 +3539,12 @@ function getPlaygroundScript(): string {
 			if (!rawEvent || typeof rawEvent !== "object") {
 				return null;
 			}
-			const notificationId = typeof rawEvent.notificationId === "string" ? rawEvent.notificationId.trim() : "";
+			const notificationId =
+				typeof rawEvent.notificationId === "string"
+					? rawEvent.notificationId.trim()
+					: typeof rawEvent.activityId === "string"
+						? rawEvent.activityId.trim()
+						: "";
 			const conversationId = typeof rawEvent.conversationId === "string" ? rawEvent.conversationId.trim() : "";
 			const source = typeof rawEvent.source === "string" ? rawEvent.source.trim() : "";
 			const sourceId = typeof rawEvent.sourceId === "string" ? rawEvent.sourceId.trim() : "";
@@ -3528,12 +3552,12 @@ function getPlaygroundScript(): string {
 			const title = typeof rawEvent.title === "string" ? rawEvent.title.trim() : "";
 			const createdAt = typeof rawEvent.createdAt === "string" ? rawEvent.createdAt.trim() : "";
 			const runId = typeof rawEvent.runId === "string" ? rawEvent.runId.trim() : "";
-			if (!notificationId || !conversationId || !source || !sourceId || !kind || !title || !createdAt) {
+			if (!notificationId || !source || !sourceId || !kind || !title || !createdAt) {
 				return null;
 			}
 			return {
 				notificationId,
-				conversationId,
+				conversationId: conversationId || undefined,
 				source,
 				sourceId,
 				runId: runId || undefined,
@@ -4090,6 +4114,7 @@ function getPlaygroundScript(): string {
 		}
 
 		${getConnActivityRendererScript()}
+		${getPlaygroundTaskInboxControllerScript()}
 
 		function syncHistoryLoadMoreButton() {
 			const hasMore = state.renderedHistoryCount < state.conversationHistory.length;
@@ -4427,6 +4452,7 @@ function getPlaygroundScript(): string {
 			});
 
 
+			${getPlaygroundTaskInboxEventHandlersScript()}
 			${getConnActivityEventHandlersScript()}
 
 
@@ -4509,8 +4535,11 @@ function getPlaygroundScript(): string {
 			renderContextUsageBar();
 			renderSelectedAssets();
 			renderAssetPickerList();
+			renderTaskInbox();
+			renderTaskInboxToggleState();
 			renderConnManager();
 			void loadAssets(true);
+			void syncTaskInboxSummary({ silent: true });
 
 			resetStreamingState();
 			clearError();
@@ -4543,7 +4572,7 @@ export function renderPlaygroundPage(): string {
 				<span>文件会进入当前消息，并自动补充文件处理描述</span>
 			</div>
 		</div>
-		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
+		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle" data-primary-view="chat">
 			<header class="topbar">
 				<aside class="landing-side landing-side-right">
 					<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button">
@@ -4566,9 +4595,10 @@ export function renderPlaygroundPage(): string {
 						<span>后台自己干，前台别被绑架</span>
 						<strong>后台任务</strong>
 					</button>
-					<button id="open-agent-activity-button" class="telemetry-card telemetry-action" type="button">
-						<span>跨会话收结果，别让消息失踪</span>
-						<strong>全局活动</strong>
+					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false">
+						<span>&#21518;&#21488;&#20219;&#21153;&#32467;&#26524;&#32479;&#19968;&#25910;&#20214;&#31665;</span>
+						<strong>&#20219;&#21153;&#28040;&#24687;</strong>
+						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
 					</button>
 					<div class="topbar-context-slot">
 						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
@@ -4622,7 +4652,7 @@ export function renderPlaygroundPage(): string {
 					</button>
 					<button
 						id="mobile-overflow-menu-button"
-						class="mobile-topbar-button"
+						class="mobile-topbar-button mobile-topbar-button-with-badge"
 						type="button"
 						aria-haspopup="menu"
 						aria-expanded="false"
@@ -4635,6 +4665,7 @@ export function renderPlaygroundPage(): string {
 							<circle cx="12" cy="12" r="1.8"></circle>
 							<circle cx="12" cy="19" r="1.8"></circle>
 						</svg>
+						<span id="mobile-overflow-task-inbox-badge" class="mobile-topbar-notification-badge" hidden>0</span>
 					</button>
 					<div id="mobile-overflow-menu" class="mobile-overflow-menu" role="menu" hidden>
 						<button id="mobile-menu-skills-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
@@ -4671,14 +4702,15 @@ export function renderPlaygroundPage(): string {
 							</span>
 							<span>后台任务</span>
 						</button>
-						<button id="mobile-menu-activity-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+						<button id="mobile-menu-task-inbox-button" class="mobile-overflow-menu-item" type="button" role="menuitem" aria-pressed="false">
 							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
 								<svg viewBox="0 0 24 24" fill="none">
 									<path d="M5 7h14M5 12h14M5 17h9" stroke-width="1.8" stroke-linecap="round" />
 									<path d="M4 4v16" stroke-width="1.8" stroke-linecap="round" />
 								</svg>
 							</span>
-							<span>全局活动</span>
+							<span>&#20219;&#21153;&#28040;&#24687;</span>
+							<span id="mobile-task-inbox-unread-badge" class="mobile-overflow-menu-item-badge" hidden>0</span>
 						</button>
 					</div>
 				</section>
@@ -4754,6 +4786,8 @@ export function renderPlaygroundPage(): string {
 				<div id="notification-live-region" class="notification-live-region" aria-live="polite" aria-atomic="false" hidden>
 					<div id="notification-toast-stack" class="notification-toast-stack"></div>
 				</div>
+
+				${getPlaygroundTaskInboxView()}
 
 				<section class="stream-layout">
 					<div class="transcript-pane">

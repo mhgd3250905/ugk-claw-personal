@@ -3,6 +3,9 @@ export type ConnUpgradePolicy = "latest" | "pinned" | "manual";
 
 export type ConnTarget =
 	| {
+			type: "task_inbox";
+	  }
+	| {
 			type: "conversation";
 			conversationId: string;
 	  }

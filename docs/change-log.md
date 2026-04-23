@@ -12,6 +12,32 @@
 
 ## 2026-04-23
 
+### 本轮上传与任务消息收口整理备份
+- 日期：2026-04-23
+- 主题：整理最近一组上传、任务消息和手机端未读提醒改动的文档口径与备份记录。重点是把 `conn` 默认目标从旧的“当前会话”彻底改成“任务消息页”，并记录当前本地备份包，避免下次接手又拿旧会话投递逻辑当真。
+- 影响范围：`docs/runtime-assets-conn-feishu.md` 清理旧的 `POST /v1/conns` 默认绑定当前会话说法，明确默认 `{ "type": "task_inbox" }`；补充手机端 `更多` 按钮任务消息未读数字徽标口径；源码侧确认旧 `mobile-overflow-task-inbox-dot` / `mobile-topbar-notification-dot` 命名无残留，旧 `pendingAttachments` 仅保留为页面断言里的反向检查。
+- 备份记录：本地备份包写入 `runtime/backups/20260423-task-inbox-upload-ui-backup.zip`，包含本轮重点源码、测试和文档入口；浏览器验证截图保留在 `runtime/task-inbox-mobile-overflow-count-badge.png`。这两个路径属于本地运行态备份，不作为 GitHub 主仓库内容。
+- 验证记录：`node --test --import tsx test\server.test.ts --test-name-pattern "GET /playground returns the test UI html|uses a compact mobile topbar"` 通过；`npx tsc --noEmit` 通过；`git diff --check` 通过；本地 `docker compose restart ugk-pi` 后 `/healthz` 返回 `{"ok":true}`，手机宽度浏览器实测更多按钮数字徽标显示未读数。
+- 对应入口：[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+
+### 手机端任务消息未读数字徽标强化
+- 日期：2026-04-23
+- 主题：让手机端右上角 `更多` 按钮跟随任务消息未读数显示数字徽标，并把任务消息相关红点 / badge 从半透明粉色改成鲜艳高饱和红色 `#ff1744`。之前只在更多菜单里的 `任务消息` 项显示数字，用户不打开菜单就看不到提醒；只放一个点也不够直接，应该在第一层就把数量露出来。
+- 影响范围：`src/ui/playground.ts` 在 `mobile-overflow-menu-button` 内增加 `mobile-overflow-task-inbox-badge`；`src/ui/playground-task-inbox.ts` 统一驱动手机更多按钮数字徽标、菜单内任务消息 badge、桌面任务消息 badge 和任务条目未读红点；`test/server.test.ts` 锁定 DOM、样式和状态同步；`docs/playground-current.md` 同步手机端交互口径。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### 任务消息未读筛选与分页收口
+- 日期：2026-04-23
+- 主题：修复任务消息顶部红标显示未读数、进入页面却看不到未读红点的问题。根因是 `/v1/activity/summary` 统计全库未读，而任务消息页只取最新 50 条；如果未读消息都在更早记录里，前端当然看不到。这个坑很隐蔽，但也很蠢，典型的“统计口径和列表口径不一致”。
+- 影响范围：`src/agent/agent-activity-store.ts` 支持 `unreadOnly` 查询；`src/routes/activity.ts` 为 `GET /v1/activity` 增加 `unreadOnly=true`、`hasMore` 和 `nextBefore`；`src/types/api.ts` 补充列表响应字段；`src/agent/conn-db.ts` 增加 activity 未读查询索引；`src/ui/playground-task-inbox.ts` 增加 `未读 / 全部` 筛选和 `加载更多`，顶部有未读时默认进入未读视图；`src/ui/playground.ts` 补齐任务消息分页状态；测试和文档同步更新。
+- 对应入口：[src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)、[src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)、[src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)、[src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)、[src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/agent-activity-store.test.ts](/E:/AII/ugk-pi/test/agent-activity-store.test.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### 浏览器文件上传标准化与旧 JSON 上传清理
+- 日期：2026-04-23
+- 主题：修复 `conn` 创建 / 编辑器上传文档时，文件选择后前端看起来没反应、线上上传失败的问题，并把浏览器侧所有文件上传从 base64 JSON 迁到标准 `multipart/form-data`。真正相关链路是文件上传，不是 Immersive Translate 或 `/v1/notifications/stream` 那堆噪音；盯着插件报错抓空气，纯属给自己加戏。
+- 影响范围：新增依赖 `@fastify/multipart`；`src/routes/files.ts` 新增 `POST /v1/assets/upload`，支持 `FormData` 标准文件上传并注册为可复用资产，限制为单文件 64MiB、一次最多 5 个文件，并支持 `ASSET_UPLOAD_FILE_LIMIT_BYTES` 环境变量覆盖；移除旧 `POST /v1/assets` JSON `attachments` 上传入口，`POST /v1/assets` 不再接收上传；`src/types/api.ts` 移除旧资产上传请求体并补充 `PAYLOAD_TOO_LARGE` 错误码；`deploy/nginx/default.conf` 将 `client_max_body_size` 对齐到 80m；`src/ui/playground-assets-controller.ts` 新增 `uploadFilesAsAssets()` 并让主 chat 文件选择 / 拖拽上传后自动变成已选资产，同时清掉旧 `pendingAttachments` / FileReader base64 链路；`src/ui/playground-context-usage-controller.ts` 把已选资产的上下文占用估算改成贴近后端真实 prompt 行为：大文本按读取上限估算、二进制按元数据引用估算，不再因大文件误报满上下文；`src/ui/playground-stream-controller.ts` 发送消息时只携带 `assetRefs`，不再塞附件内容；`src/ui/playground-conn-activity-controller.ts` 的“上传新文件”改走 multipart，上传期间禁用保存 / 上传并显示“上传中”，失败时显示带 HTTP 状态的错误；`test/server.test.ts` 增加 multipart 上传、超限 `413`、旧 JSON 上传拒绝和页面无旧 base64 读取函数 / 旧 pending 附件状态断言；运行文档同步新限制与交互口径。
+- 对应入口：[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)、[src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)、[deploy/nginx/default.conf](/E:/AII/ugk-pi/deploy/nginx/default.conf)、[src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### 腾讯云生产环境增量更新到 conn 时区修复基线
 - 日期：2026-04-23
 - 主题：按用户确认的“增量更新”方式，将腾讯云新加坡生产环境从 `b896f05` 快进到 `dbb682d fix: normalize conn schedule timezone`，让线上新增 / 编辑 `conn` 任务时也使用新的用户时区语义，避免“北京时间下午 1 点”被错误存成 `13:00Z` 后拖到北京时间晚上 9 点执行。
@@ -1636,3 +1662,27 @@
   - `test/server.test.ts` 新增 `/playground` 页面断言，锁定 `bindPlaygroundStreamController()` 注入和关键 stream runtime 入口。
   - `docs/playground-current.md`、`docs/traceability-map.md` 同步新的前端边界和排查入口。
 - 对应入口：`src/ui/playground-stream-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`
+### 任务消息页替代会话绑定后台结果
+- 日期：2026-04-23
+- 主题：把后台任务结果从“绑定目标会话”的旧模型收口为独立 `任务消息` 页面，并把 `playground` 任务消息逻辑从主拼装文件里拆到独立模块。
+- 影响范围：`src/ui/playground-task-inbox.ts` 新增任务消息页视图、未读徽标、列表加载、已读回写和消息动作；`src/ui/playground.ts` 顶栏入口与主视图切换改成 `chat|tasks` 双视图装配；`src/ui/playground-stream-controller.ts` 收到广播后只刷新任务消息列表和未读摘要，不再把后台结果并回当前会话；`src/ui/playground-conn-activity-controller.ts` 恢复并收口 conn 编辑器时间选择初始化，同时把默认目标固定成 `task_inbox`；`src/routes/conns.ts`、`src/workers/conn-worker.ts`、`src/agent/agent-service.ts`、`src/server.ts` 继续清理旧的会话通知绑定链路；`test/server.test.ts`、`test/conn-worker.test.ts`、`test/agent-service.test.ts` 同步更新断言，改为围绕 `activity + task inbox` 验证。
+- 对应入口：[src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)、[src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)、[src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)、[src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)、[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[src/server.ts](/E:/AII/ugk-pi/src/server.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[test/conn-worker.test.ts](/E:/AII/ugk-pi/test/conn-worker.test.ts)、[test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+### 任务消息未读交互收口
+- 日期：2026-04-23
+- 主题：把任务消息页的未读策略从“进入页面自动批量已读”改成“按条已读 + 显式全部已读”
+- 影响范围：
+  - `src/agent/agent-activity-store.ts` 新增 `markAllRead()`，允许批量写入 `read_at`
+  - `src/routes/activity.ts` 新增 `POST /v1/activity/read-all`
+  - `src/types/api.ts` 补充批量已读响应类型
+  - `src/ui/playground-task-inbox.ts` 去掉 `markVisibleTaskInboxItemsRead`，改成未读红点、单条已读和显式 `全部已读`
+  - `test/agent-activity-store.test.ts`、`test/server.test.ts` 补齐批量已读与任务消息页断言
+  - `docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md` 同步当前交互口径
+- 对应入口：
+  - [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
+  - [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
+  - [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+  - [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+  - [test/agent-activity-store.test.ts](/E:/AII/ugk-pi/test/agent-activity-store.test.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+  - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)

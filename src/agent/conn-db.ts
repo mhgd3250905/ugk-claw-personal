@@ -260,5 +260,6 @@ CREATE INDEX IF NOT EXISTS idx_conn_run_files_run_id ON conn_run_files(run_id, k
 CREATE INDEX IF NOT EXISTS idx_conversation_notifications_conversation_id ON conversation_notifications(conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_agent_activity_created_at ON agent_activity_items(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_activity_conversation_id ON agent_activity_items(conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_activity_read_at ON agent_activity_items(read_at, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_activity_source_run ON agent_activity_items(source, source_id, run_id);
 `;

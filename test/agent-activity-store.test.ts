@@ -134,6 +134,90 @@ test("AgentActivityStore lists newest-first, filters by conversation, and limits
 	database.close();
 });
 
+test("AgentActivityStore can list unread items even when newer read items fill the latest page", async () => {
+	const { store, database } = await createStore();
+
+	const olderUnread = await store.create({
+		source: "conn",
+		sourceId: "conn-unread",
+		runId: "run-unread",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "older unread",
+		text: "older unread text",
+		createdAt: new Date("2026-04-22T10:01:00.000Z"),
+	});
+	for (let index = 0; index < 3; index += 1) {
+		const activity = await store.create({
+			source: "conn",
+			sourceId: `conn-read-${index}`,
+			runId: `run-read-${index}`,
+			conversationId: "manual:conn",
+			kind: "conn_result",
+			title: `newer read ${index}`,
+			text: `newer read text ${index}`,
+			createdAt: new Date(`2026-04-22T10:0${index + 2}:00.000Z`),
+		});
+		await store.markRead(activity.activityId, new Date("2026-04-22T10:10:00.000Z"));
+	}
+
+	assert.deepEqual(
+		(await store.list({ limit: 2, unreadOnly: true })).map((item) => item.activityId),
+		[olderUnread.activityId],
+	);
+
+	database.close();
+});
+
+test("AgentActivityStore paginates unread activity items with a before cursor", async () => {
+	const { store, database } = await createStore();
+
+	const oldest = await store.create({
+		source: "conn",
+		sourceId: "conn-1",
+		runId: "run-1",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "oldest",
+		text: "oldest text",
+		createdAt: new Date("2026-04-22T10:01:00.000Z"),
+	});
+	const middle = await store.create({
+		source: "conn",
+		sourceId: "conn-2",
+		runId: "run-2",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "middle",
+		text: "middle text",
+		createdAt: new Date("2026-04-22T10:02:00.000Z"),
+	});
+	const newest = await store.create({
+		source: "conn",
+		sourceId: "conn-3",
+		runId: "run-3",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "newest",
+		text: "newest text",
+		createdAt: new Date("2026-04-22T10:03:00.000Z"),
+	});
+
+	const firstPage = await store.list({ limit: 2, unreadOnly: true });
+	const secondPage = await store.list({ limit: 2, unreadOnly: true, before: middle.createdAt });
+
+	assert.deepEqual(
+		firstPage.map((item) => item.activityId),
+		[newest.activityId, middle.activityId],
+	);
+	assert.deepEqual(
+		secondPage.map((item) => item.activityId),
+		[oldest.activityId],
+	);
+
+	database.close();
+});
+
 test("AgentActivityStore marks activity items as read", async () => {
 	const { store, database } = await createStore();
 	const activity = await store.create({
@@ -150,6 +234,40 @@ test("AgentActivityStore marks activity items as read", async () => {
 	assert.equal(await store.markRead(activity.activityId, new Date("2026-04-22T10:03:00.000Z")), true);
 	assert.equal(await store.markRead("missing", new Date("2026-04-22T10:03:00.000Z")), false);
 	assert.equal((await store.list())[0].readAt, "2026-04-22T10:03:00.000Z");
+
+	database.close();
+});
+
+test("AgentActivityStore marks all activity items as read", async () => {
+	const { store, database } = await createStore();
+	await store.create({
+		source: "conn",
+		sourceId: "conn-1",
+		runId: "run-1",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "First",
+		text: "first",
+		createdAt: new Date("2026-04-22T10:01:05.000Z"),
+	});
+	await store.create({
+		source: "conn",
+		sourceId: "conn-2",
+		runId: "run-2",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "Second",
+		text: "second",
+		createdAt: new Date("2026-04-22T10:02:05.000Z"),
+	});
+
+	assert.equal(await store.getUnreadCount(), 2);
+	assert.equal(await store.markAllRead(new Date("2026-04-22T10:03:00.000Z")), 2);
+	assert.equal(await store.getUnreadCount(), 0);
+	assert.deepEqual(
+		(await store.list()).map((item) => item.readAt),
+		["2026-04-22T10:03:00.000Z", "2026-04-22T10:03:00.000Z"],
+	);
 
 	database.close();
 });

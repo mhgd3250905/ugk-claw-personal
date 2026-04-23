@@ -37,7 +37,6 @@ import {
 	type PromptAssetContextEntry,
 	toPromptAssetFromStoredAsset,
 } from "./file-artifacts.js";
-import type { ConversationNotification } from "./conversation-notification-store.js";
 
 export interface ChatInput {
 	conversationId?: string;
@@ -168,13 +167,6 @@ export interface AgentServiceOptions {
 	conversationStore: ConversationStore;
 	sessionFactory: AgentSessionFactory;
 	assetStore?: AssetStoreLike;
-	notificationStore?: {
-		list(conversationId: string): Promise<ConversationNotification[]>;
-		summarize?(
-			conversationIds: readonly string[],
-		): Promise<Map<string, { count: number; latest?: ConversationNotification }>>;
-		deleteConversation?(conversationId: string): Promise<void>;
-	};
 }
 
 type ChatStreamEventSink = (event: ChatStreamEvent) => void;
@@ -214,38 +206,15 @@ export class AgentService {
 	async getConversationCatalog(): Promise<ConversationCatalogResult> {
 		const currentConversationId = await this.ensureCurrentConversationId();
 		const conversationEntries = await this.options.conversationStore.list();
-		const notificationSummaries = this.options.notificationStore?.summarize
-			? await this.options.notificationStore.summarize(conversationEntries.map((entry) => entry.conversationId))
-			: undefined;
-		const conversations = await Promise.all(
-			conversationEntries.map(async (entry) => {
-				const notificationSummary = notificationSummaries?.get(entry.conversationId);
-				const notifications =
-					notificationSummary === undefined
-						? ((await this.options.notificationStore?.list(entry.conversationId)) ?? [])
-						: undefined;
-				const latestNotification = notificationSummary?.latest ?? getLatestConversationNotification(notifications ?? []);
-				const baseMessageCount = Number.isFinite(entry.messageCount) ? entry.messageCount ?? 0 : 0;
-				const updatedAt =
-					latestNotification && latestNotification.createdAt > entry.updatedAt
-						? latestNotification.createdAt
-						: entry.updatedAt;
-				const preview =
-					latestNotification && latestNotification.createdAt >= entry.updatedAt
-						? summarizeConversationText(latestNotification.text, entry.preview || "")
-						: entry.preview || "";
-
-				return {
-					conversationId: entry.conversationId,
-					title: entry.title || "新会话",
-					preview,
-					messageCount: baseMessageCount + (notificationSummary?.count ?? notifications?.length ?? 0),
-					createdAt: entry.createdAt ?? entry.updatedAt,
-					updatedAt,
-					running: this.activeRuns.has(entry.conversationId),
-				};
-			}),
-		);
+		const conversations = conversationEntries.map((entry) => ({
+			conversationId: entry.conversationId,
+			title: entry.title || "?????",
+			preview: entry.preview || "",
+			messageCount: Number.isFinite(entry.messageCount) ? entry.messageCount ?? 0 : 0,
+			createdAt: entry.createdAt ?? entry.updatedAt,
+			updatedAt: entry.updatedAt,
+			running: this.activeRuns.has(entry.conversationId),
+		}));
 		conversations.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
 		return {
@@ -300,7 +269,6 @@ export class AgentService {
 			};
 		}
 
-		await this.options.notificationStore?.deleteConversation?.(conversationId);
 		await this.options.conversationStore.delete(conversationId);
 		this.terminalRuns.delete(conversationId);
 		const nextCurrentConversationId = await this.ensureCurrentConversationId();
@@ -456,27 +424,23 @@ export class AgentService {
 			activeRun?.view,
 		);
 		const terminalRun = activeRun ? undefined : this.getRenderableTerminalRun(conversationId, sessionMessages);
-		const notifications = (await this.options.notificationStore?.list(conversationId)) ?? [];
-		const messages = mergeConversationNotifications(sessionMessages, notifications);
 		const activeRunView = activeRun
 			? cloneActiveRunView(activeRun.view)
 			: terminalRun
 				? cloneActiveRunView(terminalRun.view)
 				: null;
-		const viewMessages = buildConversationViewMessages(conversationId, messages, activeRunView);
-		const latestNotificationAt = notifications.at(-1)?.createdAt;
+		const viewMessages = buildConversationViewMessages(conversationId, sessionMessages, activeRunView);
 
 		return {
 			conversationId,
 			running: Boolean(activeRun),
 			contextUsage,
-			messages,
+			messages: sessionMessages,
 			viewMessages,
 			activeRun: activeRunView,
 			updatedAt:
 				activeRun?.view.updatedAt ??
 				terminalRun?.view.updatedAt ??
-				latestNotificationAt ??
 				existingConversation?.updatedAt ??
 				new Date(0).toISOString(),
 		};
@@ -1687,53 +1651,6 @@ function restoreScopedAgentEnvironment(
 		return;
 	}
 	process.env[key] = value;
-}
-
-function mergeConversationNotifications(
-	messages: ConversationHistoryMessage[],
-	notifications: readonly ConversationNotification[],
-): ConversationHistoryMessage[] {
-	if (notifications.length === 0) {
-		return messages;
-	}
-	return [
-		...messages,
-		...notifications.map(notificationToHistoryMessage),
-	].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-}
-
-function notificationToHistoryMessage(notification: ConversationNotification): ConversationHistoryMessage {
-	return {
-		id: `notification-${notification.notificationId}`,
-		kind: "notification",
-		title: notification.title,
-		text: notification.text,
-		createdAt: notification.createdAt,
-		source: notification.source,
-		sourceId: notification.sourceId,
-		...(notification.runId ? { runId: notification.runId } : {}),
-		...(notification.files.length > 0
-			? {
-					files: notification.files.map((file) => ({
-						fileName: file.fileName,
-						downloadUrl: file.downloadUrl,
-						...(file.mimeType ? { mimeType: file.mimeType } : {}),
-						...(typeof file.sizeBytes === "number" ? { sizeBytes: file.sizeBytes } : {}),
-					})),
-				}
-			: {}),
-	};
-}
-
-function getLatestConversationNotification(
-	notifications: readonly ConversationNotification[],
-): ConversationNotification | undefined {
-	return notifications.reduce<ConversationNotification | undefined>((latest, notification) => {
-		if (!latest) {
-			return notification;
-		}
-		return notification.createdAt > latest.createdAt ? notification : latest;
-	}, undefined);
 }
 
 function toError(error: unknown): Error {

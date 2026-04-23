@@ -134,14 +134,12 @@ export function getConnRunDetailsStyles(): string {
 export function getConnManagerActivityStyles(): string {
 	return `
 
-		.agent-activity-list,
 		.conn-manager-list,
 		.conn-manager-run-list {
 			display: grid;
 			gap: 6px;
 		}
 
-		.agent-activity-item,
 		.conn-manager-item,
 		.conn-manager-run-item {
 			display: grid;
@@ -156,7 +154,6 @@ export function getConnManagerActivityStyles(): string {
 			color: var(--muted);
 		}
 
-		.agent-activity-actions button,
 		.conn-manager-actions button,
 		.conn-manager-bulk-actions button,
 		.conn-manager-run-actions button {
@@ -635,76 +632,6 @@ export function getConnManagerActivityStyles(): string {
 			list-style-position: inside;
 		}
 
-		.agent-activity-item {
-			grid-template-columns: minmax(0, 1fr);
-			align-items: stretch;
-			gap: 10px;
-		}
-
-		.agent-activity-copy {
-			display: grid;
-			gap: 7px;
-			min-width: 0;
-		}
-
-		.agent-activity-title-row {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			gap: 10px;
-			min-width: 0;
-		}
-
-		.agent-activity-title-row strong {
-			min-width: 0;
-			overflow: hidden;
-			color: rgba(246, 249, 255, 0.94);
-			font-size: 13px;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-		}
-
-		.agent-activity-source {
-			flex: 0 0 auto;
-			color: rgba(201, 210, 255, 0.68);
-			font-family: var(--font-mono);
-			font-size: 10px;
-			text-transform: uppercase;
-		}
-
-		.agent-activity-text {
-			display: -webkit-box;
-			overflow: hidden;
-			color: rgba(226, 234, 255, 0.7);
-			font-size: 12px;
-			line-height: 1.55;
-			-webkit-box-orient: vertical;
-			-webkit-line-clamp: 3;
-		}
-
-		.agent-activity-meta {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 6px 10px;
-			color: rgba(226, 234, 255, 0.46);
-			font-size: 10px;
-			line-height: 1.5;
-		}
-
-		.agent-activity-meta code {
-			overflow-wrap: anywhere;
-			color: rgba(223, 230, 255, 0.68);
-			font-family: var(--font-mono);
-			font-size: 10px;
-		}
-
-		.agent-activity-actions {
-			display: flex;
-			flex-wrap: wrap;
-			justify-content: flex-end;
-			gap: 8px;
-		}
-
 	`;
 }
 
@@ -717,23 +644,6 @@ export function getConnActivityDialogs(): string {
 					<button id="conn-run-details-close" class="conn-run-details-close" type="button" aria-label="关闭后台任务过程">×</button>
 				</div>
 				<div id="conn-run-details-body" class="conn-run-details-body"></div>
-			</section>
-		</div>
-		<div id="agent-activity-dialog" class="asset-modal-shell agent-activity-dialog" aria-hidden="true" hidden>
-			<section class="asset-modal agent-activity-panel" role="dialog" aria-modal="true" aria-labelledby="agent-activity-title">
-				<div class="asset-modal-head">
-					<div class="asset-modal-copy">
-						<strong id="agent-activity-title">全局活动</strong>
-						<span>跨会话查看 conn 结果、运行摘要和可追溯的后台任务过程。</span>
-					</div>
-					<div class="asset-modal-actions">
-						<button id="refresh-agent-activity-button" type="button">刷新</button>
-						<button id="close-agent-activity-button" type="button">关闭</button>
-					</div>
-				</div>
-				<div class="asset-modal-body">
-					<div id="agent-activity-list" class="agent-activity-list" aria-live="polite"></div>
-				</div>
 			</section>
 		</div>
 		<div id="conn-manager-dialog" class="asset-modal-shell conn-manager-dialog" aria-hidden="true" hidden>
@@ -800,8 +710,7 @@ export function getConnActivityDialogs(): string {
 							<label class="conn-editor-field">
 								<span>结果发到哪里</span>
 								<select id="conn-editor-target-type" name="targetType">
-									<option value="current_conversation">当前会话</option>
-									<option value="conversation">指定会话</option>
+									<option value="task_inbox">任务消息</option>
 									<option value="feishu_chat">飞书群</option>
 									<option value="feishu_user">飞书用户</option>
 								</select>

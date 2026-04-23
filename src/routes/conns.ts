@@ -18,7 +18,6 @@ interface ConnRouteOptions {
 	connStore: ConnStoreLike;
 	connRunStore: ConnRunStoreLike;
 	backgroundDataDir: string;
-	getCurrentConversationId(): Promise<string>;
 }
 
 interface ConnStoreLike {
@@ -104,6 +103,9 @@ function parseTarget(value: unknown): { target?: ConnTarget; error?: string } {
 	}
 
 	const target = value as Record<string, unknown>;
+	if (target.type === "task_inbox") {
+		return { target: { type: "task_inbox" } };
+	}
 	if (target.type === "conversation" && isNonEmptyString(target.conversationId)) {
 		return { target: { type: "conversation", conversationId: target.conversationId.trim() } };
 	}
@@ -119,17 +121,11 @@ function parseTarget(value: unknown): { target?: ConnTarget; error?: string } {
 
 async function resolveCreateTarget(
 	value: unknown,
-	getCurrentConversationId: () => Promise<string>,
 ): Promise<{ target?: ConnTarget; error?: string }> {
 	if (value === undefined) {
-		const conversationId = (await getCurrentConversationId()).trim();
-		if (!conversationId) {
-			throw new Error("Current conversation id is unavailable");
-		}
 		return {
 			target: {
-				type: "conversation",
-				conversationId,
+				type: "task_inbox",
 			},
 		};
 	}
@@ -286,7 +282,6 @@ async function parseConnMutationBody(
 		requirePrompt?: boolean;
 		requireSchedule?: boolean;
 		resolveDefaultTarget?: boolean;
-		getCurrentConversationId?: () => Promise<string>;
 	},
 ): Promise<{ value?: ParsedConnMutationBody; error?: string }> {
 	const parsed: ParsedConnMutationBody = {};
@@ -309,10 +304,7 @@ async function parseConnMutationBody(
 
 	if (body.target === undefined) {
 		if (options.resolveDefaultTarget) {
-			if (!options.getCurrentConversationId) {
-				return { error: 'Field "target" is invalid' };
-			}
-			const parsedTarget = await resolveCreateTarget(undefined, options.getCurrentConversationId);
+			const parsedTarget = await resolveCreateTarget(undefined);
 			if (parsedTarget.error) {
 				return { error: parsedTarget.error };
 			}
@@ -435,7 +427,6 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				requirePrompt: true,
 				requireSchedule: true,
 				resolveDefaultTarget: true,
-				getCurrentConversationId: options.getCurrentConversationId,
 			});
 			if (parsed.error) {
 				return sendBadRequest(reply, parsed.error);

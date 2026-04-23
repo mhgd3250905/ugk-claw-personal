@@ -33,6 +33,7 @@ export interface AgentActivityListOptions {
 	limit?: number;
 	before?: string;
 	conversationId?: string;
+	unreadOnly?: boolean;
 }
 
 export interface AgentActivityStoreOptions {
@@ -126,6 +127,9 @@ export class AgentActivityStore {
 			conditions.push("conversation_id = ?");
 			params.push(options.conversationId);
 		}
+		if (options.unreadOnly) {
+			conditions.push("read_at IS NULL");
+		}
 		if (options.before) {
 			conditions.push("created_at < ?");
 			params.push(options.before);
@@ -159,6 +163,30 @@ export class AgentActivityStore {
 			activityId,
 		);
 		return true;
+	}
+
+	async markAllRead(now: Date = new Date()): Promise<number> {
+		const timestamp = now.toISOString();
+		const existing = this.options.database.get<{ unread_count: number }>(
+			"SELECT COUNT(*) AS unread_count FROM agent_activity_items WHERE read_at IS NULL",
+		);
+		const unreadCount = Number(existing?.unread_count ?? 0);
+		if (unreadCount < 1) {
+			return 0;
+		}
+		this.options.database.run(
+			"UPDATE agent_activity_items SET read_at = ? WHERE read_at IS NULL",
+			timestamp,
+		);
+		return unreadCount;
+	}
+
+	async getUnreadCount(): Promise<number> {
+		const row = this.options.database.get<{ unread_count: number }>(
+			"SELECT COUNT(*) AS unread_count FROM agent_activity_items WHERE read_at IS NULL",
+		);
+		const unreadCount = row?.unread_count;
+		return Number.isFinite(unreadCount) ? Number(unreadCount) : 0;
 	}
 }
 

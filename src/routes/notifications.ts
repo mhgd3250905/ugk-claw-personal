@@ -44,11 +44,11 @@ function parseNotificationBroadcastEvent(value: unknown): { event?: Notification
 	}
 
 	const input = value as Record<string, unknown>;
-	if (!isNonEmptyString(input.notificationId)) {
-		return { error: 'Field "notificationId" must be a non-empty string' };
+	if (!isNonEmptyString(input.notificationId) && !isNonEmptyString(input.activityId)) {
+		return { error: 'Field "notificationId" or "activityId" must be a non-empty string' };
 	}
-	if (!isNonEmptyString(input.conversationId)) {
-		return { error: 'Field "conversationId" must be a non-empty string' };
+	if (input.conversationId !== undefined && !isNonEmptyString(input.conversationId)) {
+		return { error: 'Field "conversationId" must be a non-empty string when provided' };
 	}
 	if (!isNonEmptyString(input.source)) {
 		return { error: 'Field "source" must be a non-empty string' };
@@ -71,8 +71,9 @@ function parseNotificationBroadcastEvent(value: unknown): { event?: Notification
 
 	return {
 		event: {
-			notificationId: input.notificationId.trim(),
-			conversationId: input.conversationId.trim(),
+			...(isNonEmptyString(input.notificationId) ? { notificationId: input.notificationId.trim() } : {}),
+			...(isNonEmptyString(input.activityId) ? { activityId: input.activityId.trim() } : {}),
+			...(isNonEmptyString(input.conversationId) ? { conversationId: input.conversationId.trim() } : {}),
 			source: input.source.trim(),
 			sourceId: input.sourceId.trim(),
 			...(isNonEmptyString(input.runId) ? { runId: input.runId.trim() } : {}),

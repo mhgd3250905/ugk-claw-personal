@@ -3,6 +3,7 @@ export function getPlaygroundContextUsageConstantsScript(): string {
 		const FALLBACK_CONTEXT_WINDOW = 128000;
 		const FALLBACK_RESPONSE_TOKENS = 16384;
 		const FALLBACK_RESERVE_TOKENS = 16384;
+		const PROMPT_TEXT_ASSET_FALLBACK_CHARS = 24000;
 	`;
 }
 
@@ -42,15 +43,28 @@ export function getPlaygroundContextUsageControllerScript(): string {
 			return Math.max(128, Math.ceil(normalizedSize / 16));
 		}
 
-		function estimateAttachmentTokenCount(attachment) {
-			if (typeof attachment?.text === "string" && attachment.text.length > 0) {
-				return estimateTextTokenCount(attachment.text);
+		function estimateStoredTextAssetTokenCount(sizeBytes) {
+			const normalizedSize = Math.max(0, Number.isFinite(sizeBytes) ? Number(sizeBytes) : 0);
+			if (normalizedSize === 0) {
+				return estimateTextTokenCount("");
 			}
-			if (typeof attachment?.base64 === "string" && attachment.base64.length > 0) {
-				const approxBytes = Math.ceil((attachment.base64.length * 3) / 4);
-				return estimateBinaryTokenCount(attachment.mimeType, approxBytes);
-			}
-			return estimateBinaryTokenCount(attachment?.mimeType, attachment?.sizeBytes);
+			return Math.ceil(Math.min(normalizedSize, PROMPT_TEXT_ASSET_FALLBACK_CHARS) / 4);
+		}
+
+		function estimateMetadataAssetTokenCount(asset) {
+			return Math.max(
+				64,
+				estimateTextTokenCount(
+					[
+						String(asset?.fileName || ""),
+						String(asset?.mimeType || ""),
+						String(asset?.kind || ""),
+						typeof asset?.hasContent === "boolean" ? (asset.hasContent ? "stored content" : "metadata only") : "",
+					]
+						.filter(Boolean)
+						.join(" "),
+				),
+			);
 		}
 
 		function estimatePromptAssetTokenCount(asset) {
@@ -60,10 +74,10 @@ export function getPlaygroundContextUsageControllerScript(): string {
 			if (typeof asset?.textPreview === "string" && asset.textPreview.length > 0) {
 				return estimateTextTokenCount(asset.textPreview);
 			}
-			if (asset?.kind === "text" || asset?.hasContent) {
-				return estimateBinaryTokenCount(asset?.mimeType, asset?.sizeBytes);
+			if (asset?.kind === "text" && asset?.hasContent) {
+				return estimateStoredTextAssetTokenCount(asset?.sizeBytes);
 			}
-			return Math.max(32, estimateTextTokenCount((asset?.fileName || "") + " " + (asset?.mimeType || "")));
+			return estimateMetadataAssetTokenCount(asset);
 		}
 
 		function resolveContextUsageStatus(currentTokens, contextWindow, reserveTokens) {
@@ -132,17 +146,12 @@ export function getPlaygroundContextUsageControllerScript(): string {
 		function estimateDraftContextTokens() {
 			const selectedAssets = getSelectedAssets();
 			const messageTokens = estimateTextTokenCount(messageInput.value);
-			const attachmentTokens = state.pendingAttachments.reduce(
-				(sum, attachment) => sum + estimateAttachmentTokenCount(attachment),
-				0,
-			);
 			const assetTokens = selectedAssets.reduce((sum, asset) => sum + estimatePromptAssetTokenCount(asset), 0);
 
 			return {
 				messageTokens,
-				attachmentTokens,
 				assetTokens,
-				totalTokens: messageTokens + attachmentTokens + assetTokens,
+				totalTokens: messageTokens + assetTokens,
 			};
 		}
 
@@ -169,7 +178,6 @@ export function getPlaygroundContextUsageControllerScript(): string {
 				baseTokens: normalizedBase.currentTokens,
 				draftTokens,
 				messageTokens: Math.max(0, Number(draftUsage?.messageTokens) || 0),
-				attachmentTokens: Math.max(0, Number(draftUsage?.attachmentTokens) || 0),
 				assetTokens: Math.max(0, Number(draftUsage?.assetTokens) || 0),
 			};
 		}

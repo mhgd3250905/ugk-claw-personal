@@ -7,7 +7,7 @@
 - 文件上传与统一资产库
 - `assetRefs`、`ugk-file`、`send_file`
 - `conn` 定时 / 周期任务
-- Agent Activity 全局活动时间线
+- Agent Activity / 任务消息时间线
 - Feishu webhook 接入
 
 如果你要查 playground 视觉和交互，去看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
@@ -19,7 +19,9 @@
 关键事实：
 
 - 用户上传文件会注册为资产，可被后续 `assetRefs` 复用
-- `POST /v1/assets` 可直接把当前上传的附件注册成可复用资产，供 `conn` 编辑器或后续会话继续选用
+- `POST /v1/assets/upload` 是浏览器侧标准文件上传入口，使用 `multipart/form-data` / `FormData` 注册可复用资产，供 `conn` 编辑器或后续会话继续选用
+- `GET /v1/assets` 保留资产列表查询；`POST /v1/assets` 不再接受 JSON `attachments` 上传，浏览器上传不要再让 PDF / Word 先 base64 膨胀再塞 JSON
+- 上传限制当前按“单文件 64MiB、一次最多 5 个文件、生产 nginx 总请求 80m”收口
 - agent 回复中的 `ugk-file` 会被提取并写入资产库
 - agent 生成了真实文件时，优先通过 `send_file` 交付
 - `/v1/files/:fileId` 负责文件内容返回
@@ -147,16 +149,18 @@ playground 卡片当前规则：
 playground 现在可以直接创建和编辑 `conn`，表单字段会映射到同一套后端定义：
 - `title` / `prompt`：后台任务名称和执行输入。
 - `prompt` 继续由用户直接填写，作为后台任务的真实执行说明。
-- `target`：支持当前服务端会话、指定 `conversationId`、`feishu_chat` 和 `feishu_user`；目标在创建 / 编辑时固化，后续切换当前会话不会改变历史 conn 的投递归属。
-- 目标预览：playground 会在编辑器里展示目标摘要和目标编号。conversation 目标会提示“结果气泡只进入这个会话”；飞书目标会提示“通过飞书 adapter 发送，全局活动仍保留追溯记录”。
+- `target`：当前前台主选项是 `task_inbox`、`feishu_chat` 和 `feishu_user`；旧的 `conversation` 目标只保留后端兼容读取。目标在创建 / 编辑时固化，后续切换当前会话不会改变历史 conn 的投递归属。
+- 目标预览：playground 会在编辑器里展示目标摘要和目标编号。`task_inbox` 会明确提示结果进入任务消息页；飞书目标会提示“通过飞书 adapter 发送，任务消息页仍保留追溯记录”。
 - 默认表单只展示常用字段，目标编号、调度细节和高级设置按需展开；不要再把 profile / skill / model policy 一上来甩给用户，界面不是飞控面板。
 - 时间配置收口成三种：`定时执行`、`间隔执行`、`每日执行`。playground 仍会映射成后端真正使用的 `once / interval / cron`，但界面不再暴露 cron、工作日或每周这些额外分支。
 - 三种模式的表单固定为：`定时执行` -> `执行时间`；`间隔执行` -> `首次执行时间 + 间隔（分钟）`；`每日执行` -> `每日执行时间`。
 - 后台任务列表的主要摘要已经收口为 `结果发到 / 执行方式 / 运行节奏` 三行口径，不再直接把 `target / schedule / next / last / maxRunMs` 这类字段名扔给使用者。
-- 全局活动里的来源、会话和文件摘要也统一成人话：来源显示为 `后台任务 / 飞书 / 助手 / 通知`，会话显示为“来自 当前会话 / 指定会话”，文件显示为“附 N 个文件”。
+- 任务消息页里的来源和文件摘要统一成人话：来源显示为 `后台任务 / 飞书 / 助手 / 通知`，文件显示为“附 N 个文件”。
 - `schedule`：支持 `once`、`interval`、`cron`；`interval` 表单按分钟输入，落库仍是毫秒。
 - `maxRunMs`：表单按秒输入，提交时转换成毫秒；空值表示不设置单次运行上限。
 - `assetRefs`：用户侧文案叫“附加资料”，前端通过“选择复用文件 / 上传新文件”两条入口维护，提交时仍落成内部 `assetRefs` 数组，供后台 workspace 快照输入文件；不要再要求用户手填内部 `assetId`。
+- “上传新文件”走 `POST /v1/assets/upload` 的 multipart 标准上传，上传期间前端会把按钮切成“上传中”并临时禁用保存 / 上传；失败时错误文案必须带上 HTTP 状态，别再让用户点完文件选择器后面对一个装死的表单。
+- 主 chat 输入区选择或拖拽文件也走同一个 `POST /v1/assets/upload`，上传成功后自动加入已选资产，再由发送请求携带 `assetRefs`；不再把文件内容塞进 `/v1/chat/stream` 或 `/v1/chat/queue` 的 JSON body。
 - `conn` 编辑器加载最近资产列表时，不会再因为 `/v1/assets?limit=40` 没带上某个旧资料，就把已经选中的 `assetRefs` 静默洗掉；缺失的已选资产会按需补请求 `/v1/assets/:assetId` 拉回详情
 - `profileId` / `agentSpecId` / `skillSetId` / `modelPolicyId` / `upgradePolicy`：在界面上分别叫“任务身份 / 执行模板 / 能力包 / 模型策略 / 版本跟随方式”，底层仍作为运行时索引字段传给 worker 解析快照。
 
@@ -197,15 +201,15 @@ Run 查询接口：
 
 当前运行口径：
 - 前台 `ugk-pi` 进程只负责创建 / 查询 / 暂停 / 恢复 conn，以及把 `POST /v1/conns/:connId/run` 写成一条 `pending` run。
-- `POST /v1/conns` 在未传 `target` 时，会自动绑定创建当下的服务端当前会话 `currentConversationId`；如果显式传了 `target`，仍以请求里的目标类型和值为准。
-- `conn` 系统技能当前以 [.pi/skills/conn-orchestrator/SKILL.md](/E:/AII/ugk-pi/.pi/skills/conn-orchestrator/SKILL.md) 为准：agent 直接依赖语言理解与 `conn` 工具，不搞低级文字匹配；默认投递到当前会话，当前回合如果已有上传或复用文件，应把可见 `assetRefs` 一起带入 `conn`。
+- `POST /v1/conns` 在未传 `target` 时，默认目标是 `{ "type": "task_inbox" }`；如果显式传了 `target`，仍以请求里的目标类型和值为准。旧的 `conversation` 目标只保留后端兼容读取，不再作为前台默认投递路径。
+- `conn` 系统技能当前以 [.pi/skills/conn-orchestrator/SKILL.md](/E:/AII/ugk-pi/.pi/skills/conn-orchestrator/SKILL.md) 为准：agent 直接依赖语言理解与 `conn` 工具，不搞低级文字匹配；默认投递到任务消息页，当前回合如果已有上传或复用文件，应把可见 `assetRefs` 一起带入 `conn`。
 - 本地 `docker compose` 会把 `conn.sqlite` 放到 named volume `ugk-pi-conn-db`，避开 Docker Desktop bind mount 上的多进程 SQLite 打开问题；如果 volume 里还是空库，而 legacy `.data/agent/conn/conn.sqlite` 已存在，初始化时会自动迁移这份旧库。
 - 后台执行由独立 `ugk-pi-conn-worker` 进程轮询 SQLite，领取 due run 后在 `.data/agent/background/runs/<runId>/` 创建独立 workspace。
 - 后台 runner 生成 `resultText` 时会优先保留用户真正要的可见答案；如果最后一条 assistant 文本只是“输出文件已写入”这类低信息量收尾，会回退到前面更有用的回答。别再让通知正文只剩一个文件路径，用户不是来猜谜的。
 - run 成功后会扫描该 workspace 的 `output/` 目录，并把真实输出文件写入 `conn_run_files`；因此 run 详情里的“输出文件索引”应与后台生成物对齐。
-- conn 终态结果写入 `conversation_notifications`，再由 `AgentService.getConversationState()` 合并进前台对话；成功、失败和超时失败都会留下 notification，不会写入前台 pi session history。
-- playground 收到 `kind=notification` 且 `source=conn` 的消息后，会在消息底部显示“查看后台任务过程”入口；点开后分别请求 run 详情和 run 事件，展示状态、workspace、结果摘要、输出文件和过程日志
-- 这类 notification 在前端本地历史缓存里也会保留 `source / sourceId / runId`，刷新页面后仍然能继续点开 run 详情
+- conn 终态结果当前主链路写入 `agent_activity_items`，由任务消息页读取展示；成功、失败和超时失败都会留下记录，不会再以“写回前台 conversation transcript”作为默认投递方式。
+- playground 在任务消息页或后台任务列表里遇到 `source=conn` 且带 `sourceId + runId` 的条目时，会显示“查看后台任务过程”入口；点开后分别请求 run 详情和 run 事件，展示状态、workspace、结果摘要、输出文件和过程日志。
+- 这类条目依赖 `source / sourceId / runId` 维持可追溯性；如果这些字段丢了，优先查 activity 写入与前端条目归一化，不要再朝 conversation transcript 那条旧路上瞎补。
 - 旧的进程内 `conn-scheduler` / `conn-runner` 已移除，别再按前台同步执行链路排查。
 
 关键入口：
@@ -282,10 +286,10 @@ GET /v1/local-file?path=...
 
 ## Conn Realtime Broadcast
 
-- `conn-worker` 在把结果写入 `conversation_notifications` 之后，会再 best-effort 调用 `POST /v1/internal/notifications/broadcast`，把实时事件扔给前台 server 进程内的 `NotificationHub`。
+- `conn-worker` 在把结果写入 `agent_activity_items` 之后，会再 best-effort 调用 `POST /v1/internal/notifications/broadcast`，把实时事件扔给前台 server 进程内的 `NotificationHub`。
 - `NotificationHub` 负责把事件扇出到 `GET /v1/notifications/stream` 的所有在线 SSE 订阅者；断线或无人在线时不会影响持久化结果。
 - 本地和生产 compose 都显式给 `ugk-pi-conn-worker` 注入 `NOTIFICATION_BROADCAST_URL=http://ugk-pi:3000/v1/internal/notifications/broadcast`，避免 worker 在容器里误把 `127.0.0.1` 打回自己。
-- 这条链路只负责“在线提醒”，不改变 notification 的真实归属；真实归属仍然以 conn 创建时固化的 `target` 为准。
+- 这条链路只负责“在线提醒”，不改变结果的真实落点；真实落点仍然以 conn 创建时固化的 `target` 为准，默认就是任务消息页。
 - 关键入口：
   - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
   - [src/routes/notifications.ts](/E:/AII/ugk-pi/src/routes/notifications.ts)
@@ -353,14 +357,18 @@ GET /v1/local-file?path=...
 
 ## Agent Activity Timeline
 
-- `agent_activity_items` 是跨会话的全局活动读模型，不替代 conversation transcript。别把主聊天流硬改成“全局伪对话”，那是把上下文和观察层搅成一锅，后面一定会炸。
-- `conn-worker` 对所有终态 conn run 都会 best-effort 写入一条 `agent_activity_items`；如果目标是 conversation，才额外写入目标 `conversation_notifications`。成功、失败和超时结果都会进入全局活动。
+- `agent_activity_items` 是跨会话的任务消息读模型，不替代 conversation transcript。别把主聊天流硬改成“全局伪对话”，那是把上下文和观察层搅成一锅，后面一定会炸。
+- `conn-worker` 对所有终态 conn run 都会 best-effort 写入一条 `agent_activity_items`。成功、失败和超时结果都会进入任务消息页。
 - activity item 保留 `source / sourceId / runId / conversationId / title / text / files / createdAt / readAt`。其中 `source=conn` 且带有 `sourceId + runId` 的条目可以继续打开原有 conn run detail。
 - API：
-  - `GET /v1/activity?limit=50`：按时间倒序读取全局活动，支持 `limit`、`conversationId`、`before`。
+  - `GET /v1/activity?limit=50`：按时间倒序读取任务消息列表，支持 `limit`、`conversationId`、`before`、`unreadOnly=true`；响应包含 `activities`、`hasMore` 和可选 `nextBefore`。
   - `POST /v1/activity/:activityId/read`：标记活动已读。
-- `playground` 桌面端首页右侧新增 `全局活动`，手机端更多菜单新增 `全局活动`。打开后读取 `/v1/activity?limit=50`，并从条目跳转到已有的后台任务过程弹层。
-- 实时广播到达时，页面会刷新 activity 列表；即便当前会话不是 conn 的目标会话，也能在全局活动里看到结果。在线 toast 仍只是提醒层，真实记录以 SQLite activity 表为准。
+  - `POST /v1/activity/read-all`：批量标记全部任务消息已读。
+- `playground` 桌面端顶部状态栏新增 `任务消息`，手机端更多菜单也有同名入口。打开后如果存在未读数，默认读取 `/v1/activity?limit=50&unreadOnly=true`，并从条目跳转到已有的后台任务过程弹层。
+- 手机端右上角 `更多` 按钮自身也会显示任务消息未读数字徽标，颜色统一为 `#ff1744`，超过 99 显示 `99+`；不要只把数字藏在更多菜单内部。
+- 任务消息页提供 `未读 / 全部` 筛选和 `加载更多` 分页；`未读` 视图按全库 `read_at IS NULL` 查询，不受最新一页已读记录影响。
+- 未读状态现在按条处理：未读条目带红点；点击条目本身，或点击 `任务ID / 复制 / 查看过程` 才会把当前条目标成已读；进入页面本身不再自动清空未读。
+- 实时广播到达时，页面会刷新任务消息列表；即便当前会话不是 conn 的目标会话，也能在任务消息页里看到结果。在线 toast 仍只是提醒层，真实记录以 SQLite activity 表为准。
 - 关键入口：
   - [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
   - [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
@@ -371,3 +379,16 @@ GET /v1/local-file?path=...
   - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
   - [test/agent-activity-store.test.ts](/E:/AII/ugk-pi/test/agent-activity-store.test.ts)
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+## 任务消息收件箱（2026-04-23）
+
+- 后台 `conn` 结果的主投递面已经收口为 `agent_activity_items` + `任务消息` 页面；不再把“发到某个会话”当成默认主路径。
+- `POST /v1/conns` 在未显式传入 `target` 时，默认目标现在是 `{ "type": "task_inbox" }`，不再自动绑定服务端当前会话。
+- `playground` 里的 conn 创建 / 编辑器当前只向用户暴露三类目标：`task_inbox`、`feishu_chat`、`feishu_user`。旧的 `conversation` 目标只保留后端兼容读取，不再作为前台主选项。
+- `conn-worker` 对所有终态 run 都会写入 `agent_activity_items`，并广播 activity 事件；旧的会话通知写法已经退出主链路。
+- 任务消息读模型的补充接口：
+  - `GET /v1/activity/summary`：返回未读数量
+  - `GET /v1/activity?limit=50`：返回任务消息列表，支持 `unreadOnly=true` 与 `before` 分页，响应带 `hasMore` / `nextBefore`
+  - `POST /v1/activity/:activityId/read`：标记已读
+  - `POST /v1/activity/read-all`：全部标记已读
+- `playground` 任务消息页当前不会在打开时自动清未读；未读 badge 与条目红点都以后端 `readAt` 为准，避免前端假已读。
+- 顶部 badge 有未读时，任务消息页默认进入 `未读` 筛选，专门查询全库未读；`全部` 筛选用于按时间倒序翻完整记录，底部 `加载更多` 用 `nextBefore` 游标继续取下一页。

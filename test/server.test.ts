@@ -507,12 +507,28 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /conn-editor-upload-assets-button/);
 	assert.match(response.body, /conn-editor-asset-file-input/);
 	assert.match(response.body, /conn-editor-selected-assets/);
+	assert.match(response.body, /connEditorUploadingAssets/);
+	assert.match(response.body, /FormData/);
+	assert.match(response.body, /\/v1\/assets\/upload/);
+	assert.doesNotMatch(response.body, /collectAttachments/);
+	assert.doesNotMatch(response.body, /arrayBufferToBase64/);
+	assert.doesNotMatch(response.body, /pendingAttachments/);
+	assert.doesNotMatch(response.body, /renderAttachmentList/);
+	assert.doesNotMatch(response.body, /estimateAttachmentTokenCount/);
+	assert.match(response.body, /PROMPT_TEXT_ASSET_FALLBACK_CHARS = 24000/);
+	assert.match(response.body, /function estimateStoredTextAssetTokenCount\(sizeBytes\)/);
+	assert.match(response.body, /function estimateMetadataAssetTokenCount\(asset\)/);
+	assert.match(response.body, /上传中/);
+	assert.match(response.body, /上传失败/);
 	assert.match(response.body, /conn-editor-target-id-label/);
 	assert.match(response.body, /conn-editor-target-id-hint/);
 	assert.match(response.body, /function describeConnTargetInput\(/);
 	assert.match(response.body, /function buildConnTargetPayload\(\)/);
 	assert.match(response.body, /conn-editor-target-preview/);
-	assert.match(response.body, /function describeConversationTarget\(/);
+	assert.match(response.body, /option value="task_inbox"/);
+	assert.doesNotMatch(response.body, /option value="current_conversation"/);
+	assert.doesNotMatch(response.body, /option value="conversation"/);
+	assert.doesNotMatch(response.body, /function describeConversationTarget\(/);
 	assert.match(response.body, /function renderConnEditorTargetPreview\(/);
 	assert.match(response.body, /function setConnManagerNotice\(/);
 	assert.match(response.body, /conn-manager-notice/);
@@ -532,19 +548,38 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function scheduleConversationLayoutSync\(/);
 	assert.match(response.body, /function scheduleResumeConversationSync\(/);
 	assert.match(response.body, /function scheduleConversationHistoryPersist\(/);
-	assert.match(response.body, /open-agent-activity-button/);
-	assert.match(response.body, /mobile-menu-activity-button/);
-	assert.match(response.body, /agent-activity-dialog/);
-	assert.match(response.body, /agent-activity-list/);
-	assert.match(response.body, /function openAgentActivity\(/);
-	assert.match(response.body, /function loadAgentActivity\(/);
-	assert.match(response.body, /function renderAgentActivity\(/);
-	assert.match(response.body, /\/v1\/activity\?limit=50/);
+	assert.match(response.body, /open-task-inbox-button/);
+	assert.match(response.body, /mobile-menu-task-inbox-button/);
+	assert.match(response.body, /task-inbox-view/);
+	assert.match(response.body, /task-inbox-list/);
+	assert.match(response.body, /task-inbox-unread-badge/);
+	assert.match(response.body, /mobile-overflow-task-inbox-badge/);
+	assert.match(response.body, /mobile-topbar-notification-badge/);
+	assert.match(response.body, /mark-all-task-inbox-read-button/);
+	assert.match(response.body, /task-inbox-filter-unread-button/);
+	assert.match(response.body, /task-inbox-filter-all-button/);
+	assert.match(response.body, /task-inbox-load-more-button/);
+	assert.match(response.body, /task-inbox-item-unread-dot/);
+	assert.match(response.body, /function openTaskInbox\(/);
+	assert.match(response.body, /function loadTaskInbox\(/);
+	assert.match(response.body, /function renderTaskInbox\(/);
+	assert.match(response.body, /params\.set\("unreadOnly", "true"\)/);
+	assert.match(response.body, /params\.set\("before", state\.taskInboxNextBefore\)/);
+	assert.match(response.body, /\/v1\/activity\/summary/);
+	assert.match(response.body, /\/v1\/activity\/read-all/);
+	assert.match(response.body, /const markAllTaskInboxReadButton = document\.getElementById\("mark-all-task-inbox-read-button"\)/);
+	assert.match(response.body, /const taskInboxFilterUnreadButton = document\.getElementById\("task-inbox-filter-unread-button"\)/);
+	assert.match(response.body, /const mobileOverflowTaskInboxBadge = document\.getElementById\("mobile-overflow-task-inbox-badge"\)/);
+	assert.match(response.body, /mobileOverflowTaskInboxBadge\.hidden = unreadCount < 1/);
+	assert.match(response.body, /mobileOverflowTaskInboxBadge\.textContent = unreadCount > 99 \? "99\+" : String\(unreadCount\)/);
+	assert.doesNotMatch(response.body, /markVisibleTaskInboxItemsRead/);
 	assert.match(response.body, /\/v1\/conns"\s*,\s*\{\s*method:\s*"GET"/);
 	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(conn\.connId\)\s*\+\s*"\/run"/);
 	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(conn\.connId\)\s*\+\s*\(conn\.status === "paused" \? "\/resume" : "\/pause"\)/);
 	assert.match(response.body, /conn-run-details-dialog/);
 	assert.match(response.body, /conn-run-details-body/);
+	assert.doesNotMatch(response.body, /agent-activity-dialog/);
+	assert.doesNotMatch(response.body, /agent-activity-list/);
 	assert.match(response.body, /source:\s*typeof rawEntry\.source === "string" \? rawEntry\.source : undefined/);
 	assert.match(response.body, /sourceId:\s*typeof rawEntry\.sourceId === "string" \? rawEntry\.sourceId : undefined/);
 	assert.match(response.body, /runId:\s*typeof rawEntry\.runId === "string" \? rawEntry\.runId : undefined/);
@@ -736,7 +771,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	const contextUsageIndex = response.body.indexOf('id="context-usage-shell"');
 	const filePickerActionIndex = response.body.indexOf('id="file-picker-action"');
 	const assetActionIndex = response.body.indexOf('id="open-asset-library-button"');
-	const activityActionIndex = response.body.indexOf('id="open-agent-activity-button"');
+	const taskInboxActionIndex = response.body.indexOf('id="open-task-inbox-button"');
 	const fileStripIndex = response.body.indexOf('<div class="file-strip">');
 	const selectedAssetsIndex = response.body.indexOf('id="selected-assets"');
 	const composerIndex = response.body.indexOf('<section id="composer-drop-target" class="composer">');
@@ -748,8 +783,8 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.ok(mobileTopbarIndex > asideIndex);
 	assert.ok(filePickerActionIndex > asideIndex);
 	assert.ok(assetActionIndex > asideIndex);
-	assert.ok(activityActionIndex > asideIndex);
-	assert.ok(contextUsageIndex > activityActionIndex);
+	assert.ok(taskInboxActionIndex > asideIndex);
+	assert.ok(contextUsageIndex > taskInboxActionIndex);
 	assert.ok(contextUsageIndex < mobileTopbarIndex);
 	assert.ok(fileStripIndex >= 0);
 	assert.ok(selectedAssetsIndex >= 0);
@@ -770,7 +805,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /body\.classList\.add\("has-file-chips"\)/);
 	assert.match(response.body, /asset\.fileName/);
 	assert.match(response.body, /removeSelectedAsset\(asset\.assetId\)/);
-	assert.match(response.body, /removePendingAttachment\(index\)/);
+	assert.doesNotMatch(response.body, /removePendingAttachment/);
 	assert.match(response.body, /async function loadAssetDetails\(assetIds, options\)\s*\{/);
 	assert.match(response.body, /async function ensureRecentAssetsForRefs\(assetRefs, options\)\s*\{/);
 	assert.match(response.body, /fetch\("\/v1\/assets\/" \+ encodeURIComponent\(assetId\)/);
@@ -938,7 +973,7 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 	await app.close();
 });
 
-test("POST /v1/conns defaults target to the current conversation when target is omitted", async () => {
+test("POST /v1/conns defaults target to the task inbox when target is omitted", async () => {
 	const createdInputs: unknown[] = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub({
@@ -963,7 +998,7 @@ test("POST /v1/conns defaults target to the current conversation when target is 
 			create: async (input: {
 				title: string;
 				prompt: string;
-				target: { type: "conversation"; conversationId: string };
+				target: { type: "task_inbox" };
 				schedule: { kind: "cron"; expression: string; timezone?: string };
 				assetRefs?: string[];
 				profileId?: string;
@@ -1021,7 +1056,7 @@ test("POST /v1/conns defaults target to the current conversation when target is 
 		{
 			title: "current digest",
 			prompt: "follow current conversation",
-			target: { type: "conversation", conversationId: "manual:current-thread" },
+			target: { type: "task_inbox" },
 			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
 			assetRefs: undefined,
 			profileId: undefined,
@@ -1036,7 +1071,7 @@ test("POST /v1/conns defaults target to the current conversation when target is 
 			connId: "conn-default-target",
 			title: "current digest",
 			prompt: "follow current conversation",
-			target: { type: "conversation", conversationId: "manual:current-thread" },
+			target: { type: "task_inbox" },
 			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
 			assetRefs: [],
 			status: "active",
@@ -1409,12 +1444,16 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /class="mobile-brand-wordmark">UGK Claw</);
 	assert.match(response.body, /id="mobile-new-conversation-button"/);
 	assert.match(response.body, /id="mobile-overflow-menu-button"/);
+	assert.match(response.body, /class="mobile-topbar-button mobile-topbar-button-with-badge"/);
+	assert.match(response.body, /id="mobile-overflow-task-inbox-badge"/);
 	assert.match(response.body, /id="mobile-overflow-menu"/);
 	assert.match(response.body, /class="mobile-overflow-menu"/);
 	assert.match(response.body, /id="mobile-overflow-menu"[^>]*hidden|hidden[^>]*id="mobile-overflow-menu"/);
 	assert.match(response.body, /id="mobile-menu-skills-button"/);
 	assert.match(response.body, /id="mobile-menu-file-button"/);
 	assert.match(response.body, /id="mobile-menu-library-button"/);
+	assert.match(response.body, /id="mobile-menu-task-inbox-button"/);
+	assert.match(response.body, /id="mobile-task-inbox-unread-badge"/);
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
@@ -1422,7 +1461,10 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*min-height:\s*48px;/);
 	assert.match(response.body, /\.mobile-topbar-button\s*\{[\s\S]*width:\s*36px;/);
-	assert.match(response.body, /\.mobile-overflow-menu-item\s*\{[\s\S]*grid-template-columns:\s*18px minmax\(0, 1fr\);/);
+	assert.match(response.body, /\.mobile-topbar-notification-badge\s*\{[\s\S]*min-width:\s*18px;[\s\S]*background:\s*#ff1744;/);
+	assert.match(response.body, /\.mobile-overflow-menu-item-badge\s*\{[\s\S]*background:\s*#ff1744;/);
+	assert.match(response.body, /\.telemetry-action-badge\s*\{[\s\S]*background:\s*#ff1744;/);
+	assert.match(response.body, /\.mobile-overflow-menu-item\s*\{[\s\S]*grid-template-columns:\s*18px minmax\(0, 1fr\) auto;/);
 	const mobileDrawerBackdropBlock = response.body.match(/\.mobile-drawer-backdrop\s*\{([\s\S]*?)\n\s*\}/);
 	assert.ok(mobileDrawerBackdropBlock);
 	assert.match(mobileDrawerBackdropBlock[1], /background:\s*transparent;/);
@@ -1444,11 +1486,12 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /mobileMenuSkillsButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /mobileMenuFileButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /mobileMenuLibraryButton\.addEventListener\("click", \(\) => \{/);
+	assert.match(response.body, /mobileMenuTaskInboxButton\.addEventListener\("click", \(\) => \{/);
 	assert.doesNotMatch(response.body, /class="mobile-action-strip"/);
 	await app.close();
 });
 
-test("GET /playground uses touch-first mobile panels for library, tasks, activity, and history", async () => {
+test("GET /playground uses touch-first mobile panels for library, tasks, conn, and history", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
 	});
@@ -1466,15 +1509,17 @@ test("GET /playground uses touch-first mobile panels for library, tasks, activit
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-head\s*\{[\s\S]*position:\s*sticky;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-actions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-actions button\s*\{[\s\S]*border-radius:\s*4px;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-pill,\s*\.agent-activity-item,\s*\.conn-manager-item\s*\{[\s\S]*min-height:\s*64px;[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-item-shell\s*\{[\s\S]*min-height:\s*64px;[\s\S]*border-radius:\s*4px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-toolbar\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*border-radius:\s*4px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-filter-field select\s*\{[\s\S]*border-radius:\s*4px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-actions\s*\{[\s\S]*display:\s*grid;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.agent-activity-actions\s*\{[\s\S]*display:\s*grid;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-item-actions\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-actions button,[\s\S]*\.conn-manager-run-actions button\s*\{[\s\S]*border-radius:\s*4px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-manager-run-item\s*\{[\s\S]*border-radius:\s*4px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-run-details-dialog\.open\s*\{[\s\S]*align-items:\s*flex-end;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conn-run-details-panel\s*\{[\s\S]*border-radius:\s*4px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-head\s*\{[\s\S]*position:\s*sticky;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-head-actions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-backdrop\s*\{[\s\S]*background:\s*rgba\(1, 3, 10, 0\.42\);/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-drawer\s*\{[\s\S]*width:\s*min\(94vw, 380px\);/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*position:\s*sticky;/);
@@ -1773,7 +1818,10 @@ test("GET /playground injects stream lifecycle runtime from a dedicated controll
 	assert.match(response.body, /function bindPlaygroundStreamController\(\)\s*\{/);
 	assert.match(response.body, /bindPlaygroundStreamController\(\);/);
 	assert.match(response.body, /function connectNotificationStream\(\)\s*\{/);
-	assert.match(response.body, /function handleNotificationBroadcastEvent\(rawEvent\)\s*\{/);
+	assert.match(
+		response.body,
+		/function handleNotificationBroadcastEvent\(rawEvent\)\s*\{[\s\S]*?showNotificationToast\(event\);[\s\S]*?void loadTaskInbox\(\{ silent: true \}\);[\s\S]*?void syncTaskInboxSummary\(\{ silent: true \}\);[\s\S]*?\}/,
+	);
 	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
 	assert.match(response.body, /async function recoverRunningStreamAfterDisconnect\(reason\)\s*\{/);
 	assert.match(response.body, /function handleStreamEvent\(event\)\s*\{/);
@@ -2661,37 +2709,9 @@ test("GET /v1/assets returns reusable asset metadata", async () => {
 	await app.close();
 });
 
-test("POST /v1/assets registers uploaded assets for later reuse", async () => {
-	const calls: Array<{ conversationId: string; attachments: unknown[] }> = [];
+test("POST /v1/assets no longer accepts JSON attachment uploads", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
-		assetStore: {
-			registerAttachments: async (conversationId, attachments) => {
-				calls.push({ conversationId, attachments: [...attachments] });
-				return [
-					{
-						assetId: "asset-upload-1",
-						reference: "@asset[asset-upload-1]",
-						fileName: "notes.txt",
-						mimeType: "text/plain",
-						sizeBytes: 11,
-						kind: "text",
-						hasContent: true,
-						source: "user_upload",
-						conversationId,
-						createdAt: "2026-04-23T00:00:00.000Z",
-						textPreview: "hello file",
-						downloadUrl: "/v1/files/asset-upload-1",
-					},
-				];
-			},
-			saveFiles: async () => [],
-			listAssets: async () => [],
-			getAsset: async () => undefined,
-			resolveAssets: async () => [],
-			readText: async () => undefined,
-			getFile: async () => undefined,
-		},
 	});
 
 	const response = await app.inject({
@@ -2710,40 +2730,134 @@ test("POST /v1/assets registers uploaded assets for later reuse", async () => {
 		},
 	});
 
-	assert.equal(response.statusCode, 200);
-	assert.deepEqual(response.json(), {
-		assets: [
-			{
-				assetId: "asset-upload-1",
-				reference: "@asset[asset-upload-1]",
-				fileName: "notes.txt",
-				mimeType: "text/plain",
-				sizeBytes: 11,
-				kind: "text",
-				hasContent: true,
-				source: "user_upload",
-				conversationId: "manual:conn",
-				createdAt: "2026-04-23T00:00:00.000Z",
-				textPreview: "hello file",
-				downloadUrl: "/v1/files/asset-upload-1",
-			},
-		],
-	});
-	assert.deepEqual(calls, [
-		{
-			conversationId: "manual:conn",
-			attachments: [
-				{
-					fileName: "notes.txt",
-					mimeType: "text/plain",
-					sizeBytes: 11,
-					text: "hello file",
-					base64: undefined,
-				},
-			],
-		},
-	]);
+	assert.equal(response.statusCode, 404);
 	await app.close();
+});
+
+test("POST /v1/assets/upload registers multipart files for later reuse", async () => {
+	const calls: Array<{ conversationId: string; attachments: unknown[] }> = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		assetStore: {
+			registerAttachments: async (conversationId, attachments) => {
+				calls.push({ conversationId, attachments: [...attachments] });
+				return [
+					{
+						assetId: "asset-multipart-upload",
+						reference: "@asset[asset-multipart-upload]",
+						fileName: "brief.pdf",
+						mimeType: "application/pdf",
+						sizeBytes: 5,
+						kind: "binary",
+						hasContent: true,
+						source: "user_upload",
+						conversationId,
+						createdAt: "2026-04-23T00:00:00.000Z",
+						downloadUrl: "/v1/files/asset-multipart-upload",
+					},
+				];
+			},
+			saveFiles: async () => [],
+			listAssets: async () => [],
+			getAsset: async () => undefined,
+			resolveAssets: async () => [],
+			readText: async () => undefined,
+			getFile: async () => undefined,
+		},
+	});
+
+	const boundary = "----ugk-test-boundary";
+	const payload = Buffer.from(
+		[
+			`--${boundary}`,
+			'Content-Disposition: form-data; name="conversationId"',
+			"",
+			"manual:conn-upload",
+			`--${boundary}`,
+			'Content-Disposition: form-data; name="files"; filename="brief.pdf"',
+			"Content-Type: application/pdf",
+			"",
+			"%PDF-",
+			`--${boundary}--`,
+			"",
+		].join("\r\n"),
+	);
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/assets/upload",
+		headers: {
+			"content-type": `multipart/form-data; boundary=${boundary}`,
+			"content-length": String(payload.length),
+		},
+		payload,
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.equal(response.json().assets[0].assetId, "asset-multipart-upload");
+	assert.equal(calls.length, 1);
+	assert.equal(calls[0].conversationId, "manual:conn-upload");
+	assert.deepEqual(calls[0].attachments[0], {
+		fileName: "brief.pdf",
+		mimeType: "application/pdf",
+		sizeBytes: 5,
+		base64: Buffer.from("%PDF-").toString("base64"),
+	});
+	await app.close();
+});
+
+test("POST /v1/assets/upload returns 413 when a file exceeds the configured size limit", async () => {
+	const previousLimit = process.env.ASSET_UPLOAD_FILE_LIMIT_BYTES;
+	process.env.ASSET_UPLOAD_FILE_LIMIT_BYTES = String(16 * 1024);
+
+	try {
+		const app = buildServer({
+			agentService: createAgentServiceStub(),
+		});
+
+		const boundary = "----ugk-test-boundary-limit";
+		const oversizedBody = "a".repeat(20 * 1024);
+		const payload = Buffer.from(
+			[
+				`--${boundary}`,
+				'Content-Disposition: form-data; name="conversationId"',
+				"",
+				"manual:too-large",
+				`--${boundary}`,
+				'Content-Disposition: form-data; name="files"; filename="oversized.txt"',
+				"Content-Type: text/plain",
+				"",
+				oversizedBody,
+				`--${boundary}--`,
+				"",
+			].join("\r\n"),
+		);
+
+		const response = await app.inject({
+			method: "POST",
+			url: "/v1/assets/upload",
+			headers: {
+				"content-type": `multipart/form-data; boundary=${boundary}`,
+				"content-length": String(payload.length),
+			},
+			payload,
+		});
+
+		assert.equal(response.statusCode, 413);
+		assert.deepEqual(response.json(), {
+			error: {
+				code: "PAYLOAD_TOO_LARGE",
+				message: "Uploaded files must be 16KiB or smaller",
+			},
+		});
+		await app.close();
+	} finally {
+		if (previousLimit === undefined) {
+			delete process.env.ASSET_UPLOAD_FILE_LIMIT_BYTES;
+		} else {
+			process.env.ASSET_UPLOAD_FILE_LIMIT_BYTES = previousLimit;
+		}
+	}
 });
 
 test("GET /v1/conns returns scheduled conn tasks", async () => {
@@ -3634,7 +3748,7 @@ test("GET /v1/activity returns global activity items newest-first", async () => 
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.deepEqual(calls, [{}]);
+	assert.deepEqual(calls, [{ limit: 51 }]);
 	assert.deepEqual(response.json(), {
 		activities: [
 			{
@@ -3669,6 +3783,30 @@ test("GET /v1/activity returns global activity items newest-first", async () => 
 				createdAt: "2026-04-22T10:01:00.000Z",
 			},
 		],
+		hasMore: false,
+	});
+	await app.close();
+});
+
+test("GET /v1/activity/summary returns unread counts for the task inbox", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		activityStore: {
+			get: async () => undefined,
+			list: async () => [],
+			markRead: async () => false,
+			getUnreadCount: async () => 7,
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/activity/summary",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		unreadCount: 7,
 	});
 	await app.close();
 });
@@ -3689,12 +3827,115 @@ test("GET /v1/activity supports conversation filters and limits", async () => {
 
 	const response = await app.inject({
 		method: "GET",
-		url: "/v1/activity?conversationId=manual%3Aone&limit=2",
+		url: "/v1/activity?conversationId=manual%3Aone&limit=2&unreadOnly=true&before=2026-04-22T10%3A02%3A00.000Z",
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.deepEqual(response.json(), { activities: [] });
-	assert.deepEqual(calls, [{ limit: 2, conversationId: "manual:one" }]);
+	assert.deepEqual(response.json(), { activities: [], hasMore: false });
+	assert.deepEqual(calls, [
+		{
+			limit: 3,
+			conversationId: "manual:one",
+			before: "2026-04-22T10:02:00.000Z",
+			unreadOnly: true,
+		},
+	]);
+	await app.close();
+});
+
+test("GET /v1/activity returns pagination metadata when another task inbox page exists", async () => {
+	const calls: unknown[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		activityStore: {
+			list: async (options?: unknown) => {
+				calls.push(options);
+				return [
+					{
+						activityId: "activity-new",
+						scope: "agent",
+						source: "conn",
+						sourceId: "conn-2",
+						runId: "run-2",
+						conversationId: "manual:two",
+						kind: "conn_result",
+						title: "New completed",
+						text: "new text",
+						files: [],
+						createdAt: "2026-04-22T10:03:00.000Z",
+					},
+					{
+						activityId: "activity-middle",
+						scope: "agent",
+						source: "conn",
+						sourceId: "conn-3",
+						runId: "run-3",
+						conversationId: "manual:one",
+						kind: "conn_result",
+						title: "Middle completed",
+						text: "middle text",
+						files: [],
+						createdAt: "2026-04-22T10:02:00.000Z",
+					},
+					{
+						activityId: "activity-old",
+						scope: "agent",
+						source: "conn",
+						sourceId: "conn-1",
+						runId: "run-1",
+						conversationId: "manual:one",
+						kind: "conn_result",
+						title: "Old completed",
+						text: "old text",
+						files: [],
+						createdAt: "2026-04-22T10:01:00.000Z",
+					},
+				];
+			},
+			get: async () => undefined,
+			markRead: async () => false,
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/activity?limit=2&unreadOnly=true",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(calls, [{ limit: 3, unreadOnly: true }]);
+	assert.deepEqual(response.json(), {
+		activities: [
+			{
+				activityId: "activity-new",
+				scope: "agent",
+				source: "conn",
+				sourceId: "conn-2",
+				runId: "run-2",
+				conversationId: "manual:two",
+				kind: "conn_result",
+				title: "New completed",
+				text: "new text",
+				files: [],
+				createdAt: "2026-04-22T10:03:00.000Z",
+			},
+			{
+				activityId: "activity-middle",
+				scope: "agent",
+				source: "conn",
+				sourceId: "conn-3",
+				runId: "run-3",
+				conversationId: "manual:one",
+				kind: "conn_result",
+				title: "Middle completed",
+				text: "middle text",
+				files: [],
+				createdAt: "2026-04-22T10:02:00.000Z",
+			},
+		],
+		hasMore: true,
+		nextBefore: "2026-04-22T10:02:00.000Z",
+	});
 	await app.close();
 });
 
@@ -3767,6 +4008,35 @@ test("POST /v1/activity/:activityId/read marks an activity item read", async () 
 			createdAt: "2026-04-22T10:01:00.000Z",
 			readAt: "2026-04-22T10:03:00.000Z",
 		},
+	});
+	await app.close();
+});
+
+test("POST /v1/activity/read-all marks all task inbox items as read", async () => {
+	const calls: string[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		activityStore: {
+			list: async () => [],
+			get: async () => undefined,
+			markRead: async () => false,
+			getUnreadCount: async () => 0,
+			markAllRead: async () => {
+				calls.push("all");
+				return 5;
+			},
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/activity/read-all",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(calls, ["all"]);
+	assert.deepEqual(response.json(), {
+		markedCount: 5,
 	});
 	await app.close();
 });

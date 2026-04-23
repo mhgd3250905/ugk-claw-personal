@@ -27,11 +27,12 @@ export function getConnActivityElementRefsScript(): string {
 		const connRunDetailsDialog = document.getElementById("conn-run-details-dialog");
 		const connRunDetailsBody = document.getElementById("conn-run-details-body");
 		const connRunDetailsClose = document.getElementById("conn-run-details-close");
-		const openAgentActivityButton = document.getElementById("open-agent-activity-button");
-		const agentActivityDialog = document.getElementById("agent-activity-dialog");
-		const agentActivityList = document.getElementById("agent-activity-list");
-		const closeAgentActivityButton = document.getElementById("close-agent-activity-button");
-		const refreshAgentActivityButton = document.getElementById("refresh-agent-activity-button");
+		const openTaskInboxButton = document.getElementById("open-task-inbox-button");
+		const taskInboxUnreadBadge = document.getElementById("task-inbox-unread-badge");
+		const taskInboxView = document.getElementById("task-inbox-view");
+		const taskInboxList = document.getElementById("task-inbox-list");
+		const closeTaskInboxButton = document.getElementById("close-task-inbox-button");
+		const refreshTaskInboxButton = document.getElementById("refresh-task-inbox-button");
 		const openConnManagerButton = document.getElementById("open-conn-manager-button");
 		const connManagerDialog = document.getElementById("conn-manager-dialog");
 		const connManagerNotice = document.getElementById("conn-manager-notice");
@@ -87,27 +88,6 @@ export function getConnActivityEditorScript(): string {
 			connRunDetailsDialog.hidden = true;
 			connRunDetailsDialog.setAttribute("aria-hidden", "true");
 			connRunDetailsBody.innerHTML = "";
-		}
-
-		function openAgentActivity(restoreFocusElement) {
-			state.agentActivityOpen = true;
-			state.agentActivityRestoreFocusElement = rememberPanelReturnFocus(
-				restoreFocusElement || openAgentActivityButton,
-			);
-			agentActivityDialog.hidden = false;
-			agentActivityDialog.classList.add("open");
-			agentActivityDialog.setAttribute("aria-hidden", "false");
-			renderAgentActivity();
-			void loadAgentActivity({ silent: false });
-		}
-
-		function closeAgentActivity() {
-			state.agentActivityOpen = false;
-			restoreFocusAfterPanelClose(agentActivityDialog, state.agentActivityRestoreFocusElement);
-			state.agentActivityRestoreFocusElement = null;
-			agentActivityDialog.classList.remove("open");
-			agentActivityDialog.hidden = true;
-			agentActivityDialog.setAttribute("aria-hidden", "true");
 		}
 
 		function openConnManager(restoreFocusElement) {
@@ -216,19 +196,13 @@ export function getConnActivityEditorScript(): string {
 			const target = conn?.target || {};
 			const schedule = conn?.schedule || {};
 			const targetType =
-				target.type === "feishu_chat" || target.type === "feishu_user"
-					? target.type
-					: target.type === "conversation" && target.conversationId && target.conversationId !== state.conversationId
-						? "conversation"
-						: "current_conversation";
+				target.type === "feishu_chat" || target.type === "feishu_user" ? target.type : "task_inbox";
 			const targetId =
 				targetType === "feishu_chat"
 					? target.chatId || ""
 					: targetType === "feishu_user"
 						? target.openId || ""
-						: targetType === "conversation"
-							? target.conversationId || ""
-							: "";
+						: "";
 			return {
 				title: conn?.title || "",
 				prompt: conn?.prompt || "",
@@ -248,7 +222,7 @@ export function getConnActivityEditorScript(): string {
 				modelPolicyId: conn?.modelPolicyId || "",
 				upgradePolicy: conn?.upgradePolicy || "latest",
 				maxRunSeconds: conn?.maxRunMs ? String(Math.round(Number(conn.maxRunMs) / 1000)) : "",
-				assetRefs: Array.isArray(conn?.assetRefs) ? [...conn.assetRefs] : [],
+				assetRefs: Array.isArray(conn?.assetRefs) ? conn.assetRefs.join("\\n") : "",
 			};
 		}
 
@@ -268,7 +242,7 @@ export function getConnActivityEditorScript(): string {
 			connEditorModelPolicyId.value = draft.modelPolicyId;
 			connEditorUpgradePolicy.value = draft.upgradePolicy;
 			connEditorMaxRunSeconds.value = draft.maxRunSeconds;
-			state.connEditorSelectedAssetRefs = Array.isArray(draft.assetRefs) ? [...draft.assetRefs] : [];
+			state.connEditorSelectedAssetRefs = normalizeConnAssetRefsText(draft.assetRefs);
 			connEditorAssetRefs.value = state.connEditorSelectedAssetRefs.join("\\\\n");
 			renderConnEditorSelectedAssets();
 			syncConnEditorTimePickers();
@@ -361,7 +335,9 @@ export function getConnActivityEditorScript(): string {
 		function initializeConnEditorTimePickers() {
 			if (typeof window.flatpickr !== "function") {
 				for (const input of [connEditorOnceAt, connEditorIntervalStart, connEditorTimeOfDay]) {
-					input.removeAttribute("readonly");
+					if (input) {
+						input.removeAttribute("readonly");
+					}
 				}
 				return;
 			}
@@ -434,29 +410,29 @@ export function getConnActivityEditorScript(): string {
 		function describeConnTargetInput(targetType) {
 			if (targetType === "feishu_chat") {
 				return {
-					label: "飞书群编号",
+					label: "?????",
 					placeholder: "oc_xxx / chat id",
-					hint: "填飞书群的 chat id。",
+					hint: "?????? chat id?",
 				};
 			}
 			if (targetType === "feishu_user") {
 				return {
-					label: "飞书用户编号",
+					label: "??????",
 					placeholder: "ou_xxx / open id",
-					hint: "填飞书用户的 open id。",
+					hint: "??????? open id?",
 				};
 			}
 			return {
-				label: "会话编号",
-				placeholder: "conversation id",
-				hint: "填要接收结果的会话编号；保存后不会跟着当前页面自动切换。",
+				label: "????",
+				placeholder: "task inbox",
+				hint: "???????????????????????",
 			};
 		}
 
 		function setConnEditorSectionVisibility() {
 			const targetType = connEditorTargetType.value;
-			connEditorTargetCurrent.hidden = targetType !== "current_conversation";
-			connEditorTargetId.parentElement.hidden = targetType === "current_conversation";
+			connEditorTargetCurrent.hidden = targetType !== "task_inbox";
+			connEditorTargetId.parentElement.hidden = targetType === "task_inbox";
 			const targetInput = describeConnTargetInput(targetType);
 			connEditorTargetIdLabel.textContent = targetInput.label;
 			connEditorTargetId.placeholder = targetInput.placeholder;
@@ -472,69 +448,31 @@ export function getConnActivityEditorScript(): string {
 			}
 		}
 
-		function findConversationCatalogItem(conversationId) {
-			const targetConversationId = String(conversationId || "").trim();
-			if (!targetConversationId) {
-				return null;
-			}
-			return state.conversationCatalog.find((item) => item.conversationId === targetConversationId) || null;
-		}
-
-		function describeConversationTarget(conversationId, fallbackLabel) {
-			const targetConversationId = String(conversationId || "").trim();
-			const catalogItem = findConversationCatalogItem(targetConversationId);
-			const title = catalogItem?.title || fallbackLabel || "会话";
-			const preview = catalogItem?.preview || "";
-			return {
-				title,
-				id: targetConversationId,
-				preview,
-				active: targetConversationId && targetConversationId === state.conversationId,
-				known: Boolean(catalogItem),
-			};
-		}
-
 		function renderConnEditorTargetPreview() {
-			const targetType = String(connEditorTargetType.value || "").trim();
-			const targetId =
-				targetType === "current_conversation"
-					? state.conversationId
-					: String(connEditorTargetId.value || "").trim();
+			const targetType = String(connEditorTargetType.value || "task_inbox").trim();
+			const targetId = String(connEditorTargetId.value || "").trim();
 			connEditorTargetPreview.innerHTML = "";
 
 			const label = document.createElement("strong");
 			const detail = document.createElement("span");
 			const id = document.createElement("code");
-			const footnote = document.createElement("span");
-			footnote.className = "conn-editor-target-note";
-
 			if (targetType === "feishu_chat") {
-				label.textContent = "投递到飞书群";
-				detail.textContent = "后台 run 结束后由飞书 adapter 发送；全局活动仍保留追溯记录。";
-				id.textContent = targetId || "等待填写 chat id";
+				label.textContent = "??????";
+				detail.textContent = "?????????????????????????";
+				id.textContent = targetId || "???? chat id";
 			} else if (targetType === "feishu_user") {
-				label.textContent = "投递到飞书用户";
-				detail.textContent = "后台 run 结束后由飞书 adapter 发送；全局活动仍保留追溯记录。";
-				id.textContent = targetId || "等待填写 open id";
+				label.textContent = "???????";
+				detail.textContent = "?????????????????????????";
+				id.textContent = targetId || "???? open id";
 			} else {
-				const conversation = describeConversationTarget(
-					targetId,
-					targetType === "current_conversation" ? "当前会话" : "指定会话",
-				);
-				label.textContent =
-					"投递到 " +
-					(conversation.active ? "当前会话" : conversation.known ? conversation.title : "指定会话");
-				detail.textContent = conversation.preview || "保存后，conn 结果气泡只进入这个目标会话。";
-				id.textContent = conversation.id || "当前会话尚未同步";
-				footnote.textContent = "切到新会话不会改写已保存 conn 的目标；跨会话观察请看全局活动。";
+				label.textContent = "???????";
+				detail.textContent = "????????????????????????????????";
+				id.textContent = "task_inbox";
 			}
 
 			connEditorTargetPreview.appendChild(label);
 			connEditorTargetPreview.appendChild(detail);
 			connEditorTargetPreview.appendChild(id);
-			if (footnote.textContent) {
-				connEditorTargetPreview.appendChild(footnote);
-			}
 		}
 
 		function renderConnEditorError(message) {
@@ -578,9 +516,11 @@ export function getConnActivityEditorScript(): string {
 
 		function renderConnEditor() {
 			connEditorTitle.textContent = state.connEditorMode === "edit" ? "编辑后台任务" : "新建后台任务";
-			connEditorTargetCurrent.textContent = state.conversationId || "当前会话尚未同步";
-			saveConnEditorButton.disabled = state.connEditorSaving;
+			connEditorTargetCurrent.textContent = "task_inbox";
+			saveConnEditorButton.disabled = state.connEditorSaving || state.connEditorUploadingAssets;
 			saveConnEditorButton.textContent = state.connEditorSaving ? "保存中" : "保存";
+			connEditorUploadAssetsButton.disabled = state.connEditorSaving || state.connEditorUploadingAssets;
+			connEditorUploadAssetsButton.textContent = state.connEditorUploadingAssets ? "上传中" : "上传新文件";
 			renderConnEditorError(state.connEditorError);
 			renderConnEditorSelectedAssets();
 			setConnEditorSectionVisibility();
@@ -591,48 +531,39 @@ export function getConnActivityEditorScript(): string {
 			if (selectedFiles.length === 0) {
 				return;
 			}
-			const attachments = await collectAttachments(selectedFiles);
-			const response = await fetch("/v1/assets", {
-				method: "POST",
-				headers: {
-					accept: "application/json",
-					"content-type": "application/json",
-				},
-				body: JSON.stringify({
+			state.connEditorUploadingAssets = true;
+			renderConnEditorError("");
+			renderConnEditor();
+			try {
+				const assets = await uploadFilesAsAssets(selectedFiles, {
 					conversationId: state.conversationId,
-					attachments,
-				}),
-			});
-			const payload = await response.json().catch(() => ({}));
-			if (!response.ok) {
-				throw new Error(payload?.error?.message || payload?.message || "文件上传失败");
+				});
+				mergeRecentAssets(assets);
+				state.connEditorSelectedAssetRefs = Array.from(
+					new Set([
+						...state.connEditorSelectedAssetRefs,
+						...assets
+							.map((asset) => String(asset?.assetId || "").trim())
+							.filter(Boolean),
+					]),
+				);
+				connEditorAssetRefs.value = state.connEditorSelectedAssetRefs.join("\\\\n");
+				renderConnEditorSelectedAssets();
+				renderAssetPickerList();
+			} finally {
+				state.connEditorUploadingAssets = false;
+				renderConnEditor();
 			}
-			const assets = Array.isArray(payload?.assets) ? payload.assets : [];
-			mergeRecentAssets(assets);
-			state.connEditorSelectedAssetRefs = Array.from(
-				new Set([
-					...state.connEditorSelectedAssetRefs,
-					...assets
-						.map((asset) => String(asset?.assetId || "").trim())
-						.filter(Boolean),
-				]),
-			);
-			connEditorAssetRefs.value = state.connEditorSelectedAssetRefs.join("\\\\n");
-			renderConnEditorSelectedAssets();
-			renderAssetPickerList();
 		}
 
 		function buildConnTargetPayload() {
-			const targetType = String(connEditorTargetType.value || "").trim();
-			if (targetType === "current_conversation") {
-				if (!state.conversationId) {
-					throw new Error("无法确认当前会话");
-				}
-				return { type: "conversation", conversationId: state.conversationId };
+			const targetType = String(connEditorTargetType.value || "task_inbox").trim();
+			if (targetType === "task_inbox") {
+				return { type: "task_inbox" };
 			}
 			const targetId = String(connEditorTargetId.value || "").trim();
 			if (!targetId) {
-				throw new Error("请填写目标 ID");
+				throw new Error("????? ID");
 			}
 			if (targetType === "feishu_chat") {
 				return { type: "feishu_chat", chatId: targetId };
@@ -640,7 +571,7 @@ export function getConnActivityEditorScript(): string {
 			if (targetType === "feishu_user") {
 				return { type: "feishu_user", openId: targetId };
 			}
-			return { type: "conversation", conversationId: targetId };
+			return { type: "task_inbox" };
 		}
 
 		function buildConnSchedulePayload() {
@@ -759,7 +690,7 @@ export function getConnActivityEditorScript(): string {
 						(savedConn?.title || payload.title) +
 						"。结果会投递到 " +
 						targetLabel +
-						"，全局活动同步可见。",
+						"，任务消息页会同步显示。",
 					savedConn?.connId || state.connEditorConnId,
 				);
 				closeConnEditor();
@@ -855,78 +786,6 @@ export function getConnActivityApiScript(): string {
 				deletedConnIds: Array.isArray(payload?.deletedConnIds) ? payload.deletedConnIds : [],
 				missingConnIds: Array.isArray(payload?.missingConnIds) ? payload.missingConnIds : [],
 			};
-		}
-
-		function normalizeAgentActivityItem(item) {
-			const activityId = String(item?.activityId || "").trim();
-			if (!activityId) {
-				return null;
-			}
-			return {
-				activityId,
-				scope: String(item?.scope || "agent").trim() || "agent",
-				source: String(item?.source || "").trim() || "unknown",
-				sourceId: typeof item?.sourceId === "string" ? item.sourceId : undefined,
-				runId: typeof item?.runId === "string" ? item.runId : undefined,
-				conversationId: typeof item?.conversationId === "string" ? item.conversationId : undefined,
-				kind: String(item?.kind || "activity").trim() || "activity",
-				title: String(item?.title || "活动").trim() || "活动",
-				text: String(item?.text || "").trim(),
-				files: Array.isArray(item?.files) ? item.files : [],
-				createdAt: typeof item?.createdAt === "string" ? item.createdAt : new Date(0).toISOString(),
-				readAt: typeof item?.readAt === "string" ? item.readAt : undefined,
-			};
-		}
-
-		async function fetchAgentActivity() {
-			const response = await fetch("/v1/activity?limit=50", {
-				method: "GET",
-				headers: { accept: "application/json" },
-			});
-			const payload = await response.json().catch(() => ({}));
-			if (!response.ok) {
-				const errorMessage = payload?.error?.message || payload?.message || "无法读取全局活动";
-				throw new Error(errorMessage);
-			}
-			return Array.isArray(payload?.activities)
-				? payload.activities.map(normalizeAgentActivityItem).filter(Boolean)
-				: [];
-		}
-
-		async function loadAgentActivity(options) {
-			if (!options?.silent) {
-				clearError();
-			}
-			state.agentActivityLoading = true;
-			state.agentActivityError = "";
-			refreshAgentActivityButton.disabled = true;
-			agentActivityList.setAttribute("aria-busy", "true");
-			if (state.agentActivityOpen) {
-				renderAgentActivity();
-			}
-			try {
-				state.agentActivityItems = await fetchAgentActivity();
-				state.agentActivityError = "";
-				if (state.agentActivityOpen) {
-					renderAgentActivity();
-				}
-			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "无法读取全局活动";
-				state.agentActivityError = messageText;
-				if (!options?.silent) {
-					showError(messageText);
-				}
-				if (state.agentActivityOpen) {
-					renderAgentActivity();
-				}
-			} finally {
-				state.agentActivityLoading = false;
-				refreshAgentActivityButton.disabled = false;
-				agentActivityList.removeAttribute("aria-busy");
-				if (state.agentActivityOpen) {
-					renderAgentActivity();
-				}
-			}
 		}
 
 		async function loadConnManager(options) {
@@ -1080,23 +939,18 @@ export function getConnActivityRendererScript(): string {
 
 		function describeConnTargetSummary(target) {
 			if (!target || typeof target !== "object") {
-				return "结果去向未配置";
+				return "????";
 			}
-			if (target.type === "conversation") {
-				const conversation = describeConversationTarget(target.conversationId, "会话");
-				const parts = [conversation.active ? "当前会话" : conversation.title || "指定会话"];
-				if (conversation.id && !conversation.active) {
-					parts.push(conversation.id);
-				}
-				return parts.join(" · ");
+			if (target.type === "task_inbox" || target.type === "conversation") {
+				return "????";
 			}
 			if (target.type === "feishu_chat") {
-				return "飞书群 · " + (target.chatId || "待填写");
+				return "??? / " + (target.chatId || "???");
 			}
 			if (target.type === "feishu_user") {
-				return "飞书用户 · " + (target.openId || "待填写");
+				return "???? / " + (target.openId || "???");
 			}
-			return String(target.type || "结果去向未配置");
+			return String(target.type || "????");
 		}
 
 		function describeConnTimingSummary(conn) {
@@ -1260,102 +1114,6 @@ export function getConnActivityRendererScript(): string {
 				runId: run.runId,
 				title: (conn.title || "Conn") + " · " + describeConnRunStatusLabel(run.status),
 			};
-		}
-
-		function renderAgentActivity() {
-			agentActivityList.innerHTML = "";
-			if (state.agentActivityLoading && state.agentActivityItems.length === 0) {
-				const loading = document.createElement("div");
-				loading.className = "asset-empty";
-				loading.textContent = "正在读取全局活动。";
-				agentActivityList.appendChild(loading);
-				return;
-			}
-			if (state.agentActivityError && state.agentActivityItems.length === 0) {
-				const empty = document.createElement("div");
-				empty.className = "asset-empty";
-				empty.textContent = state.agentActivityError;
-				agentActivityList.appendChild(empty);
-				return;
-			}
-			const activities = Array.isArray(state.agentActivityItems) ? state.agentActivityItems : [];
-			if (activities.length === 0) {
-				const empty = document.createElement("div");
-				empty.className = "asset-empty";
-				empty.textContent = "暂时没有全局活动。conn 跑完以后，这里会跨会话留痕。";
-				agentActivityList.appendChild(empty);
-				return;
-			}
-			for (const activity of activities) {
-				const item = document.createElement("article");
-				item.className = "agent-activity-item";
-
-				const copy = document.createElement("div");
-				copy.className = "agent-activity-copy";
-				const titleRow = document.createElement("div");
-				titleRow.className = "agent-activity-title-row";
-				const title = document.createElement("strong");
-				title.textContent = activity.title || "活动";
-				const source = document.createElement("span");
-				source.className = "agent-activity-source";
-				source.textContent = describeActivitySourceLabel(activity.source, activity.kind);
-				titleRow.appendChild(title);
-				titleRow.appendChild(source);
-
-				const text = document.createElement("div");
-				text.className = "agent-activity-text";
-				text.textContent = activity.text || "没有正文摘要。";
-
-				const meta = document.createElement("div");
-				meta.className = "agent-activity-meta";
-				const created = document.createElement("span");
-				created.textContent = formatConnRunTimestamp(activity.createdAt) || activity.createdAt || "";
-				meta.appendChild(created);
-				if (activity.conversationId) {
-					const targetConversation = describeConversationTarget(activity.conversationId, "会话");
-					const conversation = document.createElement("span");
-					conversation.textContent =
-						"来自 " + (targetConversation.active ? "当前会话 " : (targetConversation.title || "会话") + " ");
-					const code = document.createElement("code");
-					code.textContent = activity.conversationId;
-					conversation.appendChild(code);
-					meta.appendChild(conversation);
-				}
-				if (activity.runId) {
-					const run = document.createElement("span");
-					run.textContent = "运行 ";
-					const code = document.createElement("code");
-					code.textContent = activity.runId;
-					run.appendChild(code);
-					meta.appendChild(run);
-				}
-				if (activity.files.length > 0) {
-					const files = document.createElement("span");
-					files.textContent = "附 " + activity.files.length + " 个文件";
-					meta.appendChild(files);
-				}
-
-				copy.appendChild(titleRow);
-				copy.appendChild(text);
-				copy.appendChild(meta);
-				item.appendChild(copy);
-
-				if (canOpenConnRunDetails(activity)) {
-					const actions = document.createElement("div");
-					actions.className = "agent-activity-actions";
-					const openButton = document.createElement("button");
-					openButton.type = "button";
-					openButton.textContent = "查看执行过程";
-					openButton.addEventListener("click", () => {
-						closeAgentActivity();
-						void openConnRunDetails(activity, state.agentActivityRestoreFocusElement || openAgentActivityButton);
-					});
-					actions.appendChild(openButton);
-					item.appendChild(actions);
-				}
-
-				agentActivityList.appendChild(item);
-			}
 		}
 
 		function renderConnManagerRunList(conn, container) {
@@ -1868,10 +1626,6 @@ export function getConnActivityEventHandlersScript(): string {
 			}
 		});
 
-		mobileMenuActivityButton.addEventListener("click", () => {
-			closeMobileOverflowMenu();
-			openAgentActivity(mobileOverflowMenuButton);
-		});
 		mobileMenuConnButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();
 			openConnManager(mobileOverflowMenuButton);
@@ -1882,20 +1636,6 @@ export function getConnActivityEventHandlersScript(): string {
 		connRunDetailsDialog.addEventListener("click", (event) => {
 			if (event.target === connRunDetailsDialog) {
 				closeConnRunDetailsDialog();
-			}
-		});
-		openAgentActivityButton.addEventListener("click", () => {
-			openAgentActivity(openAgentActivityButton);
-		});
-		closeAgentActivityButton.addEventListener("click", () => {
-			closeAgentActivity();
-		});
-		refreshAgentActivityButton.addEventListener("click", () => {
-			void loadAgentActivity({ silent: false });
-		});
-		agentActivityDialog.addEventListener("click", (event) => {
-			if (event.target === agentActivityDialog) {
-				closeAgentActivity();
 			}
 		});
 
@@ -1909,9 +1649,6 @@ export function getConnActivityEventHandlersScript(): string {
 			}
 			if (state.connManagerOpen) {
 				closeConnManager();
-			}
-			if (state.agentActivityOpen) {
-				closeAgentActivity();
 			}
 			return false;
 		}

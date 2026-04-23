@@ -1,8 +1,15 @@
 node_modules
 .git
 .data
+.tmp
 .pi/sessions
+.codex
+.gh-cli-config
 api.txt
 npm-debug.log
 .env
 .env.local
+logs
+tmp
+output
+ugk-pi-deploy.tar.gz

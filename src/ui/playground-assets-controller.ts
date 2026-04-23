@@ -24,61 +24,38 @@ export function getPlaygroundAssetControllerScript(): string {
 			return (size / (1024 * 1024)).toFixed(1) + " MB";
 		}
 
-		function isTextLikeFile(file) {
-			return (
-				file.type.startsWith("text/") ||
-				/\\.(txt|md|markdown|json|csv|tsv|log|xml|html|css|js|ts|tsx|jsx|py|java|go|rs|c|cpp|h|hpp|cs|php|rb|yml|yaml|toml|ini|sql)$/i.test(file.name)
-			);
-		}
-
-		function readFileAsText(file) {
-			return new Promise((resolve, reject) => {
-				const reader = new FileReader();
-				reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-				reader.onerror = () => reject(reader.error || new Error("file read failed"));
-				reader.readAsText(file);
-			});
-		}
-
-		function readFileAsArrayBuffer(file) {
-			return new Promise((resolve, reject) => {
-				const reader = new FileReader();
-				reader.onload = () => resolve(reader.result instanceof ArrayBuffer ? reader.result : new ArrayBuffer(0));
-				reader.onerror = () => reject(reader.error || new Error("file read failed"));
-				reader.readAsArrayBuffer(file);
-			});
-		}
-
-		function arrayBufferToBase64(buffer) {
-			const bytes = new Uint8Array(buffer);
-			let binary = "";
-			for (let index = 0; index < bytes.length; index += 1) {
-				binary += String.fromCharCode(bytes[index]);
-			}
-			return btoa(binary);
-		}
-
 		const MAX_COMPOSER_ATTACHMENTS = 5;
 
-		async function collectAttachments(files) {
-			const selected = Array.from(files || []).slice(0, MAX_COMPOSER_ATTACHMENTS);
-			const attachments = [];
-
-			for (const file of selected) {
-				const attachment = {
-					fileName: file.name,
-					mimeType: file.type || "application/octet-stream",
-					sizeBytes: file.size,
-				};
-				if (isTextLikeFile(file) && file.size <= 512 * 1024) {
-					attachment.text = await readFileAsText(file);
-				} else if (file.size <= 2 * 1024 * 1024) {
-					attachment.base64 = arrayBufferToBase64(await readFileAsArrayBuffer(file));
-				}
-				attachments.push(attachment);
+		async function uploadFilesAsAssets(files, options) {
+			const selectedFiles = Array.from(files || []);
+			if (selectedFiles.length === 0) {
+				return [];
+			}
+			if (selectedFiles.length > MAX_COMPOSER_ATTACHMENTS) {
+				throw new Error("一次最多上传 " + MAX_COMPOSER_ATTACHMENTS + " 个文件");
 			}
 
-			return attachments;
+			const formData = new FormData();
+			if (options?.conversationId) {
+				formData.append("conversationId", options.conversationId);
+			}
+			for (const file of selectedFiles) {
+				formData.append("files", file, file.name);
+			}
+
+			const response = await fetch("/v1/assets/upload", {
+				method: "POST",
+				headers: {
+					accept: "application/json",
+				},
+				body: formData,
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const fallbackMessage = "上传失败（HTTP " + response.status + "）";
+				throw new Error(payload?.error?.message || payload?.message || fallbackMessage);
+			}
+			return Array.isArray(payload?.assets) ? payload.assets : [];
 		}
 
 		function appendComposerSystemNotice(message) {
@@ -119,22 +96,8 @@ export function getPlaygroundAssetControllerScript(): string {
 			);
 		}
 
-		function renderAttachmentList() {
+		function renderUploadFileList() {
 			fileList.innerHTML = "";
-			for (const [index, attachment] of state.pendingAttachments.entries()) {
-				const item = createFileChip({
-					tone: "pending",
-					fileName: attachment.fileName,
-					meta:
-						(attachment.mimeType || "application/octet-stream") +
-						" / " +
-						formatFileSize(attachment.sizeBytes),
-					onRemove: () => {
-						removePendingAttachment(index);
-					},
-				});
-				fileList.appendChild(item);
-			}
 			renderContextUsageBar();
 		}
 
@@ -448,17 +411,8 @@ export function getPlaygroundAssetControllerScript(): string {
 		}
 
 		function clearSelectedFiles() {
-			state.pendingAttachments = [];
 			fileInput.value = "";
-			renderAttachmentList();
-		}
-
-		function removePendingAttachment(indexToRemove) {
-			state.pendingAttachments = state.pendingAttachments.filter((_, index) => index !== indexToRemove);
-			if (state.pendingAttachments.length === 0) {
-				fileInput.value = "";
-			}
-			renderAttachmentList();
+			renderUploadFileList();
 		}
 
 		function openAssetLibrary(restoreFocusElement, options) {
@@ -502,7 +456,6 @@ export function getPlaygroundAssetControllerScript(): string {
 		function createComposerDraft() {
 			return {
 				message: messageInput.value,
-				attachments: [...state.pendingAttachments],
 				assetRefs: [...state.selectedAssetRefs],
 			};
 		}
@@ -517,9 +470,8 @@ export function getPlaygroundAssetControllerScript(): string {
 		function restoreComposerDraft(draft) {
 			messageInput.value = String(draft?.message || "");
 			syncComposerTextareaHeight();
-			state.pendingAttachments = Array.isArray(draft?.attachments) ? [...draft.attachments] : [];
 			state.selectedAssetRefs = Array.isArray(draft?.assetRefs) ? [...draft.assetRefs] : [];
-			renderAttachmentList();
+			renderUploadFileList();
 			renderSelectedAssets();
 			renderAssetPickerList();
 			messageInput.focus();
@@ -609,14 +561,33 @@ export function getPlaygroundAssetControllerScript(): string {
 		async function handleDroppedFiles(files, sourceLabel) {
 			clearError();
 			try {
-				state.pendingAttachments = await collectAttachments(files);
-				renderAttachmentList();
-				notifyAttachmentLimitIfNeeded(files);
+				if (!state.conversationId) {
+					await ensureCurrentConversation({ silent: true });
+				}
+				ensureConversationId();
+				state.composerUploadingAssets = true;
+				filePickerAction.disabled = true;
+				fileInput.disabled = true;
+				updateStreamingProcess("system", "文件上传中", sourceLabel || "composer");
+				const assets = await uploadFilesAsAssets(files, {
+					conversationId: state.conversationId,
+				});
+				mergeRecentAssets(assets);
+				const uploadedAssetIds = assets
+					.map((asset) => String(asset?.assetId || "").trim())
+					.filter(Boolean);
+				if (uploadedAssetIds.length > 0) {
+					setSelectedAssetRefsForTarget("composer", [...state.selectedAssetRefs, ...uploadedAssetIds]);
+				}
 			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "\\u6587\\u4ef6\\u8bfb\\u53d6\\u5931\\u8d25";
+				const messageText = error instanceof Error ? error.message : "\\u6587\\u4ef6\\u4e0a\\u4f20\\u5931\\u8d25";
 				showError(messageText);
-				state.pendingAttachments = [];
-				renderAttachmentList();
+			} finally {
+				state.composerUploadingAssets = false;
+				filePickerAction.disabled = false;
+				fileInput.disabled = false;
+				fileInput.value = "";
+				renderUploadFileList();
 			}
 		}
 

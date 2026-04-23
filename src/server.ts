@@ -10,7 +10,6 @@ import { ConversationStore } from "./agent/conversation-store.js";
 import { ConnDatabase } from "./agent/conn-db.js";
 import { ConnRunStore } from "./agent/conn-run-store.js";
 import { ConnSqliteStore } from "./agent/conn-sqlite-store.js";
-import { ConversationNotificationStore } from "./agent/conversation-notification-store.js";
 import { NotificationHub } from "./agent/notification-hub.js";
 import { FeishuClient } from "./integrations/feishu/client.js";
 import { FeishuConversationMapStore } from "./integrations/feishu/conversation-map-store.js";
@@ -31,7 +30,6 @@ export interface BuildServerOptions {
 	connStore?: ConnSqliteStore;
 	connRunStore?: ConnRunStore;
 	activityStore?: AgentActivityStore;
-	notificationStore?: ConversationNotificationStore;
 	notificationHub?: NotificationHub;
 	backgroundDataDir?: string;
 	feishuService?: FeishuService;
@@ -58,7 +56,7 @@ function createDefaultConnDatabase(dbPath: string): ConnDatabase {
 	return database;
 }
 
-function createDefaultAgentService(assetStore: AssetStoreLike, notificationStore?: ConversationNotificationStore): AgentService {
+function createDefaultAgentService(assetStore: AssetStoreLike): AgentService {
 	const config = getAppConfig();
 	const conversationStore = new ConversationStore(config.conversationIndexPath);
 	const sessionFactory = createDefaultAgentSessionFactory({
@@ -70,7 +68,6 @@ function createDefaultAgentService(assetStore: AssetStoreLike, notificationStore
 		conversationStore,
 		sessionFactory,
 		assetStore,
-		notificationStore,
 	});
 }
 
@@ -81,12 +78,11 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	const assetStore = options.assetStore ?? createDefaultAssetStore();
 	const config = getAppConfig();
 	const connDatabase =
-		options.connStore && options.connRunStore && options.notificationStore && options.activityStore
+		options.connStore && options.connRunStore && options.activityStore
 			? undefined
 			: createDefaultConnDatabase(config.connDatabasePath);
-	const notificationStore = options.notificationStore ?? new ConversationNotificationStore({ database: connDatabase! });
 	const notificationHub = options.notificationHub ?? new NotificationHub();
-	const agentService = options.agentService ?? createDefaultAgentService(assetStore, notificationStore);
+	const agentService = options.agentService ?? createDefaultAgentService(assetStore);
 	const feishuService =
 		options.feishuService ??
 		new FeishuService({
@@ -127,7 +123,6 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		connStore,
 		connRunStore,
 		backgroundDataDir: options.backgroundDataDir ?? config.backgroundDataDir,
-		getCurrentConversationId: async () => (await agentService.getConversationCatalog()).currentConversationId,
 	});
 	registerFeishuRoutes(app, { feishuService });
 

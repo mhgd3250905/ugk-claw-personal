@@ -118,6 +118,11 @@
 - `/v1/files/:fileId` 对 Markdown / 纯文本 / JSON / CSV 等文本型文件会补 `charset=utf-8`，避免中文 `.md` 预览被浏览器按错误编码打开成乱码
 - `html`、`svg`、`js` 这类可执行或脚本风险较高的文件不会直接作为同源预览打开，别为了省事把安全边界拆了
 - `conn` 创建 / 编辑器里的“附加资料”不再让用户硬填 `assetId`；界面提供“选择复用文件”和“上传新文件”两个入口，最终仍映射为内部 `assetRefs`
+- `conn` 编辑器上传新文件时，前端会进入 `connEditorUploadingAssets` 忙态，把上传按钮显示为“上传中”，并临时禁用保存和再次上传；失败时会在编辑器错误区显示 `上传失败（HTTP xxx）` 这类带状态码的反馈，不允许再表现成“选择文件后没反应”
+- 主 chat 输入区与 `conn` 附加资料上传都走 `POST /v1/assets/upload` 的 `FormData` / `multipart/form-data` 标准文件上传，不再把浏览器文件读成 base64 JSON；`POST /v1/assets` 不再接受 JSON 上传
+- 主 chat 选择或拖拽文件后，前端会先把文件注册成资产并自动加入已选资产区；真正发送消息时只携带 `assetRefs`，不再向 `/v1/chat/stream` 或 `/v1/chat/queue` 塞文件内容
+- 当前上传限制为单文件 64MiB、一次最多 5 个文件，生产 nginx 总请求上限 80m；前端和后端都要让失败有明确反馈，别再把限制做成沉默失败。
+- 顶部“上下文使用”按钮对已选资产的估算要贴近后端真实 prompt 行为：大文本资产按后端 `readText()` 的截断上限估算，二进制资产按元数据引用估算；不要再因为选了个大文件就假装上下文瞬间爆满，吓唬人不算能力。
 - 已选“附加资料”不再依赖最近 40 条资产列表死活；如果某个已选资产不在当前 recent 列表里，前端会按需补拉 `/v1/assets/:assetId`，而不是偷偷把它从表单里抹掉
 
 ## 5. “查看技能”按钮行为
@@ -131,31 +136,30 @@
 - 最终结果会直接列出完整技能清单
 - 不再把旧的 system 调试噪音塞进 transcript
 
-## 5.1 后台 Conn Notification
+## 5.1 后台任务过程查看
 
-- `playground` 当前会把后端 `conversation_notifications` 合并进 transcript，渲染成普通助手样式消息，但真实语义仍保留在消息条目的 `kind=notification`
-- 当消息同时满足 `source=conn`、`sourceId`、`runId` 时，消息底部会出现一个小型“查看后台任务过程”入口
+- `playground` 里与 `conn` 相关的结果查看已经收口成统一的 run detail 入口，不再要求用户先切回某个会话才能追任务结果。
+- 当任务消息或后台任务列表条目同时满足 `source=conn`、`sourceId`、`runId` 时，消息底部会出现一个小型“查看后台任务过程”入口。
 - 点开后前端会分别请求：
   - `GET /v1/conns/:connId/runs/:runId`
   - `GET /v1/conns/:connId/runs/:runId/events`
 - 弹层里当前展示 run 状态、时间戳、workspace、sessionFile、结果摘要、输出文件索引和过程事件列表
 - 后台 conn 通知正文来自 `conn_runs.resultText`。runner 会避免把“输出文件已写入”这种低信息量尾句当成唯一结果；如果模型先回答了问题、后面只是补一句文件写入提示，通知应优先展示真正回答。
 - 后台 run 成功后会扫描该次 workspace 的 `output/` 目录并写入 `conn_run_files`；所以弹层里的输出文件索引应该能看到真实产物，而不是只在正文里出现一个打不开的路径。
-- 这类 conn notification 只合并进前台可见对话，不写回前台 pi session history
-- notification 的 `source / sourceId / runId` 会跟着本地历史快照一起持久化，刷新页面后仍然能继续点开 run 详情；如果这三个字段又丢了，优先查 `normalizeHistoryEntry()` 和 `buildTranscriptEntry()`
+- run 详情入口既服务任务消息页，也服务后台任务管理器；别再把“结果展示”和“当前聊天 transcript”捆成一坨，后面只会越来越乱。
 
-## 5.2 全局活动
+## 5.2 任务消息页
 
-- `playground` 现在额外提供全局活动入口：桌面端 landing 右侧 `全局活动`，手机端右上角更多菜单里的 `全局活动`。
-- 全局活动读取 `GET /v1/activity?limit=50`，展示跨会话的 `agent_activity_items`，用于观察后台 conn 结果，不改变当前 conversation transcript 的上下文归属。
-- 这层是观察列表，不是新的聊天真源。当前会话仍然由 `GET /v1/chat/state` 驱动；conn 目标会话仍然收到原有 notification。
-- 手机端全局活动复用底部抽屉语言：列表卡片最小触摸高度为 `64px`，来源 / 会话 / 文件信息在卡片内垂直扫读，查看过程等操作以双列按钮区呈现，不再把桌面横排工具条硬塞进窄屏。
-- 活动条目里的来源、会话和文件信息现在也走人话口径：来源显示为 `后台任务 / 飞书 / 助手 / 通知`，会话显示为“来自 当前会话 / 指定会话”，文件显示为“附 N 个文件”。
+- `playground` 现在提供独立的 `任务消息` 入口：桌面端顶部按钮是 `open-task-inbox-button`，手机端入口在更多菜单里的 `mobile-menu-task-inbox-button`。
+- 任务消息读取 `GET /v1/activity?limit=50`，展示跨会话的 `agent_activity_items`；它是后台结果的独立收件箱，不再把结果硬塞进当前 conversation transcript。
+- 这层是观察与追溯页面，不是新的聊天真源。当前会话仍然由 `GET /v1/chat/state` 驱动；后台结果页面只负责展示完成后的异步结果。
+- 手机端任务消息页复用贴底抽屉语言：列表卡片最小触摸高度为 `64px`，来源 / 文件信息在卡片内垂直扫读，复制任务 ID / 复制正文 / 查看过程三类操作固定落在消息底部。
+- 活动条目里的来源和文件信息走人话口径：来源显示为 `后台任务 / 飞书 / 助手 / 通知`，文件显示为“附 N 个文件”。
 - `source=conn` 且带有 `sourceId + runId` 的 activity 条目会复用后台任务过程弹层，继续请求：
   - `GET /v1/conns/:connId/runs/:runId`
   - `GET /v1/conns/:connId/runs/:runId/events`
-- 收到 `/v1/notifications/stream` 广播后，页面会静默刷新全局活动列表；即使用户已经切到另一个会话，也能通过全局活动看到刚完成的 conn 结果。
-- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，运行时拼装入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，全局活动 / conn 弹层静态片段在 [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)，前端运行时控制器片段在 [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)，后端读模型入口是 [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts) 和 [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)。
+- 收到 `/v1/notifications/stream` 广播后，页面会静默刷新任务消息列表与未读数；即使用户已经切到另一个会话，也能在任务消息页里看到刚完成的 conn 结果。
+- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，运行时拼装入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，任务消息 / conn 弹层静态片段在 [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts) 与 [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)，前端运行时控制器片段在 [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)，后端读模型入口是 [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts) 和 [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)。
 
 ## 6. 单工人多会话行为
 
@@ -186,8 +190,8 @@
 - stream lifecycle、通知 SSE、send / queue / interrupt 控制器： [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
 - transcript 清空必须同时清理 `transcript-current` 和 `transcript-archive`，不要给旧会话 DOM 残留留活口
 - 手机端 topbar、更多菜单和历史抽屉外壳控制器： [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
-- Conn / 全局活动静态样式与弹窗 HTML： [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-- Conn / 全局活动前端运行时控制器： [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+- Conn / 任务过程静态样式与弹窗 HTML： [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+- Conn / 任务过程前端运行时控制器： [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 - 页面返回断言： [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 - 资产与文件下载： [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)、[src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)、[src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)、[src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 - 技能真实来源： [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts) 的 `GET /v1/debug/skills`
@@ -225,13 +229,13 @@
 
 - 这一节覆盖并取代之前“只是做适配”的旧说法；当前手机端不是压缩版桌面，而是保留现有逻辑后单独重写的移动展示层
 - 手机端继续沿用桌面端的深空黑 / 暗紫星云 / 冷白星尘视觉语言，但页面组织改成更接近原生聊天页的结构
-- 手机端面板继续保持贴底抽屉和深色卡片结构，但圆角统一服从用户偏好：文件库 / 后台任务 / 新建后台任务 / 全局活动 / 后台 run 详情里的面板、卡片、工具栏和操作按钮都只使用 `4px` 圆角，不再回到 `22px` 或 `16px` 的大圆角语言。
-- 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧保留上下文电池条、`新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库 / 后台任务 / 全局活动` 收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
+- 手机端面板继续保持贴底抽屉和深色卡片结构，但圆角统一服从用户偏好：文件库 / 后台任务 / 新建后台任务 / 任务消息 / 后台 run 详情里的面板、卡片、工具栏和操作按钮都只使用 `4px` 圆角，不再回到 `22px` 或 `16px` 的大圆角语言。
+- 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧保留上下文电池条、`新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库 / 后台任务 / 任务消息` 收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
 - 手机端 topbar、更多菜单、历史抽屉开关、遮罩关闭、外部点击关闭和移动端入口绑定集中在 `src/ui/playground-mobile-shell-controller.ts`；历史列表渲染和会话切换由 `src/ui/playground-conversations-controller.ts` 负责，移动外壳控制器不反向持有 conversation catalog 逻辑
 - 手机端品牌区点击后展开左侧历史会话抽屉，宽度收口为 `min(94vw, 380px)`，右侧保留深色半透明遮罩压住主聊天区，避免背景文字贴着抽屉边缘干扰阅读；抽屉头部 sticky，列表项展示标题、两行摘要、更新时间和消息数，最小触摸高度 `108px`，标题 / 摘要 / meta 必须显式设置移动端行高，不能继续继承全局 button 的紧缩排版；当前会话只用左侧冷白蓝亮条和细边框标记，不再铺大面积蓝色块；侧边栏内关闭按钮、空态和会话项统一 `4px` 圆角；历史列表保留纵向滚动但隐藏侧边滚动条；运行中禁止切换，避免一个 agent 工人被硬拽到另一条产线
 - 手机端历史抽屉头部背景保持透明，不再盖一层额外色块。
 - `新会话` 按钮现在走 `POST /v1/chat/conversations` 创建新的服务端会话并激活为 `currentConversationId`；不再 reset 旧会话，也不再只清本地 transcript
-- 手机端 `文件库`、`后台任务`、`全局活动` 和后台 run 详情统一走贴底抽屉：点击入口后先立刻打开对应面板，面板内部再刷新数据；用户点按钮切界面不能等接口回完才出现反馈，这种体验慢得像在拨号上网。
+- 手机端 `文件库`、`后台任务`、`任务消息` 和后台 run 详情统一走贴底抽屉：点击入口后先立刻打开对应面板，面板内部再刷新数据；用户点按钮切界面不能等接口回完才出现反馈，这种体验慢得像在拨号上网。
 - 这些手机面板的共同约束是：标题区 sticky，内容区独立滚动并 `overscroll-behavior: contain`，主操作按钮最小高度约 `40px`，列表项最小高度 `64px`，底部 padding 包含 `env(safe-area-inset-bottom)`。
 - 这些手机面板的视觉约束是硬朗、低圆角、少装饰；如果后续新增类似管理面板，默认按 `4px` 收口，别又把大圆角当移动端高级感，真的会很像套模板。
 - 所有这类面板关闭前都要先把焦点归还给可见触发入口或底部输入框，不能让焦点继续留在即将 `aria-hidden=true` 的关闭按钮、列表按钮或编辑器字段里；不然浏览器会直接给无障碍警告，用户用键盘 / 读屏时也会被塞进隐藏层。
@@ -337,17 +341,32 @@
 - `每日执行时间` 解析现在兼容 `07:00`、`7:00` 与 `HH:mm:ss`，保存时不会再因为用户输入或浏览器差异误报“请填写每日执行时间”。
 - “附加资料”区域现在提供显式文件入口：可从文件库复用已有资产，也可直接上传新文件；用户看到的是文件名与选中状态，内部才映射成 `assetRefs`
   - 高级字段默认收进 `高级设置`，用户可见名称分别是 `任务身份`、`执行模板`、`能力包`、`模型策略`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `profileId`、`agentSpecId`、`skillSetId`、`modelPolicyId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。
-- 目标选择区现在会显示 `conn-editor-target-preview`：把将要投递的目标会话 / 飞书目标、目标编号和“切换新会话不会改写已保存目标”的口径直接展示出来，别再靠猜。
+- 目标选择区现在会显示 `conn-editor-target-preview`：把将要投递到 `task_inbox` 还是飞书目标、目标编号和实际投递口径直接展示出来，别再靠猜。
 - 保存成功后，管理器会显示 `conn-manager-notice`，说明已创建 / 已更新的 conn 会投递到哪里，并高亮对应条目。
 - conn 列表里的最近 run 默认折叠为一行 `conn-manager-run-summary`；需要查证据时再展开最近 3 条 run，避免管理面变成一堵日志墙。
 - 后台任务列表现在按三行人话信息展示：`结果发到`、`执行方式`、`运行节奏`。不再直接向用户暴露 `target / schedule / next / last / maxRunMs` 这类后台字段名。
 - 列表状态与最近 run 结果统一显示为中文口径：`运行中 / 已暂停 / 已完成`、`待执行 / 执行中 / 成功 / 失败 / 已取消`，避免用户自己翻译状态码。
-- 目标归属不要再脑补成“当前打开哪个会话就往哪个会话冒泡”。conn 创建 / 编辑时固化的目标会话会收到气泡；全局活动只负责跨会话观察，不替代 conversation transcript。
+- 目标归属不要再脑补成“当前打开哪个会话就往哪个会话冒泡”。后台结果的主落点已经是任务消息页；飞书目标按各自 adapter 投递，聊天 transcript 不再承担这层异步收件箱职责。
 - 管理器顶部提供状态筛选和批量工具：`conn-manager-filter` 按全部 / 运行中 / 已暂停 / 已完成过滤；`选择当前` 会选择当前筛选结果；`删除所选` 调用 `POST /v1/conns/bulk-delete`，用于一次清理多条测试 conn。
 - 每个 conn 支持：
   - `立即执行`：调用 `POST /v1/conns/:connId/run`，只创建 pending run，不调用前台 agent。
   - `暂停` / `恢复`：按当前 `conn.status` 调用 `POST /v1/conns/:connId/pause` 或 `POST /v1/conns/:connId/resume`。
-  - `删除`：二次确认后调用 `DELETE /v1/conns/:connId`。当前后端是硬删除，SQLite 外键会级联删除该 conn 的 run / event / file 记录，并主动清理该 conn 对应的 notification / activity 脏引用；这是用来清测试任务的，不要误当成归档。
+  - `删除`：二次确认后调用 `DELETE /v1/conns/:connId`。当前后端是硬删除，SQLite 外键会级联删除该 conn 的 run / event / file 记录，并主动清理该 conn 对应的任务消息 / activity 脏引用；这是用来清测试任务的，不要误当成归档。
   - 最近 run 的 `查看`：复用后台任务过程弹层，继续请求 run detail 和 events。
 - 前台 agent 正在运行时不会禁用后台任务管理入口；conn 是独立 worker 处理的后台产线，不该被前台聊天 loading 卡住。真要把它绑死，那前面架构白做，属于自己给自己挖坑。
-- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，运行时拼装入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，conn 管理 / 全局活动弹层的静态样式与 HTML 在 [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)，创建 / 编辑、管理器、全局活动和 run 详情的前端控制器在 [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)。
+- 页面断言入口在 [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)，运行时拼装入口在 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)，conn 管理 / 任务过程弹层的静态样式与 HTML 在 [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)，任务消息主体在 [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)，创建 / 编辑、管理器和 run 详情的前端控制器在 [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)。
+## 任务消息页（2026-04-23）
+
+- `playground` 顶部状态栏现在有独立的 `任务消息` 入口，桌面端按钮是 `open-task-inbox-button`，手机端入口收在更多菜单里的 `mobile-menu-task-inbox-button`。
+- 手机端如果存在未读任务消息，右上角 `mobile-overflow-menu-button` 本身也会显示未读数字徽标；用户不需要先打开更多菜单才知道任务消息里有几条未读。
+- 任务消息相关红点和数字 badge 统一使用鲜红色 `#ff1744`，带浅色描边和红色 glow，不能再退回半透明粉色那种没精神的提醒色；更多按钮上的数字超过 99 时显示 `99+`。
+- 任务消息不是 conversation，也不再把后台结果硬塞回当前会话；页面主视图通过 `data-primary-view=chat|tasks` 在聊天页和任务消息页之间切换。
+- 任务消息页的主体结构在 [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)，`src/ui/playground.ts` 只负责拼装入口，不再继续把任务消息逻辑堆进主文件。
+- 列表数据来自 `GET /v1/activity?limit=50`，未读摘要来自 `GET /v1/activity/summary`；页面打开后不再偷偷清未读。
+- 如果顶部 `任务消息` badge 有未读数，打开任务消息页会默认进入 `未读` 筛选，并请求 `GET /v1/activity?limit=50&unreadOnly=true`。这不是装饰，是防止“最新 50 条已读、旧数据还有未读”时红标和列表打架。
+- 任务消息页提供 `未读 / 全部` 两个筛选；`未读` 只展示 `readAt` 为空的条目，`全部` 按时间倒序展示完整任务消息。
+- `GET /v1/activity` 响应包含 `hasMore` / `nextBefore`，前端据此显示 `加载更多`，继续用 `before=nextBefore` 分页拉取。不要再把一个固定 `limit=50` 当成全量收件箱，那个坑已经踩过了。
+- 任务消息页现在按条处理未读：未读条目会显示红点；点击条目本身，或点击 `任务ID / 复制 / 查看过程`，才会调用 `POST /v1/activity/:activityId/read` 把当前条目标记已读。
+- 任务消息页头部提供显式 `全部已读`，走 `POST /v1/activity/read-all`；这才是批量清空未读的正式入口，不再把“打开页面”伪装成“看过全部消息”。
+- 每条任务消息底部固定提供三类动作：复制任务 ID、复制正文、查看过程；其中 `source=conn` 且带 `sourceId + runId` 的条目会继续复用后台 run detail 弹层。
+- 实时广播到达后，前端只刷新任务消息列表和未读数，不再因为后台结果广播去刷新当前 conversation transcript。

@@ -56,16 +56,14 @@ export interface AssetDetailResponseBody {
 	asset: ChatAssetBody;
 }
 
-export interface CreateAssetRequestBody {
-	conversationId?: string;
-	attachments: ChatAttachmentBody[];
-}
-
 export interface CreateAssetResponseBody {
 	assets: ChatAssetBody[];
 }
 
 export type ConnTargetBody =
+	| {
+			type: "task_inbox";
+	  }
 	| {
 			type: "conversation";
 			conversationId: string;
@@ -224,10 +222,20 @@ export interface AgentActivityItemBody {
 
 export interface AgentActivityListResponseBody {
 	activities: AgentActivityItemBody[];
+	hasMore: boolean;
+	nextBefore?: string;
 }
 
 export interface AgentActivityReadResponseBody {
 	activity: AgentActivityItemBody;
+}
+
+export interface AgentActivityMarkAllReadResponseBody {
+	markedCount: number;
+}
+
+export interface AgentActivitySummaryResponseBody {
+	unreadCount: number;
 }
 
 export interface DebugSkillsResponseBody {
@@ -463,7 +471,7 @@ export type ChatStreamEvent =
 
 export interface ErrorResponseBody {
 	error: {
-		code: "BAD_REQUEST" | "INTERNAL_ERROR";
+		code: "BAD_REQUEST" | "PAYLOAD_TOO_LARGE" | "INTERNAL_ERROR";
 		message: string;
 	};
 }

@@ -504,14 +504,12 @@ export function getPlaygroundAssetMobileStyles(): string {
 			}
 
 			.asset-modal-list,
-			.agent-activity-list,
 			.conn-manager-list,
 			.conn-manager-run-list {
 				gap: 10px;
 			}
 
 			.asset-pill,
-			.agent-activity-item,
 			.conn-manager-item {
 				min-height: 64px;
 				padding: 12px;
@@ -555,8 +553,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 			}
 
 			.conn-manager-bulk-actions,
-			.conn-manager-actions,
-			.agent-activity-actions {
+			.conn-manager-actions {
 				display: grid;
 				grid-template-columns: repeat(2, minmax(0, 1fr));
 				gap: 8px;
@@ -565,7 +562,6 @@ export function getPlaygroundAssetMobileStyles(): string {
 
 			.conn-manager-actions button,
 			.conn-manager-bulk-actions button,
-			.agent-activity-actions button,
 			.conn-manager-run-actions button {
 				min-height: 40px;
 				border-radius: 4px;
@@ -591,24 +587,13 @@ export function getPlaygroundAssetMobileStyles(): string {
 				grid-column: auto;
 			}
 
-			.conn-manager-meta,
-			.agent-activity-meta {
+			.conn-manager-meta {
 				font-size: 11px;
 				line-height: 1.6;
 			}
 
 			.conn-manager-run-item {
 				border-radius: 4px;
-			}
-
-			.agent-activity-title-row {
-				align-items: flex-start;
-				flex-direction: column;
-				gap: 4px;
-			}
-
-			.agent-activity-text {
-				-webkit-line-clamp: 4;
 			}
 
 			.conn-run-details-dialog.open {

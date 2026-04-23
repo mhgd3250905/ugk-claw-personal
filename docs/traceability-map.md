@@ -91,8 +91,8 @@
 - markdown hydration、代码块 copy toolbar、复制正文按钮、历史恢复后的消息拼装
 - 上下文用量进度环、token 估算、详情弹层和输入实时重算；运行时逻辑看 `src/ui/playground-context-usage-controller.ts`
 - 文件卡片“打开 / 下载”；文件上传区、文件 chip、资产库弹窗静态片段先看 `src/ui/playground-assets.ts`，运行时上传、拖拽、复用和下载卡片逻辑看 `src/ui/playground-assets-controller.ts`
-- 后台 conn notification 的“查看任务过程”入口；静态样式 / 弹窗 HTML 先看 `src/ui/playground-conn-activity.ts`，浏览器运行时逻辑看 `src/ui/playground-conn-activity-controller.ts`
-- 全局活动列表、跨会话 conn 结果观察、`/v1/activity` 读取；静态弹层入口在 `src/ui/playground-conn-activity.ts`，渲染和事件绑定在 `src/ui/playground-conn-activity-controller.ts`
+- 后台 conn 结果的“查看任务过程”入口；静态样式 / 弹窗 HTML 先看 `src/ui/playground-conn-activity.ts`，浏览器运行时逻辑看 `src/ui/playground-conn-activity-controller.ts`
+- 任务消息页、跨会话 conn 结果观察、`/v1/activity` 读取；静态弹层入口在 `src/ui/playground-conn-activity.ts`，渲染和事件绑定在 `src/ui/playground-conn-activity-controller.ts`
 - 刷新后运行态恢复
 - 新会话创建、当前会话切换、刷新后跟随服务端当前会话
 - 发送后立即清空输入框
@@ -119,7 +119,7 @@
 适用问题：
 - `cron` 定时不区分时区，导致“每天 9 点”在不同宿主机上漂移
 - conn runtime profile / skill set / model policy 的 ID 没透到接口层
-- notification 已经进了前台对话，但点不开 run 详情
+- 任务消息已经显示出来，但点不开 run 详情
 
 - `send_file` 没出现在文件卡片里
 - 图片/报告下载 0B
@@ -238,4 +238,4 @@
 - worker 广播地址在 Docker 里打到了自己
 - SSE 断线后页面不重连
 - 当前会话和非当前会话的提示表现不一致
-- conn 结果已经完成，但切换会话后只能靠全局活动找到
+- conn 结果已经完成，但切换会话后只能靠任务消息页找到

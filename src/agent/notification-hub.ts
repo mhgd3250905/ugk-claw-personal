@@ -1,6 +1,7 @@
 export interface NotificationBroadcastEvent {
-	notificationId: string;
-	conversationId: string;
+	notificationId?: string;
+	activityId?: string;
+	conversationId?: string;
 	source: string;
 	sourceId: string;
 	runId?: string;
