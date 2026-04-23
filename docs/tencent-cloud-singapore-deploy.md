@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上提交：`0a34e81c2b81b93c7e459dfdae90a6e01c5a790f`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-014636`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-014636.tar.gz`
+- 当前线上提交：`b896f05b303bdb210073743e83ee1c74a14c19b4`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-113909`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-113909.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -173,7 +173,32 @@ cd ~/ugk-claw-repo
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
 
-## 2026-04-23 最新增量发布记录
+## 2026-04-23 viewMessages 会话状态增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不要把 `.data`、sidecar 登录态或日志拖回仓库目录里。
+
+实际结果：
+
+1. 本地已验证 `npx tsc --noEmit`、`npm test`、`docker compose -f docker-compose.prod.yml config`
+2. 本地 `main` 已推送到 GitHub：`b896f05b303bdb210073743e83ee1c74a14c19b4`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `0a34e81c2b81b93c7e459dfdae90a6e01c5a790f`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-113909.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260423-113909`
+6. 执行 `git pull --ff-only origin main`，从 `0a34e81` fast-forward 到 `b896f05`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config` 验证生产 compose
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+9. 发布后验收通过：
+   - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - `curl -I http://127.0.0.1:3000/playground` 返回 `HTTP/1.1 200 OK`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.134.167.179:3000/playground` 返回 `HTTP/1.1 200 OK`
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` 健康，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+   - `GET /v1/chat/state` 已返回 `viewMessages` 字段，当前会话状态接口结构与本次会话渲染收口一致
+
+发布过程额外踩到一个 Windows 小坑：PowerShell here-string 会把 CRLF 带进远程脚本，导致 `docker compose` 收到异常参数并报 `unknown shorthand flag: '\r' in -`。处理方式是把远程发布动作改成单行 SSH 命令后重跑；第一次失败发生在 `git pull` 已成功、compose 部署尚未开始之后，最终重跑 `config` 与 `up --build -d` 已通过。别把这个报错当成 Docker 玄学，锅在本机命令封装。
+
+## 2026-04-23 桌面与移动体验增量发布记录
 
 这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新。
 

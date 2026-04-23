@@ -12,6 +12,12 @@
 
 ## 2026-04-23
 
+### 腾讯云生产环境增量更新到 b896f05
+- 日期：2026-04-23
+- 主题：按用户确认的“增量更新”方式把腾讯云新加坡生产环境从 `0a34e81` 更新到 `b896f05 fix: consolidate playground conversation view state`，让线上拿到后端 `viewMessages` 会话状态收口、当前会话抽屉点击修复和重复问答根因治理。本次仍走 `~/ugk-claw-repo` GitHub 工作目录，不碰旧目录 `~/ugk-pi-claw`，也不洗 shared 运行态。部署这种事最怕“应该是新的吧”，所以 commit、tag、备份和验收结果都落文档。
+- 影响范围：服务器发布前已创建 sidecar 登录态备份 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-113909.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260423-113909`；`docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config`、`up --build -d`、内外网 `/healthz`、内外网 `/playground`、`check-deps.mjs`、`docker compose ps` 和 `/v1/chat/state` 的 `viewMessages` 结构均已验收通过；文档同步更新当前线上提交、回滚点、sidecar 备份和本次 Windows PowerShell CRLF 远程脚本踩坑。
+- 对应入口：[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)、[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)、[docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+
 ### Playground 当前会话抽屉点击与服务端 viewMessages 收口
 - 日期：2026-04-23
 - 主题：修复手机端历史会话抽屉里点击“当前会话”没有任何反馈的问题，并把同一轮刚结束时偶发“问题 / 回答 / 问题 / 回答”重复渲染从架构上收口。根因前者是当前会话项被 `disabled` 禁掉，点击事件根本到不了 `selectConversationFromDrawer()`；后者是 `GET /v1/chat/state` 在短时窗口里可能同时带有已落到 `messages` 的 canonical 问答和一个 terminal `activeRun`，让前端自己猜两者怎么合并，等于把数据库视图问题扔给浏览器做玄学判断。

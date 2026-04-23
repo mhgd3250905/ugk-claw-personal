@@ -8,9 +8,9 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- 当前本地最新提交：`0a34e81 feat: refine playground desktop and mobile UX`
+- 当前本地最新提交：以 GitHub `main` 最新 `HEAD` 为准；服务器运行代码当前对应 `b896f05 fix: consolidate playground conversation view state`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前服务器已增量更新到：`0a34e81c2b81b93c7e459dfdae90a6e01c5a790f`
+- 当前服务器已增量更新到：`b896f05b303bdb210073743e83ee1c74a14c19b4`
 - 当前公网入口：`http://43.134.167.179:3000/playground`
 - 当前健康检查：`http://43.134.167.179:3000/healthz`
 
@@ -47,7 +47,7 @@
 - 服务器目录：`~/ugk-claw-repo`
 - shared 运行态目录：`~/ugk-claw-shared`
 - sidecar 登录态、agent 会话、资产和日志都没有被洗掉
-- 2026-04-23 已完成最新一次增量发布：`git pull --ff-only origin main` 后执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，发布后 `/healthz`、`/playground`、`check-deps.mjs` 和 `docker compose ps` 均已验收通过
+- 2026-04-23 已完成最新一次增量发布：`git pull --ff-only origin main` 后执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，发布后 `/healthz`、`/playground`、`check-deps.mjs`、`docker compose ps` 和 `/v1/chat/state` 的 `viewMessages` 均已验收通过
 
 ### 3. 发布过程中真抓到一个生产配置坑
 
@@ -64,16 +64,16 @@ yaml: line 38, column 16: mapping values are not allowed in this context
 - `snapshot-20260422-v4.1.1-stable` 已经存在，但**不是最终可用发布点**
 - 真正应该交接和继续部署的是 `snapshot-20260422-v4.1.2-stable`
 
-### 4. 2026-04-23 待增量发布：会话状态 `viewMessages` 收口
+### 4. 2026-04-23 已增量发布：会话状态 `viewMessages` 收口
 
-本地已完成并验证一轮会话状态根因治理：`GET /v1/chat/state` 现在由后端返回已归并好的 `viewMessages`，前端只负责渲染，不再自己猜 `messages + activeRun` 怎么合并。
+本地已完成并验证一轮会话状态根因治理，并已增量发布到腾讯云新加坡生产环境：`GET /v1/chat/state` 现在由后端返回已归并好的 `viewMessages`，前端只负责渲染，不再自己猜 `messages + activeRun` 怎么合并。
 
 这次主要解决两类体验坑：
 
 - 同一轮刚结束时，历史已落盘但 terminal `activeRun` 还短暂存在，页面不应显示成“问题 / 回答 / 问题 / 回答”。
 - 连续两轮发送相同文本（例如“继续”）时，后端不能把上一轮同文本误判成当前轮，导致当前输入被吞。
 
-这次更新仍应走服务器 GitHub 工作目录增量更新，不要整目录替换；上线后除常规 `/healthz`、`/playground`、`check-deps.mjs` 外，建议额外打开浏览器实测旧会话继续对话、刷新恢复和连续发送“继续”。
+这次更新走的是服务器 GitHub 工作目录增量更新，不是整目录替换；上线后已验收 `/healthz`、`/playground`、`check-deps.mjs`、`docker compose ps` 和 `/v1/chat/state` 的 `viewMessages` 字段。后续如果继续改会话恢复，仍建议额外打开浏览器实测旧会话继续对话、刷新恢复和连续发送“继续”。
 
 ## 当前推荐阅读顺序
 
@@ -98,12 +98,14 @@ yaml: line 38, column 16: mapping values are not allowed in this context
 
 ### 服务器发布前回滚 tag
 
+- `server-pre-deploy-20260423-113909`
 - `server-pre-deploy-20260423-014636`
 - `server-pre-deploy-20260422-231020`
 - `server-pre-deploy-20260422-230750`
 
 ### sidecar 登录态备份
 
+- `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-113909.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-014636.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260422-231020.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260422-230750.tar.gz`
