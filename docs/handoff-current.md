@@ -8,9 +8,9 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- GitHub 最新提交：`47e6e16 docs: record task inbox production deploy`
+- GitHub 最新提交：以 `origin/main` 当前 `HEAD` 为准；生产发布后可能继续追加纯文档提交
 - 生产实际运行代码提交：`4b78f21 feat: consolidate task inbox and asset uploads`
-- 生产文档记录提交：`47e6e16` 已推送 GitHub；服务器工作目录可 `git pull --ff-only origin main` 同步文档，不需要重启容器
+- 生产文档记录已推送 GitHub；服务器工作目录可 `git pull --ff-only origin main` 同步文档，不需要重启容器
 - 当前公网入口：`http://43.134.167.179:3000/playground`
 - 当前健康检查：`http://43.134.167.179:3000/healthz`
 - 当前服务器目录：`~/ugk-claw-repo`
