@@ -270,6 +270,7 @@ export interface ChatHistoryMessageBody {
 	source?: string;
 	sourceId?: string;
 	runId?: string;
+	assetRefs?: ChatAssetBody[];
 	files?: ChatHistoryFileBody[];
 }
 
@@ -364,6 +365,7 @@ export interface ConversationStateResponseBody {
 	running: boolean;
 	contextUsage: ChatContextUsageBody;
 	messages: ChatHistoryMessageBody[];
+	viewMessages: ChatHistoryMessageBody[];
 	activeRun: ChatActiveRunBody | null;
 	updatedAt: string;
 }

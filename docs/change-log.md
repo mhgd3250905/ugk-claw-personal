@@ -12,6 +12,12 @@
 
 ## 2026-04-23
 
+### Playground 当前会话抽屉点击与服务端 viewMessages 收口
+- 日期：2026-04-23
+- 主题：修复手机端历史会话抽屉里点击“当前会话”没有任何反馈的问题，并把同一轮刚结束时偶发“问题 / 回答 / 问题 / 回答”重复渲染从架构上收口。根因前者是当前会话项被 `disabled` 禁掉，点击事件根本到不了 `selectConversationFromDrawer()`；后者是 `GET /v1/chat/state` 在短时窗口里可能同时带有已落到 `messages` 的 canonical 问答和一个 terminal `activeRun`，让前端自己猜两者怎么合并，等于把数据库视图问题扔给浏览器做玄学判断。
+- 影响范围：`src/ui/playground-conversations-controller.ts` 中历史会话项只在 `state.loading` 时禁用，当前会话项保持可点击，点中后直接关闭移动抽屉；`src/agent/agent-service.ts` 为 `GET /v1/chat/state` 新增后端归并后的 `viewMessages`，把 canonical `messages` 与 active / terminal run 的可视消息在服务端一次性算好，并用“当前 turn 相对位置”判断 terminal activeRun 是否已被 history 覆盖，避免连续两轮同文本时误吞当前输入；`src/ui/playground.ts` 优先渲染 `viewMessages`，只把 `activeRun` 用作 loading、状态、过程区和事件续订依据，旧的前端补画 active input / assistant 兼容分支已删除；`test/agent-service.test.ts` 与 `test/server.test.ts` 增加回归断言，锁住 terminal overlap 不重复、重复文本不误吞和页面不再保留前端 dedupe helper。
+- 对应入口：[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)、[src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
 ### 旧会话继续对话时保持原会话记忆
 - 日期：2026-04-23
 - 主题：修复旧会话切回后继续对话时，agent 因 `skillFingerprint` 变化误开空白 session、导致“历史还在但记忆失效、上下文重新从零开始”的问题。会话能显示历史却一开口就失忆，这种行为跟装傻没有区别。

@@ -191,6 +191,7 @@ function createAgentServiceStub(overrides?: {
 					mode: "estimate",
 				},
 				messages: [],
+				viewMessages: [],
 				activeRun: null,
 				updatedAt: "2026-04-20T00:00:00.000Z",
 			})),
@@ -1230,6 +1231,12 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /id="transcript-current"/);
 	assert.match(response.body, /function archiveCurrentTranscript\(conversationId\)\s*\{/);
 	assert.match(response.body, /const MAX_ARCHIVED_TRANSCRIPTS = 4;/);
+	assert.match(response.body, /conversationState\?\.viewMessages/);
+	assert.match(response.body, /renderedMessages\.get\(activeRun\.assistantMessageId\)/);
+	assert.doesNotMatch(response.body, /usesServerViewMessages/);
+	assert.doesNotMatch(response.body, /id: "active-input-" \+ activeRun\.runId/);
+	assert.doesNotMatch(response.body, /function isActiveRunAlreadyRepresentedByHistory\(activeRun\)\s*\{/);
+	assert.doesNotMatch(response.body, /function dedupeConversationHistoryEntries\(entries\)\s*\{/);
 	assert.match(response.body, /id="history-load-more-button"/);
 	assert.match(response.body, /async function createConversationOnServer\(\)\s*\{/);
 	assert.match(response.body, /\/v1\/chat\/conversations/);
@@ -1373,6 +1380,8 @@ test("GET /playground activates conversations without redundant state and catalo
 		response.body,
 		/async function selectConversationFromDrawer\(conversationId\)\s*\{[\s\S]*closeMobileConversationDrawer\(\);[\s\S]*const result = await switchConversationOnServer\(nextConversationId\);[\s\S]*await activateConversation\(result\.currentConversationId \|\| result\.conversationId, \{\s*skipCatalogSync: true,\s*skipServerSwitch: true,\s*\}\);/,
 	);
+	assert.match(response.body, /button\.disabled = state\.loading;/);
+	assert.doesNotMatch(response.body, /button\.disabled = state\.loading \|\| item\.conversationId === state\.conversationId;/);
 	assert.match(
 		response.body,
 		/async function startNewConversation\(\)\s*\{[\s\S]*const optimisticTimestamp = new Date\(\)\.toISOString\(\);[\s\S]*upsertConversationCatalogItem\([\s\S]*conversationId: nextConversationId,[\s\S]*\{ isNew: true \},[\s\S]*await activateConversation\(nextConversationId, \{\s*skipCatalogSync: true,\s*skipServerSwitch: true,\s*\}\);/,
@@ -1961,6 +1970,29 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 							createdAt: "2026-04-20T00:00:00.000Z",
 						},
 					],
+					viewMessages: [
+						{
+							id: "history-1",
+							kind: "user",
+							title: "manual:thread-2",
+							text: "old task",
+							createdAt: "2026-04-20T00:00:00.000Z",
+						},
+						{
+							id: "active-input-run-agent-global-1",
+							kind: "user",
+							title: "manual:thread-2",
+							text: "current task",
+							createdAt: "2026-04-20T00:00:01.000Z",
+						},
+						{
+							id: "active-run-agent-global-1",
+							kind: "assistant",
+							title: "助手",
+							text: "partial",
+							createdAt: "2026-04-20T00:00:01.000Z",
+						},
+					],
 					activeRun: {
 						runId: "run-agent-global-1",
 						status: "running",
@@ -2020,6 +2052,29 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 				title: "manual:thread-2",
 				text: "old task",
 				createdAt: "2026-04-20T00:00:00.000Z",
+			},
+		],
+		viewMessages: [
+			{
+				id: "history-1",
+				kind: "user",
+				title: "manual:thread-2",
+				text: "old task",
+				createdAt: "2026-04-20T00:00:00.000Z",
+			},
+			{
+				id: "active-input-run-agent-global-1",
+				kind: "user",
+				title: "manual:thread-2",
+				text: "current task",
+				createdAt: "2026-04-20T00:00:01.000Z",
+			},
+			{
+				id: "active-run-agent-global-1",
+				kind: "assistant",
+				title: "助手",
+				text: "partial",
+				createdAt: "2026-04-20T00:00:01.000Z",
 			},
 		],
 		activeRun: {

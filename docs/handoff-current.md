@@ -64,6 +64,17 @@ yaml: line 38, column 16: mapping values are not allowed in this context
 - `snapshot-20260422-v4.1.1-stable` 已经存在，但**不是最终可用发布点**
 - 真正应该交接和继续部署的是 `snapshot-20260422-v4.1.2-stable`
 
+### 4. 2026-04-23 待增量发布：会话状态 `viewMessages` 收口
+
+本地已完成并验证一轮会话状态根因治理：`GET /v1/chat/state` 现在由后端返回已归并好的 `viewMessages`，前端只负责渲染，不再自己猜 `messages + activeRun` 怎么合并。
+
+这次主要解决两类体验坑：
+
+- 同一轮刚结束时，历史已落盘但 terminal `activeRun` 还短暂存在，页面不应显示成“问题 / 回答 / 问题 / 回答”。
+- 连续两轮发送相同文本（例如“继续”）时，后端不能把上一轮同文本误判成当前轮，导致当前输入被吞。
+
+这次更新仍应走服务器 GitHub 工作目录增量更新，不要整目录替换；上线后除常规 `/healthz`、`/playground`、`check-deps.mjs` 外，建议额外打开浏览器实测旧会话继续对话、刷新恢复和连续发送“继续”。
+
 ## 当前推荐阅读顺序
 
 如果你现在接手项目，建议顺序别乱：

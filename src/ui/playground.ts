@@ -3762,8 +3762,11 @@ function getPlaygroundScript(): string {
 				activeRun,
 			};
 			state.contextUsage = normalizeContextUsage(conversationState?.contextUsage);
-			state.conversationHistory = Array.isArray(conversationState?.messages)
-				? conversationState.messages.map(normalizeHistoryEntry).filter(Boolean).slice(-MAX_STORED_MESSAGES_PER_CONVERSATION)
+			const rawViewMessages = Array.isArray(conversationState?.viewMessages)
+				? conversationState.viewMessages
+				: conversationState?.messages;
+			state.conversationHistory = Array.isArray(rawViewMessages)
+				? rawViewMessages.map(normalizeHistoryEntry).filter(Boolean).slice(-MAX_STORED_MESSAGES_PER_CONVERSATION)
 				: [];
 			state.renderedHistoryCount = 0;
 			clearRenderedTranscript();
@@ -3795,45 +3798,28 @@ function getPlaygroundScript(): string {
 
 			setTranscriptState("active");
 			mergeRecentAssets(activeRun.input?.inputAssets || []);
-			const inputMessage = String(activeRun.input?.message || "").trim();
-			const lastHistoryEntry = state.conversationHistory.at(-1);
-			if (
-				inputMessage &&
-				!(lastHistoryEntry?.kind === "user" && String(lastHistoryEntry.text || "").trim() === inputMessage)
-			) {
-				renderTranscriptEntry(
-					buildTranscriptEntry("user", state.conversationId, inputMessage, {
-						id: "active-input-" + activeRun.runId,
-						createdAt: activeRun.startedAt,
-						assetRefs: (activeRun.input?.inputAssets || []).map((asset) => asset.assetId),
-					}),
-				);
+			const rendered = renderedMessages.get(activeRun.assistantMessageId);
+			if (rendered) {
+				state.activeAssistantContent = rendered.content;
+				applyProcessViewToRenderedMessage(activeRun.process, rendered, {
+					activate: true,
+					running: activeRun.loading,
+				});
 			}
-
-			const assistantEntry = buildTranscriptEntry("assistant", "助手", activeRun.text || "", {
-				id: activeRun.assistantMessageId,
-				createdAt: activeRun.startedAt,
-			});
-			const rendered = renderTranscriptEntry(assistantEntry);
-			state.activeAssistantContent = rendered.content;
 			state.streamingText = activeRun.text || "";
 			state.receivedDoneEvent = activeRun.status === "done";
-			applyProcessViewToRenderedMessage(activeRun.process, rendered, {
-				activate: true,
-				running: activeRun.loading,
-			});
 			if (activeRun.loading) {
 				setLoading(true);
-				setAssistantLoadingState("当前正在运行", "system");
-				statusPill.textContent = "运行中";
+				setAssistantLoadingState("\\u5f53\\u524d\\u6b63\\u5728\\u8fd0\\u884c", "system");
+				statusPill.textContent = "\\u8fd0\\u884c\\u4e2d";
 			} else {
 				setLoading(false);
 				statusPill.textContent =
 					activeRun.status === "error"
-						? "错误"
+						? "\\u9519\\u8bef"
 						: activeRun.status === "interrupted"
-							? "已打断"
-							: "已结束";
+							? "\\u5df2\\u6253\\u65ad"
+							: "\\u5df2\\u7ed3\\u675f";
 			}
 			syncHistoryLoadMoreButton();
 			scrollTranscriptToBottom();

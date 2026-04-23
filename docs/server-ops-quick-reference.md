@@ -149,6 +149,8 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi sh -lc "curl -fsS http://172.31.250.10:9223/json/version"
 ```
 
+本次 `viewMessages` 会话状态收口上线后，额外做一次浏览器实测：旧会话继续对话、刷新恢复、连续发送“继续”，都不应出现重复问答或当前输入被吞。别只看接口 200，200 只能证明它活着，不能证明它没犯蠢。
+
 ## SSH tunnel 打开 sidecar GUI
 
 ```bash

@@ -44,7 +44,7 @@ export function getPlaygroundConversationControllerScript(): string {
 				if (item.conversationId === state.conversationId) {
 					button.classList.add("is-active");
 				}
-				button.disabled = state.loading || item.conversationId === state.conversationId;
+				button.disabled = state.loading;
 				button.innerHTML =
 					'<span class="mobile-conversation-title"></span>' +
 					'<span class="mobile-conversation-preview"></span>' +
@@ -85,7 +85,7 @@ export function getPlaygroundConversationControllerScript(): string {
 				if (item.conversationId === state.conversationId) {
 					button.classList.add("is-active");
 				}
-				button.disabled = state.loading || item.conversationId === state.conversationId;
+				button.disabled = state.loading;
 				button.innerHTML =
 					'<span class="mobile-conversation-title"></span>' +
 					'<span class="mobile-conversation-preview"></span>' +

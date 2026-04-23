@@ -51,6 +51,7 @@
 - 前端对会话历史恢复和运行态同步的异步 `GET /v1/chat/state` 回包现在统一走会话 sync ownership：会话切换会使旧 generation 失效，同一会话内较新的同步请求也会压过较早请求；如果旧会话请求慢回、或同会话旧请求晚于新请求返回，这个 stale response 都必须被直接丢弃，不能再把旧消息覆盖回当前 transcript
 - 会话目录同步现在带 `conversationCatalogSyncPromise` 复用与短时 freshness 冷却；切换 / 新建 / 删除会话后优先复用当前 catalog 结果并按需失效，避免把 `/v1/chat/current` 的切换手感拖成重复目录 round-trip
 - 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
+- `GET /v1/chat/state` 必须返回后端已经归并好的 `viewMessages`：服务端负责把 canonical `messages` 与 active / terminal run 合成最终可渲染视图；前端优先渲染 `viewMessages`，不再保留自己补画 active input / active assistant 的兼容分支，否则同一轮刚结束就会显示成“问题 / 回答 / 问题 / 回答”
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 用户切回旧会话继续发送消息时，后端必须继续复用这条会话原来的 `sessionFile` 上下文；不能因为项目技能目录更新、`skillFingerprint` 变化，就偷偷新开一条空 session 让 agent 当场失忆
 - 从后端 session 恢复已完成任务时，连续的 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并为同一条助手回复；不要让刷新后的页面把同一轮浏览器处理过程拆成多条“助手”气泡
@@ -165,6 +166,7 @@
 - 点击 `新会话` 会调用 `POST /v1/chat/conversations` 创建新的 `conversationId`，并把它设置成全局当前会话；旧会话不会被 reset 或删除
 - 点击 `新会话` 时，前端优先进入新会话；创建成功后会先本地插入会话目录，再用新会话的一次 canonical `GET /v1/chat/state` 收口 UI，不再先额外 round-trip 一轮 `GET /v1/chat/conversations` 把切换手感拖慢
 - 手机端点击左侧品牌区会打开历史会话抽屉；点击历史项时前端应先立即关闭抽屉，再调用 `POST /v1/chat/current`，不能傻等服务端回包后才把侧边栏收起来
+- 如果用户点的是当前已经选中的会话，也要立即关闭手机历史抽屉；当前项只允许在 `state.loading` 时禁用，不能因为 active 状态禁用点击事件，否则用户会以为界面卡死
 - 会话切换成功后，前端会直接以目标会话的一次 canonical `GET /v1/chat/state` 收口真实历史与 active run；不再对同一条会话先拉 history restore、再补拉 run state，制造重复请求和重复滚底
 - 历史会话项现在提供显式删除入口，调用 `DELETE /v1/chat/conversations/:conversationId`；删除后服务端会重算 `currentConversationId`，前端再按新的当前会话收口 UI
 - 所有删除类动作都统一走自定义 `confirm-dialog`，不再调用系统 `confirm()`。风格、圆角、按钮语气都跟页面保持同一套，不再把原生弹窗硬插进来破坏节奏
@@ -253,10 +255,11 @@
 - `/v1/chat/state` 与 `/v1/chat/history` 都会合并连续 assistant 历史消息，保证同一轮完成后的浏览器处理叙述和最终回答恢复为一个助手气泡，而不是刷新后散成多条独立消息。
 - 点击 `新会话` 后，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后以新会话的一次 `GET /v1/chat/state` 作为真源恢复 UI；旧会话保留在历史列表里，不再先额外同步一轮 `GET /v1/chat/conversations` 才给用户切过去。
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
-- `activeRun` 存在时，前端只渲染一个 active assistant 气泡；同一 run 不允许拆出多条“助手 / 思考过程”消息。
-- `activeRun.input.message` 用来补齐刷新观察者看到的当前用户任务；如果 session history 已经包含同一条用户消息，前端会避免重复渲染。
+- `activeRun` 存在时，前端仍只维护一个 active assistant 气泡；但气泡是否出现在 transcript、对应用户输入是否补齐，都以 `viewMessages` 为准，同一 run 不允许拆出多条“助手 / 思考过程”消息。
+- `activeRun.input.message` 仍可作为后端构造 `viewMessages` 的输入；前端收到 `viewMessages` 后只负责渲染，不再根据文本相等关系自行判断“当前用户任务是否已出现”。
+- 对 `done / error / interrupted` 这类 terminal activeRun，如果 canonical history 尾部已经同时包含同一条用户输入和同一条助手结果，后端 `viewMessages` 会直接复用 history，不再额外带一组 active input / active assistant。这是为了处理“历史刚落盘但 activeRun 还没从 state 消失”的短窗口，不能用前端本地历史去重这种补丁糊过去。
 - 对 `interrupted / error` 这类 terminal snapshot，如果 session history 已经带上当前轮的用户输入，后端会把 `activeRun.input.message` 清空，避免刷新页再凭 terminal snapshot 把原始提问补画第二遍。
-- 这个“避免重复渲染”不能再只按文本相等拍脑袋；像连续两轮都发“继续”这种高频场景，后端会先把尾部重复的 active user message 从 `messages` 视图里剔掉，再由 `activeRun.input.message` 统一补当前输入。
+- 这个“避免重复渲染”不能再只按前端文本相等拍脑袋；像连续两轮都发“继续”这种高频场景，后端必须在构造 `viewMessages` 时结合 active run 状态、assistant 覆盖位置和 canonical history 尾部的当前 turn 判断，前端不要再擅自按 DOM / localStorage 去重。
 - `activeRun.process` 是后端维护的过程快照；前端不再把过程日志写回本地历史里的 `process` 字段，也不再从本地 process snapshot 恢复运行态。
 - 恢复运行态后，playground 会继续请求 `/v1/chat/events`，重新订阅当前 active run 的 SSE 事件流；后续 `text_delta`、工具事件、`done`、`interrupted`、`error` 继续更新同一个 active assistant 气泡。
 - 恢复态不再把任务称为“上一轮”；页面统一渲染为“当前任务正在运行 / 当前正在运行”，因为真实 agent run 并不会因为 web 刷新变成历史任务。

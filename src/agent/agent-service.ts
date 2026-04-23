@@ -19,6 +19,7 @@ import {
 } from "./context-usage.js";
 import type {
 	ChatActiveRunBody,
+	ChatAssetBody,
 	ChatContextUsageBody,
 	ChatHistoryFileBody,
 	ChatProcessBody,
@@ -141,6 +142,7 @@ export interface ConversationHistoryMessage {
 	source?: string;
 	sourceId?: string;
 	runId?: string;
+	assetRefs?: ChatAssetBody[];
 	files?: ChatHistoryFileBody[];
 }
 
@@ -456,6 +458,12 @@ export class AgentService {
 		const terminalRun = activeRun ? undefined : this.getRenderableTerminalRun(conversationId, sessionMessages);
 		const notifications = (await this.options.notificationStore?.list(conversationId)) ?? [];
 		const messages = mergeConversationNotifications(sessionMessages, notifications);
+		const activeRunView = activeRun
+			? cloneActiveRunView(activeRun.view)
+			: terminalRun
+				? cloneActiveRunView(terminalRun.view)
+				: null;
+		const viewMessages = buildConversationViewMessages(conversationId, messages, activeRunView);
 		const latestNotificationAt = notifications.at(-1)?.createdAt;
 
 		return {
@@ -463,11 +471,8 @@ export class AgentService {
 			running: Boolean(activeRun),
 			contextUsage,
 			messages,
-			activeRun: activeRun
-				? cloneActiveRunView(activeRun.view)
-				: terminalRun
-					? cloneActiveRunView(terminalRun.view)
-					: null,
+			viewMessages,
+			activeRun: activeRunView,
 			updatedAt:
 				activeRun?.view.updatedAt ??
 				terminalRun?.view.updatedAt ??
@@ -1438,6 +1443,107 @@ function shouldExposeTerminalRunSnapshot(
 		const messageText = normalizeComparableMessageText(message.text);
 		return messageText === terminalText || messageText.includes(terminalText);
 	});
+}
+
+function buildConversationViewMessages(
+	conversationId: string,
+	messages: readonly ConversationHistoryMessage[],
+	activeRun: ChatActiveRunBody | null,
+): ConversationHistoryMessage[] {
+	const viewMessages = messages.map(cloneConversationHistoryMessage);
+	if (!activeRun) {
+		return viewMessages;
+	}
+
+	const assistantIndex = activeRun.loading ? -1 : findActiveRunAssistantIndex(viewMessages, activeRun);
+	const assistantCovered = assistantIndex >= 0;
+	const inputCovered = activeRun.loading ? false : historyHasActiveRunInput(viewMessages, activeRun, assistantIndex);
+	if (!activeRun.loading && inputCovered && assistantCovered) {
+		return viewMessages;
+	}
+
+	if (!inputCovered && activeRun.input.message.trim()) {
+		viewMessages.push({
+			id: `active-input-${activeRun.runId}`,
+			kind: "user",
+			title: conversationId,
+			text: activeRun.input.message,
+			createdAt: activeRun.startedAt,
+			assetRefs: activeRun.input.inputAssets.map((asset) => ({ ...asset })),
+		});
+	}
+
+	if (!assistantCovered) {
+		viewMessages.push({
+			id: activeRun.assistantMessageId,
+			kind: "assistant",
+			title: conversationTitleFromRole("assistant"),
+			text: activeRun.text,
+			createdAt: activeRun.startedAt,
+		});
+	}
+
+	return viewMessages;
+}
+
+function cloneConversationHistoryMessage(message: ConversationHistoryMessage): ConversationHistoryMessage {
+	return {
+		...message,
+		...(message.assetRefs ? { assetRefs: message.assetRefs.map((asset) => ({ ...asset })) } : {}),
+		...(message.files ? { files: message.files.map((file) => ({ ...file })) } : {}),
+	};
+}
+
+function historyHasActiveRunInput(
+	messages: readonly ConversationHistoryMessage[],
+	activeRun: ChatActiveRunBody,
+	assistantIndex: number,
+): boolean {
+	const inputText = normalizeComparableMessageText(activeRun.input.message);
+	if (!inputText) {
+		return true;
+	}
+
+	const endIndex = assistantIndex >= 0 ? assistantIndex - 1 : messages.length - 1;
+	const startIndex = Math.max(0, endIndex - 8);
+	for (let index = endIndex; index >= startIndex; index -= 1) {
+		const message = messages[index];
+		if (message.kind === "assistant" || message.kind === "system" || message.kind === "error") {
+			return false;
+		}
+		if (message.kind === "user" && normalizeComparableMessageText(message.text) === inputText) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+function findActiveRunAssistantIndex(
+	messages: readonly ConversationHistoryMessage[],
+	activeRun: ChatActiveRunBody,
+): number {
+	const assistantText = normalizeComparableMessageText(activeRun.text);
+	if (!activeRun.assistantMessageId && !assistantText) {
+		return -1;
+	}
+
+	const startIndex = Math.max(0, messages.length - 8);
+	for (let index = messages.length - 1; index >= startIndex; index -= 1) {
+		const message = messages[index];
+		if (message.kind !== "assistant") {
+			continue;
+		}
+		if (message.id === activeRun.assistantMessageId) {
+			return index;
+		}
+		const messageText = normalizeComparableMessageText(message.text);
+		if (assistantText && (messageText === assistantText || messageText.includes(assistantText))) {
+			return index;
+		}
+	}
+
+	return -1;
 }
 
 function normalizeComparableMessageText(value: string | undefined): string {

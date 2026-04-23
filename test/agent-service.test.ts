@@ -15,6 +15,7 @@ import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
 import type { ConversationNotification } from "../src/agent/conversation-notification-store.js";
 import { buildPromptWithAssetContext } from "../src/agent/file-artifacts.js";
+import type { ConversationStateResponseBody } from "../src/types/api.js";
 
 class FakeSession implements AgentSessionLike {
 	public prompts: Array<{ message: string; options?: PromptOptionsLike }> = [];
@@ -117,6 +118,77 @@ class DeferredSession extends FakeSession {
 
 	async followUp(message: string): Promise<void> {
 		this.followUpCalls.push(message);
+	}
+}
+
+class TerminalOverlapSession extends FakeSession {
+	private resolvePrompt?: () => void;
+	public promptStarted?: Promise<void>;
+	private resolvePromptStarted?: () => void;
+
+	constructor(
+		sessionFile: string | undefined,
+		private readonly persistedUserText: string,
+		private readonly persistedAssistantText: string,
+	) {
+		super(sessionFile, []);
+		this.promptStarted = new Promise((resolve) => {
+			this.resolvePromptStarted = resolve;
+		});
+	}
+
+	override async prompt(message: string, options?: PromptOptionsLike): Promise<void> {
+		this.prompts.push({ message, options });
+		if (options?.streamingBehavior) {
+			return;
+		}
+		this.resolvePromptStarted?.();
+		await new Promise<void>((resolve) => {
+			this.resolvePrompt = resolve;
+		});
+		this.messages.push(
+			{
+				role: "user",
+				content: buildPromptWithAssetContext(this.persistedUserText),
+			} as never,
+			{
+				role: "assistant",
+				content: [{ type: "text", text: this.persistedAssistantText }],
+				stopReason: "stop",
+			},
+		);
+	}
+
+	finish(): void {
+		this.resolvePrompt?.();
+	}
+}
+
+class TerminalNoPersistSession extends FakeSession {
+	private resolvePrompt?: () => void;
+	public promptStarted?: Promise<void>;
+	private resolvePromptStarted?: () => void;
+
+	constructor(sessionFile: string | undefined) {
+		super(sessionFile, []);
+		this.promptStarted = new Promise((resolve) => {
+			this.resolvePromptStarted = resolve;
+		});
+	}
+
+	override async prompt(message: string, options?: PromptOptionsLike): Promise<void> {
+		this.prompts.push({ message, options });
+		if (options?.streamingBehavior) {
+			return;
+		}
+		this.resolvePromptStarted?.();
+		await new Promise<void>((resolve) => {
+			this.resolvePrompt = resolve;
+		});
+	}
+
+	finish(): void {
+		this.resolvePrompt?.();
 	}
 }
 
@@ -1039,6 +1111,18 @@ test("getConversationState exposes the active run snapshot for refresh observers
 			{ kind: "assistant", text: "previous assistant" },
 		],
 	);
+	assert.deepEqual(
+		state.viewMessages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "previous user" },
+			{ kind: "assistant", text: "previous assistant" },
+			{ kind: "user", text: "current task" },
+			{ kind: "assistant", text: "partial answer" },
+		],
+	);
 	assert.ok(state.activeRun);
 	const activeRun = state.activeRun;
 	assert.equal(activeRun.status, "running");
@@ -1055,6 +1139,7 @@ test("getConversationState exposes the active run snapshot for refresh observers
 		activeRun.assistantMessageId,
 		/^active-run-manual-state-/,
 	);
+	assert.equal(state.viewMessages.at(-1)?.id, activeRun.assistantMessageId);
 	assert.ok(activeRun.process);
 	const process = activeRun.process;
 	assert.equal(process.isComplete, false);
@@ -1107,7 +1192,7 @@ test("getConversationState hides the current active input from persisted history
 
 	const state = await (
 		service as AgentService & {
-			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
+			getConversationState(conversationId: string): Promise<ConversationStateResponseBody>;
 		}
 	).getConversationState("manual:repeat");
 
@@ -1123,9 +1208,139 @@ test("getConversationState hides the current active input from persisted history
 		],
 	);
 	assert.equal(state.activeRun?.input?.message, "继续");
+	assert.deepEqual(
+		state.viewMessages.slice(-2).map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "继续" },
+			{ kind: "assistant", text: "" },
+		],
+	);
 
 	activeSession.finish();
 	await run;
+});
+
+test("getConversationState returns deduplicated viewMessages when terminal activeRun overlaps persisted history", async () => {
+	const store = await createStore();
+	const session = new TerminalOverlapSession("E:/sessions/view-overlap.jsonl", "current task", "final answer");
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	let resolveDoneState: (state: ConversationStateResponseBody) => void = () => undefined;
+	const doneStatePromise = new Promise<ConversationStateResponseBody>((resolve) => {
+		resolveDoneState = resolve;
+	});
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:view-overlap",
+			message: "current task",
+		},
+		(event) => {
+			if (event.type === "done") {
+				void (
+					service as AgentService & {
+						getConversationState(conversationId: string): Promise<ConversationStateResponseBody>;
+					}
+				)
+					.getConversationState("manual:view-overlap")
+					.then(resolveDoneState);
+			}
+		},
+	);
+	await session.promptStarted;
+	session.emit(textDelta("final answer"));
+	session.finish();
+
+	const state = await doneStatePromise;
+	await run;
+	assert.ok(state);
+	assert.equal(state.activeRun?.status, "done");
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "current task" },
+			{ kind: "assistant", text: "final answer" },
+		],
+	);
+	assert.deepEqual(
+		state.viewMessages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "current task" },
+			{ kind: "assistant", text: "final answer" },
+		],
+	);
+});
+
+test("getConversationState keeps repeated terminal input visible when the current turn is not persisted yet", async () => {
+	const store = await createStore();
+	const session = new TerminalNoPersistSession("E:/sessions/repeated-terminal.jsonl");
+	session.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("continue"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "previous answer" }],
+			stopReason: "stop",
+		} as never,
+	);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	let resolveDoneState: (state: ConversationStateResponseBody) => void = () => undefined;
+	const doneStatePromise = new Promise<ConversationStateResponseBody>((resolve) => {
+		resolveDoneState = resolve;
+	});
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:repeated-terminal",
+			message: "continue",
+		},
+		(event) => {
+			if (event.type === "done") {
+				void service.getConversationState("manual:repeated-terminal").then(resolveDoneState);
+			}
+		},
+	);
+	await session.promptStarted;
+	session.emit(textDelta("fresh answer"));
+	session.finish();
+
+	const state = await doneStatePromise;
+	await run;
+	assert.equal(state.activeRun?.status, "done");
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "continue" },
+			{ kind: "assistant", text: "previous answer" },
+		],
+	);
+	assert.deepEqual(
+		state.viewMessages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "continue" },
+			{ kind: "assistant", text: "previous answer" },
+			{ kind: "user", text: "continue" },
+			{ kind: "assistant", text: "fresh answer" },
+		],
+	);
 });
 
 test("getConversationState coalesces consecutive assistant messages from one completed turn", async () => {
