@@ -405,9 +405,11 @@ export function getPlaygroundTaskInboxStyles(): string {
 				gap: 10px;
 				margin: 0 -10px;
 				padding: calc(8px + env(safe-area-inset-top)) 10px 10px;
-				border-bottom: 1px solid #1a1b2b;
-				background: #060711;
-				box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+				border-bottom: 0;
+				background: #101421;
+				box-shadow:
+					0 14px 32px rgba(0, 0, 0, 0.3),
+					inset 0 1px 0 rgba(255, 255, 255, 0.04);
 			}
 
 			.task-inbox-head-actions {
@@ -429,10 +431,12 @@ export function getPlaygroundTaskInboxStyles(): string {
 			.task-inbox-result-bubble {
 				min-height: 64px;
 				padding: 14px;
-				border: 1px solid #1a1b2b;
+				border: 0;
 				border-radius: 4px;
-				background: #0b0c18;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+				background: #0b0e19;
+				box-shadow:
+					0 10px 24px rgba(0, 0, 0, 0.18),
+					inset 0 1px 0 rgba(255, 255, 255, 0.035);
 			}
 
 			.task-inbox-item-actions {

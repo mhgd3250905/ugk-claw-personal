@@ -24,9 +24,11 @@ export function getConnRunDetailsStyles(): string {
 			width: min(720px, 100%);
 			max-height: min(78vh, 640px);
 			padding: 16px;
-			border: 1px solid rgba(201, 210, 255, 0.14);
+			border: 0;
 			border-radius: 4px;
-			background: rgba(8, 11, 20, 0.98);
+			background:
+				linear-gradient(180deg, #121522 0%, #070914 42%, #04050d 100%),
+				#060711;
 			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 			overflow: hidden;
 		}
@@ -50,9 +52,9 @@ export function getConnRunDetailsStyles(): string {
 			width: 32px;
 			height: 32px;
 			padding: 0;
-			border: 1px solid rgba(201, 210, 255, 0.12);
+			border: 0;
 			border-radius: 4px;
-			background: rgba(255, 255, 255, 0.05);
+			background: #171a28;
 			color: rgba(238, 244, 255, 0.76);
 		}
 
@@ -70,9 +72,10 @@ export function getConnRunDetailsStyles(): string {
 			display: grid;
 			gap: 8px;
 			padding: 12px;
-			border: 1px solid rgba(201, 210, 255, 0.1);
+			border: 0;
 			border-radius: 4px;
-			background: rgba(255, 255, 255, 0.035);
+			background: #0b0e19;
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 		}
 
 		.conn-run-section code {

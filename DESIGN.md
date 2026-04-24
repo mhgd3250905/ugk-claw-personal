@@ -167,6 +167,8 @@ Mobile operational surfaces are pages, not decorative modals. File library, back
 
 Every non-chat mobile work page uses an app-style topbar. The left side starts with a compact back arrow and the page title; the right side keeps the page's primary commands, such as refresh, create, save, filters, and bulk read actions, in one horizontally scrollable action row when space is tight. Do not add a visible `回到对话` text button to these work pages.
 
+Non-chat pages and dialogs should follow the same borderless instrument-panel language as context usage details. File library, task inbox, background task manager, background task editor, run logs, confirmation dialogs, and run-detail dialogs use opaque dark layers, small radii, compact headers, and shadow/tonal depth instead of visible divider borders. Keep structural borders out of normal state; reserve them for true focus, warning, or table-like density.
+
 Context usage details are a compact instrument panel tied to the topbar. The panel must be opaque, dark, readable, and borderless: a large percentage readout, a soft progress rail, four small metric surfaces, and a quiet model strip create hierarchy through background depth, type scale, spacing, and shadow. It must release focus before becoming hidden.
 
 ## Do's and Don'ts

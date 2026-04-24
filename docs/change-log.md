@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 非 chat 页面与弹窗无边框仪表盘收口
+- 日期：2026-04-25
+- 主题：继续沿用用户确认喜欢的深色仪表盘美术方向，把文件库、任务消息、后台任务管理器、后台任务编辑页、运行日志、确认弹窗和后台任务过程弹窗从“浅边框分区”收口为实体深色层级，减少后台表单味。
+- 影响范围：`src/ui/playground-assets.ts` 将手机工作页头部、文件 / conn 卡片、后台任务工具条、任务编辑字段和后台过程弹窗改为无边框深色层级；`src/ui/playground-task-inbox.ts` 将任务消息页头部与结果气泡同步为 `#101421 / #0b0e19` 层级；`src/ui/playground-conn-activity.ts` 与 `src/ui/playground.ts` 将运行日志、确认弹窗和后台任务过程详情改成小圆角、无边框、实体背景；`test/server.test.ts` 增加精确 CSS block 断言，避免贪婪正则假绿；`DESIGN.md`、`docs/playground-current.md` 同步非 chat 工作页视觉口径。
+- 对应入口：`src/ui/playground-assets.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-conn-activity.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 手机端历史侧边栏无边框仪表盘化
 - 日期：2026-04-25
 - 主题：把手机端历史会话侧边栏同步到上下文详情弹窗的无边框深色仪表盘设计，减少线框感，让会话索引更像当前主题的一部分。

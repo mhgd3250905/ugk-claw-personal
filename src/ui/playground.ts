@@ -1549,10 +1549,14 @@ function getPlaygroundStyles(): string {
 			grid-template-rows: auto minmax(0, 1fr);
 			width: min(780px, 100%);
 			max-height: min(78vh, 860px);
-			border: 1px solid rgba(201, 210, 255, 0.14);
-			border-radius: 10px;
-			background: linear-gradient(180deg, rgba(10, 14, 24, 0.98), rgba(6, 9, 16, 0.98));
-			box-shadow: 0 28px 52px rgba(0, 0, 0, 0.34);
+			border: 0;
+			border-radius: 8px;
+			background:
+				linear-gradient(180deg, #121522 0%, #070914 42%, #04050d 100%),
+				#060711;
+			box-shadow:
+				0 28px 64px rgba(0, 0, 0, 0.46),
+				inset 0 1px 0 rgba(255, 255, 255, 0.05);
 		}
 
 		.chat-run-log-head {
@@ -1561,7 +1565,9 @@ function getPlaygroundStyles(): string {
 			justify-content: space-between;
 			gap: 12px;
 			padding: 14px 16px;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+			border-bottom: 0;
+			background: #101421;
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 		}
 
 		.chat-run-log-head strong {
@@ -1574,7 +1580,8 @@ function getPlaygroundStyles(): string {
 			height: 32px;
 			padding: 0;
 			border: 0;
-			background: transparent;
+			border-radius: 4px;
+			background: #171a28;
 			box-shadow: none;
 			color: rgba(238, 244, 255, 0.72);
 			font-size: 18px;
@@ -1605,9 +1612,10 @@ function getPlaygroundStyles(): string {
 			display: grid;
 			gap: 6px;
 			padding: 12px;
-			border: 1px solid rgba(201, 210, 255, 0.1);
-			border-radius: 8px;
-			background: rgba(255, 255, 255, 0.03);
+			border: 0;
+			border-radius: 4px;
+			background: #0b0e19;
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 		}
 
 		.chat-run-log-item-title {
@@ -1628,8 +1636,9 @@ function getPlaygroundStyles(): string {
 
 		.chat-run-log-empty {
 			padding: 14px;
-			border: 1px dashed rgba(201, 210, 255, 0.14);
-			border-radius: 8px;
+			border: 0;
+			border-radius: 4px;
+			background: #0b0e19;
 			color: rgba(226, 234, 255, 0.58);
 			font-size: 12px;
 			line-height: 1.6;
@@ -2217,9 +2226,11 @@ function getPlaygroundStyles(): string {
 			display: grid;
 			gap: 14px;
 			padding: 16px;
-			border: 1px solid rgba(201, 210, 255, 0.14);
-			border-radius: 4px;
-			background: rgba(8, 11, 20, 0.98);
+			border: 0;
+			border-radius: 8px;
+			background:
+				linear-gradient(180deg, #121522 0%, #070914 42%, #04050d 100%),
+				#060711;
 			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 		}
 

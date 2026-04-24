@@ -463,9 +463,11 @@ export function getPlaygroundAssetMobileStyles(): string {
 				justify-content: space-between;
 				gap: 10px;
 				padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
-				border-bottom: 1px solid #1a1b2b;
-				background: #060711;
-				box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+				border-bottom: 0;
+				background: #101421;
+				box-shadow:
+					0 14px 32px rgba(0, 0, 0, 0.3),
+					inset 0 1px 0 rgba(255, 255, 255, 0.04);
 			}
 
 			.mobile-work-topbar {
@@ -493,9 +495,9 @@ export function getPlaygroundAssetMobileStyles(): string {
 				height: 36px;
 				min-width: 36px;
 				padding: 0;
-				border: 1px solid rgba(201, 210, 255, 0.12);
+				border: 0;
 				border-radius: 4px;
-				background: rgba(255, 255, 255, 0.045);
+				background: #171a28;
 				color: rgba(242, 246, 255, 0.92);
 				font-size: 17px;
 				line-height: 1;
@@ -554,8 +556,8 @@ export function getPlaygroundAssetMobileStyles(): string {
 				min-height: 38px;
 				padding: 0 12px;
 				border-radius: 4px;
-				border-color: rgba(201, 210, 255, 0.12);
-				background: rgba(255, 255, 255, 0.055);
+				border: 0;
+				background: #171a28;
 				text-transform: none;
 				letter-spacing: 0.02em;
 			}
@@ -584,10 +586,12 @@ export function getPlaygroundAssetMobileStyles(): string {
 			.conn-manager-item {
 				min-height: 72px;
 				padding: 12px;
-				border-color: #1a1b2b;
+				border: 0;
 				border-radius: 4px;
-				background: #0b0c18;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+				background: #0b0e19;
+				box-shadow:
+					0 10px 24px rgba(0, 0, 0, 0.18),
+					inset 0 1px 0 rgba(255, 255, 255, 0.035);
 			}
 
 			.asset-pill {
@@ -622,7 +626,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 			}
 
 			.asset-pill.active {
-				border-color: rgba(141, 255, 178, 0.26);
+				border: 0;
 				background: #0b1616;
 				box-shadow: inset 3px 0 0 rgba(141, 255, 178, 0.44);
 			}
@@ -660,10 +664,12 @@ export function getPlaygroundAssetMobileStyles(): string {
 				grid-template-columns: 1fr;
 				gap: 10px;
 				padding: 10px;
-				border-color: #1a1b2b;
+				border: 0;
 				border-radius: 4px;
-				background: #060711;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+				background: #0b0e19;
+				box-shadow:
+					0 10px 24px rgba(0, 0, 0, 0.2),
+					inset 0 1px 0 rgba(255, 255, 255, 0.035);
 			}
 
 			.conn-manager-filter-field {
@@ -729,9 +735,9 @@ export function getPlaygroundAssetMobileStyles(): string {
 			}
 
 			.conn-manager-run-item {
-				border-color: rgba(201, 210, 255, 0.1);
+				border: 0;
 				border-radius: 4px;
-				background: rgba(255, 255, 255, 0.035);
+				background: #080a13;
 			}
 
 			.conn-editor-body {
@@ -743,16 +749,18 @@ export function getPlaygroundAssetMobileStyles(): string {
 			.conn-editor-field {
 				gap: 8px;
 				padding: 12px;
-				border: 1px solid #1a1b2b;
+				border: 0;
 				border-radius: 4px;
-				background: #0b0c18;
+				background: #0b0e19;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 			}
 
 			.conn-editor-advanced {
 				padding: 12px;
-				border: 1px solid #1a1b2b;
+				border: 0;
 				border-radius: 4px;
-				background: #0b0c18;
+				background: #0b0e19;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 			}
 
 			.conn-editor-field input,
@@ -774,11 +782,11 @@ export function getPlaygroundAssetMobileStyles(): string {
 			.conn-run-details-panel {
 				width: 100%;
 				max-height: min(86dvh, calc(100dvh - 56px));
-				border-bottom: 0;
+				border: 0;
 				border-radius: 4px;
 				background:
 					radial-gradient(circle at 24% 0%, rgba(101, 209, 255, 0.12), transparent 34%),
-					rgba(8, 11, 20, 0.98);
+					#060711;
 			}
 
 			.mobile-drawer-backdrop {
