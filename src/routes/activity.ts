@@ -127,6 +127,7 @@ export function registerActivityRoutes(app: FastifyInstance, deps: ActivityRoute
 				activities: visibleActivities.map(toActivityBody),
 				hasMore,
 				...(hasMore && lastVisible?.createdAt ? { nextBefore: lastVisible.createdAt } : {}),
+				unreadCount: await deps.activityStore.getUnreadCount(),
 			};
 		},
 	);
@@ -134,8 +135,10 @@ export function registerActivityRoutes(app: FastifyInstance, deps: ActivityRoute
 	app.post(
 		"/v1/activity/read-all",
 		async (): Promise<AgentActivityMarkAllReadResponseBody> => {
+			const markedCount = await deps.activityStore.markAllRead();
 			return {
-				markedCount: await deps.activityStore.markAllRead(),
+				markedCount,
+				unreadCount: await deps.activityStore.getUnreadCount(),
 			};
 		},
 	);
@@ -158,7 +161,10 @@ export function registerActivityRoutes(app: FastifyInstance, deps: ActivityRoute
 			if (!activity) {
 				return reply.status(404).send();
 			}
-			return { activity: toActivityBody(activity) };
+			return {
+				activity: toActivityBody(activity),
+				unreadCount: await deps.activityStore.getUnreadCount(),
+			};
 		},
 	);
 }

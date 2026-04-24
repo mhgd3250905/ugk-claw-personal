@@ -620,6 +620,9 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function renderTaskInbox\(/);
 	assert.match(response.body, /params\.set\("unreadOnly", "true"\)/);
 	assert.match(response.body, /params\.set\("before", state\.taskInboxNextBefore\)/);
+	assert.match(response.body, /function applyTaskInboxUnreadCount\(payload\)\s*\{/);
+	assert.match(response.body, /state\.taskInboxUnreadCount = page\.unreadCount/);
+	assert.match(response.body, /state\.taskInboxUnreadCount = Math\.max\(0, Number\(payload\?\.unreadCount\) \|\| 0\)/);
 	assert.match(response.body, /\/v1\/activity\/summary/);
 	assert.match(response.body, /\/v1\/activity\/read-all/);
 	assert.match(response.body, /const markAllTaskInboxReadButton = document\.getElementById\("mark-all-task-inbox-read-button"\)/);
@@ -628,6 +631,18 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /mobileOverflowTaskInboxBadge\.hidden = unreadCount < 1/);
 	assert.match(response.body, /mobileOverflowTaskInboxBadge\.textContent = unreadCount > 99 \? "99\+" : String\(unreadCount\)/);
 	assert.doesNotMatch(response.body, /markVisibleTaskInboxItemsRead/);
+	assert.doesNotMatch(
+		response.body,
+		/const page = await fetchTaskInboxItems\(\{ append \}\);\s*[\s\S]{0,900}?void syncTaskInboxSummary\(\{ silent: true \}\);/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/const activity = await markTaskInboxItemRead\(activityId\);\s*[\s\S]{0,500}?await syncTaskInboxSummary\(\{ silent: true \}\);/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/const payload = await response\.json\(\)\.catch\(\(\) => \(\{\}\)\);\s*[\s\S]{0,900}?await syncTaskInboxSummary\(\{ silent: true \}\);/,
+	);
 	assert.match(response.body, /\/v1\/conns"\s*,\s*\{\s*method:\s*"GET"/);
 	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(conn\.connId\)\s*\+\s*"\/run"/);
 	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(conn\.connId\)\s*\+\s*\(conn\.status === "paused" \? "\/resume" : "\/pause"\)/);
@@ -2036,7 +2051,11 @@ test("GET /playground injects stream lifecycle runtime from a dedicated controll
 	assert.match(response.body, /function connectNotificationStream\(\)\s*\{/);
 	assert.match(
 		response.body,
-		/function handleNotificationBroadcastEvent\(rawEvent\)\s*\{[\s\S]*?showNotificationToast\(event\);[\s\S]*?void loadTaskInbox\(\{ silent: true \}\);[\s\S]*?void syncTaskInboxSummary\(\{ silent: true \}\);[\s\S]*?\}/,
+		/function handleNotificationBroadcastEvent\(rawEvent\)\s*\{[\s\S]*?showNotificationToast\(event\);[\s\S]*?void loadTaskInbox\(\{ silent: true \}\);[\s\S]*?\}/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/void loadTaskInbox\(\{ silent: true \}\);\s*void syncTaskInboxSummary\(\{ silent: true \}\);/,
 	);
 	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
 	assert.match(response.body, /async function recoverRunningStreamAfterDisconnect\(reason\)\s*\{/);
@@ -4108,6 +4127,7 @@ test("GET /v1/activity returns global activity items newest-first", async () => 
 			},
 			get: async () => undefined,
 			markRead: async () => false,
+			getUnreadCount: async () => 2,
 		} as never,
 	});
 
@@ -4153,6 +4173,7 @@ test("GET /v1/activity returns global activity items newest-first", async () => 
 			},
 		],
 		hasMore: false,
+		unreadCount: 2,
 	});
 	await app.close();
 });
@@ -4191,6 +4212,7 @@ test("GET /v1/activity supports conversation filters and limits", async () => {
 			},
 			get: async () => undefined,
 			markRead: async () => false,
+			getUnreadCount: async () => 3,
 		} as never,
 	});
 
@@ -4200,7 +4222,7 @@ test("GET /v1/activity supports conversation filters and limits", async () => {
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.deepEqual(response.json(), { activities: [], hasMore: false });
+	assert.deepEqual(response.json(), { activities: [], hasMore: false, unreadCount: 3 });
 	assert.deepEqual(calls, [
 		{
 			limit: 3,
@@ -4263,6 +4285,7 @@ test("GET /v1/activity returns pagination metadata when another task inbox page 
 			},
 			get: async () => undefined,
 			markRead: async () => false,
+			getUnreadCount: async () => 2,
 		} as never,
 	});
 
@@ -4304,6 +4327,7 @@ test("GET /v1/activity returns pagination metadata when another task inbox page 
 		],
 		hasMore: true,
 		nextBefore: "2026-04-22T10:02:00.000Z",
+		unreadCount: 2,
 	});
 	await app.close();
 });
@@ -4352,6 +4376,7 @@ test("POST /v1/activity/:activityId/read marks an activity item read", async () 
 				createdAt: "2026-04-22T10:01:00.000Z",
 				readAt: "2026-04-22T10:03:00.000Z",
 			}),
+			getUnreadCount: async () => 4,
 		} as never,
 	});
 
@@ -4377,6 +4402,7 @@ test("POST /v1/activity/:activityId/read marks an activity item read", async () 
 			createdAt: "2026-04-22T10:01:00.000Z",
 			readAt: "2026-04-22T10:03:00.000Z",
 		},
+		unreadCount: 4,
 	});
 	await app.close();
 });
@@ -4406,6 +4432,7 @@ test("POST /v1/activity/read-all marks all task inbox items as read", async () =
 	assert.deepEqual(calls, ["all"]);
 	assert.deepEqual(response.json(), {
 		markedCount: 5,
+		unreadCount: 0,
 	});
 	await app.close();
 });

@@ -225,14 +225,17 @@ export interface AgentActivityListResponseBody {
 	activities: AgentActivityItemBody[];
 	hasMore: boolean;
 	nextBefore?: string;
+	unreadCount: number;
 }
 
 export interface AgentActivityReadResponseBody {
 	activity: AgentActivityItemBody;
+	unreadCount: number;
 }
 
 export interface AgentActivityMarkAllReadResponseBody {
 	markedCount: number;
+	unreadCount: number;
 }
 
 export interface AgentActivitySummaryResponseBody {

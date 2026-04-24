@@ -201,6 +201,15 @@
   2. 为 `renderConversationState()` 记录 `lastConversationStateSyncAt`，让 visibility 恢复可以判断 state 是否过期。
   3. 把 `visibilitychange` / `pageshow` / `online` 的恢复选项拆开，避免三个入口都串成 catalog + state 的慢路径。
 
+### Task 8：任务消息未读 summary 随主请求返回
+
+- 状态：已完成（2026-04-24）。`GET /v1/activity` 现在会随列表返回 `unreadCount`；`POST /v1/activity/:activityId/read` 和 `POST /v1/activity/read-all` 也会返回新的未读数。前端加载任务消息、单条标记已读、全部已读和通知广播刷新列表时直接应用主响应里的未读数，不再额外补 `GET /v1/activity/summary`。
+- 修改：`src/routes/activity.ts`、`src/types/api.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-stream-controller.ts`、`test/server.test.ts`
+- 步骤：
+  1. 写测试锁定 `/v1/activity`、单条已读和全部已读响应都包含 `unreadCount`。
+  2. 写页面脚本断言，禁止 `loadTaskInbox()` / `markTaskInboxItemReadAndSync()` / `markAllTaskInboxItemsRead()` 在主请求后再补 summary 请求。
+  3. 前端新增 `applyTaskInboxUnreadCount()`，把列表响应和已读动作响应统一落到 badge、筛选按钮和全部已读按钮状态。
+
 ## 验收标准
 
 - 旧会话 `/v1/chat/state` 小历史响应保持百毫秒级；长历史不会随完整 JSONL 线性劣化到秒级。
@@ -209,5 +218,6 @@
 - 打开后台任务管理器的请求数从 `1 + N` 降为 `1`。
 - 连续点击查看技能第二次走缓存。
 - 页面恢复 / 网络恢复不会无差别串行读取 `/v1/chat/conversations` 与 `/v1/chat/state`。
+- 打开任务消息、标记单条已读和全部已读不会在主请求后再固定补打一条 `/v1/activity/summary`。
 - `npm test` 通过；新增回归测试覆盖每个体验债。
 - `docs/playground-current.md` 和 `docs/change-log.md` 在执行对应任务时同步更新。

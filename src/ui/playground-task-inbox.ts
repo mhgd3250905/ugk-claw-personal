@@ -531,6 +531,16 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			setPrimaryView("chat");
 		}
 
+		function applyTaskInboxUnreadCount(payload) {
+			state.taskInboxUnreadCount = Math.max(0, Number(payload?.unreadCount) || 0);
+			renderTaskInboxToggleState();
+			if (state.primaryView === "tasks") {
+				updateTaskInboxFilterButtons();
+				updateMarkAllTaskInboxReadButtonState();
+			}
+			return state.taskInboxUnreadCount;
+		}
+
 		async function fetchTaskInboxSummary() {
 			const response = await fetch("/v1/activity/summary", {
 				method: "GET",
@@ -541,17 +551,12 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				const errorMessage = payload?.error?.message || payload?.message || "无法读取任务消息摘要";
 				throw new Error(errorMessage);
 			}
-			return Math.max(0, Number(payload?.unreadCount) || 0);
+			return payload;
 		}
 
 		async function syncTaskInboxSummary(options) {
 			try {
-				state.taskInboxUnreadCount = await fetchTaskInboxSummary();
-				renderTaskInboxToggleState();
-				if (state.primaryView === "tasks") {
-					updateTaskInboxFilterButtons();
-					updateMarkAllTaskInboxReadButtonState();
-				}
+				applyTaskInboxUnreadCount(await fetchTaskInboxSummary());
 			} catch (error) {
 				if (!options?.silent) {
 					const messageText = error instanceof Error ? error.message : "无法读取任务消息摘要";
@@ -604,6 +609,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 					: [],
 				hasMore: Boolean(payload?.hasMore),
 				nextBefore: typeof payload?.nextBefore === "string" ? payload.nextBefore : "",
+				unreadCount: Math.max(0, Number(payload?.unreadCount) || 0),
 			};
 		}
 
@@ -616,7 +622,10 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				throw new Error("标记任务消息已读失败");
 			}
 			const payload = await response.json().catch(() => ({}));
-			return normalizeTaskInboxItem(payload?.activity);
+			return {
+				activity: normalizeTaskInboxItem(payload?.activity),
+				unreadCount: Math.max(0, Number(payload?.unreadCount) || 0),
+			};
 		}
 
 		function setTaskInboxItemReadLocally(activityId, readAt) {
@@ -649,9 +658,9 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				return;
 			}
 			try {
-				const activity = await markTaskInboxItemRead(activityId);
-				setTaskInboxItemReadLocally(activityId, activity?.readAt);
-				await syncTaskInboxSummary({ silent: true });
+				const payload = await markTaskInboxItemRead(activityId);
+				setTaskInboxItemReadLocally(activityId, payload.activity?.readAt);
+				applyTaskInboxUnreadCount(payload);
 			} catch (error) {
 				if (!options?.silent) {
 					const messageText = error instanceof Error ? error.message : "标记任务消息已读失败";
@@ -691,7 +700,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				if (state.primaryView === "tasks") {
 					renderTaskInbox();
 				}
-				await syncTaskInboxSummary({ silent: true });
+				applyTaskInboxUnreadCount(payload);
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "全部标记已读失败";
 				showError(messageText);
@@ -739,11 +748,12 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				}
 				state.taskInboxHasMore = page.hasMore;
 				state.taskInboxNextBefore = page.nextBefore;
+				state.taskInboxUnreadCount = page.unreadCount;
+				renderTaskInboxToggleState();
 				state.taskInboxError = "";
 				if (state.primaryView === "tasks") {
 					renderTaskInbox();
 				}
-				void syncTaskInboxSummary({ silent: true });
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "无法读取任务消息";
 				state.taskInboxError = messageText;

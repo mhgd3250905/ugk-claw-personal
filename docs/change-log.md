@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground 任务消息未读数随主请求返回
+- 日期：2026-04-24
+- 主题：继续清理任务消息入口的隐形双请求。之前打开任务消息会先 `GET /v1/activity`，随后再补 `GET /v1/activity/summary`；单条标记已读和全部已读也是先写状态，再补 summary。这个未读数本来就是同一个收件箱的读模型，却被拆成两次网络往返，移动端弱网下就是典型“看起来没多少代码，点起来就是慢”的设计。现在列表、单条已读和全部已读响应都直接带新的 `unreadCount`，前端直接应用到 badge、筛选按钮和全部已读按钮状态；实时通知广播刷新任务消息列表后也不再额外补 summary。
+- 影响范围：`src/routes/activity.ts` 为 `GET /v1/activity`、`POST /v1/activity/:activityId/read`、`POST /v1/activity/read-all` 增加 `unreadCount`；`src/types/api.ts` 更新响应类型；`src/ui/playground-task-inbox.ts` 新增 `applyTaskInboxUnreadCount()` 并移除任务消息加载 / 已读动作后的固定 summary 请求；`src/ui/playground-stream-controller.ts` 去掉通知广播里的重复 summary 刷新；`test/server.test.ts` 增加 API 与页面脚本回归；`docs/playground-current.md`、本清扫计划与 `AGENTS.md` 同步当前口径。
+- 对应入口：`src/routes/activity.ts`、`src/types/api.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-stream-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`、`AGENTS.md`
+
 ### Playground 恢复同步按生命周期原因分级
 - 日期：2026-04-24
 - 主题：继续清理多次切换 / 前后台恢复后的用户可感知慢路径。之前 `visibilitychange`、`pageshow`、`online` 虽然统一走了 `scheduleResumeConversationSync()`，但最终还是容易把 catalog 与 canonical state 串起来跑一遍；用户只是网络恢复或从后台切回来，也可能被拖进一次 `GET /v1/chat/conversations` + `GET /v1/chat/state`。这类“看起来很保险”的恢复链路，其实就是把慢请求伪装成勤快，体验上非常要命。现在恢复同步会合并 in-flight 选项并按触发原因分级：`pageshow` 强制校准当前会话 state，`visibilitychange` 只在 active run 或 state 超过恢复阈值时回源，`online` 优先查当前 active run 状态并续订 `/v1/chat/events`；catalog 只在当前会话缺失、列表为空或显式要求时读取。

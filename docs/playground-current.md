@@ -387,12 +387,12 @@
 - 任务消息相关红点和数字 badge 统一使用鲜红色 `#ff1744`，带浅色描边和红色 glow，不能再退回半透明粉色那种没精神的提醒色；更多按钮上的数字超过 99 时显示 `99+`。
 - 任务消息不是 conversation，也不再把后台结果硬塞回当前会话；页面主视图通过 `data-primary-view=chat|tasks` 在聊天页和任务消息页之间切换。
 - 任务消息页的主体结构在 [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)，`src/ui/playground.ts` 只负责拼装入口，不再继续把任务消息逻辑堆进主文件。
-- 列表数据来自 `GET /v1/activity?limit=50`，未读摘要来自 `GET /v1/activity/summary`；页面打开后不再偷偷清未读。
+- 列表数据来自 `GET /v1/activity?limit=50`，该响应会同时返回 `unreadCount`；`GET /v1/activity/summary` 只保留给页面初始化和极轻量兜底，不再作为打开任务消息后的固定第二跳。页面打开后不再偷偷清未读。
 - 如果顶部 `任务消息` badge 有未读数，打开任务消息页会默认进入 `未读` 筛选，并请求 `GET /v1/activity?limit=50&unreadOnly=true`。这不是装饰，是防止“最新 50 条已读、旧数据还有未读”时红标和列表打架。
 - 任务消息页提供 `未读 / 全部` 两个筛选；`未读` 只展示 `readAt` 为空的条目，`全部` 按时间倒序展示完整任务消息。
 - 任务消息页头部只保留 `任务消息` 标题，不再显示“后台任务跑完……”说明句；`未读 / 全部 / 全部已读 / 刷新 / 返回对话` 收进同一行工具栏，头部背景保持透明。手机端继续保持单行横向滚动，不再拆成筛选区和动作区两层，也不再单独铺一层深色渐变背景；文件库和后台任务管理器的标题区也按同一套透明单行头部收口。
-- `GET /v1/activity` 响应包含 `hasMore` / `nextBefore`，前端据此显示 `加载更多`，继续用 `before=nextBefore` 分页拉取。不要再把一个固定 `limit=50` 当成全量收件箱，那个坑已经踩过了。
-- 任务消息页现在按条处理未读：未读条目会显示红点；点击条目本身，或点击 `任务ID / 复制 / 查看过程`，才会调用 `POST /v1/activity/:activityId/read` 把当前条目标记已读。
-- 任务消息页头部提供显式 `全部已读`，走 `POST /v1/activity/read-all`；这才是批量清空未读的正式入口，不再把“打开页面”伪装成“看过全部消息”。
+- `GET /v1/activity` 响应包含 `hasMore` / `nextBefore` / `unreadCount`，前端据此显示 `加载更多` 并直接刷新 badge，继续用 `before=nextBefore` 分页拉取。不要再把一个固定 `limit=50` 当成全量收件箱，那个坑已经踩过了。
+- 任务消息页现在按条处理未读：未读条目会显示红点；点击条目本身，或点击 `任务ID / 复制 / 查看过程`，才会调用 `POST /v1/activity/:activityId/read` 把当前条目标记已读；该响应会返回新的 `unreadCount`，前端本地同步，不再补打一条 summary 请求。
+- 任务消息页头部提供显式 `全部已读`，走 `POST /v1/activity/read-all`；该响应会返回 `markedCount` 与新的 `unreadCount`。这才是批量清空未读的正式入口，不再把“打开页面”伪装成“看过全部消息”。
 - 每条任务消息的结果正文按对话气泡规格渲染：正文使用 `.message-content` 和 `renderMessageMarkdown()`，代码块、表格、链接和文件下载卡片与聊天 transcript 保持同一套视觉与交互；任务结果区域会覆盖全局 Markdown 标题字号，正文为 `12px`，`h1 / h2 / h3` 分别为 `18px / 16px / 14px`，并给链接、inline code、blockquote、表格头做颜色区分；底部固定提供复制任务 ID、复制正文、查看过程三类动作。其中 `source=conn` 且带 `sourceId + runId` 的条目会继续复用后台 run detail 弹层，弹层里的 `Result` 优先渲染完整 `resultText`，再兜底 `resultSummary`。
 - 实时广播到达后，前端只刷新任务消息列表和未读数，不再因为后台结果广播去刷新当前 conversation transcript。
