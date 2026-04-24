@@ -3341,6 +3341,7 @@ function getPlaygroundScript(): string {
 			} catch {
 				target.focus();
 			}
+			return document.activeElement === target;
 		}
 
 		function rememberPanelReturnFocus(preferredElement) {
@@ -3353,19 +3354,26 @@ function getPlaygroundScript(): string {
 			return messageInput;
 		}
 
-		function restoreFocusAfterPanelClose(panelElement, fallbackElement) {
+		function releasePanelFocusBeforeHide(panelElement, fallbackElement) {
 			if (panelElement?.contains(document.activeElement)) {
-				focusPanelReturnTarget(fallbackElement);
+				const restored = focusPanelReturnTarget(fallbackElement);
+				if (!restored && panelElement.contains(document.activeElement)) {
+					document.activeElement.blur();
+				}
 			}
+		}
+
+		function restoreFocusAfterPanelClose(panelElement, fallbackElement) {
+			releasePanelFocusBeforeHide(panelElement, fallbackElement);
 		}
 
 		function closeConfirmDialog(confirmed) {
 			const resolve = typeof state.confirmDialogResolve === "function" ? state.confirmDialogResolve : null;
 			state.confirmDialogResolve = null;
+			releasePanelFocusBeforeHide(confirmDialog, state.confirmDialogRestoreFocusElement);
 			confirmDialog.classList.remove("open");
 			confirmDialog.hidden = true;
 			confirmDialog.setAttribute("aria-hidden", "true");
-			restoreFocusAfterPanelClose(confirmDialog, state.confirmDialogRestoreFocusElement);
 			state.confirmDialogRestoreFocusElement = null;
 			if (resolve) {
 				resolve(Boolean(confirmed));

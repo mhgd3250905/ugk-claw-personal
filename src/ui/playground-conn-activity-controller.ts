@@ -82,7 +82,7 @@ export function getConnActivityElementRefsScript(): string {
 export function getConnActivityEditorScript(): string {
 	return `
 		function closeConnRunDetailsDialog() {
-			restoreFocusAfterPanelClose(connRunDetailsDialog, state.connRunDetailsRestoreFocusElement);
+			releasePanelFocusBeforeHide(connRunDetailsDialog, state.connRunDetailsRestoreFocusElement);
 			state.connRunDetailsRestoreFocusElement = null;
 			connRunDetailsDialog.classList.remove("open");
 			connRunDetailsDialog.hidden = true;

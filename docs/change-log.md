@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground 弹层关闭前释放内部焦点
+- 日期：2026-04-24
+- 主题：修复打开后台任务过程后关闭详情弹层时，焦点仍停在 `button#conn-run-details-close`，随后父级 `#conn-run-details-dialog` 被设置为 `aria-hidden=true` 导致浏览器控制台提示 `Blocked aria-hidden on an element because its descendant retained focus` 的问题。这类警告不是装饰噪音，而是键盘 / 读屏用户可能被塞进隐藏区域的真实体验债。
+- 影响范围：`src/ui/playground.ts` 新增 `releasePanelFocusBeforeHide()`，在隐藏面板前优先把焦点归还到可见触发入口或底部输入框，归还失败时对仍在面板内的 active element 执行 `blur()`；`src/ui/playground-conn-activity-controller.ts` 的后台任务过程详情、`src/ui/playground-transcript-renderer.ts` 的运行日志弹层、确认弹层关闭路径都改成先释放焦点再设置 `hidden / aria-hidden`；`test/server.test.ts` 增加页面脚本断言锁住关闭顺序与 `blur()` 兜底；`docs/playground-current.md` 同步当前无障碍口径。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground-transcript-renderer.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ### 腾讯云生产环境增量更新到 `58c12e9`
 - 日期：2026-04-24
 - 主题：按增量更新流程把腾讯云新加坡生产环境从 `0fdcef7` 更新到 `58c12e92fa28a93d7373d65a0c387d8f09d6f29b`。这次继续沿用 GitHub 工作目录 `~/ugk-claw-repo`，运行态仍留在 `~/ugk-claw-shared`，没有做整目录替换，也没有触碰 `.data/agent`、sidecar 登录态或日志目录。

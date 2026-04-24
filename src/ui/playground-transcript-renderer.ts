@@ -898,10 +898,10 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			if (chatRunLogDialog.hidden) {
 				return false;
 			}
+			releasePanelFocusBeforeHide(chatRunLogDialog, state.chatRunLogRestoreFocusElement);
 			chatRunLogDialog.classList.remove("open");
 			chatRunLogDialog.hidden = true;
 			chatRunLogDialog.setAttribute("aria-hidden", "true");
-			restoreFocusAfterPanelClose(chatRunLogDialog, state.chatRunLogRestoreFocusElement);
 			state.chatRunLogRestoreFocusElement = null;
 			return true;
 		}

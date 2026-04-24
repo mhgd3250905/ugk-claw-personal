@@ -752,6 +752,30 @@ test("GET /playground returns the test UI html", async () => {
 	await app.close();
 });
 
+test("GET /playground releases panel focus before hiding conn run details", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /function releasePanelFocusBeforeHide\(panelElement, fallbackElement\)\s*\{/);
+	assert.match(response.body, /document\.activeElement\.blur\(\);/);
+	assert.match(
+		response.body,
+		/function closeConnRunDetailsDialog\(\)\s*\{[\s\S]*releasePanelFocusBeforeHide\(connRunDetailsDialog, state\.connRunDetailsRestoreFocusElement\);[\s\S]*connRunDetailsDialog\.setAttribute\("aria-hidden", "true"\);/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/function closeConnRunDetailsDialog\(\)\s*\{[\s\S]*connRunDetailsDialog\.setAttribute\("aria-hidden", "true"\);[\s\S]*releasePanelFocusBeforeHide\(connRunDetailsDialog,/,
+	);
+	await app.close();
+});
+
 test("GET /playground defaults runtime append behavior to steer", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
