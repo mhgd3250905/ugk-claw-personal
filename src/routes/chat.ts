@@ -84,6 +84,22 @@ function isValidQueueMode(mode: unknown): mode is QueueMessageMode {
 	return mode === "steer" || mode === "followUp";
 }
 
+function parseOptionalPositiveInteger(value: unknown, fieldName: string): { value?: number; error?: string } {
+	if (value === undefined) {
+		return {};
+	}
+	if (typeof value !== "string" || value.trim().length === 0) {
+		return { error: `Field "${fieldName}" must be a positive integer when provided` };
+	}
+
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		return { error: `Field "${fieldName}" must be a positive integer when provided` };
+	}
+
+	return { value: parsed };
+}
+
 function parseAttachments(value: unknown): { attachments?: ChatAttachmentBody[]; error?: string } {
 	if (value === undefined) {
 		return {};
@@ -212,17 +228,23 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 	app.get(
 		"/v1/chat/state",
 		async (
-			request: FastifyRequest<{ Querystring: { conversationId?: string } }>,
+			request: FastifyRequest<{ Querystring: { conversationId?: string; viewLimit?: string } }>,
 			reply,
 		): Promise<ConversationStateResponseBody | FastifyReply> => {
-			const { conversationId } = request.query ?? {};
+			const { conversationId, viewLimit } = request.query ?? {};
 
 			if (!isValidConversationId(conversationId)) {
 				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
 			}
+			const parsedViewLimit = parseOptionalPositiveInteger(viewLimit, "viewLimit");
+			if (parsedViewLimit.error) {
+				return sendBadRequest(reply, parsedViewLimit.error);
+			}
 
 			try {
-				return await deps.agentService.getConversationState(conversationId);
+				return await deps.agentService.getConversationState(conversationId, {
+					viewLimit: parsedViewLimit.value,
+				});
 			} catch (error) {
 				return sendInternalError(reply, error);
 			}
@@ -252,17 +274,24 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 	app.get(
 		"/v1/chat/history",
 		async (
-			request: FastifyRequest<{ Querystring: { conversationId?: string } }>,
+			request: FastifyRequest<{ Querystring: { conversationId?: string; limit?: string; before?: string } }>,
 			reply,
 		): Promise<ChatHistoryResponseBody | FastifyReply> => {
-			const { conversationId } = request.query ?? {};
+			const { conversationId, limit, before } = request.query ?? {};
 
 			if (!isValidConversationId(conversationId)) {
 				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
 			}
+			const parsedLimit = parseOptionalPositiveInteger(limit, "limit");
+			if (parsedLimit.error) {
+				return sendBadRequest(reply, parsedLimit.error);
+			}
 
 			try {
-				return await deps.agentService.getConversationHistory(conversationId);
+				return await deps.agentService.getConversationHistory(conversationId, {
+					limit: parsedLimit.value,
+					before: typeof before === "string" && before.trim().length > 0 ? before.trim() : undefined,
+				});
 			} catch (error) {
 				return sendInternalError(reply, error);
 			}

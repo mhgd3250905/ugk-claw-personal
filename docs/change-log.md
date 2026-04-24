@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground 会话 state/history 改为分页读取
+- 日期：2026-04-24
+- 主题：继续收口历史会话越用越慢的问题。之前 `GET /v1/chat/state` 仍会把完整会话历史转换并返回给前端，然后浏览器再截取最近 160 条；这不是优化，是把账单从后端搬到浏览器，长会话迟早要卡。现在 state 响应默认只给最近窗口，并通过 `historyPage` 告诉前端还有没有更早消息；旧历史由独立的 history 分页接口按需加载。
+- 影响范围：`src/agent/agent-service.ts` 新增 state/history 分页结果与 terminal run 覆盖关系的页内索引修正；`src/routes/chat.ts` 透传 `viewLimit`、`limit` 和 `before`；`src/types/api.ts` 补齐分页元信息；`src/ui/playground.ts` 在恢复 state 时请求最近 160 条，并把“加载更多历史”改成 `/v1/chat/history?before=...&limit=...` 服务端分页补页，本地缓存只继续作为最近快照；`test/agent-service.test.ts` 与 `test/server.test.ts` 覆盖长历史 state 截窗、history 游标分页和页面脚本入口。
+- 对应入口：`src/agent/agent-service.ts`、`src/routes/chat.ts`、`src/types/api.ts`、`src/ui/playground.ts`、`test/agent-service.test.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`
+
 ### Playground 会话激活改成两阶段提交
 - 日期：2026-04-24
 - 主题：继续收口多次切换历史会话后 `新会话` / 旧会话切换手感变慢的问题。后端 state 读已经轻量化，但前端之前仍把“切到目标会话”绑死在 `GET /v1/chat/state` hydrate 完成之后；只要旧会话很大、网络抖动或浏览器连接池排队，用户点了按钮却还停在旧界面，体验上就像又卡死了。现在会话创建或切换只等待服务端确认目标 `conversationId`，随后立即进入目标会话 shell，真实历史与 active run 由后台 canonical state 同步补齐。

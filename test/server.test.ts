@@ -48,6 +48,7 @@ function createAgentServiceStub(overrides?: {
 	) => Promise<Array<StreamEvent>>;
 	getConversationHistory?: (
 		conversationId: string,
+		options?: { limit?: number; before?: string },
 	) => Promise<{
 		conversationId: string;
 		messages: Array<{
@@ -57,8 +58,11 @@ function createAgentServiceStub(overrides?: {
 			text: string;
 			createdAt: string;
 		}>;
+		hasMore?: boolean;
+		nextBefore?: string;
+		limit?: number;
 	}>;
-	getConversationState?: (conversationId: string) => Promise<Record<string, unknown>>;
+	getConversationState?: (conversationId: string, options?: { viewLimit?: number }) => Promise<Record<string, unknown>>;
 	getConversationCatalog?: () => Promise<{
 		currentConversationId: string;
 		conversations: Array<{
@@ -1364,6 +1368,7 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /function getConversationHistoryStorageKey\(conversationId\)\s*\{/);
 	assert.match(response.body, /function restoreConversationHistory\(conversationId\)\s*\{/);
 	assert.match(response.body, /function renderMoreConversationHistory\(\)\s*\{/);
+	assert.match(response.body, /async function fetchConversationHistoryPage\(conversationId, options\)\s*\{/);
 	assert.match(response.body, /function bindPlaygroundAssemblerEvents\(\)\s*\{/);
 	assert.match(response.body, /function initializePlaygroundAssembler\(\)\s*\{/);
 	assert.match(response.body, /bindPlaygroundAssemblerEvents\(\);/);
@@ -1376,6 +1381,11 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /function archiveCurrentTranscript\(conversationId\)\s*\{/);
 	assert.match(response.body, /const MAX_ARCHIVED_TRANSCRIPTS = 4;/);
 	assert.match(response.body, /conversationState\?\.viewMessages/);
+	assert.match(response.body, /viewLimit=" \+/);
+	assert.match(response.body, /conversationState\?\.historyPage\?\.hasMore/);
+	assert.match(response.body, /\/v1\/chat\/history\?" \+ params\.toString\(\)/);
+	assert.match(response.body, /state\.historyHasMore/);
+	assert.match(response.body, /state\.historyNextBefore/);
 	assert.match(response.body, /renderedMessages\.get\(activeRun\.assistantMessageId\)/);
 	assert.match(response.body, /function findRenderedAssistantForActiveRun\(activeRun\)\s*\{/);
 	assert.match(response.body, /String\(entry\.runId \|\| ""\)\.trim\(\) === runId/);
@@ -2098,8 +2108,8 @@ test("GET /v1/chat/history returns the requested conversation transcript", async
 	const calls: string[] = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub({
-			getConversationHistory: async (conversationId) => {
-				calls.push(conversationId);
+			getConversationHistory: async (conversationId, options) => {
+				calls.push(`${conversationId}:${options?.limit ?? ""}:${options?.before ?? ""}`);
 				return {
 					conversationId,
 					messages: [
@@ -2118,6 +2128,9 @@ test("GET /v1/chat/history returns the requested conversation transcript", async
 							createdAt: "2026-04-20T00:00:01.000Z",
 						},
 					],
+					hasMore: true,
+					nextBefore: "history-1",
+					limit: options?.limit,
 				};
 			},
 		}),
@@ -2125,7 +2138,7 @@ test("GET /v1/chat/history returns the requested conversation transcript", async
 
 	const response = await app.inject({
 		method: "GET",
-		url: "/v1/chat/history?conversationId=manual%3Athread-1",
+		url: "/v1/chat/history?conversationId=manual%3Athread-1&limit=25&before=history-3",
 	});
 
 	assert.equal(response.statusCode, 200);
@@ -2147,17 +2160,20 @@ test("GET /v1/chat/history returns the requested conversation transcript", async
 				createdAt: "2026-04-20T00:00:01.000Z",
 			},
 		],
+		hasMore: true,
+		nextBefore: "history-1",
+		limit: 25,
 	});
-	assert.deepEqual(calls, ["manual:thread-1"]);
+	assert.deepEqual(calls, ["manual:thread-1:25:history-3"]);
 	await app.close();
 });
 
 test("GET /v1/chat/state returns the canonical conversation state", async () => {
-	const calls: string[] = [];
+	const calls: Array<{ conversationId: string; viewLimit?: number }> = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub({
-			getConversationState: async (conversationId) => {
-				calls.push(conversationId);
+			getConversationState: async (conversationId, options) => {
+				calls.push({ conversationId, viewLimit: options?.viewLimit });
 				return {
 					conversationId,
 					running: true,
@@ -2231,6 +2247,10 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 						updatedAt: "2026-04-20T00:00:02.000Z",
 					},
 					updatedAt: "2026-04-20T00:00:02.000Z",
+					historyPage: {
+						hasMore: false,
+						limit: options?.viewLimit,
+					},
 				};
 			},
 		}),
@@ -2238,7 +2258,7 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 
 	const response = await app.inject({
 		method: "GET",
-		url: "/v1/chat/state?conversationId=manual%3Athread-2",
+		url: "/v1/chat/state?conversationId=manual%3Athread-2&viewLimit=80",
 	});
 
 	assert.equal(response.statusCode, 200);
@@ -2315,8 +2335,12 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 			updatedAt: "2026-04-20T00:00:02.000Z",
 		},
 		updatedAt: "2026-04-20T00:00:02.000Z",
+		historyPage: {
+			hasMore: false,
+			limit: 80,
+		},
 	});
-	assert.deepEqual(calls, ["manual:thread-2"]);
+	assert.deepEqual(calls, [{ conversationId: "manual:thread-2", viewLimit: 80 }]);
 	await app.close();
 });
 

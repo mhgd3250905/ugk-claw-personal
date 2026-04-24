@@ -147,7 +147,8 @@
 
 ### Task 2：state/history 读模型分页
 
-- 修改：`src/agent/agent-session-factory.ts`、`src/agent/agent-service.ts`、`src/routes/chat.ts`、`src/types/api.ts`、`src/ui/playground.ts`、`test/agent-service.test.ts`、`test/agent-session-factory.test.ts`、`test/server.test.ts`
+- 状态：已完成（2026-04-24）。`GET /v1/chat/state` 已支持 `viewLimit`，默认返回最近 160 条可渲染历史并带 `historyPage` 元信息；`GET /v1/chat/history` 已支持 `limit` / `before` 游标分页，前端顶部加载更多历史改为服务端分页补页。当前实现先保持整文件读取再分页的绿测路径，尾部 JSONL 读取优化留到后续性能专项。
+- 修改：`src/agent/agent-service.ts`、`src/routes/chat.ts`、`src/types/api.ts`、`src/ui/playground.ts`、`test/agent-service.test.ts`、`test/server.test.ts`
 - 步骤：
   1. 写测试：1000 条 session JSONL，`getConversationState()` 默认只转换最近 160 条。
   2. 写测试：`GET /v1/chat/history?limit=...&before=...` 返回分页历史。

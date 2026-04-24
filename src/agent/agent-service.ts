@@ -149,9 +149,21 @@ export interface ConversationHistoryMessage {
 export interface ConversationHistoryResult {
 	conversationId: string;
 	messages: ConversationHistoryMessage[];
+	hasMore: boolean;
+	nextBefore?: string;
+	limit: number;
 }
 
 export type ConversationStateResult = ConversationStateResponseBody;
+
+export interface ConversationHistoryPageOptions {
+	limit?: number;
+	before?: string;
+}
+
+export interface ConversationStateOptions {
+	viewLimit?: number;
+}
 
 export interface RunEventSubscription {
 	conversationId: string;
@@ -194,6 +206,9 @@ interface TerminalRunState {
 }
 
 const MAX_BUFFERED_RUN_EVENTS = 300;
+const DEFAULT_CONVERSATION_STATE_VIEW_LIMIT = 160;
+const DEFAULT_CONVERSATION_HISTORY_LIMIT = 80;
+const MAX_CONVERSATION_HISTORY_PAGE_LIMIT = 500;
 
 export class AgentService {
 	private readonly activeRuns = new Map<string, ActiveRunState>();
@@ -405,16 +420,30 @@ export class AgentService {
 		};
 	}
 
-	async getConversationHistory(conversationId: string): Promise<ConversationHistoryResult> {
+	async getConversationHistory(
+		conversationId: string,
+		options?: ConversationHistoryPageOptions,
+	): Promise<ConversationHistoryResult> {
 		const messages = this.buildConversationHistoryMessages(await this.getContextMessages(conversationId));
+		const page = paginateConversationHistoryMessages(messages, {
+			limit: options?.limit,
+			before: options?.before,
+			defaultLimit: DEFAULT_CONVERSATION_HISTORY_LIMIT,
+		});
 
 		return {
 			conversationId,
-			messages,
+			messages: page.messages,
+			hasMore: page.hasMore,
+			nextBefore: page.nextBefore,
+			limit: page.limit,
 		};
 	}
 
-	async getConversationState(conversationId: string): Promise<ConversationStateResult> {
+	async getConversationState(
+		conversationId: string,
+		options?: ConversationStateOptions,
+	): Promise<ConversationStateResult> {
 		const activeRun = this.activeRuns.get(conversationId);
 		const existingConversation = await this.options.conversationStore.get(conversationId);
 		const contextMessages = await this.getContextMessages(conversationId);
@@ -425,25 +454,39 @@ export class AgentService {
 			activeRun?.view,
 		);
 		const terminalRun = activeRun ? undefined : this.getRenderableTerminalRun(conversationId, sessionMessages);
+		const historyPage = paginateConversationHistoryMessages(sessionMessages, {
+			limit: options?.viewLimit,
+			defaultLimit: DEFAULT_CONVERSATION_STATE_VIEW_LIMIT,
+		});
 		const activeRunView = activeRun
 			? cloneActiveRunView(activeRun.view)
 			: terminalRun
 				? cloneActiveRunView(terminalRun.view)
 				: null;
+		const persistedTurnCoverage = shiftPersistedTurnCoverageToPage(
+			activeRun?.persistedTurnCoverage ?? terminalRun?.historyCoverage,
+			historyPage.startIndex,
+			historyPage.messages.length,
+		);
 		const viewMessages = buildConversationViewMessages(
 			conversationId,
-			sessionMessages,
+			historyPage.messages,
 			activeRunView,
-			activeRun?.persistedTurnCoverage ?? terminalRun?.historyCoverage,
+			persistedTurnCoverage,
 		);
 
 		return {
 			conversationId,
 			running: Boolean(activeRun),
 			contextUsage,
-			messages: sessionMessages,
+			messages: historyPage.messages,
 			viewMessages,
 			activeRun: activeRunView,
+			historyPage: {
+				hasMore: historyPage.hasMore,
+				nextBefore: historyPage.nextBefore,
+				limit: historyPage.limit,
+			},
 			updatedAt:
 				activeRun?.view.updatedAt ??
 				terminalRun?.view.updatedAt ??
@@ -1617,6 +1660,75 @@ function cloneConversationHistoryMessage(message: ConversationHistoryMessage): C
 		...message,
 		...(message.assetRefs ? { assetRefs: message.assetRefs.map((asset) => ({ ...asset })) } : {}),
 		...(message.files ? { files: message.files.map((file) => ({ ...file })) } : {}),
+	};
+}
+
+interface ConversationHistoryPaginationInput {
+	limit?: number;
+	before?: string;
+	defaultLimit: number;
+}
+
+interface ConversationHistoryPage {
+	messages: ConversationHistoryMessage[];
+	startIndex: number;
+	hasMore: boolean;
+	nextBefore?: string;
+	limit: number;
+}
+
+function paginateConversationHistoryMessages(
+	messages: readonly ConversationHistoryMessage[],
+	input: ConversationHistoryPaginationInput,
+): ConversationHistoryPage {
+	const limit = normalizeConversationHistoryLimit(input.limit, input.defaultLimit);
+	const before = typeof input.before === "string" ? input.before.trim() : "";
+	const beforeIndex = before ? messages.findIndex((message) => message.id === before) : -1;
+	const endIndex = beforeIndex >= 0 ? beforeIndex : messages.length;
+	const startIndex = Math.max(0, endIndex - limit);
+	const pageMessages = messages.slice(startIndex, endIndex).map(cloneConversationHistoryMessage);
+	const hasMore = startIndex > 0;
+
+	return {
+		messages: pageMessages,
+		startIndex,
+		hasMore,
+		nextBefore: hasMore ? pageMessages[0]?.id : undefined,
+		limit,
+	};
+}
+
+function normalizeConversationHistoryLimit(limit: number | undefined, defaultLimit: number): number {
+	if (typeof limit !== "number" || !Number.isFinite(limit)) {
+		return defaultLimit;
+	}
+
+	return Math.min(MAX_CONVERSATION_HISTORY_PAGE_LIMIT, Math.max(1, Math.floor(limit)));
+}
+
+function shiftPersistedTurnCoverageToPage(
+	coverage: PersistedTurnCoverage | null | undefined,
+	pageStartIndex: number,
+	pageLength: number,
+): PersistedTurnCoverage | undefined {
+	if (!coverage) {
+		return undefined;
+	}
+	if (coverage.assistantIndex < 0) {
+		return {
+			inputCovered: coverage.inputCovered,
+			assistantIndex: -1,
+		};
+	}
+
+	const assistantIndex = coverage.assistantIndex - pageStartIndex;
+	if (assistantIndex < 0 || assistantIndex >= pageLength) {
+		return undefined;
+	}
+
+	return {
+		inputCovered: coverage.inputCovered,
+		assistantIndex,
 	};
 }
 

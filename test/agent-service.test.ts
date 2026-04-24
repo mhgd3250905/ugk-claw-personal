@@ -1098,6 +1098,79 @@ test("idle conversation reads status, history, and state from persisted messages
 	);
 });
 
+test("getConversationState returns a bounded recent history page by default", async () => {
+	const store = await createStore();
+	const sessionFile = "E:/sessions/long-state.jsonl";
+	await store.set("manual:long-state", sessionFile, {
+		title: "Long state",
+		preview: "message 200",
+		messageCount: 200,
+	});
+	const factory = new FakeAgentSessionFactory(() => {
+		throw new Error("idle state reads must not create an agent session");
+	});
+	factory.persistedMessages.set(
+		sessionFile,
+		Array.from({ length: 200 }, (_, index) => ({
+			role: "user",
+			content: [{ type: "text", text: `message ${index + 1}` }],
+			timestamp: Date.parse(`2026-04-24T00:${String(index % 60).padStart(2, "0")}:00.000Z`),
+		})),
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const state = await service.getConversationState("manual:long-state");
+
+	assert.deepEqual(factory.calls, []);
+	assert.equal(state.messages.length, 160);
+	assert.equal(state.viewMessages.length, 160);
+	assert.equal(state.messages[0]?.id, "session-message-41");
+	assert.equal(state.messages[0]?.text, "message 41");
+	assert.equal(state.messages.at(-1)?.text, "message 200");
+	assert.deepEqual(state.historyPage, {
+		hasMore: true,
+		nextBefore: "session-message-41",
+		limit: 160,
+	});
+});
+
+test("getConversationHistory returns paged history before a message cursor", async () => {
+	const store = await createStore();
+	const sessionFile = "E:/sessions/paged-history.jsonl";
+	await store.set("manual:paged-history", sessionFile);
+	const factory = new FakeAgentSessionFactory(() => {
+		throw new Error("paged history reads must not create an agent session");
+	});
+	factory.persistedMessages.set(
+		sessionFile,
+		Array.from({ length: 10 }, (_, index) => ({
+			role: "user",
+			content: [{ type: "text", text: `history ${index + 1}` }],
+			timestamp: Date.parse(`2026-04-24T01:00:${String(index).padStart(2, "0")}.000Z`),
+		})),
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const newestPage = await service.getConversationHistory("manual:paged-history", { limit: 3 });
+	const previousPage = await service.getConversationHistory("manual:paged-history", {
+		limit: 3,
+		before: newestPage.nextBefore,
+	});
+
+	assert.deepEqual(
+		newestPage.messages.map((message) => message.text),
+		["history 8", "history 9", "history 10"],
+	);
+	assert.deepEqual(newestPage.hasMore, true);
+	assert.equal(newestPage.nextBefore, "session-message-8");
+	assert.deepEqual(
+		previousPage.messages.map((message) => message.text),
+		["history 5", "history 6", "history 7"],
+	);
+	assert.deepEqual(previousPage.hasMore, true);
+	assert.equal(previousPage.nextBefore, "session-message-5");
+});
+
 test("getConversationState exposes the active run snapshot for refresh observers", async () => {
 	const store = await createStore();
 	const activeSession = new DeferredSession("E:/sessions/state.jsonl");

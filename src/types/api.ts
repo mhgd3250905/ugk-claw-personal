@@ -287,6 +287,9 @@ export interface ChatHistoryMessageBody {
 export interface ChatHistoryResponseBody {
 	conversationId: string;
 	messages: ChatHistoryMessageBody[];
+	hasMore: boolean;
+	nextBefore?: string;
+	limit: number;
 }
 
 export interface ConversationCatalogItemBody {
@@ -377,6 +380,11 @@ export interface ConversationStateResponseBody {
 	messages: ChatHistoryMessageBody[];
 	viewMessages: ChatHistoryMessageBody[];
 	activeRun: ChatActiveRunBody | null;
+	historyPage: {
+		hasMore: boolean;
+		nextBefore?: string;
+		limit: number;
+	};
 	updatedAt: string;
 }
 

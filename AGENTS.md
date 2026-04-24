@@ -243,6 +243,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
+- playground 的 `GET /v1/chat/state` 默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 暴露分页状态；旧消息补页走 `GET /v1/chat/history?before=...&limit=...`，不要再让 state 扛完整历史，也不要把本地 `localStorage` 当完整历史真源。
 - playground 从后端 session 恢复已完成任务时，连续 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并成一条助手回复；不要让刷新后的同一轮浏览器处理过程拆成多条“助手”气泡。
 - playground Web 入口当前采用“一个 agent、多条历史会话、一个全局当前会话”的模型；不同浏览器 / 设备打开后应先通过 `GET /v1/chat/conversations` 跟随服务端 `currentConversationId`，再通过 `GET /v1/chat/state` 看到当前会话的历史、当前输入、active assistant 正文和过程区。
 - playground 的“新会话”必须走 `POST /v1/chat/conversations` 创建并激活新的服务端会话；不要再 reset 旧会话，也不要只清当前浏览器 DOM 写一条本地假提示。

@@ -3234,6 +3234,8 @@ function getPlaygroundScript(): string {
 			renderedHistoryCount: 0,
 			historyPageSize: 12,
 			historyLoadingMore: false,
+			historyHasMore: false,
+			historyNextBefore: "",
 			activeRunEventController: null,
 			notificationEventSource: null,
 			notificationReconnectTimer: null,
@@ -3700,7 +3702,12 @@ function getPlaygroundScript(): string {
 				};
 			}
 
-			const response = await fetch("/v1/chat/state?conversationId=" + encodeURIComponent(nextConversationId), {
+			const stateUrl =
+				"/v1/chat/state?conversationId=" +
+				encodeURIComponent(nextConversationId) +
+				"&viewLimit=" +
+				encodeURIComponent(String(MAX_STORED_MESSAGES_PER_CONVERSATION));
+			const response = await fetch(stateUrl, {
 				method: "GET",
 				headers: { accept: "application/json" },
 				signal: options?.signal,
@@ -3718,7 +3725,63 @@ function getPlaygroundScript(): string {
 				messages: Array.isArray(payload?.messages) ? payload.messages : [],
 				viewMessages: Array.isArray(payload?.viewMessages) ? payload.viewMessages : [],
 				activeRun: normalizeActiveRun(payload?.activeRun),
+				historyPage:
+					payload?.historyPage && typeof payload.historyPage === "object"
+						? {
+								hasMore: Boolean(payload.historyPage.hasMore),
+								nextBefore:
+									typeof payload.historyPage.nextBefore === "string"
+										? payload.historyPage.nextBefore
+										: "",
+								limit: Number.isFinite(payload.historyPage.limit)
+									? payload.historyPage.limit
+									: MAX_STORED_MESSAGES_PER_CONVERSATION,
+							}
+						: {
+								hasMore: false,
+								nextBefore: "",
+								limit: MAX_STORED_MESSAGES_PER_CONVERSATION,
+							},
 				updatedAt: typeof payload?.updatedAt === "string" ? payload.updatedAt : new Date().toISOString(),
+			};
+		}
+
+		async function fetchConversationHistoryPage(conversationId, options) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId) {
+				return {
+					conversationId: "",
+					messages: [],
+					hasMore: false,
+					nextBefore: "",
+					limit: MAX_STORED_MESSAGES_PER_CONVERSATION,
+				};
+			}
+
+			const params = new URLSearchParams();
+			params.set("conversationId", nextConversationId);
+			params.set("limit", String(options?.limit || MAX_STORED_MESSAGES_PER_CONVERSATION));
+			const before = String(options?.before || "").trim();
+			if (before) {
+				params.set("before", before);
+			}
+
+			const response = await fetch("/v1/chat/history?" + params.toString(), {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法获取更早的对话历史";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				conversationId: payload?.conversationId || nextConversationId,
+				messages: Array.isArray(payload?.messages) ? payload.messages : [],
+				hasMore: Boolean(payload?.hasMore),
+				nextBefore: typeof payload?.nextBefore === "string" ? payload.nextBefore : "",
+				limit: Number.isFinite(payload?.limit) ? payload.limit : MAX_STORED_MESSAGES_PER_CONVERSATION,
 			};
 		}
 
@@ -3901,8 +3964,13 @@ function getPlaygroundScript(): string {
 				? conversationState.viewMessages
 				: conversationState?.messages;
 			state.conversationHistory = Array.isArray(rawViewMessages)
-				? rawViewMessages.map(normalizeHistoryEntry).filter(Boolean).slice(-MAX_STORED_MESSAGES_PER_CONVERSATION)
+				? rawViewMessages.map(normalizeHistoryEntry).filter(Boolean)
 				: [];
+			state.historyHasMore = Boolean(conversationState?.historyPage?.hasMore);
+			state.historyNextBefore =
+				typeof conversationState?.historyPage?.nextBefore === "string"
+					? conversationState.historyPage.nextBefore
+					: "";
 			state.renderedHistoryCount = 0;
 			clearRenderedTranscript();
 			resetStreamingState();
@@ -3911,7 +3979,7 @@ function getPlaygroundScript(): string {
 
 			if (state.conversationHistory.length > 0) {
 				setTranscriptState("active");
-				renderMoreConversationHistory();
+				void renderMoreConversationHistory();
 			}
 			if (typeof preservedTranscriptScrollTop === "number") {
 				const maxScrollTop = Math.max(0, transcript.scrollHeight - transcript.clientHeight);
@@ -4228,12 +4296,12 @@ function getPlaygroundScript(): string {
 				return;
 			}
 
-			state.conversationHistory = state.conversationHistory.slice(-MAX_STORED_MESSAGES_PER_CONVERSATION);
+			const storedHistory = state.conversationHistory.slice(-MAX_STORED_MESSAGES_PER_CONVERSATION);
 
 			try {
 				localStorage.setItem(
 					getConversationHistoryStorageKey(conversationId),
-					JSON.stringify(state.conversationHistory),
+					JSON.stringify(storedHistory),
 				);
 			} catch {
 				return;
@@ -4249,7 +4317,7 @@ function getPlaygroundScript(): string {
 			nextIndex.unshift({
 				conversationId,
 				updatedAt: new Date().toISOString(),
-				messageCount: state.conversationHistory.length,
+				messageCount: storedHistory.length,
 			});
 
 			while (nextIndex.length > MAX_STORED_CONVERSATIONS) {
@@ -4291,43 +4359,83 @@ function getPlaygroundScript(): string {
 		${getPlaygroundTaskInboxControllerScript()}
 
 		function syncHistoryLoadMoreButton() {
-			const hasMore = state.renderedHistoryCount < state.conversationHistory.length;
+			const hasMore = state.renderedHistoryCount < state.conversationHistory.length || state.historyHasMore;
 			historyLoadMoreButton.hidden = !hasMore;
 			historyLoadMoreButton.disabled = state.historyLoadingMore;
 		}
 
-		function renderMoreConversationHistory() {
+		async function fetchOlderConversationHistoryFromServer() {
+			if (!state.historyHasMore || !state.historyNextBefore) {
+				return false;
+			}
+
+			const conversationId = String(state.conversationId || "").trim();
+			const before = state.historyNextBefore;
+			const page = await fetchConversationHistoryPage(conversationId, {
+				before,
+				limit: MAX_STORED_MESSAGES_PER_CONVERSATION,
+			});
+			if (conversationId !== String(state.conversationId || "").trim()) {
+				return false;
+			}
+
+			const existingIds = new Set(state.conversationHistory.map((entry) => entry.id));
+			const olderEntries = page.messages
+				.map(normalizeHistoryEntry)
+				.filter(Boolean)
+				.filter((entry) => !existingIds.has(entry.id));
+			if (olderEntries.length > 0) {
+				state.conversationHistory = olderEntries.concat(state.conversationHistory);
+			}
+			state.historyHasMore = Boolean(page.hasMore);
+			state.historyNextBefore = typeof page.nextBefore === "string" ? page.nextBefore : "";
+			return olderEntries.length > 0;
+		}
+
+		async function renderMoreConversationHistory() {
 			if (state.historyLoadingMore) {
 				return;
 			}
 
-			const remaining = state.conversationHistory.length - state.renderedHistoryCount;
-			if (remaining <= 0) {
-				syncHistoryLoadMoreButton();
-				return;
-			}
-
 			state.historyLoadingMore = true;
-			const previousHeight = transcript.scrollHeight;
-			const nextCount = Math.min(state.historyPageSize, remaining);
-			const startIndex = Math.max(0, state.conversationHistory.length - state.renderedHistoryCount - nextCount);
-			const slice = state.conversationHistory.slice(startIndex, startIndex + nextCount);
-
-			for (const entry of slice.slice().reverse()) {
-				renderTranscriptEntry(entry, "prepend");
-			}
-
-			state.renderedHistoryCount += slice.length;
-			const heightDelta = transcript.scrollHeight - previousHeight;
-			if (heightDelta > 0) {
-				transcript.scrollTop += heightDelta;
-			}
-			state.historyLoadingMore = false;
 			syncHistoryLoadMoreButton();
+			try {
+				let remaining = state.conversationHistory.length - state.renderedHistoryCount;
+				if (remaining <= 0 && state.historyHasMore) {
+					await fetchOlderConversationHistoryFromServer();
+					remaining = state.conversationHistory.length - state.renderedHistoryCount;
+				}
+				if (remaining <= 0) {
+					return;
+				}
+
+				const previousHeight = transcript.scrollHeight;
+				const nextCount = Math.min(state.historyPageSize, remaining);
+				const startIndex = Math.max(0, state.conversationHistory.length - state.renderedHistoryCount - nextCount);
+				const slice = state.conversationHistory.slice(startIndex, startIndex + nextCount);
+
+				for (const entry of slice.slice().reverse()) {
+					renderTranscriptEntry(entry, "prepend");
+				}
+
+				state.renderedHistoryCount += slice.length;
+				const heightDelta = transcript.scrollHeight - previousHeight;
+				if (heightDelta > 0) {
+					transcript.scrollTop += heightDelta;
+				}
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法获取更早的对话历史";
+				showError(messageText);
+			} finally {
+				state.historyLoadingMore = false;
+				syncHistoryLoadMoreButton();
+			}
 		}
 
 		function restoreConversationHistory(conversationId) {
 			state.conversationHistory = loadConversationHistoryEntries(conversationId);
+			state.historyHasMore = false;
+			state.historyNextBefore = "";
 			state.renderedHistoryCount = 0;
 			clearRenderedTranscript();
 
@@ -4338,7 +4446,7 @@ function getPlaygroundScript(): string {
 			}
 
 			setTranscriptState("active");
-			renderMoreConversationHistory();
+			void renderMoreConversationHistory();
 			scrollTranscriptToBottom();
 		}
 
@@ -4640,7 +4748,7 @@ function getPlaygroundScript(): string {
 			${getPlaygroundMobileShellEventHandlersScript()}
 
 			historyLoadMoreButton.addEventListener("click", () => {
-				renderMoreConversationHistory();
+				void renderMoreConversationHistory();
 			});
 			errorBannerClose.addEventListener("click", () => {
 				clearError();

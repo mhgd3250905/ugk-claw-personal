@@ -55,6 +55,8 @@
 - 会话目录同步失效或强制刷新时，会通过 `AbortController` 取消上一条未完成的 `/v1/chat/conversations`；旧 catalog 请求不能继续占住后续 `新会话` / 恢复同步动作的等待链，也不能在 abort 后弹出错误提示。
 - 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
 - `GET /v1/chat/state` 必须返回后端已经归并好的 `viewMessages`：服务端负责把 canonical `messages` 与 active / terminal run 合成最终可渲染视图；前端优先渲染 `viewMessages`，不再保留自己补画 active input / active assistant 的兼容分支，否则同一轮刚结束就会显示成“问题 / 回答 / 问题 / 回答”
+- `GET /v1/chat/state` 支持 `viewLimit`，默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 告诉前端是否还有更早历史；别再让 state 为了切换会话把完整 JSONL 和完整 transcript 一口气塞给浏览器。
+- `GET /v1/chat/history` 支持 `limit` 和 `before` 游标分页，响应带 `hasMore / nextBefore / limit`；顶部“加载更多历史”和上滑到顶部的自动补页必须走这个服务端分页，而不是只吃 `localStorage` 里最近 160 条缓存。
 - 当前 active run 在 transcript 里只保留一个助手气泡：正文上方是一条会持续改写的人话状态摘要，下面是一枚可点击的动态 loading 气泡；旧的独立“过程展开区”已经下线，不再额外制造第二层消息结构
 - 状态摘要 `assistant-status-summary` 现在固定为单行省略；它负责给人一个稳定的人话进度感，不再允许换行把整条消息高度顶来顶去
 - 运行日志按钮不再显示工具执行结果、bash 输出或 JSON 长文本；页面可见层只保留动态点和“查看运行日志”入口，过程细节只留在运行日志弹层与按钮的辅助文案里
@@ -63,7 +65,7 @@
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 用户切回旧会话继续发送消息时，后端必须继续复用这条会话原来的 `sessionFile` 上下文；不能因为项目技能目录更新、`skillFingerprint` 变化，就偷偷新开一条空 session 让 agent 当场失忆
 - 从后端 session 恢复已完成任务时，连续的 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并为同一条助手回复；不要让刷新后的页面把同一轮浏览器处理过程拆成多条“助手”气泡
-- 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部时，会自动继续补更多旧消息，顶部同时保留“加载更多历史”按钮作为兜底入口
+- 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部时，会自动继续向服务端补更多旧消息，顶部同时保留“加载更多历史”按钮作为兜底入口
 - `landing` 模式下，对话区底部避让按“`chat-stage` 底部到 `command-deck` 顶部的真实距离”动态计算，不再偷懒拿固定值或只拿 `command-deck` 高度瞎猜
 - `landing` 模式下 transcript 容器会被锁进可用高度内，多选文件 / 资产后应表现为对话区收缩并滚动，而不是继续向下顶进 `command-deck`
 - 用户消息固定靠右
@@ -269,6 +271,7 @@
 - 刷新页面后，playground 先请求 `GET /v1/chat/conversations` 获取服务端当前会话，再按该 `conversationId` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、状态壳层、队列和上下文占用作为 canonical state 渲染。
 - `GET /v1/chat/history` 与 `GET /v1/chat/status` 继续保留兼容，但刷新恢复不再靠前端把 history、status、events、localStorage 和 DOM 指针拼成一份“猜出来的状态”。
 - `/v1/chat/state` 与 `/v1/chat/history` 都会合并连续 assistant 历史消息，保证同一轮完成后的浏览器处理叙述和最终回答恢复为一个助手气泡，而不是刷新后散成多条独立消息。
+- `/v1/chat/state` 的恢复响应现在是最近窗口，不是全量历史；需要更早消息时，前端用 `/v1/chat/history?before=...&limit=...` 按页补齐。`localStorage` 仍只保存最近快照，不能被当成完整历史源。
 - 点击 `新会话` 后，如果当前不是空白会话，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后立即进入新会话 shell；新会话的一次 `GET /v1/chat/state` 作为后台真源恢复 UI。旧会话保留在历史列表里，不再先额外同步一轮 `GET /v1/chat/conversations`，也不再等待 hydrate 完成才给用户切过去。当前已经是空白会话时，重复点击 `新会话` 不再产生新的空会话。
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
 - `activeRun` 存在时，前端仍只维护一个 active assistant 气泡；但气泡是否出现在 transcript、对应用户输入是否补齐，都以 `viewMessages` 为准，同一 run 不允许拆出多条“助手 / 过程区 / 结果区”消息。
