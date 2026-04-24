@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### 腾讯云生产环境增量更新到 `58c12e9`
+- 日期：2026-04-24
+- 主题：按增量更新流程把腾讯云新加坡生产环境从 `0fdcef7` 更新到 `58c12e92fa28a93d7373d65a0c387d8f09d6f29b`。这次继续沿用 GitHub 工作目录 `~/ugk-claw-repo`，运行态仍留在 `~/ugk-claw-shared`，没有做整目录替换，也没有触碰 `.data/agent`、sidecar 登录态或日志目录。
+- 影响范围：服务器先备份 sidecar 登录态到 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-180357.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260424-180357`；随后执行 `git fetch --tags origin`、`git pull --ff-only origin main`、生产 compose config 验证与 `docker compose ... up --build -d`。发布后内外网 `/healthz`、`/playground`、sidecar `check-deps.mjs`、容器健康状态与页面源码标记均已验证通过。
+- 对应入口：`docs/tencent-cloud-singapore-deploy.md`、`docs/server-ops-quick-reference.md`
+
 ### Playground 资产详情 hydrate 增加并发阀门
 - 日期：2026-04-24
 - 主题：继续清理文件 / 资产入口里的隐形请求风暴。之前 `loadAssetDetails()` 对缺失的 asset id 直接 `Promise.all` 并发请求 `/v1/assets/:assetId`，同一个 id 如果被两个恢复链路同时需要，也会各打一遍请求。历史附件、conn 附加资料和文件库状态一多，这种代码看着短，实际就是把浏览器连接池和后端一起推去排队。现在资产详情补拉统一进 `assetDetailQueue`，最多 4 路并发，同一 assetId 的进行中请求通过 `assetDetailInFlightById` 复用。

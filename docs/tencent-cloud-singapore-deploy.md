@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`0b63cd745d610ff9b6035bbe38c9dab5adf4ce2e`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-121817`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-121817.tar.gz`
+- 当前线上应用提交：`58c12e92fa28a93d7373d65a0c387d8f09d6f29b`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-180357`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-180357.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,40 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-24 Playground UX 性能债清扫增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+
+1. 本地已完成本轮 Playground UX 性能债清扫的验证：
+   - `node --test --import tsx test/server.test.ts --test-name-pattern "GET /playground renders immersive landing home shell"`：90 pass / 0 fail
+   - `npm test`：274 tests，272 pass，2 skip，0 fail
+   - `git diff --check`
+2. 本地 `main` 已推送到 GitHub：`58c12e92fa28a93d7373d65a0c387d8f09d6f29b`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `0fdcef7e29c9843d6cb4c4ac3adbbf4607675e52`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-180357.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260424-180357`
+6. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `0fdcef7` fast-forward 到 `58c12e9`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config`
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+9. 发布后验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网页面源码包含 `ASSET_DETAIL_CONCURRENCY_LIMIT`
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+10. 本次上线的行为收口：
+    - 会话切换 / 新会话不再被后台 state hydrate 卡住，过期 catalog/state 请求会取消或失效
+    - `GET /v1/chat/state` 默认只返回最近可渲染历史，并通过 history 分页按需补旧消息
+    - 技能列表查询走短 TTL 缓存，后台任务管理器打开时不再对所有 conn 做 `1 + N` runs 请求
+    - `ConversationStore` 使用 mtime cache、串行写队列和原子 rename 落盘
+    - canonical state hydrate 使用 transcript diff / patch，恢复同步按生命周期原因分级
+    - 任务消息未读数随主请求返回，不再固定补打一条 summary
+    - 资产详情 hydrate 最多 4 路并发，同一 assetId 的进行中请求复用同一 Promise
 
 ## 2026-04-24 Agent 时间锚点与过期 once 调度增量发布记录
 
