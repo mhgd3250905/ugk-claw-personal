@@ -9,18 +9,36 @@
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
 - GitHub 最新提交：以 `origin/main` 当前 `HEAD` 为准；生产发布后可能继续追加纯文档提交
-- 生产实际运行代码提交：`4b78f21 feat: consolidate task inbox and asset uploads`
+- 生产实际运行代码提交：`0b63cd7 feat: consolidate playground run-state rendering`
 - 生产文档记录已推送 GitHub；服务器工作目录可 `git pull --ff-only origin main` 同步文档，不需要重启容器
 - 当前公网入口：`http://43.134.167.179:3000/playground`
 - 当前健康检查：`http://43.134.167.179:3000/healthz`
 - 当前服务器目录：`~/ugk-claw-repo`
 - shared 运行态目录：`~/ugk-claw-shared`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-180038`
-- 当前 sidecar 登录态备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-121817`
+- 当前 sidecar 登录态备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-121817.tar.gz`
 
 ## 本阶段完成了什么
 
-### 1. 文件上传链路标准化
+### 1. Playground 消息系统收口
+
+- `GET /v1/chat/state` 的 terminal overlap 归并逻辑已经收口到后端 `viewMessages`
+- terminal run 是否已被 history 覆盖，改成按 run 历史基线与真实新增 canonical history message 判断
+- 前端运行态不再拆“过程区 + 结果区 + 补画壳子”，而是收成同一条助手消息上的状态摘要、loading、最终正文和运行日志入口
+- `/v1/chat/events` 断流恢复按 `state -> events -> state` 单一链路收口，避免“页面提示已恢复但实际卡死、刷新后结果蒸发”
+- 状态摘要固定为单行省略，loading 入口不再显示工具执行长文本，`查看运行日志` 文案已恢复正常中文
+
+关键入口：
+
+- [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+- [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+- [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+- [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+- [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
+- [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
+- [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### 2. 文件上传链路标准化
 
 - 浏览器侧文件上传统一走 `POST /v1/assets/upload`
 - 上传协议改为 `multipart/form-data` / `FormData`
@@ -36,7 +54,7 @@
 - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
-### 2. 后台任务结果改为任务消息页
+### 3. 后台任务结果改为任务消息页
 
 - 后台 `conn` 结果的主投递面已经是 `agent_activity_items` + `任务消息` 页面
 - 默认目标是 `{ "type": "task_inbox" }`
@@ -51,7 +69,7 @@
 - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
 - [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
 
-### 3. 任务消息未读策略收口
+### 4. 任务消息未读策略收口
 
 - 顶部 badge 统计来自 `/v1/activity/summary`
 - 打开任务消息页不会自动清空未读
@@ -66,11 +84,10 @@
 
 这次不是整目录替换，而是 GitHub 工作目录增量更新：
 
-- 发布前生产 `HEAD`：`bbd8735`
-- 发布后生产运行代码：`4b78f21`
-- 发布记录文档提交：`47e6e16`
-- 发布前 sidecar 登录态备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
-- 发布前回滚 tag：`server-pre-deploy-20260423-180038`
+- 发布前生产 `HEAD`：`0847852`
+- 发布后生产运行代码：`0b63cd7`
+- 发布前 sidecar 登录态备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-121817.tar.gz`
+- 发布前回滚 tag：`server-pre-deploy-20260424-121817`
 
 验收已经通过：
 
@@ -80,8 +97,7 @@
 - 公网 `/playground` 返回 `200`
 - `check-deps.mjs` 返回 `host-browser: ok` 和 `proxy: ready`
 - compose 状态显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
-- 页面源码包含 `mobile-overflow-task-inbox-badge`、`task-inbox-filter-unread-button`、`/v1/assets/upload`
-- nginx 容器内已确认 `client_max_body_size 80m`
+- 页面源码包含 `assistant-run-log-trigger` 与 `assistant-status-summary`，且不再包含可见的 `assistant-loading-label`
 
 本次生产踩坑也要记住：改 `deploy/nginx/default.conf` 后，nginx 单文件 bind mount 可能继续挂旧 inode。以后改 nginx 配置，发布后必须：
 
@@ -108,13 +124,13 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 
 ### Git 发布点
 
-- 功能版本：`4b78f21 feat: consolidate task inbox and asset uploads`
-- 部署记录版本：`47e6e16 docs: record task inbox production deploy`
+- 功能版本：`0b63cd7 feat: consolidate playground run-state rendering`
 - 旧推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
 - 不要使用：`snapshot-20260422-v4.1.1-stable`
 
 ### 服务器发布前回滚 tag
 
+- `server-pre-deploy-20260424-121817`
 - `server-pre-deploy-20260423-180038`
 - `server-pre-deploy-20260423-113909`
 - `server-pre-deploy-20260423-014636`
@@ -123,6 +139,7 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 
 ### sidecar 登录态备份
 
+- `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-121817.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-113909.tar.gz`
 - `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-014636.tar.gz`

@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`d0c88a510fb54310aaab9a741fb2f30476625062`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-093739`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-093739.tar.gz`
+- 当前线上应用提交：`0b63cd745d610ff9b6035bbe38c9dab5adf4ce2e`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-121817`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-121817.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -206,6 +206,36 @@ cd ~/ugk-claw-repo
 本次额外踩到一个 Windows 侧小坑：
 
 - 用 PowerShell here-string 通过 `ssh ... bash -s` 喂远端脚本时，stdin 开头会混进 UTF-8 BOM，导致远端把第一条命令识别成 `﻿set`、`﻿cd`、`﻿curl` 这种鬼东西。主发布流程已经实际跑通，但补验收脚本一度被这破字节污染。后续远端执行优先走单行 `ssh "cd ... && ..."`，别再拿 stdin BOM 给自己挖坑。
+
+## 2026-04-24 Playground 消息系统收口增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+
+1. 本地已完成本次消息系统收口改动的核心验证：
+   - `node --test --test-concurrency=1 --import tsx test/server.test.ts`
+   - `node --test --test-concurrency=1 --import tsx test/agent-service.test.ts`
+2. 本地 `main` 已推送到 GitHub：`0b63cd745d610ff9b6035bbe38c9dab5adf4ce2e`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `0847852917d6b7de409888e57cb9c27eeb073967`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-121817.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260424-121817`
+6. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `0847852` fast-forward 到 `0b63cd7`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config`
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+9. 发布后验收通过：
+   - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/playground` 返回 `200`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+   - `GET /playground` 页面源码包含 `assistant-run-log-trigger` 与 `assistant-status-summary`，且不再包含可见的 `assistant-loading-label`
+10. 本次上线的行为收口：
+   - `GET /v1/chat/state` 的 terminal overlap 判定改成按 run 历史基线与真实落盘覆盖关系收口，不再靠正文字符串猜当前轮是否已被 history 覆盖
+   - 运行态 UI 改成单一助手消息上的“状态摘要 + loading + 最终正文 + 运行日志”模型，去掉旧的过程壳层
+   - `/v1/chat/events` 的断流恢复改成 `state -> events -> state` 单一收口，不再出现“显示已恢复但实际卡死、刷新后结果蒸发”的假恢复
+   - 运行态摘要固定为单行省略，loading 入口不再显示工具长文本，运行日志入口文案恢复正常中文
 
 ## 2026-04-23 Playground 任务面板体验增量发布记录
 

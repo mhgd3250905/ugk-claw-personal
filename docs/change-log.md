@@ -36,6 +36,12 @@
 - 影响范围：`src/ui/playground.ts` 收紧状态摘要和运行日志按钮的样式约束，移除 `assistant-loading-label`；`src/ui/playground-transcript-renderer.ts` 改成仅通过按钮的 `aria-label` 记录当前过程状态，页面可见层不再显示过程长文；`test/server.test.ts` 更新页面断言，锁住“摘要单行省略 + 无可见 loading label”的收口结果。
 - 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 
+### 腾讯云生产环境增量更新到 `0b63cd7`
+- 日期：2026-04-24
+- 主题：按用户确认的“增量更新”方式，把腾讯云新加坡生产环境从 `0847852` 更新到 `0b63cd7 feat: consolidate playground run-state rendering`，让线上拿到消息系统后端归并、运行态壳层、运行日志入口和断流恢复链路的完整收口。继续让文档停在旧线上提交，只会把下一次接手的人重新送回坑里。
+- 影响范围：服务器发布前已创建 sidecar 备份 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-121817.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260424-121817`；执行了 `git fetch --tags origin`、`git pull --ff-only origin main`、`docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config` 与 `up --build -d`；验收通过内外网 `/healthz`、内外网 `/playground`、`check-deps.mjs`、`docker compose ps`，以及页面源码中 `assistant-run-log-trigger` / `assistant-status-summary` 在场且 `assistant-loading-label` 已不再可见。
+- 对应入口：[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)、[docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)、[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
+
 ### Agent 显式时间锚点与过期 once 调度拦截
 - 日期：2026-04-24
 - 主题：给前台 chat 和后台 `conn` runner 发往 agent 的用户消息统一补上 `[当前时间：时区 时间]` 前缀，减少模型把“几分钟后”“待会儿”这类相对时间理解歪的概率；同时把一次性 `once` 调度的过去时间直接判成非法，别再把明显失效的任务写进库里装作创建成功。
