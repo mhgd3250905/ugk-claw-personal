@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`42ef655f80ab7089c844a81a7bf896e78b6963d7`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260423-200708`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-200708.tar.gz`
+- 当前线上应用提交：`d0c88a510fb54310aaab9a741fb2f30476625062`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-093739`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-093739.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,40 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-24 Agent 时间锚点与过期 once 调度增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+
+1. 本地已完成针对本次改动的定向验证：
+   - `node --test --test-concurrency=1 --import tsx test/agent-service.test.ts`
+   - `node --test --test-concurrency=1 --import tsx test/background-agent-runner.test.ts`
+   - `node --test --test-concurrency=1 --import tsx test/conn-sqlite-store.test.ts`
+   - `node --test --test-concurrency=1 --test-name-pattern "POST /v1/conns returns 400 when the once schedule is already in the past" --import tsx test/server.test.ts`
+2. 本地 `main` 已推送到 GitHub：`d0c88a510fb54310aaab9a741fb2f30476625062`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `b4f7ffc`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-093739.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260424-093739`
+6. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `b4f7ffc` fast-forward 到 `d0c88a5`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config`
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+9. 发布后验收通过：
+   - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/playground` 返回 `200`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+10. 本次上线的行为收口：
+   - 前台 chat 与后台 `conn` runner 发给 agent 的用户消息，都会自动补一行 `[当前时间：时区 时间]`
+   - 一次性 `once` 调度如果落到过去时间，后端会直接拒绝并返回 `400 BAD_REQUEST`
+   - 用户可见 transcript 不会回显这段内部时间前缀
+
+本次额外踩到一个 Windows 侧小坑：
+
+- 用 PowerShell here-string 通过 `ssh ... bash -s` 喂远端脚本时，stdin 开头会混进 UTF-8 BOM，导致远端把第一条命令识别成 `﻿set`、`﻿cd`、`﻿curl` 这种鬼东西。主发布流程已经实际跑通，但补验收脚本一度被这破字节污染。后续远端执行优先走单行 `ssh "cd ... && ..."`，别再拿 stdin BOM 给自己挖坑。
 
 ## 2026-04-23 Playground 任务面板体验增量发布记录
 
