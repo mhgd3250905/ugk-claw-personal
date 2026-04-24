@@ -2097,6 +2097,36 @@ test("GET /playground restores running conversations after refresh and avoids re
 	await app.close();
 });
 
+test("GET /playground skips identical conversation state redraws and diffs transcript messages", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /renderedConversationStateSignature:\s*""/);
+	assert.match(response.body, /function syncRenderedConversationHistory\(nextEntries\)\s*\{/);
+	assert.match(response.body, /function updateRenderedTranscriptEntry\(entry\)\s*\{/);
+	assert.match(response.body, /const nextTranscriptSignature = buildConversationStateSignature\(state\.conversationState\);/);
+	assert.match(
+		response.body,
+		/if \(nextTranscriptSignature === state\.renderedConversationStateSignature && nextConversationId === state\.renderedConversationId\) \{[\s\S]*shouldRenderTranscript = false;/,
+	);
+	assert.match(
+		response.body,
+		/if \(shouldRenderTranscript\) \{[\s\S]*syncRenderedConversationHistory\(state\.conversationHistory\);[\s\S]*state\.renderedConversationStateSignature = nextTranscriptSignature;/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/function renderConversationState\(conversationState, syncToken\)\s*\{[\s\S]*state\.renderedHistoryCount = 0;\s*clearRenderedTranscript\(\);\s*resetStreamingState\(\);/,
+	);
+	await app.close();
+});
+
 test("GET /playground labels timed-out conn runs distinctly in the detail dialog", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

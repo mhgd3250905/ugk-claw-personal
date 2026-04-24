@@ -155,17 +155,31 @@ export function getPlaygroundStreamControllerScript(): string {
 
 		function buildConversationStateSignature(conversationState) {
 			const source = conversationState && typeof conversationState === "object" ? conversationState : {};
-			const messages = Array.isArray(source.messages) ? source.messages : [];
-			const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+			const messages = Array.isArray(source.viewMessages)
+				? source.viewMessages
+				: Array.isArray(source.messages)
+					? source.messages
+					: [];
 			const activeRun = normalizeActiveRun(source.activeRun);
 			return JSON.stringify({
+				conversationId: typeof source.conversationId === "string" ? source.conversationId : "",
 				updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : "",
 				running: Boolean(source.running),
-				messageCount: messages.length,
-				lastMessageId: lastMessage && typeof lastMessage.id === "string" ? lastMessage.id : "",
-				lastMessageText: lastMessage && typeof lastMessage.text === "string" ? lastMessage.text : "",
+				historyHasMore: Boolean(source.historyPage?.hasMore),
+				historyNextBefore: typeof source.historyPage?.nextBefore === "string" ? source.historyPage.nextBefore : "",
+				messages: messages.map((message) => ({
+					id: message?.id || "",
+					kind: message?.kind || message?.role || "",
+					text: message?.text || "",
+					createdAt: message?.createdAt || "",
+					runId: message?.runId || "",
+					attachments: stableJson(message?.attachments || []),
+					assetRefs: stableJson(message?.assetRefs || []),
+					files: stableJson(message?.files || []),
+				})),
 				activeRunStatus: activeRun ? activeRun.status : "",
 				activeRunText: activeRun ? activeRun.text : "",
+				activeRunId: activeRun ? activeRun.runId : "",
 			});
 		}
 

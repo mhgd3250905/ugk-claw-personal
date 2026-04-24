@@ -185,6 +185,7 @@
 
 ### Task 6：transcript diff 渲染
 
+- 状态：已完成（2026-04-24）。`renderConversationState()` 现在会计算 canonical state 签名；同会话同签名时跳过 transcript DOM 重绘，只更新 context usage / active run 状态。消息窗口变化时优先用 `syncRenderedConversationHistory()` patch 已渲染节点或 append 新节点，只有会话切换或当前消息序列无法对齐时才重建当前 transcript。
 - 修改：`src/ui/playground.ts`、`src/ui/playground-transcript-renderer.ts`、`test/server.test.ts`
 - 步骤：
   1. 写测试锁定 `buildConversationStateSignature()` 被用于跳过同签名重绘。

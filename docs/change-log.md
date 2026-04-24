@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground canonical state 改为 transcript diff 渲染
+- 日期：2026-04-24
+- 主题：继续清理 state hydrate 对用户阅读体验的打扰。之前 `renderConversationState()` 每次拿到 canonical state 都会清空当前 transcript、重置 streaming state，再把最近历史重新渲染一遍；接口瘦身以后还这么干，就等于后端省下来的时间又拿去重跑 markdown hydrate 和代码块 toolbar，长会话里尤其蠢。现在前端用 `buildConversationStateSignature()` 判断同会话同签名回包，命中时跳过 transcript DOM 重绘；消息窗口变化时优先 patch 已渲染节点或 append 新节点，只有会话切换或消息序列无法对齐时才重建当前 transcript。
+- 影响范围：`src/ui/playground.ts` 新增 `renderedConversationId / renderedConversationStateSignature` 状态，并让 `renderConversationState()` 按签名决定是否重绘；`src/ui/playground-transcript-renderer.ts` 新增 `syncRenderedConversationHistory()`、`updateRenderedTranscriptEntry()` 和消息签名 helper，用于 patch 文本、runId 与已渲染窗口；`src/ui/playground-stream-controller.ts` 扩展 `buildConversationStateSignature()`，把 `viewMessages`、分页边界与 active run 关键信息纳入签名；`test/server.test.ts` 增加页面脚本回归。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-transcript-renderer.ts`、`src/ui/playground-stream-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`、`AGENTS.md`
+
 ### ConversationStore 增加 mtime cache 和串行写队列
 - 日期：2026-04-24
 - 主题：继续清理会话切换和新建会话的后端慢路径。`ConversationStore` 之前每次 `get/list/getCurrent/set/current` 都会重新读写整份会话目录 JSON，并且并发 `set()` 与 `setCurrentConversationId()` 会基于各自读到的旧快照落盘，轻则重复 I/O，重则把刚写入的 sessionFile、title、preview 或 current pointer 覆盖掉。现在会话目录 index 按文件 `mtime` 复用进程内 state，写操作统一进串行队列，并用同目录临时文件加 `rename` 原子替换落盘。

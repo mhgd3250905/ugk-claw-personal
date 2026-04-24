@@ -161,6 +161,13 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			transcriptCurrent.innerHTML = "";
 			transcriptArchive.innerHTML = "";
 			renderedMessages.clear();
+			state.renderedConversationId = "";
+			state.renderedConversationStateSignature = "";
+		}
+
+		function clearCurrentTranscript() {
+			transcriptCurrent.innerHTML = "";
+			renderedMessages.clear();
 		}
 
 		function syncMessageCopyButton(entry) {
@@ -440,6 +447,8 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				statusShell: null,
 				statusSummary: null,
 				statusTrigger: null,
+				entryFrameSignature: buildTranscriptEntryFrameSignature(entry),
+				entrySignature: buildTranscriptEntrySignature(entry),
 			};
 			renderedMessages.set(entry.id, rendered);
 			if (entry.runId) {
@@ -447,6 +456,133 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			}
 			syncMessageCopyButton(entry);
 			return rendered;
+		}
+
+		function stableJson(value) {
+			if (Array.isArray(value)) {
+				return value.map((item) => stableJson(item));
+			}
+			if (value && typeof value === "object") {
+				return Object.keys(value)
+					.sort()
+					.reduce((next, key) => {
+						const rawValue = value[key];
+						if (rawValue !== undefined) {
+							next[key] = stableJson(rawValue);
+						}
+						return next;
+					}, {});
+			}
+			return value;
+		}
+
+		function buildTranscriptEntryFrameSignature(entry) {
+			return JSON.stringify({
+				id: entry?.id || "",
+				kind: entry?.kind || "",
+				title: entry?.title || "",
+				createdAt: entry?.createdAt || "",
+				attachments: stableJson(entry?.attachments || []),
+				assetRefs: stableJson(entry?.assetRefs || []),
+				files: stableJson(entry?.files || []),
+			});
+		}
+
+		function buildTranscriptEntrySignature(entry) {
+			return JSON.stringify({
+				frame: buildTranscriptEntryFrameSignature(entry),
+				text: entry?.text || "",
+				runId: entry?.runId || "",
+				process: stableJson(entry?.process || null),
+			});
+		}
+
+		function getRenderedTranscriptEntryIds() {
+			return Array.from(transcriptCurrent.querySelectorAll(".message[data-entry-id]"))
+				.map((card) => String(card.dataset.entryId || ""))
+				.filter(Boolean);
+		}
+
+		function updateRenderedTranscriptEntry(entry) {
+			if (!entry?.id) {
+				return false;
+			}
+			const rendered = renderedMessages.get(entry.id);
+			if (!rendered?.card || !rendered?.content) {
+				return false;
+			}
+
+			const nextFrameSignature = buildTranscriptEntryFrameSignature(entry);
+			if (rendered.entryFrameSignature !== nextFrameSignature) {
+				return false;
+			}
+
+			const nextSignature = buildTranscriptEntrySignature(entry);
+			if (rendered.entrySignature === nextSignature) {
+				return true;
+			}
+
+			if (entry.runId) {
+				rendered.card.dataset.runId = entry.runId;
+			} else {
+				delete rendered.card.dataset.runId;
+			}
+			setMessageContent(rendered.content, entry.text);
+			rendered.entrySignature = nextSignature;
+			return true;
+		}
+
+		function renderConversationEntries(entries) {
+			for (const entry of entries) {
+				renderTranscriptEntry(entry);
+			}
+			state.renderedHistoryCount = entries.length;
+		}
+
+		function syncRenderedConversationHistory(nextEntries) {
+			const entries = Array.isArray(nextEntries) ? nextEntries : [];
+			if (entries.length === 0) {
+				clearCurrentTranscript();
+				state.renderedHistoryCount = 0;
+				syncHistoryLoadMoreButton();
+				return;
+			}
+
+			const targetCount = Math.min(
+				entries.length,
+				Math.max(state.renderedHistoryCount || 0, state.historyPageSize || 12),
+			);
+			const targetEntries = entries.slice(entries.length - targetCount);
+			const currentIds = getRenderedTranscriptEntryIds();
+			const targetIds = targetEntries.map((entry) => entry.id);
+
+			if (currentIds.length === targetIds.length && currentIds.every((id, index) => id === targetIds[index])) {
+				const patched = targetEntries.every((entry) => updateRenderedTranscriptEntry(entry));
+				if (patched) {
+					state.renderedHistoryCount = targetEntries.length;
+					syncHistoryLoadMoreButton();
+					return;
+				}
+			}
+
+			const canAppend =
+				currentIds.length > 0 &&
+				currentIds.length < targetIds.length &&
+				currentIds.every((id, index) => id === targetIds[index]);
+			if (canAppend) {
+				const existingById = new Map(entries.map((entry) => [entry.id, entry]));
+				const patchedExisting = currentIds.every((id) => updateRenderedTranscriptEntry(existingById.get(id)));
+				if (patchedExisting) {
+					targetEntries.slice(currentIds.length).forEach((entry) => renderTranscriptEntry(entry));
+					state.renderedHistoryCount = targetEntries.length;
+					syncHistoryLoadMoreButton();
+					return;
+				}
+			}
+
+			clearCurrentTranscript();
+			renderConversationEntries(targetEntries);
+			syncHistoryLoadMoreButton();
 		}
 
 		function applyProcessViewToRenderedMessage(processView, rendered, options) {

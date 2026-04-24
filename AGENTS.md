@@ -251,6 +251,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - playground 历史会话切换必须走 `POST /v1/chat/current` 更新全局当前会话；当前 agent 运行中禁止新建和切换，避免一个 agent 工人同时被拖到两条产线。
 - playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示“回到底部”按钮。
 - playground active 对话态的 `transcript-current` 底部保留 `--transcript-bottom-scroll-buffer` 余量；最后一条消息必须能继续上拖到 composer 上方，不要把这段 padding 当成多余空白删掉。
+- playground 的 canonical state hydrate 不应默认清空 transcript；同会话同 `buildConversationStateSignature()` 时跳过 DOM 重绘，消息窗口变化时优先 patch / append 已渲染节点，只有会话切换或消息序列无法对齐时才重建当前 transcript。
 - 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要 `GET /v1/chat/state` 仍显示 running，前端应切到 `/v1/chat/events` 续订事件流。
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。

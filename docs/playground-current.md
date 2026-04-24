@@ -54,6 +54,7 @@
 - 会话 sync ownership 不只负责丢弃旧回包，也会通过 `AbortController` 取消上一条未完成的 `/v1/chat/state` 请求；多次快速切换会话后再点 `新会话`，不应被一串已经过期的 state 请求排队拖慢。
 - 会话目录同步现在带 `conversationCatalogSyncPromise` 复用与短时 freshness 冷却；切换 / 新建 / 删除会话后优先复用当前 catalog 结果并按需失效，避免把 `/v1/chat/current` 的切换手感拖成重复目录 round-trip
 - 会话目录同步失效或强制刷新时，会通过 `AbortController` 取消上一条未完成的 `/v1/chat/conversations`；旧 catalog 请求不能继续占住后续 `新会话` / 恢复同步动作的等待链，也不能在 abort 后弹出错误提示。
+- canonical `GET /v1/chat/state` 回包不再默认清空并重绘整段 transcript；前端会用 `buildConversationStateSignature()` 判断同会话同签名状态，命中时跳过 DOM 重绘，只同步 context usage 和 active run 壳层。消息窗口变化时先 patch 已渲染节点或 append 新节点，只有会话切换或当前消息序列无法对齐时才重建当前 transcript。
 - 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
 - `GET /v1/chat/state` 必须返回后端已经归并好的 `viewMessages`：服务端负责把 canonical `messages` 与 active / terminal run 合成最终可渲染视图；前端优先渲染 `viewMessages`，不再保留自己补画 active input / active assistant 的兼容分支，否则同一轮刚结束就会显示成“问题 / 回答 / 问题 / 回答”
 - `GET /v1/chat/state` 支持 `viewLimit`，默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 告诉前端是否还有更早历史；别再让 state 为了切换会话把完整 JSONL 和完整 transcript 一口气塞给浏览器。
@@ -341,6 +342,7 @@
 - 新建会话必须对“已经在空白会话里”保持幂等；只靠按钮 disabled 防连点挡不住本机快请求，最后还是会把历史列表灌满空会话，这种体验债不要再放回去。
 - 发送消息时，如果前端已经持有 `conversationId`，不再每次串行等待 `GET /v1/chat/conversations` 和 `GET /v1/chat/state` 预检完成；消息先进入 `/v1/chat/stream`，会话目录改为后台静默刷新。
 - 会话目录 index 读写属于用户可感知延迟预算的一部分；高频切换、新建和恢复同步只能命中 `ConversationStore` 的 mtime cache 或排队写入，不能让多个请求并发读旧快照再各自覆盖落盘。
+- state hydrate 属于渲染预算，不只是接口预算；同签名回包必须跳过 transcript DOM 重绘，active assistant 文本和运行状态优先 patch 已有节点，别再把长 markdown 和代码块每次都重新 hydrate 一遍。
 - composer 输入仍即时调整高度，但 context usage 估算改成 debounce，避免每个按键都触发完整占用量重算。
 - `visibilitychange`、`pageshow`、`online` 现在统一走 `scheduleResumeConversationSync()` 做去重和冷却，不再三处各自拉取 catalog/state；恢复同步对当前会话只做一次 canonical `GET /v1/chat/state`，不再双拉 state 把页面抖成多余动画。
 - 用户离开底部后，前端会取消尚未执行的自动滚底计划；同一会话的 async state 重绘也会恢复当前 scrollTop，而不是拿“重新渲染了一遍”当借口把阅读位置洗掉。

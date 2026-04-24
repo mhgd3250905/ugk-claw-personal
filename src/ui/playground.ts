@@ -3234,6 +3234,8 @@ function getPlaygroundScript(): string {
 			conversationStateAbortController: null,
 			conversationState: null,
 			conversationHistory: [],
+			renderedConversationId: "",
+			renderedConversationStateSignature: "",
 			renderedHistoryCount: 0,
 			historyPageSize: 12,
 			historyLoadingMore: false,
@@ -3945,6 +3947,7 @@ function getPlaygroundScript(): string {
 				return false;
 			}
 			const nextConversationId = String(conversationState?.conversationId || state.conversationId || "").trim();
+			const previousRenderedConversationId = state.renderedConversationId;
 			const shouldPreserveTranscriptViewport =
 				!state.autoFollowTranscript &&
 				transcript.scrollHeight > transcript.clientHeight + TRANSCRIPT_FOLLOW_THRESHOLD_PX;
@@ -3961,6 +3964,7 @@ function getPlaygroundScript(): string {
 				conversationId: nextConversationId,
 				activeRun,
 			};
+			const nextTranscriptSignature = buildConversationStateSignature(state.conversationState);
 			state.activeRunId = activeRun?.runId || "";
 			state.contextUsage = normalizeContextUsage(conversationState?.contextUsage);
 			const rawViewMessages = Array.isArray(conversationState?.viewMessages)
@@ -3974,15 +3978,24 @@ function getPlaygroundScript(): string {
 				typeof conversationState?.historyPage?.nextBefore === "string"
 					? conversationState.historyPage.nextBefore
 					: "";
-			state.renderedHistoryCount = 0;
-			clearRenderedTranscript();
-			resetStreamingState();
+			let shouldRenderTranscript = true;
+			if (nextTranscriptSignature === state.renderedConversationStateSignature && nextConversationId === state.renderedConversationId) {
+				shouldRenderTranscript = false;
+			}
+			if (nextConversationId !== previousRenderedConversationId) {
+				clearRenderedTranscript();
+			}
+			if (shouldRenderTranscript) {
+				resetStreamingState();
+				syncRenderedConversationHistory(state.conversationHistory);
+				state.renderedConversationId = nextConversationId;
+				state.renderedConversationStateSignature = nextTranscriptSignature;
+			}
 			state.activeRunId = activeRun?.runId || "";
 			renderContextUsageBar();
 
 			if (state.conversationHistory.length > 0) {
 				setTranscriptState("active");
-				void renderMoreConversationHistory();
 			}
 			if (typeof preservedTranscriptScrollTop === "number") {
 				const maxScrollTop = Math.max(0, transcript.scrollHeight - transcript.clientHeight);
