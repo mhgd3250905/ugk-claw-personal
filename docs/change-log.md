@@ -10,7 +10,45 @@
 
 ---
 
+## 2026-04-25
+
+### Playground 手机端历史侧边栏无边框仪表盘化
+- 日期：2026-04-25
+- 主题：把手机端历史会话侧边栏同步到上下文详情弹窗的无边框深色仪表盘设计，减少线框感，让会话索引更像当前主题的一部分。
+- 影响范围：`src/ui/playground-assets.ts` 重做移动端 `.mobile-conversation-drawer`、`.mobile-drawer-head`、`.mobile-conversation-item`、`.mobile-conversation-item.is-active`、`.conversation-item-delete` 和空态样式，改为背景层级、留白、阴影和左侧亮条组织信息；`test/server.test.ts` 增加无边框侧边栏视觉断言；`DESIGN.md`、`docs/playground-current.md` 同步侧边栏设计口径。
+- 对应入口：`src/ui/playground-assets.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
+### Playground 上下文弹窗焦点与无边框视觉收口
+- 日期：2026-04-25
+- 主题：修复手机端打开上下文详情后关闭时出现 `Blocked aria-hidden` 的无障碍警告，并把上下文详情弹窗从临时文本盒重做成无边框仪表盘。
+- 影响范围：`src/ui/playground-context-usage-controller.ts` 在关闭上下文弹窗前先释放焦点回到上下文入口，再设置 `hidden` / `aria-hidden=true` / `inert`，并将上下文详情渲染为百分比、进度条、指标块和模型信息条；`src/ui/playground.ts` 将上下文弹窗重做为靠背景层级、字号、留白和阴影区分功能的无边框面板；`test/server.test.ts` 增加焦点释放顺序和仪表盘视觉断言；`DESIGN.md`、`docs/playground-current.md` 同步“优先背景层次、少用边框”的设计口径。
+- 对应入口：`src/ui/playground-context-usage-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
+### Playground 历史会话删除按钮内收
+- 日期：2026-04-25
+- 主题：把侧边栏历史会话条目的删除按钮从条目外侧独立列挪进会话条目内部右上角，避免删除入口挤压标题和摘要。
+- 影响范围：`src/ui/playground-conversations-controller.ts` 将 `conversation-item-delete` 追加到 `.mobile-conversation-item` 内部，并阻止删除点击冒泡触发会话切换；`src/ui/playground.ts` 与 `src/ui/playground-assets.ts` 将删除按钮改为条目内绝对定位并给条目右侧预留空间；`test/server.test.ts` 增加 DOM 与移动端样式断言；`DESIGN.md`、`docs/playground-current.md` 同步当前侧边栏口径。
+- 对应入口：`src/ui/playground-conversations-controller.ts`、`src/ui/playground.ts`、`src/ui/playground-assets.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ## 2026-04-24
+
+### Playground 手机端历史会话抽屉重设计
+- 日期：2026-04-24
+- 主题：重做手机端会话选择侧边栏，把原来臃肿、装饰感偏重的历史会话列表收口成更贴近主页 chat 的紧凑会话索引。之前那套看着像临时塞进去的卡片堆，确实不该继续忍。
+- 影响范围：`src/ui/playground-assets.ts` 重写手机端 `.mobile-conversation-drawer`、列表项、当前会话状态、信息胶囊和删除按钮样式；`src/ui/playground-conversations-controller.ts` 将删除入口改为 icon-only；`DESIGN.md` 补充 mobile conversation drawer / item 组件口径；`test/server.test.ts` 增加页面断言锁住新抽屉视觉约束；`docs/playground-current.md` 同步当前移动端会话索引口径。
+- 对应入口：`src/ui/playground-assets.ts`、`src/ui/playground-conversations-controller.ts`、`DESIGN.md`、`test/server.test.ts`、`docs/playground-current.md`
+
+### 接入 DESIGN.md 设计系统工具
+- 日期：2026-04-24
+- 主题：安装 Google Labs 的 `@google/design.md` CLI，并给 playground 补一份根目录 `DESIGN.md` 视觉 identity 文件，让后续前端改动有可读、可 lint 的设计系统入口。靠“凭感觉调 CSS”不是设计流程，是抽奖。
+- 影响范围：`package.json` / `package-lock.json` 新增 `@google/design.md` 开发依赖和 `npm run design:lint` 脚本；`DESIGN.md` 记录 UGK Claw 的颜色、字体、圆角、间距和组件语义；`AGENTS.md` 同步要求视觉 token / 组件口径变更时参考并校验 `DESIGN.md`。
+- 对应入口：`DESIGN.md`、`package.json`、`package-lock.json`、`AGENTS.md`
+
+### Playground 错误横幅不透明背景
+- 日期：2026-04-24
+- 主题：修复顶部错误横幅使用半透明红色背景导致手机端提示文案看不清的问题。错误提示这种东西如果还要用户眯眼猜，那基本就是给错误又加了一个错误。
+- 影响范围：`src/ui/playground.ts` 将 `.error-banner` 背景改为不透明高对比色，并同步提高关闭按钮背景和文字对比；`test/server.test.ts` 增加页面断言锁住不透明背景与关闭按钮背景；`docs/playground-current.md` 同步当前错误横幅可读性口径。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`
 
 ### 交接文档刷新到 `45e7efb` 生产态
 - 日期：2026-04-24
@@ -1891,3 +1929,96 @@
 - 影响范围：本次只新增规划文档，不改业务源码；由于 `.codex/plans/` 被 Windows ACL 拒绝写入，计划暂落在项目可写的 `docs/plans/`。
 - 对应入口：
   - [docs/plans/2026-04-24-playground-ux-debt-cleanup.md](/E:/AII/ugk-pi/docs/plans/2026-04-24-playground-ux-debt-cleanup.md)
+
+### Playground 手机端 loading 气泡层级优化
+- 日期：2026-04-24
+- 主题：按手机端操作体验把 active run 状态摘要移出助手气泡，改成气泡上方的浅灰单行状态；运行日志 loading 按钮移动到 `助手` 标签右侧，手机端只保留动态点。
+- 影响范围：
+  - `src/ui/playground-transcript-renderer.ts` 调整 active assistant 状态 DOM 挂载位置，摘要作为 `.message-body` 外的 `.assistant-status-shell`，运行日志触发按钮插入 `.message-meta strong` 后方。
+  - `src/ui/playground.ts` 补充 mobile 断点样式，弱化状态摘要，压缩标签旁 loading 按钮，并保持不同状态的颜色类同步。
+  - `test/server.test.ts` 增加页面结构与手机端样式断言。
+  - `docs/playground-current.md` 同步当前手机端 active run 展示口径。
+- 对应入口：
+  - [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 首帧空白气泡与滚底修复
+- 日期：2026-04-24
+- 主题：修复 active run 刚开始时空 `.message-body` 显示成空白助手气泡的问题，并让新助手状态第一次出现时主动滚到底部。
+- 影响范围：
+  - `src/ui/playground.ts` 隐藏只有空 `.message-content` 的助手气泡主体，避免 loading 阶段出现空白块。
+  - `src/ui/playground-transcript-renderer.ts` 标记状态 shell 是否为本次新建，只有从无到有的首帧状态强制滚底；后续过程更新继续尊重用户阅读历史时的滚动位置。
+  - `test/server.test.ts` 增加页面断言，锁定空主体隐藏和首帧强制滚底契约。
+  - `docs/playground-current.md` 同步当前手机端 active run 体验口径。
+- 对应入口：
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 手机端工作页视觉重设计
+- 日期：2026-04-24
+- 主题：把手机端文件库、后台任务管理、后台任务创建 / 编辑、任务消息和上下文详情统一收口成 UGK Claw 深色工作页风格，去掉半透明弹窗和贴底抽屉的混乱层级。
+- 影响范围：
+  - `src/ui/playground-assets.ts` 将手机端文件库、`conn-manager-dialog` 和 `conn-editor-dialog` 改为全屏 `100dvh` 工作页，使用 `#01030a / #060711 / #0b0c18` 主题分层，强化 sticky 工具栏、实心卡片和整宽操作按钮。
+  - `src/ui/playground-task-inbox.ts` 将手机端任务消息页改为实心工作页，头部和结果卡片不再透明漂浮。
+  - `src/ui/playground.ts` 将手机端上下文详情改为顶部不透明信息面板，并移除 `conn-editor-panel` 的全局圆角强制覆盖。
+  - `test/server.test.ts` 更新 `/playground` 移动端页面断言，锁定文件库 / 后台任务 / 创建任务 / 任务消息 / 上下文详情的新视觉约束。
+  - `DESIGN.md` 增加移动工作页、工作页头部、工作页卡片和上下文面板组件令牌。
+  - `docs/playground-current.md` 同步当前真实交互口径。
+- 对应入口：
+  - [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
+  - [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+  - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 移动工作页顶栏操作回归
+- 日期：2026-04-25
+- 主题：按手机端真实操作习惯，把文件库、后台任务、后台任务创建 / 编辑和任务消息页的 `回到对话` 文字按钮改成左侧返回箭头，并把刷新、新建、保存、筛选、全部已读等页面动作放回顶栏右侧。
+- 影响范围：
+  - `src/ui/playground-assets.ts` 将文件库头部改为左侧返回箭头 + `可复用资产` 标题，右侧保留 `刷新文件库`，并删除旧的 `mobile-work-page-actions` 二层工具栏样式。
+  - `src/ui/playground-conn-activity.ts` 将后台任务管理页右侧恢复为 `新建任务 / 刷新列表`，将后台任务创建 / 编辑页右侧恢复为 `保存 / 取消`。
+  - `src/ui/playground-task-inbox.ts` 将任务消息页右侧恢复为 `未读 / 全部 / 全部已读 / 刷新`，并删除旧的 `task-inbox-controls` 二层工具栏。
+  - `test/server.test.ts` 锁定四类页面的新 DOM 结构，禁止再出现可见 `回到对话` close button 或旧工具栏容器。
+  - `DESIGN.md` 与 `docs/playground-current.md` 同步当前顶栏规则。
+- 对应入口：
+  - [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
+  - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+  - [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 后台任务目标预览乱码修复
+- 日期：2026-04-24
+- 主题：修复新建后台任务页 `conn-editor-target-preview` 中投递目标说明显示为 `????` 的问题。
+- 影响范围：
+  - `src/ui/playground-conn-activity-controller.ts` 恢复投递目标输入提示、目标预览、空目标错误和目标摘要的中文文案。
+  - `test/server.test.ts` 增加页面断言，锁定 `任务消息`、飞书目标 fallback 文案，并禁止目标预览继续写入 `????`。
+  - `docs/playground-current.md` 同步目标预览中文展示口径。
+- 对应入口：
+  - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 非对话页统一顶部状态栏
+- 日期：2026-04-24
+- 主题：让手机端文件库、后台任务、后台任务创建 / 编辑和任务消息页都使用统一 `topbar` 状态栏，并把右侧动作收口成唯一的 `回到对话`。
+- 影响范围：
+  - `src/ui/playground-assets.ts` 将文件库头部改为 `topbar asset-modal-head mobile-work-topbar`，刷新动作下沉到 `asset-modal-page-actions`。
+  - `src/ui/playground-conn-activity.ts` 将后台任务管理和创建 / 编辑页头部改为统一 `topbar`；`新建任务 / 刷新列表` 下沉到 `conn-manager-primary-actions`，`保存 / 取消` 下沉到 `conn-editor-page-actions`。
+  - `src/ui/playground-task-inbox.ts` 将任务消息页头部改为统一 `topbar`，筛选、全部已读和刷新下沉到 `task-inbox-controls`。
+  - `src/ui/playground-assets.ts` 补充 `mobile-work-topbar` 和 `mobile-work-page-actions` 移动端样式，避免复用全局 `topbar` 时被桌面布局污染。
+  - `test/server.test.ts` 增加页面结构和移动端样式断言，锁定非对话页 topbar 右侧只能是 `回到对话`。
+  - `DESIGN.md`、`docs/playground-current.md` 同步当前视觉口径。
+- 对应入口：
+  - [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
+  - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+  - [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+  - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+  - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)

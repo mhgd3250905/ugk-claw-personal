@@ -84,6 +84,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 			display: none;
 			flex: 1 1 auto;
 			min-height: 0;
+			background: transparent;
 		}
 
 		.task-inbox-pane {
@@ -389,6 +390,12 @@ export function getPlaygroundTaskInboxStyles(): string {
 				width: 100%;
 			}
 
+			.task-inbox-view {
+				margin: 0 -8px calc(-8px - env(safe-area-inset-bottom));
+				padding: 0 10px calc(8px + env(safe-area-inset-bottom));
+				background: #01030a;
+			}
+
 			.task-inbox-head {
 				position: sticky;
 				top: 0;
@@ -396,8 +403,11 @@ export function getPlaygroundTaskInboxStyles(): string {
 				display: flex;
 				align-items: center;
 				gap: 10px;
-				padding: 8px 0;
-				background: transparent;
+				margin: 0 -10px;
+				padding: calc(8px + env(safe-area-inset-top)) 10px 10px;
+				border-bottom: 1px solid #1a1b2b;
+				background: #060711;
+				box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
 			}
 
 			.task-inbox-head-actions {
@@ -413,13 +423,16 @@ export function getPlaygroundTaskInboxStyles(): string {
 
 			.task-inbox-list {
 				gap: 12px;
-				padding: 0 0 16px;
+				padding: 12px 0 16px;
 			}
 
 			.task-inbox-result-bubble {
 				min-height: 64px;
 				padding: 14px;
+				border: 1px solid #1a1b2b;
 				border-radius: 4px;
+				background: #0b0c18;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 			}
 
 			.task-inbox-item-actions {
@@ -439,9 +452,14 @@ export function getPlaygroundTaskInboxView(): string {
 	return `
 				<section id="task-inbox-view" class="task-inbox-view" aria-hidden="true" hidden>
 					<div class="task-inbox-pane">
-						<header class="pane-head task-inbox-head">
-							<div class="task-inbox-head-copy">
-								<strong>任务消息</strong>
+						<header class="topbar pane-head task-inbox-head mobile-work-topbar">
+							<div class="mobile-work-title-row">
+								<button id="close-task-inbox-button" class="mobile-work-back-button task-inbox-head-button" type="button" aria-label="返回对话">
+									<span aria-hidden="true">&larr;</span>
+								</button>
+								<div class="task-inbox-head-copy">
+									<strong>任务消息</strong>
+								</div>
 							</div>
 							<div class="task-inbox-head-actions">
 								<div class="task-inbox-filter-row" role="group" aria-label="任务消息筛选">
@@ -450,7 +468,6 @@ export function getPlaygroundTaskInboxView(): string {
 								</div>
 								<button id="mark-all-task-inbox-read-button" class="task-inbox-head-button" type="button">全部已读</button>
 								<button id="refresh-task-inbox-button" class="task-inbox-head-button" type="button">刷新</button>
-								<button id="close-task-inbox-button" class="task-inbox-head-button" type="button">返回对话</button>
 							</div>
 						</header>
 						<section id="task-inbox-list" class="task-inbox-list" aria-live="polite"></section>

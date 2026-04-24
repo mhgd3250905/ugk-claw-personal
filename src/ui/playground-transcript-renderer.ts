@@ -216,6 +216,19 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			trigger.title = "查看运行日志";
 		}
 
+		function setAssistantStatusKind(shell, trigger, kind) {
+			const statusKind = kind || "system";
+			const statusClasses = ["tool", "ok", "warn", "error", "system"];
+			if (shell) {
+				shell.classList.remove(...statusClasses);
+				shell.classList.add(statusKind);
+			}
+			if (trigger) {
+				trigger.classList.remove(...statusClasses);
+				trigger.classList.add(statusKind);
+			}
+		}
+
 		function setConversationEntryRunId(entryId, runId) {
 			const nextRunId = String(runId || "").trim() || undefined;
 			const historyEntry = state.conversationHistory.find((entry) => entry.id === entryId);
@@ -258,20 +271,29 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			});
 
 			shell.appendChild(summary);
-			shell.appendChild(loading.bubble);
 			return {
 				shell,
 				summary,
 				trigger: loading.bubble,
 				dots: loading.dots,
+				created: true,
 			};
 		}
 
 		function attachAssistantStatusShell(body, content) {
 			const stream = buildAssistantStatusShell();
-			if (content.parentElement === body) {
+			const card = body.closest(".message");
+			const meta = card?.querySelector(".message-meta");
+			const assistantLabel = meta?.querySelector("strong");
+
+			if (card && meta && assistantLabel) {
+				card.insertBefore(stream.shell, body);
+				assistantLabel.insertAdjacentElement("afterend", stream.trigger);
+			} else if (content.parentElement === body) {
+				stream.shell.appendChild(stream.trigger);
 				body.insertBefore(stream.shell, content);
 			} else {
+				stream.shell.appendChild(stream.trigger);
 				body.appendChild(stream.shell);
 			}
 
@@ -295,6 +317,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 					summary: state.activeStatusSummary,
 					trigger: state.activeRunLogTrigger,
 					dots: state.activeLoadingDots,
+					created: false,
 				};
 			}
 
@@ -311,9 +334,8 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			const summaryText = String(text || "").trim() || "收到，我先帮你看一下。";
 			const stream = ensureAssistantStatusShell();
 			stream.summary.textContent = summaryText;
-			stream.shell.classList.remove("tool", "ok", "warn", "error", "system");
-			stream.shell.classList.add(kind || "system");
-			scrollTranscriptToBottom();
+			setAssistantStatusKind(stream.shell, stream.trigger, kind);
+			scrollTranscriptToBottom({ force: stream.created === true });
 		}
 
 		function setAssistantLoadingState(text, kind) {
@@ -321,12 +343,11 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			const stream = ensureAssistantStatusShell();
 			setRunLogTriggerStatus(stream.trigger, labelText);
 			stream.dots.hidden = false;
-			stream.shell.classList.remove("tool", "ok", "warn", "error", "system");
-			stream.shell.classList.add(kind || "system");
+			setAssistantStatusKind(stream.shell, stream.trigger, kind);
 			stream.shell.classList.add("is-running");
 			stream.shell.classList.remove("is-complete");
 			updateRunLogTrigger(stream.trigger, state.activeRunId);
-			scrollTranscriptToBottom();
+			scrollTranscriptToBottom({ force: stream.created === true });
 		}
 
 		function completeAssistantLoadingBubble(kind, text) {
@@ -336,8 +357,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 
 			setRunLogTriggerStatus(state.activeRunLogTrigger, text);
 			state.activeLoadingDots.hidden = true;
-			state.activeStatusShell.classList.remove("tool", "ok", "warn", "error", "system");
-			state.activeStatusShell.classList.add(kind || "ok");
+			setAssistantStatusKind(state.activeStatusShell, state.activeRunLogTrigger, kind || "ok");
 			state.activeStatusShell.classList.remove("is-running");
 			state.activeStatusShell.classList.add("is-complete");
 			updateRunLogTrigger(state.activeRunLogTrigger, state.activeRunId);
@@ -608,8 +628,8 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			const restoredSummary = formatProcessSummaryForStatus(process);
 			stream.summary.textContent = restoredSummary || "收到，我正在处理这件事。";
 			updateRunLogTrigger(stream.trigger, state.activeRunId);
-			stream.shell.classList.remove("tool", "ok", "error", "warn", "system", "is-running", "is-complete");
-			stream.shell.classList.add(process.kind || "system");
+			stream.shell.classList.remove("is-running", "is-complete");
+			setAssistantStatusKind(stream.shell, stream.trigger, process.kind || "system");
 			stream.shell.classList.add(options?.running || !process.isComplete ? "is-running" : "is-complete");
 			setRunLogTriggerStatus(stream.trigger, process.currentAction || "????");
 			if (state.activeLoadingDots) {
@@ -729,8 +749,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			}
 
 			setRunLogTriggerStatus(state.activeRunLogTrigger, text);
-			stream.shell.classList.remove("tool", "ok", "error", "warn", "system");
-			stream.shell.classList.add(kind || "system");
+			setAssistantStatusKind(stream.shell, stream.action, kind);
 			updateRunLogTrigger(stream.action, state.activeRunId);
 			scrollTranscriptToBottom();
 		}
@@ -741,8 +760,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			}
 
 			if (kind) {
-				stream.shell.classList.remove("tool", "ok", "error", "warn", "system");
-				stream.shell.classList.add(kind);
+				setAssistantStatusKind(stream.shell, stream.action, kind);
 			}
 			stream.shell.classList.remove("is-running");
 			stream.shell.classList.add("is-complete");

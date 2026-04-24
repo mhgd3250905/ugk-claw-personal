@@ -8,6 +8,7 @@
     "start": "tsx src/server.ts",
     "worker:conn": "tsx src/workers/conn-worker.ts",
     "test": "node --test --import tsx test/**/*.test.ts",
+    "design:lint": "node ./node_modules/@google/design.md/dist/index.js lint DESIGN.md",
     "docker:build": "docker build -t ugk-pi:local .",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
@@ -32,6 +33,7 @@
     "marked": "^18.0.2"
   },
   "devDependencies": {
+    "@google/design.md": "^0.1.1",
     "@types/node": "^24.6.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"

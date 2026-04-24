@@ -97,6 +97,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - playground 路由：`src/routes/playground.ts`
 - 静态报告路由：`src/routes/static.ts`
 - playground UI：`src/ui/playground.ts`
+- playground 设计系统：`DESIGN.md`，变更视觉 token / 组件口径后运行 `npm run design:lint`
 - agent 服务核心：`src/agent/agent-service.ts`
 - web-access 任务结束清理：`src/agent/browser-cleanup.ts`
 - session 工厂：`src/agent/agent-session-factory.ts`
@@ -226,6 +227,8 @@ This file provides the highest-level working rules for AI coding agents in this 
   - 统一更新记录；行为变更、接口变更、运行口径变更、文档结构变更都要留痕
 - `docs/playground-current.md`
   - 当前 playground 的真实交互与 UI 约束
+- `DESIGN.md`
+  - 当前 playground 的视觉 identity / token / 组件口径；用于辅助 agent 做前端设计决策
 - `docs/runtime-assets-conn-feishu.md`
   - 资产、附件、`conn`、飞书接入的运行说明
 - `docs/server-ops-quick-reference.md`
@@ -239,6 +242,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `AgentService` 会在用户可见的正文、流式增量和工具过程消息里，自动把支持的 `/app/public/...`、`/app/runtime/...`、`file:///app/...` 重写成宿主可访问的 `GET /v1/local-file?path=...`；不要再指望宿主浏览器直接打开容器 `file://`
 - `AgentService.runChat` 的 `finally` 会 best-effort 调用 `closeBrowserTargetsForScope(undefined)`，通过 `POST /session/close-all?metaAgentScope=...` 清理本轮 `web-access` 保留页面；清理失败只 warn，不应盖住原始任务结果或错误。
 - 当前品牌文案为 `UGK CLAW`；桌面端顶部与首页继续使用纯文字字标，手机端顶部状态栏显示品牌 logo + `UGK Claw` 字标。
+- 根目录 `DESIGN.md` 是当前 playground 视觉 identity 的机器可读入口；涉及颜色、字号、圆角、组件视觉语义的前端改动，先参考它，必要时同步更新并运行 `npm run design:lint`。
 - 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。

@@ -738,16 +738,20 @@ export function getConnActivityDialogs(): string {
 		</div>
 		<div id="conn-manager-dialog" class="asset-modal-shell conn-manager-dialog" aria-hidden="true" hidden>
 			<section class="asset-modal conn-manager-panel" role="dialog" aria-modal="true" aria-labelledby="conn-manager-title">
-				<div class="asset-modal-head">
-					<div class="asset-modal-copy">
-						<strong id="conn-manager-title">后台任务</strong>
+				<header class="topbar asset-modal-head mobile-work-topbar">
+					<div class="mobile-work-title-row">
+						<button id="close-conn-manager-button" class="mobile-work-back-button" type="button" aria-label="返回对话">
+							<span aria-hidden="true">&larr;</span>
+						</button>
+						<div class="asset-modal-copy">
+							<strong id="conn-manager-title">后台任务</strong>
+						</div>
 					</div>
-					<div class="asset-modal-actions">
-						<button id="open-conn-editor-button" type="button">新建</button>
-						<button id="refresh-conn-manager-button" type="button">刷新</button>
-						<button id="close-conn-manager-button" type="button">关闭</button>
+					<div class="asset-modal-actions mobile-work-topbar-actions">
+						<button id="open-conn-editor-button" type="button">新建任务</button>
+						<button id="refresh-conn-manager-button" type="button">刷新列表</button>
 					</div>
-				</div>
+				</header>
 				<div class="asset-modal-body">
 					<div class="conn-manager-toolbar">
 						<label class="conn-manager-filter-field">
@@ -774,17 +778,21 @@ export function getConnActivityDialogs(): string {
 		<div id="conn-editor-dialog" class="asset-modal-shell conn-editor-dialog" aria-hidden="true" hidden>
 			<section class="asset-modal conn-editor-panel" role="dialog" aria-modal="true" aria-labelledby="conn-editor-title">
 				<form id="conn-editor-form" class="conn-editor-form">
-					<div class="asset-modal-head">
-						<div class="asset-modal-copy">
-							<strong id="conn-editor-title">新建后台任务</strong>
-							<span>设置结果发到哪里、什么时候执行；高级项按需展开。</span>
+					<header class="topbar asset-modal-head mobile-work-topbar">
+						<div class="mobile-work-title-row">
+							<button id="close-conn-editor-button" class="mobile-work-back-button" type="button" aria-label="返回对话">
+								<span aria-hidden="true">&larr;</span>
+							</button>
+							<div class="asset-modal-copy">
+								<strong id="conn-editor-title">新建后台任务</strong>
+								<span>设置结果发到哪里、什么时候执行；高级项按需展开。</span>
+							</div>
 						</div>
-						<div class="asset-modal-actions">
+						<div class="asset-modal-actions mobile-work-topbar-actions">
 							<button id="save-conn-editor-button" type="submit">保存</button>
 							<button id="cancel-conn-editor-button" type="button">取消</button>
-							<button id="close-conn-editor-button" type="button">关闭</button>
 						</div>
-					</div>
+					</header>
 					<div class="asset-modal-body conn-editor-body">
 						<div id="conn-editor-error" class="conn-editor-error" role="alert" hidden></div>
 						<label class="conn-editor-field">

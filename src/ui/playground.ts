@@ -456,10 +456,11 @@ function getPlaygroundStyles(): string {
 		}
 
 		.mobile-conversation-item {
+			position: relative;
 			display: grid;
 			gap: 5px;
 			width: 100%;
-			padding: 11px 12px;
+			padding: 11px 46px 11px 12px;
 			border: 1px solid rgba(201, 210, 255, 0.1);
 			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.035);
@@ -468,10 +469,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.conversation-item-shell {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto;
-			gap: 8px;
-			align-items: stretch;
+			display: block;
 		}
 
 		.conversation-item-shell .mobile-conversation-item {
@@ -479,16 +477,21 @@ function getPlaygroundStyles(): string {
 		}
 
 		.conversation-item-delete {
-			width: 36px;
-			min-width: 36px;
+			position: absolute;
+			top: 8px;
+			right: 8px;
+			z-index: 2;
+			width: 28px;
+			min-width: 28px;
+			height: 28px;
 			padding: 0;
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			align-self: stretch;
 			border: 1px solid rgba(255, 120, 140, 0.16);
 			background: rgba(255, 120, 140, 0.06);
 			color: rgba(255, 184, 198, 0.82);
+			font-size: 16px;
 			box-shadow: none;
 		}
 
@@ -701,8 +704,8 @@ function getPlaygroundStyles(): string {
 			padding: 12px 18px;
 			border: 0;
 			border-radius: 4px;
-			background: rgba(255, 113, 136, 0.12);
-			color: #ff9faf;
+			background: #2f1119;
+			color: #ffdbe2;
 			font-size: 12px;
 			line-height: 1.6;
 			flex-shrink: 0;
@@ -733,9 +736,9 @@ function getPlaygroundStyles(): string {
 			padding: 0;
 			border: 0;
 			border-radius: 4px;
-			background: transparent;
+			background: #421823;
 			box-shadow: none;
-			color: rgba(255, 189, 199, 0.9);
+			color: #ffe8ed;
 			font-size: 16px;
 			line-height: 1;
 			cursor: pointer;
@@ -743,8 +746,8 @@ function getPlaygroundStyles(): string {
 
 		.error-banner-close:hover:not(:disabled),
 		.error-banner-close:focus-visible {
-			background: rgba(255, 255, 255, 0.08);
-			color: #ffd7de;
+			background: #5a2230;
+			color: #ffffff;
 			box-shadow: none;
 			transform: none;
 		}
@@ -1295,6 +1298,10 @@ function getPlaygroundStyles(): string {
 			color: #edf5ff;
 		}
 
+		.message.assistant .message-body:has(> .message-content.is-empty:only-child) {
+			display: none;
+		}
+
 		.message.assistant .message-content,
 		.message.assistant .message-content .code-block-language {
 			color: #edf5ff;
@@ -1466,24 +1473,28 @@ function getPlaygroundStyles(): string {
 			animation-delay: 0.32s;
 		}
 
-		.assistant-status-shell.tool .assistant-loading-bubble {
+		.assistant-status-shell.tool .assistant-loading-bubble,
+		.assistant-loading-bubble.tool {
 			border-color: rgba(201, 210, 255, 0.2);
 			background: rgba(201, 210, 255, 0.08);
 		}
 
-		.assistant-status-shell.ok .assistant-loading-bubble {
+		.assistant-status-shell.ok .assistant-loading-bubble,
+		.assistant-loading-bubble.ok {
 			border-color: rgba(141, 255, 178, 0.22);
 			background: rgba(141, 255, 178, 0.07);
 			color: rgba(201, 255, 220, 0.92);
 		}
 
-		.assistant-status-shell.warn .assistant-loading-bubble {
+		.assistant-status-shell.warn .assistant-loading-bubble,
+		.assistant-loading-bubble.warn {
 			border-color: rgba(255, 209, 102, 0.2);
 			background: rgba(255, 209, 102, 0.07);
 			color: rgba(255, 230, 178, 0.94);
 		}
 
-		.assistant-status-shell.error .assistant-loading-bubble {
+		.assistant-status-shell.error .assistant-loading-bubble,
+		.assistant-loading-bubble.error {
 			border-color: rgba(255, 113, 136, 0.2);
 			background: rgba(255, 113, 136, 0.08);
 			color: rgba(255, 210, 220, 0.94);
@@ -1497,6 +1508,10 @@ function getPlaygroundStyles(): string {
 			display: grid;
 			gap: 10px;
 			padding: 0 0 2px;
+		}
+
+		.message-meta .assistant-loading-bubble {
+			margin-left: 2px;
 		}
 
 		.assistant-status-summary {
@@ -1938,8 +1953,8 @@ function getPlaygroundStyles(): string {
 			display: none;
 			align-items: flex-start;
 			justify-content: center;
-			padding: 72px 18px 18px;
-			background: rgba(3, 5, 10, 0.58);
+			padding: 70px 18px 18px;
+			background: rgba(1, 3, 10, 0.72);
 			backdrop-filter: none;
 		}
 
@@ -1948,12 +1963,16 @@ function getPlaygroundStyles(): string {
 		}
 
 		.context-usage-dialog-panel {
-			width: min(420px, 100%);
-			padding: 16px;
-			border: 1px solid rgba(201, 210, 255, 0.14);
-			border-radius: 4px;
-			background: rgba(8, 11, 20, 0.98);
-			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			width: min(430px, 100%);
+			padding: 10px;
+			border: 0;
+			border-radius: 8px;
+			background:
+				linear-gradient(180deg, #121522 0%, #070914 38%, #04050d 100%),
+				#060711;
+			box-shadow:
+				0 28px 70px rgba(0, 0, 0, 0.5),
+				inset 0 1px 0 rgba(255, 255, 255, 0.06);
 		}
 
 		.context-usage-dialog-head {
@@ -1961,31 +1980,217 @@ function getPlaygroundStyles(): string {
 			align-items: center;
 			justify-content: space-between;
 			gap: 12px;
-			margin-bottom: 12px;
+			margin: 0;
+			padding: 6px 6px 10px 8px;
+			border-radius: 0;
+			background: transparent;
 		}
 
 		.context-usage-dialog-head strong {
-			color: rgba(247, 249, 255, 0.92);
-			font-size: 13px;
-			letter-spacing: 0.08em;
+			color: rgba(219, 226, 246, 0.66);
+			font-size: 10px;
+			letter-spacing: 0.18em;
 			text-transform: uppercase;
 		}
 
 		.context-usage-dialog-close {
-			width: 32px;
-			height: 32px;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 34px;
+			height: 34px;
 			padding: 0;
-			border: 1px solid rgba(201, 210, 255, 0.12);
-			border-radius: 4px;
-			background: rgba(255, 255, 255, 0.05);
-			color: rgba(238, 244, 255, 0.76);
+			border: 0;
+			border-radius: 6px;
+			background: #171a28;
+			box-shadow: none;
+			color: rgba(238, 244, 255, 0.72);
+			font-size: 18px;
+			line-height: 1;
+		}
+
+		.context-usage-dialog-close:hover:not(:disabled),
+		.context-usage-dialog-close:focus-visible {
+			background: #202438;
+			color: #f7f9ff;
+			box-shadow: none;
+			transform: none;
 		}
 
 		.context-usage-dialog-body {
-			color: rgba(225, 232, 247, 0.76);
+			display: grid;
+			gap: 10px;
+			padding: 0;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
+			color: rgba(225, 232, 247, 0.78);
 			font-size: 12px;
-			line-height: 1.8;
-			white-space: pre-line;
+			line-height: 1.55;
+			white-space: normal;
+		}
+
+		.context-usage-dialog-hero {
+			display: grid;
+			gap: 10px;
+			padding: 14px;
+			border-radius: 8px;
+			background:
+				linear-gradient(180deg, #151a2b 0%, #0d1220 100%),
+				#101421;
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+		}
+
+		.context-usage-dialog-kicker {
+			color: rgba(222, 230, 255, 0.46);
+			font-size: 10px;
+			font-weight: 700;
+			letter-spacing: 0.16em;
+			text-transform: uppercase;
+		}
+
+		.context-usage-dialog-main {
+			display: flex;
+			align-items: flex-end;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		.context-usage-dialog-main strong {
+			color: #f6f8ff;
+			font-family: var(--font-mono);
+			font-size: 44px;
+			font-weight: 700;
+			line-height: 0.9;
+			letter-spacing: 0;
+		}
+
+		.context-usage-dialog-main span {
+			margin-bottom: 2px;
+			padding: 6px 8px;
+			border-radius: 6px;
+			background: rgba(141, 255, 178, 0.1);
+			color: rgba(173, 255, 201, 0.92);
+			font-size: 11px;
+			font-weight: 700;
+			letter-spacing: 0.04em;
+		}
+
+		.context-usage-dialog[data-status="caution"] .context-usage-dialog-main span {
+			background: rgba(255, 209, 102, 0.12);
+			color: rgba(255, 222, 145, 0.96);
+		}
+
+		.context-usage-dialog[data-status="warning"] .context-usage-dialog-main span {
+			background: rgba(255, 156, 92, 0.13);
+			color: rgba(255, 190, 147, 0.96);
+		}
+
+		.context-usage-dialog[data-status="danger"] .context-usage-dialog-main span {
+			background: rgba(255, 113, 136, 0.14);
+			color: rgba(255, 190, 202, 0.96);
+		}
+
+		.context-usage-dialog-meter {
+			position: relative;
+			height: 8px;
+			overflow: hidden;
+			border-radius: 999px;
+			background: #050710;
+		}
+
+		.context-usage-dialog-meter span {
+			display: block;
+			height: 100%;
+			max-width: 100%;
+			border-radius: inherit;
+			background: linear-gradient(90deg, #8dffb2, #c9d2ff);
+			box-shadow: 0 0 18px rgba(141, 255, 178, 0.24);
+		}
+
+		.context-usage-dialog[data-status="caution"] .context-usage-dialog-meter span {
+			background: linear-gradient(90deg, #ffd166, #fff0b8);
+			box-shadow: 0 0 18px rgba(255, 209, 102, 0.24);
+		}
+
+		.context-usage-dialog[data-status="warning"] .context-usage-dialog-meter span {
+			background: linear-gradient(90deg, #ff9c5c, #ffd166);
+			box-shadow: 0 0 18px rgba(255, 156, 92, 0.24);
+		}
+
+		.context-usage-dialog[data-status="danger"] .context-usage-dialog-meter span {
+			background: linear-gradient(90deg, #ff7188, #ffb1bf);
+			box-shadow: 0 0 18px rgba(255, 113, 136, 0.26);
+		}
+
+		.context-usage-dialog-hero p {
+			margin: 0;
+			color: rgba(222, 230, 255, 0.58);
+			font-family: var(--font-mono);
+			font-size: 11px;
+			letter-spacing: 0;
+		}
+
+		.context-usage-dialog-metrics {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 8px;
+		}
+
+		.context-usage-dialog-metric {
+			display: grid;
+			gap: 5px;
+			min-width: 0;
+			padding: 10px;
+			border-radius: 8px;
+			background: #0b0e19;
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+		}
+
+		.context-usage-dialog-metric span {
+			color: rgba(222, 230, 255, 0.44);
+			font-size: 10px;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+		}
+
+		.context-usage-dialog-metric strong {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: rgba(246, 249, 255, 0.94);
+			font-family: var(--font-mono);
+			font-size: 17px;
+			letter-spacing: 0;
+		}
+
+		.context-usage-dialog-metric em {
+			color: rgba(222, 230, 255, 0.42);
+			font-size: 10px;
+			font-style: normal;
+		}
+
+		.context-usage-dialog-model {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			padding: 8px;
+			border-radius: 8px;
+			background: #080a13;
+		}
+
+		.context-usage-dialog-model span {
+			min-width: 0;
+			max-width: 100%;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			padding: 6px 8px;
+			border-radius: 6px;
+			background: #121522;
+			color: rgba(222, 230, 255, 0.64);
+			font-size: 10px;
+			line-height: 1.2;
 		}
 
 		.confirm-dialog[hidden] {
@@ -2788,6 +2993,48 @@ function getPlaygroundStyles(): string {
 				display: none;
 			}
 
+			.context-usage-dialog {
+				align-items: flex-start;
+				padding: calc(58px + env(safe-area-inset-top)) 8px 10px;
+				background: rgba(1, 3, 10, 0.86);
+			}
+
+			.context-usage-dialog-panel {
+				width: 100%;
+				padding: 10px;
+				border: 0;
+				border-radius: 8px;
+				background:
+					linear-gradient(180deg, #121522 0%, #070914 38%, #04050d 100%),
+					#060711;
+				box-shadow: 0 18px 48px rgba(0, 0, 0, 0.52);
+			}
+
+			.context-usage-dialog-head {
+				margin-bottom: 0;
+				padding: 6px 6px 10px 8px;
+				border-bottom: 0;
+			}
+
+			.context-usage-dialog-body {
+				gap: 10px;
+				padding: 0;
+				border: 0;
+				border-radius: 0;
+				background: transparent;
+				color: rgba(238, 244, 255, 0.78);
+			}
+
+			.context-usage-dialog-hero,
+			.context-usage-dialog-metric,
+			.context-usage-dialog-model {
+				border-radius: 8px;
+			}
+
+			.context-usage-dialog-main strong {
+				font-size: 42px;
+			}
+
 			${getPlaygroundAssetMobileStyles()}
 
 			.composer {
@@ -2963,6 +3210,41 @@ function getPlaygroundStyles(): string {
 				font-size: 9px;
 			}
 
+			.message.assistant .message-meta {
+				gap: 6px;
+			}
+
+			.message.assistant .assistant-status-shell {
+				padding: 0 2px;
+				gap: 0;
+			}
+
+			.message.assistant .assistant-status-summary {
+				max-width: 100%;
+				color: rgba(238, 244, 255, 0.52);
+				font-size: 11px;
+				line-height: 1.45;
+			}
+
+			.message.assistant .message-meta .assistant-loading-bubble {
+				height: 24px;
+				min-width: 24px;
+				padding: 0 7px;
+				gap: 5px;
+				border: 0;
+				background: transparent;
+				box-shadow: none;
+			}
+
+			.message.assistant .message-meta .assistant-run-log-hint {
+				display: none;
+			}
+
+			.message.assistant .message-meta .assistant-loading-dot {
+				width: 4px;
+				height: 4px;
+			}
+
 			.message-actions {
 				padding: 0 2px 0 0;
 			}
@@ -3099,7 +3381,6 @@ function getPlaygroundStyles(): string {
 			.asset-pill,
 			.asset-empty,
 			.asset-modal-panel,
-			.conn-editor-panel,
 			.conn-editor-field input,
 			.conn-editor-field select,
 			.conn-editor-field textarea,
@@ -5043,7 +5324,7 @@ export function renderPlaygroundPage(): string {
 				<div class="mobile-drawer-head">
 					<div class="mobile-drawer-title">
 						<strong>历史会话</strong>
-						<span>单工人，多产线；运行中不能切换</span>
+						<span>运行中不能切换</span>
 					</div>
 					<button id="mobile-drawer-close-button" class="mobile-drawer-close" type="button" aria-label="关闭历史会话">
 						×
@@ -5142,7 +5423,7 @@ export function renderPlaygroundPage(): string {
 				</div>
 			</main>
 		</div>
-		<div id="context-usage-dialog" class="context-usage-dialog" aria-hidden="true" hidden>
+		<div id="context-usage-dialog" class="context-usage-dialog" aria-hidden="true" inert hidden>
 			<section class="context-usage-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="context-usage-dialog-title">
 				<div class="context-usage-dialog-head">
 					<strong id="context-usage-dialog-title">上下文使用情况</strong>

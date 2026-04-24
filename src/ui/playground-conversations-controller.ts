@@ -106,14 +106,15 @@ export function getPlaygroundConversationControllerScript(): string {
 				const deleteButton = document.createElement("button");
 				deleteButton.type = "button";
 				deleteButton.className = "conversation-item-delete";
-				deleteButton.textContent = "删";
+				deleteButton.textContent = "×";
 				deleteButton.disabled = state.loading || item.running || hasPendingSwitch || switching;
 				deleteButton.setAttribute("aria-label", "删除会话 " + (item.title || item.conversationId));
 				deleteButton.addEventListener("click", (event) => {
+					event.preventDefault();
 					event.stopPropagation();
 					void requestDeleteConversation(item, deleteButton);
 				});
-				shell.appendChild(deleteButton);
+				button.appendChild(deleteButton);
 				container.appendChild(shell);
 			}
 		}

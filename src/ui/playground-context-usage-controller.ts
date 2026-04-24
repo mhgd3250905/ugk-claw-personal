@@ -27,6 +27,65 @@ export function getPlaygroundContextUsageControllerScript(): string {
 			return normalized.toLocaleString("en-US");
 		}
 
+		function escapeContextUsageHtml(value) {
+			return String(value || "")
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/"/g, "&quot;")
+				.replace(/'/g, "&#39;");
+		}
+
+		function renderContextUsageMetric(label, value, note) {
+			return (
+				'<section class="context-usage-dialog-metric">' +
+				'<span>' + escapeContextUsageHtml(label) + '</span>' +
+				'<strong>' + escapeContextUsageHtml(value) + '</strong>' +
+				'<em>' + escapeContextUsageHtml(note) + '</em>' +
+				'</section>'
+			);
+		}
+
+		function renderContextUsageDialog(projectedUsage, statusLabel, modeLabel) {
+			const percent = Math.max(0, Math.min(100, Math.round(Number(projectedUsage.percent) || 0)));
+			const availableTokens = formatTokenCount(projectedUsage.availableTokens);
+			const currentTokens = formatTokenCount(projectedUsage.currentTokens);
+			const contextWindow = formatTokenCount(projectedUsage.contextWindow);
+			const draftTokens = formatTokenCount(projectedUsage.draftTokens);
+			const reserveTokens = formatTokenCount(projectedUsage.reserveTokens);
+			const responseTokens = formatTokenCount(projectedUsage.maxResponseTokens);
+			const model = escapeContextUsageHtml(projectedUsage.model);
+			const provider = escapeContextUsageHtml(projectedUsage.provider);
+			const status = escapeContextUsageHtml(statusLabel);
+			const mode = escapeContextUsageHtml(modeLabel);
+
+			contextUsageDialog.dataset.status = projectedUsage.status;
+			contextUsageDialogBody.innerHTML =
+				'<div class="context-usage-dialog-hero">' +
+				'<div class="context-usage-dialog-kicker">Context Window</div>' +
+				'<div class="context-usage-dialog-main">' +
+				'<strong>' + percent + '%</strong>' +
+				'<span>' + status + '</span>' +
+				'</div>' +
+				'<div class="context-usage-dialog-meter" aria-hidden="true">' +
+				'<span style="width: ' + percent + '%"></span>' +
+				'</div>' +
+				'<p>' + currentTokens + ' / ' + contextWindow + ' tokens</p>' +
+				'</div>' +
+				'<div class="context-usage-dialog-metrics">' +
+				renderContextUsageMetric("已用", currentTokens, "当前会话") +
+				renderContextUsageMetric("可用", availableTokens, "扣除预留后") +
+				renderContextUsageMetric("待发", draftTokens, "输入与附件") +
+				renderContextUsageMetric("预留", reserveTokens, "回复预算") +
+				'</div>' +
+				'<div class="context-usage-dialog-model">' +
+				'<span>' + model + '</span>' +
+				'<span>' + provider + '</span>' +
+				'<span>' + mode + '</span>' +
+				'<span>max ' + responseTokens + '</span>' +
+				'</div>';
+		}
+
 		function estimateTextTokenCount(text) {
 			return Math.ceil(String(text || "").length / 4);
 		}
@@ -220,7 +279,7 @@ export function getPlaygroundContextUsageControllerScript(): string {
 			contextUsageSummary.textContent = projectedUsage.percent + "%";
 			contextUsageShell.setAttribute("aria-label", "上下文使用 " + projectedUsage.percent + "%，" + statusLabel);
 			contextUsageMeta.textContent = detailText;
-			contextUsageDialogBody.textContent = detailText;
+			renderContextUsageDialog(projectedUsage, statusLabel, modeLabel);
 			contextUsageProgress.style.setProperty("--context-usage-percent", projectedUsage.percent + "%");
 			contextUsageProgress.setAttribute("aria-valuenow", String(projectedUsage.percent));
 			contextUsageToggle.textContent = "上下文详情";
@@ -234,13 +293,19 @@ export function getPlaygroundContextUsageControllerScript(): string {
 
 		function openContextUsageDialog() {
 			contextUsageDialog.hidden = false;
+			contextUsageDialog.inert = false;
+			contextUsageDialog.removeAttribute("inert");
 			contextUsageDialog.classList.add("open");
 			contextUsageDialog.setAttribute("aria-hidden", "false");
+			contextUsageDialogClose.focus({ preventScroll: true });
 		}
 
 		function closeContextUsageDialog() {
+			releasePanelFocusBeforeHide(contextUsageDialog, contextUsageShell);
 			contextUsageDialog.classList.remove("open");
 			contextUsageDialog.hidden = true;
+			contextUsageDialog.inert = true;
+			contextUsageDialog.setAttribute("inert", "");
 			contextUsageDialog.setAttribute("aria-hidden", "true");
 		}
 

@@ -410,22 +410,22 @@ export function getConnActivityEditorScript(): string {
 		function describeConnTargetInput(targetType) {
 			if (targetType === "feishu_chat") {
 				return {
-					label: "?????",
+					label: "飞书群",
 					placeholder: "oc_xxx / chat id",
-					hint: "?????? chat id?",
+					hint: "填写接收结果的飞书群 chat id。",
 				};
 			}
 			if (targetType === "feishu_user") {
 				return {
-					label: "??????",
+					label: "飞书用户",
 					placeholder: "ou_xxx / open id",
-					hint: "??????? open id?",
+					hint: "填写接收结果的飞书用户 open id。",
 				};
 			}
 			return {
-				label: "????",
+				label: "投递目标",
 				placeholder: "task inbox",
-				hint: "???????????????????????",
+				hint: "后台任务结果默认进入任务消息页。",
 			};
 		}
 
@@ -457,16 +457,16 @@ export function getConnActivityEditorScript(): string {
 			const detail = document.createElement("span");
 			const id = document.createElement("code");
 			if (targetType === "feishu_chat") {
-				label.textContent = "??????";
-				detail.textContent = "?????????????????????????";
-				id.textContent = targetId || "???? chat id";
+				label.textContent = "飞书群";
+				detail.textContent = "结果会投递到指定飞书群。";
+				id.textContent = targetId || "填写 chat id";
 			} else if (targetType === "feishu_user") {
-				label.textContent = "???????";
-				detail.textContent = "?????????????????????????";
-				id.textContent = targetId || "???? open id";
+				label.textContent = "飞书用户";
+				detail.textContent = "结果会投递到指定飞书用户。";
+				id.textContent = targetId || "填写 open id";
 			} else {
-				label.textContent = "???????";
-				detail.textContent = "????????????????????????????????";
+				label.textContent = "任务消息";
+				detail.textContent = "后台任务结果会投递到任务消息页";
 				id.textContent = "task_inbox";
 			}
 
@@ -563,7 +563,7 @@ export function getConnActivityEditorScript(): string {
 			}
 			const targetId = String(connEditorTargetId.value || "").trim();
 			if (!targetId) {
-				throw new Error("????? ID");
+				throw new Error("请填写目标 ID");
 			}
 			if (targetType === "feishu_chat") {
 				return { type: "feishu_chat", chatId: targetId };
@@ -970,18 +970,18 @@ export function getConnActivityRendererScript(): string {
 
 		function describeConnTargetSummary(target) {
 			if (!target || typeof target !== "object") {
-				return "????";
+				return "任务消息";
 			}
 			if (target.type === "task_inbox" || target.type === "conversation") {
-				return "????";
+				return "任务消息";
 			}
 			if (target.type === "feishu_chat") {
-				return "??? / " + (target.chatId || "???");
+				return "飞书群 / " + (target.chatId || "未填写");
 			}
 			if (target.type === "feishu_user") {
-				return "???? / " + (target.openId || "???");
+				return "飞书用户 / " + (target.openId || "未填写");
 			}
-			return String(target.type || "????");
+			return String(target.type || "未知目标");
 		}
 
 		function describeConnTimingSummary(conn) {
