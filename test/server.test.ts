@@ -1776,6 +1776,41 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	await app.close();
 });
 
+test("GET /playground supports persistent dark and light themes", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /<html lang="zh-CN" data-theme="dark">/);
+	assert.match(response.body, /id="theme-toggle-button"/);
+	assert.match(response.body, /id="theme-toggle-label"/);
+	assert.match(response.body, /id="mobile-menu-theme-button"/);
+	assert.match(response.body, /id="mobile-theme-toggle-label"/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s*\{/);
+	assert.match(response.body, /--bg:\s*#f5f7fb;/);
+	assert.match(response.body, /--fg:\s*#172033;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+body\s*\{/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.message-body/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.asset-modal/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-manager-panel/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.task-inbox-view/);
+	assert.match(response.body, /const PLAYGROUND_THEME_STORAGE_KEY = "ugk-pi:playground-theme";/);
+	assert.match(response.body, /function applyPlaygroundTheme\(nextTheme\)\s*\{/);
+	assert.match(response.body, /pageRoot\.dataset\.theme = normalized;/);
+	assert.match(response.body, /localStorage\.setItem\(PLAYGROUND_THEME_STORAGE_KEY, normalized\)/);
+	assert.match(response.body, /themeToggleButton\.addEventListener\("click"/);
+	assert.match(response.body, /mobileMenuThemeButton\.addEventListener\("click"/);
+	assert.match(response.body, /theme-toggle-icon-sun/);
+	assert.match(response.body, /theme-toggle-icon-moon/);
+	await app.close();
+});
+
 test("GET /playground uses touch-first mobile panels for library, tasks, conn, and history", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

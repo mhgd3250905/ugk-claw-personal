@@ -34,6 +34,7 @@ import {
 	getPlaygroundTaskInboxStyles,
 	getPlaygroundTaskInboxView,
 } from "./playground-task-inbox.js";
+import { getPlaygroundThemeControllerScript, getPlaygroundThemeStyles } from "./playground-theme-controller.js";
 import {
 	getBrowserMarkdownRendererScript,
 	getPlaygroundTranscriptRendererScript,
@@ -3459,6 +3460,8 @@ function getPlaygroundStyles(): string {
 				grid-template-columns: minmax(0, 1fr);
 			}
 		}
+
+		${getPlaygroundThemeStyles()}
 	`;
 }
 
@@ -3508,6 +3511,7 @@ function getPlaygroundScript(): string {
 
 		const state = {
 			loading: false,
+			theme: "dark",
 			stageMode: "landing",
 			primaryView: "chat",
 			conversationId: "",
@@ -3843,6 +3847,7 @@ function getPlaygroundScript(): string {
 		}
 
 		${getPlaygroundMobileShellControllerScript()}
+		${getPlaygroundThemeControllerScript()}
 
 		${getPlaygroundConversationControllerScript()}
 
@@ -5211,7 +5216,7 @@ function getPlaygroundScript(): string {
 
 export function renderPlaygroundPage(): string {
 	return `<!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -5254,6 +5259,21 @@ export function renderPlaygroundPage(): string {
 						<span>&#21518;&#21488;&#20219;&#21153;&#32467;&#26524;&#32479;&#19968;&#25910;&#20214;&#31665;</span>
 						<strong>&#20219;&#21153;&#28040;&#24687;</strong>
 						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
+					</button>
+					<button id="theme-toggle-button" class="telemetry-card telemetry-action theme-toggle-button" type="button" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
+						<span>界面别太死板</span>
+						<strong id="theme-toggle-label">深色模式</strong>
+						<span class="theme-toggle-icon theme-toggle-icon-sun" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none">
+								<circle cx="12" cy="12" r="4" stroke-width="1.8" />
+								<path d="M12 2.8v2.4M12 18.8v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" stroke-width="1.8" stroke-linecap="round" />
+							</svg>
+						</span>
+						<span class="theme-toggle-icon theme-toggle-icon-moon" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none">
+								<path d="M20 14.2A7.3 7.3 0 0 1 9.8 4a8.1 8.1 0 1 0 10.2 10.2Z" stroke-width="1.8" stroke-linejoin="round" />
+							</svg>
+						</span>
 					</button>
 					<div class="topbar-context-slot">
 						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
@@ -5366,6 +5386,14 @@ export function renderPlaygroundPage(): string {
 							</span>
 							<span>&#20219;&#21153;&#28040;&#24687;</span>
 							<span id="mobile-task-inbox-unread-badge" class="mobile-overflow-menu-item-badge" hidden>0</span>
+						</button>
+						<button id="mobile-menu-theme-button" class="mobile-overflow-menu-item" type="button" role="menuitem" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M12 3a9 9 0 1 0 9 9 6.5 6.5 0 0 1-9-9Z" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span id="mobile-theme-toggle-label">深色模式</span>
 						</button>
 					</div>
 				</section>

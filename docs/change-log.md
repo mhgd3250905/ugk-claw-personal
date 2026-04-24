@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 深浅主题切换
+- 日期：2026-04-25
+- 主题：为 playground 增加与当前深色仪表盘风格一一对应的浅色版本，并提供桌面端与手机端主题切换入口。浅色不是把页面刷白完事，那叫照明事故；这次保留同一套工作台信息层级、小圆角、无边框实体层和状态色，只把背景、文字、面板和阴影映射到冷白工作台语义。
+- 影响范围：新增 `src/ui/playground-theme-controller.ts`，集中输出 light theme CSS 覆盖和浏览器端主题持久化脚本；`src/ui/playground.ts` 注入 `data-theme="dark"` 初始属性、桌面 `theme-toggle-button`、手机 `mobile-menu-theme-button`，并挂载主题控制器；主题值写入 `localStorage` 的 `ugk-pi:playground-theme`，切换时不触发会话同步、transcript 重绘或 agent 请求；`test/server.test.ts` 增加浅色 token、主要页面 / 弹窗覆盖、按钮入口和持久化脚本断言；`DESIGN.md`、`docs/playground-current.md` 同步深浅主题口径。
+- 对应入口：`src/ui/playground-theme-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 消息操作栏与运行态 loading 去重
 - 日期：2026-04-25
 - 主题：修复当前任务运行中同一条助手消息可能堆出多个 `assistant-run-log-trigger` loading 气泡的问题，并把消息操作栏收进 `.message-body` 底部，同时新增“保存为图片”导出能力。刷新后才看起来正常那种前端状态债，本质就是运行中 DOM 挂载没收口，不能拿刷新当疗法。

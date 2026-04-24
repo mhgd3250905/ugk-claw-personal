@@ -141,6 +141,8 @@ UGK Claw is a utilitarian agent workspace, not a marketing site. The interface s
 
 The palette starts from a near-black background with cool blue-gray surfaces and a small set of semantic accents. Use `primary` for main text, `secondary` for metadata, `accent` for low-intensity active affordances, and `danger-container` for blocking or corrective error surfaces. Avoid bright blue neon and avoid translucent warning surfaces when the message must be read immediately.
 
+The light theme is a one-to-one operational companion, not a different product mood. It maps the same hierarchy to a cool off-white workspace: `#F5F7FB` background, white raised panels, `#172033` primary text, blue action accents, and muted blue-gray metadata. Preserve the same compact layout, small radii, icon-first controls, status colors, and borderless instrument-panel behavior in both themes.
+
 ## Typography
 
 Use compact type throughout operational surfaces. Body text is small but spacious enough for Chinese and English mixed content. Headings inside cards, drawers, dialogs, and chat bubbles should stay modest; reserve larger type only for true empty states or first-screen brand moments. Code and command output use Agave where available.
