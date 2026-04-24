@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AuthStorage, ModelRegistry } from "@mariozechner/pi-coding-agent";
 import {
+	createDefaultAgentSessionFactory,
 	createSkillRestrictedResourceLoader,
 	getDefaultAllowedSkillPaths,
 	getDefaultSystemSkillPath,
@@ -127,4 +128,58 @@ test("resolveProjectDefaultModelContext uses the checked-in project defaults and
 		maxResponseTokens: 16384,
 		reserveTokens: 16384,
 	});
+});
+
+test("default session factory reads persisted messages from session jsonl without loading a runtime session", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-session-messages-"));
+	const sessionDir = join(projectRoot, ".data", "agent", "sessions");
+	const sessionFile = join(sessionDir, "historic.jsonl");
+	await mkdir(sessionDir, { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({ providers: [] }),
+		"utf8",
+	);
+	await writeFile(
+		sessionFile,
+		[
+			JSON.stringify({ type: "session", version: 3 }),
+			JSON.stringify({
+				type: "message",
+				timestamp: "2026-04-24T01:00:00.000Z",
+				message: {
+					role: "user",
+					content: [{ type: "text", text: "hello" }],
+				},
+			}),
+			JSON.stringify({
+				type: "message",
+				timestamp: "2026-04-24T01:00:02.000Z",
+				message: {
+					role: "assistant",
+					content: [{ type: "text", text: "world" }],
+					usage: { totalTokens: 42 },
+				},
+			}),
+		].join("\n"),
+		"utf8",
+	);
+	const factory = createDefaultAgentSessionFactory({ projectRoot, sessionDir });
+
+	const messages = await factory.readSessionMessages?.(sessionFile);
+
+	assert.deepEqual(messages, [
+		{
+			role: "user",
+			content: [{ type: "text", text: "hello" }],
+			timestamp: "2026-04-24T01:00:00.000Z",
+		},
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "world" }],
+			usage: { totalTokens: 42 },
+			timestamp: "2026-04-24T01:00:02.000Z",
+		},
+	]);
 });

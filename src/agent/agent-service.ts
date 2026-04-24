@@ -394,12 +394,9 @@ export class AgentService {
 
 	async getRunStatus(conversationId: string): Promise<RunStatusResult> {
 		const running = this.activeRuns.has(conversationId);
-		const session = await this.getContextSession(conversationId);
+		const messages = await this.getContextMessages(conversationId);
 		const modelContext = this.getDefaultModelContext();
-		const contextUsage = buildContextUsageSnapshot(
-			modelContext,
-			((session?.messages as AgentMessageLike[] | undefined) ?? []),
-		);
+		const contextUsage = buildContextUsageSnapshot(modelContext, messages);
 
 		return {
 			conversationId,
@@ -409,10 +406,7 @@ export class AgentService {
 	}
 
 	async getConversationHistory(conversationId: string): Promise<ConversationHistoryResult> {
-		const session = await this.getContextSession(conversationId);
-		const messages = this.buildConversationHistoryMessages(
-			((session?.messages as AgentMessageLike[] | undefined) ?? []),
-		);
+		const messages = this.buildConversationHistoryMessages(await this.getContextMessages(conversationId));
 
 		return {
 			conversationId,
@@ -423,14 +417,11 @@ export class AgentService {
 	async getConversationState(conversationId: string): Promise<ConversationStateResult> {
 		const activeRun = this.activeRuns.get(conversationId);
 		const existingConversation = await this.options.conversationStore.get(conversationId);
-		const session = await this.getContextSession(conversationId);
+		const contextMessages = await this.getContextMessages(conversationId);
 		const modelContext = this.getDefaultModelContext();
-		const contextUsage = buildContextUsageSnapshot(
-			modelContext,
-			((session?.messages as AgentMessageLike[] | undefined) ?? []),
-		);
+		const contextUsage = buildContextUsageSnapshot(modelContext, contextMessages);
 		const sessionMessages = this.buildConversationHistoryMessages(
-			((session?.messages as AgentMessageLike[] | undefined) ?? []),
+			contextMessages,
 			activeRun?.view,
 		);
 		const terminalRun = activeRun ? undefined : this.getRenderableTerminalRun(conversationId, sessionMessages);
@@ -904,6 +895,26 @@ export class AgentService {
 			conversationId,
 			sessionFile: existingConversation.sessionFile,
 		});
+	}
+
+	private async getContextMessages(conversationId: string): Promise<AgentMessageLike[]> {
+		const activeRun = this.activeRuns.get(conversationId);
+		if (activeRun) {
+			return ((activeRun.session.messages as AgentMessageLike[] | undefined) ?? []);
+		}
+
+		const existingConversation = await this.options.conversationStore.get(conversationId);
+		if (!existingConversation?.sessionFile) {
+			return [];
+		}
+
+		const persistedMessages = await this.options.sessionFactory.readSessionMessages?.(existingConversation.sessionFile);
+		if (persistedMessages) {
+			return persistedMessages as AgentMessageLike[];
+		}
+
+		const session = await this.getContextSession(conversationId);
+		return ((session?.messages as AgentMessageLike[] | undefined) ?? []);
 	}
 
 	private getDefaultModelContext(): ProjectDefaultModelContext {

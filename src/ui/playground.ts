@@ -3221,10 +3221,12 @@ function getPlaygroundScript(): string {
 			conversationCatalog: [],
 			conversationCatalogSyncing: false,
 			conversationCatalogSyncPromise: null,
+			conversationCatalogAbortController: null,
 			conversationCatalogSyncedAt: 0,
 			conversationSyncGeneration: 0,
 			conversationSyncRequestId: 0,
 			conversationAppliedSyncRequestId: 0,
+			conversationStateAbortController: null,
 			conversationState: null,
 			conversationHistory: [],
 			renderedHistoryCount: 0,
@@ -3684,7 +3686,7 @@ function getPlaygroundScript(): string {
 			};
 		}
 
-		async function fetchConversationState(conversationId) {
+		async function fetchConversationState(conversationId, options) {
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId) {
 				return {
@@ -3699,6 +3701,7 @@ function getPlaygroundScript(): string {
 			const response = await fetch("/v1/chat/state?conversationId=" + encodeURIComponent(nextConversationId), {
 				method: "GET",
 				headers: { accept: "application/json" },
+				signal: options?.signal,
 			});
 			const payload = await response.json().catch(() => ({}));
 			if (!response.ok) {
@@ -3717,23 +3720,50 @@ function getPlaygroundScript(): string {
 			};
 		}
 
+		function abortConversationStateSync() {
+			const abortController = state.conversationStateAbortController;
+			state.conversationStateAbortController = null;
+			if (abortController && !abortController.signal.aborted) {
+				abortController.abort();
+			}
+		}
+
+		function releaseConversationStateSyncToken(syncToken) {
+			if (syncToken?.abortController && state.conversationStateAbortController === syncToken.abortController) {
+				state.conversationStateAbortController = null;
+			}
+		}
+
+		function isConversationStateAbortError(error) {
+			return (
+				error?.name === "AbortError" ||
+				error?.code === 20 ||
+				(typeof error?.message === "string" && error.message.toLowerCase().includes("abort"))
+			);
+		}
+
 		function invalidateConversationSyncOwnership(nextConversationId) {
 			const normalizedConversationId = String(nextConversationId || "").trim();
 			if (normalizedConversationId && normalizedConversationId === String(state.conversationId || "").trim()) {
 				return;
 			}
+			abortConversationStateSync();
 			state.conversationSyncGeneration += 1;
 			state.conversationAppliedSyncRequestId = 0;
 		}
 
 		function issueConversationSyncToken(conversationId) {
 			const nextConversationId = String(conversationId || "").trim();
+			abortConversationStateSync();
+			const abortController = typeof AbortController === "function" ? new AbortController() : null;
+			state.conversationStateAbortController = abortController;
 			const requestId = state.conversationSyncRequestId + 1;
 			state.conversationSyncRequestId = requestId;
 			return {
 				requestId,
 				generation: state.conversationSyncGeneration,
 				conversationId: nextConversationId,
+				abortController,
 			};
 		}
 
@@ -3804,12 +3834,21 @@ function getPlaygroundScript(): string {
 
 			const syncToken = issueConversationSyncToken(nextConversationId);
 			try {
-				const payload = await fetchConversationState(nextConversationId);
+				const payload = await fetchConversationState(nextConversationId, {
+					signal: syncToken.abortController?.signal,
+				});
 				if (!renderConversationState(payload, syncToken)) {
 					return payload;
 				}
 				return reconcileSyncedConversationState(payload, nextConversationId, options);
 			} catch (error) {
+				if (isConversationStateAbortError(error)) {
+					return {
+						conversationId: nextConversationId,
+						running: Boolean(state.loading),
+						contextUsage: normalizeContextUsage(state.contextUsage),
+					};
+				}
 				if (!isConversationSyncTokenCurrent(syncToken, nextConversationId)) {
 					return {
 						conversationId: nextConversationId,
@@ -3828,6 +3867,8 @@ function getPlaygroundScript(): string {
 					running: Boolean(state.loading),
 					contextUsage: normalizeContextUsage(state.contextUsage),
 				};
+			} finally {
+				releaseConversationStateSyncToken(syncToken);
 			}
 		}
 
@@ -4307,7 +4348,9 @@ function getPlaygroundScript(): string {
 
 			const syncToken = issueConversationSyncToken(nextConversationId);
 			try {
-				const payload = await fetchConversationState(nextConversationId);
+				const payload = await fetchConversationState(nextConversationId, {
+					signal: syncToken.abortController?.signal,
+				});
 				if (!renderConversationState(payload, syncToken)) {
 					return payload;
 				}
@@ -4315,6 +4358,9 @@ function getPlaygroundScript(): string {
 				scheduleConversationHistoryPersist(nextConversationId);
 				return payload;
 			} catch (error) {
+				if (isConversationStateAbortError(error)) {
+					return;
+				}
 				if (!isConversationSyncTokenCurrent(syncToken, nextConversationId)) {
 					return;
 				}
@@ -4322,6 +4368,8 @@ function getPlaygroundScript(): string {
 					const messageText = error instanceof Error ? error.message : "无法获取全局对话历史";
 					showError(messageText);
 				}
+			} finally {
+				releaseConversationStateSyncToken(syncToken);
 			}
 		}
 

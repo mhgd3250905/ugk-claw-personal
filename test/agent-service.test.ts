@@ -286,14 +286,24 @@ class InterruptHistorySession implements AgentSessionLike {
 
 class FakeAgentSessionFactory implements AgentSessionFactory {
 	public calls: Array<{ conversationId: string; sessionFile?: string }> = [];
+	public readCalls: string[] = [];
 	public availableSkills: Array<{ name: string; path?: string }> = [];
 	public skillFingerprint?: string;
+	public readonly persistedMessages = new Map<
+		string,
+		NonNullable<AgentSessionLike["messages"]>
+	>();
 
 	constructor(private readonly buildSession: (callIndex: number) => AgentSessionLike) {}
 
 	async createSession(input: { conversationId: string; sessionFile?: string }): Promise<AgentSessionLike> {
 		this.calls.push(input);
 		return this.buildSession(this.calls.length - 1);
+	}
+
+	async readSessionMessages(sessionFile: string): Promise<NonNullable<AgentSessionLike["messages"]> | undefined> {
+		this.readCalls.push(sessionFile);
+		return this.persistedMessages.get(sessionFile);
 	}
 
 	async getAvailableSkills(): Promise<Array<{ name: string; path?: string }>> {
@@ -1033,6 +1043,59 @@ test("getRunStatus reports whether a conversation is actively streaming", async 
 			mode: "usage",
 		},
 	});
+});
+
+test("idle conversation reads status, history, and state from persisted messages without opening an agent session", async () => {
+	const store = await createStore();
+	const sessionFile = "E:/sessions/historic.jsonl";
+	await store.set("manual:historic", sessionFile, {
+		title: "Historic thread",
+		preview: "Persisted answer",
+		messageCount: 2,
+	});
+	const factory = new FakeAgentSessionFactory(() => {
+		throw new Error("idle history reads must not create an agent session");
+	});
+	factory.persistedMessages.set(sessionFile, [
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("previous question"),
+			timestamp: "2026-04-24T01:00:00.000Z",
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "Persisted answer" }],
+			stopReason: "stop",
+			timestamp: "2026-04-24T01:00:05.000Z",
+			usage: { totalTokens: 2048 },
+		} as never,
+	]);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const status = await service.getRunStatus("manual:historic");
+	const history = await service.getConversationHistory("manual:historic");
+	const state = await service.getConversationState("manual:historic");
+
+	assert.deepEqual(factory.calls, []);
+	assert.deepEqual(factory.readCalls, [sessionFile, sessionFile, sessionFile]);
+	assert.equal(status.running, false);
+	assert.equal(status.contextUsage.currentTokens, 2048);
+	assert.deepEqual(
+		history.messages.map((message) => ({ kind: message.kind, text: message.text })),
+		[
+			{ kind: "user", text: "previous question" },
+			{ kind: "assistant", text: "Persisted answer" },
+		],
+	);
+	assert.equal(state.running, false);
+	assert.equal(state.activeRun, null);
+	assert.deepEqual(
+		state.viewMessages.map((message) => ({ kind: message.kind, text: message.text })),
+		[
+			{ kind: "user", text: "previous question" },
+			{ kind: "assistant", text: "Persisted answer" },
+		],
+	);
 });
 
 test("getConversationState exposes the active run snapshot for refresh observers", async () => {

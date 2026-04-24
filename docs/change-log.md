@@ -12,6 +12,18 @@
 
 ## 2026-04-24
 
+### Playground 会话目录同步增加过期请求取消
+- 日期：2026-04-24
+- 主题：修复多次切换历史会话后 `GET /v1/chat/conversations` 变慢并拖住 `新会话` 的问题。后端裸接口本身很轻，真正的问题是前端 `conversationCatalogSyncPromise` 会无条件复用旧目录请求；当旧请求被浏览器连接池或网络抖动拖住时，后续强制刷新、恢复同步和部分前置动作会一起等这条旧 promise，像是被接口本身卡住。
+- 影响范围：`src/ui/playground-conversations-controller.ts` 为会话目录同步增加 `AbortController`；catalog 失效或 `force` 刷新会主动取消旧 `/v1/chat/conversations`，并用带所有权的 `releaseConversationCatalogSync()` 避免旧请求 finally 清掉新请求状态。`src/ui/playground.ts` 补充 catalog abort controller 状态位，`test/server.test.ts` 和 `docs/playground-current.md` 同步锁住前端行为。
+- 对应入口：`src/ui/playground-conversations-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
+### Playground 会话 state 同步增加过期请求取消
+- 日期：2026-04-24
+- 主题：修复多次切换历史会话后点击 `新会话` 变慢的问题。根因是前端已有的 conversation sync ownership 只会在旧 `/v1/chat/state` 回包回来后丢弃结果，但不会取消请求本身；快速切换时一串过期 state 请求仍然占着浏览器连接和后端计算，新建空会话还要 `await` 自己的 state 同步，于是用户看到按钮卡在 `fetchConversationState` 调用链上。
+- 影响范围：`src/ui/playground.ts` 为 canonical conversation state 同步增加 `AbortController`，新同步开始或会话 ownership 失效时主动 abort 上一条未完成的 `/v1/chat/state`；abort 错误静默收口，不再误报成会话历史加载失败。`test/server.test.ts` 补页面脚本断言锁住取消机制，`docs/playground-current.md` 同步当前前端口径。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ### Playground canonical `viewMessages` 改成按 run 落盘覆盖关系收口
 - 日期：2026-04-24
 - 主题：修复 playground 在 terminal run 场景下把同一轮问答渲染成两次的问题。根因不是前端 DOM 去重失败，而是后端 `AgentService` 之前在组装 canonical `viewMessages` 时，用 assistant 正文文本去猜当前 terminal run 是否已经被 session history 覆盖；一旦流式正文和最终落盘正文只是在空格、换行或 markdown 断句上有差异，就会误判成“历史里还没有这轮结果”，把同一轮 `user + assistant` 再补画一遍。
@@ -1779,3 +1791,25 @@
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
   - [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
+### Playground 空闲旧会话状态读取提速
+- 日期：2026-04-24
+- 主题：把空闲旧会话的状态 / 历史 / token 使用量读取从完整 agent runtime 初始化中解耦，避免切换旧会话或新建会话时被 session open、skills reload 和 resource loader 创建拖到秒级。
+- 影响范围：
+  - `src/agent/agent-session-factory.ts` 新增 `readSessionMessages()` 读模型入口，默认 factory 直接解析 session JSONL 中的 `message` 事件，并兼容容器内 `/app/...` session 路径到项目根目录的映射。
+  - `src/agent/agent-service.ts` 的 `getRunStatus()`、`getConversationHistory()`、`getConversationState()` 优先使用轻量消息读取；只有 active run 或真正发送 / 续跑 agent 时才使用完整 session runtime。
+  - `test/agent-service.test.ts` 锁定空闲旧会话读取不得调用 `createSession()`；`test/agent-session-factory.test.ts` 锁定默认 JSONL 读取行为。
+  - `docs/playground-current.md` 同步当前会话切换性能口径，明确旧会话查看路径不能初始化完整 agent。
+- 对应入口：
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
+  - [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
+  - [test/agent-session-factory.test.ts](/E:/AII/ugk-pi/test/agent-session-factory.test.ts)
+  - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 用户体验债大扫除计划
+- 日期：2026-04-24
+- 主题：对会话切换、状态读取、技能列表、后台任务管理器、会话索引、transcript 渲染、任务消息和资产详情等用户可感知慢路径做系统审计，整理 P0/P1 体验债执行计划。
+- 影响范围：本次只新增规划文档，不改业务源码；由于 `.codex/plans/` 被 Windows ACL 拒绝写入，计划暂落在项目可写的 `docs/plans/`。
+- 对应入口：
+  - [docs/plans/2026-04-24-playground-ux-debt-cleanup.md](/E:/AII/ugk-pi/docs/plans/2026-04-24-playground-ux-debt-cleanup.md)

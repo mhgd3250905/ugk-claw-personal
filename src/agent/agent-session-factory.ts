@@ -69,13 +69,7 @@ export interface PromptOptionsLike {
 
 export interface AgentSessionLike {
 	sessionFile?: string;
-	messages?: Array<{
-		role: string;
-		content?: unknown;
-		stopReason?: string;
-		errorMessage?: string;
-		timestamp?: number | string;
-	}>;
+	messages?: AgentSessionMessageLike[];
 	subscribe(listener: (event: RawAgentSessionEventLike) => void): () => void;
 	prompt(message: string, options?: PromptOptionsLike): Promise<void>;
 	steer?(message: string): Promise<void>;
@@ -84,8 +78,27 @@ export interface AgentSessionLike {
 	clearQueue?(): { steering: string[]; followUp: string[] };
 }
 
+export interface AgentSessionMessageLike {
+	role: string;
+	content?: unknown;
+	stopReason?: string;
+	errorMessage?: string;
+	timestamp?: number | string;
+	usage?: {
+		totalTokens?: number;
+		input?: number;
+		output?: number;
+		cacheRead?: number;
+		cacheWrite?: number;
+	};
+	command?: string;
+	output?: string;
+	summary?: string;
+}
+
 export interface AgentSessionFactory {
 	createSession(input: { conversationId: string; sessionFile?: string }): Promise<AgentSessionLike>;
+	readSessionMessages?(sessionFile: string): Promise<AgentSessionMessageLike[] | undefined>;
 	getAvailableSkills?(): Promise<Array<{ name: string; path?: string }>>;
 	getSkillFingerprint?(): Promise<string | undefined>;
 	getDefaultModelContext?(): ProjectDefaultModelContext;
@@ -229,6 +242,42 @@ function readFileSyncUtf8(filePath: string): string {
 	return readFileSync(filePath, "utf8");
 }
 
+async function readSessionMessagesFromJsonl(sessionFile: string, projectRoot: string): Promise<AgentSessionMessageLike[]> {
+	const sessionPath = normalizeSessionFilePath(sessionFile, projectRoot);
+	const content = await readFile(sessionPath, "utf8");
+	const messages: AgentSessionMessageLike[] = [];
+	for (const line of content.split(/\r?\n/)) {
+		const trimmed = line.trim();
+		if (!trimmed) {
+			continue;
+		}
+		const event = JSON.parse(trimmed) as {
+			type?: string;
+			timestamp?: string;
+			message?: AgentSessionMessageLike;
+		};
+		if (event.type !== "message" || !event.message || typeof event.message.role !== "string") {
+			continue;
+		}
+		messages.push({
+			...event.message,
+			timestamp: event.message.timestamp ?? event.timestamp,
+		});
+	}
+	return messages;
+}
+
+function normalizeSessionFilePath(sessionFile: string, projectRoot: string): string {
+	const normalizedProjectRoot = projectRoot.replace(/\\/g, "/");
+	if (sessionFile === "/app") {
+		return normalizedProjectRoot;
+	}
+	if (sessionFile.startsWith("/app/")) {
+		return `${normalizedProjectRoot}${sessionFile.slice("/app".length)}`;
+	}
+	return sessionFile;
+}
+
 export function createDefaultAgentSessionFactory(
 	options: DefaultAgentSessionFactoryOptions,
 ): AgentSessionFactory {
@@ -276,6 +325,9 @@ export function createDefaultAgentSessionFactory(
 			});
 
 			return session;
+		},
+		async readSessionMessages(sessionFile) {
+			return await readSessionMessagesFromJsonl(sessionFile, options.projectRoot);
 		},
 		async getAvailableSkills() {
 			return await loadSkills();

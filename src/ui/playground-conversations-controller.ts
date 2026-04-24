@@ -149,14 +149,44 @@ export function getPlaygroundConversationControllerScript(): string {
 			state.conversationCatalogSyncedAt = Date.now();
 		}
 
-		function invalidateConversationCatalog() {
-			state.conversationCatalogSyncedAt = 0;
+		function abortConversationCatalogSync() {
+			const abortController = state.conversationCatalogAbortController;
+			state.conversationCatalogAbortController = null;
+			state.conversationCatalogSyncPromise = null;
+			state.conversationCatalogSyncing = false;
+			if (abortController && !abortController.signal.aborted) {
+				abortController.abort();
+			}
 		}
 
-		async function fetchConversationCatalog() {
+		function releaseConversationCatalogSync(syncPromise, abortController) {
+			if (state.conversationCatalogSyncPromise === syncPromise) {
+				state.conversationCatalogSyncPromise = null;
+				state.conversationCatalogSyncing = false;
+			}
+			if (abortController && state.conversationCatalogAbortController === abortController) {
+				state.conversationCatalogAbortController = null;
+			}
+		}
+
+		function isConversationCatalogAbortError(error) {
+			return (
+				error?.name === "AbortError" ||
+				error?.code === 20 ||
+				(typeof error?.message === "string" && error.message.toLowerCase().includes("abort"))
+			);
+		}
+
+		function invalidateConversationCatalog() {
+			state.conversationCatalogSyncedAt = 0;
+			abortConversationCatalogSync();
+		}
+
+		async function fetchConversationCatalog(options) {
 			const response = await fetch("/v1/chat/conversations", {
 				method: "GET",
 				headers: { accept: "application/json" },
+				signal: options?.signal,
 			});
 			const payload = await response.json().catch(() => ({}));
 			if (!response.ok) {
@@ -315,14 +345,23 @@ export function getPlaygroundConversationControllerScript(): string {
 				return getConversationCatalogSnapshot();
 			}
 
+			if (options?.force) {
+				abortConversationCatalogSync();
+			}
+
 			if (state.conversationCatalogSyncPromise) {
 				return await state.conversationCatalogSyncPromise;
 			}
 
 			state.conversationCatalogSyncing = true;
-			state.conversationCatalogSyncPromise = (async () => {
+			const abortController = typeof AbortController === "function" ? new AbortController() : null;
+			state.conversationCatalogAbortController = abortController;
+			let syncPromise;
+			syncPromise = (async () => {
 				try {
-					const payload = await fetchConversationCatalog();
+					const payload = await fetchConversationCatalog({
+						signal: abortController?.signal,
+					});
 					const currentConversationId = applyConversationCatalog(payload);
 					if (
 						currentConversationId &&
@@ -340,17 +379,20 @@ export function getPlaygroundConversationControllerScript(): string {
 						conversations: state.conversationCatalog,
 					};
 				} catch (error) {
+					if (isConversationCatalogAbortError(error)) {
+						return getConversationCatalogSnapshot();
+					}
 					if (!options?.silent) {
 						const messageText = error instanceof Error ? error.message : "无法同步会话列表";
 						showError(messageText);
 					}
 					return getConversationCatalogSnapshot();
 				} finally {
-					state.conversationCatalogSyncing = false;
-					state.conversationCatalogSyncPromise = null;
+					releaseConversationCatalogSync(syncPromise, abortController);
 				}
 			})();
-			return await state.conversationCatalogSyncPromise;
+			state.conversationCatalogSyncPromise = syncPromise;
+			return await syncPromise;
 		}
 
 		async function ensureCurrentConversation(options) {
