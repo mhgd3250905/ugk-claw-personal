@@ -192,6 +192,15 @@
   2. 同 conversationId、同 messages 签名时只更新 context usage / active process。
   3. active run delta 只 patch 最后一条 assistant，不清空整个 transcript。
 
+### Task 7：恢复同步触发链减重
+
+- 状态：已完成（2026-04-24）。`scheduleResumeConversationSync()` 现在会合并同一冷却窗口 / in-flight 期间的恢复选项，并按生命周期原因决定是否真的读取 catalog 或 canonical state：`pageshow` 强制校准当前会话 state；`visibilitychange` 只在 active run 或 state 超过恢复阈值时回源；`online` 优先用 active run 提示查状态并续订 `/v1/chat/events`，没有运行迹象时不再顺手拉完整历史。
+- 修改：`src/ui/playground-layout-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`
+- 步骤：
+  1. 写测试锁定恢复同步存在 `mergeResumeSyncOptions()`、`shouldResumeCatalogSync()`、`shouldResumeStateSync()` 与 active run 重连入口。
+  2. 为 `renderConversationState()` 记录 `lastConversationStateSyncAt`，让 visibility 恢复可以判断 state 是否过期。
+  3. 把 `visibilitychange` / `pageshow` / `online` 的恢复选项拆开，避免三个入口都串成 catalog + state 的慢路径。
+
 ## 验收标准
 
 - 旧会话 `/v1/chat/state` 小历史响应保持百毫秒级；长历史不会随完整 JSONL 线性劣化到秒级。
@@ -199,5 +208,6 @@
 - 快速双击新会话只创建一条服务端会话。
 - 打开后台任务管理器的请求数从 `1 + N` 降为 `1`。
 - 连续点击查看技能第二次走缓存。
+- 页面恢复 / 网络恢复不会无差别串行读取 `/v1/chat/conversations` 与 `/v1/chat/state`。
 - `npm test` 通过；新增回归测试覆盖每个体验债。
 - `docs/playground-current.md` 和 `docs/change-log.md` 在执行对应任务时同步更新。

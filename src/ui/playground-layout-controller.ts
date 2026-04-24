@@ -2,6 +2,7 @@ export function getPlaygroundLayoutConstantsScript(): string {
 	return `
 		const LAYOUT_SYNC_DELAY_MS = 80;
 		const RESUME_SYNC_COOLDOWN_MS = 900;
+		const RESUME_SYNC_STALE_MS = 12000;
 		const TRANSCRIPT_BOTTOM_SYNC_COOLDOWN_MS = 160;
 	`;
 }
@@ -159,8 +160,71 @@ export function getPlaygroundLayoutControllerScript(): string {
 			}
 		}
 
+		function mergeResumeSyncOptions(current, next) {
+			const previous = current && typeof current === "object" ? current : {};
+			const incoming = next && typeof next === "object" ? next : {};
+			return {
+				forceCatalog: Boolean(previous.forceCatalog || incoming.forceCatalog),
+				forceState: Boolean(previous.forceState || incoming.forceState),
+				preferEvents: Boolean(previous.preferEvents || incoming.preferEvents),
+				requireActiveRun: Boolean(previous.requireActiveRun || incoming.requireActiveRun),
+				allowStaleState: Boolean(previous.allowStaleState || incoming.allowStaleState),
+			};
+		}
+
+		function hasResumeActiveRunHint() {
+			return Boolean(
+				state.loading ||
+					state.activeRunEventController ||
+					state.primaryStreamActive ||
+					state.conversationState?.running ||
+					state.conversationState?.activeRun,
+			);
+		}
+
+		function shouldResumeCatalogSync(options) {
+			if (options?.forceCatalog || !state.conversationId) {
+				return true;
+			}
+			return state.conversationCatalog.length === 0;
+		}
+
+		function shouldResumeStateSync(options) {
+			if (options?.forceState) {
+				return true;
+			}
+			if (hasResumeActiveRunHint()) {
+				return true;
+			}
+			if (options?.requireActiveRun) {
+				return false;
+			}
+			if (!options?.allowStaleState) {
+				return false;
+			}
+			return Date.now() - Number(state.lastConversationStateSyncAt || 0) >= RESUME_SYNC_STALE_MS;
+		}
+
+		async function resumeActiveRunAfterReconnect(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			if (!nextConversationId || !hasResumeActiveRunHint()) {
+				return false;
+			}
+			const payload = await syncConversationRunState(nextConversationId, {
+				silent: true,
+				clearIfIdle: true,
+				attachIfRunning: false,
+			});
+			if (payload?.running) {
+				void attachActiveRunEventStream(nextConversationId);
+				return true;
+			}
+			return false;
+		}
+
 		function scheduleResumeConversationSync(reason, options) {
 			connectNotificationStream();
+			state.resumeSyncPendingOptions = mergeResumeSyncOptions(state.resumeSyncPendingOptions, options);
 			if (state.resumeSyncPromise) {
 				return state.resumeSyncPromise;
 			}
@@ -172,20 +236,35 @@ export function getPlaygroundLayoutControllerScript(): string {
 			state.resumeSyncTimer = window.setTimeout(() => {
 				state.resumeSyncTimer = null;
 				state.lastResumeSyncAt = Date.now();
+				const resumeOptions = state.resumeSyncPendingOptions || {};
+				state.resumeSyncPendingOptions = null;
 				state.resumeSyncPromise = (async () => {
-					await ensureCurrentConversation({ silent: true });
-					if (!state.conversationId) {
+					let nextConversationId = String(state.conversationId || "").trim();
+					if (shouldResumeCatalogSync(resumeOptions)) {
+						nextConversationId = await ensureCurrentConversation({ silent: true });
+					}
+					if (!nextConversationId) {
 						return;
 					}
-					await restoreConversationHistoryFromServer(state.conversationId, {
-						silent: true,
-						clearIfIdle: state.loading,
-						attachIfRunning: true,
-					});
+					if (resumeOptions.preferEvents && (await resumeActiveRunAfterReconnect(nextConversationId))) {
+						return;
+					}
+					if (shouldResumeStateSync(resumeOptions)) {
+						await restoreConversationHistoryFromServer(nextConversationId, {
+							silent: true,
+							clearIfIdle: state.loading,
+							attachIfRunning: true,
+						});
+					}
 				})()
 					.catch(() => undefined)
 					.finally(() => {
 						state.resumeSyncPromise = null;
+						if (state.resumeSyncPendingOptions) {
+							const pendingOptions = state.resumeSyncPendingOptions;
+							state.resumeSyncPendingOptions = null;
+							void scheduleResumeConversationSync("pending", pendingOptions);
+						}
 					});
 			}, delay);
 			return Promise.resolve();
@@ -202,7 +281,10 @@ export function getPlaygroundLayoutControllerScript(): string {
 			window.addEventListener("resize", syncConversationWidth);
 			document.addEventListener("visibilitychange", () => {
 				if (document.visibilityState === "visible") {
-					void scheduleResumeConversationSync("visibilitychange", { restoreHistory: true });
+					void scheduleResumeConversationSync("visibilitychange", {
+						allowStaleState: true,
+						preferEvents: true,
+					});
 				}
 			});
 			window.addEventListener("pageshow", (event) => {
@@ -213,10 +295,16 @@ export function getPlaygroundLayoutControllerScript(): string {
 				}
 				state.skipNextPageShowResumeSync = false;
 				state.pageUnloading = false;
-				void scheduleResumeConversationSync("pageshow", { restoreHistory: true });
+				void scheduleResumeConversationSync("pageshow", {
+					forceState: true,
+					preferEvents: true,
+				});
 			});
 			window.addEventListener("online", () => {
-				void scheduleResumeConversationSync("online", { restoreHistory: false });
+				void scheduleResumeConversationSync("online", {
+					preferEvents: true,
+					requireActiveRun: true,
+				});
 			});
 			const layoutObserver = new ResizeObserver(() => {
 				scheduleConversationLayoutSync();

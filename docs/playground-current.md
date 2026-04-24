@@ -221,7 +221,7 @@
 - `error` 与 `interrupted` 不再只是当前流页面里的临时视觉效果；它们仍会进入 `GET /v1/chat/state` 的 canonical state，但 terminal snapshot 只在 session history 还没覆盖到同一终态时才继续暴露，别再把同一轮已写入 history 的部分回复和过程壳子重复画两遍。
 - `interrupted` 的状态文案单独显示为“已打断”，不要再偷懒混成“已结束”；失败态继续明确显示“错误”。
 - 刷新恢复运行态时，页面文案统一使用“当前任务正在运行 / 当前正在运行”，不要再写“上一轮仍在运行”。
-- 手机浏览器前后台切换、页面 `visibilitychange`、`pageshow`、`online` 后都会先重新核对服务端 `currentConversationId`，再同步当前会话的运行态和历史。
+- 手机浏览器前后台切换、页面 `visibilitychange`、`pageshow`、`online` 后不再一律核对 catalog + 拉取完整会话 state：`pageshow` 会强制做一次当前会话 state 校准；`visibilitychange` 只在 active run 或本地 state 超过恢复阈值时回源；`online` 优先用当前 active run 提示查状态并续订 `/v1/chat/events`。
 - 如果 `/v1/chat/stream` 主连接因为前后台切换或网络短断结束，但 `GET /v1/chat/state` 仍显示后端任务运行中，页面会切到 `/v1/chat/events` 继续接收事件，不再提示“网络错误”并停止更新。
 - 如果 `/v1/chat/stream` 断开时任务其实已经刚好完成或失败，前端要先信 `GET /v1/chat/state` 的收口结果；只要 canonical state 已经推进到终态，就不应继续报“流被中断 / network error”。
 - 用户点击发送或把消息追加进运行中的会话后，composer 要立即清空，明确表示消息已经发出；如果请求在真正进入后端前失败，再把草稿恢复回输入区，不能让用户白丢内容
@@ -344,7 +344,7 @@
 - 会话目录 index 读写属于用户可感知延迟预算的一部分；高频切换、新建和恢复同步只能命中 `ConversationStore` 的 mtime cache 或排队写入，不能让多个请求并发读旧快照再各自覆盖落盘。
 - state hydrate 属于渲染预算，不只是接口预算；同签名回包必须跳过 transcript DOM 重绘，active assistant 文本和运行状态优先 patch 已有节点，别再把长 markdown 和代码块每次都重新 hydrate 一遍。
 - composer 输入仍即时调整高度，但 context usage 估算改成 debounce，避免每个按键都触发完整占用量重算。
-- `visibilitychange`、`pageshow`、`online` 现在统一走 `scheduleResumeConversationSync()` 做去重和冷却，不再三处各自拉取 catalog/state；恢复同步对当前会话只做一次 canonical `GET /v1/chat/state`，不再双拉 state 把页面抖成多余动画。
+- `visibilitychange`、`pageshow`、`online` 现在统一走 `scheduleResumeConversationSync()` 做去重、冷却和选项合并，但会按触发原因分级：`online` 只在有 active run 迹象时查状态并重连事件流，`visibilitychange` 只在 active run 或 state 过期时回源，`pageshow` 才强制同步当前会话 state；catalog 只在当前会话缺失、列表为空或显式要求时读取，避免恢复链路把 `GET /v1/chat/conversations` 与 `GET /v1/chat/state` 又串成慢路径。
 - 用户离开底部后，前端会取消尚未执行的自动滚底计划；同一会话的 async state 重绘也会恢复当前 scrollTop，而不是拿“重新渲染了一遍”当借口把阅读位置洗掉。
 - layout 同步集中到 `scheduleConversationLayoutSync()`；`ResizeObserver` 只观察 composer 容器，不再盯住大面积页面节点。
 - 本地历史快照写入 `localStorage` 改为 debounce，并在 `pagehide` / `beforeunload` 前 flush；这层缓存只服务冷启动，不是运行真源。

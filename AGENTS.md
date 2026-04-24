@@ -254,6 +254,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - playground 的 canonical state hydrate 不应默认清空 transcript；同会话同 `buildConversationStateSignature()` 时跳过 DOM 重绘，消息窗口变化时优先 patch / append 已渲染节点，只有会话切换或消息序列无法对齐时才重建当前 transcript。
 - 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要 `GET /v1/chat/state` 仍显示 running，前端应切到 `/v1/chat/events` 续订事件流。
 - `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
+- `playground` 页面恢复同步必须按触发原因分级：`pageshow` 才强制校准当前 state，`visibilitychange` 只在 active run 或 state 过期时回源，`online` 优先查 active run 并续订 `/v1/chat/events`；不要把 `visibilitychange/pageshow/online` 又改回无差别 `GET /v1/chat/conversations` + `GET /v1/chat/state`。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示；接口会返回 `source` / `cachedAt`，同一 skill fingerprint 在短 TTL 内应命中缓存，不要每次点击都 reload skills。
 - `playground` 消息气泡底部的复制正文操作是小型灰色裸 icon：无可见文字、无背景、无边框、无阴影；文字只保留在 `aria-label` / 隐藏文本里，不要再改回占高度的“复制正文”按钮。

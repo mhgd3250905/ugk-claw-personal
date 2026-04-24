@@ -3253,7 +3253,9 @@ function getPlaygroundScript(): string {
 			layoutSyncTimer: null,
 			resumeSyncPromise: null,
 			resumeSyncTimer: null,
+			resumeSyncPendingOptions: null,
 			lastResumeSyncAt: 0,
+			lastConversationStateSyncAt: 0,
 			transcriptScrollRaf: 0,
 			transcriptScrollTimer: null,
 			lastTranscriptScrollAt: 0,
@@ -3946,6 +3948,7 @@ function getPlaygroundScript(): string {
 			if (!shouldApplyConversationState(conversationState, syncToken)) {
 				return false;
 			}
+			state.lastConversationStateSyncAt = Date.now();
 			const nextConversationId = String(conversationState?.conversationId || state.conversationId || "").trim();
 			const previousRenderedConversationId = state.renderedConversationId;
 			const shouldPreserveTranscriptViewport =

@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground 恢复同步按生命周期原因分级
+- 日期：2026-04-24
+- 主题：继续清理多次切换 / 前后台恢复后的用户可感知慢路径。之前 `visibilitychange`、`pageshow`、`online` 虽然统一走了 `scheduleResumeConversationSync()`，但最终还是容易把 catalog 与 canonical state 串起来跑一遍；用户只是网络恢复或从后台切回来，也可能被拖进一次 `GET /v1/chat/conversations` + `GET /v1/chat/state`。这类“看起来很保险”的恢复链路，其实就是把慢请求伪装成勤快，体验上非常要命。现在恢复同步会合并 in-flight 选项并按触发原因分级：`pageshow` 强制校准当前会话 state，`visibilitychange` 只在 active run 或 state 超过恢复阈值时回源，`online` 优先查当前 active run 状态并续订 `/v1/chat/events`；catalog 只在当前会话缺失、列表为空或显式要求时读取。
+- 影响范围：`src/ui/playground-layout-controller.ts` 新增 `RESUME_SYNC_STALE_MS`、恢复选项合并、catalog/state 判定与 active run 重连入口；`src/ui/playground.ts` 记录 `resumeSyncPendingOptions` 与 `lastConversationStateSyncAt`；`test/server.test.ts` 锁住分级恢复脚本结构；`docs/playground-current.md`、本清扫计划与 `AGENTS.md` 同步当前口径。
+- 对应入口：`src/ui/playground-layout-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`、`AGENTS.md`
+
 ### Playground canonical state 改为 transcript diff 渲染
 - 日期：2026-04-24
 - 主题：继续清理 state hydrate 对用户阅读体验的打扰。之前 `renderConversationState()` 每次拿到 canonical state 都会清空当前 transcript、重置 streaming state，再把最近历史重新渲染一遍；接口瘦身以后还这么干，就等于后端省下来的时间又拿去重跑 markdown hydrate 和代码块 toolbar，长会话里尤其蠢。现在前端用 `buildConversationStateSignature()` 判断同会话同签名回包，命中时跳过 transcript DOM 重绘；消息窗口变化时优先 patch 已渲染节点或 append 新节点，只有会话切换或消息序列无法对齐时才重建当前 transcript。

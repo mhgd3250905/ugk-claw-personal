@@ -816,7 +816,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /skipNextPageShowResumeSync:\s*true/);
 	assert.match(
 		response.body,
-		/window\.addEventListener\("pageshow",\s*\(event\)\s*=>\s*\{[\s\S]*if\s*\(!event\.persisted\s*&&\s*state\.skipNextPageShowResumeSync\)\s*\{[\s\S]*state\.skipNextPageShowResumeSync\s*=\s*false;[\s\S]*state\.pageUnloading\s*=\s*false;[\s\S]*return;[\s\S]*\}[\s\S]*state\.skipNextPageShowResumeSync\s*=\s*false;[\s\S]*state\.pageUnloading\s*=\s*false;[\s\S]*scheduleResumeConversationSync\("pageshow",\s*\{\s*restoreHistory:\s*true\s*\}\)/,
+		/window\.addEventListener\("pageshow",\s*\(event\)\s*=>\s*\{[\s\S]*if\s*\(!event\.persisted\s*&&\s*state\.skipNextPageShowResumeSync\)\s*\{[\s\S]*state\.skipNextPageShowResumeSync\s*=\s*false;[\s\S]*state\.pageUnloading\s*=\s*false;[\s\S]*return;[\s\S]*\}[\s\S]*state\.skipNextPageShowResumeSync\s*=\s*false;[\s\S]*state\.pageUnloading\s*=\s*false;[\s\S]*scheduleResumeConversationSync\("pageshow",\s*\{[\s\S]*forceState:\s*true,[\s\S]*preferEvents:\s*true,[\s\S]*\}\)/,
 	);
 	assert.match(response.body, /function syncComposerTextareaHeight\(\)\s*\{/);
 	assert.match(response.body, /const minHeight =[\s\S]*Number\.parseFloat\(style\.minHeight\)/);
@@ -1951,6 +1951,51 @@ test("GET /playground injects layout and scroll runtime from a dedicated control
 	assert.match(response.body, /transcript\.addEventListener\("scroll", handleTranscriptScroll\)/);
 	assert.match(response.body, /document\.visibilityState === "visible"/);
 	assert.match(response.body, /scheduleResumeConversationSync\("pageshow"/);
+	await app.close();
+});
+
+test("GET /playground grades resume sync by browser lifecycle reason", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /const RESUME_SYNC_STALE_MS = \d+;/);
+	assert.match(response.body, /resumeSyncPendingOptions:\s*null/);
+	assert.match(response.body, /lastConversationStateSyncAt:\s*0/);
+	assert.match(response.body, /function mergeResumeSyncOptions\(current, next\)\s*\{/);
+	assert.match(response.body, /function shouldResumeCatalogSync\(options\)\s*\{/);
+	assert.match(response.body, /function shouldResumeStateSync\(options\)\s*\{/);
+	assert.match(response.body, /async function resumeActiveRunAfterReconnect\(conversationId\)\s*\{/);
+	assert.match(
+		response.body,
+		/if \(shouldResumeCatalogSync\(resumeOptions\)\) \{[\s\S]*await ensureCurrentConversation\(\{ silent: true \}\);/,
+	);
+	assert.match(
+		response.body,
+		/if \(shouldResumeStateSync\(resumeOptions\)\) \{[\s\S]*await restoreConversationHistoryFromServer/,
+	);
+	assert.match(
+		response.body,
+		/document\.addEventListener\("visibilitychange", \(\) => \{[\s\S]*scheduleResumeConversationSync\("visibilitychange", \{[\s\S]*allowStaleState: true,[\s\S]*preferEvents: true,[\s\S]*\}\);/,
+	);
+	assert.match(
+		response.body,
+		/window\.addEventListener\("pageshow", \(event\) => \{[\s\S]*scheduleResumeConversationSync\("pageshow", \{[\s\S]*forceState: true,[\s\S]*preferEvents: true,[\s\S]*\}\);/,
+	);
+	assert.match(
+		response.body,
+		/window\.addEventListener\("online", \(\) => \{[\s\S]*scheduleResumeConversationSync\("online", \{[\s\S]*preferEvents: true,[\s\S]*requireActiveRun: true,[\s\S]*\}\);/,
+	);
+	assert.doesNotMatch(
+		response.body,
+		/state\.resumeSyncPromise = \(async \(\) => \{\s*await ensureCurrentConversation\(\{ silent: true \}\);/,
+	);
 	await app.close();
 });
 
