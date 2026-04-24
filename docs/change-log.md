@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground 会话激活改成两阶段提交
+- 日期：2026-04-24
+- 主题：继续收口多次切换历史会话后 `新会话` / 旧会话切换手感变慢的问题。后端 state 读已经轻量化，但前端之前仍把“切到目标会话”绑死在 `GET /v1/chat/state` hydrate 完成之后；只要旧会话很大、网络抖动或浏览器连接池排队，用户点了按钮却还停在旧界面，体验上就像又卡死了。现在会话创建或切换只等待服务端确认目标 `conversationId`，随后立即进入目标会话 shell，真实历史与 active run 由后台 canonical state 同步补齐。
+- 影响范围：`src/ui/playground-conversations-controller.ts` 将 `activateConversation()` 改为后台调用 `restoreConversationHistoryFromServer()`，并为 `startNewConversation()` 增加 `conversationCreatePending` 防重入；当前已经是无正文、无附件、无 active run 的空白会话时，重复点击 `新会话` 会直接 no-op，不再继续创建一串空会话。历史列表在任意切换请求未回包时冻结切换 / 删除动作，避免慢回包覆盖用户最新目标。`src/ui/playground.ts` 补充会话创建与切换 pending 状态，并让新会话按钮在创建请求飞行期间保持禁用。`test/server.test.ts` 锁住两阶段激活、创建防重入、空白会话幂等和切换 pending 行为；`docs/playground-current.md` 与本清扫计划同步更新。
+- 对应入口：`src/ui/playground-conversations-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`
+
 ### Playground 会话目录同步增加过期请求取消
 - 日期：2026-04-24
 - 主题：修复多次切换历史会话后 `GET /v1/chat/conversations` 变慢并拖住 `新会话` 的问题。后端裸接口本身很轻，真正的问题是前端 `conversationCatalogSyncPromise` 会无条件复用旧目录请求；当旧请求被浏览器连接池或网络抖动拖住时，后续强制刷新、恢复同步和部分前置动作会一起等这条旧 promise，像是被接口本身卡住。

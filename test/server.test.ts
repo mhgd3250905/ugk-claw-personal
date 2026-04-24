@@ -1530,6 +1530,10 @@ test("GET /playground activates conversations without redundant state and catalo
 	assert.equal(response.statusCode, 200);
 	assert.match(
 		response.body,
+		/async function activateConversation\(conversationId, options\)\s*\{[\s\S]*void restoreConversationHistoryFromServer\(nextConversationId, \{\s*silent: true,\s*clearIfIdle: true,\s*attachIfRunning: true,\s*\}\);/,
+	);
+	assert.doesNotMatch(
+		response.body,
 		/async function activateConversation\(conversationId, options\)\s*\{[\s\S]*await restoreConversationHistoryFromServer\(nextConversationId, \{\s*silent: true,\s*clearIfIdle: true,\s*attachIfRunning: true,\s*\}\);/,
 	);
 	assert.doesNotMatch(
@@ -1540,11 +1544,30 @@ test("GET /playground activates conversations without redundant state and catalo
 		response.body,
 		/async function selectConversationFromDrawer\(conversationId\)\s*\{[\s\S]*closeMobileConversationDrawer\(\);[\s\S]*const result = await switchConversationOnServer\(nextConversationId\);[\s\S]*await activateConversation\(result\.currentConversationId \|\| result\.conversationId, \{\s*skipCatalogSync: true,\s*skipServerSwitch: true,\s*\}\);/,
 	);
-	assert.match(response.body, /button\.disabled = state\.loading;/);
+	assert.match(
+		response.body,
+		/const hasPendingSwitch = Object\.keys\(state\.conversationSwitchPendingById \|\| \{\}\)\.length > 0;[\s\S]*button\.disabled = state\.loading \|\| hasPendingSwitch;/,
+	);
+	assert.match(
+		response.body,
+		/async function selectConversationFromDrawer\(conversationId\)\s*\{[\s\S]*if \(Object\.keys\(state\.conversationSwitchPendingById \|\| \{\}\)\.length > 0\) \{[\s\S]*return;[\s\S]*\}/,
+	);
 	assert.doesNotMatch(response.body, /button\.disabled = state\.loading \|\| item\.conversationId === state\.conversationId;/);
 	assert.match(
 		response.body,
-		/async function startNewConversation\(\)\s*\{[\s\S]*const optimisticTimestamp = new Date\(\)\.toISOString\(\);[\s\S]*upsertConversationCatalogItem\([\s\S]*conversationId: nextConversationId,[\s\S]*\{ isNew: true \},[\s\S]*await activateConversation\(nextConversationId, \{\s*skipCatalogSync: true,\s*skipServerSwitch: true,\s*\}\);/,
+		/conversationCreatePending:\s*false,/,
+	);
+	assert.match(
+		response.body,
+		/function isCurrentConversationBlank\(\)\s*\{[\s\S]*catalogMessageCount === 0[\s\S]*visibleMessageCount === 0[\s\S]*renderedMessages\.size === 0/,
+	);
+	assert.match(
+		response.body,
+		/async function startNewConversation\(\)\s*\{[\s\S]*if \(isCurrentConversationBlank\(\)\) \{[\s\S]*return true;[\s\S]*\}[\s\S]*if \(state\.conversationCreatePending\) \{[\s\S]*return false;[\s\S]*\}[\s\S]*state\.conversationCreatePending = true;[\s\S]*finally \{[\s\S]*state\.conversationCreatePending = false;[\s\S]*\}/,
+	);
+	assert.match(
+		response.body,
+		/async function startNewConversation\(\)\s*\{[\s\S]*const optimisticTimestamp = new Date\(\)\.toISOString\(\);[\s\S]*upsertConversationCatalogItem\([\s\S]*conversationId: nextConversationId,[\s\S]*\{ isNew: true \},[\s\S]*const activated = await activateConversation\(nextConversationId, \{\s*skipCatalogSync: true,\s*skipServerSwitch: true,\s*\}\);[\s\S]*return activated;/,
 	);
 	assert.doesNotMatch(
 		response.body,

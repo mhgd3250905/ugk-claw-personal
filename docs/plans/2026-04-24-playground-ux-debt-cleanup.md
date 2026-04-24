@@ -137,6 +137,7 @@
 
 ### Task 1：会话动作改成两阶段提交
 
+- 状态：已完成（2026-04-24）。`activateConversation()` 已改为后台 hydrate；`startNewConversation()` 增加 create pending guard，并让当前空白会话下的重复 `新会话` 点击保持幂等；历史列表切换请求 in-flight 时会冻结切换 / 删除动作，避免慢回包覆盖用户最新目标。
 - 修改：`src/ui/playground-conversations-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`
 - 步骤：
   1. 写测试锁定 `startNewConversation()` 有 create pending guard，连续点击只发一次 `POST /v1/chat/conversations`。

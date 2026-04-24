@@ -48,7 +48,7 @@
 - 当前 Web 入口采用“一个 agent、多个历史会话、一个全局当前会话”的模型；服务端维护 `currentConversationId`，不同浏览器 / 设备打开后都跟随这个当前会话
 - 页面冷启动或刷新时，会先通过 `GET /v1/chat/conversations` 获取服务端会话目录和当前会话，再按当前 `conversationId` 请求一次 `GET /v1/chat/state` 同步真实历史与 active run
 - 空闲旧会话的 `GET /v1/chat/state` / `GET /v1/chat/history` / `GET /v1/chat/status` 必须走轻量 session JSONL 消息读取；查看历史或切换旧会话不应该初始化完整 agent session、reload skills 或创建 runtime resource loader。只有发送新消息、续跑 active run、队列 steer/follow-up 这类真正需要 agent runtime 的动作才打开完整 session。
-- 会话激活现在统一收口到单次 canonical `GET /v1/chat/state`：切换会话、新会话创建成功后的进入、以及 `visibilitychange/pageshow/online` 恢复同步，都不该再为了同一条会话先后重复拉两次 state
+- 会话激活现在是两阶段提交：`POST /v1/chat/current` 或 `POST /v1/chat/conversations` 确认目标 `conversationId` 后，前端立即切到目标会话 shell 并释放交互；canonical `GET /v1/chat/state` 只作为后台 hydrate 收口真实历史与 active run，不能再卡住切换 / 新建手感。
 - 前端对会话历史恢复和运行态同步的异步 `GET /v1/chat/state` 回包现在统一走会话 sync ownership：会话切换会使旧 generation 失效，同一会话内较新的同步请求也会压过较早请求；如果旧会话请求慢回、或同会话旧请求晚于新请求返回，这个 stale response 都必须被直接丢弃，不能再把旧消息覆盖回当前 transcript
 - 会话 sync ownership 不只负责丢弃旧回包，也会通过 `AbortController` 取消上一条未完成的 `/v1/chat/state` 请求；多次快速切换会话后再点 `新会话`，不应被一串已经过期的 state 请求排队拖慢。
 - 会话目录同步现在带 `conversationCatalogSyncPromise` 复用与短时 freshness 冷却；切换 / 新建 / 删除会话后优先复用当前 catalog 结果并按需失效，避免把 `/v1/chat/current` 的切换手感拖成重复目录 round-trip
@@ -177,10 +177,10 @@
 - 浏览器端会话目录、新建会话、切换当前会话、运行中禁切、以及手机历史抽屉列表渲染集中在 `src/ui/playground-conversations-controller.ts`；`src/ui/playground.ts` 仍持有主 state，布局滚动与恢复入口已交给 `src/ui/playground-layout-controller.ts`，transcript 渲染入口已交给 `src/ui/playground-transcript-renderer.ts`，stream lifecycle 已交给 `src/ui/playground-stream-controller.ts`
 - 桌面 Web 现在常驻左侧历史会话栏，和手机历史抽屉共用同一份 conversation catalog 渲染与切换逻辑；不能再让桌面端完全没有历史入口。移动端仍走左侧抽屉，避免小屏再塞一条常驻侧栏。
 - 点击 `新会话` 会调用 `POST /v1/chat/conversations` 创建新的 `conversationId`，并把它设置成全局当前会话；旧会话不会被 reset 或删除
-- 点击 `新会话` 时，前端优先进入新会话；创建成功后会先本地插入会话目录，再用新会话的一次 canonical `GET /v1/chat/state` 收口 UI，不再先额外 round-trip 一轮 `GET /v1/chat/conversations` 把切换手感拖慢
+- 点击 `新会话` 时，前端用 `conversationCreatePending` 防止请求飞行中的重复创建；如果当前会话已经是无正文、无附件、无 active run 的空白会话，则再次点击直接 no-op，不再继续创建一串空白会话。创建成功后先本地插入会话目录并进入新会话，再让新会话的一次 canonical `GET /v1/chat/state` 在后台收口 UI，不再把用户挡在 hydrate 前面，也不再先额外 round-trip 一轮 `GET /v1/chat/conversations`。
 - 手机端点击左侧品牌区会打开历史会话抽屉；点击历史项时前端应先立即关闭抽屉，再调用 `POST /v1/chat/current`，不能傻等服务端回包后才把侧边栏收起来
 - 如果用户点的是当前已经选中的会话，也要立即关闭手机历史抽屉；当前项只允许在 `state.loading` 时禁用，不能因为 active 状态禁用点击事件，否则用户会以为界面卡死
-- 会话切换成功后，前端会直接以目标会话的一次 canonical `GET /v1/chat/state` 收口真实历史与 active run；不再对同一条会话先拉 history restore、再补拉 run state，制造重复请求和重复滚底
+- 会话切换成功后，前端会直接进入目标会话，并以目标会话的一次后台 canonical `GET /v1/chat/state` 收口真实历史与 active run；不再对同一条会话先拉 history restore、再补拉 run state，制造重复请求和重复滚底。任意会话切换请求未回包时，历史列表会临时冻结切换和删除动作，避免慢回包把用户刚点的目标会话覆盖回去。
 - 历史会话项现在提供显式删除入口，调用 `DELETE /v1/chat/conversations/:conversationId`；删除后服务端会重算 `currentConversationId`，前端再按新的当前会话收口 UI
 - 所有删除类动作都统一走自定义 `confirm-dialog`，不再调用系统 `confirm()`。风格、圆角、按钮语气都跟页面保持同一套，不再把原生弹窗硬插进来破坏节奏
 - agent 正在运行时，后端拒绝新建或切换会话；前端显示“当前任务未结束，不能切换产线 / 开启新产线”
@@ -269,7 +269,7 @@
 - 刷新页面后，playground 先请求 `GET /v1/chat/conversations` 获取服务端当前会话，再按该 `conversationId` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、状态壳层、队列和上下文占用作为 canonical state 渲染。
 - `GET /v1/chat/history` 与 `GET /v1/chat/status` 继续保留兼容，但刷新恢复不再靠前端把 history、status、events、localStorage 和 DOM 指针拼成一份“猜出来的状态”。
 - `/v1/chat/state` 与 `/v1/chat/history` 都会合并连续 assistant 历史消息，保证同一轮完成后的浏览器处理叙述和最终回答恢复为一个助手气泡，而不是刷新后散成多条独立消息。
-- 点击 `新会话` 后，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后以新会话的一次 `GET /v1/chat/state` 作为真源恢复 UI；旧会话保留在历史列表里，不再先额外同步一轮 `GET /v1/chat/conversations` 才给用户切过去。
+- 点击 `新会话` 后，如果当前不是空白会话，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后立即进入新会话 shell；新会话的一次 `GET /v1/chat/state` 作为后台真源恢复 UI。旧会话保留在历史列表里，不再先额外同步一轮 `GET /v1/chat/conversations`，也不再等待 hydrate 完成才给用户切过去。当前已经是空白会话时，重复点击 `新会话` 不再产生新的空会话。
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
 - `activeRun` 存在时，前端仍只维护一个 active assistant 气泡；但气泡是否出现在 transcript、对应用户输入是否补齐，都以 `viewMessages` 为准，同一 run 不允许拆出多条“助手 / 过程区 / 结果区”消息。
 - `activeRun.input.message` 仍可作为后端构造 `viewMessages` 的输入；前端收到 `viewMessages` 后只负责渲染，不再根据文本相等关系自行判断“当前用户任务是否已出现”。
@@ -332,6 +332,8 @@
 
 ## Frontend Performance Budget
 
+- 会话切换 / 新建会话的交互预算按“服务端确认目标会话即可切屏”计算，`GET /v1/chat/state` hydrate 必须后台化；否则历史会话越大，用户越会把真实数据恢复误读成按钮卡死。
+- 新建会话必须对“已经在空白会话里”保持幂等；只靠按钮 disabled 防连点挡不住本机快请求，最后还是会把历史列表灌满空会话，这种体验债不要再放回去。
 - 发送消息时，如果前端已经持有 `conversationId`，不再每次串行等待 `GET /v1/chat/conversations` 和 `GET /v1/chat/state` 预检完成；消息先进入 `/v1/chat/stream`，会话目录改为后台静默刷新。
 - composer 输入仍即时调整高度，但 context usage 估算改成 debounce，避免每个按键都触发完整占用量重算。
 - `visibilitychange`、`pageshow`、`online` 现在统一走 `scheduleResumeConversationSync()` 做去重和冷却，不再三处各自拉取 catalog/state；恢复同步对当前会话只做一次 canonical `GET /v1/chat/state`，不再双拉 state 把页面抖成多余动画。

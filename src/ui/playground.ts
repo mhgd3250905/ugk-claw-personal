@@ -3223,6 +3223,8 @@ function getPlaygroundScript(): string {
 			conversationCatalogSyncPromise: null,
 			conversationCatalogAbortController: null,
 			conversationCatalogSyncedAt: 0,
+			conversationCreatePending: false,
+			conversationSwitchPendingById: {},
 			conversationSyncGeneration: 0,
 			conversationSyncRequestId: 0,
 			conversationAppliedSyncRequestId: 0,
@@ -3493,8 +3495,8 @@ function getPlaygroundScript(): string {
 			messageInput.disabled = false;
 			fileInput.disabled = false;
 			conversationInput.disabled = next;
-			newConversationButton.disabled = next;
-			mobileNewConversationButton.disabled = next;
+			newConversationButton.disabled = next || state.conversationCreatePending;
+			mobileNewConversationButton.disabled = next || state.conversationCreatePending;
 			mobileOverflowMenuButton.disabled = false;
 			mobileMenuSkillsButton.disabled = next;
 			mobileMenuFileButton.disabled = false;

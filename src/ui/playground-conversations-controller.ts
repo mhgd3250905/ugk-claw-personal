@@ -44,7 +44,9 @@ export function getPlaygroundConversationControllerScript(): string {
 				if (item.conversationId === state.conversationId) {
 					button.classList.add("is-active");
 				}
-				button.disabled = state.loading;
+				const hasPendingSwitch = Object.keys(state.conversationSwitchPendingById || {}).length > 0;
+				const switching = Boolean(state.conversationSwitchPendingById?.[item.conversationId]);
+				button.disabled = state.loading || hasPendingSwitch;
 				button.innerHTML =
 					'<span class="mobile-conversation-title"></span>' +
 					'<span class="mobile-conversation-preview"></span>' +
@@ -85,7 +87,9 @@ export function getPlaygroundConversationControllerScript(): string {
 				if (item.conversationId === state.conversationId) {
 					button.classList.add("is-active");
 				}
-				button.disabled = state.loading;
+				const hasPendingSwitch = Object.keys(state.conversationSwitchPendingById || {}).length > 0;
+				const switching = Boolean(state.conversationSwitchPendingById?.[item.conversationId]);
+				button.disabled = state.loading || hasPendingSwitch;
 				button.innerHTML =
 					'<span class="mobile-conversation-title"></span>' +
 					'<span class="mobile-conversation-preview"></span>' +
@@ -103,7 +107,7 @@ export function getPlaygroundConversationControllerScript(): string {
 				deleteButton.type = "button";
 				deleteButton.className = "conversation-item-delete";
 				deleteButton.textContent = "删";
-				deleteButton.disabled = state.loading || item.running;
+				deleteButton.disabled = state.loading || item.running || hasPendingSwitch || switching;
 				deleteButton.setAttribute("aria-label", "删除会话 " + (item.title || item.conversationId));
 				deleteButton.addEventListener("click", (event) => {
 					event.stopPropagation();
@@ -438,7 +442,7 @@ export function getPlaygroundConversationControllerScript(): string {
 			renderConversationDrawer();
 			markConversationCatalogFresh();
 			restoreConversationHistory(nextConversationId);
-			await restoreConversationHistoryFromServer(nextConversationId, {
+			void restoreConversationHistoryFromServer(nextConversationId, {
 				silent: true,
 				clearIfIdle: true,
 				attachIfRunning: true,
@@ -450,6 +454,35 @@ export function getPlaygroundConversationControllerScript(): string {
 				});
 			}
 			return true;
+		}
+
+		function isCurrentConversationBlank() {
+			const currentConversationId = String(state.conversationId || "").trim();
+			if (!currentConversationId || state.loading || state.conversationState?.activeRun) {
+				return false;
+			}
+
+			const currentCatalogItem = state.conversationCatalog.find(
+				(item) => item?.conversationId === currentConversationId,
+			);
+			const catalogMessageCount = Number(currentCatalogItem?.messageCount || 0);
+			const stateMessages = Array.isArray(state.conversationState?.viewMessages)
+				? state.conversationState.viewMessages
+				: Array.isArray(state.conversationState?.messages)
+					? state.conversationState.messages
+					: [];
+			const visibleMessageCount = stateMessages.length;
+			const hasDraft =
+				String(messageInput.value || "").trim().length > 0 ||
+				Number(fileInput.files?.length || 0) > 0 ||
+				(Array.isArray(state.selectedAssetRefs) && state.selectedAssetRefs.length > 0);
+
+			return (
+				!hasDraft &&
+				catalogMessageCount === 0 &&
+				visibleMessageCount === 0 &&
+				renderedMessages.size === 0
+			);
 		}
 
 		async function selectConversationFromDrawer(conversationId) {
@@ -464,7 +497,17 @@ export function getPlaygroundConversationControllerScript(): string {
 				return;
 			}
 
+			if (Object.keys(state.conversationSwitchPendingById || {}).length > 0) {
+				closeMobileConversationDrawer();
+				return;
+			}
+
 			closeMobileConversationDrawer();
+			state.conversationSwitchPendingById = {
+				...(state.conversationSwitchPendingById || {}),
+				[nextConversationId]: true,
+			};
+			renderConversationDrawer();
 			try {
 				const result = await switchConversationOnServer(nextConversationId);
 				if (!result.switched) {
@@ -481,6 +524,11 @@ export function getPlaygroundConversationControllerScript(): string {
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "切换会话失败";
 				showError(messageText);
+			} finally {
+				const nextPending = { ...(state.conversationSwitchPendingById || {}) };
+				delete nextPending[nextConversationId];
+				state.conversationSwitchPendingById = nextPending;
+				renderConversationDrawer();
 			}
 		}
 
@@ -554,47 +602,64 @@ export function getPlaygroundConversationControllerScript(): string {
 				return false;
 			}
 
-			let createResult;
+			if (isCurrentConversationBlank()) {
+				return true;
+			}
+
+			if (state.conversationCreatePending) {
+				return false;
+			}
+
+			state.conversationCreatePending = true;
+			newConversationButton.disabled = true;
+			mobileNewConversationButton.disabled = true;
 			try {
-				createResult = await createConversationOnServer();
-			} catch (error) {
-				const messageText = error instanceof Error ? error.message : "无法开启新会话";
-				showError(messageText);
-				return false;
-			}
-
-			if (!createResult?.created) {
-				if (createResult?.reason === "running") {
-					showError("当前任务未结束，不能开启新产线");
-				} else {
-					showError("无法开启新会话");
+				let createResult;
+				try {
+					createResult = await createConversationOnServer();
+				} catch (error) {
+					const messageText = error instanceof Error ? error.message : "无法开启新会话";
+					showError(messageText);
+					return false;
 				}
-				return false;
-			}
 
-			const nextConversationId = createResult.currentConversationId || createResult.conversationId;
-			const optimisticTimestamp = new Date().toISOString();
-			upsertConversationCatalogItem(
-				{
-					conversationId: nextConversationId,
-					title: "新会话",
-					preview: "",
-					messageCount: 0,
-					createdAt: optimisticTimestamp,
-					updatedAt: optimisticTimestamp,
-					running: false,
-				},
-				{ isNew: true },
-			);
-			markConversationCatalogFresh();
-			clearSelectedFiles();
-			clearSelectedAssetRefs();
-			setStageMode("landing");
-			await activateConversation(nextConversationId, {
-				skipCatalogSync: true,
-				skipServerSwitch: true,
-			});
-			return true;
+				if (!createResult?.created) {
+					if (createResult?.reason === "running") {
+						showError("当前任务未结束，不能开启新产线");
+					} else {
+						showError("无法开启新会话");
+					}
+					return false;
+				}
+
+				const nextConversationId = createResult.currentConversationId || createResult.conversationId;
+				const optimisticTimestamp = new Date().toISOString();
+				upsertConversationCatalogItem(
+					{
+						conversationId: nextConversationId,
+						title: "新会话",
+						preview: "",
+						messageCount: 0,
+						createdAt: optimisticTimestamp,
+						updatedAt: optimisticTimestamp,
+						running: false,
+					},
+					{ isNew: true },
+				);
+				markConversationCatalogFresh();
+				clearSelectedFiles();
+				clearSelectedAssetRefs();
+				setStageMode("landing");
+				const activated = await activateConversation(nextConversationId, {
+					skipCatalogSync: true,
+					skipServerSwitch: true,
+				});
+				return activated;
+			} finally {
+				state.conversationCreatePending = false;
+				newConversationButton.disabled = state.loading;
+				mobileNewConversationButton.disabled = state.loading;
+			}
 		}
 	`;
 }
