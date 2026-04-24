@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`58c12e92fa28a93d7373d65a0c387d8f09d6f29b`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-180357`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-180357.tar.gz`
+- 当前线上应用提交：`45e7efb1dc2643d9e73d4d6288c0a09394091e94`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-223012`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-223012.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,41 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-24 Playground 弹层焦点释放增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+1. 本地已完成后台任务过程详情弹层焦点修复验证：
+   - 新增回归测试先红后绿：`GET /playground releases panel focus before hiding conn run details`
+   - `npm test`：275 tests，273 pass，2 skip，0 fail
+   - `git diff --check`
+   - 本地 `http://127.0.0.1:3000/playground` 页面源码包含 `releasePanelFocusBeforeHide` 和 `activeElement.blur`
+2. 本地 `main` 已推送到 GitHub：`45e7efb1dc2643d9e73d4d6288c0a09394091e94`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `58c12e92fa28a93d7373d65a0c387d8f09d6f29b`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-223012.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260424-223012`
+6. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `58c12e9` fast-forward 到 `45e7efb`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config`，输出到 `/tmp/ugk-compose-config-20260424-223012.txt`
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`
+9. `ugk-pi` 重建后 nginx 曾短暂返回 `502` 且 nginx 容器 unhealthy；根因是 nginx 老容器在 app 容器重建后没有跟上 upstream 状态。已执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx`，随后 nginx 恢复 healthy。后续只要重建 app 后入口出现 `502`，先查 nginx healthy 和 upstream 状态，别上来就怀疑 app 改挂了。
+10. 发布后验收通过：
+    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+    - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
+    - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+    - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+    - 公网页面源码包含 `releasePanelFocusBeforeHide` 和 `activeElement.blur`
+    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+11. 本次上线的行为收口：
+    - 后台任务过程详情、运行日志和确认弹层在设置 `hidden / aria-hidden=true` 前会先释放内部焦点
+    - 焦点优先回到可见触发入口或底部输入框；如果浏览器拒绝聚焦且 active element 仍在弹层内，则执行 `blur()` 兜底
+    - 避免关闭后台任务过程详情时出现 `Blocked aria-hidden on an element because its descendant retained focus`
+
+本次额外踩到一个 SSH 引号坑：
+
+- 第一次远程发布命令在 `git tag -m "server pre deploy backup"` 处被远程 shell 拆词，只生成了 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-222839.tar.gz`，没有拉代码，也没有重建容器。后续改成无空格 message `server-pre-deploy-backup` 后成功。远程一行命令里别塞需要保留空格的嵌套引号，尤其是在 Windows PowerShell 发 SSH 命令时，能少演一层戏就少演一层。
 
 ## 2026-04-24 Playground UX 性能债清扫增量发布记录
 

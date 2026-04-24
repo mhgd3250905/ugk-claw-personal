@@ -14,7 +14,7 @@
 - 公网入口：`http://43.134.167.179:3000/playground`
 - 健康检查：`http://43.134.167.179:3000/healthz`
 - 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`58c12e92fa28a93d7373d65a0c387d8f09d6f29b`
+- 当前线上应用提交：`45e7efb1dc2643d9e73d4d6288c0a09394091e94`
 - 不要再用：`snapshot-20260422-v4.1.1-stable`；那个 tag 打出来后才发现生产 compose YAML 缩进有病
 
 ## 登录
@@ -35,6 +35,13 @@ ssh ubuntu@43.134.167.179
 cd ~/ugk-claw-repo
 git pull --ff-only origin main
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+```
+
+如果 `ugk-pi` 重建后自己是 healthy，但公网 / nginx 入口返回 `502`，先重建 nginx，让它重新解析 upstream：
+
+```bash
+cd ~/ugk-claw-repo
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx
 ```
 
 别在 `~/ugk-pi-claw` 里更新。那是旧目录，不是当前主入口。

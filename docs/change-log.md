@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### 腾讯云生产环境增量更新到 `45e7efb`
+- 日期：2026-04-24
+- 主题：按增量更新流程把腾讯云新加坡生产环境从 `58c12e9` 更新到 `45e7efb1dc2643d9e73d4d6288c0a09394091e94`，让后台任务过程详情、运行日志和确认弹层关闭前先释放内部焦点，避免浏览器控制台出现 `Blocked aria-hidden on an element because its descendant retained focus`。
+- 影响范围：服务器继续沿用 GitHub 工作目录 `~/ugk-claw-repo` 和 shared 运行态目录 `~/ugk-claw-shared`，没有做整目录替换，也没有触碰 `.data/agent` 或 sidecar 登录态；发布前备份 sidecar 到 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-223012.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260424-223012`。`git pull --ff-only` 后执行 `docker compose ... up --build -d`，随后因 nginx 老容器未跟上 app 重建后的 upstream 状态短暂出现 `502`，已通过 `up -d --force-recreate nginx` 恢复。内外网 `/healthz`、`/playground`、页面修复标记、sidecar `check-deps.mjs` 和容器健康状态均已验收通过。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground-transcript-renderer.ts`、`docs/tencent-cloud-singapore-deploy.md`、`docs/server-ops-quick-reference.md`
+
 ### Playground 弹层关闭前释放内部焦点
 - 日期：2026-04-24
 - 主题：修复打开后台任务过程后关闭详情弹层时，焦点仍停在 `button#conn-run-details-close`，随后父级 `#conn-run-details-dialog` 被设置为 `aria-hidden=true` 导致浏览器控制台提示 `Blocked aria-hidden on an element because its descendant retained focus` 的问题。这类警告不是装饰噪音，而是键盘 / 读屏用户可能被塞进隐藏区域的真实体验债。
