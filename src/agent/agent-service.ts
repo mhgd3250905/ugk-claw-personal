@@ -31,6 +31,7 @@ import type {
 import {
 	buildPromptWithAssetContext,
 	extractAgentFileDrafts,
+	prependCurrentTimeContext,
 	rewriteUserVisibleLocalArtifactLinks,
 	stripInternalPromptContext,
 	type AgentFileArtifact,
@@ -320,7 +321,7 @@ export class AgentService {
 		}
 
 		const preparedAssets = await this.preparePromptAssets(input.conversationId, input.attachments, input.assetRefs);
-		const message = buildPromptWithAssetContext(input.message, preparedAssets.promptAssets);
+		const message = buildPromptWithAssetContext(prependCurrentTimeContext(input.message), preparedAssets.promptAssets);
 		if (input.mode === "steer" && activeRun.session.steer) {
 			await activeRun.session.steer(message);
 		} else if (input.mode === "followUp" && activeRun.session.followUp) {
@@ -577,7 +578,9 @@ export class AgentService {
 		try {
 			await closeBrowserTargetsForScope(browserCleanupScope);
 			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
-				await session.prompt(buildPromptWithAssetContext(input.message, preparedAssets.promptAssets));
+				await session.prompt(
+					buildPromptWithAssetContext(prependCurrentTimeContext(input.message), preparedAssets.promptAssets),
+				);
 			});
 
 			const lastAssistantMessage = [...(session.messages ?? [])].reverse().find((message) => message.role === "assistant");

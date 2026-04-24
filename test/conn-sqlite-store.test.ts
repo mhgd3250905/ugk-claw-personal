@@ -215,6 +215,30 @@ test("ConnSqliteStore rejects invalid schedules with a clear validation error", 
 	database.close();
 });
 
+test("ConnSqliteStore rejects once schedules that are already in the past", async () => {
+	const { store, database } = await createConnSqliteStore();
+
+	await assert.rejects(
+		() =>
+			store.create({
+				title: "past schedule",
+				prompt: "run",
+				target: {
+					type: "conversation",
+					conversationId: "manual:conn",
+				},
+				schedule: {
+					kind: "once",
+					at: "2026-04-21T09:59:00.000Z",
+				},
+				now: new Date("2026-04-21T10:00:00.000Z"),
+			}),
+		/once\.at .*past|past/i,
+	);
+
+	database.close();
+});
+
 test("ConnSqliteStore persists cron timezone and explicit runtime ids", async () => {
 	const { store, database } = await createConnSqliteStore();
 
@@ -337,7 +361,7 @@ test("ConnSqliteStore rejects invalid maxRunMs values with a clear validation er
 				},
 				schedule: {
 					kind: "once",
-					at: "2026-04-21T10:01:00.000Z",
+					at: "2026-04-25T10:31:00.000Z",
 				},
 				maxRunMs: 0,
 			}),

@@ -5,6 +5,7 @@ import type { ResolvedBackgroundAgentSnapshot, BackgroundAgentProfileResolver } 
 import type { BackgroundWorkspaceManager, RunWorkspace } from "./background-workspace.js";
 import type { ConnRunRecord, ConnRunStore } from "./conn-run-store.js";
 import type { ConnDefinition } from "./conn-store.js";
+import { prependCurrentTimeContext } from "./file-artifacts.js";
 
 export interface BackgroundAgentSessionFactory {
 	createSession(input: {
@@ -181,7 +182,7 @@ function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace): s
 		`Background conn task: ${conn.title}`,
 		"",
 		"User task:",
-		conn.prompt,
+		prependCurrentTimeContext(conn.prompt),
 		"",
 		"Workspace contract:",
 		`- Input files are in: ${workspace.inputDir}`,

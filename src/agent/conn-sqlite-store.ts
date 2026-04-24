@@ -308,6 +308,9 @@ function normalizeSchedule(schedule: ConnSchedule, now: Date): ConnSchedule {
 			throw new Error("Invalid conn schedule: once.timezone is invalid");
 		}
 		const at = parseScheduleDate(schedule.at, timezone, "Invalid conn schedule: once.at must be a valid date");
+		if (at.getTime() <= now.getTime()) {
+			throw new Error("Invalid conn schedule: once.at is in the past");
+		}
 		return {
 			kind: "once",
 			at: at.toISOString(),

@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-04-24
+
+### Agent 显式时间锚点与过期 once 调度拦截
+- 日期：2026-04-24
+- 主题：给前台 chat 和后台 `conn` runner 发往 agent 的用户消息统一补上 `[当前时间：时区 时间]` 前缀，减少模型把“几分钟后”“待会儿”这类相对时间理解歪的概率；同时把一次性 `once` 调度的过去时间直接判成非法，别再把明显失效的任务写进库里装作创建成功。
+- 影响范围：`src/agent/agent-service.ts` 与 `src/agent/background-agent-runner.ts` 在真正送 prompt 前统一注入当前时间上下文；`src/agent/file-artifacts.ts` 负责生成并在用户可见历史中剥离这段内部前缀，避免 transcript 被运行时协议污染；`src/agent/conn-sqlite-store.ts` 对过去的 `once.at` 直接抛校验错误，`src/routes/conns.ts` 将其映射成 `400 BAD_REQUEST`；相关测试补到 `test/agent-service.test.ts`、`test/background-agent-runner.test.ts`、`test/conn-sqlite-store.test.ts`、`test/server.test.ts`。
+- 对应入口：[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)、[src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)、[src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)、[src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)、[docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+
 ## 2026-04-23
 
 ### 生产增量更新到任务面板体验收口版本

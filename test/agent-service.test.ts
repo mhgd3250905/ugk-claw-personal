@@ -591,6 +591,22 @@ test("chat includes uploaded file attachments in the session prompt", async () =
 	]);
 });
 
+test("chat prepends the current time context before sending the prompt to the agent", async () => {
+	const store = await createStore();
+	const session = new FakeSession("E:/sessions/time-prefix.jsonl", [textDelta("收到")]);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	await service.chat({
+		conversationId: "manual:time-prefix",
+		message: "三分钟后提醒我看一下日志",
+	});
+
+	assert.equal(session.prompts.length, 1);
+	assert.match(session.prompts[0]?.message ?? "", /\[当前时间：[^\]]+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/);
+	assert.match(session.prompts[0]?.message ?? "", /三分钟后提醒我看一下日志/);
+});
+
 test("chat converts ugk-file blocks from the assistant into downloadable files", async () => {
 	const store = await createStore();
 	const assetStore = new FakeAssetStore();
@@ -954,7 +970,8 @@ test("queueMessage can enqueue a follow-up after the active turn", async () => {
 	assert.equal(activeSession.prompts.length, 1);
 	assert.deepEqual(activeSession.steerCalls, []);
 	assert.equal(activeSession.followUpCalls.length, 1);
-	assert.equal(activeSession.followUpCalls[0]?.startsWith("等会继续"), true);
+	assert.match(activeSession.followUpCalls[0] ?? "", /\[当前时间：[^\]]+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/);
+	assert.match(activeSession.followUpCalls[0] ?? "", /等会继续/);
 
 	activeSession.finish();
 	await run;
@@ -1838,6 +1855,7 @@ test("queueMessage uses explicit steer API instead of prompt(streamingBehavior)"
 		}),
 	);
 	assert.equal(activeSession.steerCalls.length, 1);
+	assert.match(activeSession.steerCalls[0] ?? "", /\[当前时间：[^\]]+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/);
 	assert.match(activeSession.steerCalls[0] ?? "", /steer now/);
 	assert.deepEqual(activeSession.followUpCalls, []);
 
@@ -1869,7 +1887,8 @@ test("queueMessage uses explicit followUp API instead of prompt(streamingBehavio
 	);
 	assert.deepEqual(activeSession.steerCalls, []);
 	assert.equal(activeSession.followUpCalls.length, 1);
-	assert.equal(activeSession.followUpCalls[0]?.startsWith("follow up later"), true);
+	assert.match(activeSession.followUpCalls[0] ?? "", /\[当前时间：[^\]]+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/);
+	assert.match(activeSession.followUpCalls[0] ?? "", /follow up later/);
 
 	activeSession.finish();
 	await run;

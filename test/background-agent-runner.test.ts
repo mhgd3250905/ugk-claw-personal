@@ -225,11 +225,11 @@ async function createRunner(options?: { session?: AgentSessionLike }) {
 		}),
 		sessionFactory,
 	});
-	return { root, database, connStore, runStore, sessionFactory, runner };
+	return { root, database, connStore, runStore, sessionFactory, runner, session };
 }
 
 test("BackgroundAgentRunner executes a conn run in an isolated workspace and records events", async () => {
-	const { database, connStore, runStore, sessionFactory, runner } = await createRunner();
+	const { database, connStore, runStore, sessionFactory, runner, session } = await createRunner();
 	const conn = await connStore.create({
 		title: "Daily Digest",
 		prompt: "Summarize the uploaded file",
@@ -268,6 +268,10 @@ test("BackgroundAgentRunner executes a conn run in an isolated workspace and rec
 	const [sessionInput] = sessionFactory.createdInputs as Array<{ workspace: { sessionDir: string }; snapshot: { profileId: string } }>;
 	assert.ok(sessionInput.workspace.sessionDir.endsWith(join("background", "runs", "run-success", "session")));
 	assert.equal(sessionInput.snapshot.profileId, "background.default");
+	assert.match(
+		String((session.messages[0] as { content?: unknown } | undefined)?.content ?? ""),
+		/\[当前时间：[^\]]+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/,
+	);
 
 	database.close();
 });

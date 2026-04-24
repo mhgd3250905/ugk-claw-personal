@@ -93,6 +93,16 @@ function sendInternalError(reply: FastifyReply, error: unknown): FastifyReply {
 	} satisfies ErrorResponseBody);
 }
 
+function sendConnValidationError(reply: FastifyReply, error: unknown): FastifyReply | undefined {
+	if (!(error instanceof Error)) {
+		return undefined;
+	}
+	if (!/^Invalid conn /.test(error.message)) {
+		return undefined;
+	}
+	return sendBadRequest(reply, error.message);
+}
+
 function isNonEmptyString(value: unknown): value is string {
 	return typeof value === "string" && value.trim().length > 0;
 }
@@ -447,6 +457,10 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 			});
 			return reply.status(201).send({ conn } satisfies ConnDetailResponseBody);
 		} catch (error) {
+			const validationReply = sendConnValidationError(reply, error);
+			if (validationReply) {
+				return validationReply;
+			}
 			return sendInternalError(reply, error);
 		}
 	});
@@ -501,6 +515,10 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 			}
 			return { conn } satisfies ConnDetailResponseBody;
 		} catch (error) {
+			const validationReply = sendConnValidationError(reply, error);
+			if (validationReply) {
+				return validationReply;
+			}
 			return sendInternalError(reply, error);
 		}
 	});

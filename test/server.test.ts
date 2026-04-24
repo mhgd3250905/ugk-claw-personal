@@ -1134,6 +1134,54 @@ test("POST /v1/conns defaults target to the task inbox when target is omitted", 
 	await app.close();
 });
 
+test("POST /v1/conns returns 400 when the once schedule is already in the past", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		connStore: {
+			list: async () => [],
+			get: async () => undefined,
+			create: async () => {
+				throw new Error("Invalid conn schedule: once.at is in the past");
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async () => [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/conns",
+		payload: {
+			title: "late job",
+			prompt: "run once",
+			schedule: {
+				kind: "once",
+				at: "2026-04-21T09:59:00.000Z",
+			},
+		},
+	});
+
+	assert.equal(response.statusCode, 400);
+	assert.deepEqual(response.json(), {
+		error: {
+			code: "BAD_REQUEST",
+			message: "Invalid conn schedule: once.at is in the past",
+		},
+	});
+	await app.close();
+});
+
 test("PATCH /v1/conns/:connId rejects a blank title when the field is provided", async () => {
 	const updateCalls: unknown[] = [];
 	const app = buildServer({

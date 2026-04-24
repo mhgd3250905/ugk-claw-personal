@@ -41,6 +41,20 @@ export function buildPromptWithAssetContext(
 	return sections.filter((section) => section.length > 0).join("\n\n");
 }
 
+export function prependCurrentTimeContext(
+	message: string,
+	options: {
+		now?: Date;
+		timeZone?: string;
+	} = {},
+): string {
+	const trimmedMessage = String(message ?? "").trim();
+	const timeZone = resolvePromptTimeZone(options.timeZone);
+	const formatted = formatPromptDateTime(options.now ?? new Date(), timeZone);
+	const prefix = `[当前时间：${timeZone} ${formatted}]`;
+	return trimmedMessage ? `${prefix}\n${trimmedMessage}` : prefix;
+}
+
 export function toPromptAssetFromStoredAsset(
 	asset: AssetRecord,
 	options: {
@@ -113,7 +127,7 @@ export function stripInternalPromptContext(text: string): string {
 		return "";
 	}
 
-	return normalizeVisibleText(text.replace(INTERNAL_PROMPT_SECTION_PATTERN, ""));
+	return normalizeVisibleText(text.replace(INTERNAL_PROMPT_PREFIX_PATTERN, "").replace(INTERNAL_PROMPT_SECTION_PATTERN, ""));
 }
 
 function buildAssetContext(assets: readonly PromptAssetContextEntry[]): string {
@@ -204,6 +218,35 @@ function normalizeVisibleText(text: string): string {
 		.trim();
 }
 
+function resolvePromptTimeZone(timeZone?: string): string {
+	const candidate =
+		String(timeZone ?? "").trim() ||
+		String(process.env.APP_TIMEZONE ?? "").trim() ||
+		String(process.env.TZ ?? "").trim() ||
+		Intl.DateTimeFormat().resolvedOptions().timeZone ||
+		"UTC";
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format(0);
+		return candidate;
+	} catch {
+		return "UTC";
+	}
+}
+
+function formatPromptDateTime(date: Date, timeZone: string): string {
+	const formatter = new Intl.DateTimeFormat("sv-SE", {
+		timeZone,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false,
+	});
+	return formatter.format(date).replace(",", "");
+}
+
 function normalizePublicBaseUrl(publicBaseUrl?: string): string {
 	return String(publicBaseUrl || process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${process.env.PORT || "3000"}`).replace(
 		/\/+$/,
@@ -271,3 +314,6 @@ const LOCAL_ARTIFACT_REFERENCE_PATTERN =
 
 const INTERNAL_PROMPT_SECTION_PATTERN =
 	/(?:\n{0,2})<(user_assets|asset_reference_protocol|file_response_protocol)>[\s\S]*?<\/\1>/gi;
+
+const INTERNAL_PROMPT_PREFIX_PATTERN =
+	/^\s*\[当前时间：[^\]\r\n]+\]\s*(?:\r?\n)+/u;
