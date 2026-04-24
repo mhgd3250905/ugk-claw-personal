@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### 交接文档刷新到 `45e7efb` 生产态
+- 日期：2026-04-24
+- 主题：为项目交接给下一个 agent 刷新当前态文档，把 `docs/handoff-current.md` 从旧的 `0b63cd7` 消息系统发布阶段更新到当前生产运行代码 `45e7efb1dc2643d9e73d4d6288c0a09394091e94`，并明确 GitHub 最新 `26031a3` 只是发布记录文档提交。别让下一个接手的人拿旧生产提交、旧回滚 tag 和旧 sidecar 备份当现状，项目交接不是考古节目。
+- 影响范围：`docs/handoff-current.md` 重写当前结论、已完成 Playground UX 大扫除、生产状态、回滚锚点、发布口径和下一阶段建议；`README.md` 同步修正 `POST /v1/conns` 默认目标，明确未传 `target` 时默认进入任务消息页 `{ "type": "task_inbox" }`，不再自动绑定当前会话。
+- 对应入口：`docs/handoff-current.md`、`README.md`
+
 ### 腾讯云生产环境增量更新到 `45e7efb`
 - 日期：2026-04-24
 - 主题：按增量更新流程把腾讯云新加坡生产环境从 `58c12e9` 更新到 `45e7efb1dc2643d9e73d4d6288c0a09394091e94`，让后台任务过程详情、运行日志和确认弹层关闭前先释放内部焦点，避免浏览器控制台出现 `Blocked aria-hidden on an element because its descendant retained focus`。
