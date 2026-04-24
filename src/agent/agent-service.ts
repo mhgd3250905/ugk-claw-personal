@@ -12,6 +12,8 @@ import type {
 	ToolExecutionStartEventLike,
 	ToolExecutionUpdateEventLike,
 	ProjectDefaultModelContext,
+	type RuntimeSkillInfo,
+	type RuntimeSkillListResult,
 } from "./agent-session-factory.js";
 import {
 	buildContextUsageSnapshot,
@@ -171,11 +173,6 @@ export interface RunEventSubscription {
 	unsubscribe: () => void;
 }
 
-export interface RuntimeSkillInfo {
-	name: string;
-	path?: string;
-}
-
 export interface AgentServiceOptions {
 	conversationStore: ConversationStore;
 	sessionFactory: AgentSessionFactory;
@@ -224,8 +221,21 @@ export class AgentService {
 		await this.runChat(input, onEvent);
 	}
 
-	async getAvailableSkills(): Promise<RuntimeSkillInfo[]> {
-		return (await this.options.sessionFactory.getAvailableSkills?.()) ?? [];
+	async getAvailableSkills(): Promise<RuntimeSkillListResult> {
+		const result = await this.options.sessionFactory.getAvailableSkills?.();
+		if (result) {
+			return {
+				skills: result.skills.map((skill: RuntimeSkillInfo) => ({ ...skill })),
+				source: result.source,
+				cachedAt: result.cachedAt,
+			};
+		}
+
+		return {
+			skills: [],
+			source: "fresh",
+			cachedAt: new Date(0).toISOString(),
+		};
 	}
 
 	async getConversationCatalog(): Promise<ConversationCatalogResult> {

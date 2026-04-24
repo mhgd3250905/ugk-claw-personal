@@ -157,7 +157,8 @@
 
 ### Task 3：技能列表缓存
 
-- 修改：`src/agent/agent-session-factory.ts`、`src/agent/agent-service.ts`、`src/routes/chat.ts`、`test/agent-session-factory.test.ts`、`test/server.test.ts`
+- 状态：已完成（2026-04-24）。`DefaultAgentSessionFactory.getAvailableSkills()` 已增加 30 秒 TTL 缓存，并用 skill fingerprint 变化主动失效；`GET /v1/debug/skills` 响应现在返回 `source` 与 `cachedAt`，可直接看出本次是 fresh reload 还是 cache 命中。
+- 修改：`src/agent/agent-session-factory.ts`、`src/agent/agent-service.ts`、`src/routes/chat.ts`、`src/types/api.ts`、`test/agent-session-factory.test.ts`、`test/agent-service.test.ts`、`test/server.test.ts`
 - 步骤：
   1. 写测试：连续两次 `getAvailableSkills()` 只触发一次 `resourceLoader.reload()`。
   2. 增加 TTL 和 fingerprint invalidation。

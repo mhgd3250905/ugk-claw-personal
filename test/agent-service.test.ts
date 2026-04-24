@@ -306,8 +306,16 @@ class FakeAgentSessionFactory implements AgentSessionFactory {
 		return this.persistedMessages.get(sessionFile);
 	}
 
-	async getAvailableSkills(): Promise<Array<{ name: string; path?: string }>> {
-		return this.availableSkills;
+	async getAvailableSkills(): Promise<{
+		skills: Array<{ name: string; path?: string }>;
+		source: "fresh" | "cache";
+		cachedAt: string;
+	}> {
+		return {
+			skills: this.availableSkills,
+			source: "fresh",
+			cachedAt: "2026-04-24T00:00:00.000Z",
+		};
 	}
 
 	async getSkillFingerprint(): Promise<string | undefined> {

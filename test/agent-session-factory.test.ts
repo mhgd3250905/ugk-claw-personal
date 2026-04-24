@@ -109,6 +109,74 @@ test("skill whitelist can load both system and user-installed skill directories"
 	);
 });
 
+test("default session factory caches available skills between unchanged fingerprints", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-skill-cache-"));
+	const sessionDir = join(projectRoot, ".data", "sessions");
+	const skillDir = join(projectRoot, ".pi", "skills", "cached-skill");
+	await mkdir(skillDir, { recursive: true });
+	await mkdir(sessionDir, { recursive: true });
+	await writeFile(
+		join(skillDir, "SKILL.md"),
+		"---\nname: cached-skill\ndescription: cached skill\n---\n",
+		"utf8",
+	);
+
+	const factory = createDefaultAgentSessionFactory({
+		projectRoot,
+		sessionDir,
+		allowedSkillPaths: [join(projectRoot, ".pi", "skills")],
+	});
+
+	const first = await factory.getAvailableSkills?.();
+	const second = await factory.getAvailableSkills?.();
+
+	assert.equal(first?.source, "fresh");
+	assert.equal(second?.source, "cache");
+	assert.equal(second?.cachedAt, first?.cachedAt);
+	assert.deepEqual(
+		second?.skills.map((skill) => skill.name),
+		["cached-skill"],
+	);
+});
+
+test("default session factory refreshes cached skills when the fingerprint changes", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-skill-cache-invalidate-"));
+	const sessionDir = join(projectRoot, ".data", "sessions");
+	const skillsRoot = join(projectRoot, ".pi", "skills");
+	const firstSkillDir = join(skillsRoot, "first-skill");
+	const secondSkillDir = join(skillsRoot, "second-skill");
+	await mkdir(firstSkillDir, { recursive: true });
+	await mkdir(sessionDir, { recursive: true });
+	await writeFile(
+		join(firstSkillDir, "SKILL.md"),
+		"---\nname: first-skill\ndescription: first skill\n---\n",
+		"utf8",
+	);
+
+	const factory = createDefaultAgentSessionFactory({
+		projectRoot,
+		sessionDir,
+		allowedSkillPaths: [skillsRoot],
+	});
+
+	const first = await factory.getAvailableSkills?.();
+	await mkdir(secondSkillDir, { recursive: true });
+	await writeFile(
+		join(secondSkillDir, "SKILL.md"),
+		"---\nname: second-skill\ndescription: second skill\n---\n",
+		"utf8",
+	);
+	const second = await factory.getAvailableSkills?.();
+
+	assert.equal(first?.source, "fresh");
+	assert.equal(second?.source, "fresh");
+	assert.notEqual(second?.cachedAt, first?.cachedAt);
+	assert.deepEqual(
+		second?.skills.map((skill) => skill.name).sort(),
+		["first-skill", "second-skill"],
+	);
+});
+
 test("project models.json exposes the checked-in dashscope-coding glm-5 provider", () => {
 	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(process.cwd()));
 	const model = registry.find("dashscope-coding", "glm-5");

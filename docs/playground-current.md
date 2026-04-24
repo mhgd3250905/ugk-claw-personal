@@ -145,6 +145,7 @@
   - 接口返回
   - 整理结果
 - 最终结果会直接列出完整技能清单
+- `GET /v1/debug/skills` 响应包含 `source: "fresh" | "cache"` 与 `cachedAt`；`DefaultAgentSessionFactory` 会在 skill fingerprint 未变化且 30 秒 TTL 内复用缓存，避免每次点“查看技能”都重建 resource loader 和 reload skills。技能文件变化会让 fingerprint 失效并刷新。
 - 不再把旧的 system 调试噪音塞进 transcript
 
 ## 5.1 后台任务过程查看

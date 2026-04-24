@@ -172,9 +172,7 @@ function parseAssetRefs(value: unknown): { assetRefs?: string[]; error?: string 
 
 export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependencies): void {
 	app.get("/v1/debug/skills", async (): Promise<DebugSkillsResponseBody> => {
-		return {
-			skills: await deps.agentService.getAvailableSkills(),
-		};
+		return await deps.agentService.getAvailableSkills();
 	});
 
 	app.get("/v1/chat/conversations", async (): Promise<ConversationCatalogResponseBody> => {

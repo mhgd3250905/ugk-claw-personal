@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground 技能列表查询增加缓存元信息
+- 日期：2026-04-24
+- 主题：继续清理用户可点击入口里的隐形重活。`查看技能` 看起来只是一个信息面板，之前每次点击却会重新创建 resource loader 并 `reload()` skills；技能目录一多、挂载一慢，这个按钮就会把用户拖进一次小型启动流程。现在技能列表查询在 fingerprint 未变化且 TTL 内复用缓存，技能文件变化时才刷新。
+- 影响范围：`src/agent/agent-session-factory.ts` 为 `getAvailableSkills()` 增加 30 秒 TTL 缓存、fingerprint invalidation 和 `source / cachedAt` 元信息；`src/agent/agent-service.ts` 与 `src/routes/chat.ts` 平铺返回新的 debug skills 响应；`src/types/api.ts` 更新 `DebugSkillsResponseBody`；`test/agent-session-factory.test.ts` 覆盖缓存命中与 fingerprint 变化刷新，`test/server.test.ts` 覆盖 API 元信息。
+- 对应入口：`src/agent/agent-session-factory.ts`、`src/agent/agent-service.ts`、`src/routes/chat.ts`、`src/types/api.ts`、`test/agent-session-factory.test.ts`、`test/agent-service.test.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`
+
 ### Playground 会话 state/history 改为分页读取
 - 日期：2026-04-24
 - 主题：继续收口历史会话越用越慢的问题。之前 `GET /v1/chat/state` 仍会把完整会话历史转换并返回给前端，然后浏览器再截取最近 160 条；这不是优化，是把账单从后端搬到浏览器，长会话迟早要卡。现在 state 响应默认只给最近窗口，并通过 `historyPage` 告诉前端还有没有更早消息；旧历史由独立的 history 分页接口按需加载。

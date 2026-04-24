@@ -243,6 +243,8 @@ export interface DebugSkillsResponseBody {
 		name: string;
 		path?: string;
 	}>;
+	source: "fresh" | "cache";
+	cachedAt: string;
 }
 
 export interface ChatContextUsageBody {

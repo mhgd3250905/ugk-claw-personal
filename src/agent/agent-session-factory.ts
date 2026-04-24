@@ -99,9 +99,20 @@ export interface AgentSessionMessageLike {
 export interface AgentSessionFactory {
 	createSession(input: { conversationId: string; sessionFile?: string }): Promise<AgentSessionLike>;
 	readSessionMessages?(sessionFile: string): Promise<AgentSessionMessageLike[] | undefined>;
-	getAvailableSkills?(): Promise<Array<{ name: string; path?: string }>>;
+	getAvailableSkills?(): Promise<RuntimeSkillListResult>;
 	getSkillFingerprint?(): Promise<string | undefined>;
 	getDefaultModelContext?(): ProjectDefaultModelContext;
+}
+
+export interface RuntimeSkillInfo {
+	name: string;
+	path?: string;
+}
+
+export interface RuntimeSkillListResult {
+	skills: RuntimeSkillInfo[];
+	source: "fresh" | "cache";
+	cachedAt: string;
 }
 
 export interface DefaultAgentSessionFactoryOptions {
@@ -283,8 +294,16 @@ export function createDefaultAgentSessionFactory(
 ): AgentSessionFactory {
 	const allowedSkillPaths = options.allowedSkillPaths ?? getDefaultAllowedSkillPaths(options.projectRoot);
 	const defaultModelContext = resolveProjectDefaultModelContext(options.projectRoot);
+	let cachedSkillList: { fingerprint: string; skills: RuntimeSkillInfo[]; cachedAt: string; checkedAtMs: number } | null = null;
+	let lastSkillCacheTimestampMs = 0;
 
-	async function loadSkills(): Promise<Array<{ name: string; path?: string }>> {
+	function nextSkillCacheTimestamp(): string {
+		const now = Date.now();
+		lastSkillCacheTimestampMs = Math.max(now, lastSkillCacheTimestampMs + 1);
+		return new Date(lastSkillCacheTimestampMs).toISOString();
+	}
+
+	async function loadSkills(): Promise<RuntimeSkillInfo[]> {
 		const resourceLoader = createSkillRestrictedResourceLoader({
 			projectRoot: options.projectRoot,
 			agentDir: options.agentDir,
@@ -298,6 +317,33 @@ export function createDefaultAgentSessionFactory(
 				path: "path" in skill && typeof skill.path === "string" ? skill.path : undefined,
 			}))
 			.sort((left, right) => left.name.localeCompare(right.name));
+	}
+
+	async function getAvailableSkills(): Promise<RuntimeSkillListResult> {
+		const fingerprint = await buildSkillFingerprint(allowedSkillPaths);
+		const now = Date.now();
+		if (cachedSkillList?.fingerprint === fingerprint && now - cachedSkillList.checkedAtMs < 30_000) {
+			cachedSkillList.checkedAtMs = now;
+			return {
+				skills: cachedSkillList.skills.map((skill) => ({ ...skill })),
+				source: "cache",
+				cachedAt: cachedSkillList.cachedAt,
+			};
+		}
+
+		const skills = await loadSkills();
+		const cachedAt = nextSkillCacheTimestamp();
+		cachedSkillList = {
+			fingerprint,
+			skills: skills.map((skill) => ({ ...skill })),
+			cachedAt,
+			checkedAtMs: now,
+		};
+		return {
+			skills,
+			source: "fresh",
+			cachedAt,
+		};
 	}
 
 	return {
@@ -330,7 +376,7 @@ export function createDefaultAgentSessionFactory(
 			return await readSessionMessagesFromJsonl(sessionFile, options.projectRoot);
 		},
 		async getAvailableSkills() {
-			return await loadSkills();
+			return await getAvailableSkills();
 		},
 		async getSkillFingerprint() {
 			return await buildSkillFingerprint(allowedSkillPaths);
