@@ -166,7 +166,8 @@
 
 ### Task 4：conn 管理器去 N+1
 
-- 修改：`src/routes/conns.ts`、`src/agent/conn-run-store.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/types/api.ts`、`test/server.test.ts`
+- 状态：已完成（2026-04-24）。`GET /v1/conns` 现在会通过 `ConnRunStore.listLatestRunsForConns()` 批量带回每个 conn 的 `latestRun` 摘要；没有运行记录时返回 `latestRun: null`，前端据此区分“新协议但确实无 run”和“旧后端没有 latestRun 字段”。后台任务管理器打开时只请求一次 `/v1/conns`，展开单个 conn 时才按需请求 `/v1/conns/:connId/runs` 补完整 run 列表；旧后端 fallback 保留 4 路并发池，避免退回无限 N+1。
+- 修改：`src/routes/conns.ts`、`src/agent/conn-run-store.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground.ts`、`src/types/api.ts`、`test/server.test.ts`、`test/conn-run-store.test.ts`
 - 步骤：
   1. 写测试：`GET /v1/conns` 返回 `latestRun`。
   2. 前端打开管理器只请求 `/v1/conns` 一次。

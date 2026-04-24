@@ -349,7 +349,8 @@
 ## Conn Manager
 
 - `playground` 现在提供后台任务管理入口：桌面端 landing 右侧 `后台任务`，手机端右上角更多菜单里的 `后台任务`。
-- 管理弹层使用 `conn-manager-dialog` / `conn-manager-list`，打开时读取 `GET /v1/conns`，并为每个 conn 读取 `GET /v1/conns/:connId/runs` 展示最近 3 条 run。
+- 管理弹层使用 `conn-manager-dialog` / `conn-manager-list`，打开时只读取一次 `GET /v1/conns`；该列表响应已经带每个 conn 的 `latestRun` 摘要，不再为每个 conn 立即补一发 `GET /v1/conns/:connId/runs`。
+- conn 的 run 历史默认折叠，只用 `latestRun` 展示最新状态摘要；用户展开某个 conn 时，前端才按需请求 `GET /v1/conns/:connId/runs` 补完整 run 列表。旧后端没有 `latestRun` 字段时，前端最多 4 路并发 fallback 拉取 runs，不能再退回无限制 N+1。
 - 手机端后台任务管理器是贴底抽屉，不是桌面管理表格的缩小版；标题区背景透明，只保留 `后台任务` 标题与 `新建 / 刷新 / 关闭` 单行动作工具栏，不再显示说明句；顶部筛选和批量操作工具条同样保持透明背景，conn 条目改成单列卡片，`立即执行 / 暂停 / 恢复 / 删除 / 查看` 这类操作以整宽网格按钮呈现，避免横向挤成一排小字按钮。
 - 管理弹层提供 `新建` 入口，每条 conn 提供 `编辑` 入口；编辑器使用 `conn-editor-dialog` / `conn-editor-form`，调用 `POST /v1/conns` 或 `PATCH /v1/conns/:connId`。
 - conn 创建 / 编辑器默认只露出常用字段：标题、`让它做什么`、`结果发到哪里`、调度和保存。编号输入只在选择“指定会话 / 飞书”时出现。

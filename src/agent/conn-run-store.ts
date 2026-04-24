@@ -220,6 +220,34 @@ export class ConnRunStore {
 		return rows.map(rowToRun);
 	}
 
+	async listLatestRunsForConns(connIds: readonly string[]): Promise<Record<string, ConnRunRecord | undefined>> {
+		const uniqueConnIds = Array.from(
+			new Set(connIds.map((connId) => connId.trim()).filter(Boolean)),
+		);
+		if (uniqueConnIds.length === 0) {
+			return {};
+		}
+
+		const placeholders = uniqueConnIds.map(() => "?").join(", ");
+		const rows = this.options.database.all<ConnRunRow>(
+			[
+				"SELECT * FROM (",
+				"SELECT conn_runs.*,",
+				"ROW_NUMBER() OVER (PARTITION BY conn_id ORDER BY scheduled_at DESC, created_at DESC) AS row_number",
+				"FROM conn_runs",
+				`WHERE conn_id IN (${placeholders})`,
+				") WHERE row_number = 1",
+			].join(" "),
+			...uniqueConnIds,
+		);
+
+		const latestRunsByConnId: Record<string, ConnRunRecord | undefined> = {};
+		for (const row of rows) {
+			latestRunsByConnId[row.conn_id] = rowToRun(row);
+		}
+		return latestRunsByConnId;
+	}
+
 	async listStaleRuns(now: Date = new Date()): Promise<ConnRunRecord[]> {
 		const nowIso = now.toISOString();
 		const rows = this.options.database.all<ConnRunRow>(

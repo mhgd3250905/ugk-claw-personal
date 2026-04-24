@@ -114,6 +114,7 @@ export interface ConnBody {
 	lastRunAt?: string;
 	nextRunAt?: string;
 	lastRunId?: string;
+	latestRun?: ConnRunBody | null;
 }
 
 export interface ConnListResponseBody {

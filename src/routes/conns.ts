@@ -6,6 +6,7 @@ import type { ConnDefinition, ConnSchedule, ConnTarget } from "../agent/conn-sto
 import type {
 	ConnBulkDeleteRequestBody,
 	ConnBulkDeleteResponseBody,
+	ConnBody,
 	ConnDetailResponseBody,
 	ConnListResponseBody,
 	ConnRunDetailResponseBody,
@@ -69,6 +70,7 @@ interface ConnRunStoreLike {
 		workspacePath: string;
 	}): Promise<ConnRunRecord>;
 	listRunsForConn(connId: string): Promise<ConnRunRecord[]>;
+	listLatestRunsForConns?(connIds: readonly string[]): Promise<Record<string, ConnRunRecord | undefined>>;
 	getRun(runId: string): Promise<ConnRunRecord | undefined>;
 	listEvents(runId: string): Promise<ConnRunEventRecord[]>;
 	listFiles(runId: string): Promise<ConnRunFileRecord[]>;
@@ -375,8 +377,12 @@ async function parseConnMutationBody(
 
 export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptions): void {
 	app.get("/v1/conns", async (): Promise<ConnListResponseBody> => {
+		const conns = await options.connStore.list();
+		const latestRunsByConnId = options.connRunStore.listLatestRunsForConns
+			? await options.connRunStore.listLatestRunsForConns(conns.map((conn) => conn.connId))
+			: undefined;
 		return {
-			conns: await options.connStore.list(),
+			conns: conns.map((conn) => toConnListBody(conn, latestRunsByConnId)),
 		};
 	});
 
@@ -570,6 +576,17 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 		}
 		return reply.status(204).send();
 	});
+}
+
+function toConnListBody(
+	conn: ConnDefinition,
+	latestRunsByConnId: Record<string, ConnRunRecord | undefined> | undefined,
+): ConnBody {
+	const latestRun = latestRunsByConnId?.[conn.connId];
+	return {
+		...conn,
+		...(latestRunsByConnId ? { latestRun: latestRun ? toConnRunBody(latestRun) : null } : {}),
+	};
 }
 
 function toConnRunBody(run: ConnRunRecord): ConnRunDetailResponseBody["run"] {

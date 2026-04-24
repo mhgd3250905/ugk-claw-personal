@@ -83,6 +83,68 @@ test("ConnRunStore creates due runs and leases them to one worker at a time", as
 	database.close();
 });
 
+test("ConnRunStore lists the latest run for each requested conn in one batch", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const firstConn = await connStore.create({
+		title: "first digest",
+		prompt: "summarize first",
+		target: {
+			type: "conversation",
+			conversationId: "manual:first",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const secondConn = await connStore.create({
+		title: "second digest",
+		prompt: "summarize second",
+		target: {
+			type: "conversation",
+			conversationId: "manual:second",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-first-old",
+		connId: firstConn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-first-old",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-first-new",
+		connId: firstConn.connId,
+		scheduledAt: "2026-04-21T10:02:00.000Z",
+		workspacePath: "/tmp/conn/run-first-new",
+		now: new Date("2026-04-21T10:01:59.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-second",
+		connId: secondConn.connId,
+		scheduledAt: "2026-04-21T10:01:30.000Z",
+		workspacePath: "/tmp/conn/run-second",
+		now: new Date("2026-04-21T10:01:29.000Z"),
+	});
+
+	const latestRuns = await runStore.listLatestRunsForConns([
+		firstConn.connId,
+		secondConn.connId,
+		"conn-missing",
+	]);
+
+	assert.equal(latestRuns[firstConn.connId]?.runId, "run-first-new");
+	assert.equal(latestRuns[secondConn.connId]?.runId, "run-second");
+	assert.equal(latestRuns["conn-missing"], undefined);
+	database.close();
+});
+
 test("ConnRunStore heartbeatRun refreshes updatedAt and leaseUntil for the owning worker", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const conn = await connStore.create({

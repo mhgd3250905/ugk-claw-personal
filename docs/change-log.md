@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground 后台任务管理器去掉打开时的 N+1 runs 请求
+- 日期：2026-04-24
+- 主题：继续清理用户可感知慢路径。后台任务管理器之前打开时先请求 `GET /v1/conns`，再对每个 conn 并发请求一次 `/v1/conns/:connId/runs`；conn 数量一多，请求数和浏览器连接池都会被自己打爆，属于典型列表页翻车。现在 `GET /v1/conns` 直接带每个 conn 的 `latestRun` 摘要，管理器打开只需要一次列表请求，完整 runs 改为展开单个 conn 时按需读取。
+- 影响范围：`src/agent/conn-run-store.ts` 新增 `listLatestRunsForConns()` 批量读取每个 conn 最新 run；`src/routes/conns.ts` 的列表响应为 conn 条目补充 `latestRun`，无 run 时明确返回 `null`；`src/types/api.ts` 更新 `ConnBody`；`src/ui/playground-conn-activity-controller.ts` 改为从列表响应 hydrate 最新 run，并保留旧后端 4 路并发 fallback；`src/ui/playground.ts` 补充管理器 runs 加载状态；`test/server.test.ts` 与 `test/conn-run-store.test.ts` 增加回归。
+- 对应入口：`src/routes/conns.ts`、`src/agent/conn-run-store.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground.ts`、`src/types/api.ts`、`test/server.test.ts`、`test/conn-run-store.test.ts`、`docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`
+
 ### Playground 技能列表查询增加缓存元信息
 - 日期：2026-04-24
 - 主题：继续清理用户可点击入口里的隐形重活。`查看技能` 看起来只是一个信息面板，之前每次点击却会重新创建 resource loader 并 `reload()` skills；技能目录一多、挂载一慢，这个按钮就会把用户拖进一次小型启动流程。现在技能列表查询在 fingerprint 未变化且 TTL 内复用缓存，技能文件变化时才刷新。

@@ -462,10 +462,12 @@ test("GET /playground returns the test UI html", async () => {
 	assert.doesNotMatch(response.body, /查看 conn、暂停或恢复调度、立即入队一次运行/);
 	assert.match(response.body, /function openConnManager\(/);
 	assert.match(response.body, /function loadConnManager\(/);
+	assert.match(response.body, /function hydrateConnManagerRunsFromList\(/);
 	assert.match(response.body, /function renderConnManager\(/);
 	assert.match(response.body, /function runConnNow\(/);
 	assert.match(response.body, /function toggleConnPaused\(/);
 	assert.match(response.body, /function deleteConn\(conn\)/);
+	assert.doesNotMatch(response.body, /conns\.map\(async \(conn\)/);
 	assert.match(response.body, /conn-manager-filter/);
 	assert.match(response.body, /conn-manager-selected-count/);
 	assert.match(response.body, /delete-selected-conns-button/);
@@ -3057,6 +3059,8 @@ test("POST /v1/assets/upload returns 413 when a file exceeds the configured size
 });
 
 test("GET /v1/conns returns scheduled conn tasks", async () => {
+	const latestRunCalls: string[][] = [];
+	const runHistoryCalls: string[] = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
@@ -3087,7 +3091,27 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 			createRun: async () => {
 				throw new Error("not used");
 			},
-			listRunsForConn: async () => [],
+			listRunsForConn: async (connId: string) => {
+				runHistoryCalls.push(connId);
+				return [];
+			},
+			listLatestRunsForConns: async (connIds: readonly string[]) => {
+				latestRunCalls.push([...connIds]);
+				return {
+					"conn-1": {
+						runId: "run-latest",
+						connId: "conn-1",
+						status: "succeeded",
+						scheduledAt: "2026-04-18T00:00:00.000Z",
+						startedAt: "2026-04-18T00:00:01.000Z",
+						finishedAt: "2026-04-18T00:00:20.000Z",
+						workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-latest",
+						resultSummary: "done",
+						createdAt: "2026-04-18T00:00:00.000Z",
+						updatedAt: "2026-04-18T00:00:20.000Z",
+					},
+				};
+			},
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
@@ -3113,9 +3137,23 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 				createdAt: "2026-04-18T00:00:00.000Z",
 				updatedAt: "2026-04-18T00:00:00.000Z",
 				nextRunAt: "2026-04-18T00:01:00.000Z",
+				latestRun: {
+					runId: "run-latest",
+					connId: "conn-1",
+					status: "succeeded",
+					scheduledAt: "2026-04-18T00:00:00.000Z",
+					startedAt: "2026-04-18T00:00:01.000Z",
+					finishedAt: "2026-04-18T00:00:20.000Z",
+					workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-latest",
+					resultSummary: "done",
+					createdAt: "2026-04-18T00:00:00.000Z",
+					updatedAt: "2026-04-18T00:00:20.000Z",
+				},
 			},
 		],
 	});
+	assert.deepEqual(latestRunCalls, [["conn-1"]]);
+	assert.deepEqual(runHistoryCalls, []);
 	await app.close();
 });
 

@@ -1,6 +1,6 @@
 # Runtime / Assets / Conn / Feishu
 
-更新时间：`2026-04-23`
+更新时间：`2026-04-24`
 
 这份文档只讲四类运行能力：
 
@@ -346,10 +346,10 @@ GET /v1/local-file?path=...
 
 - `playground` 现在有可视化后台任务管理面：桌面端首页右侧 `后台任务`，手机端右上角更多菜单里的 `后台任务`。
 - 管理面只复用现有后端 API，不改变调度模型：
-  - `GET /v1/conns` 读取 conn 列表
+  - `GET /v1/conns` 读取 conn 列表；响应里的每个 conn 会带 `latestRun` 摘要，打开管理面不再为每个 conn 额外请求 runs
   - `POST /v1/conns` 创建 conn
   - `PATCH /v1/conns/:connId` 更新 conn
-  - `GET /v1/conns/:connId/runs` 读取最近 run
+  - `GET /v1/conns/:connId/runs` 按需读取某个 conn 的完整 run 列表，当前主要在展开单个 conn 时触发
   - `POST /v1/conns/:connId/run` 手动入队一次 run
   - `POST /v1/conns/:connId/pause` 暂停调度
   - `POST /v1/conns/:connId/resume` 恢复调度
@@ -357,7 +357,7 @@ GET /v1/local-file?path=...
   - `POST /v1/conns/bulk-delete` 批量删除 conn，入参是去重后的 `connIds`
 - `POST /v1/conns` 与 `PATCH /v1/conns/:connId` 现在共用同一套 payload 解析逻辑：创建时统一 trim 文本并按当前服务端会话补默认 `target`；编辑时如果显式传入 `title` 或 `prompt`，则必须是去空白后仍非空的字符串，不再把空白值默默吞掉。
 - 当前删除是硬删除：`conns` 删除后会通过外键级联删除该 conn 的 run / event / file 记录；`ConnSqliteStore` 也会主动清理 `source=conn` 且 `source_id=<connId>` 的 conversation notification 和全局 activity，避免测试任务删掉后还在活动流里留下点不开的脏引用。这个入口主要用于清测试任务，正式任务要归档时别拿它冒充软删除。
-- 保存成功后，管理面会保留一条状态提示并高亮对应 conn；最近 run 历史默认折叠，只展示最新状态摘要，需要排障时再展开。
+- 保存成功后，管理面会保留一条状态提示并高亮对应 conn；最近 run 历史默认折叠，打开管理面时只使用 `/v1/conns` 返回的 `latestRun` 展示最新状态摘要，需要排障时再展开并按需读取完整 runs。
 - 管理面现在有状态筛选、选择当前、清空选择和删除所选，用来批量清掉测试 conn；单个正式任务仍建议先暂停确认，再决定是否硬删。
 - 前台 agent 正在运行时，管理面仍可打开和操作；这是刻意保留的解耦行为。conn worker 是否执行、执行到哪里，仍以 SQLite run 状态和 worker 日志为准。
 - 从管理面点 `查看` 会复用 `conn` run 详情弹层，请求 `GET /v1/conns/:connId/runs/:runId` 和 `/events`，用于追溯 workspace、结果、文件和事件。

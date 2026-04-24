@@ -768,6 +768,44 @@ export function getConnActivityApiScript(): string {
 			return Array.isArray(payload?.conns) ? payload.conns : [];
 		}
 
+		async function hydrateConnManagerRunsFromList(conns) {
+			const runsByConnId = {};
+			const runsLoadedByConnId = {};
+			const legacyConns = [];
+			for (const conn of Array.isArray(conns) ? conns : []) {
+				if (!conn?.connId) {
+					continue;
+				}
+				if (Object.prototype.hasOwnProperty.call(conn, "latestRun")) {
+					runsByConnId[conn.connId] = conn.latestRun ? [conn.latestRun] : [];
+					runsLoadedByConnId[conn.connId] = !conn.latestRun;
+				} else {
+					legacyConns.push(conn);
+				}
+			}
+
+			let cursor = 0;
+			const workerCount = Math.min(4, legacyConns.length);
+			await Promise.all(
+				Array.from({ length: workerCount }, async () => {
+					for (;;) {
+						const conn = legacyConns[cursor++];
+						if (!conn) {
+							return;
+						}
+						try {
+							runsByConnId[conn.connId] = await fetchConnRunsForConn(conn);
+						} catch {
+							runsByConnId[conn.connId] = [];
+						}
+						runsLoadedByConnId[conn.connId] = true;
+					}
+				}),
+			);
+
+			return { runsByConnId, runsLoadedByConnId };
+		}
+
 		async function bulkDeleteConns(connIds) {
 			const response = await fetch("/v1/conns/bulk-delete", {
 				method: "POST",
@@ -796,18 +834,11 @@ export function getConnActivityApiScript(): string {
 			connManagerList.setAttribute("aria-busy", "true");
 			try {
 				const conns = await fetchConnList();
-				const runsByConnId = {};
-				await Promise.all(
-					conns.map(async (conn) => {
-						try {
-							runsByConnId[conn.connId] = await fetchConnRunsForConn(conn);
-						} catch {
-							runsByConnId[conn.connId] = [];
-						}
-					}),
-				);
+				const { runsByConnId, runsLoadedByConnId } = await hydrateConnManagerRunsFromList(conns);
 				state.connManagerItems = conns;
 				state.connManagerRunsByConnId = runsByConnId;
+				state.connManagerRunsLoadedByConnId = runsLoadedByConnId;
+				state.connManagerRunsLoadingByConnId = {};
 				syncConnManagerSelectionWithItems();
 				renderConnManager();
 			} catch (error) {
@@ -1106,6 +1137,42 @@ export function getConnActivityRendererScript(): string {
 			};
 		}
 
+		async function ensureConnManagerRunsLoaded(conn) {
+			if (!conn?.connId) {
+				return;
+			}
+			const connId = conn.connId;
+			if (state.connManagerRunsLoadedByConnId[connId] || state.connManagerRunsLoadingByConnId[connId]) {
+				return;
+			}
+			state.connManagerRunsLoadingByConnId = {
+				...state.connManagerRunsLoadingByConnId,
+				[connId]: true,
+			};
+			renderConnManager();
+			try {
+				const runs = await fetchConnRunsForConn(conn);
+				state.connManagerRunsByConnId = {
+					...state.connManagerRunsByConnId,
+					[connId]: runs,
+				};
+				state.connManagerRunsLoadedByConnId = {
+					...state.connManagerRunsLoadedByConnId,
+					[connId]: true,
+				};
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法读取后台任务运行历史";
+				showError(messageText);
+			} finally {
+				const nextLoading = { ...state.connManagerRunsLoadingByConnId };
+				delete nextLoading[connId];
+				state.connManagerRunsLoadingByConnId = nextLoading;
+				if (state.connManagerOpen) {
+					renderConnManager();
+				}
+			}
+		}
+
 		function buildConnRunManagerEntry(conn, run) {
 			return {
 				kind: "notification",
@@ -1120,12 +1187,32 @@ export function getConnActivityRendererScript(): string {
 			const runs = Array.isArray(state.connManagerRunsByConnId[conn.connId])
 				? state.connManagerRunsByConnId[conn.connId].slice(0, 3)
 				: [];
+			const runsLoaded = Boolean(state.connManagerRunsLoadedByConnId[conn.connId]);
+			const runsLoading = Boolean(state.connManagerRunsLoadingByConnId[conn.connId]);
 			const details = document.createElement("details");
 			details.className = "conn-manager-run-details";
+			details.open = Array.isArray(state.connManagerExpandedRunConnIds)
+				? state.connManagerExpandedRunConnIds.includes(conn.connId)
+				: false;
+			details.addEventListener("toggle", () => {
+				const expandedIds = new Set(
+					Array.isArray(state.connManagerExpandedRunConnIds) ? state.connManagerExpandedRunConnIds : [],
+				);
+				if (details.open) {
+					expandedIds.add(conn.connId);
+					state.connManagerExpandedRunConnIds = Array.from(expandedIds);
+					if (!runsLoaded && !runsLoading) {
+						void ensureConnManagerRunsLoaded(conn);
+					}
+				} else {
+					expandedIds.delete(conn.connId);
+					state.connManagerExpandedRunConnIds = Array.from(expandedIds);
+				}
+			});
 			const summary = document.createElement("summary");
 			summary.className = "conn-manager-run-summary";
 			if (runs.length === 0) {
-				summary.textContent = "暂无运行记录";
+				summary.textContent = runsLoading ? "正在读取运行记录..." : "暂无运行记录";
 				details.appendChild(summary);
 				container.appendChild(details);
 				return;
@@ -1136,7 +1223,8 @@ export function getConnActivityRendererScript(): string {
 				"最近执行：" +
 				describeConnRunStatusLabel(latestRun.status) +
 				" · " +
-				formatConnRunTimestamp(latestRun.finishedAt || latestRun.startedAt || latestRun.scheduledAt || "");
+				formatConnRunTimestamp(latestRun.finishedAt || latestRun.startedAt || latestRun.scheduledAt || "") +
+				(runsLoading ? " · 正在读取更多" : "");
 			details.appendChild(summary);
 
 			const list = document.createElement("div");
@@ -1373,6 +1461,7 @@ export function getConnActivityRendererScript(): string {
 				const nextRunsByConnId = { ...state.connManagerRunsByConnId };
 				delete nextRunsByConnId[conn.connId];
 				state.connManagerRunsByConnId = nextRunsByConnId;
+				state.connManagerExpandedRunConnIds = state.connManagerExpandedRunConnIds.filter((connId) => connId !== conn.connId);
 				setConnManagerNotice("已删除：" + (conn.title || conn.connId), "");
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "无法删除后台任务";
@@ -1423,6 +1512,7 @@ export function getConnActivityRendererScript(): string {
 					delete nextRunsByConnId[connId];
 				}
 				state.connManagerRunsByConnId = nextRunsByConnId;
+				state.connManagerExpandedRunConnIds = state.connManagerExpandedRunConnIds.filter((connId) => !deletedIds.has(connId));
 				setConnManagerSelectedIds(state.connManagerSelectedConnIds.filter((connId) => !deletedIds.has(connId)));
 				const missingText = result.missingConnIds.length > 0 ? "，" + result.missingConnIds.length + " 个已不存在" : "";
 				setConnManagerNotice("已删除 " + result.deletedConnIds.length + " 个后台任务" + missingText, "");
