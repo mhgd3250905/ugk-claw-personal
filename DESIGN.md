@@ -161,6 +161,10 @@ Use `4px` radius for rectangular UI elements unless a specific repeated componen
 
 Assistant messages use dark raised surfaces. User messages use a clear opposing treatment but keep text left-aligned for readability. Error banners are opaque, high-contrast, and floating; they must not be rendered as semi-transparent overlays that rely on whatever happens to sit behind them.
 
+Transcript message actions live inside the `.message-body` at the bottom edge of the rendered content. Keep them as compact icon-only affordances with accessible labels, no visible text, no border, no background, and no shadow. The copy action and image export action share the same quiet control rail; PNG exports must omit the action rail itself and add a small `UGK Claw` signature outside the rendered message body.
+
+Assistant active-run status controls are singular per message card. Before attaching a new status summary or run-log trigger, clear any previous `.assistant-status-shell` / `.assistant-run-log-trigger` descendants from the same card so streaming patching cannot stack duplicate loading bubbles.
+
 Mobile conversation selection is a compact index, not a pile of oversized cards. Use the same borderless instrument-panel language as context usage details: a layered dark drawer, a raised sticky header, short `surface-raised` rows, a narrow luminous active indicator, muted metadata pills, and an icon-only delete affordance placed inside the conversation row at the top-right corner. Avoid visible divider borders; use background depth, spacing, and shadow to separate function.
 
 Mobile operational surfaces are pages, not decorative modals. File library, background task manager, background task editor, and task inbox use a full-height `background` workspace with a solid `surface` sticky header and `surface-raised` cards. Keep actions in one reachable toolbar row when possible; use full-width grid buttons when a card has several commands.

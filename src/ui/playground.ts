@@ -1658,14 +1658,15 @@ function getPlaygroundStyles(): string {
 			}
 		}
 
-		.message-actions {
+		.message-body > .message-actions {
 			display: flex;
 			justify-content: flex-end;
 			gap: 8px;
-			margin-top: 4px;
+			margin-top: 8px;
 		}
 
-		.message-copy-button {
+		.message-copy-button,
+		.message-image-export-button {
 			position: relative;
 			display: inline-flex;
 			align-items: center;
@@ -1683,7 +1684,9 @@ function getPlaygroundStyles(): string {
 		}
 
 		.message-copy-button:hover:not(:disabled),
-		.message-copy-button:focus-visible {
+		.message-copy-button:focus-visible,
+		.message-image-export-button:hover:not(:disabled),
+		.message-image-export-button:focus-visible {
 			border-color: transparent;
 			background: transparent;
 			color: rgba(242, 246, 255, 0.78);
@@ -1716,6 +1719,53 @@ function getPlaygroundStyles(): string {
 		.message-copy-button:disabled {
 			cursor: default;
 			opacity: 0.45;
+		}
+
+		.message-image-export-button svg {
+			width: 14px;
+			height: 14px;
+			stroke: currentColor;
+		}
+
+		.message-export-scratch {
+			position: fixed;
+			left: -10000px;
+			top: 0;
+			z-index: -1;
+			pointer-events: none;
+		}
+
+		.message-export-frame {
+			display: grid;
+			gap: 10px;
+			padding: 14px;
+			border-radius: 8px;
+			background:
+				linear-gradient(180deg, #121522 0%, #070914 42%, #04050d 100%),
+				#060711;
+			color: var(--fg);
+			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+		}
+
+		.message-export-frame > .message-body {
+			background: #0b0e19;
+			box-shadow: none;
+		}
+
+		.message-export-frame .message-actions {
+			display: none !important;
+		}
+
+		.export-signature {
+			justify-self: end;
+			padding: 5px 7px;
+			border-radius: 4px;
+			background: #101421;
+			color: rgba(238, 244, 255, 0.62);
+			font-size: 10px;
+			font-weight: 700;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
 		}
 
 		.message.assistant .message-body {
@@ -3256,11 +3306,12 @@ function getPlaygroundStyles(): string {
 				height: 4px;
 			}
 
-			.message-actions {
+			.message-body > .message-actions {
 				padding: 0 2px 0 0;
 			}
 
-			.message-copy-button {
+			.message-copy-button,
+			.message-image-export-button {
 				width: 24px;
 				height: 24px;
 			}

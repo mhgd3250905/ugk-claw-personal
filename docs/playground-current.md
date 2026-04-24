@@ -66,6 +66,7 @@
 - 状态摘要 `assistant-status-summary` 现在固定为单行省略；它负责给人一个稳定的人话进度感，不再允许换行把整条消息高度顶来顶去
 - 运行日志按钮不再显示工具执行结果、bash 输出或 JSON 长文本；页面可见层只保留动态点和“查看运行日志”入口，过程细节只留在运行日志弹层与按钮的辅助文案里
 - 动态 loading 气泡点击后会打开运行日志弹层，并按 `conversationId + runId` 请求 `GET /v1/chat/runs/:runId/events`；任务过程追溯从对话正文里解耦，不再把工具过程当成正文的一部分硬塞进气泡
+- active run 的状态摘要和运行日志入口在同一条助手消息内必须保持单例；前端每次挂载新的 `.assistant-status-shell` / `.assistant-run-log-trigger` 前都会清掉同卡片旧控件，避免流式 patch 或状态恢复把多个 loading 气泡堆在同一条消息里。刷新后才正常这种“薛定谔 UI”不算正常，必须在运行中就稳定。
 - `done / error / interrupted` 终态 run 也会保留 `runId` 和 buffered events；刷新页面后，如果这轮仍是当前 terminal snapshot，用户应该还能从同一条助手气泡继续查看运行日志
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 用户切回旧会话继续发送消息时，后端必须继续复用这条会话原来的 `sessionFile` 上下文；不能因为项目技能目录更新、`skillFingerprint` 变化，就偷偷新开一条空 session 让 agent 当场失忆
@@ -77,7 +78,9 @@
 - 用户消息正文保持标准左对齐，避免右侧大段文字影响阅读
 - 用户消息 `message-meta` 只显示时间，并贴右展示
 - 历史消息时间优先使用 session message 自带的 `timestamp` 透传成 `createdAt`；不要再把所有恢复消息默认写成 Unix epoch，否则前端会整排显示 `08:00:00`
-- 每个消息气泡底部统一带小型灰色复制 icon，只复制当前消息正文，不复制时间、角色标签和文件按钮；icon 视觉上贴近气泡，使用透明背景、无边框、无阴影，文字只保留在 `aria-label` / 隐藏文本里，不再占用纵向空间
+- 每个消息气泡的操作栏固定放在 `.message-body` 内部底部，不再挂在气泡外层；操作栏只保留紧凑 icon-only 控件，贴近正文但不挤压 meta。
+- 消息操作栏当前包含复制正文和保存图片两个按钮：复制只复制当前消息正文，不复制时间、角色标签和文件按钮；保存图片会把 `.message-body` 的渲染效果导出为 PNG，导出图排除操作栏自身，并在图片外层加 `UGK Claw 导出` 签名 label。
+- 消息操作栏按钮统一使用透明背景、无边框、无阴影，文字只保留在 `aria-label` / 隐藏文本里，不再占用纵向空间。
 - composer textarea 默认使用 `rows="1"`，不要让浏览器按 textarea 默认 2 行去算空内容高度；默认最小高度已收口到 `52px`，桌面端使用 `14px` 上下内边距；自适应高度脚本在空内容和单行内容时必须保留 CSS `min-height`，让 placeholder 与正文按同一行高纵向居中，多行内容才按 `scrollHeight` 扩展。不要再让浏览器 `scrollHeight` 把单行输入框算歪。
 - markdown 正文渲染使用 `marked`，不是项目内手写解析器；后续补 Markdown 能力时优先配置/升级渲染库，不要继续追加临时正则
 - markdown 正文里的“普通段落 + 紧跟 fenced code block”必须能正常渲染，不能再把 `CODEBLOCK0` 之类占位符漏到用户界面上

@@ -280,6 +280,15 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			};
 		}
 
+		function clearAssistantStatusControls(card) {
+			if (!card) {
+				return;
+			}
+			card.querySelectorAll(".assistant-status-shell, .assistant-run-log-trigger").forEach((element) => {
+				element.remove();
+			});
+		}
+
 		function attachAssistantStatusShell(body, content) {
 			const stream = buildAssistantStatusShell();
 			const card = body.closest(".message");
@@ -287,12 +296,15 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			const assistantLabel = meta?.querySelector("strong");
 
 			if (card && meta && assistantLabel) {
+				clearAssistantStatusControls(card);
 				card.insertBefore(stream.shell, body);
 				assistantLabel.insertAdjacentElement("afterend", stream.trigger);
 			} else if (content.parentElement === body) {
+				clearAssistantStatusControls(body.closest(".message"));
 				stream.shell.appendChild(stream.trigger);
 				body.insertBefore(stream.shell, content);
 			} else {
+				clearAssistantStatusControls(body.closest(".message"));
 				stream.shell.appendChild(stream.trigger);
 				body.appendChild(stream.shell);
 			}
@@ -364,9 +376,149 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			scrollTranscriptToBottom();
 		}
 
+		function collectExportStyles() {
+			return Array.from(document.querySelectorAll("style"))
+				.map((style) => style.textContent || "")
+				.join("\\n");
+		}
+
+		function createSvgDataUrl(svgText) {
+			return URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }));
+		}
+
+		function loadImageFromUrl(url) {
+			return new Promise((resolve, reject) => {
+				const image = new Image();
+				image.onload = () => resolve(image);
+				image.onerror = () => reject(new Error("image export load failed"));
+				image.src = url;
+			});
+		}
+
+		function downloadBlob(blob, fileName) {
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = fileName;
+			document.body.appendChild(link);
+			link.click();
+			link.remove();
+			window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+		}
+
+		async function exportMessageBodyAsImage(body, entry, triggerButton) {
+			if (!body) {
+				return;
+			}
+
+			const originalLabel = triggerButton?.getAttribute("aria-label") || "保存为图片";
+			if (triggerButton) {
+				triggerButton.disabled = true;
+				triggerButton.setAttribute("aria-label", "正在生成图片");
+				triggerButton.title = "正在生成图片";
+			}
+
+			const width = Math.max(280, Math.ceil(body.getBoundingClientRect().width || 640));
+			const clone = body.cloneNode(true);
+			clone.querySelectorAll(".message-actions").forEach((element) => element.remove());
+
+			const frame = document.createElement("div");
+			frame.className = "message-export-frame";
+			frame.style.width = width + "px";
+			frame.appendChild(clone);
+
+			const signature = document.createElement("div");
+			signature.className = "export-signature";
+			signature.textContent = "UGK Claw 导出";
+			frame.appendChild(signature);
+
+			const scratch = document.createElement("div");
+			scratch.className = "message-export-scratch";
+			scratch.style.width = width + "px";
+			scratch.appendChild(frame);
+			document.body.appendChild(scratch);
+
+			try {
+				if (document.fonts?.ready) {
+					await document.fonts.ready;
+				}
+				const height = Math.max(120, Math.ceil(frame.getBoundingClientRect().height));
+				const serialized = new XMLSerializer().serializeToString(frame);
+				const svgText =
+					'<svg xmlns="http://www.w3.org/2000/svg" width="' +
+					width +
+					'" height="' +
+					height +
+					'" viewBox="0 0 ' +
+					width +
+					" " +
+					height +
+					'">' +
+					'<foreignObject width="100%" height="100%">' +
+					'<div xmlns="http://www.w3.org/1999/xhtml">' +
+					"<style>" +
+					collectExportStyles() +
+					"</style>" +
+					serialized +
+					"</div>" +
+					"</foreignObject>" +
+					"</svg>";
+				const svgUrl = createSvgDataUrl(svgText);
+				try {
+					const image = await loadImageFromUrl(svgUrl);
+					const scale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+					const canvas = document.createElement("canvas");
+					canvas.width = Math.ceil(width * scale);
+					canvas.height = Math.ceil(height * scale);
+					const context = canvas.getContext("2d");
+					context.scale(scale, scale);
+					context.drawImage(image, 0, 0, width, height);
+					const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.95));
+					if (!blob) {
+						throw new Error("image export failed");
+					}
+					const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+					const title = String(entry?.title || "message").replace(/[\\\\/:*?"<>|\\s]+/g, "-").replace(/^-+|-+$/g, "") || "message";
+					downloadBlob(blob, "ugk-claw-" + title.toLowerCase() + "-" + stamp + ".png");
+				} finally {
+					URL.revokeObjectURL(svgUrl);
+				}
+			} catch (error) {
+				console.error("[playground] Failed to export message image", error);
+				showErrorBanner("图片导出失败，请稍后重试。");
+			} finally {
+				scratch.remove();
+				if (triggerButton) {
+					triggerButton.disabled = false;
+					triggerButton.setAttribute("aria-label", originalLabel);
+					triggerButton.title = originalLabel;
+				}
+			}
+		}
+
+		function createMessageImageExportButton(entry, body) {
+			const imageButton = document.createElement("button");
+			imageButton.type = "button";
+			imageButton.className = "message-image-export-button";
+			imageButton.setAttribute("aria-label", "保存为图片");
+			imageButton.title = "保存为图片";
+			imageButton.innerHTML =
+				'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+				'<path d="M5 5h14v14H5V5Z" stroke-width="1.8" stroke-linejoin="round"/>' +
+				'<path d="M8 15l3-3 2 2 2-3 2 4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+				'<circle cx="9" cy="9" r="1.2" fill="currentColor"/>' +
+				"</svg>" +
+				'<span class="visually-hidden">保存为图片</span>';
+			imageButton.addEventListener("click", () => {
+				void exportMessageBodyAsImage(body, entry, imageButton);
+			});
+			return imageButton;
+		}
+
 		function createMessageActions(entry, content) {
 			const actions = document.createElement("div");
 			actions.className = "message-actions";
+			const body = content?.parentElement || null;
 
 			const copyButton = document.createElement("button");
 			copyButton.type = "button";
@@ -400,6 +552,9 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			});
 
 			actions.appendChild(copyButton);
+			if (body) {
+				actions.appendChild(createMessageImageExportButton(entry, body));
+			}
 			if (canOpenConnRunDetails(entry)) {
 				const runButton = document.createElement("button");
 				runButton.type = "button";
@@ -449,9 +604,9 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			}
 
 			const messageActions = createMessageActions(entry, content);
+			body.appendChild(messageActions.actions);
 			card.appendChild(meta);
 			card.appendChild(body);
-			card.appendChild(messageActions.actions);
 
 			if (insertMode === "prepend" && transcriptCurrent.firstChild) {
 				transcriptCurrent.insertBefore(card, transcriptCurrent.firstChild);
@@ -617,12 +772,14 @@ export function getPlaygroundTranscriptRendererScript(): string {
 					shell: rendered.statusShell,
 					summary: rendered.statusSummary,
 					trigger: rendered.statusTrigger,
+					dots: rendered.statusTrigger.querySelector(".assistant-loading-dots"),
 				};
 			} else {
 				stream = attachAssistantStatusShell(rendered.body, rendered.content);
 				rendered.statusShell = stream.shell;
 				rendered.statusSummary = stream.summary;
 				rendered.statusTrigger = stream.trigger;
+				rendered.statusDots = stream.dots;
 			}
 
 			const restoredSummary = formatProcessSummaryForStatus(process);
@@ -632,13 +789,16 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			setAssistantStatusKind(stream.shell, stream.trigger, process.kind || "system");
 			stream.shell.classList.add(options?.running || !process.isComplete ? "is-running" : "is-complete");
 			setRunLogTriggerStatus(stream.trigger, process.currentAction || "????");
-			if (state.activeLoadingDots) {
-				state.activeLoadingDots.hidden = !options?.running && process.isComplete;
+			if (stream.dots) {
+				stream.dots.hidden = !options?.running && process.isComplete;
 			}
 
 			if (options?.activate) {
 				state.activeStatusShell = stream.shell;
 				state.activeStatusSummary = stream.summary;
+				state.activeLoadingShell = stream.shell;
+				state.activeLoadingDots = stream.dots;
+				state.activeRunLogTrigger = stream.trigger;
 				state.lastProcessNarration = restoredSummary || "";
 			}
 

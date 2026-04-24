@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 消息操作栏与运行态 loading 去重
+- 日期：2026-04-25
+- 主题：修复当前任务运行中同一条助手消息可能堆出多个 `assistant-run-log-trigger` loading 气泡的问题，并把消息操作栏收进 `.message-body` 底部，同时新增“保存为图片”导出能力。刷新后才看起来正常那种前端状态债，本质就是运行中 DOM 挂载没收口，不能拿刷新当疗法。
+- 影响范围：`src/ui/playground-transcript-renderer.ts` 在挂载助手状态壳层前清理同卡片旧的 `.assistant-status-shell` / `.assistant-run-log-trigger`，复用流式状态时同步维护 loading dots 与 run-log trigger 引用；消息操作栏改为追加到 `.message-body` 内部，新增图片导出按钮，导出 PNG 时克隆消息正文、移除操作栏并添加 `UGK Claw 导出` 签名；`src/ui/playground.ts` 同步操作栏、导出画布和签名样式；`test/server.test.ts` 增加状态控件去重、操作栏位置、复制 / 导图按钮样式和导出函数断言；`DESIGN.md`、`docs/playground-current.md` 同步消息操作与运行态单例口径。
+- 对应入口：`src/ui/playground-transcript-renderer.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 非 chat 页面与弹窗无边框仪表盘收口
 - 日期：2026-04-25
 - 主题：继续沿用用户确认喜欢的深色仪表盘美术方向，把文件库、任务消息、后台任务管理器、后台任务编辑页、运行日志、确认弹窗和后台任务过程弹窗从“浅边框分区”收口为实体深色层级，减少后台表单味。
