@@ -210,6 +210,15 @@
   2. 写页面脚本断言，禁止 `loadTaskInbox()` / `markTaskInboxItemReadAndSync()` / `markAllTaskInboxItemsRead()` 在主请求后再补 summary 请求。
   3. 前端新增 `applyTaskInboxUnreadCount()`，把列表响应和已读动作响应统一落到 badge、筛选按钮和全部已读按钮状态。
 
+### Task 9：资产详情 hydrate 并发收口
+
+- 状态：已完成（2026-04-24）。`loadAssetDetails()` 现在不再对缺失 asset id 做无限制 `Promise.all(async fetch)`；前端通过 `assetDetailQueue` 将 `/v1/assets/:assetId` 详情补拉限制为最多 4 路并发，并用 `assetDetailInFlightById` 复用同一 assetId 的进行中 Promise。大量历史附件或 conn 附加资料恢复时，不会因为一串 id 同时 hydrate 把浏览器连接池和后端接口一起打满。
+- 修改：`src/ui/playground-assets-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`
+- 步骤：
+  1. 写页面脚本断言锁定 `ASSET_DETAIL_CONCURRENCY_LIMIT`、`assetDetailQueue`、`assetDetailInFlightById` 和 `pumpAssetDetailQueue()`。
+  2. 提取 `fetchAssetDetail()`，把详情请求放进队列泵，完成后立即合并进 `recentAssets`。
+  3. `loadAssetDetails()` 保留 id 去重和 recent cache 命中，未命中 id 改走 `enqueueAssetDetailLoad()`，同 id 并发复用同一 Promise。
+
 ## 验收标准
 
 - 旧会话 `/v1/chat/state` 小历史响应保持百毫秒级；长历史不会随完整 JSONL 线性劣化到秒级。
@@ -219,5 +228,6 @@
 - 连续点击查看技能第二次走缓存。
 - 页面恢复 / 网络恢复不会无差别串行读取 `/v1/chat/conversations` 与 `/v1/chat/state`。
 - 打开任务消息、标记单条已读和全部已读不会在主请求后再固定补打一条 `/v1/activity/summary`。
+- 资产详情 hydrate 最多 4 路并发；重复 asset id 在进行中请求未完成前复用同一 Promise，不会恢复成无限制 `/v1/assets/:assetId` 请求风暴。
 - `npm test` 通过；新增回归测试覆盖每个体验债。
 - `docs/playground-current.md` 和 `docs/change-log.md` 在执行对应任务时同步更新。

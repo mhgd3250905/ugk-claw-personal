@@ -25,6 +25,7 @@ export function getPlaygroundAssetControllerScript(): string {
 		}
 
 		const MAX_COMPOSER_ATTACHMENTS = 5;
+		const ASSET_DETAIL_CONCURRENCY_LIMIT = 4;
 
 		async function uploadFilesAsAssets(files, options) {
 			const selectedFiles = Array.from(files || []);
@@ -130,6 +131,74 @@ export function getPlaygroundAssetControllerScript(): string {
 				.filter(Boolean);
 		}
 
+		async function fetchAssetDetail(assetId, options) {
+			try {
+				const response = await fetch("/v1/assets/" + encodeURIComponent(assetId), {
+					method: "GET",
+					headers: { accept: "application/json" },
+				});
+				if (!response.ok) {
+					return null;
+				}
+				const payload = await response.json().catch(() => ({}));
+				return payload?.asset && typeof payload.asset === "object" ? payload.asset : null;
+			} catch (error) {
+				if (!options?.silent) {
+					const messageText = error instanceof Error ? error.message : "加载资产详情失败";
+					showError(messageText);
+				}
+				return null;
+			}
+		}
+
+		function pumpAssetDetailQueue() {
+			if (state.assetDetailActiveCount >= ASSET_DETAIL_CONCURRENCY_LIMIT) {
+				return;
+			}
+			while (state.assetDetailActiveCount < ASSET_DETAIL_CONCURRENCY_LIMIT && state.assetDetailQueue.length > 0) {
+				const entry = state.assetDetailQueue.shift();
+				if (!entry) {
+					continue;
+				}
+				state.assetDetailActiveCount += 1;
+				fetchAssetDetail(entry.assetId, entry.options)
+					.then((asset) => {
+						entry.resolve(asset);
+						if (asset) {
+							mergeRecentAssets([asset]);
+						}
+					})
+					.catch(() => {
+						entry.resolve(null);
+					})
+					.finally(() => {
+						state.assetDetailActiveCount = Math.max(0, state.assetDetailActiveCount - 1);
+						state.assetDetailInFlightById.delete(entry.assetId);
+						pumpAssetDetailQueue();
+					});
+			}
+		}
+
+		function enqueueAssetDetailLoad(assetId, options) {
+			const existingAsset = state.recentAssets.find((asset) => asset.assetId === assetId);
+			if (existingAsset) {
+				return Promise.resolve(existingAsset);
+			}
+			if (state.assetDetailInFlightById.has(assetId)) {
+				return state.assetDetailInFlightById.get(assetId);
+			}
+			const promise = new Promise((resolve) => {
+				state.assetDetailQueue.push({
+					assetId,
+					options,
+					resolve,
+				});
+				pumpAssetDetailQueue();
+			});
+			state.assetDetailInFlightById.set(assetId, promise);
+			return promise;
+		}
+
 		async function loadAssetDetails(assetIds, options) {
 			const pendingAssetIds = Array.isArray(assetIds)
 				? Array.from(
@@ -145,27 +214,7 @@ export function getPlaygroundAssetControllerScript(): string {
 			}
 
 			const assets = (
-				await Promise.all(
-					pendingAssetIds.map(async (assetId) => {
-						try {
-							const response = await fetch("/v1/assets/" + encodeURIComponent(assetId), {
-								method: "GET",
-								headers: { accept: "application/json" },
-							});
-							if (!response.ok) {
-								return null;
-							}
-							const payload = await response.json().catch(() => ({}));
-							return payload?.asset && typeof payload.asset === "object" ? payload.asset : null;
-						} catch (error) {
-							if (!options?.silent) {
-								const messageText = error instanceof Error ? error.message : "加载资产详情失败";
-								showError(messageText);
-							}
-							return null;
-						}
-					}),
-				)
+				await Promise.all(pendingAssetIds.map((assetId) => enqueueAssetDetailLoad(assetId, options)))
 			).filter(Boolean);
 
 			if (assets.length > 0) {

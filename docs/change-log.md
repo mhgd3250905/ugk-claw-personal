@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### Playground 资产详情 hydrate 增加并发阀门
+- 日期：2026-04-24
+- 主题：继续清理文件 / 资产入口里的隐形请求风暴。之前 `loadAssetDetails()` 对缺失的 asset id 直接 `Promise.all` 并发请求 `/v1/assets/:assetId`，同一个 id 如果被两个恢复链路同时需要，也会各打一遍请求。历史附件、conn 附加资料和文件库状态一多，这种代码看着短，实际就是把浏览器连接池和后端一起推去排队。现在资产详情补拉统一进 `assetDetailQueue`，最多 4 路并发，同一 assetId 的进行中请求通过 `assetDetailInFlightById` 复用。
+- 影响范围：`src/ui/playground-assets-controller.ts` 新增 `ASSET_DETAIL_CONCURRENCY_LIMIT`、`fetchAssetDetail()`、`enqueueAssetDetailLoad()` 和 `pumpAssetDetailQueue()`；`src/ui/playground.ts` 增加资产详情队列与 in-flight 状态；`test/server.test.ts` 锁定并发上限、同 id 复用和禁止回退到裸 `Promise.all(async fetch)`；`docs/playground-current.md`、本清扫计划与 `AGENTS.md` 同步当前口径。
+- 对应入口：`src/ui/playground-assets-controller.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`、`AGENTS.md`
+
 ### Playground 任务消息未读数随主请求返回
 - 日期：2026-04-24
 - 主题：继续清理任务消息入口的隐形双请求。之前打开任务消息会先 `GET /v1/activity`，随后再补 `GET /v1/activity/summary`；单条标记已读和全部已读也是先写状态，再补 summary。这个未读数本来就是同一个收件箱的读模型，却被拆成两次网络往返，移动端弱网下就是典型“看起来没多少代码，点起来就是慢”的设计。现在列表、单条已读和全部已读响应都直接带新的 `unreadCount`，前端直接应用到 badge、筛选按钮和全部已读按钮状态；实时通知广播刷新任务消息列表后也不再额外补 summary。

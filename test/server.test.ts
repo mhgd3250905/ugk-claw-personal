@@ -899,6 +899,18 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /async function loadAssetDetails\(assetIds, options\)\s*\{/);
 	assert.match(response.body, /async function ensureRecentAssetsForRefs\(assetRefs, options\)\s*\{/);
 	assert.match(response.body, /fetch\("\/v1\/assets\/" \+ encodeURIComponent\(assetId\)/);
+	assert.match(response.body, /const ASSET_DETAIL_CONCURRENCY_LIMIT = 4;/);
+	assert.match(response.body, /assetDetailQueue:\s*\[\]/);
+	assert.match(response.body, /assetDetailInFlightById:\s*new Map\(\)/);
+	assert.match(response.body, /assetDetailActiveCount:\s*0/);
+	assert.match(response.body, /function fetchAssetDetail\(assetId, options\)\s*\{/);
+	assert.match(response.body, /function enqueueAssetDetailLoad\(assetId, options\)\s*\{/);
+	assert.match(response.body, /function pumpAssetDetailQueue\(\)\s*\{/);
+	assert.match(response.body, /state\.assetDetailInFlightById\.has\(assetId\)/);
+	assert.match(response.body, /state\.assetDetailActiveCount >= ASSET_DETAIL_CONCURRENCY_LIMIT/);
+	assert.match(response.body, /state\.assetDetailInFlightById\.set\(assetId, promise\)/);
+	assert.match(response.body, /state\.assetDetailInFlightById\.delete\(entry\.assetId\)/);
+	assert.doesNotMatch(response.body, /pendingAssetIds\.map\(async \(assetId\) =>/);
 	assert.match(response.body, /\.file-chip\s*\{[\s\S]*display:\s*inline-grid;/);
 	assert.match(response.body, /\.file-chip\s*\{[\s\S]*grid-template-columns:\s*22px minmax\(0, 1fr\) auto;/);
 	assert.match(response.body, /\.file-chip-label\s*\{[\s\S]*-webkit-line-clamp:\s*2;/);
