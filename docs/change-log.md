@@ -12,6 +12,12 @@
 
 ## 2026-04-24
 
+### ConversationStore 增加 mtime cache 和串行写队列
+- 日期：2026-04-24
+- 主题：继续清理会话切换和新建会话的后端慢路径。`ConversationStore` 之前每次 `get/list/getCurrent/set/current` 都会重新读写整份会话目录 JSON，并且并发 `set()` 与 `setCurrentConversationId()` 会基于各自读到的旧快照落盘，轻则重复 I/O，重则把刚写入的 sessionFile、title、preview 或 current pointer 覆盖掉。现在会话目录 index 按文件 `mtime` 复用进程内 state，写操作统一进串行队列，并用同目录临时文件加 `rename` 原子替换落盘。
+- 影响范围：`src/agent/conversation-store.ts` 新增 cache、写队列、原子写和 clone 返回，读路径在未变更时复用内存 state，写路径排队读最新 state 后再落盘；`test/conversation-store.test.ts` 增加缓存命中与并发写不丢字段的回归。`docs/playground-current.md`、`AGENTS.md` 与大扫除计划同步记录该运行口径。
+- 对应入口：`src/agent/conversation-store.ts`、`test/conversation-store.test.ts`、`docs/playground-current.md`、`AGENTS.md`、`docs/plans/2026-04-24-playground-ux-debt-cleanup.md`
+
 ### Playground 后台任务管理器去掉打开时的 N+1 runs 请求
 - 日期：2026-04-24
 - 主题：继续清理用户可感知慢路径。后台任务管理器之前打开时先请求 `GET /v1/conns`，再对每个 conn 并发请求一次 `/v1/conns/:connId/runs`；conn 数量一多，请求数和浏览器连接池都会被自己打爆，属于典型列表页翻车。现在 `GET /v1/conns` 直接带每个 conn 的 `latestRun` 摘要，管理器打开只需要一次列表请求，完整 runs 改为展开单个 conn 时按需读取。

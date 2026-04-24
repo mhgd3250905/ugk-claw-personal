@@ -176,6 +176,7 @@
 
 ### Task 5：ConversationStore cache 和写队列
 
+- 状态：已完成（2026-04-24）。`ConversationStore` 现在按 index 文件 `mtime` 复用进程内 state，写操作统一进入串行队列，并用同目录临时文件 `rename` 原子替换落盘；连续 `get/list/getCurrent` 不再重复解析同一份 JSON，并发 `set()` / `setCurrentConversationId()` 不再互相覆盖字段。
 - 修改：`src/agent/conversation-store.ts`、`test/conversation-store.test.ts`
 - 步骤：
   1. 写测试：多次 `get/list/getCurrent` 在未变更时复用内存 state。

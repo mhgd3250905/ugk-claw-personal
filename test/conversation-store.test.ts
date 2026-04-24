@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, stat, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConversationStore } from "../src/agent/conversation-store.js";
@@ -67,6 +67,39 @@ test("loads existing mappings from disk", async () => {
 	});
 });
 
+test("reuses cached state when the index file mtime is unchanged", async () => {
+	const indexPath = await createTempPath();
+	await writeFile(
+		indexPath,
+		JSON.stringify(
+			{
+				currentConversationId: "manual:cached",
+				conversations: {
+					"manual:cached": {
+						sessionFile: "E:/sessions/cached.jsonl",
+						updatedAt: "2026-04-17T10:00:00.000Z",
+					},
+				},
+			},
+			null,
+			2,
+		),
+		"utf8",
+	);
+	const originalStat = await stat(indexPath);
+	const store = new ConversationStore(indexPath);
+
+	assert.equal((await store.get("manual:cached"))?.sessionFile, "E:/sessions/cached.jsonl");
+	await writeFile(indexPath, "{invalid-json", "utf8");
+	await utimes(indexPath, originalStat.atime, originalStat.mtime);
+
+	assert.equal(await store.getCurrentConversationId(), "manual:cached");
+	assert.deepEqual(
+		(await store.list()).map((entry) => entry.conversationId),
+		["manual:cached"],
+	);
+});
+
 test("treats empty and invalid files as empty stores", async () => {
 	const emptyPath = await createTempPath();
 	await writeFile(emptyPath, "", "utf8");
@@ -109,6 +142,40 @@ test("tracks and persists the current conversation pointer", async () => {
 
 	const persisted = await readFile(indexPath, "utf8");
 	assert.match(persisted, /"currentConversationId":\s*"manual:test-4"/);
+});
+
+test("serializes concurrent conversation writes without losing fields", async () => {
+	const indexPath = await createTempPath();
+	const store = new ConversationStore(indexPath);
+
+	await Promise.all([
+		store.set("manual:parallel", "E:/sessions/parallel.jsonl", {
+			title: "Parallel",
+			preview: "kept",
+			messageCount: 3,
+		}),
+		store.setCurrentConversationId("manual:parallel"),
+	]);
+
+	assert.equal(await store.getCurrentConversationId(), "manual:parallel");
+	const entry = await store.get("manual:parallel");
+	assert.deepEqual(entry, {
+		createdAt: entry?.createdAt,
+		messageCount: 3,
+		preview: "kept",
+		sessionFile: "E:/sessions/parallel.jsonl",
+		title: "Parallel",
+		updatedAt: entry?.updatedAt,
+	});
+	const persisted = JSON.parse(await readFile(indexPath, "utf8")) as {
+		currentConversationId?: string;
+		conversations: Record<string, { sessionFile?: string; title?: string; preview?: string; messageCount?: number }>;
+	};
+	assert.equal(persisted.currentConversationId, "manual:parallel");
+	assert.equal(persisted.conversations["manual:parallel"]?.sessionFile, "E:/sessions/parallel.jsonl");
+	assert.equal(persisted.conversations["manual:parallel"]?.title, "Parallel");
+	assert.equal(persisted.conversations["manual:parallel"]?.preview, "kept");
+	assert.equal(persisted.conversations["manual:parallel"]?.messageCount, 3);
 });
 
 test("lists conversations ordered by most recent update", async () => {

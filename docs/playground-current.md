@@ -48,6 +48,7 @@
 - 当前 Web 入口采用“一个 agent、多个历史会话、一个全局当前会话”的模型；服务端维护 `currentConversationId`，不同浏览器 / 设备打开后都跟随这个当前会话
 - 页面冷启动或刷新时，会先通过 `GET /v1/chat/conversations` 获取服务端会话目录和当前会话，再按当前 `conversationId` 请求一次 `GET /v1/chat/state` 同步真实历史与 active run
 - 空闲旧会话的 `GET /v1/chat/state` / `GET /v1/chat/history` / `GET /v1/chat/status` 必须走轻量 session JSONL 消息读取；查看历史或切换旧会话不应该初始化完整 agent session、reload skills 或创建 runtime resource loader。只有发送新消息、续跑 active run、队列 steer/follow-up 这类真正需要 agent runtime 的动作才打开完整 session。
+- 服务端 `ConversationStore` 对会话目录 index 使用进程内 `mtime` cache 和串行写队列；`GET /v1/chat/conversations`、`POST /v1/chat/current`、`POST /v1/chat/conversations` 这类高频路径不能再恢复成每次读写整份 JSON 且无队列保护的模型。写入必须保留同目录临时文件 + `rename` 的原子替换，避免高频切换时出现目录等待或并发覆盖。
 - 会话激活现在是两阶段提交：`POST /v1/chat/current` 或 `POST /v1/chat/conversations` 确认目标 `conversationId` 后，前端立即切到目标会话 shell 并释放交互；canonical `GET /v1/chat/state` 只作为后台 hydrate 收口真实历史与 active run，不能再卡住切换 / 新建手感。
 - 前端对会话历史恢复和运行态同步的异步 `GET /v1/chat/state` 回包现在统一走会话 sync ownership：会话切换会使旧 generation 失效，同一会话内较新的同步请求也会压过较早请求；如果旧会话请求慢回、或同会话旧请求晚于新请求返回，这个 stale response 都必须被直接丢弃，不能再把旧消息覆盖回当前 transcript
 - 会话 sync ownership 不只负责丢弃旧回包，也会通过 `AbortController` 取消上一条未完成的 `/v1/chat/state` 请求；多次快速切换会话后再点 `新会话`，不应被一串已经过期的 state 请求排队拖慢。
@@ -339,6 +340,7 @@
 - 会话切换 / 新建会话的交互预算按“服务端确认目标会话即可切屏”计算，`GET /v1/chat/state` hydrate 必须后台化；否则历史会话越大，用户越会把真实数据恢复误读成按钮卡死。
 - 新建会话必须对“已经在空白会话里”保持幂等；只靠按钮 disabled 防连点挡不住本机快请求，最后还是会把历史列表灌满空会话，这种体验债不要再放回去。
 - 发送消息时，如果前端已经持有 `conversationId`，不再每次串行等待 `GET /v1/chat/conversations` 和 `GET /v1/chat/state` 预检完成；消息先进入 `/v1/chat/stream`，会话目录改为后台静默刷新。
+- 会话目录 index 读写属于用户可感知延迟预算的一部分；高频切换、新建和恢复同步只能命中 `ConversationStore` 的 mtime cache 或排队写入，不能让多个请求并发读旧快照再各自覆盖落盘。
 - composer 输入仍即时调整高度，但 context usage 估算改成 debounce，避免每个按键都触发完整占用量重算。
 - `visibilitychange`、`pageshow`、`online` 现在统一走 `scheduleResumeConversationSync()` 做去重和冷却，不再三处各自拉取 catalog/state；恢复同步对当前会话只做一次 canonical `GET /v1/chat/state`，不再双拉 state 把页面抖成多余动画。
 - 用户离开底部后，前端会取消尚未执行的自动滚底计划；同一会话的 async state 重绘也会恢复当前 scrollTop，而不是拿“重新渲染了一遍”当借口把阅读位置洗掉。

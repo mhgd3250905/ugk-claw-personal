@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 
 export interface ConversationEntry {
 	sessionFile?: string;
@@ -22,12 +22,20 @@ interface ConversationStoreState {
 
 type LegacyConversationIndex = Record<string, ConversationEntry>;
 
+interface CachedConversationStoreState {
+	mtimeKey: number;
+	state: ConversationStoreState;
+}
+
 export class ConversationStore {
+	private cache?: CachedConversationStoreState;
+	private writeQueue: Promise<void> = Promise.resolve();
+
 	constructor(private readonly indexPath: string) {}
 
 	async get(conversationId: string): Promise<ConversationEntry | undefined> {
 		const state = await this.readState();
-		return state.conversations[conversationId];
+		return this.cloneEntry(state.conversations[conversationId]);
 	}
 
 	async set(
@@ -40,36 +48,36 @@ export class ConversationStore {
 			messageCount?: number;
 		},
 	): Promise<ConversationEntry> {
-		const state = await this.readState();
-		const now = new Date().toISOString();
-		const existing = state.conversations[conversationId];
-		const entry: ConversationEntry = {
-			sessionFile: sessionFile ?? existing?.sessionFile,
-			updatedAt: now,
-			createdAt: existing?.createdAt ?? now,
-			skillFingerprint: options?.skillFingerprint ?? existing?.skillFingerprint,
-			title: options?.title ?? existing?.title,
-			preview: options?.preview ?? existing?.preview,
-			messageCount: options?.messageCount ?? existing?.messageCount ?? 0,
-		};
+		return this.mutateState((state) => {
+			const now = new Date().toISOString();
+			const existing = state.conversations[conversationId];
+			const entry: ConversationEntry = {
+				sessionFile: sessionFile ?? existing?.sessionFile,
+				updatedAt: now,
+				createdAt: existing?.createdAt ?? now,
+				skillFingerprint: options?.skillFingerprint ?? existing?.skillFingerprint,
+				title: options?.title ?? existing?.title,
+				preview: options?.preview ?? existing?.preview,
+				messageCount: options?.messageCount ?? existing?.messageCount ?? 0,
+			};
 
-		state.conversations[conversationId] = entry;
-		await this.writeState(state);
-		return entry;
+			state.conversations[conversationId] = entry;
+			return this.cloneEntry(entry) ?? entry;
+		});
 	}
 
 	async delete(conversationId: string): Promise<void> {
-		const state = await this.readState();
-		if (!(conversationId in state.conversations)) {
-			return;
-		}
+		await this.mutateState((state) => {
+			if (!(conversationId in state.conversations)) {
+				return;
+			}
 
-		delete state.conversations[conversationId];
-		if (state.currentConversationId === conversationId) {
-			const fallback = this.sortEntries(state).at(0);
-			state.currentConversationId = fallback?.conversationId;
-		}
-		await this.writeState(state);
+			delete state.conversations[conversationId];
+			if (state.currentConversationId === conversationId) {
+				const fallback = this.sortEntries(state).at(0);
+				state.currentConversationId = fallback?.conversationId;
+			}
+		});
 	}
 
 	async list(): Promise<ConversationListEntry[]> {
@@ -83,24 +91,35 @@ export class ConversationStore {
 	}
 
 	async setCurrentConversationId(conversationId: string): Promise<void> {
-		const state = await this.readState();
-		const now = new Date().toISOString();
-		if (!state.conversations[conversationId]) {
-			state.conversations[conversationId] = {
-				updatedAt: now,
-				createdAt: now,
-				messageCount: 0,
-			};
-		}
-		state.currentConversationId = conversationId;
-		await this.writeState(state);
+		await this.mutateState((state) => {
+			const now = new Date().toISOString();
+			if (!state.conversations[conversationId]) {
+				state.conversations[conversationId] = {
+					updatedAt: now,
+					createdAt: now,
+					messageCount: 0,
+				};
+			}
+			state.currentConversationId = conversationId;
+		});
 	}
 
 	private async readState(): Promise<ConversationStoreState> {
+		await this.writeQueue;
+		return this.readStateFromDisk();
+	}
+
+	private async readStateFromDisk(): Promise<ConversationStoreState> {
 		try {
+			const fileStat = await stat(this.indexPath);
+			const mtimeKey = this.getMtimeKey(fileStat.mtimeMs);
+			if (this.cache && this.cache.mtimeKey === mtimeKey) {
+				return this.cloneState(this.cache.state);
+			}
+
 			const content = await readFile(this.indexPath, "utf8");
 			if (!content.trim()) {
-				return { conversations: {} };
+				return this.cacheState({ conversations: {} }, mtimeKey);
 			}
 
 			const parsed = JSON.parse(content) as
@@ -108,22 +127,22 @@ export class ConversationStore {
 				| LegacyConversationIndex
 				| null;
 			if (!parsed || typeof parsed !== "object") {
-				return { conversations: {} };
+				return this.cacheState({ conversations: {} }, mtimeKey);
 			}
 
 			if ("conversations" in parsed && parsed.conversations && typeof parsed.conversations === "object") {
-				return {
+				return this.cacheState({
 					currentConversationId:
 						typeof parsed.currentConversationId === "string" && parsed.currentConversationId
 							? parsed.currentConversationId
 							: undefined,
-					conversations: parsed.conversations as Record<string, ConversationEntry>,
-				};
+					conversations: this.cloneConversations(parsed.conversations as Record<string, ConversationEntry>),
+				}, mtimeKey);
 			}
 
-			return {
-				conversations: parsed as LegacyConversationIndex,
-			};
+			return this.cacheState({
+				conversations: this.cloneConversations(parsed as LegacyConversationIndex),
+			}, mtimeKey);
 		} catch (error) {
 			if (this.isRecoverableReadError(error)) {
 				return { conversations: {} };
@@ -133,28 +152,117 @@ export class ConversationStore {
 	}
 
 	private async writeState(state: ConversationStoreState): Promise<void> {
-		await mkdir(dirname(this.indexPath), { recursive: true });
-		await writeFile(
-			this.indexPath,
-			JSON.stringify(
-				{
-					currentConversationId: state.currentConversationId,
-					conversations: state.conversations,
-				},
-				null,
-				2,
-			),
-			"utf8",
-		);
+		const dir = dirname(this.indexPath);
+		const tempPath = join(dir, `.${basename(this.indexPath)}.${process.pid}.${process.hrtime.bigint()}.tmp`);
+		await mkdir(dir, { recursive: true });
+		try {
+			await writeFile(tempPath, this.stringifyState(state), "utf8");
+			await rename(tempPath, this.indexPath);
+			const fileStat = await stat(this.indexPath);
+			this.cacheState(state, this.getMtimeKey(fileStat.mtimeMs));
+		} catch (error) {
+			await unlink(tempPath).catch(() => undefined);
+			throw error;
+		}
 	}
 
 	private sortEntries(state: ConversationStoreState): ConversationListEntry[] {
 		return Object.entries(state.conversations)
-			.map(([conversationId, entry]) => ({
-				conversationId,
-				...entry,
-			}))
+			.map(([conversationId, entry]) => {
+				const cloned = this.cloneEntry(entry) ?? { updatedAt: new Date(0).toISOString() };
+				return {
+					conversationId,
+					...cloned,
+				};
+			})
 			.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+	}
+
+	private async mutateState<T>(mutator: (state: ConversationStoreState) => T | Promise<T>): Promise<T> {
+		let result: T;
+		const operation = this.writeQueue
+			.catch(() => undefined)
+			.then(async () => {
+				const state = await this.readStateFromDisk();
+				result = await mutator(state);
+				await this.writeState(state);
+			});
+
+		this.writeQueue = operation.then(
+			() => undefined,
+			() => undefined,
+		);
+		await operation;
+		return result!;
+	}
+
+	private cacheState(state: ConversationStoreState, mtimeKey: number): ConversationStoreState {
+		const cloned = this.cloneState(state);
+		this.cache = {
+			mtimeKey,
+			state: cloned,
+		};
+		return this.cloneState(cloned);
+	}
+
+	private getMtimeKey(mtimeMs: number): number {
+		return Math.round(mtimeMs);
+	}
+
+	private stringifyState(state: ConversationStoreState): string {
+		return JSON.stringify(
+			{
+				currentConversationId: state.currentConversationId,
+				conversations: state.conversations,
+			},
+			null,
+			2,
+		);
+	}
+
+	private cloneState(state: ConversationStoreState): ConversationStoreState {
+		return {
+			currentConversationId: state.currentConversationId,
+			conversations: this.cloneConversations(state.conversations),
+		};
+	}
+
+	private cloneConversations(conversations: Record<string, ConversationEntry>): Record<string, ConversationEntry> {
+		return Object.fromEntries(
+			Object.entries(conversations).map(([conversationId, entry]) => [
+				conversationId,
+				this.cloneEntry(entry) ?? { updatedAt: new Date(0).toISOString() },
+			]),
+		);
+	}
+
+	private cloneEntry(entry: ConversationEntry | undefined): ConversationEntry | undefined {
+		if (!entry) {
+			return undefined;
+		}
+
+		const cloned: ConversationEntry = {
+			updatedAt: entry.updatedAt,
+		};
+		if (entry.sessionFile !== undefined) {
+			cloned.sessionFile = entry.sessionFile;
+		}
+		if (entry.createdAt !== undefined) {
+			cloned.createdAt = entry.createdAt;
+		}
+		if (entry.skillFingerprint !== undefined) {
+			cloned.skillFingerprint = entry.skillFingerprint;
+		}
+		if (entry.title !== undefined) {
+			cloned.title = entry.title;
+		}
+		if (entry.preview !== undefined) {
+			cloned.preview = entry.preview;
+		}
+		if (entry.messageCount !== undefined) {
+			cloned.messageCount = entry.messageCount;
+		}
+		return cloned;
 	}
 
 	private isRecoverableReadError(error: unknown): boolean {
