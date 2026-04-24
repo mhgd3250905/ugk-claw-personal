@@ -693,23 +693,22 @@ test("chat returns empty visible text when the assistant only sends a ugk-file b
 
 	assert.equal(result, undefined);
 	const doneEvent = events.find((event) => event.type === "done");
-	assert.deepEqual(doneEvent, {
-		type: "done",
-		conversationId: "manual:file-only",
-		text: "",
-		sessionFile: "E:/sessions/file-only.jsonl",
-		files: [
-			{
-				id: "file-1",
-				assetId: "file-1",
-				reference: "@asset[file-1]",
-				fileName: "report.png",
-				mimeType: "image/png",
-				sizeBytes: 12,
-				downloadUrl: "/v1/files/file-1",
-			},
-		],
-	});
+	assert.equal(doneEvent?.type, "done");
+	assert.equal(doneEvent?.conversationId, "manual:file-only");
+	assert.equal(typeof doneEvent?.runId, "string");
+	assert.equal(doneEvent?.text, "");
+	assert.equal(doneEvent?.sessionFile, "E:/sessions/file-only.jsonl");
+	assert.deepEqual(doneEvent?.files, [
+		{
+			id: "file-1",
+			assetId: "file-1",
+			reference: "@asset[file-1]",
+			fileName: "report.png",
+			mimeType: "image/png",
+			sizeBytes: 12,
+			downloadUrl: "/v1/files/file-1",
+		},
+	]);
 });
 
 test("chat includes files returned by the send_file tool in the final done event", async () => {
@@ -1138,7 +1137,9 @@ test("getConversationState exposes the active run snapshot for refresh observers
 		}
 	).getConversationState("manual:state");
 	assert.equal(finishedState.running, false);
-	assert.equal(finishedState.activeRun, null);
+	assert.equal(finishedState.activeRun?.status, "done");
+	assert.equal(finishedState.activeRun?.loading, false);
+	assert.equal(finishedState.activeRun?.text, "partial answer");
 });
 
 test("getConversationState hides the current active input from persisted history so repeated prompts still render on observer pages", async () => {
@@ -1257,6 +1258,75 @@ test("getConversationState returns deduplicated viewMessages when terminal activ
 		[
 			{ kind: "user", text: "current task" },
 			{ kind: "assistant", text: "final answer" },
+		],
+	);
+});
+
+test("getConversationState deduplicates terminal turns by turn coverage instead of brittle assistant text spacing", async () => {
+	const store = await createStore();
+	const streamedAssistantText = [
+		"我来帮你获取知乎热榜 top 3。需要使用 web-access 技能来访问知乎。",
+		"浏览器已就绪。现在访问知乎热榜并提取 top 3。",
+		"已获取到知乎热榜 top 3。关闭标签页：## 知乎热榜 Top 3（2026-04-24）",
+	].join("");
+	const persistedAssistantText = [
+		"我来帮你获取知乎热榜 top 3。需要使用 web-access 技能来访问知乎。",
+		"",
+		"浏览器已就绪。现在访问知乎热榜并提取 top 3。",
+		"",
+		"已获取到知乎热榜 top 3。关闭标签页：",
+		"",
+		"## 知乎热榜 Top 3（2026-04-24）",
+	].join("\n\n");
+	const session = new TerminalOverlapSession(
+		"E:/sessions/view-overlap-spacing.jsonl",
+		"知乎热榜top3",
+		persistedAssistantText,
+	);
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	let resolveDoneState: (state: ConversationStateResponseBody) => void = () => undefined;
+	const doneStatePromise = new Promise<ConversationStateResponseBody>((resolve) => {
+		resolveDoneState = resolve;
+	});
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:view-overlap-spacing",
+			message: "知乎热榜top3",
+		},
+		(event) => {
+			if (event.type === "done") {
+				void (
+					service as AgentService & {
+						getConversationState(conversationId: string): Promise<ConversationStateResponseBody>;
+					}
+				)
+					.getConversationState("manual:view-overlap-spacing")
+					.then(resolveDoneState);
+			}
+		},
+	);
+	await session.promptStarted;
+	session.emit(textDelta(streamedAssistantText));
+	session.finish();
+
+	const state = await doneStatePromise;
+	await run;
+	assert.equal(state.activeRun?.status, "done");
+	assert.deepEqual(
+		state.viewMessages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+			runId: "runId" in message ? message.runId : undefined,
+		})),
+		[
+			{ kind: "user", text: "知乎热榜top3", runId: undefined },
+			{
+				kind: "assistant",
+				text: persistedAssistantText,
+				runId: state.activeRun?.runId,
+			},
 		],
 	);
 });
@@ -1806,10 +1876,9 @@ test("subscribeRunEvents replays buffered events and keeps streaming live active
 	});
 
 	assert.equal(subscription.running, true);
-	assert.deepEqual(reattachedEvents[0], {
-		type: "run_started",
-		conversationId: "manual:reattach",
-	});
+	assert.equal(reattachedEvents[0]?.type, "run_started");
+	assert.equal(reattachedEvents[0]?.conversationId, "manual:reattach");
+	assert.equal(typeof reattachedEvents[0]?.runId, "string");
 
 	activeSession.emit(textDelta("after refresh"));
 	assert.deepEqual(reattachedEvents.at(-1), {
@@ -2046,11 +2115,10 @@ test("streamChat emits a canonical error event and keeps a terminal error snapsh
 		/401 invalid access token/,
 	);
 
-	assert.deepEqual(events.at(-1), {
-		type: "error",
-		conversationId: "manual:error-stream",
-		message: "401 invalid access token",
-	});
+	assert.equal(events.at(-1)?.type, "error");
+	assert.equal(events.at(-1)?.conversationId, "manual:error-stream");
+	assert.equal(typeof events.at(-1)?.runId, "string");
+	assert.equal(events.at(-1)?.message, "401 invalid access token");
 	const state = await (
 		service as AgentService & {
 			getConversationState(conversationId: string): Promise<Record<string, unknown>>;
@@ -2198,12 +2266,11 @@ test("rewrites supported local artifact paths in streamed tool output and final 
 		type: "text_delta",
 		textDelta: "现在给你 http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html",
 	});
-	assert.deepEqual(events[3], {
-		type: "done",
-		conversationId: "manual:stream-local-artifact",
-		text: "现在给你 http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fzhihu-hot-share.html",
-		sessionFile: "E:/sessions/stream-local-artifact.jsonl",
-	});
+	assert.equal(events[3]?.type, "done");
+	assert.equal(events[3]?.conversationId, "manual:stream-local-artifact");
+	assert.equal(typeof events[3]?.runId, "string");
+	assert.equal(events[3]?.text, events[2]?.textDelta);
+	assert.equal(events[3]?.sessionFile, "E:/sessions/stream-local-artifact.jsonl");
 });
 
 test("throws when the final assistant message indicates an upstream provider error", async () => {
@@ -2276,6 +2343,9 @@ test("streamChat emits process events and final result while persisting the sess
 		events.map((event) => event.type),
 		["run_started", "tool_started", "text_delta", "tool_finished", "done"],
 	);
+	assert.equal(events[0]?.type, "run_started");
+	assert.equal(events[0]?.conversationId, "manual:stream");
+	assert.equal(typeof events[0]?.runId, "string");
 	assert.deepEqual(events[1], {
 		type: "tool_started",
 		toolCallId: "tool-1",
@@ -2293,12 +2363,11 @@ test("streamChat emits process events and final result while persisting the sess
 		isError: false,
 		result: '{\n  "ok": true\n}',
 	});
-	assert.deepEqual(events[4], {
-		type: "done",
-		conversationId: "manual:stream",
-		text: "STREAM_TEXT",
-		sessionFile: "E:/sessions/stream.jsonl",
-	});
+	assert.equal(events[4]?.type, "done");
+	assert.equal(events[4]?.conversationId, "manual:stream");
+	assert.equal(typeof events[4]?.runId, "string");
+	assert.equal(events[4]?.text, "STREAM_TEXT");
+	assert.equal(events[4]?.sessionFile, "E:/sessions/stream.jsonl");
 	const storedConversation = await store.get("manual:stream");
 	assert.equal(storedConversation?.sessionFile, "E:/sessions/stream.jsonl");
 	assert.equal(storedConversation?.title, "新会话");
@@ -2388,6 +2457,60 @@ test("streamChat strips null characters and extracts readable text from tool res
 		isError: true,
 		result: "wsl: localhost\n<3>WSL error",
 	});
+});
+
+test("getRunEvents returns buffered events for a completed chat run", async () => {
+	const store = await createStore();
+	const factory = new FakeAgentSessionFactory(
+		() =>
+			new FakeSession(
+				"E:/sessions/run-events.jsonl",
+				[
+					{
+						type: "tool_execution_start",
+						toolCallId: "tool-readme",
+						toolName: "read",
+						args: '{\n  "path": "README.md"\n}',
+					},
+					{
+						type: "message_update",
+						assistantMessageEvent: {
+							type: "text_delta",
+							delta: "weather summary",
+						},
+					},
+					{
+						type: "tool_execution_end",
+						toolCallId: "tool-readme",
+						toolName: "read",
+						isError: false,
+						result: '{\n  "ok": true\n}',
+					},
+				],
+				"weather summary",
+			),
+	);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const streamedEvents: Array<Record<string, unknown>> = [];
+	await service.streamChat({
+		conversationId: "manual:run-events",
+		message: "query weather",
+	}, (event) => {
+		streamedEvents.push(event as unknown as Record<string, unknown>);
+	});
+	const runStarted = streamedEvents.find((event) => event.type === "run_started");
+	assert.equal(typeof runStarted?.runId, "string");
+	const events = await service.getRunEvents("manual:run-events", String(runStarted?.runId || ""));
+	assert.deepEqual(
+		events.map((event) => event.type),
+		["run_started", "tool_started", "text_delta", "tool_finished", "done"],
+	);
+	assert.equal(events.at(-1)?.type, "done");
+	assert.equal(events.at(-1)?.conversationId, "manual:run-events");
+	assert.equal(events.at(-1)?.runId, runStarted?.runId);
+	assert.equal(events.at(-1)?.text, "weather summary");
+	assert.equal(events.at(-1)?.sessionFile, "E:/sessions/run-events.jsonl");
 });
 
 test("reuses an existing session when the skill fingerprint changes", async () => {

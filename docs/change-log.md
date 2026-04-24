@@ -12,6 +12,30 @@
 
 ## 2026-04-24
 
+### Playground canonical `viewMessages` 改成按 run 落盘覆盖关系收口
+- 日期：2026-04-24
+- 主题：修复 playground 在 terminal run 场景下把同一轮问答渲染成两次的问题。根因不是前端 DOM 去重失败，而是后端 `AgentService` 之前在组装 canonical `viewMessages` 时，用 assistant 正文文本去猜当前 terminal run 是否已经被 session history 覆盖；一旦流式正文和最终落盘正文只是在空格、换行或 markdown 断句上有差异，就会误判成“历史里还没有这轮结果”，把同一轮 `user + assistant` 再补画一遍。
+- 影响范围：`src/agent/agent-service.ts` 现在在 run 开始时记录会话历史基线，在 `done / interrupted / error` 进入 terminal 态时直接根据“本轮 run 之后新落盘了哪些 canonical history message”生成覆盖关系，并把这份覆盖信息用于 `GET /v1/chat/state` 的 `viewMessages` 组装；因此当前轮是否已经被 history 覆盖，改成由 run 自己的真实落盘结果决定，不再依赖 brittle 的正文字符串比对。`test/agent-service.test.ts` 同步补强了两类回归：正文空白差异时仍然只渲染一轮，以及连续两轮同样输入时不会误吞当前 terminal turn。
+- 对应入口：`src/agent/agent-service.ts`、`test/agent-service.test.ts`
+
+### Playground 断流恢复链路改成 state -> events -> state 单一收口
+- 日期：2026-04-24
+- 主题：修掉 playground 在主 `/v1/chat/stream` 断开后显示“页面连接已恢复……已重新订阅当前运行任务”，但实际又卡住、刷新后结果还可能蒸发的异常。根因不是少调一次接口，而是前端把“canonical state 说还在 running”和“事件流真的已经安全接续”混成同一件事；`/v1/chat/events` 如果在终态竞态窗口里没收到 terminal event 就直接 EOF，页面就会挂着恢复文案原地装死。
+- 影响范围：`src/ui/playground.ts` 新增统一的 `reconcileSyncedConversationState()`，把 state 回包后的“继续 attach `/v1/chat/events` / 停止 loading”决策收口到单一入口，不再让 `syncConversationRunState()` 和 `restoreConversationHistoryFromServer()` 各写一份半同步逻辑；`src/ui/playground-stream-controller.ts` 为 active run event stream 增加 terminal 判定与 EOF 回源收口，事件流若未带 `done / error / interrupted` 就结束，会立即再走一次 canonical state 同步，决定继续续订还是按终态落稳；`test/server.test.ts` 新增页面断言锁住这条恢复链路；`docs/playground-current.md` 同步更新口径。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-stream-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
+### Playground 消息系统改成状态壳层 + 运行日志
+- 日期：2026-04-24
+- 主题：把前端对话运行态从“正文 + 过程展开区 + 各种补画壳子”的缝合怪，重构成单一助手消息上的状态壳层模型：回复开始后只显示一条会持续改写的人话状态摘要和一个可点击的动态 loading，最终结果继续写回同一条正文；运行过程详情从 transcript 解耦，改为独立运行日志弹层。
+- 影响范围：`src/types/api.ts` 为 chat run 事件响应补齐 `runId` / `ChatRunEventsResponseBody`；`src/agent/agent-service.ts` 持久化完成态 run 的 buffered events、开放按 `conversationId + runId` 读取运行日志，并让 `viewMessages` / stream terminal 事件都带 `runId`；`src/routes/chat.ts` 新增 `GET /v1/chat/runs/:runId/events`；`src/ui/playground.ts`、`src/ui/playground-transcript-renderer.ts`、`src/ui/playground-stream-controller.ts` 把前端运行态收口为“状态摘要 + loading + 结果正文 + 日志弹层”，并移除旧的 assistant process shell 样式和页面断言；相关回归测试补到 `test/server.test.ts` 与 `test/agent-service.test.ts`。
+- 对应入口：[src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)、[src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)、[src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)、[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)、[src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)、[docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+
+### Playground 运行态摘要与日志入口进一步收口
+- 日期：2026-04-24
+- 主题：继续压缩运行态视觉噪音。`assistant-status-summary` 现在固定为单行省略，不再因为长摘要换行把消息高度顶得一跳一跳；运行日志按钮去掉了可见的动态长文本，不再把工具结果、bash 输出或 JSON 片段塞进 loading 气泡里撑爆宽度，只保留稳定的动态点和“查看运行日志”入口。
+- 影响范围：`src/ui/playground.ts` 收紧状态摘要和运行日志按钮的样式约束，移除 `assistant-loading-label`；`src/ui/playground-transcript-renderer.ts` 改成仅通过按钮的 `aria-label` 记录当前过程状态，页面可见层不再显示过程长文；`test/server.test.ts` 更新页面断言，锁住“摘要单行省略 + 无可见 loading label”的收口结果。
+- 对应入口：[src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)、[src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)、[test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+
 ### Agent 显式时间锚点与过期 once 调度拦截
 - 日期：2026-04-24
 - 主题：给前台 chat 和后台 `conn` runner 发往 agent 的用户消息统一补上 `[当前时间：时区 时间]` 前缀，减少模型把“几分钟后”“待会儿”这类相对时间理解歪的概率；同时把一次性 `once` 调度的过去时间直接判成非法，别再把明显失效的任务写进库里装作创建成功。

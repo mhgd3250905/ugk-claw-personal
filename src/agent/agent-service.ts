@@ -178,10 +178,19 @@ interface ActiveRunState {
 	events: ChatStreamEvent[];
 	subscribers: Set<ChatStreamEventSink>;
 	view: ChatActiveRunBody;
+	historyMessageCountBeforeRun: number;
+	persistedTurnCoverage: PersistedTurnCoverage | null;
+}
+
+interface PersistedTurnCoverage {
+	inputCovered: boolean;
+	assistantIndex: number;
 }
 
 interface TerminalRunState {
 	view: ChatActiveRunBody;
+	events: ChatStreamEvent[];
+	historyCoverage: PersistedTurnCoverage;
 }
 
 const MAX_BUFFERED_RUN_EVENTS = 300;
@@ -430,7 +439,12 @@ export class AgentService {
 			: terminalRun
 				? cloneActiveRunView(terminalRun.view)
 				: null;
-		const viewMessages = buildConversationViewMessages(conversationId, sessionMessages, activeRunView);
+		const viewMessages = buildConversationViewMessages(
+			conversationId,
+			sessionMessages,
+			activeRunView,
+			activeRun?.persistedTurnCoverage ?? terminalRun?.historyCoverage,
+		);
 
 		return {
 			conversationId,
@@ -465,7 +479,25 @@ export class AgentService {
 			view.input.message = "";
 		}
 
-		return { view };
+		return {
+			view,
+			events: terminalRun.events.map(cloneChatStreamEvent),
+			historyCoverage: { ...terminalRun.historyCoverage },
+		};
+	}
+
+	async getRunEvents(conversationId: string, runId: string): Promise<ChatStreamEvent[]> {
+		const activeRun = this.activeRuns.get(conversationId);
+		if (activeRun?.view.runId === runId) {
+			return activeRun.events.map(cloneChatStreamEvent);
+		}
+
+		const terminalRun = this.terminalRuns.get(conversationId);
+		if (terminalRun?.view.runId === runId) {
+			return terminalRun.events.map(cloneChatStreamEvent);
+		}
+
+		return [];
 	}
 
 	subscribeRunEvents(conversationId: string, onEvent: ChatStreamEventSink): RunEventSubscription {
@@ -515,6 +547,9 @@ export class AgentService {
 		}
 		const { session, skillFingerprint } = await this.openSession(conversationId);
 		const preparedAssets = await this.preparePromptAssets(conversationId, input.attachments, input.assetRefs);
+		const historyMessageCountBeforeRun = this.buildConversationHistoryMessages(
+			((session.messages as AgentMessageLike[] | undefined) ?? []),
+		).length;
 		this.terminalRuns.delete(conversationId);
 		await this.options.conversationStore.setCurrentConversationId(conversationId);
 		const activeRun = {
@@ -523,12 +558,15 @@ export class AgentService {
 			events: [],
 			subscribers: new Set<ChatStreamEventSink>(),
 			view: createActiveRunView(conversationId, input.message, preparedAssets.uploadedAssets),
+			historyMessageCountBeforeRun,
+			persistedTurnCoverage: null,
 		};
 		this.activeRuns.set(conversationId, activeRun);
 
 		this.emitRunEvent(activeRun, onEvent, {
 			type: "run_started",
 			conversationId,
+			runId: activeRun.view.runId,
 		});
 
 		let rawText = "";
@@ -613,9 +651,11 @@ export class AgentService {
 			}
 
 			if (activeRun.interrupted) {
+				this.refreshPersistedTurnCoverage(activeRun);
 				this.emitRunEvent(activeRun, onEvent, {
 					type: "interrupted",
 					conversationId,
+					runId: activeRun.view.runId,
 				});
 				return {
 					conversationId,
@@ -637,6 +677,7 @@ export class AgentService {
 			const doneEvent: ChatStreamEvent = {
 				type: "done",
 				conversationId: result.conversationId,
+				runId: activeRun.view.runId,
 				text: result.text,
 				sessionFile: result.sessionFile,
 			};
@@ -646,14 +687,17 @@ export class AgentService {
 			if (result.inputAssets) {
 				doneEvent.inputAssets = result.inputAssets;
 			}
+			this.refreshPersistedTurnCoverage(activeRun);
 			this.emitRunEvent(activeRun, onEvent, doneEvent);
 
 			return result;
 		} catch (error) {
 			const normalizedError = toError(error);
+			this.refreshPersistedTurnCoverage(activeRun);
 			this.emitRunEvent(activeRun, onEvent, {
 				type: "error",
 				conversationId,
+				runId: activeRun.view.runId,
 				message: normalizedError.message,
 			});
 			(normalizedError as Error & { chatStreamEventEmitted?: boolean }).chatStreamEventEmitted = true;
@@ -670,8 +714,19 @@ export class AgentService {
 				this.activeRuns.delete(conversationId);
 			}
 			if (shouldPersistTerminalRun(activeRun.view)) {
+				const finalSessionMessages = this.buildConversationHistoryMessages(
+					((session.messages as AgentMessageLike[] | undefined) ?? []),
+				);
 				this.terminalRuns.set(conversationId, {
 					view: cloneActiveRunView(activeRun.view),
+					events: activeRun.events.map(cloneChatStreamEvent),
+					historyCoverage:
+						activeRun.persistedTurnCoverage ??
+						derivePersistedTurnCoverageFromRunTail(
+							finalSessionMessages,
+							activeRun.historyMessageCountBeforeRun,
+							activeRun.view,
+						),
 				});
 			} else {
 				this.terminalRuns.delete(conversationId);
@@ -1077,6 +1132,14 @@ export class AgentService {
 		return omitTrailingActiveUserMessage(coalescedMessages, activeRunView.input.message);
 	}
 
+	private refreshPersistedTurnCoverage(activeRun: ActiveRunState): void {
+		activeRun.persistedTurnCoverage = derivePersistedTurnCoverageFromRunTail(
+			this.buildConversationHistoryMessages(((activeRun.session.messages as AgentMessageLike[] | undefined) ?? [])),
+			activeRun.historyMessageCountBeforeRun,
+			activeRun.view,
+		);
+	}
+
 	private toConversationHistoryMessage(
 		message: AgentMessageLike,
 		index: number,
@@ -1236,6 +1299,75 @@ function cloneActiveRunView(view: ChatActiveRunBody): ChatActiveRunBody {
 	};
 }
 
+function cloneChatStreamEvent(event: ChatStreamEvent): ChatStreamEvent {
+	switch (event.type) {
+		case "run_started":
+			return {
+				type: "run_started",
+				conversationId: event.conversationId,
+				runId: event.runId,
+			};
+		case "text_delta":
+			return {
+				type: "text_delta",
+				textDelta: event.textDelta,
+			};
+		case "tool_started":
+			return {
+				type: "tool_started",
+				toolCallId: event.toolCallId,
+				toolName: event.toolName,
+				args: event.args,
+			};
+		case "tool_updated":
+			return {
+				type: "tool_updated",
+				toolCallId: event.toolCallId,
+				toolName: event.toolName,
+				partialResult: event.partialResult,
+			};
+		case "tool_finished":
+			return {
+				type: "tool_finished",
+				toolCallId: event.toolCallId,
+				toolName: event.toolName,
+				isError: event.isError,
+				result: event.result,
+			};
+		case "queue_updated":
+			return {
+				type: "queue_updated",
+				steering: [...event.steering],
+				followUp: [...event.followUp],
+			};
+		case "interrupted":
+			return {
+				type: "interrupted",
+				conversationId: event.conversationId,
+				runId: event.runId,
+			};
+		case "done":
+			return {
+				type: "done",
+				conversationId: event.conversationId,
+				runId: event.runId,
+				text: event.text,
+				...(event.sessionFile ? { sessionFile: event.sessionFile } : {}),
+				...(event.inputAssets ? { inputAssets: event.inputAssets.map((asset) => ({ ...asset })) } : {}),
+				...(event.files ? { files: event.files.map((file) => ({ ...file })) } : {}),
+			};
+		case "error":
+			return {
+				type: "error",
+				conversationId: event.conversationId,
+				runId: event.runId,
+				message: event.message,
+			};
+		default:
+			return event;
+	}
+}
+
 function hasStringProperty(value: object, propertyName: string): boolean {
 	return propertyName in value && typeof value[propertyName as keyof typeof value] === "string";
 }
@@ -1390,7 +1522,7 @@ function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
 }
 
 function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {
-	return view.status === "error" || view.status === "interrupted";
+	return view.status === "done" || view.status === "error" || view.status === "interrupted";
 }
 
 function shouldExposeTerminalRunSnapshot(
@@ -1416,15 +1548,30 @@ function buildConversationViewMessages(
 	conversationId: string,
 	messages: readonly ConversationHistoryMessage[],
 	activeRun: ChatActiveRunBody | null,
+	persistedTurnCoverage?: PersistedTurnCoverage,
 ): ConversationHistoryMessage[] {
 	const viewMessages = messages.map(cloneConversationHistoryMessage);
 	if (!activeRun) {
 		return viewMessages;
 	}
 
-	const assistantIndex = activeRun.loading ? -1 : findActiveRunAssistantIndex(viewMessages, activeRun);
+	const effectivePersistedTurnCoverage =
+		activeRun.loading ? null : persistedTurnCoverage ?? findPersistedActiveRunTurnCoverage(viewMessages, activeRun);
+	const assistantIndex =
+		activeRun.loading
+			? -1
+			: effectivePersistedTurnCoverage?.assistantIndex ?? findActiveRunAssistantIndex(viewMessages, activeRun);
 	const assistantCovered = assistantIndex >= 0;
-	const inputCovered = activeRun.loading ? false : historyHasActiveRunInput(viewMessages, activeRun, assistantIndex);
+	const inputCovered =
+		activeRun.loading
+			? false
+			: effectivePersistedTurnCoverage?.inputCovered ?? historyHasActiveRunInput(viewMessages, activeRun, assistantIndex);
+	if (assistantCovered) {
+		viewMessages[assistantIndex] = {
+			...viewMessages[assistantIndex],
+			runId: activeRun.runId,
+		};
+	}
 	if (!activeRun.loading && inputCovered && assistantCovered) {
 		return viewMessages;
 	}
@@ -1447,6 +1594,7 @@ function buildConversationViewMessages(
 			title: conversationTitleFromRole("assistant"),
 			text: activeRun.text,
 			createdAt: activeRun.startedAt,
+			runId: activeRun.runId,
 		});
 	}
 
@@ -1484,6 +1632,89 @@ function historyHasActiveRunInput(
 	}
 
 	return false;
+}
+
+function findPersistedActiveRunTurnCoverage(
+	messages: readonly ConversationHistoryMessage[],
+	activeRun: ChatActiveRunBody,
+): PersistedTurnCoverage | null {
+	const inputText = normalizeComparableMessageText(activeRun.input.message);
+	if (!inputText) {
+		return null;
+	}
+
+	const startIndex = Math.max(0, messages.length - 12);
+	for (let index = messages.length - 1; index >= startIndex; index -= 1) {
+		const message = messages[index];
+		if (message.kind !== "user") {
+			continue;
+		}
+		if (normalizeComparableMessageText(message.text) !== inputText) {
+			continue;
+		}
+
+		for (let nextIndex = index + 1; nextIndex < messages.length; nextIndex += 1) {
+			const nextMessage = messages[nextIndex];
+			if (nextMessage.kind === "assistant") {
+				return {
+					inputCovered: true,
+					assistantIndex: nextIndex,
+				};
+			}
+			if (nextMessage.kind === "user") {
+				return {
+					inputCovered: true,
+					assistantIndex: -1,
+				};
+			}
+		}
+
+		return {
+			inputCovered: true,
+			assistantIndex: -1,
+		};
+	}
+
+	return null;
+}
+
+function derivePersistedTurnCoverageFromRunTail(
+	messages: readonly ConversationHistoryMessage[],
+	historyMessageCountBeforeRun: number,
+	activeRun: ChatActiveRunBody,
+): PersistedTurnCoverage {
+	const inputText = normalizeComparableMessageText(activeRun.input.message);
+	const startIndex = Math.max(0, Math.min(historyMessageCountBeforeRun, messages.length));
+	let inputCovered = false;
+
+	for (let index = startIndex; index < messages.length; index += 1) {
+		const message = messages[index];
+		if (!inputCovered) {
+			if (message.kind !== "user") {
+				continue;
+			}
+			if (inputText && normalizeComparableMessageText(message.text) !== inputText) {
+				continue;
+			}
+			inputCovered = true;
+			continue;
+		}
+
+		if (message.kind === "assistant") {
+			return {
+				inputCovered: true,
+				assistantIndex: index,
+			};
+		}
+		if (message.kind === "user") {
+			break;
+		}
+	}
+
+	return {
+		inputCovered,
+		assistantIndex: -1,
+	};
 }
 
 function findActiveRunAssistantIndex(

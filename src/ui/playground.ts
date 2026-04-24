@@ -1406,35 +1406,41 @@ function getPlaygroundStyles(): string {
 			display: none;
 		}
 
-		.assistant-loading-shell {
-			display: flex;
-			justify-content: flex-start;
-			margin-top: 10px;
-		}
-
 		.assistant-loading-bubble {
 			display: inline-flex;
 			align-items: center;
 			gap: 10px;
-			max-width: 100%;
+			width: fit-content;
+			max-width: fit-content;
 			padding: 8px 12px;
 			border: 1px solid rgba(201, 210, 255, 0.14);
 			border-radius: 999px;
 			background: rgba(201, 210, 255, 0.06);
 			color: rgba(233, 238, 255, 0.88);
-			font-size: 10px;
-			letter-spacing: 0.12em;
-			text-transform: uppercase;
+			font-size: 11px;
+			letter-spacing: 0.04em;
+			text-transform: none;
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			justify-self: flex-start;
 		}
 
-		.assistant-loading-label {
-			min-width: 0;
-			white-space: nowrap;
+		.assistant-run-log-trigger {
+			cursor: pointer;
+		}
+
+		.assistant-run-log-trigger:disabled {
+			cursor: default;
+			opacity: 0.64;
+		}
+
+		.assistant-run-log-hint {
+			color: rgba(233, 238, 255, 0.52);
+			font-size: 10px;
 		}
 
 		.assistant-loading-dots {
 			display: inline-flex;
+			flex: 0 0 auto;
 			align-items: center;
 			gap: 5px;
 		}
@@ -1460,31 +1466,158 @@ function getPlaygroundStyles(): string {
 			animation-delay: 0.32s;
 		}
 
-		.assistant-loading-shell.tool .assistant-loading-bubble {
+		.assistant-status-shell.tool .assistant-loading-bubble {
 			border-color: rgba(201, 210, 255, 0.2);
 			background: rgba(201, 210, 255, 0.08);
 		}
 
-		.assistant-loading-shell.ok .assistant-loading-bubble {
+		.assistant-status-shell.ok .assistant-loading-bubble {
 			border-color: rgba(141, 255, 178, 0.22);
 			background: rgba(141, 255, 178, 0.07);
 			color: rgba(201, 255, 220, 0.92);
 		}
 
-		.assistant-loading-shell.warn .assistant-loading-bubble {
+		.assistant-status-shell.warn .assistant-loading-bubble {
 			border-color: rgba(255, 209, 102, 0.2);
 			background: rgba(255, 209, 102, 0.07);
 			color: rgba(255, 230, 178, 0.94);
 		}
 
-		.assistant-loading-shell.error .assistant-loading-bubble {
+		.assistant-status-shell.error .assistant-loading-bubble {
 			border-color: rgba(255, 113, 136, 0.2);
 			background: rgba(255, 113, 136, 0.08);
 			color: rgba(255, 210, 220, 0.94);
 		}
 
-		.assistant-loading-shell.is-complete .assistant-loading-bubble {
+		.assistant-status-shell.is-complete .assistant-loading-bubble {
 			box-shadow: none;
+		}
+
+		.assistant-status-shell {
+			display: grid;
+			gap: 10px;
+			padding: 0 0 2px;
+		}
+
+		.assistant-status-summary {
+			margin: 0;
+			max-width: min(100%, 560px);
+			color: rgba(233, 238, 255, 0.72);
+			font-size: 12px;
+			line-height: 1.4;
+			text-align: left;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.chat-run-log-dialog[hidden] {
+			display: none !important;
+		}
+
+		.chat-run-log-dialog {
+			position: fixed;
+			inset: 0;
+			z-index: 40;
+			display: grid;
+			place-items: center;
+			padding: 18px;
+			background: rgba(1, 3, 10, 0.82);
+		}
+
+		.chat-run-log-dialog.open {
+			display: grid;
+		}
+
+		.chat-run-log-panel {
+			display: grid;
+			grid-template-rows: auto minmax(0, 1fr);
+			width: min(780px, 100%);
+			max-height: min(78vh, 860px);
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 10px;
+			background: linear-gradient(180deg, rgba(10, 14, 24, 0.98), rgba(6, 9, 16, 0.98));
+			box-shadow: 0 28px 52px rgba(0, 0, 0, 0.34);
+		}
+
+		.chat-run-log-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 14px 16px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.chat-run-log-head strong {
+			font-size: 14px;
+			letter-spacing: 0.04em;
+		}
+
+		.chat-run-log-close {
+			width: 32px;
+			height: 32px;
+			padding: 0;
+			border: 0;
+			background: transparent;
+			box-shadow: none;
+			color: rgba(238, 244, 255, 0.72);
+			font-size: 18px;
+		}
+
+		.chat-run-log-body {
+			display: grid;
+			align-content: start;
+			gap: 12px;
+			min-height: 0;
+			overflow: auto;
+			padding: 16px;
+		}
+
+		.chat-run-log-meta {
+			color: rgba(233, 238, 255, 0.48);
+			font-size: 11px;
+			line-height: 1.6;
+			word-break: break-word;
+		}
+
+		.chat-run-log-list {
+			display: grid;
+			gap: 10px;
+		}
+
+		.chat-run-log-item {
+			display: grid;
+			gap: 6px;
+			padding: 12px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 8px;
+			background: rgba(255, 255, 255, 0.03);
+		}
+
+		.chat-run-log-item-title {
+			color: rgba(242, 246, 255, 0.92);
+			font-size: 12px;
+			line-height: 1.5;
+		}
+
+		.chat-run-log-item-detail {
+			margin: 0;
+			color: rgba(226, 234, 255, 0.66);
+			font-family: var(--font-mono);
+			font-size: 11px;
+			line-height: 1.6;
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		.chat-run-log-empty {
+			padding: 14px;
+			border: 1px dashed rgba(201, 210, 255, 0.14);
+			border-radius: 8px;
+			color: rgba(226, 234, 255, 0.58);
+			font-size: 12px;
+			line-height: 1.6;
 		}
 
 		@keyframes assistant-loading-pulse {
@@ -1566,140 +1699,6 @@ function getPlaygroundStyles(): string {
 			gap: 14px;
 		}
 
-		.assistant-process-shell {
-			display: grid;
-			gap: 12px;
-			padding: 12px 14px;
-			border: 0;
-			border-radius: 4px;
-			background: rgba(9, 13, 22, 0.92);
-		}
-
-		.assistant-process-head {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			gap: 12px;
-		}
-
-		.assistant-process-head strong {
-			color: rgba(238, 244, 255, 0.7);
-			font-size: 10px;
-			letter-spacing: 0.12em;
-			text-transform: uppercase;
-		}
-
-		.assistant-process-shell[data-process-expanded="false"] .assistant-process-head {
-			justify-content: flex-end;
-		}
-
-		.assistant-process-shell[data-process-expanded="false"] .assistant-process-head strong {
-			display: none;
-		}
-
-		.assistant-process-toggle {
-			padding: 6px 8px;
-			border: 0;
-			background: rgba(20, 28, 44, 0.94);
-			color: rgba(238, 244, 255, 0.7);
-			font-size: 10px;
-			letter-spacing: 0.12em;
-		}
-
-		.assistant-process-body {
-			display: grid;
-			gap: 10px;
-			overflow: visible;
-			min-width: 0;
-		}
-
-		.assistant-process-narration {
-			display: grid;
-			gap: 8px;
-			max-height: calc(1.6em * 5 + 8px * 4);
-			overflow: auto;
-			padding-right: 4px;
-			scrollbar-width: thin;
-			scrollbar-color: rgba(201, 210, 255, 0.2) transparent;
-		}
-
-		.assistant-process-narration::-webkit-scrollbar {
-			width: 4px;
-		}
-
-		.assistant-process-narration::-webkit-scrollbar-thumb {
-			background: rgba(201, 210, 255, 0.2);
-		}
-
-		.assistant-process-shell[data-process-expanded="false"] .assistant-process-narration {
-			display: none;
-		}
-
-		.assistant-process-line {
-			margin: 0;
-			color: rgba(238, 244, 255, 0.56);
-			font-size: 11px;
-			line-height: 1.6;
-			text-align: left;
-			word-break: break-word;
-		}
-
-		.assistant-process-line::before {
-			content: "· ";
-			color: rgba(212, 218, 255, 0.56);
-		}
-
-		.assistant-process-current {
-			display: grid;
-			gap: 6px;
-			padding-top: 10px;
-			border-top: 1px solid rgba(255, 255, 255, 0.08);
-			min-width: 0;
-		}
-
-		.assistant-process-shell[data-process-expanded="false"] .assistant-process-current {
-			padding-top: 0;
-			border-top: 0;
-		}
-
-		.assistant-process-current-label {
-			color: rgba(238, 244, 255, 0.4);
-			font-size: 9px;
-			letter-spacing: 0.14em;
-			text-transform: uppercase;
-		}
-
-		.assistant-process-current-action {
-			margin: 0;
-			padding: 0;
-			border: 0;
-			background: transparent;
-			color: rgba(241, 247, 255, 0.64);
-			font-family: var(--font-sans);
-			font-size: 11px;
-			line-height: 1.6;
-			text-align: left;
-			white-space: pre-wrap;
-			word-break: break-word;
-			min-height: calc(1.6em * 2);
-			max-height: calc(1.6em * 2);
-			overflow: hidden;
-			display: -webkit-box;
-			-webkit-line-clamp: 2;
-			-webkit-box-orient: vertical;
-		}
-
-		.assistant-process-shell.tool {
-			border-color: rgba(201, 210, 255, 0.14);
-		}
-
-		.assistant-process-shell.ok {
-			border-color: rgba(141, 255, 178, 0.18);
-		}
-
-		.assistant-process-shell.error {
-			border-color: rgba(255, 113, 136, 0.22);
-		}
 
 		.composer {
 			display: grid;
@@ -3108,7 +3107,7 @@ function getPlaygroundStyles(): string {
 			.error-banner,
 			.error-banner-close,
 			.assistant-loading-card,
-			.assistant-process-shell,
+			.assistant-status-shell,
 			.history-load-more {
 				border-radius: 4px !important;
 			}
@@ -3171,12 +3170,12 @@ function getPlaygroundScript(): string {
 			conversationId: "",
 			streamingText: "",
 			activeAssistantContent: null,
+			activeStatusShell: null,
+			activeStatusSummary: null,
 			activeLoadingShell: null,
-			activeLoadingLabel: null,
 			activeLoadingDots: null,
-			activeProcessShell: null,
-			activeProcessNarration: null,
-			activeProcessAction: null,
+			activeRunLogTrigger: null,
+			activeRunId: "",
 			lastProcessNarration: "",
 			receivedDoneEvent: false,
 			composerUploadingAssets: false,
@@ -3213,6 +3212,7 @@ function getPlaygroundScript(): string {
 			connEditorSaving: false,
 			connEditorError: "",
 			assetModalRestoreFocusElement: null,
+			chatRunLogRestoreFocusElement: null,
 			connManagerRestoreFocusElement: null,
 			connEditorRestoreFocusElement: null,
 			connRunDetailsRestoreFocusElement: null,
@@ -3279,6 +3279,10 @@ function getPlaygroundScript(): string {
 		${getPlaygroundContextUsageElementRefsScript()}
 		${getPlaygroundTaskInboxElementRefsScript()}
 		${getConnActivityElementRefsScript()}
+		const chatRunLogDialog = document.getElementById("chat-run-log-dialog");
+		const chatRunLogTitle = document.getElementById("chat-run-log-title");
+		const chatRunLogBody = document.getElementById("chat-run-log-body");
+		const chatRunLogClose = document.getElementById("chat-run-log-close");
 		const confirmDialog = document.getElementById("confirm-dialog");
 		const confirmDialogTitle = document.getElementById("confirm-dialog-title");
 		const confirmDialogBody = document.getElementById("confirm-dialog-body");
@@ -3707,6 +3711,7 @@ function getPlaygroundScript(): string {
 				running: Boolean(payload?.running),
 				contextUsage: normalizeContextUsage(payload?.contextUsage),
 				messages: Array.isArray(payload?.messages) ? payload.messages : [],
+				viewMessages: Array.isArray(payload?.viewMessages) ? payload.viewMessages : [],
 				activeRun: normalizeActiveRun(payload?.activeRun),
 				updatedAt: typeof payload?.updatedAt === "string" ? payload.updatedAt : new Date().toISOString(),
 			};
@@ -3766,6 +3771,26 @@ function getPlaygroundScript(): string {
 			return isConversationSyncTokenCurrent(syncToken, nextConversationId);
 		}
 
+		function reconcileSyncedConversationState(payload, conversationId, options) {
+			const nextConversationId = String(conversationId || payload?.conversationId || "").trim();
+			if (!nextConversationId) {
+				return payload;
+			}
+
+			if (payload?.running) {
+				if (options?.attachIfRunning !== false && !state.primaryStreamActive) {
+					void attachActiveRunEventStream(nextConversationId);
+				}
+				return payload;
+			}
+
+			if (state.loading && options?.clearIfIdle) {
+				stopActiveRunEventStream();
+				setLoading(false);
+			}
+			return payload;
+		}
+
 		${getConnActivityApiScript()}
 
 
@@ -3783,13 +3808,7 @@ function getPlaygroundScript(): string {
 				if (!renderConversationState(payload, syncToken)) {
 					return payload;
 				}
-				if (payload.running && !state.primaryStreamActive) {
-					void attachActiveRunEventStream(nextConversationId);
-				} else if (!payload.running && state.loading && options?.clearIfIdle) {
-					stopActiveRunEventStream();
-					setLoading(false);
-				}
-				return payload;
+				return reconcileSyncedConversationState(payload, nextConversationId, options);
 			} catch (error) {
 				if (!isConversationSyncTokenCurrent(syncToken, nextConversationId)) {
 					return {
@@ -3833,6 +3852,7 @@ function getPlaygroundScript(): string {
 				conversationId: nextConversationId,
 				activeRun,
 			};
+			state.activeRunId = activeRun?.runId || "";
 			state.contextUsage = normalizeContextUsage(conversationState?.contextUsage);
 			const rawViewMessages = Array.isArray(conversationState?.viewMessages)
 				? conversationState.viewMessages
@@ -3843,6 +3863,7 @@ function getPlaygroundScript(): string {
 			state.renderedHistoryCount = 0;
 			clearRenderedTranscript();
 			resetStreamingState();
+			state.activeRunId = activeRun?.runId || "";
 			renderContextUsageBar();
 
 			if (state.conversationHistory.length > 0) {
@@ -3870,7 +3891,18 @@ function getPlaygroundScript(): string {
 
 			setTranscriptState("active");
 			mergeRecentAssets(activeRun.input?.inputAssets || []);
-			const rendered = renderedMessages.get(activeRun.assistantMessageId);
+			let rendered = findRenderedAssistantForActiveRun(activeRun);
+			if (!rendered) {
+				const knownEntry = state.conversationHistory.find((entry) => entry.id === activeRun.assistantMessageId);
+				if (!knownEntry) {
+					appendTranscriptMessage("assistant", "助手", activeRun.text || "", {
+						id: activeRun.assistantMessageId,
+						createdAt: activeRun.startedAt,
+						runId: activeRun.runId,
+					});
+				}
+				rendered = renderedMessages.get(activeRun.assistantMessageId);
+			}
 			if (rendered) {
 				state.activeAssistantContent = rendered.content;
 				applyProcessViewToRenderedMessage(activeRun.process, rendered, {
@@ -3896,6 +3928,57 @@ function getPlaygroundScript(): string {
 			syncHistoryLoadMoreButton();
 			scrollTranscriptToBottom();
 			return true;
+		}
+
+		function findRenderedAssistantForActiveRun(activeRun) {
+			if (!activeRun) {
+				return null;
+			}
+
+			const directRendered = renderedMessages.get(activeRun.assistantMessageId);
+			if (directRendered) {
+				return directRendered;
+			}
+
+			const runId = String(activeRun.runId || "").trim();
+			if (runId) {
+				const runEntry = state.conversationHistory.find(
+					(entry) => entry.kind === "assistant" && String(entry.runId || "").trim() === runId,
+				);
+				if (runEntry) {
+					const renderedByRunId = renderedMessages.get(runEntry.id);
+					if (renderedByRunId) {
+						return renderedByRunId;
+					}
+				}
+			}
+
+			const assistantText = String(activeRun.text || "").trim();
+			if (assistantText) {
+				const normalizedAssistantText = assistantText.replace(/\s+/g, " ");
+				const textEntry = [...state.conversationHistory]
+					.reverse()
+					.find((entry) => {
+						if (entry.kind !== "assistant") {
+							return false;
+						}
+						const normalizedEntryText = String(entry.text || "")
+							.trim()
+							.replace(/\s+/g, " ");
+						return (
+							normalizedEntryText === normalizedAssistantText ||
+							normalizedEntryText.includes(normalizedAssistantText)
+						);
+					});
+				if (textEntry) {
+					const renderedByText = renderedMessages.get(textEntry.id);
+					if (renderedByText) {
+						return renderedByText;
+					}
+				}
+			}
+
+			return null;
 		}
 
 		function getConversationHistoryStorageKey(conversationId) {
@@ -4228,14 +4311,7 @@ function getPlaygroundScript(): string {
 				if (!renderConversationState(payload, syncToken)) {
 					return payload;
 				}
-				if (payload.running) {
-					if (options?.attachIfRunning !== false && !state.primaryStreamActive) {
-						void attachActiveRunEventStream(nextConversationId);
-					}
-				} else if (state.loading && options?.clearIfIdle) {
-					stopActiveRunEventStream();
-					setLoading(false);
-				}
+				reconcileSyncedConversationState(payload, nextConversationId, options);
 				scheduleConversationHistoryPersist(nextConversationId);
 				return payload;
 			} catch (error) {
@@ -4297,8 +4373,8 @@ function getPlaygroundScript(): string {
 		}
 
 		function formatProcessAction(title, detail) {
-			const normalized = String(detail || "").trim();
-			return normalized ? title + " · " + normalized : title;
+			const detailSummary = summarizeDetail(detail).summary;
+			return detailSummary && detailSummary !== "无详情" ? title + " · " + detailSummary : title;
 		}
 
 		function formatSkillsReply(skills) {
@@ -4366,7 +4442,7 @@ function getPlaygroundScript(): string {
 					: "我收到新的转向要求，当前步骤结束后就会切过去。";
 			}
 			if (title === "任务完成") {
-				return "过程已经走完，下面开始整理最终答复。";
+				return "结果已经准备好了。";
 			}
 			if (title === "任务已打断") {
 				return "当前任务已经停下来了，我先把执行状态收住。";
@@ -4411,12 +4487,12 @@ function getPlaygroundScript(): string {
 		function resetStreamingState() {
 			state.streamingText = "";
 			state.activeAssistantContent = null;
+			state.activeStatusShell = null;
+			state.activeStatusSummary = null;
 			state.activeLoadingShell = null;
-			state.activeLoadingLabel = null;
 			state.activeLoadingDots = null;
-			state.activeProcessShell = null;
-			state.activeProcessNarration = null;
-			state.activeProcessAction = null;
+			state.activeRunLogTrigger = null;
+			state.activeRunId = "";
 			state.lastProcessNarration = "";
 			state.receivedDoneEvent = false;
 		}
@@ -4885,6 +4961,15 @@ export function renderPlaygroundPage(): string {
 					<button id="context-usage-dialog-close" class="context-usage-dialog-close" type="button" aria-label="关闭上下文详情">×</button>
 				</div>
 				<div id="context-usage-dialog-body" class="context-usage-dialog-body">当前上下文 0 / 128,000 tokens (0%)</div>
+			</section>
+		</div>
+		<div id="chat-run-log-dialog" class="chat-run-log-dialog" aria-hidden="true" hidden>
+			<section class="chat-run-log-panel" role="dialog" aria-modal="true" aria-labelledby="chat-run-log-title">
+				<div class="chat-run-log-head">
+					<strong id="chat-run-log-title">运行日志</strong>
+					<button id="chat-run-log-close" class="chat-run-log-close" type="button" aria-label="关闭运行日志">×</button>
+				</div>
+				<div id="chat-run-log-body" class="chat-run-log-body"></div>
 			</section>
 		</div>
 		<div id="confirm-dialog" class="confirm-dialog" aria-hidden="true" hidden>

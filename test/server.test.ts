@@ -42,6 +42,10 @@ function createAgentServiceStub(overrides?: {
 		running: boolean;
 		unsubscribe: () => void;
 	};
+	getRunEvents?: (
+		conversationId: string,
+		runId: string,
+	) => Promise<Array<StreamEvent>>;
 	getConversationHistory?: (
 		conversationId: string,
 	) => Promise<{
@@ -167,6 +171,9 @@ function createAgentServiceStub(overrides?: {
 				running: false,
 				unsubscribe: () => undefined,
 			})),
+		getRunEvents:
+			overrides?.getRunEvents ??
+			(async () => []),
 		getConversationHistory:
 			overrides?.getConversationHistory ??
 			(async (conversationId) => ({
@@ -641,43 +648,45 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.process-note\s*\{[\s\S]*width: 100%;/);
 	assert.match(response.body, /\.process-note-text\s*\{[\s\S]*padding: 0 18px;/);
 	assert.match(response.body, /\.process-note-text\s*\{[\s\S]*text-align: left;/);
-	assert.match(response.body, /assistant-process-shell/);
-	assert.match(response.body, /assistant-process-toggle/);
-	assert.match(response.body, /assistant-process-body/);
-	assert.match(response.body, /assistant-process-current-action/);
+	assert.match(response.body, /assistant-status-shell/);
+	assert.match(response.body, /assistant-status-summary/);
+	assert.match(response.body, /assistant-run-log-trigger/);
+	assert.match(response.body, /assistant-run-log-hint/);
+	assert.match(response.body, /chat-run-log-dialog/);
+	assert.match(response.body, /chat-run-log-body/);
 	assert.match(response.body, /conversation-item-delete/);
 	assert.match(response.body, /confirm-dialog/);
 	assert.match(response.body, /confirm-dialog-title/);
 	assert.match(response.body, /confirm-dialog-confirm/);
 	assert.match(response.body, /function openConfirmDialog\(options\)/);
 	assert.match(response.body, /function closeConfirmDialog\(confirmed\)/);
-	assert.match(response.body, /\.assistant-process-shell\s*\{[\s\S]*border:\s*0;/);
-	assert.match(response.body, /\.assistant-process-shell\s*\{[\s\S]*background:\s*rgba\(9, 13, 22, 0\.92\);/);
-	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-head\s*\{[\s\S]*justify-content:\s*flex-end;/);
-	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-head strong\s*\{[\s\S]*display:\s*none;/);
-	assert.match(response.body, /\.assistant-process-narration\s*\{[\s\S]*max-height:\s*calc\(1\.6em \* 5 \+ 8px \* 4\);/);
-	assert.match(response.body, /\.assistant-process-narration\s*\{[\s\S]*overflow:\s*auto;/);
-	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-narration\s*\{[\s\S]*display:\s*none;/);
-	assert.match(response.body, /\.assistant-process-current\s*\{[^}]*border-top:\s*1px solid rgba\(255, 255, 255, 0\.08\);/);
-	assert.match(response.body, /\.assistant-process-current\s*\{[^}]*padding-top:\s*10px;/);
-	assert.doesNotMatch(response.body, /\.assistant-process-current\s*\{[^}]*background:\s*rgba\(14, 20, 33, 0\.96\);/);
-	assert.doesNotMatch(response.body, /\.assistant-process-current\s*\{[^}]*border-radius:\s*4px;/);
-	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-current\s*\{[^}]*border-top:\s*0;/);
-	assert.match(response.body, /\.assistant-process-shell\[data-process-expanded="false"\] \.assistant-process-current\s*\{[^}]*padding-top:\s*0;/);
-	assert.match(response.body, /\.assistant-process-current-action\s*\{[\s\S]*min-height:\s*calc\(1\.6em \* 2\);/);
-	assert.match(response.body, /\.assistant-process-current-action\s*\{[\s\S]*max-height:\s*calc\(1\.6em \* 2\);/);
-	assert.match(response.body, /\.assistant-process-current-action\s*\{[\s\S]*-webkit-line-clamp:\s*2;/);
+	assert.match(response.body, /\.assistant-status-shell\s*\{[\s\S]*display:\s*grid;/);
+	assert.match(response.body, /\.assistant-status-shell\s*\{[\s\S]*gap:\s*10px;/);
+	assert.match(response.body, /\.assistant-status-summary\s*\{[\s\S]*max-width:\s*min\(100%, 560px\);/);
+	assert.match(response.body, /\.assistant-status-summary\s*\{[\s\S]*font-size:\s*12px;/);
+	assert.match(response.body, /\.assistant-status-summary\s*\{[\s\S]*overflow:\s*hidden;/);
+	assert.match(response.body, /\.assistant-status-summary\s*\{[\s\S]*text-overflow:\s*ellipsis;/);
+	assert.match(response.body, /\.assistant-status-summary\s*\{[\s\S]*white-space:\s*nowrap;/);
+	assert.match(response.body, /\.assistant-loading-bubble\s*\{[\s\S]*display:\s*inline-flex;/);
+	assert.match(response.body, /\.assistant-loading-bubble\s*\{[\s\S]*max-width:\s*fit-content;/);
+	assert.doesNotMatch(response.body, /assistant-loading-label/);
+	assert.match(response.body, /\.assistant-run-log-trigger\s*\{\s*cursor:\s*pointer;/);
+	assert.match(response.body, /\.assistant-run-log-trigger:disabled\s*\{[\s\S]*opacity:\s*0\.64;/);
+	assert.match(response.body, /\.chat-run-log-dialog\s*\{[\s\S]*place-items:\s*center;/);
+	assert.match(response.body, /\.chat-run-log-body\s*\{[\s\S]*overflow:\s*auto;/);
 	assert.match(response.body, /function updateStreamingProcess\(kind, title, detail\)\s*\{\s*appendProcessNarrationLine\(describeProcessNarration\(kind, title, detail\)\);\s*setProcessCurrentAction\(formatProcessAction\(title, detail\), kind\);\s*\}/);
 	assert.match(response.body, /function ensureStreamingAssistantMessage\(\)\s*\{[\s\S]*appendTranscriptMessage\("assistant", /);
 	assert.doesNotMatch(response.body, /withProcess:\s*true/);
 	assert.match(response.body, /function attachAssistantProcessShell\(body, content\)/);
-	assert.match(response.body, /shell\.dataset\.processExpanded = "true"/);
-	assert.match(response.body, /toggle\.setAttribute\("aria-expanded", "true"\)/);
-	assert.match(response.body, /narration\.scrollTop = narration\.scrollHeight/);
-	assert.match(response.body, /stream\.narration\.scrollTop = stream\.narration\.scrollHeight/);
+	assert.match(response.body, /function buildAssistantStatusShell\(\)/);
+	assert.match(response.body, /function formatProcessSummaryForStatus\(process\)/);
+	assert.match(response.body, /function openChatRunLog\(runId, restoreFocusElement\)/);
+	assert.match(response.body, /\/v1\/chat\/runs\//);
+	assert.doesNotMatch(response.body, /stream\.summary\.textContent = process\.narration\.at\(-1\)/);
 	assert.match(response.body, /function setTranscriptState\(next\)\s*\{/);
 	assert.match(response.body, /function syncConversationWidth\(\)\s*\{/);
 	assert.match(response.body, /composerDropTarget\.getBoundingClientRect\(\)\.width/);
+	assert.match(response.body, /function formatProcessAction\(title, detail\)\s*\{[\s\S]*summarizeDetail\(detail\)\.summary/);
 	assert.match(response.body, /async function sendMessage\(\)\s*\{[\s\S]*setTranscriptState\("active"\);[\s\S]*resetStreamingState\(\);/);
 	assert.match(response.body, /const composerDraft = createComposerDraft\(\);/);
 	assert.match(response.body, /updateStreamingProcess\("system", [\s\S]*formatOutboundSummary\(message, attachments, assetRefs\)\);[\s\S]*clearComposerDraft\(\);/);
@@ -1368,6 +1377,8 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /const MAX_ARCHIVED_TRANSCRIPTS = 4;/);
 	assert.match(response.body, /conversationState\?\.viewMessages/);
 	assert.match(response.body, /renderedMessages\.get\(activeRun\.assistantMessageId\)/);
+	assert.match(response.body, /function findRenderedAssistantForActiveRun\(activeRun\)\s*\{/);
+	assert.match(response.body, /String\(entry\.runId \|\| ""\)\.trim\(\) === runId/);
 	assert.doesNotMatch(response.body, /usesServerViewMessages/);
 	assert.doesNotMatch(response.body, /id: "active-input-" \+ activeRun\.runId/);
 	assert.doesNotMatch(response.body, /function isActiveRunAlreadyRepresentedByHistory\(activeRun\)\s*\{/);
@@ -1802,10 +1813,9 @@ test("GET /playground shows an explicit assistant loading bubble while a run is 
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.match(response.body, /assistant-loading-shell/);
-	assert.match(response.body, /assistant-loading-label/);
+	assert.match(response.body, /assistant-status-shell/);
 	assert.match(response.body, /assistant-loading-dots/);
-	assert.match(response.body, /function ensureAssistantLoadingBubble\(\)\s*\{/);
+	assert.match(response.body, /function ensureAssistantStatusShell\(\)\s*\{/);
 	assert.match(response.body, /function setAssistantLoadingState\(text, kind\)\s*\{/);
 	assert.match(response.body, /function completeAssistantLoadingBubble\(kind, text\)\s*\{/);
 	assert.match(response.body, /case "run_started":[\s\S]*ensureStreamingAssistantMessage\(\);[\s\S]*setAssistantLoadingState\(/);
@@ -1984,7 +1994,10 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
 	assert.match(response.body, /async function syncConversationRunState\(conversationId, options\)\s*\{/);
 	assert.match(response.body, /async function recoverRunningStreamAfterDisconnect\(reason\)\s*\{/);
+	assert.match(response.body, /function reconcileSyncedConversationState\(payload, conversationId, options\)\s*\{/);
+	assert.match(response.body, /function isTerminalRunEvent\(event\)\s*\{/);
 	assert.match(response.body, /function buildConversationStateSignature\(conversationState\)\s*\{/);
+	assert.match(response.body, /let rendered = findRenderedAssistantForActiveRun\(activeRun\);/);
 	assert.doesNotMatch(response.body, /function formatRecoveredRunMessage\(\)\s*\{/);
 	assert.doesNotMatch(response.body, /function normalizeProcessSnapshot\(rawProcess\)\s*\{/);
 	assert.doesNotMatch(response.body, /function restoreProcessSnapshot\(entry, rendered, options\)\s*\{/);
@@ -1995,6 +2008,11 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /filter\(\(entry\) => !isTransientNetworkHistoryEntry\(entry\)\)/);
 	assert.match(response.body, /setAssistantLoadingState\("[^"]+", "system"\)/);
 	assert.match(response.body, /void attachActiveRunEventStream\(nextConversationId\)/);
+	assert.match(response.body, /return reconcileSyncedConversationState\(payload, nextConversationId, options\);/);
+	assert.match(
+		response.body,
+		/reconcileSyncedConversationState\(payload, nextConversationId, options\);[\s\S]*scheduleConversationHistoryPersist\(nextConversationId\);/,
+	);
 	assert.doesNotMatch(response.body, /__legacy_previous_run_banner__/);
 	assert.doesNotMatch(response.body, /const liveRunState = await syncConversationRunState\(state\.conversationId, \{/);
 	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("missing_done"\);/);
@@ -2002,6 +2020,11 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /const previousSignature = buildConversationStateSignature\(state\.conversationState\);/);
 	assert.match(response.body, /const nextSignature = buildConversationStateSignature\(state\.conversationState\);/);
 	assert.match(response.body, /nextSignature !== previousSignature \|\| Boolean\(state\.conversationState\?\.activeRun\)/);
+	assert.match(response.body, /shouldRecoverFromCanonicalState = !receivedTerminalEvent;/);
+	assert.match(
+		response.body,
+		/void restoreConversationHistoryFromServer\(nextConversationId, \{[\s\S]*silent: true,[\s\S]*clearIfIdle: true,[\s\S]*attachIfRunning: true,[\s\S]*\}\);/,
+	);
 	assert.match(response.body, /if \(!state\.pageUnloading && !handoffToRunEvents\) \{/);
 	assert.match(response.body, /document\.addEventListener\("visibilitychange"/);
 	assert.match(response.body, /window\.addEventListener\("pageshow"/);
@@ -3797,6 +3820,64 @@ test("GET /v1/chat/events attaches to the current active run event stream", asyn
 	assert.match(response.body, /"type":"text_delta"/);
 	assert.match(response.body, /"type":"done"/);
 	assert.deepEqual(calls, ["manual:events", "unsubscribed"]);
+	await app.close();
+});
+
+test("GET /v1/chat/runs/:runId/events returns buffered chat run events", async () => {
+	const calls: Array<{ conversationId: string; runId: string }> = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			getRunEvents: async (conversationId, runId) => {
+				calls.push({ conversationId, runId });
+				return [
+					{
+						type: "run_started",
+						conversationId,
+					},
+					{
+						type: "tool_started",
+						toolCallId: "tool-1",
+						toolName: "weather",
+						args: '{"city":"Shanghai"}',
+					},
+					{
+						type: "done",
+						conversationId,
+						text: "sunny",
+					},
+				];
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/chat/runs/run-chat-1/events?conversationId=manual:events",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		conversationId: "manual:events",
+		runId: "run-chat-1",
+		events: [
+			{
+				type: "run_started",
+				conversationId: "manual:events",
+			},
+			{
+				type: "tool_started",
+				toolCallId: "tool-1",
+				toolName: "weather",
+				args: '{"city":"Shanghai"}',
+			},
+			{
+				type: "done",
+				conversationId: "manual:events",
+				text: "sunny",
+			},
+		],
+	});
+	assert.deepEqual(calls, [{ conversationId: "manual:events", runId: "run-chat-1" }]);
 	await app.close();
 });
 

@@ -172,16 +172,13 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			rendered.copyButton.disabled = !String(entry.text || "").trim();
 		}
 
+
 		function buildAssistantLoadingBubble() {
-			const shell = document.createElement("div");
-			shell.className = "assistant-loading-shell is-running system";
-
-			const bubble = document.createElement("div");
-			bubble.className = "assistant-loading-bubble";
-
-			const label = document.createElement("span");
-			label.className = "assistant-loading-label";
-			label.textContent = "正在等待响应";
+			const bubble = document.createElement("button");
+			bubble.type = "button";
+			bubble.className = "assistant-loading-bubble assistant-run-log-trigger";
+			bubble.setAttribute("aria-label", "查看本轮运行日志");
+			bubble.title = "查看运行日志";
 
 			const dots = document.createElement("span");
 			dots.className = "assistant-loading-dots";
@@ -193,36 +190,103 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				dots.appendChild(dot);
 			}
 
-			bubble.appendChild(label);
-			bubble.appendChild(dots);
-			shell.appendChild(bubble);
+			const hint = document.createElement("span");
+			hint.className = "assistant-run-log-hint";
+			hint.textContent = "查看运行日志";
 
-			return { shell, label, dots };
+			bubble.appendChild(dots);
+			bubble.appendChild(hint);
+			return { bubble, dots, hint };
 		}
 
-		function attachAssistantLoadingBubble(body, content) {
-			const stream = buildAssistantLoadingBubble();
-			if (content.parentElement === body && content.nextSibling) {
-				body.insertBefore(stream.shell, content.nextSibling);
+		function setRunLogTriggerStatus(trigger, text) {
+			if (!trigger) {
+				return;
+			}
+			const normalizedText = String(text || "").trim();
+			const baseLabel = "查看本轮运行日志";
+			trigger.setAttribute("aria-label", normalizedText ? baseLabel + "，当前状态：" + normalizedText : baseLabel);
+			trigger.title = "查看运行日志";
+		}
+
+		function setConversationEntryRunId(entryId, runId) {
+			const nextRunId = String(runId || "").trim() || undefined;
+			const historyEntry = state.conversationHistory.find((entry) => entry.id === entryId);
+			if (!historyEntry) {
+				return;
+			}
+			historyEntry.runId = nextRunId;
+			rememberConversationMessage(historyEntry);
+		}
+
+		function updateRunLogTrigger(trigger, runId) {
+			if (!trigger) {
+				return;
+			}
+			const nextRunId = String(runId || "").trim();
+			if (nextRunId) {
+				trigger.dataset.runId = nextRunId;
+				trigger.disabled = false;
+			} else {
+				delete trigger.dataset.runId;
+				trigger.disabled = true;
+			}
+		}
+
+		function buildAssistantStatusShell() {
+			const shell = document.createElement("section");
+			shell.className = "assistant-status-shell is-running system";
+
+			const summary = document.createElement("p");
+			summary.className = "assistant-status-summary";
+			summary.textContent = "收到，我先帮你处理一下。";
+
+			const loading = buildAssistantLoadingBubble();
+			loading.bubble.addEventListener("click", () => {
+				const runId = String(loading.bubble.dataset.runId || "").trim();
+				if (!runId) {
+					return;
+				}
+				void openChatRunLog(runId, loading.bubble);
+			});
+
+			shell.appendChild(summary);
+			shell.appendChild(loading.bubble);
+			return {
+				shell,
+				summary,
+				trigger: loading.bubble,
+				dots: loading.dots,
+			};
+		}
+
+		function attachAssistantStatusShell(body, content) {
+			const stream = buildAssistantStatusShell();
+			if (content.parentElement === body) {
+				body.insertBefore(stream.shell, content);
 			} else {
 				body.appendChild(stream.shell);
 			}
 
+			state.activeStatusShell = stream.shell;
+			state.activeStatusSummary = stream.summary;
 			state.activeLoadingShell = stream.shell;
-			state.activeLoadingLabel = stream.label;
 			state.activeLoadingDots = stream.dots;
+			state.activeRunLogTrigger = stream.trigger;
 			return stream;
 		}
 
-		function ensureAssistantLoadingBubble() {
+		function ensureAssistantStatusShell() {
 			if (
-				state.activeLoadingShell?.isConnected &&
-				state.activeLoadingLabel?.isConnected &&
-				state.activeLoadingDots?.isConnected
+				state.activeStatusShell?.isConnected &&
+				state.activeStatusSummary?.isConnected &&
+				state.activeLoadingDots?.isConnected &&
+				state.activeRunLogTrigger?.isConnected
 			) {
 				return {
-					shell: state.activeLoadingShell,
-					label: state.activeLoadingLabel,
+					shell: state.activeStatusShell,
+					summary: state.activeStatusSummary,
+					trigger: state.activeRunLogTrigger,
 					dots: state.activeLoadingDots,
 				};
 			}
@@ -233,34 +297,43 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				throw new Error("assistant message body is unavailable");
 			}
 
-			return attachAssistantLoadingBubble(body, content);
+			return attachAssistantStatusShell(body, content);
+		}
+
+		function setAssistantStatusSummary(text, kind) {
+			const summaryText = String(text || "").trim() || "收到，我先帮你看一下。";
+			const stream = ensureAssistantStatusShell();
+			stream.summary.textContent = summaryText;
+			stream.shell.classList.remove("tool", "ok", "warn", "error", "system");
+			stream.shell.classList.add(kind || "system");
+			scrollTranscriptToBottom();
 		}
 
 		function setAssistantLoadingState(text, kind) {
-			const labelText = String(text || "").trim() || "正在等待响应";
-			const stream = ensureAssistantLoadingBubble();
-			stream.label.textContent = labelText;
+			const labelText = String(text || "").trim() || "?????";
+			const stream = ensureAssistantStatusShell();
+			setRunLogTriggerStatus(stream.trigger, labelText);
 			stream.dots.hidden = false;
 			stream.shell.classList.remove("tool", "ok", "warn", "error", "system");
 			stream.shell.classList.add(kind || "system");
 			stream.shell.classList.add("is-running");
 			stream.shell.classList.remove("is-complete");
+			updateRunLogTrigger(stream.trigger, state.activeRunId);
 			scrollTranscriptToBottom();
 		}
 
 		function completeAssistantLoadingBubble(kind, text) {
-			if (!state.activeLoadingShell || !state.activeLoadingLabel || !state.activeLoadingDots) {
+			if (!state.activeStatusShell || !state.activeLoadingDots || !state.activeRunLogTrigger) {
 				return;
 			}
 
-			if (text) {
-				state.activeLoadingLabel.textContent = text;
-			}
+			setRunLogTriggerStatus(state.activeRunLogTrigger, text);
 			state.activeLoadingDots.hidden = true;
-			state.activeLoadingShell.classList.remove("tool", "ok", "warn", "error", "system");
-			state.activeLoadingShell.classList.add(kind || "ok");
-			state.activeLoadingShell.classList.remove("is-running");
-			state.activeLoadingShell.classList.add("is-complete");
+			state.activeStatusShell.classList.remove("tool", "ok", "warn", "error", "system");
+			state.activeStatusShell.classList.add(kind || "ok");
+			state.activeStatusShell.classList.remove("is-running");
+			state.activeStatusShell.classList.add("is-complete");
+			updateRunLogTrigger(state.activeRunLogTrigger, state.activeRunId);
 			scrollTranscriptToBottom();
 		}
 
@@ -306,7 +379,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				runButton.className = "conn-run-open-button";
 				runButton.setAttribute("aria-label", "查看后台任务过程");
 				runButton.title = "查看后台任务过程";
-				runButton.textContent = "⌕";
+				runButton.textContent = "查";
 				runButton.addEventListener("click", () => {
 					void openConnRunDetails(entry);
 				});
@@ -364,11 +437,14 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				body,
 				content,
 				copyButton: messageActions.copyButton,
-				processShell: null,
-				processNarration: null,
-				processAction: null,
+				statusShell: null,
+				statusSummary: null,
+				statusTrigger: null,
 			};
 			renderedMessages.set(entry.id, rendered);
+			if (entry.runId) {
+				card.dataset.runId = entry.runId;
+			}
 			syncMessageCopyButton(entry);
 			return rendered;
 		}
@@ -380,38 +456,34 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			}
 
 			let stream;
-			if (rendered.processShell?.isConnected && rendered.processNarration && rendered.processAction) {
+			if (rendered.statusShell?.isConnected && rendered.statusSummary && rendered.statusTrigger) {
 				stream = {
-					shell: rendered.processShell,
-					narration: rendered.processNarration,
-					action: rendered.processAction,
+					shell: rendered.statusShell,
+					summary: rendered.statusSummary,
+					trigger: rendered.statusTrigger,
 				};
 			} else {
-				stream = buildAssistantProcessShell();
-				rendered.body.insertBefore(stream.shell, rendered.content);
-				rendered.processShell = stream.shell;
-				rendered.processNarration = stream.narration;
-				rendered.processAction = stream.action;
+				stream = attachAssistantStatusShell(rendered.body, rendered.content);
+				rendered.statusShell = stream.shell;
+				rendered.statusSummary = stream.summary;
+				rendered.statusTrigger = stream.trigger;
 			}
 
-			stream.narration.innerHTML = "";
-			for (const lineText of process.narration) {
-				const line = document.createElement("p");
-				line.className = "assistant-process-line";
-				line.textContent = lineText;
-				stream.narration.appendChild(line);
-			}
-			stream.narration.scrollTop = stream.narration.scrollHeight;
-			stream.action.textContent = process.currentAction || "等待动作";
+			const restoredSummary = formatProcessSummaryForStatus(process);
+			stream.summary.textContent = restoredSummary || "收到，我正在处理这件事。";
+			updateRunLogTrigger(stream.trigger, state.activeRunId);
 			stream.shell.classList.remove("tool", "ok", "error", "warn", "system", "is-running", "is-complete");
 			stream.shell.classList.add(process.kind || "system");
 			stream.shell.classList.add(options?.running || !process.isComplete ? "is-running" : "is-complete");
+			setRunLogTriggerStatus(stream.trigger, process.currentAction || "????");
+			if (state.activeLoadingDots) {
+				state.activeLoadingDots.hidden = !options?.running && process.isComplete;
+			}
 
 			if (options?.activate) {
-				state.activeProcessShell = stream.shell;
-				state.activeProcessNarration = stream.narration;
-				state.activeProcessAction = stream.action;
-				state.lastProcessNarration = process.narration.at(-1) || "";
+				state.activeStatusShell = stream.shell;
+				state.activeStatusSummary = stream.summary;
+				state.lastProcessNarration = restoredSummary || "";
 			}
 
 			return stream;
@@ -457,100 +529,33 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			const rendered = renderTranscriptEntry(entry);
 			state.renderedHistoryCount = Math.min(state.conversationHistory.length, state.renderedHistoryCount + 1);
 			syncHistoryLoadMoreButton();
-			const stream = buildAssistantProcessShell();
-			rendered.body.insertBefore(stream.shell, rendered.content);
-			attachAssistantLoadingBubble(rendered.body, rendered.content);
+			const stream = attachAssistantStatusShell(rendered.body, rendered.content);
+			rendered.statusShell = stream.shell;
+			rendered.statusSummary = stream.summary;
+			rendered.statusTrigger = stream.trigger;
 			scrollTranscriptToBottom();
 
 			return {
 				entry,
 				content: rendered.content,
 				shell: stream.shell,
-				narration: stream.narration,
-				action: stream.action,
+				narration: stream.summary,
+				action: stream.trigger,
 			};
 		}
 
-		function buildAssistantProcessShell() {
-			const shell = document.createElement("section");
-			shell.className = "assistant-process-shell is-running system";
-			shell.dataset.processExpanded = "true";
-
-			const head = document.createElement("div");
-			head.className = "assistant-process-head";
-
-			const title = document.createElement("strong");
-			title.textContent = "思考过程";
-
-			const toggle = document.createElement("button");
-			toggle.type = "button";
-			toggle.className = "assistant-process-toggle";
-			toggle.textContent = "收起";
-			toggle.setAttribute("aria-expanded", "true");
-
-			const body = document.createElement("div");
-			body.className = "assistant-process-body";
-
-			const narration = document.createElement("div");
-			narration.className = "assistant-process-narration";
-
-			const current = document.createElement("div");
-			current.className = "assistant-process-current";
-
-			const label = document.createElement("span");
-			label.className = "assistant-process-current-label";
-			label.textContent = "当前动作";
-
-			const action = document.createElement("pre");
-			action.className = "assistant-process-current-action";
-			action.textContent = "等待动作";
-
-			toggle.addEventListener("click", () => {
-				const nextExpanded = shell.dataset.processExpanded !== "true";
-				shell.dataset.processExpanded = nextExpanded ? "true" : "false";
-				toggle.textContent = nextExpanded ? "收起" : "展开";
-				toggle.setAttribute("aria-expanded", nextExpanded ? "true" : "false");
-				if (nextExpanded) {
-					narration.scrollTop = narration.scrollHeight;
-				}
-				scrollTranscriptToBottom();
-			});
-
-			current.appendChild(label);
-			current.appendChild(action);
-			head.appendChild(title);
-			head.appendChild(toggle);
-			body.appendChild(narration);
-			body.appendChild(current);
-			shell.appendChild(head);
-			shell.appendChild(body);
-
-			return { shell, narration, action };
-		}
-
 		function attachAssistantProcessShell(body, content) {
-			const stream = buildAssistantProcessShell();
-			const processShell = stream.shell;
-			if (content.parentElement === body) {
-				body.insertBefore(processShell, content);
-			} else {
-				body.appendChild(processShell);
-			}
-
-			state.activeProcessShell = processShell;
-			state.activeProcessNarration = stream.narration;
-			state.activeProcessAction = stream.action;
+			const stream = attachAssistantStatusShell(body, content);
 			state.lastProcessNarration = "";
-
 			return stream;
 		}
 
 		function ensureProcessStreamCard() {
-			if (state.activeProcessNarration && state.activeProcessAction && state.activeProcessShell) {
+			if (state.activeStatusSummary && state.activeRunLogTrigger && state.activeStatusShell) {
 				return {
-					shell: state.activeProcessShell,
-					narration: state.activeProcessNarration,
-					action: state.activeProcessAction,
+					shell: state.activeStatusShell,
+					narration: state.activeStatusSummary,
+					action: state.activeRunLogTrigger,
 				};
 			}
 
@@ -564,13 +569,13 @@ export function getPlaygroundTranscriptRendererScript(): string {
 		}
 
 		function completeProcessStream() {
-			if (!state.activeProcessShell) {
+			if (!state.activeStatusShell) {
 				return;
 			}
 			completeAssistantProcessShell({
-				shell: state.activeProcessShell,
-				narration: state.activeProcessNarration,
-				action: state.activeProcessAction,
+				shell: state.activeStatusShell,
+				narration: state.activeStatusSummary,
+				action: state.activeRunLogTrigger,
 			});
 		}
 
@@ -578,12 +583,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			if (!stream?.narration) {
 				return;
 			}
-
-			const line = document.createElement("p");
-			line.className = "assistant-process-line";
-			line.textContent = text;
-			stream.narration.appendChild(line);
-			stream.narration.scrollTop = stream.narration.scrollHeight;
+			stream.narration.textContent = String(text || "").trim() || "收到，我正在继续推进。";
 			scrollTranscriptToBottom();
 		}
 
@@ -592,9 +592,10 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				return;
 			}
 
-			stream.action.textContent = String(text || "").trim() || "等待动作";
+			setRunLogTriggerStatus(state.activeRunLogTrigger, text);
 			stream.shell.classList.remove("tool", "ok", "error", "warn", "system");
 			stream.shell.classList.add(kind || "system");
+			updateRunLogTrigger(stream.action, state.activeRunId);
 			scrollTranscriptToBottom();
 		}
 
@@ -609,6 +610,10 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			}
 			stream.shell.classList.remove("is-running");
 			stream.shell.classList.add("is-complete");
+			if (state.activeLoadingDots) {
+				state.activeLoadingDots.hidden = true;
+			}
+			updateRunLogTrigger(stream.action, state.activeRunId);
 			scrollTranscriptToBottom();
 		}
 
@@ -627,6 +632,198 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			const actionText = String(text || "").trim() || "等待动作";
 			const stream = ensureProcessStreamCard();
 			setAssistantProcessAction(stream, actionText, kind);
+		}
+
+		function formatProcessSummaryForStatus(process) {
+			const latestEntry =
+				process && Array.isArray(process.entries) && process.entries.length > 0
+					? process.entries[process.entries.length - 1]
+					: null;
+			if (latestEntry && typeof latestEntry === "object") {
+				const detailSummary = summarizeDetail(latestEntry.detail).summary;
+				if (latestEntry.title === "任务开始") {
+					return "我开始处理这条请求，先确认上下文和可用工具。";
+				}
+				if (latestEntry.title === "工具开始") {
+					return "我现在尝试调用 " + (latestEntry.toolName || "工具") + "，看看能不能拿到需要的信息。";
+				}
+				if (latestEntry.title === "工具更新") {
+					return detailSummary && detailSummary !== "无详情"
+						? "我拿到了新的执行片段，当前看到的是：" + detailSummary
+						: "我拿到了新的执行片段，继续沿着这条线往下推进。";
+				}
+				if (latestEntry.title === "工具结束") {
+					return latestEntry.isError
+						? "这一步没有完全走通，我换个角度继续。"
+						: detailSummary && detailSummary !== "无详情"
+							? "这一步已经完成，当前结果是：" + detailSummary
+							: "这一步已经完成，我开始整理下一步。";
+				}
+				if (latestEntry.title === "队列更新") {
+					return String(latestEntry.detail || "").includes("转向消息: 0")
+						? "我收到了一条排队补充，等当前步骤结束后继续处理。"
+						: "我收到新的转向要求，当前步骤结束后就会切过去。";
+				}
+				if (latestEntry.title === "任务完成") {
+					return "结果已经准备好了。";
+				}
+				if (latestEntry.title === "任务已打断") {
+					return "当前任务已经停下来了，我先把执行状态收住。";
+				}
+				if (latestEntry.title === "任务错误") {
+					return "这次执行遇到了问题，我把错误保留下来方便你判断。";
+				}
+				if (detailSummary && detailSummary !== "无详情") {
+					return latestEntry.title + "，" + detailSummary;
+				}
+				if (latestEntry.title) {
+					return latestEntry.title;
+				}
+			}
+
+			const fallbackNarration =
+				process && Array.isArray(process.narration) && process.narration.length > 0
+					? process.narration[process.narration.length - 1]
+					: "";
+			const fallbackSummary = summarizeDetail(fallbackNarration).summary;
+			return fallbackSummary && fallbackSummary !== "无详情" ? fallbackSummary : "";
+		}
+
+		function formatChatRunEventTitle(event) {
+			switch (event?.type) {
+				case "run_started":
+					return "任务开始";
+				case "text_delta":
+					return "正文增量";
+				case "tool_started":
+					return "工具开始";
+				case "tool_updated":
+					return "工具更新";
+				case "tool_finished":
+					return event.isError ? "工具失败" : "工具完成";
+				case "queue_updated":
+					return "队列更新";
+				case "interrupted":
+					return "任务已打断";
+				case "done":
+					return "任务完成";
+				case "error":
+					return "任务错误";
+				default:
+					return String(event?.type || "event");
+			}
+		}
+
+		function formatChatRunEventDetail(event) {
+			switch (event?.type) {
+				case "run_started":
+					return event.conversationId || "";
+				case "text_delta":
+					return event.textDelta || "";
+				case "tool_started":
+					return [event.toolName, event.args].filter(Boolean).join("\\n");
+				case "tool_updated":
+					return [event.toolName, event.partialResult].filter(Boolean).join("\\n");
+				case "tool_finished":
+					return [event.toolName, event.result].filter(Boolean).join("\\n");
+				case "queue_updated":
+					return "转向消息 " + (event.steering?.length || 0) + "\\n追加消息 " + (event.followUp?.length || 0);
+				case "interrupted":
+					return event.conversationId || "";
+				case "done":
+					return [event.text, event.sessionFile].filter(Boolean).join("\\n");
+				case "error":
+					return event.message || "";
+				default:
+					return JSON.stringify(event, null, 2);
+			}
+		}
+
+		async function fetchChatRunEvents(conversationId, runId) {
+			const response = await fetch(
+				"/v1/chat/runs/" +
+					encodeURIComponent(runId) +
+					"/events?conversationId=" +
+					encodeURIComponent(conversationId),
+				{
+					method: "GET",
+					headers: { accept: "application/json" },
+				},
+			);
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法读取运行日志";
+				throw new Error(errorMessage);
+			}
+			return Array.isArray(payload?.events) ? payload.events : [];
+		}
+
+		function closeChatRunLog() {
+			if (chatRunLogDialog.hidden) {
+				return false;
+			}
+			chatRunLogDialog.classList.remove("open");
+			chatRunLogDialog.hidden = true;
+			chatRunLogDialog.setAttribute("aria-hidden", "true");
+			restoreFocusAfterPanelClose(chatRunLogDialog, state.chatRunLogRestoreFocusElement);
+			state.chatRunLogRestoreFocusElement = null;
+			return true;
+		}
+
+		function renderChatRunLog(conversationId, runId, events) {
+			chatRunLogTitle.textContent = "运行日志";
+			chatRunLogBody.innerHTML = "";
+
+			const meta = document.createElement("div");
+			meta.className = "chat-run-log-meta";
+			meta.textContent = "会话 " + conversationId + " · 运行 " + runId;
+			chatRunLogBody.appendChild(meta);
+
+			if (!Array.isArray(events) || events.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "chat-run-log-empty";
+				empty.textContent = "这一轮还没有可以展示的运行日志。";
+				chatRunLogBody.appendChild(empty);
+				return;
+			}
+
+			const list = document.createElement("div");
+			list.className = "chat-run-log-list";
+			for (const event of events) {
+				const item = document.createElement("article");
+				item.className = "chat-run-log-item";
+				const title = document.createElement("strong");
+				title.className = "chat-run-log-item-title";
+				title.textContent = formatChatRunEventTitle(event);
+				const detail = document.createElement("pre");
+				detail.className = "chat-run-log-item-detail";
+				detail.textContent = formatChatRunEventDetail(event);
+				item.appendChild(title);
+				item.appendChild(detail);
+				list.appendChild(item);
+			}
+			chatRunLogBody.appendChild(list);
+		}
+
+		async function openChatRunLog(runId, restoreFocusElement) {
+			const nextRunId = String(runId || "").trim();
+			const conversationId = String(state.conversationId || "").trim();
+			if (!nextRunId || !conversationId) {
+				return;
+			}
+
+			state.chatRunLogRestoreFocusElement = rememberPanelReturnFocus(restoreFocusElement);
+			chatRunLogDialog.hidden = false;
+			chatRunLogDialog.classList.add("open");
+			chatRunLogDialog.setAttribute("aria-hidden", "false");
+			chatRunLogBody.textContent = "正在读取运行日志...";
+
+			try {
+				const events = await fetchChatRunEvents(conversationId, nextRunId);
+				renderChatRunLog(conversationId, nextRunId, events);
+			} catch (error) {
+				chatRunLogBody.textContent = error instanceof Error ? error.message : "无法读取运行日志";
+			}
 		}
 
 		async function copyTextToClipboard(text) {
@@ -714,7 +911,17 @@ export function getPlaygroundTranscriptRendererScript(): string {
 
 		function ensureStreamingAssistantMessage() {
 			if (!state.activeAssistantContent) {
-				state.activeAssistantContent = appendTranscriptMessage("assistant", "助手", "");
+				state.activeAssistantContent = appendTranscriptMessage("assistant", "助手", "", {
+					runId: state.activeRunId || undefined,
+				});
+			}
+			const entryId = state.activeAssistantContent?.dataset?.entryId;
+			if (entryId && state.activeRunId) {
+				setConversationEntryRunId(entryId, state.activeRunId);
+				const rendered = renderedMessages.get(entryId);
+				if (rendered?.card) {
+					rendered.card.dataset.runId = state.activeRunId;
+				}
 			}
 			return state.activeAssistantContent;
 		}
@@ -722,6 +929,19 @@ export function getPlaygroundTranscriptRendererScript(): string {
 		function bindPlaygroundTranscriptRenderer() {
 			transcriptCurrent.querySelectorAll(".message-content").forEach((content) => {
 				hydrateMarkdownContent(content);
+			});
+			chatRunLogClose?.addEventListener("click", () => {
+				closeChatRunLog();
+			});
+			chatRunLogDialog?.addEventListener("click", (event) => {
+				if (event.target === chatRunLogDialog) {
+					closeChatRunLog();
+				}
+			});
+			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape" && !chatRunLogDialog?.hidden) {
+					closeChatRunLog();
+				}
 			});
 		}
 	`;

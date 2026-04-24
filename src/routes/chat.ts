@@ -8,6 +8,7 @@ import type {
 	ChatHistoryResponseBody,
 	ChatRequestBody,
 	ChatResponseBody,
+	ChatRunEventsResponseBody,
 	ChatStatusResponseBody,
 	ChatStreamEvent,
 	ConversationStateResponseBody,
@@ -318,6 +319,34 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 
 			if (closed) {
 				subscription.unsubscribe();
+			}
+		},
+	);
+
+	app.get(
+		"/v1/chat/runs/:runId/events",
+		async (
+			request: FastifyRequest<{ Params: { runId?: string }; Querystring: { conversationId?: string } }>,
+			reply,
+		): Promise<ChatRunEventsResponseBody | FastifyReply> => {
+			const { runId } = request.params ?? {};
+			const { conversationId } = request.query ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+			if (!isValidConversationId(runId)) {
+				return sendBadRequest(reply, 'Field "runId" must be a non-empty string');
+			}
+
+			try {
+				return {
+					conversationId,
+					runId,
+					events: await deps.agentService.getRunEvents(conversationId, runId),
+				};
+			} catch (error) {
+				return sendInternalError(reply, error);
 			}
 		},
 	);

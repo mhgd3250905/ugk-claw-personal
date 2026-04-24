@@ -380,6 +380,12 @@ export interface ConversationStateResponseBody {
 	updatedAt: string;
 }
 
+export interface ChatRunEventsResponseBody {
+	conversationId: string;
+	runId: string;
+	events: ChatStreamEvent[];
+}
+
 export type QueueMessageMode = "steer" | "followUp";
 
 export interface QueueMessageRequestBody {
@@ -422,6 +428,7 @@ export type ChatStreamEvent =
 	| {
 			type: "run_started";
 			conversationId: string;
+			runId: string;
 	  }
 	| {
 			type: "text_delta";
@@ -454,10 +461,12 @@ export type ChatStreamEvent =
 	| {
 			type: "interrupted";
 			conversationId: string;
+			runId: string;
 	  }
 	| {
 			type: "done";
 			conversationId: string;
+			runId: string;
 			text: string;
 			sessionFile?: string;
 			inputAssets?: ChatAssetBody[];
@@ -466,6 +475,7 @@ export type ChatStreamEvent =
 	| {
 			type: "error";
 			conversationId: string;
+			runId: string;
 			message: string;
 	  };
 

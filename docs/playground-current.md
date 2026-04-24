@@ -1,6 +1,6 @@
 # Playground 当前状态
 
-更新时间：`2026-04-23`
+更新时间：`2026-04-24`
 
 这份文档只记录当前 `playground` 的真实前端约束，避免下一个人又拿旧截图和过时口径瞎猜。
 
@@ -40,7 +40,7 @@
 - 如果用户是在同一条会话里先看到本地恢复内容、随后又上滑阅读历史，晚到的 canonical `GET /v1/chat/state` 回包也必须保住当前阅读位置；不能因为整段 transcript 重绘或排队中的自动滚底 timer 继续执行，就把页面重新甩回底部
 - 非强制滚底现在会做冷却合并；顶部加载历史的触发阈值也收窄到真正接近顶部，避免滚动过程中反复打断阅读。
 - 浏览器端布局同步、composer textarea 自适应高度、`--conversation-width` / `--command-deck-offset` 更新、transcript 自动跟随、回到底部按钮、顶部加载更多触发、以及 `visibilitychange/pageshow/online` 恢复同步入口集中在 `src/ui/playground-layout-controller.ts`；`src/ui/playground.ts` 只保留主 state、DOM refs 和页面装配
-- 浏览器端 transcript 条目拼装、assistant loading / process shell、正文复制按钮、markdown hydration、代码块 copy toolbar、历史恢复后的消息渲染，以及 `bindPlaygroundTranscriptRenderer()` 初始化入口集中在 `src/ui/playground-transcript-renderer.ts`；`src/ui/playground.ts` 只保留会话恢复、流式事件和这些渲染函数的调用点
+- 浏览器端 transcript 条目拼装、assistant 状态壳层、运行日志入口、正文复制按钮、markdown hydration、代码块 copy toolbar、历史恢复后的消息渲染，以及 `bindPlaygroundTranscriptRenderer()` 初始化入口集中在 `src/ui/playground-transcript-renderer.ts`；`src/ui/playground.ts` 只保留会话恢复、流式事件和这些渲染函数的调用点
 - 浏览器端通知广播 SSE、active run 事件流 attach / teardown、断线恢复、`send / queue / interrupt` 主链路，以及 `bindPlaygroundStreamController()` 初始化入口集中在 `src/ui/playground-stream-controller.ts`；`src/ui/playground.ts` 不再兼任 stream lifecycle 泵站
 - `src/ui/playground.ts` 当前尾部初始化已经收口为 `bindPlaygroundAssemblerEvents()` 与 `initializePlaygroundAssembler()`；旧的 `fetchConversationHistory()` 死 helper 已移除，页面入口不再继续堆散装初始化语句
 - 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
@@ -52,6 +52,11 @@
 - 会话目录同步现在带 `conversationCatalogSyncPromise` 复用与短时 freshness 冷却；切换 / 新建 / 删除会话后优先复用当前 catalog 结果并按需失效，避免把 `/v1/chat/current` 的切换手感拖成重复目录 round-trip
 - 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
 - `GET /v1/chat/state` 必须返回后端已经归并好的 `viewMessages`：服务端负责把 canonical `messages` 与 active / terminal run 合成最终可渲染视图；前端优先渲染 `viewMessages`，不再保留自己补画 active input / active assistant 的兼容分支，否则同一轮刚结束就会显示成“问题 / 回答 / 问题 / 回答”
+- 当前 active run 在 transcript 里只保留一个助手气泡：正文上方是一条会持续改写的人话状态摘要，下面是一枚可点击的动态 loading 气泡；旧的独立“过程展开区”已经下线，不再额外制造第二层消息结构
+- 状态摘要 `assistant-status-summary` 现在固定为单行省略；它负责给人一个稳定的人话进度感，不再允许换行把整条消息高度顶来顶去
+- 运行日志按钮不再显示工具执行结果、bash 输出或 JSON 长文本；页面可见层只保留动态点和“查看运行日志”入口，过程细节只留在运行日志弹层与按钮的辅助文案里
+- 动态 loading 气泡点击后会打开运行日志弹层，并按 `conversationId + runId` 请求 `GET /v1/chat/runs/:runId/events`；任务过程追溯从对话正文里解耦，不再把工具过程当成正文的一部分硬塞进气泡
+- `done / error / interrupted` 终态 run 也会保留 `runId` 和 buffered events；刷新页面后，如果这轮仍是当前 terminal snapshot，用户应该还能从同一条助手气泡继续查看运行日志
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 用户切回旧会话继续发送消息时，后端必须继续复用这条会话原来的 `sessionFile` 上下文；不能因为项目技能目录更新、`skillFingerprint` 变化，就偷偷新开一条空 session 让 agent 当场失忆
 - 从后端 session 恢复已完成任务时，连续的 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并为同一条助手回复；不要让刷新后的页面把同一轮浏览器处理过程拆成多条“助手”气泡
@@ -187,7 +192,7 @@
 - 上下文用量进度环、估算和详情弹层控制器： [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)
 - 会话目录、新建、切换和手机历史抽屉列表控制器： [src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)
 - 布局同步、滚动跟随、回到底部和前后台恢复控制器： [src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)
-- transcript 渲染、markdown hydration、复制正文和过程壳层控制器： [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
+- transcript 渲染、markdown hydration、复制正文、状态壳层和运行日志弹层控制器： [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
 - stream lifecycle、通知 SSE、send / queue / interrupt 控制器： [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
 - transcript 清空必须同时清理 `transcript-current` 和 `transcript-archive`，不要给旧会话 DOM 残留留活口
 - 手机端 topbar、更多菜单和历史抽屉外壳控制器： [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
@@ -255,18 +260,23 @@
 
 ## Refresh Run Recovery
 
-- 刷新页面后，playground 先请求 `GET /v1/chat/conversations` 获取服务端当前会话，再按该 `conversationId` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、过程区、队列和上下文占用作为 canonical state 渲染。
+- `GET /v1/chat/state` 返回的 `viewMessages` 是唯一可信的 transcript 视图；后端必须在 canonical state 里自己处理 terminal run 与 session history 的重叠关系，前端不再负责“看起来像重复就删掉一条”这种补丁式去重。
+- 对 `done / error / interrupted` 这类 terminal run，后端现在按“run 开始前的历史基线 + 本轮实际新增的 canonical history message”判断当前 turn 是否已经落盘，而不是继续拿 assistant 正文文本做模糊比对；这样可以同时避免“正文只差空格/换行却被重复渲染”和“连续两轮都发同一句话时误把当前轮吞掉”这两类相反问题。
+
+- 刷新页面后，playground 先请求 `GET /v1/chat/conversations` 获取服务端当前会话，再按该 `conversationId` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、状态壳层、队列和上下文占用作为 canonical state 渲染。
 - `GET /v1/chat/history` 与 `GET /v1/chat/status` 继续保留兼容，但刷新恢复不再靠前端把 history、status、events、localStorage 和 DOM 指针拼成一份“猜出来的状态”。
 - `/v1/chat/state` 与 `/v1/chat/history` 都会合并连续 assistant 历史消息，保证同一轮完成后的浏览器处理叙述和最终回答恢复为一个助手气泡，而不是刷新后散成多条独立消息。
 - 点击 `新会话` 后，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后以新会话的一次 `GET /v1/chat/state` 作为真源恢复 UI；旧会话保留在历史列表里，不再先额外同步一轮 `GET /v1/chat/conversations` 才给用户切过去。
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
-- `activeRun` 存在时，前端仍只维护一个 active assistant 气泡；但气泡是否出现在 transcript、对应用户输入是否补齐，都以 `viewMessages` 为准，同一 run 不允许拆出多条“助手 / 思考过程”消息。
+- `activeRun` 存在时，前端仍只维护一个 active assistant 气泡；但气泡是否出现在 transcript、对应用户输入是否补齐，都以 `viewMessages` 为准，同一 run 不允许拆出多条“助手 / 过程区 / 结果区”消息。
 - `activeRun.input.message` 仍可作为后端构造 `viewMessages` 的输入；前端收到 `viewMessages` 后只负责渲染，不再根据文本相等关系自行判断“当前用户任务是否已出现”。
 - 对 `done / error / interrupted` 这类 terminal activeRun，如果 canonical history 尾部已经同时包含同一条用户输入和同一条助手结果，后端 `viewMessages` 会直接复用 history，不再额外带一组 active input / active assistant。这是为了处理“历史刚落盘但 activeRun 还没从 state 消失”的短窗口，不能用前端本地历史去重这种补丁糊过去。
 - 对 `interrupted / error` 这类 terminal snapshot，如果 session history 已经带上当前轮的用户输入，后端会把 `activeRun.input.message` 清空，避免刷新页再凭 terminal snapshot 把原始提问补画第二遍。
 - 这个“避免重复渲染”不能再只按前端文本相等拍脑袋；像连续两轮都发“继续”这种高频场景，后端必须在构造 `viewMessages` 时结合 active run 状态、assistant 覆盖位置和 canonical history 尾部的当前 turn 判断，前端不要再擅自按 DOM / localStorage 去重。
-- `activeRun.process` 是后端维护的过程快照；前端不再把过程日志写回本地历史里的 `process` 字段，也不再从本地 process snapshot 恢复运行态。
+- `activeRun.process` 是后端维护的状态快照；前端只把它映射成当前助手气泡上的状态摘要和 loading 状态，不再把过程日志写回本地历史里的 `process` 字段，也不再从本地 process snapshot 恢复运行态。
 - 恢复运行态后，playground 会继续请求 `/v1/chat/events`，重新订阅当前 active run 的 SSE 事件流；后续 `text_delta`、工具事件、`done`、`interrupted`、`error` 继续更新同一个 active assistant 气泡。
+- 如果 `/v1/chat/events` 接上后又无 terminal event 就直接 EOF，前端不能装死停在“已恢复”假象里；必须立刻回源 `GET /v1/chat/state` 再收口一次：后端若仍在 running 就继续续订，已终态就按 canonical state 落稳结果。
+- 如果刷新时当前会话仍带着 terminal snapshot 但 `viewMessages` 里还没带出对应助手条目，前端会按 `assistantMessageId` 补建同一条助手气泡，再挂上状态壳层；别再让“有运行态、没载体消息”这种半截状态把 UI 弄成隐身人。
 - 恢复态不再把任务称为“上一轮”；页面统一渲染为“当前任务正在运行 / 当前正在运行”，因为真实 agent run 并不会因为 web 刷新变成历史任务。
 - 恢复运行态下继续发送普通消息会进入 `/v1/chat/queue`，不会重新打开 `/v1/chat/stream` 去撞出 `Conversation ... is already running`。
 - 刷新、前后台切换或手机浏览器挂起导致的 `/v1/chat/stream` 暂态断线不算任务失败；只要 `GET /v1/chat/state` 仍显示 running，就切到 `/v1/chat/events` 继续追，不会再写入“网络 / network error”气泡。

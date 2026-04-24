@@ -86,6 +86,10 @@ export function getPlaygroundStreamControllerScript(): string {
 			);
 		}
 
+		function isTerminalRunEvent(event) {
+			return event?.type === "done" || event?.type === "error" || event?.type === "interrupted";
+		}
+
 		async function attachActiveRunEventStream(conversationId) {
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId) {
@@ -103,6 +107,7 @@ export function getPlaygroundStreamControllerScript(): string {
 			const controller = new AbortController();
 			controller.conversationId = nextConversationId;
 			state.activeRunEventController = controller;
+			let shouldRecoverFromCanonicalState = false;
 
 			try {
 				const query = new URLSearchParams({ conversationId: nextConversationId });
@@ -115,7 +120,12 @@ export function getPlaygroundStreamControllerScript(): string {
 					throw new Error("无法重新连接当前运行任务");
 				}
 
-				await readEventStream(response, handleStreamEvent);
+				let receivedTerminalEvent = false;
+				await readEventStream(response, (event) => {
+					receivedTerminalEvent ||= isTerminalRunEvent(event);
+					handleStreamEvent(event);
+				});
+				shouldRecoverFromCanonicalState = !receivedTerminalEvent;
 			} catch (error) {
 				if (controller.signal.aborted || isAbortError(error) || isPageUnloadStreamError(error)) {
 					return;
@@ -125,8 +135,20 @@ export function getPlaygroundStreamControllerScript(): string {
 				showError(messageText);
 				updateStreamingProcess("error", "运行状态重连失败", messageText);
 			} finally {
+				const shouldSyncFromCanonicalState =
+					shouldRecoverFromCanonicalState &&
+					state.activeRunEventController === controller &&
+					!controller.signal.aborted &&
+					!state.pageUnloading;
 				if (state.activeRunEventController === controller) {
 					state.activeRunEventController = null;
+				}
+				if (shouldSyncFromCanonicalState) {
+					void restoreConversationHistoryFromServer(nextConversationId, {
+						silent: true,
+						clearIfIdle: true,
+						attachIfRunning: true,
+					});
 				}
 			}
 		}
@@ -196,6 +218,7 @@ export function getPlaygroundStreamControllerScript(): string {
 		function handleStreamEvent(event) {
 			switch (event.type) {
 				case "run_started":
+					state.activeRunId = event.runId || "";
 					ensureStreamingAssistantMessage();
 					setAssistantLoadingState("正在接手任务", "system");
 					updateStreamingProcess("system", "任务开始", event.conversationId);
