@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`a9e7d8b`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260425-124055`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-124055.tar.gz`
+- 当前线上应用提交：`8e836ea`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260425-211919`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-211919.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,34 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-25 Playground 浅色后台任务编辑器收口增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+
+1. 本地修复并提交 `8e836ea Refine playground light work surfaces`
+2. 本地推送 GitHub：`main` 从 `544d667` 更新到 `8e836ea`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `544d667`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-211919.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260425-211919`
+6. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `544d667` fast-forward 到 `8e836ea`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`
+9. 发布后 nginx 一度返回 `502` 且 nginx 容器 unhealthy；app 容器自身为 healthy。已执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx` 只重建 nginx，随后入口恢复。
+10. 发布后验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 页面源码包含 `conn-time-picker-calendar .flatpickr-month`、`conn-time-picker-calendar .flatpickr-day.selected`、`conn-editor-target-preview` 等本次浅色后台任务编辑器修复标记
+
+本次修复重点：
+
+- 浅色后台任务创建 / 编辑页使用透明结构容器和白色输入承载面，避免白字、黑块和灰块套灰块。
+- 浅色 `flatpickr` 时间选择器补齐月份、星期、日期、禁用日期、hover、today、selected、前后月箭头的颜色映射。
+- `test/conn-sqlite-store.test.ts` 的 `maxRunMs` 无效值测试补 `now`，避免测试随着真实日期推进先撞到 once schedule 过期错误。
 
 ## 2026-04-25 Playground 运行态重复与历史触顶加载增量发布记录
 
