@@ -37,6 +37,14 @@ export function getPlaygroundThemeStyles(): string {
 			opacity: 0.9;
 		}
 
+		:root[data-theme="light"] body::after {
+			background:
+				radial-gradient(circle at 18% 12%, rgba(31, 95, 200, 0.08), transparent 0 24%),
+				radial-gradient(circle at 78% 6%, rgba(8, 120, 75, 0.05), transparent 0 18%),
+				linear-gradient(90deg, rgba(221, 229, 240, 0.36) 0%, transparent 12%, transparent 88%, rgba(221, 229, 240, 0.32) 100%);
+			opacity: 1;
+		}
+
 		.theme-toggle-button {
 			position: relative;
 		}
@@ -64,15 +72,58 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] .topbar {
 			border-bottom-color: transparent;
-			background:
-				linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(232, 238, 248, 0.94)),
-				#f4f7fb;
+			background: transparent;
 			color: var(--fg);
 			box-shadow: none;
 		}
 
+		:root[data-theme="light"] .topbar::before {
+			color: #142033;
+		}
+
+		:root[data-theme="light"] .landing-side-right {
+			border-color: rgba(31, 95, 200, 0.12);
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(232, 240, 255, 0.78)),
+				#ffffff;
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .desktop-conversation-rail {
+			border-left-color: rgba(31, 95, 200, 0.48);
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(238, 244, 252, 0.9)),
+				#ffffff;
+			color: var(--fg);
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .desktop-conversation-rail-head {
+			border-bottom-color: rgba(31, 95, 200, 0.1);
+		}
+
+		:root[data-theme="light"] .chat-stage {
+			border-color: rgba(31, 95, 200, 0.1);
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(235, 241, 249, 0.8)),
+				rgba(255, 255, 255, 0.78);
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .command-deck {
+			background: transparent;
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .shell[data-stage-mode="landing"] .composer {
+			border-color: rgba(31, 95, 200, 0.1);
+			background:
+				linear-gradient(90deg, rgba(31, 95, 200, 0.08), transparent 24%),
+				rgba(255, 255, 255, 0.92);
+			box-shadow: none;
+		}
+
 		:root[data-theme="light"] .shell,
-		:root[data-theme="light"] .chat-stage,
 		:root[data-theme="light"] .stream-layout,
 		:root[data-theme="light"] .transcript-pane,
 		:root[data-theme="light"] .transcript-current,

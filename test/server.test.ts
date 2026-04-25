@@ -881,17 +881,17 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.stream-layout\s*\{[\s\S]*align-items: center;/);
 	assert.match(
 		response.body,
-		/\.shell\[data-stage-mode="landing"\] \.stream-layout\s*\{[\s\S]*inset:\s*86px 34px var\(--command-deck-offset, 176px\) 34px;/
+		/\.shell\[data-stage-mode="landing"\] \.stream-layout\s*\{[\s\S]*inset:\s*78px 34px var\(--command-deck-offset, 166px\) 34px;/
 	);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.stream-layout\s*\{[\s\S]*overflow:\s*hidden;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*flex:\s*1 1 auto;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*height:\s*100%;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.transcript-pane\s*\{[\s\S]*max-height:\s*100%;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border: 0;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border: 1px solid rgba\(201, 210, 255, 0\.08\);/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border-radius: 4px;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*background: rgba\(90, 82, 122, 0\.22\);/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*padding:\s*6px 8px 6px 10px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*background:[\s\S]*rgba\(9, 12, 22, 0\.96\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*padding:\s*8px 10px 8px 12px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*align-self:\s*end;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*height:\s*fit-content;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*max-height:\s*none;/);
@@ -899,7 +899,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*max-height:\s*calc\(var\(--composer-line-height\) \* var\(--composer-textarea-max-lines\) \+ 20px\);/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer textarea\s*\{[\s\S]*padding:\s*10px 8px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*min-height:\s*40px;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width: min\(var\(--conversation-width\), 100%\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width: min\(760px, 100%\);/);
 	assert.match(response.body, /const commandDeck = document\.getElementById\("command-deck"\);/);
 	assert.match(response.body, /function syncConversationLayout\(\) \{/);
 	assert.match(response.body, /const chatStageRect = chatStage\.getBoundingClientRect\(\);/);
@@ -931,9 +931,9 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border-radius: 4px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*box-shadow: none;/);
-	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*center;/);
-	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*padding:\s*5px 92px;/);
-	assert.match(response.body, /\.topbar-context-slot\s*\{[\s\S]*position:\s*absolute;[\s\S]*right:\s*5px;/);
+	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*flex-end;/);
+	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*padding:\s*6px 92px 6px 8px;/);
+	assert.match(response.body, /\.topbar-context-slot\s*\{[\s\S]*position:\s*static;[\s\S]*right:\s*auto;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*2;/);
 	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*2;/);
 	assert.match(response.body, /function renderConversationListInto\(container\)/);
@@ -1845,6 +1845,7 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /--bg:\s*#e8edf6;/);
 	assert.match(response.body, /--fg:\s*#142033;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+body\s*\{/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+body::after\s*\{[\s\S]*rgba\(221, 229, 240, 0\.36\)[\s\S]*opacity:\s*1;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.message-body/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.message\.assistant \.message-content strong/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+#send-button::before/);
@@ -2128,6 +2129,35 @@ test("GET /playground keeps the default active composer compact before mobile ov
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*resize:\s*none;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*overflow-y:\s*auto;/);
 	assert.match(response.body, /@media \(max-width: 960px\) \{[\s\S]*\.composer-side\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+	await app.close();
+});
+
+test("GET /playground uses a desktop geek cockpit layout", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /\.shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(250px, 280px\) minmax\(0, 1fr\);/);
+	assert.match(response.body, /\.shell\s*\{[\s\S]*grid-template-rows:\s*64px minmax\(0, 1fr\);/);
+	assert.match(response.body, /\.shell\s*\{[\s\S]*gap:\s*16px;/);
+	assert.match(response.body, /\.topbar::before\s*\{[\s\S]*content:\s*"UGK CLAW";/);
+	assert.match(response.body, /\.topbar::before\s*\{[\s\S]*background-image:\s*url\("\/ugk-claw-mobile-logo\.png"\);/);
+	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*justify-self:\s*end;/);
+	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*width:\s*auto;/);
+	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*background:[\s\S]*#080c14;/);
+	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*border-left:\s*2px solid rgba\(101, 209, 255, 0\.48\);/);
+	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*background:[\s\S]*rgba\(5, 8, 15, 0\.86\);/);
+	assert.match(response.body, /\.command-deck\s*\{[\s\S]*width:\s*min\(760px, 100%\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width:\s*min\(760px, 100%\);/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar::before\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.desktop-conversation-rail\s*\{[\s\S]*background:[\s\S]*#ffffff;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.chat-stage\s*\{[\s\S]*background:[\s\S]*rgba\(255, 255, 255, 0\.78\);/);
 	await app.close();
 });
 

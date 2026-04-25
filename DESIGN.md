@@ -149,7 +149,7 @@ Use compact type throughout operational surfaces. Body text is small but spaciou
 
 ## Layout & Spacing
 
-Chat content should follow the composer width. On mobile, prioritize the transcript and composer over explanatory chrome. The global mobile topbar is navigation, not a panel: keep the topbar, brand trigger, context slot, new-chat button, and overflow trigger transparent with no shadows; let the page background and actual drawers / menus provide depth. Controls should be icon-first when their meaning is familiar, with accessible labels preserved in markup. Fixed-format controls need stable dimensions so streaming status, hover states, and button labels do not shift the layout.
+Chat content should follow the composer width. On desktop, use a two-column cockpit layout: a compact left conversation rail, a transparent top command lane with the `UGK CLAW` brand signal, and a large right work stage that contains the landing canvas, transcript, and composer. The desktop command lane should feel like a geek control panel, not a centered form toolbar; keep actions tight, aligned to the right, and visually subordinate to the work stage. On mobile, prioritize the transcript and composer over explanatory chrome. The global mobile topbar is navigation, not a panel: keep the topbar, brand trigger, context slot, new-chat button, and overflow trigger transparent with no shadows; let the page background and actual drawers / menus provide depth. Controls should be icon-first when their meaning is familiar, with accessible labels preserved in markup. Fixed-format controls need stable dimensions so streaming status, hover states, and button labels do not shift the layout.
 
 ## Elevation & Depth
 
@@ -160,6 +160,8 @@ Depth should be functional and shadow-free. Prefer layered solid backgrounds, to
 Use `4px` radius for rectangular UI elements unless a specific repeated component already has a stronger local convention. Do not nest cards inside cards. Prefer flat toolbars and full-width panels over decorative shells.
 
 ## Components
+
+The desktop shell uses cockpit surfaces rather than marketing hero composition: the left rail is a narrow index surface with a small active accent, the right `chat-stage` is the primary work canvas, and the landing composer is a compact command deck pinned near the lower center of the stage. Dark mode uses near-black solid layers with faint cool accents; light mode maps the same hierarchy to cool white and blue-gray layers, including a light-specific page atmosphere layer so dark edge fades never leak into the light theme.
 
 Assistant messages use dark raised surfaces. User messages use a clear opposing treatment but keep text left-aligned for readability. Error banners are opaque, high-contrast, and floating; they must not be rendered as semi-transparent overlays that rely on whatever happens to sit behind them.
 

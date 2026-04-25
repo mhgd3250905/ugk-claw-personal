@@ -2450,7 +2450,7 @@ function getPlaygroundStyles(): string {
 		body {
 			position: relative;
 			padding: 0;
-			align-items: center;
+			align-items: stretch;
 		}
 
 		body::before {
@@ -2458,11 +2458,24 @@ function getPlaygroundStyles(): string {
 			position: fixed;
 			inset: 0;
 			background:
-				linear-gradient(rgba(201, 210, 255, 0.022) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(201, 210, 255, 0.018) 1px, transparent 1px),
-				linear-gradient(180deg, rgba(8, 8, 18, 0.1), rgba(3, 3, 9, 0.42));
-			background-size: 40px 40px, 40px 40px, auto;
-			opacity: 0.38;
+				linear-gradient(rgba(201, 210, 255, 0.024) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(201, 210, 255, 0.02) 1px, transparent 1px),
+				linear-gradient(135deg, transparent 0 48%, rgba(101, 209, 255, 0.035) 49% 51%, transparent 52% 100%),
+				linear-gradient(180deg, rgba(1, 3, 10, 0.18), rgba(3, 3, 9, 0.52));
+			background-size: 36px 36px, 36px 36px, 96px 96px, auto;
+			opacity: 0.48;
+			pointer-events: none;
+		}
+
+		body::after {
+			content: "";
+			position: fixed;
+			inset: 0;
+			background:
+				radial-gradient(circle at 18% 12%, rgba(101, 209, 255, 0.1), transparent 0 24%),
+				radial-gradient(circle at 78% 6%, rgba(141, 255, 178, 0.06), transparent 0 18%),
+				linear-gradient(90deg, rgba(1, 3, 10, 0.82) 0%, transparent 18%, transparent 82%, rgba(1, 3, 10, 0.78) 100%);
+			opacity: 0.92;
 			pointer-events: none;
 		}
 
@@ -2471,25 +2484,51 @@ function getPlaygroundStyles(): string {
 			width: 100vw;
 			height: 100vh;
 			margin: 0;
+			padding: 14px 18px 18px;
 			border: 0;
 			border-radius: 4px;
 			background: transparent;
 			box-shadow: none;
 			backdrop-filter: none;
+			grid-template-columns: minmax(250px, 280px) minmax(0, 1fr);
+			grid-template-rows: 64px minmax(0, 1fr);
+			gap: 16px;
 			isolation: isolate;
+			--conversation-width: 760px;
 		}
 
 		.topbar {
 			position: relative;
 			z-index: 2;
 			width: 100%;
-			min-height: 44px;
+			min-height: 64px;
 			margin: 0;
-			padding: 0 24px;
-			grid-template-columns: 1fr;
+			padding: 0;
+			grid-template-columns: auto minmax(0, 1fr);
+			gap: 16px;
 			align-items: center;
-			justify-items: center;
-			border-bottom: 1px solid rgba(201, 210, 255, 0.06);
+			justify-items: stretch;
+			border-bottom: 0;
+			background: transparent;
+			box-shadow: none;
+		}
+
+		.topbar::before {
+			content: "UGK CLAW";
+			display: inline-flex;
+			align-items: center;
+			min-height: 42px;
+			padding-left: 42px;
+			background-image: url("/ugk-claw-mobile-logo.png");
+			background-repeat: no-repeat;
+			background-position: 0 center;
+			background-size: 30px 30px;
+			color: rgba(245, 248, 255, 0.94);
+			font-family: var(--font-mono);
+			font-size: 16px;
+			font-weight: 700;
+			letter-spacing: 0.18em;
+			text-transform: uppercase;
 		}
 
 		.hero-wordmark {
@@ -2504,8 +2543,17 @@ function getPlaygroundStyles(): string {
 		.chat-stage {
 			position: relative;
 			width: 100%;
+			min-width: 0;
+			min-height: 0;
 			margin: 0;
-			padding: 0 28px 22px;
+			padding: 18px 22px 20px;
+			border: 1px solid rgba(201, 210, 255, 0.08);
+			border-radius: 6px;
+			background:
+				linear-gradient(180deg, rgba(11, 15, 25, 0.72), rgba(5, 8, 15, 0.86)),
+				rgba(5, 8, 15, 0.86);
+			box-shadow: none;
+			overflow: hidden;
 		}
 
 		.landing-screen {
@@ -2532,10 +2580,10 @@ function getPlaygroundStyles(): string {
 		.hero-core {
 			position: absolute;
 			left: 50%;
-			top: 50%;
+			top: 43%;
 			z-index: 1;
 			display: grid;
-			gap: 16px;
+			gap: 14px;
 			text-align: center;
 			transform: translate(-50%, -50%);
 			animation: hero-core-drift 8s ease-in-out infinite;
@@ -2546,11 +2594,11 @@ function getPlaygroundStyles(): string {
 		}
 
 		.hero-wordmark {
-			color: rgba(53, 207, 255, 0.3);
-			font-size: clamp(54px, 8.4vw, 84px);
+			color: rgba(101, 209, 255, 0.22);
+			font-size: clamp(58px, 8.8vw, 112px);
 			line-height: 0.88;
-			letter-spacing: 0.18em;
-			text-indent: 0.18em;
+			letter-spacing: 0.2em;
+			text-indent: 0.2em;
 			text-shadow: none;
 		}
 
@@ -2583,15 +2631,18 @@ function getPlaygroundStyles(): string {
 			flex-wrap: wrap;
 			gap: 6px;
 			align-items: center;
-			justify-content: center;
-			justify-self: center;
-			width: min(720px, 100%);
-			max-width: min(720px, calc(100% - 48px));
-			margin: 0 auto;
-			padding: 5px 92px;
-			border: 1px solid rgba(201, 210, 255, 0.08);
+			justify-content: flex-end;
+			justify-self: end;
+			width: auto;
+			max-width: 100%;
+			min-width: 0;
+			margin: 0;
+			padding: 6px 92px 6px 8px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
 			border-radius: 4px;
-			background: rgba(5, 7, 13, 0.78);
+			background:
+				linear-gradient(180deg, rgba(12, 17, 28, 0.92), rgba(7, 10, 18, 0.92)),
+				#080b12;
 			box-shadow: none;
 			transform: none;
 		}
@@ -2657,19 +2708,24 @@ function getPlaygroundStyles(): string {
 			position: relative;
 			z-index: 2;
 			flex-shrink: 0;
+			width: min(760px, 100%);
+			margin: 0 auto;
+			border-radius: 6px;
+			background: transparent;
+			box-shadow: none;
 		}
 
 		.topbar-context-slot {
-			position: absolute;
-			top: 50%;
-			right: 5px;
+			position: static;
+			top: auto;
+			right: auto;
 			z-index: 5;
 			display: flex;
 			align-items: center;
 			justify-content: flex-end;
 			flex: 0 0 auto;
-			margin-left: 0;
-			transform: translateY(-50%);
+			margin-left: 4px;
+			transform: none;
 			background: transparent;
 			box-shadow: none;
 		}
@@ -2680,13 +2736,14 @@ function getPlaygroundStyles(): string {
 			display: grid;
 			grid-template-rows: auto minmax(0, 1fr);
 			min-height: 0;
-			margin: 0 0 12px;
-			padding: 12px;
-			border: 1px solid rgba(201, 210, 255, 0.1);
-			border-radius: 4px;
+			margin: 0;
+			padding: 14px;
+			border: 0;
+			border-left: 2px solid rgba(101, 209, 255, 0.48);
+			border-radius: 6px;
 			background:
-				radial-gradient(circle at 20% 0%, rgba(101, 209, 255, 0.08), transparent 32%),
-				rgba(5, 7, 13, 0.72);
+				linear-gradient(180deg, rgba(11, 16, 27, 0.96), rgba(5, 8, 15, 0.96)),
+				#080c14;
 			box-shadow: none;
 			overflow: hidden;
 		}
@@ -2739,13 +2796,14 @@ function getPlaygroundStyles(): string {
 		}
 
 		.desktop-conversation-list .mobile-conversation-item {
-			min-height: 86px;
-			background: rgba(8, 11, 20, 0.72);
+			min-height: 82px;
+			border-color: transparent;
+			background: rgba(14, 19, 31, 0.84);
 		}
 
 		.shell[data-stage-mode="landing"] .stream-layout {
 			position: absolute;
-			inset: 86px 34px var(--command-deck-offset, 176px) 34px;
+			inset: 78px 34px var(--command-deck-offset, 166px) 34px;
 			display: flex;
 			align-items: center;
 			overflow: hidden;
@@ -2784,8 +2842,8 @@ function getPlaygroundStyles(): string {
 			align-self: end;
 			align-content: end;
 			gap: 4px;
-			width: min(var(--conversation-width), 100%);
-			margin: 0 auto 12px;
+			width: min(760px, 100%);
+			margin: 0 auto;
 			z-index: 4;
 		}
 
@@ -2801,10 +2859,12 @@ function getPlaygroundStyles(): string {
 			min-height: 0;
 			max-height: none;
 			gap: 8px;
-			padding: 6px 8px 6px 10px;
-			border: 0;
+			padding: 8px 10px 8px 12px;
+			border: 1px solid rgba(201, 210, 255, 0.08);
 			border-radius: 4px;
-			background: rgba(90, 82, 122, 0.22);
+			background:
+				linear-gradient(90deg, rgba(101, 209, 255, 0.08), transparent 24%),
+				rgba(9, 12, 22, 0.96);
 			box-shadow: none;
 			backdrop-filter: none;
 		}
@@ -2890,8 +2950,11 @@ function getPlaygroundStyles(): string {
 			.shell {
 				width: 100vw;
 				height: 100vh;
+				padding: 0;
 				border-radius: 0;
 				grid-template-columns: minmax(0, 1fr);
+				grid-template-rows: auto minmax(0, 1fr);
+				gap: 0;
 				--transcript-bottom-scroll-buffer: calc(112px + env(safe-area-inset-bottom));
 			}
 
@@ -2905,6 +2968,10 @@ function getPlaygroundStyles(): string {
 				background: transparent;
 				box-shadow: none;
 				backdrop-filter: none;
+			}
+
+			.topbar::before {
+				display: none;
 			}
 
 			.mobile-topbar {

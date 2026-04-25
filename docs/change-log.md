@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 桌面端极客 cockpit 视觉重构
+- 日期：2026-04-25
+- 主题：把桌面端 playground 从旧的松散居中布局收口成极客 cockpit 工作台。左侧常驻历史会话索引，右侧是完整 chat stage，顶部改成左品牌信号 + 右侧紧凑命令条，landing composer 变成底部居中的 command deck。顺手把浅色主题的桌面氛围层补齐，避免深色边缘压暗层漏到浅色页面里，把浅色版弄得像蒙了一层灰。
+- 影响范围：`src/ui/playground.ts` 重写桌面 shell 网格、topbar 品牌、命令条、左侧会话栏、chat stage 和 landing composer 的桌面视觉规则；`src/ui/playground-theme-controller.ts` 补齐桌面 light theme 的 topbar、命令条、左栏、chat stage、command deck 与 `body::after` 氛围层映射；`test/server.test.ts` 增加桌面 cockpit 布局和浅色背景层回归断言；`DESIGN.md` 与 `docs/playground-current.md` 同步桌面端设计口径。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground composer 焦点态上移到外层控制面
 - 日期：2026-04-25
 - 主题：把聊天输入焦点高亮从 `#message` textarea 自身移到外层 `#composer-drop-target.composer:focus-within`。输入区是一个完整控制台，不是一只孤零零的后台表单框，继续让 textarea 自己亮边确实显土。

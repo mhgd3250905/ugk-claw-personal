@@ -25,13 +25,15 @@
 ## 1. 品牌与页面骨架
 
 - 当前品牌文案为 `UGK CLAW`
-- 桌面端首页仍保留 `hero-wordmark` 作为 landing 主视觉；原 `topbar-signal` 已移除，桌面工具栏直接占用 `topbar` 主位
+- 桌面端首页重构为极客 cockpit 布局：`shell` 是 `250px-280px` 左侧历史会话栏 + 右侧工作台的两列网格，`topbar` 左侧由 logo 和 `UGK CLAW` 组成品牌信号，右侧是紧凑命令条，`chat-stage` 是真正的主工作画布。
+- 桌面端 landing 仍保留 `hero-wordmark` 作为主视觉，但它现在被收进右侧工作台内部；输入区是底部居中的 `760px` command deck，不再把整个页面做成居中表单。
 - 手机端顶部状态栏显示品牌 logo，并在右侧配套 `UGK Claw` 字标
 - 手机端全局顶部状态栏只作为透明导航层：`mobile-topbar`、移动断点下的 `.topbar`、`topbar-context-slot`、`mobile-brand-button`、`mobile-new-conversation-button`、`mobile-overflow-menu-button` 和顶部上下文电池入口都不使用背景或阴影；真正的层级交给页面背景、历史抽屉和更多菜单承载。
 - 页面仍是单一 `landing` 壳子，通过 `data-transcript-state=idle|active` 切空态和会话态
 - 当前整体视觉基调已从偏冷蓝电子夜景收口为“深空黑 + 暗紫星云 + 冷白星尘”，蓝色只保留极弱余光，不再主导页面气质
-- 桌面端 landing 的工具入口现在直接挂在 `topbar` 内，替换掉旧的 `UGK CLAW` 顶部字标；按钮只保留关键命令，减少首屏视觉负担。
+- 桌面端 landing 的工具入口现在直接挂在 `topbar` 右侧命令条内；按钮只保留关键命令，减少首屏视觉负担。命令条右侧给上下文用量入口预留稳定空间，避免按钮和上下文电池挤成一团。
 - 页面背景层数和 `backdrop-filter` 已收口，避免用多层半透明玻璃效果把每次滚动和重绘都变成性能税。
+- 桌面端深色主题使用近黑网格、左侧会话索引、右侧深色工作画布和低强度冷色状态线；浅色主题使用冷白网格、白色会话索引、浅色工作画布和蓝灰状态线。浅色主题必须覆盖桌面背景氛围层，不能让深色边缘压暗层漏进来把页面两侧染灰。
 
 ## 2. 消息区约束
 
@@ -201,7 +203,7 @@
 - 当前项目按“一个 agent 工人，多条历史产线，但同一时刻只有一条全局当前产线”收口
 - 服务端 `ConversationStore` 维护 `currentConversationId` 和会话目录；所有平台打开页面后都以服务端当前会话为准，不再固定写死 `agent:global`
 - 浏览器端会话目录、新建会话、切换当前会话、运行中禁切、以及手机历史抽屉列表渲染集中在 `src/ui/playground-conversations-controller.ts`；`src/ui/playground.ts` 仍持有主 state，布局滚动与恢复入口已交给 `src/ui/playground-layout-controller.ts`，transcript 渲染入口已交给 `src/ui/playground-transcript-renderer.ts`，stream lifecycle 已交给 `src/ui/playground-stream-controller.ts`
-- 桌面 Web 现在常驻左侧历史会话栏，和手机历史抽屉共用同一份 conversation catalog 渲染与切换逻辑；不能再让桌面端完全没有历史入口。移动端仍走左侧抽屉，避免小屏再塞一条常驻侧栏。
+- 桌面 Web 现在常驻左侧历史会话栏，和手机历史抽屉共用同一份 conversation catalog 渲染与切换逻辑；左栏是 cockpit 索引面板，不是后台列表卡片堆：宽度稳定在 `250px-280px`，用左侧冷色状态线、背景层级和紧凑条目区分状态，深浅主题都不能靠阴影撑层级。移动端仍走左侧抽屉，避免小屏再塞一条常驻侧栏。
 - 手机端历史会话抽屉按“会话索引”而不是“大卡片列表”设计：抽屉沿用上下文详情的无边框仪表盘语言，外层是深色渐变面板，头部是 `#101421` raised surface，列表项用 `#0b0e19` 背景层和约 `92px` 稳定高度，当前会话用 `#151a2b` 高亮与左侧冷白蓝亮条，时间 / 条数做成小型信息胶囊，删除入口退成条目内部右上角的 icon-only 小按钮。
 - 点击 `新会话` 会调用 `POST /v1/chat/conversations` 创建新的 `conversationId`，并把它设置成全局当前会话；旧会话不会被 reset 或删除
 - 点击 `新会话` 时，前端用 `conversationCreatePending` 防止请求飞行中的重复创建；如果当前会话已经是无正文、无附件、无 active run 的空白会话，则再次点击直接 no-op，不再继续创建一串空白会话。创建成功后先本地插入会话目录并进入新会话，再让新会话的一次 canonical `GET /v1/chat/state` 在后台收口 UI，不再把用户挡在 hydrate 前面，也不再先额外 round-trip 一轮 `GET /v1/chat/conversations`。
