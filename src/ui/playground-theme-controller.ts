@@ -287,6 +287,7 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .asset-modal-panel,
+		:root[data-theme="light"] .task-inbox-pane,
 		:root[data-theme="light"] .conn-manager-panel,
 		:root[data-theme="light"] .conn-editor-panel,
 		:root[data-theme="light"] .task-inbox-list,

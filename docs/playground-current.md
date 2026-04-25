@@ -403,12 +403,12 @@
 - `playground` 顶部状态栏现在有独立的 `任务消息` 入口，桌面端按钮是 `open-task-inbox-button`，手机端入口收在更多菜单里的 `mobile-menu-task-inbox-button`。
 - 手机端如果存在未读任务消息，右上角 `mobile-overflow-menu-button` 本身也会显示未读数字徽标；用户不需要先打开更多菜单才知道任务消息里有几条未读。
 - 任务消息相关红点和数字 badge 统一使用鲜红色 `#ff1744`，带浅色描边和红色 glow，不能再退回半透明粉色那种没精神的提醒色；更多按钮上的数字超过 99 时显示 `99+`。
-- 任务消息不是 conversation，也不再把后台结果硬塞回当前会话；页面主视图通过 `data-primary-view=chat|tasks` 在聊天页和任务消息页之间切换。
-- 任务消息页的主体结构在 [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)，`src/ui/playground.ts` 只负责拼装入口，不再继续把任务消息逻辑堆进主文件。
+- 任务消息不是 conversation，也不再把后台结果硬塞回当前会话；任务消息页现在像文件库一样是独立 fixed 工作页，不再通过 `data-primary-view=chat|tasks` 把聊天主壳内容替换掉。
+- 任务消息页的主体结构在 [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)，`src/ui/playground.ts` 只负责拼装入口和把页面挂在 `#shell` 外层，不再继续把任务消息逻辑堆进主文件。
 - 列表数据来自 `GET /v1/activity?limit=50`，该响应会同时返回 `unreadCount`；`GET /v1/activity/summary` 只保留给页面初始化和极轻量兜底，不再作为打开任务消息后的固定第二跳。页面打开后不再偷偷清未读。
 - 如果顶部 `任务消息` badge 有未读数，打开任务消息页会默认进入 `未读` 筛选，并请求 `GET /v1/activity?limit=50&unreadOnly=true`。这不是装饰，是防止“最新 50 条已读、旧数据还有未读”时红标和列表打架。
 - 任务消息页提供 `未读 / 全部` 两个筛选；`未读` 只展示 `readAt` 为空的条目，`全部` 按时间倒序展示完整任务消息。
-- 任务消息页头部只保留 `任务消息` 标题，不再显示“后台任务跑完……”说明句；手机端顶部使用 `topbar pane-head task-inbox-head mobile-work-topbar`，左侧是返回箭头和标题，右侧直接放 `未读 / 全部 / 全部已读 / 刷新`。进入任务消息页时，全局聊天用的 `<section id="mobile-topbar" class="mobile-topbar">` 必须隐藏，避免同屏出现两层顶部栏。手机端任务消息页现在按全屏工作页处理：外层是 `#01030a`，sticky 头部是 `#060711`，任务结果卡片是 `#0b0c18` 实心面板，不再沿用透明头部和松散气泡。
+- 任务消息页头部只保留 `任务消息` 标题，不再显示“后台任务跑完……”说明句；顶部使用 `topbar pane-head task-inbox-head mobile-work-topbar`，左侧是返回箭头和标题，右侧直接放 `未读 / 全部 / 全部已读 / 刷新`。任务消息页外层是独立的 `task-inbox-view.open` fixed 页面壳，内层是 `task-inbox-pane`；手机端占满 `100dvh`，全局聊天用的 `<section id="mobile-topbar" class="mobile-topbar">` 不参与该页面。手机端任务消息页现在按全屏工作页处理：外层是 `#01030a`，sticky 头部是 `#060711`，任务结果卡片是 `#0b0c18` 实心面板，不再沿用透明头部和松散气泡。
 - `GET /v1/activity` 响应包含 `hasMore` / `nextBefore` / `unreadCount`，前端据此显示 `加载更多` 并直接刷新 badge，继续用 `before=nextBefore` 分页拉取。不要再把一个固定 `limit=50` 当成全量收件箱，那个坑已经踩过了。
 - 任务消息页现在按条处理未读：未读条目会显示红点；点击条目本身，或点击 `任务ID / 复制 / 查看过程`，才会调用 `POST /v1/activity/:activityId/read` 把当前条目标记已读；该响应会返回新的 `unreadCount`，前端本地同步，不再补打一条 summary 请求。
 - 任务消息页头部提供显式 `全部已读`，走 `POST /v1/activity/read-all`；该响应会返回 `markedCount` 与新的 `unreadCount`。这才是批量清空未读的正式入口，不再把“打开页面”伪装成“看过全部消息”。

@@ -598,6 +598,8 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /mobile-menu-task-inbox-button/);
 	assert.match(response.body, /task-inbox-view/);
 	assert.match(response.body, /task-inbox-list/);
+	assert.match(response.body, /<\/div>\s*<div id="task-inbox-view" class="task-inbox-view" aria-hidden="true" hidden>[\s\S]*<section class="task-inbox-pane" role="dialog" aria-modal="true" aria-labelledby="task-inbox-title">/);
+	assert.doesNotMatch(response.body, /data-primary-view="chat"/);
 	assert.match(response.body, /task-inbox-unread-badge/);
 	assert.match(response.body, /mobile-overflow-task-inbox-badge/);
 	assert.match(response.body, /mobile-topbar-notification-badge/);
@@ -610,7 +612,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /class="topbar asset-modal-head mobile-work-topbar"[\s\S]*id="close-asset-modal-button"[\s\S]*aria-label="返回对话"[\s\S]*id="asset-modal-title"[\s\S]*id="refresh-assets-button"/);
 	assert.match(response.body, /class="topbar asset-modal-head mobile-work-topbar"[\s\S]*id="close-conn-manager-button"[\s\S]*aria-label="返回对话"[\s\S]*id="conn-manager-title"[\s\S]*id="open-conn-editor-button"[\s\S]*id="refresh-conn-manager-button"/);
 	assert.match(response.body, /class="topbar asset-modal-head mobile-work-topbar"[\s\S]*id="close-conn-editor-button"[\s\S]*aria-label="返回对话"[\s\S]*id="conn-editor-title"[\s\S]*id="save-conn-editor-button"[\s\S]*id="cancel-conn-editor-button"/);
-	assert.match(response.body, /class="topbar pane-head task-inbox-head mobile-work-topbar"[\s\S]*id="close-task-inbox-button"[\s\S]*aria-label="返回对话"[\s\S]*任务消息[\s\S]*id="task-inbox-filter-unread-button"[\s\S]*id="refresh-task-inbox-button"/);
+	assert.match(response.body, /class="topbar pane-head task-inbox-head mobile-work-topbar"[\s\S]*id="close-task-inbox-button"[\s\S]*aria-label="返回对话"[\s\S]*id="task-inbox-title">任务消息[\s\S]*id="task-inbox-filter-unread-button"[\s\S]*id="refresh-task-inbox-button"/);
 	assert.doesNotMatch(response.body, /id="close-asset-modal-button"[^>]*>回到对话/);
 	assert.doesNotMatch(response.body, /id="close-conn-manager-button"[^>]*>回到对话/);
 	assert.doesNotMatch(response.body, /id="close-conn-editor-button"[^>]*>回到对话/);
@@ -619,6 +621,9 @@ test("GET /playground returns the test UI html", async () => {
 	assert.doesNotMatch(response.body, /conn-manager-primary-actions[\s\S]*open-conn-editor-button/);
 	assert.doesNotMatch(response.body, /conn-editor-page-actions[\s\S]*save-conn-editor-button/);
 	assert.doesNotMatch(response.body, /task-inbox-controls[\s\S]*task-inbox-filter-unread-button/);
+	assert.match(response.body, /\.task-inbox-view\s*\{[\s\S]*position:\s*fixed;[\s\S]*inset:\s*0;[\s\S]*z-index:\s*60;/);
+	assert.match(response.body, /\.task-inbox-view\.open\s*\{[\s\S]*display:\s*flex;/);
+	assert.match(response.body, /\.task-inbox-pane\s*\{[\s\S]*height:\s*min\(78vh, 760px\);[\s\S]*border-radius:\s*8px;/);
 	assert.match(response.body, /\.asset-modal-head\s*\{[\s\S]*background:\s*transparent;/);
 	assert.match(response.body, /\.asset-modal-head\s*\{[\s\S]*flex-direction:\s*row;/);
 	assert.match(response.body, /\.asset-modal-actions\s*\{[\s\S]*flex-wrap:\s*nowrap;[\s\S]*overflow-x:\s*auto;/);
@@ -1741,7 +1746,6 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /id="mobile-task-inbox-unread-badge"/);
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-primary-view="tasks"\] \.mobile-topbar\s*\{[\s\S]*display:\s*none !important;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
@@ -1801,6 +1805,7 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.asset-modal/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-manager-panel/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.task-inbox-view/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.task-inbox-pane/);
 	assert.match(response.body, /const PLAYGROUND_THEME_STORAGE_KEY = "ugk-pi:playground-theme";/);
 	assert.match(response.body, /function applyPlaygroundTheme\(nextTheme\)\s*\{/);
 	assert.match(response.body, /pageRoot\.dataset\.theme = normalized;/);
@@ -1842,8 +1847,12 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-shell\.open\s*\{[\s\S]*align-items:\s*stretch;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-shell\.open\s*\{[\s\S]*background:\s*#01030a;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-view\.open\s*\{[\s\S]*align-items:\s*stretch;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-view\.open\s*\{[\s\S]*background:\s*#01030a;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal\s*\{[\s\S]*height:\s*100dvh;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal\s*\{[\s\S]*border-radius:\s*0;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-pane\s*\{[\s\S]*height:\s*100dvh;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-pane\s*\{[\s\S]*border-radius:\s*0;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal::before\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-head\s*\{[\s\S]*position:\s*sticky;/);
 	assert.match(mobileAssetHeadBlock, /border-bottom:\s*0;/);

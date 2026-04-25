@@ -12,11 +12,11 @@
 
 ## 2026-04-25
 
-### Playground 手机端任务消息隐藏全局顶部栏
+### Playground 任务消息独立页面化
 - 日期：2026-04-25
-- 主题：任务消息页已经是独立手机工作页，进入 `data-primary-view="tasks"` 后不再显示全局聊天用的 `<section id="mobile-topbar" class="mobile-topbar">`，只保留任务消息页自己的 `task-inbox-head mobile-work-topbar`。两层顶部栏叠在一起就是 UI 自己绊自己，没必要让用户替我们忍。
-- 影响范围：`src/ui/playground.ts` 在移动断点内新增 `.shell[data-primary-view="tasks"] .mobile-topbar { display: none !important; }`；`test/server.test.ts` 增加任务消息视图隐藏全局手机顶部栏的页面断言；`DESIGN.md` 与 `docs/playground-current.md` 同步非 chat 手机工作页不显示全局聊天 topbar 的设计口径。
-- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+- 主题：把任务消息从聊天 `#shell` 内的 `data-primary-view=chat|tasks` 内容切换，改成和文件库同层级的独立 fixed 工作页。之前只隐藏全局手机顶栏只是把症状盖住，结构还是挂在聊天壳子里，确实不够像“新页面”；这次把任务消息页挂到 `#shell` 外层，用 `taskInboxOpen` / `.task-inbox-view.open` 管理打开状态、焦点归还和移动端全屏。
+- 影响范围：`src/ui/playground-task-inbox.ts` 将 `task-inbox-view` 改为 fixed 页面壳，`task-inbox-pane` 改为独立页面板并在手机端占满 `100dvh`，控制器移除 `setPrimaryView()` / `shell.dataset.primaryView` 依赖；`src/ui/playground.ts` 将任务消息 DOM 挂到 `#shell` 外层，新增 `taskInboxOpen` / `taskInboxRestoreFocusElement` 状态和 Escape 关闭；`src/ui/playground-theme-controller.ts` 补齐浅色主题下 `task-inbox-pane` 映射；`test/server.test.ts` 改为断言独立页面结构、打开类和移动端全屏约束；`DESIGN.md` 与 `docs/playground-current.md` 同步非 chat 工作页应使用独立 fixed 页面壳的口径。
+- 对应入口：`src/ui/playground-task-inbox.ts`、`src/ui/playground.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
 
 ### Playground 深浅主题切换
 - 日期：2026-04-25

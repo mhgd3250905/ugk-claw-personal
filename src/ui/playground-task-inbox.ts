@@ -81,19 +81,36 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-view {
+			position: fixed;
+			inset: 0;
+			z-index: 60;
 			display: none;
-			flex: 1 1 auto;
-			min-height: 0;
-			background: transparent;
+			align-items: center;
+			justify-content: center;
+			padding: 22px;
+			background: #01030a;
+			backdrop-filter: none;
+		}
+
+		.task-inbox-view.open {
+			display: flex;
 		}
 
 		.task-inbox-pane {
 			display: grid;
 			grid-template-rows: auto minmax(0, 1fr);
-			width: min(var(--conversation-width), 100%);
-			height: 100%;
-			margin: 0 auto;
+			width: min(820px, 100%);
+			height: min(78vh, 760px);
 			min-height: 0;
+			border: 0;
+			border-radius: 8px;
+			background:
+				linear-gradient(180deg, #060711 0%, #040611 100%),
+				#060711;
+			box-shadow:
+				0 28px 80px rgba(0, 0, 0, 0.46),
+				inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			overflow: hidden;
 		}
 
 		.task-inbox-head {
@@ -375,25 +392,26 @@ export function getPlaygroundTaskInboxStyles(): string {
 			font-size: 10px;
 		}
 
-		.shell[data-primary-view="tasks"] .landing-screen,
-		.shell[data-primary-view="tasks"] .stream-layout,
-		.shell[data-primary-view="tasks"] .command-deck {
-			display: none !important;
-		}
-
-		.shell[data-primary-view="tasks"] .task-inbox-view {
-			display: flex;
-		}
-
 		@media (max-width: 640px) {
+			.task-inbox-view.open {
+				align-items: stretch;
+				justify-content: stretch;
+				padding: 0;
+				background: #01030a;
+				backdrop-filter: none;
+			}
+
 			.task-inbox-pane {
 				width: 100%;
+				height: 100dvh;
+				max-height: 100dvh;
+				border-radius: 0;
+				background: #01030a;
+				box-shadow: none;
 			}
 
 			.task-inbox-view {
-				margin: 0 -8px calc(-8px - env(safe-area-inset-bottom));
-				padding: 0 10px calc(8px + env(safe-area-inset-bottom));
-				background: #01030a;
+				padding: 0;
 			}
 
 			.task-inbox-head {
@@ -425,7 +443,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 
 			.task-inbox-list {
 				gap: 12px;
-				padding: 12px 0 16px;
+				padding: 12px 10px calc(16px + env(safe-area-inset-bottom));
 			}
 
 			.task-inbox-result-bubble {
@@ -454,15 +472,15 @@ export function getPlaygroundTaskInboxStyles(): string {
 
 export function getPlaygroundTaskInboxView(): string {
 	return `
-				<section id="task-inbox-view" class="task-inbox-view" aria-hidden="true" hidden>
-					<div class="task-inbox-pane">
+				<div id="task-inbox-view" class="task-inbox-view" aria-hidden="true" hidden>
+					<section class="task-inbox-pane" role="dialog" aria-modal="true" aria-labelledby="task-inbox-title">
 						<header class="topbar pane-head task-inbox-head mobile-work-topbar">
 							<div class="mobile-work-title-row">
 								<button id="close-task-inbox-button" class="mobile-work-back-button task-inbox-head-button" type="button" aria-label="返回对话">
 									<span aria-hidden="true">&larr;</span>
 								</button>
 								<div class="task-inbox-head-copy">
-									<strong>任务消息</strong>
+									<strong id="task-inbox-title">任务消息</strong>
 								</div>
 							</div>
 							<div class="task-inbox-head-actions">
@@ -475,8 +493,8 @@ export function getPlaygroundTaskInboxView(): string {
 							</div>
 						</header>
 						<section id="task-inbox-list" class="task-inbox-list" aria-live="polite"></section>
-					</div>
-				</section>
+					</section>
+				</div>
 	`;
 }
 
@@ -493,7 +511,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 	return `
 		function renderTaskInboxToggleState() {
 			const unreadCount = Math.max(0, Number(state.taskInboxUnreadCount) || 0);
-			const isTasksView = state.primaryView === "tasks";
+			const isTasksView = Boolean(state.taskInboxOpen);
 			const entries = [
 				{ button: openTaskInboxButton, badge: taskInboxUnreadBadge, baseLabel: "任务消息" },
 				{ button: mobileMenuTaskInboxButton, badge: mobileTaskInboxUnreadBadge, baseLabel: "任务消息" },
@@ -522,40 +540,40 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			}
 		}
 
-		function setPrimaryView(next, options) {
-			const normalized = String(next || "chat").trim() === "tasks" ? "tasks" : "chat";
-			state.primaryView = normalized;
-			shell.dataset.primaryView = normalized;
-			if (taskInboxView) {
-				taskInboxView.hidden = normalized !== "tasks";
-				taskInboxView.setAttribute("aria-hidden", normalized === "tasks" ? "false" : "true");
-			}
+		function showTaskInboxPage(restoreFocusElement, options) {
+			state.taskInboxOpen = true;
+			state.taskInboxRestoreFocusElement = rememberPanelReturnFocus(
+				restoreFocusElement || openTaskInboxButton,
+			);
+			taskInboxView.hidden = false;
+			taskInboxView.classList.add("open");
+			taskInboxView.setAttribute("aria-hidden", "false");
 			renderTaskInboxToggleState();
-			if (normalized === "tasks") {
-				renderTaskInbox();
-				if (!options?.skipRefresh) {
-					void loadTaskInbox({ silent: true });
-				}
-				return;
-			}
-			if (options?.focusComposer !== false) {
-				messageInput.focus({ preventScroll: true });
+			renderTaskInbox();
+			if (!options?.skipRefresh) {
+				void loadTaskInbox({ silent: true });
 			}
 		}
 
-		function openTaskInbox() {
+		function openTaskInbox(restoreFocusElement, options) {
 			state.taskInboxFilter = state.taskInboxUnreadCount > 0 ? "unread" : "all";
-			setPrimaryView("tasks");
+			showTaskInboxPage(restoreFocusElement, options);
 		}
 
 		function closeTaskInbox() {
-			setPrimaryView("chat");
+			state.taskInboxOpen = false;
+			restoreFocusAfterPanelClose(taskInboxView, state.taskInboxRestoreFocusElement);
+			state.taskInboxRestoreFocusElement = null;
+			taskInboxView.classList.remove("open");
+			taskInboxView.hidden = true;
+			taskInboxView.setAttribute("aria-hidden", "true");
+			renderTaskInboxToggleState();
 		}
 
 		function applyTaskInboxUnreadCount(payload) {
 			state.taskInboxUnreadCount = Math.max(0, Number(payload?.unreadCount) || 0);
 			renderTaskInboxToggleState();
-			if (state.primaryView === "tasks") {
+			if (state.taskInboxOpen) {
 				updateTaskInboxFilterButtons();
 				updateMarkAllTaskInboxReadButtonState();
 			}
@@ -667,7 +685,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 					};
 				});
 			}
-			if (changed && state.primaryView === "tasks") {
+			if (changed && state.taskInboxOpen) {
 				renderTaskInbox();
 			}
 			return changed;
@@ -718,7 +736,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 						item?.readAt ? item : { ...item, readAt: now },
 					);
 				}
-				if (state.primaryView === "tasks") {
+				if (state.taskInboxOpen) {
 					renderTaskInbox();
 				}
 				applyTaskInboxUnreadCount(payload);
@@ -755,7 +773,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			if (taskInboxList) {
 				taskInboxList.setAttribute("aria-busy", "true");
 			}
-			if (state.primaryView === "tasks") {
+			if (state.taskInboxOpen) {
 				renderTaskInbox();
 			}
 			try {
@@ -772,7 +790,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				state.taskInboxUnreadCount = page.unreadCount;
 				renderTaskInboxToggleState();
 				state.taskInboxError = "";
-				if (state.primaryView === "tasks") {
+				if (state.taskInboxOpen) {
 					renderTaskInbox();
 				}
 			} catch (error) {
@@ -781,7 +799,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				if (!options?.silent) {
 					showError(messageText);
 				}
-				if (state.primaryView === "tasks") {
+				if (state.taskInboxOpen) {
 					renderTaskInbox();
 				}
 			} finally {
@@ -796,7 +814,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				if (taskInboxList) {
 					taskInboxList.removeAttribute("aria-busy");
 				}
-				if (state.primaryView === "tasks") {
+				if (state.taskInboxOpen) {
 					renderTaskInbox();
 				}
 			}
@@ -1023,17 +1041,22 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 export function getPlaygroundTaskInboxEventHandlersScript(): string {
 	return `
 		openTaskInboxButton.addEventListener("click", () => {
-			if (state.primaryView === "tasks") {
+			if (state.taskInboxOpen) {
 				closeTaskInbox();
 				return;
 			}
-			openTaskInbox();
+			openTaskInbox(openTaskInboxButton);
 		});
 		mobileMenuTaskInboxButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();
-			openTaskInbox();
+			openTaskInbox(mobileMenuTaskInboxButton);
 		});
 		closeTaskInboxButton.addEventListener("click", closeTaskInbox);
+		taskInboxView.addEventListener("click", (event) => {
+			if (event.target === taskInboxView) {
+				closeTaskInbox();
+			}
+		});
 		markAllTaskInboxReadButton.addEventListener("click", () => {
 			void markAllTaskInboxItemsRead();
 		});

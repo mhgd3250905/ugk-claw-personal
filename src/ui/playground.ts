@@ -2898,10 +2898,6 @@ function getPlaygroundStyles(): string {
 				min-height: 48px;
 			}
 
-			.shell[data-primary-view="tasks"] .mobile-topbar {
-				display: none !important;
-			}
-
 			.topbar-context-slot {
 				position: absolute;
 				top: max(15px, calc(env(safe-area-inset-top) + 15px));
@@ -3517,7 +3513,6 @@ function getPlaygroundScript(): string {
 			loading: false,
 			theme: "dark",
 			stageMode: "landing",
-			primaryView: "chat",
 			conversationId: "",
 			streamingText: "",
 			activeAssistantContent: null,
@@ -3544,6 +3539,7 @@ function getPlaygroundScript(): string {
 			dragDepth: 0,
 			assetModalOpen: false,
 			taskInboxItems: [],
+			taskInboxOpen: false,
 			taskInboxLoading: false,
 			taskInboxError: "",
 			taskInboxUnreadCount: 0,
@@ -3569,6 +3565,7 @@ function getPlaygroundScript(): string {
 			connEditorSaving: false,
 			connEditorError: "",
 			assetModalRestoreFocusElement: null,
+			taskInboxRestoreFocusElement: null,
 			chatRunLogRestoreFocusElement: null,
 			connManagerRestoreFocusElement: null,
 			connEditorRestoreFocusElement: null,
@@ -5172,6 +5169,9 @@ function getPlaygroundScript(): string {
 				if (event.key === "Escape" && state.assetModalOpen) {
 					closeAssetLibrary();
 				}
+				if (event.key === "Escape" && state.taskInboxOpen) {
+					closeTaskInbox();
+				}
 				if (handleConnActivityPanelEscapeKey(event)) {
 					return;
 				}
@@ -5236,7 +5236,7 @@ export function renderPlaygroundPage(): string {
 				<span>文件会进入当前消息，并自动补充文件处理描述</span>
 			</div>
 		</div>
-		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle" data-primary-view="chat">
+		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
 			<header class="topbar">
 				<aside class="landing-side landing-side-right">
 					<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button">
@@ -5474,8 +5474,6 @@ export function renderPlaygroundPage(): string {
 					<div id="notification-toast-stack" class="notification-toast-stack"></div>
 				</div>
 
-				${getPlaygroundTaskInboxView()}
-
 				<section class="stream-layout">
 					<div class="transcript-pane">
 						<header class="pane-head">
@@ -5517,6 +5515,7 @@ export function renderPlaygroundPage(): string {
 				</div>
 			</main>
 		</div>
+		${getPlaygroundTaskInboxView()}
 		<div id="context-usage-dialog" class="context-usage-dialog" aria-hidden="true" inert hidden>
 			<section class="context-usage-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="context-usage-dialog-title">
 				<div class="context-usage-dialog-head">
