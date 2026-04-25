@@ -29,7 +29,7 @@ export function getConnRunDetailsStyles(): string {
 			background:
 				linear-gradient(180deg, #121522 0%, #070914 42%, #04050d 100%),
 				#060711;
-			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			box-shadow: none;
 			overflow: hidden;
 		}
 
@@ -75,7 +75,7 @@ export function getConnRunDetailsStyles(): string {
 			border: 0;
 			border-radius: 4px;
 			background: #0b0e19;
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+			box-shadow: none;
 		}
 
 		.conn-run-section code {
@@ -276,7 +276,7 @@ export function getConnManagerActivityStyles(): string {
 		.conn-manager-item.is-highlighted {
 			border-color: rgba(141, 255, 178, 0.28);
 			background: rgba(141, 255, 178, 0.055);
-			box-shadow: inset 3px 0 0 rgba(141, 255, 178, 0.42);
+			box-shadow: none;
 		}
 
 		.conn-manager-notice {
@@ -564,9 +564,7 @@ export function getConnManagerActivityStyles(): string {
 			background:
 				radial-gradient(circle at 20% 0%, rgba(101, 209, 255, 0.12), transparent 35%),
 				rgba(5, 7, 13, 0.98);
-			box-shadow:
-				0 22px 56px rgba(0, 0, 0, 0.48),
-				inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			box-shadow: none;
 			color: rgba(238, 244, 255, 0.9);
 			font-family: var(--font-sans);
 		}

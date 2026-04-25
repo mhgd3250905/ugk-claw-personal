@@ -930,7 +930,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.doesNotMatch(response.body, /Enter terminal command or query neural core/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border-radius: 4px;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*box-shadow: 0 8px 18px rgba\(0, 0, 0, 0\.22\);/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*box-shadow: none;/);
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*center;/);
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*padding:\s*5px 92px;/);
 	assert.match(response.body, /\.topbar-context-slot\s*\{[\s\S]*position:\s*absolute;[\s\S]*right:\s*5px;/);
@@ -1767,13 +1767,17 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /id="mobile-menu-library-button"/);
 	assert.match(response.body, /id="mobile-menu-task-inbox-button"/);
 	assert.match(response.body, /id="mobile-task-inbox-unread-badge"/);
-	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*min-height:\s*48px;/);
-	assert.match(response.body, /\.mobile-topbar-button\s*\{[\s\S]*width:\s*36px;/);
+	assert.match(response.body, /\.topbar-context-slot\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /\.mobile-topbar-button\s*\{[\s\S]*width:\s*36px;[\s\S]*border:\s*1px solid transparent;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /\.mobile-topbar-button:hover:not\(:disabled\),[\s\S]*\.mobile-topbar-button:focus-visible\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar-context-slot \.context-usage-shell,[\s\S]*\.topbar-context-slot \.context-usage-shell\[data-expanded="true"\]\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /\.mobile-topbar-notification-badge\s*\{[\s\S]*min-width:\s*18px;[\s\S]*background:\s*#ff1744;/);
 	assert.match(response.body, /\.mobile-overflow-menu-item-badge\s*\{[\s\S]*background:\s*#ff1744;/);
 	assert.match(response.body, /\.telemetry-action-badge\s*\{[\s\S]*background:\s*#ff1744;/);
@@ -1801,6 +1805,23 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /mobileMenuLibraryButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /mobileMenuTaskInboxButton\.addEventListener\("click", \(\) => \{/);
 	assert.doesNotMatch(response.body, /class="mobile-action-strip"/);
+	await app.close();
+});
+
+test("GET /playground does not ship visible shadow effects", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.doesNotMatch(response.body, /box-shadow\s*:(?!\s*none\s*;)[\s\S]*?;/);
+	assert.doesNotMatch(response.body, /drop-shadow\s*\(/);
+	assert.doesNotMatch(response.body, /text-shadow\s*:(?!\s*none\s*;)[\s\S]*?;/);
 	await app.close();
 });
 
@@ -1835,7 +1856,7 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /:root\[data-theme="light"\]\s+:is\(\.conn-manager-toolbar, \.conn-editor-field, \.conn-editor-advanced\)\s*\{[\s\S]*background:\s*transparent;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-editor-field span,[\s\S]*:root\[data-theme="light"\]\s+\.conn-editor-advanced summary\s*\{[\s\S]*color:\s*#24324a;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-editor-time-input \+ \.flatpickr-input\s*\{[\s\S]*background:\s*#ffffff;[\s\S]*color:\s*#172033;/);
-	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-editor-field input:focus,[\s\S]*:root\[data-theme="light"\]\s+\.conn-editor-field textarea:focus\s*\{[\s\S]*outline:\s*none;[\s\S]*box-shadow:\s*inset 0 0 0 1px rgba\(31, 95, 200, 0\.32\),/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-editor-field input:focus,[\s\S]*:root\[data-theme="light"\]\s+\.conn-editor-field textarea:focus\s*\{[\s\S]*outline:\s*1px solid rgba\(31, 95, 200, 0\.38\);[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-editor-target-preview\s*\{[\s\S]*background:\s*rgba\(232, 240, 255, 0\.72\);/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.asset-modal-copy span\s*\{[\s\S]*color:\s*#667085;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.task-inbox-list,[\s\S]*:root\[data-theme="light"\]\s+\.conn-manager-list,[\s\S]*:root\[data-theme="light"\]\s+\.conn-editor-form\s*\{[\s\S]*background:\s*transparent;/);
@@ -1850,7 +1871,11 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-time-picker-calendar \.flatpickr-day\.flatpickr-disabled,[\s\S]*:root\[data-theme="light"\]\s+\.conn-time-picker-calendar \.flatpickr-day\.nextMonthDay\s*\{[\s\S]*color:\s*#9aa6b8;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-time-picker-calendar \.flatpickr-day\.selected,[\s\S]*:root\[data-theme="light"\]\s+\.conn-time-picker-calendar \.flatpickr-day\.endRange\s*\{[\s\S]*background:\s*#1f5fc8;[\s\S]*color:\s*#ffffff;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.context-usage-dialog-hero/);
-	assert.match(response.body, /:root\[data-theme="light"\]\s+\.mobile-drawer-head/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.mobile-brand\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.mobile-drawer-head\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*:root\[data-theme="light"\]\s+\.topbar,[\s\S]*:root\[data-theme="light"\]\s+\.topbar-context-slot\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*:root\[data-theme="light"\]\s+\.mobile-topbar-button,[\s\S]*:root\[data-theme="light"\]\s+\.mobile-topbar-button:focus-visible\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*:root\[data-theme="light"\]\s+\.topbar-context-slot \.context-usage-shell,[\s\S]*:root\[data-theme="light"\]\s+\.topbar-context-slot \.context-usage-shell\[data-expanded="true"\]\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /const PLAYGROUND_THEME_STORAGE_KEY = "ugk-pi:playground-theme";/);
 	assert.match(response.body, /function applyPlaygroundTheme\(nextTheme\)\s*\{/);
 	assert.match(response.body, /pageRoot\.dataset\.theme = normalized;/);
@@ -1947,7 +1972,8 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*position:\s*sticky;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) 40px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*border-bottom:\s*0;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*background:\s*#101421;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*background:\s*transparent;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-head\s*\{[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-title span\s*\{[\s\S]*max-width:\s*22ch;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-close\s*\{[\s\S]*border:\s*0;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-drawer-close\s*\{[\s\S]*border-radius:\s*6px;/);
@@ -2102,6 +2128,30 @@ test("GET /playground keeps the default active composer compact before mobile ov
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*resize:\s*none;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*overflow-y:\s*auto;/);
 	assert.match(response.body, /@media \(max-width: 960px\) \{[\s\S]*\.composer-side\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+	await app.close();
+});
+
+test("GET /playground highlights the composer shell instead of the textarea on focus", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /\.composer:focus-within\s*\{[\s\S]*outline:\s*1px solid var\(--accent\);/);
+	assert.match(response.body, /\.composer:focus-within\s*\{[\s\S]*outline-offset:\s*2px;/);
+	assert.match(response.body, /\.composer:focus-within\s*\{[\s\S]*box-shadow:\s*none;/);
+	const composerFieldFocusBlock = response.body.match(
+		/\.composer textarea:focus,\s*\n\s*\.composer input:focus,\s*\n\s*\.composer select:focus\s*\{([\s\S]*?)\n\s*\}/,
+	);
+	assert.ok(composerFieldFocusBlock);
+	assert.match(composerFieldFocusBlock[1], /outline:\s*none;/);
+	assert.doesNotMatch(composerFieldFocusBlock[1], /outline:\s*1px solid var\(--accent\);/);
+	assert.doesNotMatch(composerFieldFocusBlock[1], /border-color:\s*var\(--accent\);/);
 	await app.close();
 });
 

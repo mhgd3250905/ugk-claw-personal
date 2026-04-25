@@ -12,6 +12,24 @@
 
 ## 2026-04-25
 
+### Playground composer 焦点态上移到外层控制面
+- 日期：2026-04-25
+- 主题：把聊天输入焦点高亮从 `#message` textarea 自身移到外层 `#composer-drop-target.composer:focus-within`。输入区是一个完整控制台，不是一只孤零零的后台表单框，继续让 textarea 自己亮边确实显土。
+- 影响范围：`src/ui/playground.ts` 新增 composer 外层 `focus-within` outline，并把 composer 内 textarea / input / select 的 focus 样式收回到 `outline: none`、非 accent 边框；`test/server.test.ts` 增加回归断言，锁住“外层高亮、内层不抢焦点”的视觉口径；`DESIGN.md` 与 `docs/playground-current.md` 同步 composer focus 规则。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
+### Playground 全局可见阴影移除
+- 日期：2026-04-25
+- 主题：按新的视觉口径移除 playground 里的所有可见阴影效果。项目现在不靠阴影装层级，继续用背景深浅、字号、留白、状态色和必要 focus outline 区分功能区；这比一边说“无边框仪表盘”，一边到处塞 glow 和 shadow 要清醒得多。
+- 影响范围：`src/ui/playground.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-conn-activity.ts`、`src/ui/playground-theme-controller.ts` 中所有实际 `box-shadow`、`drop-shadow`、`text-shadow` 效果归零，保留必要的 `box-shadow: none` 作为全局按钮样式兜底；输入 focus 改用 outline，不再用阴影模拟 focus ring；`test/server.test.ts` 新增 `/playground` 输出不得包含可见 shadow 效果的回归测试；`DESIGN.md` 与 `docs/playground-current.md` 同步 shadow-free 设计口径。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-conn-activity.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
+### Playground 手机端顶部导航与历史抽屉头部透明化
+- 日期：2026-04-25
+- 主题：按当前手机端视觉口径，把 `mobile-brand-button`、`mobile-topbar`、`topbar-context-slot`、`mobile-new-conversation-button`、`mobile-overflow-menu-button` 和历史会话抽屉头部从“独立 raised surface”收回到透明导航层。这里再加背景和阴影只会把顶部做成一排多余小卡片，用户点名不要，那就别硬凹层级。
+- 影响范围：`src/ui/playground.ts` 将移动断点下全局 `.topbar`、`.mobile-topbar`、顶部上下文槽、上下文电池入口和两个移动顶部 icon 按钮改为透明背景、无阴影；`src/ui/playground-assets.ts` 将移动端 `.mobile-drawer-head` 改为透明背景、无阴影；`src/ui/playground-theme-controller.ts` 同步浅色主题下移动顶部导航、`.mobile-brand` 与 `.mobile-drawer-head` 的透明 / 无阴影覆盖，只保留必要文字颜色映射；`test/server.test.ts` 增加深浅主题断言，防止后续又把背景或阴影加回来；`DESIGN.md` 与 `docs/playground-current.md` 同步手机端顶部导航和历史抽屉头部的透明口径。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 浅色工作页细节复验与收口
 - 日期：2026-04-25
 - 主题：继续收口浅色主题，重点修复后台任务创建页 label / hint 仍继承深色白字、时间选择器月份 / 星期 / 日期仍是白字、表单字段被浅灰块层层包住、上下文详情模型信息条残留深色 pill、输入框 focus 使用浏览器默认黑边的问题。浅色模式不是半成品反色皮肤，白字漏出来和灰块套灰块都属于设计缺陷。

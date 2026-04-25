@@ -27,6 +27,7 @@
 - 当前品牌文案为 `UGK CLAW`
 - 桌面端首页仍保留 `hero-wordmark` 作为 landing 主视觉；原 `topbar-signal` 已移除，桌面工具栏直接占用 `topbar` 主位
 - 手机端顶部状态栏显示品牌 logo，并在右侧配套 `UGK Claw` 字标
+- 手机端全局顶部状态栏只作为透明导航层：`mobile-topbar`、移动断点下的 `.topbar`、`topbar-context-slot`、`mobile-brand-button`、`mobile-new-conversation-button`、`mobile-overflow-menu-button` 和顶部上下文电池入口都不使用背景或阴影；真正的层级交给页面背景、历史抽屉和更多菜单承载。
 - 页面仍是单一 `landing` 壳子，通过 `data-transcript-state=idle|active` 切空态和会话态
 - 当前整体视觉基调已从偏冷蓝电子夜景收口为“深空黑 + 暗紫星云 + 冷白星尘”，蓝色只保留极弱余光，不再主导页面气质
 - 桌面端 landing 的工具入口现在直接挂在 `topbar` 内，替换掉旧的 `UGK CLAW` 顶部字标；按钮只保留关键命令，减少首屏视觉负担。
@@ -43,7 +44,7 @@
 - 浏览器端 transcript 条目拼装、assistant 状态壳层、运行日志入口、正文复制按钮、markdown hydration、代码块 copy toolbar、历史恢复后的消息渲染，以及 `bindPlaygroundTranscriptRenderer()` 初始化入口集中在 `src/ui/playground-transcript-renderer.ts`；`src/ui/playground.ts` 只保留会话恢复、流式事件和这些渲染函数的调用点
 - 浏览器端通知广播 SSE、active run 事件流 attach / teardown、断线恢复、`send / queue / interrupt` 主链路，以及 `bindPlaygroundStreamController()` 初始化入口集中在 `src/ui/playground-stream-controller.ts`；`src/ui/playground.ts` 不再兼任 stream lifecycle 泵站
 - 深色 / 浅色主题切换集中在 `src/ui/playground-theme-controller.ts`：该文件输出 light theme 覆盖样式与浏览器端持久化脚本，`src/ui/playground.ts` 只注入桌面和手机入口。主题值存入 `localStorage` 的 `ugk-pi:playground-theme`，并通过 `<html data-theme="dark|light">` 生效。
-- 浅色主题现在按“冷白工作台”完整覆盖 chat、文件库、后台任务、任务消息、上下文详情弹窗、历史抽屉和移动更多菜单：根背景是 `#e8edf6` 冷白网格，主文字是 `#142033`，metadata 使用蓝灰，状态色继续区分成功 / 警告 / 危险。不能让深色主题的透明白文字漏到浅色卡片上，也不能在浅色工作页里保留整块黑色面板；markdown 标题 / strong / code、文件 metadata、任务消息 metadata、conn 状态徽标、上下文指标块和历史抽屉头部都必须有浅色专用映射。
+- 浅色主题现在按“冷白工作台”完整覆盖 chat、文件库、后台任务、任务消息、上下文详情弹窗、历史抽屉和移动更多菜单：根背景是 `#e8edf6` 冷白网格，主文字是 `#142033`，metadata 使用蓝灰，状态色继续区分成功 / 警告 / 危险。不能让深色主题的透明白文字漏到浅色卡片上，也不能在浅色工作页里保留整块黑色面板；markdown 标题 / strong / code、文件 metadata、任务消息 metadata、conn 状态徽标、上下文指标块和历史抽屉文字都必须有浅色专用映射。手机端品牌入口和历史抽屉头部只承担结构与文字，不承担层级背景，深浅主题都保持透明、无阴影。
 - 浅色工作页的层级策略是“透明分组 + 白色承载面”：只负责排版的表单字段、工具栏、列表外壳和高级设置容器保持透明；输入框、重复条目、结果气泡、目标预览和真正的状态面板才使用浅色实体背景。后台任务创建页的 label / hint / `conn-editor-target-preview` / 时间输入 / 时间选择器日历 / focus ring 都由 `src/ui/playground-theme-controller.ts` 显式覆盖，不能再继承深色主题的白字、黑色输入块或默认浏览器黑色 focus 边。
 - `src/ui/playground.ts` 当前尾部初始化已经收口为 `bindPlaygroundAssemblerEvents()` 与 `initializePlaygroundAssembler()`；旧的 `fetchConversationHistory()` 死 helper 已移除，页面入口不再继续堆散装初始化语句
 - 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
@@ -120,7 +121,7 @@
 - 文件上传区、文件 chip、已选资产区和资产库弹窗的静态样式 / HTML 现在集中在 `src/ui/playground-assets.ts`
 - 文件上传、拖拽投放、附件 chip 渲染、资产库刷新 / 复用、已选资产和文件下载卡片运行时逻辑集中在 `src/ui/playground-assets-controller.ts`
 - `src/ui/playground.ts` 只负责把文件 / 资产控制器片段注入到主浏览器脚本，并在发送、恢复、上下文估算等主流程里调用这些函数
-- 手机端文件库不再按桌面居中弹窗或底部抽屉压缩显示，而是全屏工作页：`asset-modal-shell.open` 使用不透明 `#01030a` 背景，`asset-modal` 占满 `100dvh`，顶部是带 `topbar asset-modal-head mobile-work-topbar` 的统一状态栏；左侧是返回箭头和 `可复用资产` 标题，右侧直接放 `刷新文件库`，不再显示占位很蠢的 `回到对话` 文字按钮。顶部和列表都沿用无边框仪表盘语言：`#101421` raised header、`#0b0e19` 实心条目、阴影和留白负责分区，不再靠浅色边框把每块内容圈起来。
+- 手机端文件库不再按桌面居中弹窗或底部抽屉压缩显示，而是全屏工作页：`asset-modal-shell.open` 使用不透明 `#01030a` 背景，`asset-modal` 占满 `100dvh`，顶部是带 `topbar asset-modal-head mobile-work-topbar` 的统一状态栏；左侧是返回箭头和 `可复用资产` 标题，右侧直接放 `刷新文件库`，不再显示占位很蠢的 `回到对话` 文字按钮。顶部和列表都沿用无边框仪表盘语言：工作页头部克制承载导航，列表条目使用 `#0b0e19` 实心层级，靠背景深浅、字号和留白分区，不再靠浅色边框把每块内容圈起来。
 - 待发送附件和已选资产统一用 chip 风格展示
 - 待发送附件和已选资产的 chip 列表必须允许多行换行，文件名最多两行展示，列表自身最多占一小段高度后内部滚动；不要再把多个 PNG / TXT chip 挤成一条横向小火车，标题看不清就是失败。
 - 一次最多只发送 5 个文件；用户选择超过 5 个时，提示要作为 transcript 里的“系统提示”消息出现，不再渲染成孤零零的 `process-note-text`。
@@ -154,7 +155,7 @@
 ### 非 chat 工作页与弹窗视觉口径
 
 - 除主聊天 transcript / composer 外，文件库、后台任务管理器、后台任务编辑页、任务消息页、运行日志弹窗、确认弹窗和后台任务过程弹窗都按“无边框深色仪表盘”处理。
-- 普通状态下不要用浅灰边框划分结构；优先用 `#01030a` 页面背景、`#101421` header、`#0b0e19` 内容卡片、`#080a13` 次级条目、阴影、字号和留白制造层次。
+- 普通状态下不要用浅灰边框划分结构，也不要用阴影制造层级；优先用 `#01030a` 页面背景、`#101421` header、`#0b0e19` 内容卡片、`#080a13` 次级条目、字号、留白和状态色制造层次。
 - 圆角保持克制：页面外壳为 `0`，常规卡片和按钮以 `4px` 为主，独立信息面板最多 `8px`。别再把工作页做成一堆大圆角卡片，后台味和玩具味都会冒出来。
 - 浅色模式不是把这些工作页反相成一堆灰卡片；对应口径是冷白页面、透明结构容器、白色输入 / 条目 / 结果承载面、蓝灰 metadata 和少量蓝色 focus / active 状态。任何白字、黑块、浅灰块叠浅灰块导致层级糊掉，都按主题缺陷处理。
 
@@ -269,7 +270,7 @@
 - 主题切换不会触发会话同步、transcript 重绘或 agent 请求，只更新 `<html data-theme>`、按钮状态和 `localStorage` 持久化值；桌面端对应入口是 `theme-toggle-button`，手机端对应入口是 `mobile-menu-theme-button`。
 - 手机端 topbar、更多菜单、历史抽屉开关、遮罩关闭、外部点击关闭和移动端入口绑定集中在 `src/ui/playground-mobile-shell-controller.ts`；历史列表渲染和会话切换由 `src/ui/playground-conversations-controller.ts` 负责，移动外壳控制器不反向持有 conversation catalog 逻辑
 - 手机端品牌区点击后展开左侧历史会话抽屉，宽度收口为 `min(88vw, 360px)`，右侧保留透明点击遮罩用于关闭；抽屉头部 sticky，列表项展示标题、两行摘要、更新时间和消息数，最小触摸高度 `92px`，标题 / 摘要 / meta 必须显式设置移动端行高，不能继续继承全局 button 的紧缩排版；当前会话只用左侧冷白蓝亮条和深色层级标记，不再铺大面积蓝色块，也不再靠细边框分区；删除按钮位于条目内部右上角，不再作为条目外侧独立列挤压内容；侧边栏内关闭按钮、空态和会话项使用 `6px` / `8px` 的小圆角并保持无边框；历史列表保留纵向滚动但隐藏侧边滚动条；运行中禁止切换，避免一个 agent 工人被硬拽到另一条产线
-- 手机端历史抽屉头部不再透明裸放，改成与上下文详情同一套 raised surface；注意这里不是回到边框卡片，而是靠背景层级和阴影形成信息分组。
+- 手机端历史抽屉头部保持透明裸放，不再做 raised surface；信息分组交给抽屉外壳、列表项背景深浅、左侧状态色和留白。
 - `新会话` 按钮现在走 `POST /v1/chat/conversations` 创建新的服务端会话并激活为 `currentConversationId`；不再 reset 旧会话，也不再只清本地 transcript
 - 手机端 `文件库`、`后台任务`、`新建后台任务`、`任务消息` 和后台 run 详情统一走全屏工作页：点击入口后先立刻打开对应页面，页面内部再刷新数据；用户点按钮切界面不能等接口回完才出现反馈，这种体验慢得像在拨号上网。
 - 这些手机工作页的共同约束是：顶部 `topbar` sticky，左侧固定返回箭头 + 标题，右侧放当前页面的关键动作；动作较多时允许横向滚动，但不要再把 `回到对话` 做成右侧文字按钮。内容区独立滚动并 `overscroll-behavior: contain`，主操作按钮最小高度约 `40px`，列表项最小高度 `64px`，底部 padding 包含 `env(safe-area-inset-bottom)`。
@@ -282,6 +283,7 @@
 - Landing 空态底部 `#composer-drop-target.composer` 不再使用大输入框口径；桌面 landing composer 使用 `6px 8px 6px 10px` padding，textarea 初始最小高度为 `40px`，发送 / 打断按钮最小高度为 `40px`，并通过 `align-self: end`、`height: fit-content`、`max-height: none` 防止外层 section 被旧高度规则卡死
 - 底部 composer 改成手机优先结构：输入区单列铺满，右侧只保留紧凑 icon 控制；移动端 composer 背景使用单层纯色，不再叠加渐变；发送按钮使用居中的向上箭头 icon，打断按钮使用白色方形中断 icon，不再显示文字，也不再沿用桌面端按钮背景、边框和阴影；当前手机端这两个 icon 调整为 `28px`，避免把按钮本体撑大；中断按钮在未运行时也保留占位，只是禁用态变淡，不会直接消失；发送后的输入框立即清空，失败才回填草稿
 - composer 输入框 placeholder 统一为“和我聊聊吧”；不要再让脚本初始化把 HTML 里的中文占位符覆盖成英文调试口吻；手机端单行空态按 line-height + 对称 padding 计算，让 placeholder 和正文视觉居中
+- composer 的焦点态归外层 `#composer-drop-target.composer:focus-within` 负责：用户点进 `#message` 后，外层输入控制面显示 `var(--accent)` outline，textarea 自身继续 `outline: none`，也不再把自己的边框改成 accent。否则视觉上又会退回普通表单输入框。
 - Active 对话态的 `#composer-drop-target.composer` 基础高度已经收口：普通对话中的 textarea 默认最小高度为 `52px`，空内容和单行内容保留最小高度以保证 placeholder / 正文纵向居中；多行输入时高度随输入行数自动增长，最多显示 10 行；超过 10 行后只在 textarea 内部纵向滚动，并禁用手动竖向 resize；`max-width: 960px` 下右侧发送 / 打断按钮横排，避免按钮掉到输入框下方继续撑高底部区域
 - 手机端 active 对话态继续走更紧凑输入区约束，不只在 landing 空态生效；普通对话中的 textarea 最小高度收口为 `44px`，单行时使用 `12px 0` 对称 padding，landing 使用 `40px` 高度与 `10px 0` padding，同样按内容自适应到最多 10 行，超过后内部滚动，避免底部输入区吃掉约四分之一屏幕高度
 - 手机端消息气泡、字号、留白、按钮尺寸都按小屏重新收口，用户消息宽度放宽到更适合单手阅读的比例
@@ -326,7 +328,7 @@
 - 风险态统一按 `safe / caution / warning / danger` 四档收口，圆环颜色会随风险变化。
 - 桌面端 hover 或键盘 focus 时展示浮层详情；点击可临时固定展开，别再要求用户盯着一个完整状态条。
 - 上下文详情弹层统一显示在页面上半区，和顶部入口保持同一视觉重心；不要把按钮放顶部、详情却从底部冒出来，像两个设计师隔空打架。
-- 手机端点击上下文电池条后也在上半区展开详情，详情面板改为无边框仪表盘：外层深底、顶部大百分比、柔和进度条、四个指标块和底部模型信息条，通过背景深浅、字号、留白与阴影建立层次，不再把一整段文本塞进弹窗。关闭时必须先通过 `releasePanelFocusBeforeHide(contextUsageDialog, contextUsageShell)` 释放焦点，再设置 `hidden` / `aria-hidden=true` / `inert`，避免关闭按钮仍持焦时触发 `Blocked aria-hidden` 警告。内容包括：会话占用、待发占用、预留回复预算、provider / model、估算口径与剩余可用空间。
+- 手机端点击上下文电池条后也在上半区展开详情，详情面板改为无边框仪表盘：外层深底、顶部大百分比、柔和进度条、四个指标块和底部模型信息条，通过背景深浅、字号、留白与状态色建立层次，不再把一整段文本塞进弹窗。关闭时必须先通过 `releasePanelFocusBeforeHide(contextUsageDialog, contextUsageShell)` 释放焦点，再设置 `hidden` / `aria-hidden=true` / `inert`，避免关闭按钮仍持焦时触发 `Blocked aria-hidden` 警告。内容包括：会话占用、待发占用、预留回复预算、provider / model、估算口径与剩余可用空间。
 
 ## Realtime Notification Broadcast
 

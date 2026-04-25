@@ -68,7 +68,7 @@ export function getPlaygroundThemeStyles(): string {
 				linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(232, 238, 248, 0.94)),
 				#f4f7fb;
 			color: var(--fg);
-			box-shadow: 0 10px 28px rgba(40, 53, 84, 0.12);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .shell,
@@ -90,17 +90,15 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] .mobile-topbar {
 			border-bottom-color: transparent;
-			background:
-				linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(229, 236, 248, 0.94)),
-				#f4f7fb;
+			background: transparent;
 			color: var(--fg);
-			box-shadow: 0 12px 30px rgba(40, 53, 84, 0.14);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .mobile-brand {
-			background: rgba(255, 255, 255, 0.64);
+			background: transparent;
 			color: #142033;
-			box-shadow: 0 8px 18px rgba(40, 53, 84, 0.1);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .telemetry-card,
@@ -112,9 +110,7 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: rgba(255, 255, 255, 0.86);
 			color: var(--fg);
-			box-shadow:
-				0 18px 42px rgba(40, 53, 84, 0.12),
-				inset 0 1px 0 rgba(255, 255, 255, 0.76);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .telemetry-card span,
@@ -154,7 +150,7 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: rgba(36, 84, 214, 0.13);
 			background: rgba(255, 255, 255, 0.74);
 			color: #24324a;
-			box-shadow: 0 8px 18px rgba(40, 53, 84, 0.08);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] button:hover:not(:disabled),
@@ -162,7 +158,7 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: rgba(36, 84, 214, 0.28);
 			background: #ffffff;
 			color: #123fb7;
-			box-shadow: 0 10px 22px rgba(36, 84, 214, 0.12);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] #send-button {
@@ -171,7 +167,7 @@ export function getPlaygroundThemeStyles(): string {
 				linear-gradient(135deg, rgba(36, 84, 214, 0.14), rgba(255, 255, 255, 0.9)),
 				#ffffff;
 			color: #173fa6;
-			box-shadow: 0 12px 26px rgba(36, 84, 214, 0.14);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] #interrupt-button {
@@ -218,7 +214,7 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: rgba(255, 255, 255, 0.92);
 			color: var(--fg);
-			box-shadow: inset 0 1px 0 rgba(23, 32, 51, 0.04);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] #message {
@@ -238,15 +234,13 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] :is(.task-inbox-result-bubble) {
 			background: rgba(255, 255, 255, 0.9);
 			color: #172033;
-			box-shadow:
-				0 14px 30px rgba(40, 53, 84, 0.1),
-				inset 0 1px 0 rgba(255, 255, 255, 0.86);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .message.user .message-body {
 			background: linear-gradient(180deg, #e9efff 0%, #dce6ff 100%);
 			color: #142343;
-			box-shadow: 0 12px 28px rgba(36, 84, 214, 0.12);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .message.assistant .message-content,
@@ -366,7 +360,7 @@ export function getPlaygroundThemeStyles(): string {
 				linear-gradient(180deg, #ffffff 0%, #f2f5fa 100%),
 				#ffffff;
 			color: #172033;
-			box-shadow: inset 0 1px 0 rgba(23, 32, 51, 0.05);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .message-export-frame > .message-body {
@@ -385,7 +379,7 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: rgba(255, 255, 255, 0.86);
 			color: #26344f;
-			box-shadow: 0 12px 24px rgba(40, 53, 84, 0.1);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .assistant-run-log-trigger.ok {
@@ -404,7 +398,7 @@ export function getPlaygroundThemeStyles(): string {
 				linear-gradient(180deg, #ffffff 0%, #f1f5fb 100%),
 				#ffffff;
 			color: #172033;
-			box-shadow: 0 22px 46px rgba(40, 53, 84, 0.16);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] :is(.context-usage-dialog-head),
@@ -415,7 +409,7 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] :is(.task-inbox-head) {
 			background: rgba(255, 255, 255, 0.96);
 			color: #172033;
-			box-shadow: 0 10px 24px rgba(40, 53, 84, 0.08);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .asset-modal-copy span {
@@ -439,7 +433,7 @@ export function getPlaygroundThemeStyles(): string {
 			background:
 				linear-gradient(180deg, #ffffff 0%, #eaf1fb 100%),
 				#ffffff;
-			box-shadow: 0 12px 26px rgba(40, 53, 84, 0.1);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .context-usage-dialog-head strong,
@@ -462,12 +456,12 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] .context-usage-dialog-meter {
 			background: #dce6f4;
-			box-shadow: inset 0 1px 0 rgba(23, 32, 51, 0.05);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .context-usage-dialog-meter span {
 			background: linear-gradient(90deg, #08784b, #1f5fc8);
-			box-shadow: 0 0 16px rgba(31, 95, 200, 0.18);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .context-usage-dialog-main span {
@@ -559,7 +553,7 @@ export function getPlaygroundThemeStyles(): string {
 				linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 253, 0.98) 100%),
 				#ffffff;
 			color: #172033;
-			box-shadow: 0 20px 46px rgba(40, 53, 84, 0.12);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .task-inbox-list,
@@ -580,9 +574,7 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: rgba(255, 255, 255, 0.9);
 			color: #24324a;
-			box-shadow:
-				0 10px 24px rgba(40, 53, 84, 0.08),
-				inset 0 1px 0 rgba(255, 255, 255, 0.9);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] :is(.conn-manager-toolbar, .conn-editor-field, .conn-editor-advanced) {
@@ -599,18 +591,14 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: #ffffff;
 			color: #172033;
-			box-shadow:
-				inset 0 0 0 1px rgba(36, 84, 214, 0.08),
-				0 8px 18px rgba(40, 53, 84, 0.06);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .conn-editor-time-input + .flatpickr-input {
 			border-color: transparent;
 			background: #ffffff;
 			color: #172033;
-			box-shadow:
-				inset 0 0 0 1px rgba(36, 84, 214, 0.12),
-				0 8px 18px rgba(40, 53, 84, 0.07);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .conn-editor-time-input + .flatpickr-input::placeholder {
@@ -620,10 +608,9 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .conn-editor-field input:focus,
 		:root[data-theme="light"] .conn-editor-field select:focus,
 		:root[data-theme="light"] .conn-editor-field textarea:focus {
-			outline: none;
-			box-shadow:
-				inset 0 0 0 1px rgba(31, 95, 200, 0.32),
-				0 10px 22px rgba(31, 95, 200, 0.12);
+			outline: 1px solid rgba(31, 95, 200, 0.38);
+			outline-offset: 2px;
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .conn-editor-current-target,
@@ -631,7 +618,7 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: rgba(232, 240, 255, 0.72);
 			color: #40516d;
-			box-shadow: inset 3px 0 0 rgba(31, 95, 200, 0.26);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .conn-editor-target-preview {
@@ -650,13 +637,13 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: #1f5fc8;
 			color: #ffffff;
-			box-shadow: 0 10px 22px rgba(31, 95, 200, 0.2);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] :is(.asset-pill.active) {
 			background: #e8f6ef;
 			color: #172033;
-			box-shadow: inset 3px 0 0 rgba(8, 120, 75, 0.42);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .asset-pill strong,
@@ -678,9 +665,7 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .conn-run-result-bubble {
 			background: #ffffff;
 			color: #172033;
-			box-shadow:
-				0 12px 26px rgba(40, 53, 84, 0.1),
-				inset 0 1px 0 rgba(255, 255, 255, 0.88);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .task-inbox-result-bubble > strong,
@@ -690,7 +675,7 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] .conn-manager-item.is-highlighted {
 			background: #e8f6ef;
-			box-shadow: inset 3px 0 0 rgba(8, 120, 75, 0.44);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .conn-manager-title-row strong {
@@ -728,7 +713,7 @@ export function getPlaygroundThemeStyles(): string {
 				linear-gradient(180deg, #ffffff 0%, #eef3fa 100%),
 				#ffffff;
 			color: #172033;
-			box-shadow: 0 22px 48px rgba(40, 53, 84, 0.18);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .conn-time-picker-calendar::after {
@@ -802,13 +787,13 @@ export function getPlaygroundThemeStyles(): string {
 				radial-gradient(circle at 22% 12%, rgba(36, 84, 214, 0.1), transparent 34%),
 				linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 244, 250, 0.98));
 			color: #172033;
-			box-shadow: 22px 0 46px rgba(40, 53, 84, 0.16);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .mobile-drawer-head {
-			background: #ffffff;
+			background: transparent;
 			color: #172033;
-			box-shadow: 0 12px 28px rgba(40, 53, 84, 0.1);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .mobile-drawer-title span {
@@ -828,7 +813,7 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .mobile-conversation-item:focus-visible {
 			background: #ffffff;
 			color: #123fb7;
-			box-shadow: 0 8px 18px rgba(40, 53, 84, 0.08);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .mobile-conversation-item.is-active {
@@ -838,7 +823,7 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] .mobile-conversation-item.is-active::before {
 			background: #2454d6;
-			box-shadow: 0 0 14px rgba(36, 84, 214, 0.28);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .conversation-item-delete {
@@ -850,13 +835,39 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .error-banner {
 			background: #fff0f2;
 			color: #8f2034;
-			box-shadow: 0 14px 28px rgba(197, 41, 69, 0.14);
+			box-shadow: none;
 		}
 
 		@media (max-width: 640px) {
 			:root[data-theme="light"] .shell,
 			:root[data-theme="light"] .chat-stage {
 				background: transparent;
+			}
+
+			:root[data-theme="light"] .topbar,
+			:root[data-theme="light"] .mobile-topbar,
+			:root[data-theme="light"] .topbar-context-slot {
+				border-bottom-color: transparent;
+				background: transparent;
+				box-shadow: none;
+			}
+
+			:root[data-theme="light"] .mobile-topbar-button,
+			:root[data-theme="light"] .mobile-topbar-button:hover:not(:disabled),
+			:root[data-theme="light"] .mobile-topbar-button:focus-visible {
+				border-color: transparent;
+				background: transparent;
+				color: #24324a;
+				box-shadow: none;
+			}
+
+			:root[data-theme="light"] .topbar-context-slot .context-usage-shell,
+			:root[data-theme="light"] .topbar-context-slot .context-usage-shell:hover,
+			:root[data-theme="light"] .topbar-context-slot .context-usage-shell:focus-visible,
+			:root[data-theme="light"] .topbar-context-slot .context-usage-shell[data-expanded="true"] {
+				border-color: transparent;
+				background: transparent;
+				box-shadow: none;
 			}
 
 			:root[data-theme="light"] .message-body {

@@ -149,11 +149,11 @@ Use compact type throughout operational surfaces. Body text is small but spaciou
 
 ## Layout & Spacing
 
-Chat content should follow the composer width. On mobile, prioritize the transcript and composer over explanatory chrome. Controls should be icon-first when their meaning is familiar, with accessible labels preserved in markup. Fixed-format controls need stable dimensions so streaming status, hover states, and button labels do not shift the layout.
+Chat content should follow the composer width. On mobile, prioritize the transcript and composer over explanatory chrome. The global mobile topbar is navigation, not a panel: keep the topbar, brand trigger, context slot, new-chat button, and overflow trigger transparent with no shadows; let the page background and actual drawers / menus provide depth. Controls should be icon-first when their meaning is familiar, with accessible labels preserved in markup. Fixed-format controls need stable dimensions so streaming status, hover states, and button labels do not shift the layout.
 
 ## Elevation & Depth
 
-Depth should be functional. Prefer layered solid backgrounds over visible borders for panels, drawers, and overlays; use shadows and tone shifts to separate surfaces. Borders are reserved for active states, danger states, or dense tabular content. Avoid glassy translucency for critical information.
+Depth should be functional and shadow-free. Prefer layered solid backgrounds, tone shifts, spacing, type scale, and small status accents over visible borders for panels, drawers, and overlays. Do not use `box-shadow`, `drop-shadow`, or `text-shadow` for hierarchy. Borders are reserved for active states, danger states, focus states, or dense tabular content. Avoid glassy translucency for critical information.
 
 ## Shapes
 
@@ -163,6 +163,8 @@ Use `4px` radius for rectangular UI elements unless a specific repeated componen
 
 Assistant messages use dark raised surfaces. User messages use a clear opposing treatment but keep text left-aligned for readability. Error banners are opaque, high-contrast, and floating; they must not be rendered as semi-transparent overlays that rely on whatever happens to sit behind them.
 
+The composer is one control surface, not a textarea floating inside a form. When the message input or any composer control receives focus, put the active outline on `#composer-drop-target.composer:focus-within`; the inner textarea should keep `outline: none` and must not change to the accent border. This keeps focus visible without making the input feel like a generic backend form field.
+
 Transcript message actions live inside the `.message-body` at the bottom edge of the rendered content, but only after that message has real content such as text, attachments, referenced assets, or files. Empty assistant active-run placeholders must not render the action rail, because the rail itself creates a visible empty body. Keep actions as compact icon-only affordances with accessible labels, no visible text, no border, no background, and no shadow. The copy action and image export action share the same quiet control rail; PNG exports must omit the action rail itself and add a small `UGK Claw` signature outside the rendered message body. Message-image export clones must stay origin-clean: strip external style resources, replace embedded media with a compact placeholder, and load the `foreignObject` SVG intermediate as a `data:image/svg+xml` URL before drawing to canvas.
 
 Assistant active-run status controls are singular per message card. Before attaching a new status summary or run-log trigger, clear any previous `.assistant-status-shell` / `.assistant-run-log-trigger` descendants from the same card so streaming patching cannot stack duplicate loading bubbles.
@@ -171,15 +173,15 @@ Canonical transcript state must keep stable history and in-flight run state sepa
 
 Older transcript history loads by scroll intent, not by a visible pagination button. When the user reaches the top edge of the transcript, the page should fetch and prepend older messages while preserving scroll position. A small non-interactive status may announce that older history is loading, but normal state should not show a "load more" control in the chat surface.
 
-Mobile conversation selection is a compact index, not a pile of oversized cards. Use the same borderless instrument-panel language as context usage details: a layered dark drawer, a raised sticky header, short `surface-raised` rows, a narrow luminous active indicator, muted metadata pills, and an icon-only delete affordance placed inside the conversation row at the top-right corner. Avoid visible divider borders; use background depth, spacing, and shadow to separate function.
+Mobile conversation selection is a compact index, not a pile of oversized cards. Use the same borderless instrument-panel language as context usage details: a layered dark drawer, a transparent sticky header, short `surface-raised` rows, a narrow active indicator, muted metadata pills, and an icon-only delete affordance placed inside the conversation row at the top-right corner. The mobile brand trigger and drawer header should stay transparent with no shadow in both themes; the drawer shell and conversation rows carry the depth through background tone and spacing. Avoid visible divider borders; use background depth, spacing, and status color to separate function.
 
 Mobile operational surfaces are pages, not decorative modals. File library, background task manager, background task editor, and task inbox use a full-height `background` workspace with a solid `surface` sticky header and `surface-raised` cards. Keep actions in one reachable toolbar row when possible; use full-width grid buttons when a card has several commands.
 
 Every non-chat mobile work page uses an app-style topbar. The left side starts with a compact back arrow and the page title; the right side keeps the page's primary commands, such as refresh, create, save, filters, and bulk read actions, in one horizontally scrollable action row when space is tight. Pages such as file library and task inbox should live in their own fixed full-page shell instead of swapping content inside the chat transcript shell. Do not show the global chat `mobile-topbar` inside these work pages, and do not add a visible `回到对话` text button to them.
 
-Non-chat pages and dialogs should follow the same borderless instrument-panel language as context usage details. File library, task inbox, background task manager, background task editor, run logs, confirmation dialogs, and run-detail dialogs use opaque dark layers, small radii, compact headers, and shadow/tonal depth instead of visible divider borders. Keep structural borders out of normal state; reserve them for true focus, warning, or table-like density.
+Non-chat pages and dialogs should follow the same borderless instrument-panel language as context usage details. File library, task inbox, background task manager, background task editor, run logs, confirmation dialogs, and run-detail dialogs use opaque dark layers, small radii, compact headers, and tonal depth instead of visible divider borders or shadows. Keep structural borders out of normal state; reserve them for true focus, warning, or table-like density.
 
-Context usage details are a compact instrument panel tied to the topbar. The panel must be opaque, dark, readable, and borderless: a large percentage readout, a soft progress rail, four small metric surfaces, and a quiet model strip create hierarchy through background depth, type scale, spacing, and shadow. It must release focus before becoming hidden.
+Context usage details are a compact instrument panel tied to the topbar. The panel must be opaque, dark, readable, borderless, and shadow-free: a large percentage readout, a soft progress rail, four small metric surfaces, and a quiet model strip create hierarchy through background depth, type scale, spacing, and status color. It must release focus before becoming hidden.
 
 ## Do's and Don'ts
 

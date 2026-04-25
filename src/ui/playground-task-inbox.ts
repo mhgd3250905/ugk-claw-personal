@@ -11,9 +11,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 			font-weight: 700;
 			line-height: 1.6;
 			text-align: center;
-			box-shadow:
-				0 0 0 1px rgba(255, 255, 255, 0.78),
-				0 0 14px rgba(255, 23, 68, 0.74);
+			box-shadow: none;
 		}
 
 		.mobile-topbar-button-with-badge {
@@ -39,9 +37,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 			font-variant-numeric: tabular-nums;
 			font-weight: 800;
 			line-height: 1;
-			box-shadow:
-				0 0 0 1px rgba(255, 255, 255, 0.82),
-				0 0 16px rgba(255, 23, 68, 0.86);
+			box-shadow: none;
 			pointer-events: none;
 		}
 
@@ -75,9 +71,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 			font-weight: 700;
 			line-height: 1.4;
 			white-space: nowrap;
-			box-shadow:
-				0 0 0 1px rgba(255, 255, 255, 0.78),
-				0 0 14px rgba(255, 23, 68, 0.72);
+			box-shadow: none;
 		}
 
 		.task-inbox-view {
@@ -107,9 +101,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 			background:
 				linear-gradient(180deg, #060711 0%, #040611 100%),
 				#060711;
-			box-shadow:
-				0 28px 80px rgba(0, 0, 0, 0.46),
-				inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			box-shadow: none;
 			overflow: hidden;
 		}
 
@@ -246,7 +238,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-item.is-unread .task-inbox-result-bubble {
-			box-shadow: inset 3px 0 0 rgba(101, 209, 255, 0.5);
+			box-shadow: none;
 		}
 
 		.task-inbox-item-head {
@@ -287,9 +279,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 			height: 8px;
 			border-radius: 999px;
 			background: #ff1744;
-			box-shadow:
-				0 0 0 2px rgba(255, 255, 255, 0.68),
-				0 0 12px rgba(255, 23, 68, 0.76);
+			box-shadow: none;
 			flex: 0 0 auto;
 		}
 
@@ -425,9 +415,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 				padding: calc(8px + env(safe-area-inset-top)) 10px 10px;
 				border-bottom: 0;
 				background: #101421;
-				box-shadow:
-					0 14px 32px rgba(0, 0, 0, 0.3),
-					inset 0 1px 0 rgba(255, 255, 255, 0.04);
+				box-shadow: none;
 			}
 
 			.task-inbox-head-actions {
@@ -452,9 +440,7 @@ export function getPlaygroundTaskInboxStyles(): string {
 				border: 0;
 				border-radius: 4px;
 				background: #0b0e19;
-				box-shadow:
-					0 10px 24px rgba(0, 0, 0, 0.18),
-					inset 0 1px 0 rgba(255, 255, 255, 0.035);
+				box-shadow: none;
 			}
 
 			.task-inbox-item-actions {

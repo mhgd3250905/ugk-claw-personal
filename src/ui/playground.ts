@@ -222,6 +222,8 @@ function getPlaygroundStyles(): string {
 			position: relative;
 			width: 100%;
 			align-items: center;
+			background: transparent;
+			box-shadow: none;
 		}
 
 		.mobile-brand {
@@ -249,7 +251,7 @@ function getPlaygroundStyles(): string {
 			width: 28px;
 			height: 28px;
 			flex: 0 0 auto;
-			filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.26));
+			filter: none;
 		}
 
 		.mobile-brand-copy {
@@ -276,11 +278,9 @@ function getPlaygroundStyles(): string {
 			width: 36px;
 			height: 36px;
 			padding: 0;
-			border: 1px solid rgba(201, 210, 255, 0.12);
-			background: rgba(255, 255, 255, 0.04);
-			box-shadow:
-				inset 0 1px 0 rgba(255, 255, 255, 0.05),
-				0 10px 20px rgba(0, 0, 0, 0.16);
+			border: 1px solid transparent;
+			background: transparent;
+			box-shadow: none;
 		}
 
 		.mobile-topbar-button svg {
@@ -291,13 +291,11 @@ function getPlaygroundStyles(): string {
 
 		.mobile-topbar-button:hover:not(:disabled),
 		.mobile-topbar-button:focus-visible {
-			border-color: rgba(201, 210, 255, 0.24);
-			background: rgba(255, 255, 255, 0.08);
+			border-color: transparent;
+			background: transparent;
 			color: #f7f9ff;
 			transform: none;
-			box-shadow:
-				inset 0 1px 0 rgba(255, 255, 255, 0.08),
-				0 12px 24px rgba(0, 0, 0, 0.2);
+			box-shadow: none;
 		}
 
 		.mobile-overflow-menu {
@@ -314,9 +312,7 @@ function getPlaygroundStyles(): string {
 			background:
 				linear-gradient(180deg, rgba(12, 16, 28, 0.98), rgba(7, 10, 18, 0.98)),
 				rgba(7, 10, 18, 0.98);
-			box-shadow:
-				0 18px 34px rgba(0, 0, 0, 0.28),
-				inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			box-shadow: none;
 			backdrop-filter: none;
 		}
 
@@ -393,7 +389,7 @@ function getPlaygroundStyles(): string {
 			background:
 				radial-gradient(circle at 22% 12%, rgba(116, 179, 255, 0.16), transparent 34%),
 				linear-gradient(180deg, rgba(11, 15, 27, 0.98), rgba(5, 7, 13, 0.99));
-			box-shadow: 22px 0 46px rgba(0, 0, 0, 0.42);
+			box-shadow: none;
 		}
 
 		.mobile-drawer-head {
@@ -646,8 +642,7 @@ function getPlaygroundStyles(): string {
 				transform 120ms ease,
 				border-color 120ms ease,
 				color 120ms ease,
-				background 120ms ease,
-				box-shadow 120ms ease;
+				background 120ms ease;
 		}
 
 		button:hover:not(:disabled) {
@@ -655,7 +650,7 @@ function getPlaygroundStyles(): string {
 			color: var(--accent);
 			background: rgba(255, 255, 255, 0.08);
 			transform: translateY(-1px);
-			box-shadow: 0 8px 18px rgba(201, 210, 255, 0.08);
+			box-shadow: none;
 		}
 
 		button:disabled {
@@ -711,7 +706,7 @@ function getPlaygroundStyles(): string {
 			line-height: 1.6;
 			flex-shrink: 0;
 			z-index: 6;
-			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+			box-shadow: none;
 			pointer-events: auto;
 		}
 
@@ -788,9 +783,7 @@ function getPlaygroundStyles(): string {
 			background:
 				linear-gradient(180deg, rgba(8, 14, 24, 0.96), rgba(6, 10, 18, 0.96)),
 				rgba(6, 10, 18, 0.96);
-			box-shadow:
-				0 18px 40px rgba(0, 0, 0, 0.32),
-				inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			box-shadow: none;
 			backdrop-filter: none;
 			pointer-events: auto;
 		}
@@ -930,7 +923,7 @@ function getPlaygroundStyles(): string {
 			line-height: 1;
 			letter-spacing: 0.08em;
 			text-transform: uppercase;
-			box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
+			box-shadow: none;
 			backdrop-filter: none;
 		}
 
@@ -944,7 +937,7 @@ function getPlaygroundStyles(): string {
 			background: rgba(14, 18, 31, 0.96);
 			color: #f3fbff;
 			transform: none;
-			box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+			box-shadow: none;
 		}
 
 		.transcript-archive,
@@ -1429,7 +1422,7 @@ function getPlaygroundStyles(): string {
 			font-size: 11px;
 			letter-spacing: 0.04em;
 			text-transform: none;
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			box-shadow: none;
 			justify-self: flex-start;
 		}
 
@@ -1556,9 +1549,7 @@ function getPlaygroundStyles(): string {
 			background:
 				linear-gradient(180deg, #121522 0%, #070914 42%, #04050d 100%),
 				#060711;
-			box-shadow:
-				0 28px 64px rgba(0, 0, 0, 0.46),
-				inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			box-shadow: none;
 		}
 
 		.chat-run-log-head {
@@ -1569,7 +1560,7 @@ function getPlaygroundStyles(): string {
 			padding: 14px 16px;
 			border-bottom: 0;
 			background: #101421;
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			box-shadow: none;
 		}
 
 		.chat-run-log-head strong {
@@ -1617,7 +1608,7 @@ function getPlaygroundStyles(): string {
 			border: 0;
 			border-radius: 4px;
 			background: #0b0e19;
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+			box-shadow: none;
 		}
 
 		.chat-run-log-item-title {
@@ -1746,7 +1737,7 @@ function getPlaygroundStyles(): string {
 				linear-gradient(180deg, #121522 0%, #070914 42%, #04050d 100%),
 				#060711;
 			color: var(--fg);
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			box-shadow: none;
 		}
 
 		.message-export-frame > .message-body {
@@ -1798,9 +1789,23 @@ function getPlaygroundStyles(): string {
 			border: 0;
 			border-radius: 4px;
 			background: rgba(102, 93, 138, 0.16);
-			box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+			outline: 1px solid transparent;
+			outline-offset: 2px;
+			box-shadow: none;
 			align-items: end;
 			flex-shrink: 0;
+			transition:
+				background 120ms ease,
+				border-color 120ms ease,
+				outline-color 120ms ease;
+		}
+
+		.composer:focus-within {
+			border-color: rgba(201, 210, 255, 0.34);
+			background: rgba(102, 93, 138, 0.2);
+			outline: 1px solid var(--accent);
+			outline-offset: 2px;
+			box-shadow: none;
 		}
 
 		.composer-main {
@@ -1829,8 +1834,7 @@ function getPlaygroundStyles(): string {
 			outline: none;
 			transition:
 				border-color 120ms ease,
-				background 120ms ease,
-				box-shadow 120ms ease;
+				background 120ms ease;
 		}
 
 		.composer textarea {
@@ -1843,7 +1847,7 @@ function getPlaygroundStyles(): string {
 			overflow-y: auto;
 			padding-top: 14px;
 			padding-bottom: 14px;
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+			box-shadow: none;
 		}
 
 		.composer textarea::placeholder {
@@ -1853,9 +1857,10 @@ function getPlaygroundStyles(): string {
 		.composer textarea:focus,
 		.composer input:focus,
 		.composer select:focus {
-			border-color: var(--accent);
-			background: rgba(255, 255, 255, 0.07);
-			box-shadow: 0 0 0 4px rgba(201, 210, 255, 0.07);
+			outline: none;
+			border-color: rgba(255, 255, 255, 0.12);
+			background: rgba(255, 255, 255, 0.045);
+			box-shadow: none;
 		}
 
 		.composer-side {
@@ -1896,7 +1901,7 @@ function getPlaygroundStyles(): string {
 			border-radius: 4px;
 			background: rgba(9, 12, 22, 0.72);
 			color: rgba(247, 249, 255, 0.9);
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			box-shadow: none;
 		}
 
 		.context-usage-shell:hover,
@@ -1971,7 +1976,7 @@ function getPlaygroundStyles(): string {
 			padding: 10px 12px;
 			border: 1px solid rgba(201, 210, 255, 0.14);
 			background: rgba(7, 10, 18, 0.96);
-			box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			box-shadow: none;
 			color: rgba(225, 232, 247, 0.72);
 			font-size: 11px;
 			line-height: 1.75;
@@ -2045,9 +2050,7 @@ function getPlaygroundStyles(): string {
 			background:
 				linear-gradient(180deg, #121522 0%, #070914 38%, #04050d 100%),
 				#060711;
-			box-shadow:
-				0 28px 70px rgba(0, 0, 0, 0.5),
-				inset 0 1px 0 rgba(255, 255, 255, 0.06);
+			box-shadow: none;
 		}
 
 		.context-usage-dialog-head {
@@ -2113,7 +2116,7 @@ function getPlaygroundStyles(): string {
 			background:
 				linear-gradient(180deg, #151a2b 0%, #0d1220 100%),
 				#101421;
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			box-shadow: none;
 		}
 
 		.context-usage-dialog-kicker {
@@ -2180,22 +2183,22 @@ function getPlaygroundStyles(): string {
 			max-width: 100%;
 			border-radius: inherit;
 			background: linear-gradient(90deg, #8dffb2, #c9d2ff);
-			box-shadow: 0 0 18px rgba(141, 255, 178, 0.24);
+			box-shadow: none;
 		}
 
 		.context-usage-dialog[data-status="caution"] .context-usage-dialog-meter span {
 			background: linear-gradient(90deg, #ffd166, #fff0b8);
-			box-shadow: 0 0 18px rgba(255, 209, 102, 0.24);
+			box-shadow: none;
 		}
 
 		.context-usage-dialog[data-status="warning"] .context-usage-dialog-meter span {
 			background: linear-gradient(90deg, #ff9c5c, #ffd166);
-			box-shadow: 0 0 18px rgba(255, 156, 92, 0.24);
+			box-shadow: none;
 		}
 
 		.context-usage-dialog[data-status="danger"] .context-usage-dialog-meter span {
 			background: linear-gradient(90deg, #ff7188, #ffb1bf);
-			box-shadow: 0 0 18px rgba(255, 113, 136, 0.26);
+			box-shadow: none;
 		}
 
 		.context-usage-dialog-hero p {
@@ -2219,7 +2222,7 @@ function getPlaygroundStyles(): string {
 			padding: 10px;
 			border-radius: 8px;
 			background: #0b0e19;
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+			box-shadow: none;
 		}
 
 		.context-usage-dialog-metric span {
@@ -2297,7 +2300,7 @@ function getPlaygroundStyles(): string {
 			background:
 				linear-gradient(180deg, #121522 0%, #070914 42%, #04050d 100%),
 				#060711;
-			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			box-shadow: none;
 		}
 
 		.confirm-dialog-head strong {
@@ -2343,7 +2346,7 @@ function getPlaygroundStyles(): string {
 			padding: 24px 28px;
 			border: 1px solid var(--accent);
 			background: rgba(11, 16, 32, 0.94);
-			box-shadow: inset 0 0 0 1px rgba(201, 210, 255, 0.14);
+			box-shadow: none;
 			text-align: center;
 		}
 
@@ -2548,10 +2551,7 @@ function getPlaygroundStyles(): string {
 			line-height: 0.88;
 			letter-spacing: 0.18em;
 			text-indent: 0.18em;
-			text-shadow:
-				4px 0 0 rgba(8, 14, 24, 0.92),
-				0 4px 0 rgba(8, 14, 24, 0.92),
-				0 0 30px rgba(53, 207, 255, 0.12);
+			text-shadow: none;
 		}
 
 		.hero-divider {
@@ -2592,7 +2592,7 @@ function getPlaygroundStyles(): string {
 			border: 1px solid rgba(201, 210, 255, 0.08);
 			border-radius: 4px;
 			background: rgba(5, 7, 13, 0.78);
-			box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+			box-shadow: none;
 			transform: none;
 		}
 
@@ -2670,6 +2670,8 @@ function getPlaygroundStyles(): string {
 			flex: 0 0 auto;
 			margin-left: 0;
 			transform: translateY(-50%);
+			background: transparent;
+			box-shadow: none;
 		}
 
 		.desktop-conversation-rail {
@@ -2685,9 +2687,7 @@ function getPlaygroundStyles(): string {
 			background:
 				radial-gradient(circle at 20% 0%, rgba(101, 209, 255, 0.08), transparent 32%),
 				rgba(5, 7, 13, 0.72);
-			box-shadow:
-				inset 0 1px 0 rgba(255, 255, 255, 0.04),
-				0 18px 38px rgba(0, 0, 0, 0.18);
+			box-shadow: none;
 			overflow: hidden;
 		}
 
@@ -2805,7 +2805,7 @@ function getPlaygroundStyles(): string {
 			border: 0;
 			border-radius: 4px;
 			background: rgba(90, 82, 122, 0.22);
-			box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+			box-shadow: none;
 			backdrop-filter: none;
 		}
 
@@ -2902,7 +2902,8 @@ function getPlaygroundStyles(): string {
 				min-height: 48px;
 				gap: 0;
 				border-bottom: 0;
-				background: linear-gradient(180deg, rgba(6, 8, 15, 0.96), rgba(6, 8, 15, 0.64));
+				background: transparent;
+				box-shadow: none;
 				backdrop-filter: none;
 			}
 
@@ -2919,6 +2920,15 @@ function getPlaygroundStyles(): string {
 				right: 100px;
 				margin-left: 0;
 				transform: none;
+			}
+
+			.topbar-context-slot .context-usage-shell,
+			.topbar-context-slot .context-usage-shell:hover,
+			.topbar-context-slot .context-usage-shell:focus-visible,
+			.topbar-context-slot .context-usage-shell[data-expanded="true"] {
+				border-color: transparent;
+				background: transparent;
+				box-shadow: none;
 			}
 
 			.context-usage-shell {
@@ -3053,9 +3063,7 @@ function getPlaygroundStyles(): string {
 				letter-spacing: 0.08em;
 				white-space: pre;
 				text-align: center;
-				text-shadow:
-					0 0 12px rgba(201, 210, 255, 0.18),
-					0 0 24px rgba(121, 105, 214, 0.12);
+				text-shadow: none;
 			}
 
 			.file-strip {
@@ -3084,7 +3092,7 @@ function getPlaygroundStyles(): string {
 				background:
 					linear-gradient(180deg, #121522 0%, #070914 38%, #04050d 100%),
 					#060711;
-				box-shadow: 0 18px 48px rgba(0, 0, 0, 0.52);
+				box-shadow: none;
 			}
 
 			.context-usage-dialog-head {
@@ -3121,9 +3129,7 @@ function getPlaygroundStyles(): string {
 				border: 1px solid rgba(201, 210, 255, 0.08);
 				border-radius: 4px;
 				background: rgba(8, 10, 19, 0.98);
-				box-shadow:
-					0 -8px 30px rgba(0, 0, 0, 0.18),
-					inset 0 1px 0 rgba(255, 255, 255, 0.05);
+				box-shadow: none;
 			}
 
 			.composer-main {
@@ -3176,9 +3182,7 @@ function getPlaygroundStyles(): string {
 				border: 1px solid rgba(201, 210, 255, 0.08);
 				border-radius: 4px;
 				background: rgba(8, 10, 19, 0.98);
-				box-shadow:
-					0 -8px 30px rgba(0, 0, 0, 0.18),
-					inset 0 1px 0 rgba(255, 255, 255, 0.05);
+				box-shadow: none;
 			}
 
 			.shell[data-stage-mode="landing"] .composer-side {

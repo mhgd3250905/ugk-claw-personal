@@ -7,7 +7,7 @@ export function getPlaygroundAssetBaseStyles(): string {
 			background: rgba(255, 255, 255, 0.04);
 			backdrop-filter: none;
 			padding: 12px;
-			transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+			transition: border-color 120ms ease, background 120ms ease;
 		}
 
 		.drop-zone-top {
@@ -21,7 +21,7 @@ export function getPlaygroundAssetBaseStyles(): string {
 		.drop-zone.drag-active {
 			border-color: var(--accent);
 			background: rgba(201, 210, 255, 0.08);
-			box-shadow: inset 0 0 0 1px rgba(201, 210, 255, 0.16);
+			box-shadow: none;
 		}
 
 		.drop-zone-label {
@@ -114,7 +114,7 @@ export function getPlaygroundAssetBaseStyles(): string {
 			border: 1px solid rgba(255, 255, 255, 0.08);
 			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.035);
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+			box-shadow: none;
 		}
 
 		.file-chip-badge {
@@ -281,7 +281,7 @@ export function getPlaygroundAssetBaseStyles(): string {
 		.asset-pill.active {
 			border-color: rgba(201, 210, 255, 0.18);
 			background: rgba(255, 255, 255, 0.08);
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+			box-shadow: none;
 		}
 
 	`;
@@ -326,7 +326,7 @@ export function getPlaygroundAssetModalStyles(): string {
 			border: 1px solid rgba(255, 255, 255, 0.08);
 			background:
 				linear-gradient(180deg, rgba(19, 26, 38, 0.86), rgba(13, 18, 28, 0.88));
-			box-shadow: 0 20px 80px rgba(0, 0, 0, 0.4);
+			box-shadow: none;
 			backdrop-filter: none;
 		}
 
@@ -402,7 +402,7 @@ export function getPlaygroundAssetLandingStyles(): string {
 			padding: 0 14px;
 			border: 0;
 			border-radius: 4px;
-			box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+			box-shadow: none;
 		}
 
 		.shell[data-stage-mode="landing"] #interrupt-button {
@@ -465,9 +465,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
 				border-bottom: 0;
 				background: #101421;
-				box-shadow:
-					0 14px 32px rgba(0, 0, 0, 0.3),
-					inset 0 1px 0 rgba(255, 255, 255, 0.04);
+				box-shadow: none;
 			}
 
 			.mobile-work-topbar {
@@ -589,9 +587,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				border: 0;
 				border-radius: 4px;
 				background: #0b0e19;
-				box-shadow:
-					0 10px 24px rgba(0, 0, 0, 0.18),
-					inset 0 1px 0 rgba(255, 255, 255, 0.035);
+				box-shadow: none;
 			}
 
 			.asset-pill {
@@ -628,7 +624,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 			.asset-pill.active {
 				border: 0;
 				background: #0b1616;
-				box-shadow: inset 3px 0 0 rgba(141, 255, 178, 0.44);
+				box-shadow: none;
 			}
 
 			.conn-manager-dialog.open,
@@ -667,9 +663,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				border: 0;
 				border-radius: 4px;
 				background: #0b0e19;
-				box-shadow:
-					0 10px 24px rgba(0, 0, 0, 0.2),
-					inset 0 1px 0 rgba(255, 255, 255, 0.035);
+				box-shadow: none;
 			}
 
 			.conn-manager-filter-field {
@@ -752,7 +746,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				border: 0;
 				border-radius: 4px;
 				background: #0b0e19;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+				box-shadow: none;
 			}
 
 			.conn-editor-advanced {
@@ -760,7 +754,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				border: 0;
 				border-radius: 4px;
 				background: #0b0e19;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+				box-shadow: none;
 			}
 
 			.conn-editor-field input,
@@ -802,9 +796,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				background:
 					linear-gradient(180deg, #121522 0%, #070914 34%, #04050d 100%),
 					#060711;
-				box-shadow:
-					22px 0 56px rgba(0, 0, 0, 0.58),
-					inset 1px 0 0 rgba(255, 255, 255, 0.04);
+				box-shadow: none;
 			}
 
 			.mobile-drawer-head {
@@ -819,8 +811,8 @@ export function getPlaygroundAssetMobileStyles(): string {
 				padding: 12px;
 				border-bottom: 0;
 				border-radius: 8px;
-				background: #101421;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+				background: transparent;
+				box-shadow: none;
 			}
 
 			.mobile-drawer-title {
@@ -867,7 +859,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				border: 0;
 				border-radius: 8px;
 				background: #0b0e19;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+				box-shadow: none;
 			}
 
 			.conversation-item-shell {
@@ -915,7 +907,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				text-transform: none;
 				overflow: hidden;
 				opacity: 1;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+				box-shadow: none;
 			}
 
 			.mobile-conversation-item > * {
@@ -940,16 +932,14 @@ export function getPlaygroundAssetMobileStyles(): string {
 			.mobile-conversation-item:focus-visible {
 				border: 0;
 				background: #111625;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+				box-shadow: none;
 				transform: none;
 			}
 
 			.mobile-conversation-item.is-active {
 				border: 0;
 				background: #151a2b;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.05),
-					0 12px 28px rgba(0, 0, 0, 0.22);
+				box-shadow: none;
 			}
 
 			.mobile-conversation-item.is-active::before {
@@ -961,7 +951,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				width: 3px;
 				border-radius: 999px;
 				background: linear-gradient(180deg, #c9d2ff, #8dffb2);
-				box-shadow: 0 0 18px rgba(201, 210, 255, 0.22);
+				box-shadow: none;
 				z-index: 0;
 			}
 
