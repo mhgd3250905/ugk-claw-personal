@@ -12,6 +12,18 @@
 
 ## 2026-04-25
 
+### Playground 浅色主题完整收口
+- 日期：2026-04-25
+- 主题：把前一版半成品浅色主题收口成可用的冷白工作台主题。重点修复白字落在浅色卡片上、局部黑色面板残留、浅色层级过近导致页面像糊成一片的问题；覆盖 chat、文件库、后台任务、任务消息、上下文详情弹窗、历史抽屉和移动更多菜单。
+- 影响范围：`src/ui/playground-theme-controller.ts` 更新 light theme token 到 `#e8edf6 / #142033` 体系，并补齐 markdown 标题 / strong / code、消息导出按钮、composer 图标、资产 metadata、任务消息 metadata、conn 状态徽标、上下文详情真实类名和历史抽屉头部的浅色覆盖；`test/server.test.ts` 更新主题 token 与关键浅色覆盖断言；`DESIGN.md` 与 `docs/playground-current.md` 同步浅色主题质量口径。
+- 对应入口：`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
+### 腾讯云生产环境增量更新到 `9a9f016`
+- 日期：2026-04-25
+- 主题：按增量更新流程把腾讯云新加坡生产环境从 `45e7efb` 更新到 `9a9f016`，上线本轮 playground 手机端 UI、浅色主题、任务消息独立页面和消息图片导出 canvas 污染修复。继续使用 GitHub 工作目录 `~/ugk-claw-repo`，没有整目录替换，也没有触碰 `~/ugk-claw-shared` 下的 agent 数据和 sidecar 登录态。
+- 影响范围：生产服务器执行 `git fetch --tags origin`、`git pull --ff-only origin main`、`docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`；发布前已备份 sidecar 登录态到 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-084932.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260425-085105`；发布后内外网 `/healthz` 与 `/playground`、页面源码标记、`check-deps.mjs`、Chrome CDP 和容器状态均已验收通过。
+- 对应入口：`docs/tencent-cloud-singapore-deploy.md`、`docs/server-ops-quick-reference.md`
+
 ### Playground 消息图片导出 canvas 污染修复
 - 日期：2026-04-25
 - 主题：修复点击 chat 消息底部“保存为图片”时，SVG / canvas 导出链路因为 `blob:` SVG `foreignObject`、外部样式资源或消息媒体节点导致 `HTMLCanvasElement.toBlob()` 抛出 tainted canvas `SecurityError` 的问题；同时把错误兜底从不存在的 `showErrorBanner()` 改回真实的 `showError()`。导出失败之后再因为兜底函数不存在继续炸，这种错误套娃不能留。

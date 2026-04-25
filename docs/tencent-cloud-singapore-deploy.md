@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`45e7efb1dc2643d9e73d4d6288c0a09394091e94`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260424-223012`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260424-223012.tar.gz`
+- 当前线上应用提交：`9a9f0165845e7a7063b8786a57b964073ec49430`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260425-085105`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-084932.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,44 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-25 Playground 手机端 UI 与图片导出修复增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+
+1. 本地已完成本轮 playground UI / 导出修复验证：
+   - `npm test`：`276 tests`，`274 pass`，`2 skip`
+   - `npm run design:lint`：`0 errors`，`0 warnings`
+   - `git diff --check`
+   - 本地浏览器点击 chat 消息底部“保存为图片”，当前页控制台不再出现 `SecurityError` 或 `showErrorBanner is not defined`
+2. 本地 `main` 已推送到 GitHub：`9a9f0165845e7a7063b8786a57b964073ec49430`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `45e7efb1dc2643d9e73d4d6288c0a09394091e94`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-084932.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260425-085105`
+6. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `45e7efb` fast-forward 到 `9a9f016`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`
+9. 发布后验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网页面源码包含 `sanitizeExportStyles`、`data:image/svg` 与 `task-inbox-view.open`
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+   - `ugk-pi-browser` 容器内 `http://127.0.0.1:9222/json/version` 返回 Chrome CDP JSON
+   - `ugk-pi` 容器内 `http://172.31.250.10:9223/json/version` 返回 Chrome CDP JSON
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+
+本次上线内容包括：
+
+- 手机端非 chat 页面继续收口到无边框深色仪表盘语言，并新增浅色主题一一对应版本
+- 任务消息页改成和文件库同层级的独立 fixed 工作页，不再挂在聊天主壳里切 `data-primary-view`
+- 消息操作栏位于 `.message-body` 内底部，包含复制正文和保存图片
+- 保存图片导出链路改成 origin-clean：清理外部样式资源、替换媒体节点、使用 `data:image/svg+xml` 中间图，避免 canvas taint
+
+本次仍然踩到一个远程命令细节：`grep` 固定字符串里包含 `;` 时，如果没有正确整体引用，远端 shell 会把它拆成命令分隔符；后续验收标记优先用不含 shell 控制字符的短标记，别让发布验证变成引号杂技。
 
 ## 2026-04-24 Playground 弹层焦点释放增量发布记录
 
