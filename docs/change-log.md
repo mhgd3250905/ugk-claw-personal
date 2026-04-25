@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 消息图片导出 canvas 污染修复
+- 日期：2026-04-25
+- 主题：修复点击 chat 消息底部“保存为图片”时，SVG / canvas 导出链路因为 `blob:` SVG `foreignObject`、外部样式资源或消息媒体节点导致 `HTMLCanvasElement.toBlob()` 抛出 tainted canvas `SecurityError` 的问题；同时把错误兜底从不存在的 `showErrorBanner()` 改回真实的 `showError()`。导出失败之后再因为兜底函数不存在继续炸，这种错误套娃不能留。
+- 影响范围：`src/ui/playground-transcript-renderer.ts` 在导出前清理 `@import`、`@font-face`、非片段 `url(...)`，并把消息内 `img / video / iframe / canvas` 替换成导出占位块；包含 `foreignObject` 的 SVG 中间图改用 `data:image/svg+xml`，不再用会污染 canvas 的 `blob:` URL；`src/ui/playground.ts` 增加导出媒体占位块样式；`test/server.test.ts` 锁定导出净化、媒体替换、data SVG 和错误提示函数；`DESIGN.md` 与 `docs/playground-current.md` 同步消息图片导出的 origin-clean 约束。
+- 对应入口：`src/ui/playground-transcript-renderer.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 任务消息独立页面化
 - 日期：2026-04-25
 - 主题：把任务消息从聊天 `#shell` 内的 `data-primary-view=chat|tasks` 内容切换，改成和文件库同层级的独立 fixed 工作页。之前只隐藏全局手机顶栏只是把症状盖住，结构还是挂在聊天壳子里，确实不够像“新页面”；这次把任务消息页挂到 `#shell` 外层，用 `taskInboxOpen` / `.task-inbox-view.open` 管理打开状态、焦点归还和移动端全屏。

@@ -163,7 +163,7 @@ Use `4px` radius for rectangular UI elements unless a specific repeated componen
 
 Assistant messages use dark raised surfaces. User messages use a clear opposing treatment but keep text left-aligned for readability. Error banners are opaque, high-contrast, and floating; they must not be rendered as semi-transparent overlays that rely on whatever happens to sit behind them.
 
-Transcript message actions live inside the `.message-body` at the bottom edge of the rendered content. Keep them as compact icon-only affordances with accessible labels, no visible text, no border, no background, and no shadow. The copy action and image export action share the same quiet control rail; PNG exports must omit the action rail itself and add a small `UGK Claw` signature outside the rendered message body.
+Transcript message actions live inside the `.message-body` at the bottom edge of the rendered content. Keep them as compact icon-only affordances with accessible labels, no visible text, no border, no background, and no shadow. The copy action and image export action share the same quiet control rail; PNG exports must omit the action rail itself and add a small `UGK Claw` signature outside the rendered message body. Message-image export clones must stay origin-clean: strip external style resources, replace embedded media with a compact placeholder, and load the `foreignObject` SVG intermediate as a `data:image/svg+xml` URL before drawing to canvas.
 
 Assistant active-run status controls are singular per message card. Before attaching a new status summary or run-log trigger, clear any previous `.assistant-status-shell` / `.assistant-run-log-trigger` descendants from the same card so streaming patching cannot stack duplicate loading bubbles.
 

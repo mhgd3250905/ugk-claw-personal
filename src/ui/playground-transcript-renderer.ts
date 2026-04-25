@@ -376,14 +376,33 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			scrollTranscriptToBottom();
 		}
 
+		function sanitizeExportStyles(cssText) {
+			return String(cssText || "")
+				.replace(/@import[^;]+;/g, "")
+				.replace(/@font-face\s*\{[^}]*\}/g, "")
+				.replace(/url\((?!['"]?#)[^)]+\)/g, "none");
+		}
+
 		function collectExportStyles() {
 			return Array.from(document.querySelectorAll("style"))
 				.map((style) => style.textContent || "")
+				.join("\\n")
+				.split("\\n")
+				.filter((line) => !line.includes("src: url("))
 				.join("\\n");
 		}
 
+		function prepareExportCloneForCanvas(clone) {
+			clone.querySelectorAll("img, video, iframe, canvas").forEach((element) => {
+				const placeholder = document.createElement("span");
+				placeholder.className = "message-export-media-placeholder";
+				placeholder.textContent = element.getAttribute("alt") || "媒体内容";
+				element.replaceWith(placeholder);
+			});
+		}
+
 		function createSvgDataUrl(svgText) {
-			return URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }));
+			return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText);
 		}
 
 		function loadImageFromUrl(url) {
@@ -421,6 +440,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			const width = Math.max(280, Math.ceil(body.getBoundingClientRect().width || 640));
 			const clone = body.cloneNode(true);
 			clone.querySelectorAll(".message-actions").forEach((element) => element.remove());
+			prepareExportCloneForCanvas(clone);
 
 			const frame = document.createElement("div");
 			frame.className = "message-export-frame";
@@ -457,7 +477,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 					'<foreignObject width="100%" height="100%">' +
 					'<div xmlns="http://www.w3.org/1999/xhtml">' +
 					"<style>" +
-					collectExportStyles() +
+					sanitizeExportStyles(collectExportStyles()) +
 					"</style>" +
 					serialized +
 					"</div>" +
@@ -481,11 +501,13 @@ export function getPlaygroundTranscriptRendererScript(): string {
 					const title = String(entry?.title || "message").replace(/[\\\\/:*?"<>|\\s]+/g, "-").replace(/^-+|-+$/g, "") || "message";
 					downloadBlob(blob, "ugk-claw-" + title.toLowerCase() + "-" + stamp + ".png");
 				} finally {
-					URL.revokeObjectURL(svgUrl);
+					if (svgUrl.startsWith("blob:")) {
+						URL.revokeObjectURL(svgUrl);
+					}
 				}
 			} catch (error) {
 				console.error("[playground] Failed to export message image", error);
-				showErrorBanner("图片导出失败，请稍后重试。");
+				showError("图片导出失败，请稍后重试。");
 			} finally {
 				scratch.remove();
 				if (triggerButton) {

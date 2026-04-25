@@ -1769,6 +1769,20 @@ function getPlaygroundStyles(): string {
 			text-transform: uppercase;
 		}
 
+		.message-export-media-placeholder {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			max-width: 100%;
+			min-height: 38px;
+			padding: 8px 10px;
+			border-radius: 4px;
+			background: rgba(201, 210, 255, 0.08);
+			color: rgba(226, 234, 255, 0.68);
+			font-size: 11px;
+			line-height: 1.4;
+		}
+
 		.message.assistant .message-body {
 			display: grid;
 			gap: 14px;
