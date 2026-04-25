@@ -2816,6 +2816,7 @@ function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"][data-transcript-state="active"] .stream-layout {
+			inset: 18px 34px var(--command-deck-offset, 166px) 34px;
 			justify-content: flex-end;
 		}
 

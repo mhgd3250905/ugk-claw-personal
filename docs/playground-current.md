@@ -82,6 +82,7 @@
 - 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部附近时，会自动继续向服务端补更多旧消息，并保持当前阅读位置。顶部只允许出现非交互的加载状态提示，不再放可点击分页按钮；聊天界面不是后台列表页，别把分页按钮硬塞进消息流。
 - `landing` 模式下，对话区底部避让按“`chat-stage` 底部到 `command-deck` 顶部的真实距离”动态计算，不再偷懒拿固定值或只拿 `command-deck` 高度瞎猜
 - `landing` 模式下 transcript 容器会被锁进可用高度内，多选文件 / 资产后应表现为对话区收缩并滚动，而不是继续向下顶进 `command-deck`
+- 桌面端 active 会话虽然仍复用 `landing` 壳子，但 transcript 顶部不能继承空态 hero 的大留白；`data-transcript-state="active"` 下 `.stream-layout` 顶部 inset 固定收紧到 `18px`，让第一条消息靠近工作台顶部。空态 idle 仍保留较大的 hero 呼吸空间。
 - 用户消息固定靠右
 - 用户消息正文保持标准左对齐，避免右侧大段文字影响阅读
 - 用户消息 `message-meta` 只显示时间，并贴右展示

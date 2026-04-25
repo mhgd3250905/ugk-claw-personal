@@ -161,7 +161,7 @@ Use `4px` radius for rectangular UI elements unless a specific repeated componen
 
 ## Components
 
-The desktop shell uses cockpit surfaces rather than marketing hero composition: the left rail is a narrow index surface with a small active accent, the right `chat-stage` is the primary work canvas, and the landing composer is a compact command deck pinned near the lower center of the stage. Dark mode uses near-black solid layers with faint cool accents; light mode maps the same hierarchy to cool white and blue-gray layers, including a light-specific page atmosphere layer so dark edge fades never leak into the light theme.
+The desktop shell uses cockpit surfaces rather than marketing hero composition: the left rail is a narrow index surface with a small active accent, the right `chat-stage` is the primary work canvas, and the landing composer is a compact command deck pinned near the lower center of the stage. Empty landing mode may keep generous space for the wordmark, but active chat mode must tighten the transcript top inset so the first visible message starts close to the work canvas edge instead of floating under a hero-sized gap. Dark mode uses near-black solid layers with faint cool accents; light mode maps the same hierarchy to cool white and blue-gray layers, including a light-specific page atmosphere layer so dark edge fades never leak into the light theme.
 
 Assistant messages use dark raised surfaces. User messages use a clear opposing treatment but keep text left-aligned for readability. Error banners are opaque, high-contrast, and floating; they must not be rendered as semi-transparent overlays that rely on whatever happens to sit behind them.
 

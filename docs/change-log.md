@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 桌面 active 会话顶部留白收紧
+- 日期：2026-04-25
+- 主题：修复桌面深色会话态顶部出现一大片空白的问题。根因是 active 聊天仍复用 `landing` 壳子，而 `.stream-layout` 继承了空态 hero 用的 `78px` 顶部 inset；聊天流不是展示海报，继续留这么大一块空地很傻。
+- 影响范围：`src/ui/playground.ts` 为 `data-transcript-state="active"` 单独把 `.stream-layout` 顶部 inset 收紧到 `18px`，保留 idle 空态的 hero 呼吸空间；`test/server.test.ts` 增加 active inset 回归断言；`DESIGN.md` 与 `docs/playground-current.md` 同步桌面 active 聊天顶部间距口径。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 桌面端极客 cockpit 视觉重构
 - 日期：2026-04-25
 - 主题：把桌面端 playground 从旧的松散居中布局收口成极客 cockpit 工作台。左侧常驻历史会话索引，右侧是完整 chat stage，顶部改成左品牌信号 + 右侧紧凑命令条，landing composer 变成底部居中的 command deck。顺手把浅色主题的桌面氛围层补齐，避免深色边缘压暗层漏到浅色页面里，把浅色版弄得像蒙了一层灰。

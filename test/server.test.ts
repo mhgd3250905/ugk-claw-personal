@@ -1015,7 +1015,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.doesNotMatch(response.body, /file-picker-button/);
 	assert.doesNotMatch(response.body, /\.shell\[data-stage-mode="workspace"\]/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\]\[data-transcript-state="idle"\] \.stream-layout\s*\{[\s\S]*justify-content: center;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\]\[data-transcript-state="active"\] \.stream-layout\s*\{[\s\S]*justify-content: flex-end;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\]\[data-transcript-state="active"\] \.stream-layout\s*\{[\s\S]*inset:\s*18px 34px var\(--command-deck-offset, 166px\) 34px;[\s\S]*justify-content: flex-end;/);
 	assert.doesNotMatch(response.body, /\.shell::before/);
 	assert.doesNotMatch(response.body, /\.shell\s*\{[\s\S]*border:\s*1px solid rgba\(95, 209, 255, 0\.12\)/);
 	assert.doesNotMatch(response.body, /\.hero-core\s*\{[\s\S]*translateY\(-8%\)/);
