@@ -1537,7 +1537,14 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /imageButton\.setAttribute\("aria-label", "保存为图片"\)/);
 	assert.match(response.body, /export-signature/);
 	assert.match(response.body, /message-export-media-placeholder/);
-	assert.match(response.body, /body\.appendChild\(messageActions\.actions\);/);
+	assert.match(response.body, /function shouldRenderMessageActions\(entry\)\s*\{/);
+	assert.match(response.body, /function syncRenderedMessageActions\(entry\)\s*\{/);
+	assert.match(response.body, /if \(!shouldRenderMessageActions\(entry\)\) \{\s*existingActions\?\.remove\(\);/);
+	assert.match(
+		response.body,
+		/function renderTranscriptEntry\(entry, insertMode\)\s*\{[\s\S]*if \(shouldRenderMessageActions\(entry\)\) \{\s*messageActions = createMessageActions\(entry, content\);[\s\S]*body\.appendChild\(messageActions\.actions\);/,
+	);
+	assert.match(response.body, /syncRenderedMessageActions\(historyEntry\);/);
 	assert.doesNotMatch(response.body, /card\.appendChild\(messageActions\.actions\);/);
 	assert.match(response.body, /\.message-body > \.message-actions\s*\{[\s\S]*margin-top:\s*8px;/);
 	const messageActionButtonBlock = response.body.match(

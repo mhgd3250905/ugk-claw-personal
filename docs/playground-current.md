@@ -1,6 +1,6 @@
 # Playground 当前状态
 
-更新时间：`2026-04-24`
+更新时间：`2026-04-25`
 
 这份文档只记录当前 `playground` 的真实前端约束，避免下一个人又拿旧截图和过时口径瞎猜。
 
@@ -59,11 +59,13 @@
 - canonical `GET /v1/chat/state` 回包不再默认清空并重绘整段 transcript；前端会用 `buildConversationStateSignature()` 判断同会话同签名状态，命中时跳过 DOM 重绘，只同步 context usage 和 active run 壳层。消息窗口变化时先 patch 已渲染节点或 append 新节点，只有会话切换或当前消息序列无法对齐时才重建当前 transcript。
 - 本地 `localStorage` 只作为当前设备的冷启动缓存和渲染快照，不再作为会话身份、当前会话指针或运行态事实源
 - `GET /v1/chat/state` 必须返回后端已经归并好的 `viewMessages`：服务端负责把 canonical `messages` 与 active / terminal run 合成最终可渲染视图；前端优先渲染 `viewMessages`，不再保留自己补画 active input / active assistant 的兼容分支，否则同一轮刚结束就会显示成“问题 / 回答 / 问题 / 回答”
+- 运行中的 active run 必须把“稳定历史”和“本轮进行中尾巴”分开：底层 `session.messages` 可能已经提前写入当前 run 的 user / assistant 片段，但这些片段在 `activeRun.loading=true` 时不能进入 canonical `messages`；`viewMessages` 只能由 run 开始前的稳定历史 + activeRun snapshot 合成，避免页面运行中偶发 `user-agent / user-agent` 双轮显示。刷新后正常不代表运行中正常，别又拿前端文本去重当创可贴。
 - `GET /v1/chat/state` 支持 `viewLimit`，默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 告诉前端是否还有更早历史；别再让 state 为了切换会话把完整 JSONL 和完整 transcript 一口气塞给浏览器。
 - `GET /v1/chat/history` 支持 `limit` 和 `before` 游标分页，响应带 `hasMore / nextBefore / limit`；顶部“加载更多历史”和上滑到顶部的自动补页必须走这个服务端分页，而不是只吃 `localStorage` 里最近 160 条缓存。
 - 当前 active run 在 transcript 里只保留一个助手气泡：正文上方是一条会持续改写的人话状态摘要，下面是一枚可点击的动态 loading 气泡；旧的独立“过程展开区”已经下线，不再额外制造第二层消息结构
 - 手机端 active run 的状态摘要不再塞进助手气泡内部，而是作为气泡上方的浅灰色单行状态文本展示；运行日志 loading 按钮移动到 `助手` 标签右侧，只保留动态点，减少空正文气泡里的视觉噪音。
 - active run 刚开始、助手正文还没吐出任何文字时，空 `.message-body` 不应显示成一块空白气泡；等真正有正文、文件或附件内容后再展示气泡主体。
+- 空助手占位阶段也不能提前渲染 `.message-actions`；复制 / 导图按钮只有在该条消息已经有正文、附件、引用资产或文件结果时才挂到 `.message-body` 底部。否则操作栏本身会把空 body 撑开，老问题又回来，属于自找麻烦。
 - 新一轮助手状态从无到有第一次出现时，会强制把 transcript 拉到底部，让用户看到 agent 已经开始响应；后续流式过程更新仍遵守“用户上滑阅读历史时不抢滚动”的规则。
 - 状态摘要 `assistant-status-summary` 现在固定为单行省略；它负责给人一个稳定的人话进度感，不再允许换行把整条消息高度顶来顶去
 - 运行日志按钮不再显示工具执行结果、bash 输出或 JSON 长文本；页面可见层只保留动态点和“查看运行日志”入口，过程细节只留在运行日志弹层与按钮的辅助文案里
@@ -287,6 +289,7 @@
 ## Refresh Run Recovery
 
 - `GET /v1/chat/state` 返回的 `viewMessages` 是唯一可信的 transcript 视图；后端必须在 canonical state 里自己处理 terminal run 与 session history 的重叠关系，前端不再负责“看起来像重复就删掉一条”这种补丁式去重。
+- 对 still-loading active run，后端记录 run 开始时的 raw `session.messages.length`，构造 `GET /v1/chat/state` / `GET /v1/chat/history` 的稳定历史时只读取这条基线之前的 raw messages；上下文占用估算仍按完整 raw context 计算，避免 UI 去重顺手把 token 估算也砍掉。
 - 对 `done / error / interrupted` 这类 terminal run，后端现在按“run 开始前的历史基线 + 本轮实际新增的 canonical history message”判断当前 turn 是否已经落盘，而不是继续拿 assistant 正文文本做模糊比对；这样可以同时避免“正文只差空格/换行却被重复渲染”和“连续两轮都发同一句话时误把当前轮吞掉”这两类相反问题。
 
 - 刷新页面后，playground 先请求 `GET /v1/chat/conversations` 获取服务端当前会话，再按该 `conversationId` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、状态壳层、队列和上下文占用作为 canonical state 渲染。

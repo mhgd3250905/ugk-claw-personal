@@ -592,6 +592,48 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			return { actions, copyButton };
 		}
 
+		function shouldRenderMessageActions(entry) {
+			return Boolean(
+				String(entry?.text || "").trim() ||
+					(Array.isArray(entry?.attachments) && entry.attachments.length > 0) ||
+					(Array.isArray(entry?.assetRefs) && entry.assetRefs.length > 0) ||
+					(Array.isArray(entry?.files) && entry.files.length > 0),
+			);
+		}
+
+		function findMessageActionsElement(body) {
+			return Array.from(body?.children || []).find((element) => element.classList?.contains("message-actions")) || null;
+		}
+
+		function syncRenderedMessageActions(entry) {
+			if (!entry?.id) {
+				return;
+			}
+			const rendered = renderedMessages.get(entry.id);
+			if (!rendered?.body || !rendered?.content) {
+				return;
+			}
+
+			const existingActions = findMessageActionsElement(rendered.body);
+			if (!shouldRenderMessageActions(entry)) {
+				existingActions?.remove();
+				rendered.actions = null;
+				rendered.copyButton = null;
+				return;
+			}
+
+			if (existingActions) {
+				syncMessageCopyButton(entry);
+				return;
+			}
+
+			const messageActions = createMessageActions(entry, rendered.content);
+			rendered.body.appendChild(messageActions.actions);
+			rendered.actions = messageActions.actions;
+			rendered.copyButton = messageActions.copyButton;
+			syncMessageCopyButton(entry);
+		}
+
 		function renderTranscriptEntry(entry, insertMode) {
 			const card = document.createElement("article");
 			const kind = entry.kind;
@@ -625,8 +667,11 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				appendFileDownloadList(body, entry.files);
 			}
 
-			const messageActions = createMessageActions(entry, content);
-			body.appendChild(messageActions.actions);
+			let messageActions = null;
+			if (shouldRenderMessageActions(entry)) {
+				messageActions = createMessageActions(entry, content);
+				body.appendChild(messageActions.actions);
+			}
 			card.appendChild(meta);
 			card.appendChild(body);
 
@@ -640,7 +685,8 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				card,
 				body,
 				content,
-				copyButton: messageActions.copyButton,
+				actions: messageActions?.actions || null,
+				copyButton: messageActions?.copyButton || null,
 				statusShell: null,
 				statusSummary: null,
 				statusTrigger: null,
@@ -847,6 +893,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 					historyEntry.text = nextText;
 					rememberConversationMessage(historyEntry);
 					syncMessageCopyButton(historyEntry);
+					syncRenderedMessageActions(historyEntry);
 				}
 			}
 			if (nextText.trim()) {

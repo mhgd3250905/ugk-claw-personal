@@ -1286,6 +1286,74 @@ test("getConversationState exposes the active run snapshot for refresh observers
 	assert.equal(finishedState.activeRun?.text, "partial answer");
 });
 
+test("getConversationState keeps in-flight persisted run tail out of canonical history", async () => {
+	const store = await createStore();
+	const activeSession = new DeferredSession("E:/sessions/state-in-flight-tail.jsonl");
+	activeSession.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("previous user"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "previous assistant" }],
+			stopReason: "stop",
+		} as never,
+	);
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:state-in-flight-tail",
+			message: "current task",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+	activeSession.messages.push(
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("current task"),
+		} as never,
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "partial answer" }],
+			stopReason: "stop",
+		} as never,
+	);
+	activeSession.emit(textDelta("partial answer"));
+
+	const state = await service.getConversationState("manual:state-in-flight-tail");
+
+	assert.equal(state.running, true);
+	assert.deepEqual(
+		state.messages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "previous user" },
+			{ kind: "assistant", text: "previous assistant" },
+		],
+	);
+	assert.deepEqual(
+		state.viewMessages.map((message) => ({
+			kind: message.kind,
+			text: message.text,
+		})),
+		[
+			{ kind: "user", text: "previous user" },
+			{ kind: "assistant", text: "previous assistant" },
+			{ kind: "user", text: "current task" },
+			{ kind: "assistant", text: "partial answer" },
+		],
+	);
+
+	activeSession.finish();
+	await run;
+});
+
 test("getConversationState hides the current active input from persisted history so repeated prompts still render on observer pages", async () => {
 	const store = await createStore();
 	const activeSession = new DeferredSession("E:/sessions/repeat.jsonl");

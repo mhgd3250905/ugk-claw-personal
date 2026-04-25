@@ -12,6 +12,18 @@
 
 ## 2026-04-25
 
+### Playground 运行中对话重复渲染根因修复
+- 日期：2026-04-25
+- 主题：修复发送消息后偶发 `user-agent / user-agent` 双轮显示的问题。根因不是前端 DOM 没删干净，而是运行中的 `AgentService.getConversationState()` 直接把底层 session 已经提前写入的本轮 user / assistant 片段当成稳定 canonical history 返回，随后 `viewMessages` 又基于 activeRun snapshot 补了一组当前输入和助手输出，页面当然会看起来像 agent 复读。刷新后正常只是因为 active run 结束后 terminal snapshot 被 history 覆盖，不能拿刷新当修复。
+- 影响范围：`src/agent/agent-service.ts` 现在在 run 开始时记录 raw `session.messages.length`，当 `activeRun.loading=true` 时，`GET /v1/chat/state` 与 `GET /v1/chat/history` 的稳定历史只读取 run 开始前的 raw session messages；当前轮仍由 activeRun snapshot 合成一次 `viewMessages`。上下文占用估算继续使用完整 raw context，避免修重复渲染时误改 token 用量口径。`test/agent-service.test.ts` 新增运行中 session tail 回归测试，先复现重复历史，再锁住修复。
+- 对应入口：`src/agent/agent-service.ts`、`test/agent-service.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
+### Playground active run 空助手气泡复发修复
+- 日期：2026-04-25
+- 主题：修复发送消息后、agent 正文还没开始输出时，页面又显示一个空 `.message-body` / `.message-content.is-empty` 气泡的问题。根因是前一轮把 `.message-actions` 移进 `.message-body` 后，空助手占位也提前挂了复制 / 导图操作栏，导致旧的“只有空正文时隐藏 body”规则失效。继续靠 CSS 选择器遮羞就是补丁摞补丁，这次把操作栏挂载条件收回到 transcript renderer 源头。
+- 影响范围：`src/ui/playground-transcript-renderer.ts` 新增 `shouldRenderMessageActions()` 与 `syncRenderedMessageActions()`，只有消息存在正文、附件、引用资产或文件结果时才创建 `.message-actions`；流式正文从空变非空时再同步挂载复制和导图按钮，正文清空时移除操作栏；`test/server.test.ts` 增加回归断言锁住该渲染门槛；`DESIGN.md` 与 `docs/playground-current.md` 同步消息操作栏不得撑开空助手占位的口径。
+- 对应入口：`src/ui/playground-transcript-renderer.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 浅色主题完整收口
 - 日期：2026-04-25
 - 主题：把前一版半成品浅色主题收口成可用的冷白工作台主题。重点修复白字落在浅色卡片上、局部黑色面板残留、浅色层级过近导致页面像糊成一片的问题；覆盖 chat、文件库、后台任务、任务消息、上下文详情弹窗、历史抽屉和移动更多菜单。

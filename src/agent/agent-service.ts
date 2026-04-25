@@ -187,6 +187,7 @@ interface ActiveRunState {
 	events: ChatStreamEvent[];
 	subscribers: Set<ChatStreamEventSink>;
 	view: ChatActiveRunBody;
+	sessionMessageCountBeforeRun: number;
 	historyMessageCountBeforeRun: number;
 	persistedTurnCoverage: PersistedTurnCoverage | null;
 }
@@ -434,7 +435,12 @@ export class AgentService {
 		conversationId: string,
 		options?: ConversationHistoryPageOptions,
 	): Promise<ConversationHistoryResult> {
-		const messages = this.buildConversationHistoryMessages(await this.getContextMessages(conversationId));
+		const activeRun = this.activeRuns.get(conversationId);
+		const contextMessages = this.getStableContextMessagesForHistory(
+			await this.getContextMessages(conversationId),
+			activeRun,
+		);
+		const messages = this.buildConversationHistoryMessages(contextMessages);
 		const page = paginateConversationHistoryMessages(messages, {
 			limit: options?.limit,
 			before: options?.before,
@@ -456,9 +462,10 @@ export class AgentService {
 	): Promise<ConversationStateResult> {
 		const activeRun = this.activeRuns.get(conversationId);
 		const existingConversation = await this.options.conversationStore.get(conversationId);
-		const contextMessages = await this.getContextMessages(conversationId);
+		const rawContextMessages = await this.getContextMessages(conversationId);
+		const contextMessages = this.getStableContextMessagesForHistory(rawContextMessages, activeRun);
 		const modelContext = this.getDefaultModelContext();
-		const contextUsage = buildContextUsageSnapshot(modelContext, contextMessages);
+		const contextUsage = buildContextUsageSnapshot(modelContext, rawContextMessages);
 		const sessionMessages = this.buildConversationHistoryMessages(
 			contextMessages,
 			activeRun?.view,
@@ -591,9 +598,9 @@ export class AgentService {
 		}
 		const { session, skillFingerprint } = await this.openSession(conversationId);
 		const preparedAssets = await this.preparePromptAssets(conversationId, input.attachments, input.assetRefs);
-		const historyMessageCountBeforeRun = this.buildConversationHistoryMessages(
-			((session.messages as AgentMessageLike[] | undefined) ?? []),
-		).length;
+		const sessionMessagesBeforeRun = ((session.messages as AgentMessageLike[] | undefined) ?? []);
+		const sessionMessageCountBeforeRun = sessionMessagesBeforeRun.length;
+		const historyMessageCountBeforeRun = this.buildConversationHistoryMessages(sessionMessagesBeforeRun).length;
 		this.terminalRuns.delete(conversationId);
 		await this.options.conversationStore.setCurrentConversationId(conversationId);
 		const activeRun = {
@@ -602,6 +609,7 @@ export class AgentService {
 			events: [],
 			subscribers: new Set<ChatStreamEventSink>(),
 			view: createActiveRunView(conversationId, input.message, preparedAssets.uploadedAssets),
+			sessionMessageCountBeforeRun,
 			historyMessageCountBeforeRun,
 			persistedTurnCoverage: null,
 		};
@@ -968,6 +976,17 @@ export class AgentService {
 
 		const session = await this.getContextSession(conversationId);
 		return ((session?.messages as AgentMessageLike[] | undefined) ?? []);
+	}
+
+	private getStableContextMessagesForHistory(
+		messages: readonly AgentMessageLike[],
+		activeRun: ActiveRunState | undefined,
+	): AgentMessageLike[] {
+		if (!activeRun?.view.loading) {
+			return [...messages];
+		}
+
+		return messages.slice(0, activeRun.sessionMessageCountBeforeRun);
 	}
 
 	private getDefaultModelContext(): ProjectDefaultModelContext {
