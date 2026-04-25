@@ -1513,7 +1513,12 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.doesNotMatch(response.body, /id: "active-input-" \+ activeRun\.runId/);
 	assert.doesNotMatch(response.body, /function isActiveRunAlreadyRepresentedByHistory\(activeRun\)\s*\{/);
 	assert.doesNotMatch(response.body, /function dedupeConversationHistoryEntries\(entries\)\s*\{/);
-	assert.match(response.body, /id="history-load-more-button"/);
+	assert.doesNotMatch(response.body, /id="history-load-more-button"/);
+	assert.match(response.body, /id="history-auto-load-status"/);
+	assert.match(response.body, /function syncHistoryAutoLoadStatus\(\)\s*\{/);
+	assert.match(response.body, /historyAutoLoadStatus\.textContent = state\.historyLoadingMore/);
+	assert.match(response.body, /transcript\.scrollTop <= 24 && hasOlderConversationHistory\(\)/);
+	assert.doesNotMatch(response.body, /historyLoadMoreButton\.addEventListener\("click"/);
 	assert.match(response.body, /async function createConversationOnServer\(\)\s*\{/);
 	assert.match(response.body, /\/v1\/chat\/conversations/);
 	assert.match(response.body, /function createMessageActions\(entry, content\)\s*\{/);
@@ -1977,7 +1982,7 @@ test("GET /playground keeps code blocks compact inside the mobile layout only", 
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.match(response.body, /\.transcript-pane,[\s\S]*\.history-load-more\s*\{[\s\S]*border-radius: 4px !important;/);
+	assert.match(response.body, /\.transcript-pane,[\s\S]*\.history-auto-load-status\s*\{[\s\S]*border-radius: 4px !important;/);
 	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*background: transparent;/);
 	assert.match(response.body, /\.transcript-pane\s*\{[\s\S]*box-shadow: none;/);

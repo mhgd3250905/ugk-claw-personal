@@ -380,7 +380,7 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .assistant-loading-bubble,
 		:root[data-theme="light"] .assistant-loading-card,
 		:root[data-theme="light"] .assistant-status-shell,
-		:root[data-theme="light"] .history-load-more,
+		:root[data-theme="light"] .history-auto-load-status,
 		:root[data-theme="light"] .scroll-to-bottom-button {
 			border-color: transparent;
 			background: rgba(255, 255, 255, 0.86);

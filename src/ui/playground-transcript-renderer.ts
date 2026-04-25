@@ -787,7 +787,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			if (entries.length === 0) {
 				clearCurrentTranscript();
 				state.renderedHistoryCount = 0;
-				syncHistoryLoadMoreButton();
+				syncHistoryAutoLoadStatus();
 				return;
 			}
 
@@ -803,7 +803,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				const patched = targetEntries.every((entry) => updateRenderedTranscriptEntry(entry));
 				if (patched) {
 					state.renderedHistoryCount = targetEntries.length;
-					syncHistoryLoadMoreButton();
+					syncHistoryAutoLoadStatus();
 					return;
 				}
 			}
@@ -818,14 +818,14 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				if (patchedExisting) {
 					targetEntries.slice(currentIds.length).forEach((entry) => renderTranscriptEntry(entry));
 					state.renderedHistoryCount = targetEntries.length;
-					syncHistoryLoadMoreButton();
+					syncHistoryAutoLoadStatus();
 					return;
 				}
 			}
 
 			clearCurrentTranscript();
 			renderConversationEntries(targetEntries);
-			syncHistoryLoadMoreButton();
+			syncHistoryAutoLoadStatus();
 		}
 
 		function applyProcessViewToRenderedMessage(processView, rendered, options) {
@@ -879,7 +879,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			rememberConversationMessage(entry);
 			const rendered = renderTranscriptEntry(entry, options?.insertMode);
 			state.renderedHistoryCount = Math.min(state.conversationHistory.length, state.renderedHistoryCount + 1);
-			syncHistoryLoadMoreButton();
+			syncHistoryAutoLoadStatus();
 			scrollTranscriptToBottom({ force: options?.forceScroll === true });
 			return rendered.content;
 		}
@@ -913,7 +913,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			rememberConversationMessage(entry);
 			const rendered = renderTranscriptEntry(entry);
 			state.renderedHistoryCount = Math.min(state.conversationHistory.length, state.renderedHistoryCount + 1);
-			syncHistoryLoadMoreButton();
+			syncHistoryAutoLoadStatus();
 			const stream = attachAssistantStatusShell(rendered.body, rendered.content);
 			rendered.statusShell = stream.shell;
 			rendered.statusSummary = stream.summary;

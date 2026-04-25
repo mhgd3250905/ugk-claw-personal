@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 历史消息改为触顶自动加载
+- 日期：2026-04-25
+- 主题：移除聊天区顶部可见的“加载更多历史”按钮，改成用户上滑到 transcript 顶部附近时自动加载更早消息。聊天历史本来就是滚动阅读流，塞一个后台分页按钮确实别扭，还容易让手机端误以为要点按钮才会继续加载。
+- 影响范围：`src/ui/playground.ts` 将 `history-load-more-button` 替换为非交互的 `history-auto-load-status`，只在补页过程中通过 `aria-live` 短暂提示；`src/ui/playground-layout-controller.ts` 把触发阈值放宽到 `24px` 并通过 `hasOlderConversationHistory()` 判断是否需要补页；`src/ui/playground-transcript-renderer.ts` 与 light theme 覆盖同步改名；`test/server.test.ts` 更新断言，锁住“不再有按钮、触顶自动加载”的行为。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-layout-controller.ts`、`src/ui/playground-transcript-renderer.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 运行中对话重复渲染根因修复
 - 日期：2026-04-25
 - 主题：修复发送消息后偶发 `user-agent / user-agent` 双轮显示的问题。根因不是前端 DOM 没删干净，而是运行中的 `AgentService.getConversationState()` 直接把底层 session 已经提前写入的本轮 user / assistant 片段当成稳定 canonical history 返回，随后 `viewMessages` 又基于 activeRun snapshot 补了一组当前输入和助手输出，页面当然会看起来像 agent 复读。刷新后正常只是因为 active run 结束后 terminal snapshot 被 history 覆盖，不能拿刷新当修复。

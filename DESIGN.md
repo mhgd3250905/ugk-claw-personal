@@ -169,6 +169,8 @@ Assistant active-run status controls are singular per message card. Before attac
 
 Canonical transcript state must keep stable history and in-flight run state separated. While an agent run is still loading, any user / assistant records that the underlying session has already appended for the current run are treated as an in-flight run tail, not as durable transcript history. `viewMessages` should render the current turn from the active run snapshot exactly once; frontend DOM or text-equality cleanup is not an acceptable substitute.
 
+Older transcript history loads by scroll intent, not by a visible pagination button. When the user reaches the top edge of the transcript, the page should fetch and prepend older messages while preserving scroll position. A small non-interactive status may announce that older history is loading, but normal state should not show a "load more" control in the chat surface.
+
 Mobile conversation selection is a compact index, not a pile of oversized cards. Use the same borderless instrument-panel language as context usage details: a layered dark drawer, a raised sticky header, short `surface-raised` rows, a narrow luminous active indicator, muted metadata pills, and an icon-only delete affordance placed inside the conversation row at the top-right corner. Avoid visible divider borders; use background depth, spacing, and shadow to separate function.
 
 Mobile operational surfaces are pages, not decorative modals. File library, background task manager, background task editor, and task inbox use a full-height `background` workspace with a solid `surface` sticky header and `surface-raised` cards. Keep actions in one reachable toolbar row when possible; use full-width grid buttons when a card has several commands.

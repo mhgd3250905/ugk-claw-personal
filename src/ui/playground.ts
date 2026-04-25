@@ -1000,18 +1000,19 @@ function getPlaygroundStyles(): string {
 			opacity: 0.82;
 		}
 
-		.history-load-more {
+		.history-auto-load-status {
 			align-self: center;
 			margin: 0 0 10px;
 			padding: 7px 12px;
-			border: 1px solid rgba(201, 210, 255, 0.18);
-			background: rgba(201, 210, 255, 0.05);
-			color: rgba(236, 240, 255, 0.88);
+			border: 0;
+			background: rgba(201, 210, 255, 0.06);
+			color: rgba(236, 240, 255, 0.64);
 			font-size: 10px;
 			letter-spacing: 0.12em;
+			pointer-events: none;
 		}
 
-		.history-load-more[hidden] {
+		.history-auto-load-status[hidden] {
 			display: none !important;
 		}
 
@@ -3466,7 +3467,7 @@ function getPlaygroundStyles(): string {
 			.error-banner-close,
 			.assistant-loading-card,
 			.assistant-status-shell,
-			.history-load-more {
+			.history-auto-load-status {
 				border-radius: 4px !important;
 			}
 
@@ -3635,7 +3636,7 @@ function getPlaygroundScript(): string {
 		const transcript = document.getElementById("transcript");
 		const transcriptArchive = document.getElementById("transcript-archive");
 		const transcriptCurrent = document.getElementById("transcript-current");
-		const historyLoadMoreButton = document.getElementById("history-load-more-button");
+		const historyAutoLoadStatus = document.getElementById("history-auto-load-status");
 		const scrollToBottomButton = document.getElementById("scroll-to-bottom-button");
 		const errorBanner = document.getElementById("error-banner");
 		const errorBannerMessage = document.getElementById("error-banner-message");
@@ -4386,7 +4387,7 @@ function getPlaygroundScript(): string {
 				if (state.conversationHistory.length === 0) {
 					setTranscriptState("idle");
 				}
-				syncHistoryLoadMoreButton();
+				syncHistoryAutoLoadStatus();
 				if (state.loading) {
 					setLoading(false);
 				}
@@ -4429,7 +4430,7 @@ function getPlaygroundScript(): string {
 							? "\\u5df2\\u6253\\u65ad"
 							: "\\u5df2\\u7ed3\\u675f";
 			}
-			syncHistoryLoadMoreButton();
+			syncHistoryAutoLoadStatus();
 			scrollTranscriptToBottom();
 			return true;
 		}
@@ -4751,10 +4752,15 @@ function getPlaygroundScript(): string {
 		${getConnActivityRendererScript()}
 		${getPlaygroundTaskInboxControllerScript()}
 
-		function syncHistoryLoadMoreButton() {
-			const hasMore = state.renderedHistoryCount < state.conversationHistory.length || state.historyHasMore;
-			historyLoadMoreButton.hidden = !hasMore;
-			historyLoadMoreButton.disabled = state.historyLoadingMore;
+		function hasOlderConversationHistory() {
+			return state.renderedHistoryCount < state.conversationHistory.length || state.historyHasMore;
+		}
+
+		function syncHistoryAutoLoadStatus() {
+			historyAutoLoadStatus.hidden = !state.historyLoadingMore;
+			historyAutoLoadStatus.textContent = state.historyLoadingMore
+				? "正在加载更早历史"
+				: "";
 		}
 
 		async function fetchOlderConversationHistoryFromServer() {
@@ -4791,7 +4797,7 @@ function getPlaygroundScript(): string {
 			}
 
 			state.historyLoadingMore = true;
-			syncHistoryLoadMoreButton();
+			syncHistoryAutoLoadStatus();
 			try {
 				let remaining = state.conversationHistory.length - state.renderedHistoryCount;
 				if (remaining <= 0 && state.historyHasMore) {
@@ -4821,7 +4827,7 @@ function getPlaygroundScript(): string {
 				showError(messageText);
 			} finally {
 				state.historyLoadingMore = false;
-				syncHistoryLoadMoreButton();
+				syncHistoryAutoLoadStatus();
 			}
 		}
 
@@ -4834,7 +4840,7 @@ function getPlaygroundScript(): string {
 
 			if (state.conversationHistory.length === 0) {
 				setTranscriptState("idle");
-				syncHistoryLoadMoreButton();
+				syncHistoryAutoLoadStatus();
 				return;
 			}
 
@@ -5140,9 +5146,6 @@ function getPlaygroundScript(): string {
 			});
 			${getPlaygroundMobileShellEventHandlersScript()}
 
-			historyLoadMoreButton.addEventListener("click", () => {
-				void renderMoreConversationHistory();
-			});
 			errorBannerClose.addEventListener("click", () => {
 				clearError();
 			});
@@ -5494,7 +5497,7 @@ export function renderPlaygroundPage(): string {
 							<strong>对话流</strong>
 							<span>单列会话舞台会把用户与 Agent 的回应自然分层，焦点始终落在当前内容。</span>
 						</header>
-						<button id="history-load-more-button" class="history-load-more" type="button" hidden>加载更多历史</button>
+						<div id="history-auto-load-status" class="history-auto-load-status" aria-live="polite" hidden></div>
 						<section id="transcript" class="transcript" aria-live="polite">
 							<div id="transcript-archive" class="transcript-archive"></div>
 							<div id="transcript-current" class="transcript-current"></div>

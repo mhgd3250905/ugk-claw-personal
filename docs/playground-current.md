@@ -61,7 +61,7 @@
 - `GET /v1/chat/state` 必须返回后端已经归并好的 `viewMessages`：服务端负责把 canonical `messages` 与 active / terminal run 合成最终可渲染视图；前端优先渲染 `viewMessages`，不再保留自己补画 active input / active assistant 的兼容分支，否则同一轮刚结束就会显示成“问题 / 回答 / 问题 / 回答”
 - 运行中的 active run 必须把“稳定历史”和“本轮进行中尾巴”分开：底层 `session.messages` 可能已经提前写入当前 run 的 user / assistant 片段，但这些片段在 `activeRun.loading=true` 时不能进入 canonical `messages`；`viewMessages` 只能由 run 开始前的稳定历史 + activeRun snapshot 合成，避免页面运行中偶发 `user-agent / user-agent` 双轮显示。刷新后正常不代表运行中正常，别又拿前端文本去重当创可贴。
 - `GET /v1/chat/state` 支持 `viewLimit`，默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 告诉前端是否还有更早历史；别再让 state 为了切换会话把完整 JSONL 和完整 transcript 一口气塞给浏览器。
-- `GET /v1/chat/history` 支持 `limit` 和 `before` 游标分页，响应带 `hasMore / nextBefore / limit`；顶部“加载更多历史”和上滑到顶部的自动补页必须走这个服务端分页，而不是只吃 `localStorage` 里最近 160 条缓存。
+- `GET /v1/chat/history` 支持 `limit` 和 `before` 游标分页，响应带 `hasMore / nextBefore / limit`；聊天区不再显示“加载更多历史”分页按钮，用户向上滑到 transcript 顶部附近时自动补页，不能只吃 `localStorage` 里最近 160 条缓存。
 - 当前 active run 在 transcript 里只保留一个助手气泡：正文上方是一条会持续改写的人话状态摘要，下面是一枚可点击的动态 loading 气泡；旧的独立“过程展开区”已经下线，不再额外制造第二层消息结构
 - 手机端 active run 的状态摘要不再塞进助手气泡内部，而是作为气泡上方的浅灰色单行状态文本展示；运行日志 loading 按钮移动到 `助手` 标签右侧，只保留动态点，减少空正文气泡里的视觉噪音。
 - active run 刚开始、助手正文还没吐出任何文字时，空 `.message-body` 不应显示成一块空白气泡；等真正有正文、文件或附件内容后再展示气泡主体。
@@ -75,7 +75,7 @@
 - 从后端 session 恢复用户历史时，只展示用户原始消息；`<user_assets>`、`<asset_reference_protocol>`、`<file_response_protocol>` 这类运行时注入给模型的内部 prompt 协议不得出现在 transcript 里
 - 用户切回旧会话继续发送消息时，后端必须继续复用这条会话原来的 `sessionFile` 上下文；不能因为项目技能目录更新、`skillFingerprint` 变化，就偷偷新开一条空 session 让 agent 当场失忆
 - 从后端 session 恢复已完成任务时，连续的 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并为同一条助手回复；不要让刷新后的页面把同一轮浏览器处理过程拆成多条“助手”气泡
-- 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部时，会自动继续向服务端补更多旧消息，顶部同时保留“加载更多历史”按钮作为兜底入口
+- 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部附近时，会自动继续向服务端补更多旧消息，并保持当前阅读位置。顶部只允许出现非交互的加载状态提示，不再放可点击分页按钮；聊天界面不是后台列表页，别把分页按钮硬塞进消息流。
 - `landing` 模式下，对话区底部避让按“`chat-stage` 底部到 `command-deck` 顶部的真实距离”动态计算，不再偷懒拿固定值或只拿 `command-deck` 高度瞎猜
 - `landing` 模式下 transcript 容器会被锁进可用高度内，多选文件 / 资产后应表现为对话区收缩并滚动，而不是继续向下顶进 `command-deck`
 - 用户消息固定靠右

@@ -272,7 +272,7 @@ export function getPlaygroundLayoutControllerScript(): string {
 
 		function handleTranscriptScroll() {
 			syncTranscriptFollowState();
-			if (transcript.scrollTop <= 5 && !state.historyLoadingMore) {
+			if (transcript.scrollTop <= 24 && hasOlderConversationHistory() && !state.historyLoadingMore) {
 				renderMoreConversationHistory();
 			}
 		}
