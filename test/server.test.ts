@@ -2422,6 +2422,36 @@ test("GET /playground injects stream lifecycle runtime from a dedicated controll
 	await app.close();
 });
 
+test("GET /playground routes /new through the slash command dispatcher", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /function parsePlaygroundSlashCommand\(/);
+	assert.match(response.body, /async function runPlaygroundSlashCommand\(/);
+	assert.match(response.body, /case "\/new":/);
+	assert.match(response.body, /await startNewConversation\(\)/);
+	assert.match(response.body, /showError\("未知指令："\s*\+\s*command\.raw\)/);
+	assert.match(response.body, /showError\("指令不能和附件或引用文件一起发送"\)/);
+	assert.match(
+		response.body,
+		/async function sendMessage\(\)\s*\{[\s\S]*const slashCommand = parsePlaygroundSlashCommand\(message\);[\s\S]*if \(slashCommand && \(attachments\.length > 0 \|\| assetRefs\.length > 0\)\) \{[\s\S]*restoreComposerDraft\(composerDraft\);[\s\S]*return;[\s\S]*\}[\s\S]*if \(slashCommand\) \{[\s\S]*const handled = await runPlaygroundSlashCommand\(slashCommand, composerDraft\);[\s\S]*if \(handled\) \{[\s\S]*return;[\s\S]*\}/,
+	);
+	const commandRunner = response.body.match(
+		/async function runPlaygroundSlashCommand\(command, composerDraft\)\s*\{[\s\S]*?\n\t\tasync function sendMessage\(\)/,
+	)?.[0];
+	assert.ok(commandRunner);
+	assert.doesNotMatch(commandRunner, /fetch\("\/v1\/chat\/stream"/);
+	assert.doesNotMatch(commandRunner, /fetch\("\/v1\/chat\/queue"/);
+	await app.close();
+});
+
 test("GET /playground keeps bottom scroll room above the active composer", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

@@ -354,6 +354,45 @@ export function getPlaygroundStreamControllerScript(): string {
 			}
 		}
 
+		function parsePlaygroundSlashCommand(rawMessage) {
+			const text = String(rawMessage || "").trim();
+			if (!text.startsWith("/")) {
+				return null;
+			}
+
+			const [rawName, ...args] = text.split(/\\s+/);
+			const name = String(rawName || "").toLowerCase();
+			if (!name) {
+				return null;
+			}
+
+			return {
+				name,
+				args,
+				raw: text,
+			};
+		}
+
+		async function runPlaygroundSlashCommand(command, composerDraft) {
+			switch (command?.name) {
+				case "/new": {
+					const created = await startNewConversation();
+					if (!created) {
+						restoreComposerDraft(composerDraft);
+						return true;
+					}
+
+					clearComposerDraft();
+					messageInput.focus();
+					return true;
+				}
+				default:
+					showError("未知指令：" + command.raw);
+					restoreComposerDraft(composerDraft);
+					return true;
+			}
+		}
+
 		async function sendMessage() {
 			const composerDraft = createComposerDraft();
 			const message = messageInput.value.trim();
@@ -366,6 +405,18 @@ export function getPlaygroundStreamControllerScript(): string {
 			if (!message && attachments.length === 0 && assetRefs.length === 0) {
 				showError("请输入消息");
 				return;
+			}
+			const slashCommand = parsePlaygroundSlashCommand(message);
+			if (slashCommand && (attachments.length > 0 || assetRefs.length > 0)) {
+				showError("指令不能和附件或引用文件一起发送");
+				restoreComposerDraft(composerDraft);
+				return;
+			}
+			if (slashCommand) {
+				const handled = await runPlaygroundSlashCommand(slashCommand, composerDraft);
+				if (handled) {
+					return;
+				}
 			}
 			const outboundMessage =
 				message ||

@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground slash command `/new` 指令基础
+- 日期：2026-04-25
+- 主题：新增 playground 浏览器端 slash command 分发层，并先接入 `/new`。这不是把特殊文本塞给 agent 让模型自行理解，那个做法太糙，还会污染会话历史；现在 `/new` 会在正常发送链路之前被解析并执行，直接复用现有新会话流程。
+- 影响范围：`src/ui/playground-stream-controller.ts` 新增 `parsePlaygroundSlashCommand()` 与 `runPlaygroundSlashCommand()`，`sendMessage()` 在进入 `/v1/chat/stream` / `/v1/chat/queue` 前先分发指令；`/new` 调用 `startNewConversation()`，成功后清空 composer，不写 transcript、不创建 user 气泡、不触发 agent runtime；未知 `/xxx` 指令报错并保留草稿；指令携带附件或引用资产时直接拦截，避免 `/new` + 文件这种语义混乱的输入。`test/server.test.ts` 增加页面脚本回归断言，锁住指令分发入口、`/new` 处理器和“不进 stream / queue”的约束；`.codex/plans/2026-04-25-slash-command-new.md` 留存实现计划。
+- 对应入口：`src/ui/playground-stream-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`.codex/plans/2026-04-25-slash-command-new.md`
+
 ### Playground 上下文电池按钮与 hover 浮层仪表盘化
 - 日期：2026-04-25
 - 主题：优化顶部上下文百分比按钮的右侧留白，修复 hover tooltip 被聊天区域卡片遮挡的问题，并把上下文 hover 内容从三行裸文本升级成小型仪表盘。按钮贴边、浮层越界、内容像 debug 文本，这三件小事叠在一起就会显得很糙，不能留。
