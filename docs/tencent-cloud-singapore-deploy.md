@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`9a9f0165845e7a7063b8786a57b964073ec49430`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260425-085105`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-084932.tar.gz`
+- 当前线上应用提交：`a9e7d8b`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260425-124055`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-124055.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,46 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-25 Playground 运行态重复与历史触顶加载增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录做增量更新；运行态继续留在 `~/ugk-claw-shared`，不碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+
+1. 本地已完成本轮运行态重复与历史加载修复验证：
+   - `npm test`：`277 tests`，`275 pass`，`2 skip`
+   - `npm run design:lint`：`0 errors`，`0 warnings`，`1 info`
+   - `git diff --check`
+   - 本地 `docker compose restart ugk-pi` 后，`http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - `docker compose -f docker-compose.prod.yml config --quiet`
+   - `npx tsc --noEmit` 仍失败，但失败点是既有 TypeScript 债：`src/agent/agent-service.ts` 的 `import type` 写法、`src/routes/chat.ts` 的 error event union、`test/agent-service.test.ts` 的 union narrowing、`test/background-agent-runner.test.ts` 的 `session.messages` 可空判断；本轮改动没有引入新的对应触点。
+2. 本地 `main` 已推送到 GitHub：
+   - `6c2669c Fix playground active run transcript duplication`
+   - `a9e7d8b Make playground history load on scroll`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `9a9f016`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-124055.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260425-124055`
+6. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `9a9f016` fast-forward 到 `a9e7d8b`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`
+9. 发布后验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
+   - 服务器内网页面源码包含 `history-auto-load-status` 与 `hasOlderConversationHistory`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网页面源码包含 `history-auto-load-status`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+
+本次上线内容包括：
+
+- `AgentService` 记录 active run 启动前的 session 消息数量，运行中 canonical state 只取 run 前历史，再由 active run snapshot 合成当前轮，避免 session 过程中持久化片段和 active snapshot 在前端重复渲染成 `user-agent / user-agent`
+- playground 不再显示可点击的“加载更多历史”按钮；用户上滑到 transcript 顶部附近时自动补页，只在加载期间显示非交互状态提示
+- `DESIGN.md`、`docs/playground-current.md` 与 `docs/change-log.md` 已同步记录这次交互口径
+
+本次也再次证明一件事：Windows 发远端 SSH 命令时，别把带 `|` 的 grep 正则随手塞进一层引号里，远端 shell 会给你表演拆管道。验收标记优先用 `grep -F` 拆成多条固定字符串检查，少玩引号套娃。
 
 ## 2026-04-25 Playground 手机端 UI 与图片导出修复增量发布记录
 
