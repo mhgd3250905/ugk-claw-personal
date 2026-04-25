@@ -413,9 +413,13 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] :is(.conn-run-details-head),
 		:root[data-theme="light"] :is(.asset-modal-head),
 		:root[data-theme="light"] :is(.task-inbox-head) {
-			background: #ffffff;
+			background: rgba(255, 255, 255, 0.96);
 			color: #172033;
-			box-shadow: 0 10px 26px rgba(40, 53, 84, 0.08);
+			box-shadow: 0 10px 24px rgba(40, 53, 84, 0.08);
+		}
+
+		:root[data-theme="light"] .asset-modal-copy span {
+			color: #667085;
 		}
 
 		:root[data-theme="light"] .context-usage-metric,
@@ -452,14 +456,27 @@ export function getPlaygroundThemeStyles(): string {
 			color: #142033;
 		}
 
+		:root[data-theme="light"] .context-usage-dialog {
+			background: rgba(232, 238, 248, 0.72);
+		}
+
 		:root[data-theme="light"] .context-usage-dialog-meter {
 			background: #dce6f4;
 			box-shadow: inset 0 1px 0 rgba(23, 32, 51, 0.05);
 		}
 
+		:root[data-theme="light"] .context-usage-dialog-meter span {
+			background: linear-gradient(90deg, #08784b, #1f5fc8);
+			box-shadow: 0 0 16px rgba(31, 95, 200, 0.18);
+		}
+
 		:root[data-theme="light"] .context-usage-dialog-main span {
 			background: #e8f0ff;
 			color: #1d4f9a;
+		}
+
+		:root[data-theme="light"] .context-usage-dialog-model span {
+			background: transparent;
 		}
 
 		:root[data-theme="light"] .context-usage-dialog[data-status="caution"] .context-usage-dialog-main span {
@@ -499,9 +516,16 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .conn-manager-run-item,
 		:root[data-theme="light"] .conn-manager-filter-field span,
 		:root[data-theme="light"] .conn-manager-selected-count,
+		:root[data-theme="light"] .conn-editor-field,
+		:root[data-theme="light"] .conn-editor-field-hint,
 		:root[data-theme="light"] .conn-editor-section-hint,
 		:root[data-theme="light"] .conn-editor-target-preview code {
 			color: #596579;
+		}
+
+		:root[data-theme="light"] .conn-editor-field span,
+		:root[data-theme="light"] .conn-editor-advanced summary {
+			color: #24324a;
 		}
 
 		:root[data-theme="light"] .task-inbox-item-kind {
@@ -519,37 +543,114 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .conn-editor-dialog,
 		:root[data-theme="light"] .task-inbox-view {
 			background:
-				radial-gradient(circle at 16% 8%, rgba(36, 84, 214, 0.1), transparent 32%),
-				linear-gradient(180deg, #f8fafc 0%, #edf2f8 100%);
+				linear-gradient(rgba(36, 84, 214, 0.032) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(36, 84, 214, 0.024) 1px, transparent 1px),
+				linear-gradient(180deg, #f7f9fc 0%, #edf2f8 100%);
+			background-size: 34px 34px, 34px 34px, auto;
 			color: #172033;
 		}
 
 		:root[data-theme="light"] .asset-modal-panel,
 		:root[data-theme="light"] .task-inbox-pane,
 		:root[data-theme="light"] .conn-manager-panel,
-		:root[data-theme="light"] .conn-editor-panel,
+		:root[data-theme="light"] .conn-editor-panel {
+			border-color: transparent;
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 253, 0.98) 100%),
+				#ffffff;
+			color: #172033;
+			box-shadow: 0 20px 46px rgba(40, 53, 84, 0.12);
+		}
+
 		:root[data-theme="light"] .task-inbox-list,
 		:root[data-theme="light"] .task-inbox-item,
 		:root[data-theme="light"] .conn-manager-list,
-		:root[data-theme="light"] .conn-manager-item,
 		:root[data-theme="light"] .conn-editor-form {
 			border-color: transparent;
-			background: rgba(255, 255, 255, 0.94);
+			background: transparent;
 			color: #172033;
-			box-shadow: 0 14px 34px rgba(40, 53, 84, 0.1);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] :is(.asset-pill),
 		:root[data-theme="light"] :is(.asset-empty),
 		:root[data-theme="light"] :is(.file-chip),
-		:root[data-theme="light"] :is(.conn-manager-toolbar),
-		:root[data-theme="light"] :is(.conn-manager-run-item),
-		:root[data-theme="light"] :is(.conn-editor-field),
-		:root[data-theme="light"] :is(.conn-editor-advanced) {
+		:root[data-theme="light"] :is(.conn-manager-item),
+		:root[data-theme="light"] :is(.conn-manager-run-item) {
 			border-color: transparent;
-			background: #eef3fa;
+			background: rgba(255, 255, 255, 0.9);
 			color: #24324a;
+			box-shadow:
+				0 10px 24px rgba(40, 53, 84, 0.08),
+				inset 0 1px 0 rgba(255, 255, 255, 0.9);
+		}
+
+		:root[data-theme="light"] :is(.conn-manager-toolbar, .conn-editor-field, .conn-editor-advanced) {
+			border-color: transparent;
+			background: transparent;
+			color: #596579;
 			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .conn-manager-filter-field select,
+		:root[data-theme="light"] .conn-editor-field input,
+		:root[data-theme="light"] .conn-editor-field select,
+		:root[data-theme="light"] .conn-editor-field textarea {
+			border-color: transparent;
+			background: #ffffff;
+			color: #172033;
+			box-shadow:
+				inset 0 0 0 1px rgba(36, 84, 214, 0.08),
+				0 8px 18px rgba(40, 53, 84, 0.06);
+		}
+
+		:root[data-theme="light"] .conn-editor-time-input + .flatpickr-input {
+			border-color: transparent;
+			background: #ffffff;
+			color: #172033;
+			box-shadow:
+				inset 0 0 0 1px rgba(36, 84, 214, 0.12),
+				0 8px 18px rgba(40, 53, 84, 0.07);
+		}
+
+		:root[data-theme="light"] .conn-editor-time-input + .flatpickr-input::placeholder {
+			color: #8a95a8;
+		}
+
+		:root[data-theme="light"] .conn-editor-field input:focus,
+		:root[data-theme="light"] .conn-editor-field select:focus,
+		:root[data-theme="light"] .conn-editor-field textarea:focus {
+			outline: none;
+			box-shadow:
+				inset 0 0 0 1px rgba(31, 95, 200, 0.32),
+				0 10px 22px rgba(31, 95, 200, 0.12);
+		}
+
+		:root[data-theme="light"] .conn-editor-current-target,
+		:root[data-theme="light"] .conn-editor-target-preview {
+			border-color: transparent;
+			background: rgba(232, 240, 255, 0.72);
+			color: #40516d;
+			box-shadow: inset 3px 0 0 rgba(31, 95, 200, 0.26);
+		}
+
+		:root[data-theme="light"] .conn-editor-target-preview {
+			background: rgba(232, 240, 255, 0.72);
+		}
+
+		:root[data-theme="light"] .conn-editor-target-preview strong {
+			color: #172033;
+		}
+
+		:root[data-theme="light"] .conn-editor-target-note {
+			color: #8a5a00;
+		}
+
+		:root[data-theme="light"] .conn-editor-form .asset-modal-actions button:first-child {
+			border-color: transparent;
+			background: #1f5fc8;
+			color: #ffffff;
+			box-shadow: 0 10px 22px rgba(31, 95, 200, 0.2);
 		}
 
 		:root[data-theme="light"] :is(.asset-pill.active) {
@@ -638,9 +739,60 @@ export function getPlaygroundThemeStyles(): string {
 			border-top-color: #eef3fa;
 		}
 
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-month,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-current-month,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-monthDropdown-months,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-weekday,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day,
+		:root[data-theme="light"] .conn-time-picker-calendar .numInput {
+			color: #172033;
+			fill: #172033;
+		}
+
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-prev-month,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-next-month {
+			color: #40516d;
+			fill: #40516d;
+		}
+
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-prev-month:hover,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-next-month:hover {
+			color: #1f5fc8;
+			fill: #1f5fc8;
+		}
+
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-time {
+			border-top-color: rgba(36, 84, 214, 0.12);
+		}
+
 		:root[data-theme="light"] .conn-time-picker-calendar input,
 		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-am-pm {
 			color: #172033;
+		}
+
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day.today {
+			border-color: rgba(31, 95, 200, 0.38);
+		}
+
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day:hover,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day:focus {
+			border-color: rgba(31, 95, 200, 0.18);
+			background: #e8f0ff;
+			color: #1d4f9a;
+		}
+
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day.selected,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day.startRange,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day.endRange {
+			border-color: #1f5fc8;
+			background: #1f5fc8;
+			color: #ffffff;
+		}
+
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day.flatpickr-disabled,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day.prevMonthDay,
+		:root[data-theme="light"] .conn-time-picker-calendar .flatpickr-day.nextMonthDay {
+			color: #9aa6b8;
 		}
 
 		:root[data-theme="light"] .mobile-overflow-menu,

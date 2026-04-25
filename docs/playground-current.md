@@ -44,6 +44,7 @@
 - 浏览器端通知广播 SSE、active run 事件流 attach / teardown、断线恢复、`send / queue / interrupt` 主链路，以及 `bindPlaygroundStreamController()` 初始化入口集中在 `src/ui/playground-stream-controller.ts`；`src/ui/playground.ts` 不再兼任 stream lifecycle 泵站
 - 深色 / 浅色主题切换集中在 `src/ui/playground-theme-controller.ts`：该文件输出 light theme 覆盖样式与浏览器端持久化脚本，`src/ui/playground.ts` 只注入桌面和手机入口。主题值存入 `localStorage` 的 `ugk-pi:playground-theme`，并通过 `<html data-theme="dark|light">` 生效。
 - 浅色主题现在按“冷白工作台”完整覆盖 chat、文件库、后台任务、任务消息、上下文详情弹窗、历史抽屉和移动更多菜单：根背景是 `#e8edf6` 冷白网格，主文字是 `#142033`，metadata 使用蓝灰，状态色继续区分成功 / 警告 / 危险。不能让深色主题的透明白文字漏到浅色卡片上，也不能在浅色工作页里保留整块黑色面板；markdown 标题 / strong / code、文件 metadata、任务消息 metadata、conn 状态徽标、上下文指标块和历史抽屉头部都必须有浅色专用映射。
+- 浅色工作页的层级策略是“透明分组 + 白色承载面”：只负责排版的表单字段、工具栏、列表外壳和高级设置容器保持透明；输入框、重复条目、结果气泡、目标预览和真正的状态面板才使用浅色实体背景。后台任务创建页的 label / hint / `conn-editor-target-preview` / 时间输入 / 时间选择器日历 / focus ring 都由 `src/ui/playground-theme-controller.ts` 显式覆盖，不能再继承深色主题的白字、黑色输入块或默认浏览器黑色 focus 边。
 - `src/ui/playground.ts` 当前尾部初始化已经收口为 `bindPlaygroundAssemblerEvents()` 与 `initializePlaygroundAssembler()`；旧的 `fetchConversationHistory()` 死 helper 已移除，页面入口不再继续堆散装初始化语句
 - 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
 - active 对话态的 `transcript-current` 底部必须保留额外可滚动余量，让最后一条消息能被用户继续上拖到 composer 上方，不被底部输入框压住
@@ -155,6 +156,7 @@
 - 除主聊天 transcript / composer 外，文件库、后台任务管理器、后台任务编辑页、任务消息页、运行日志弹窗、确认弹窗和后台任务过程弹窗都按“无边框深色仪表盘”处理。
 - 普通状态下不要用浅灰边框划分结构；优先用 `#01030a` 页面背景、`#101421` header、`#0b0e19` 内容卡片、`#080a13` 次级条目、阴影、字号和留白制造层次。
 - 圆角保持克制：页面外壳为 `0`，常规卡片和按钮以 `4px` 为主，独立信息面板最多 `8px`。别再把工作页做成一堆大圆角卡片，后台味和玩具味都会冒出来。
+- 浅色模式不是把这些工作页反相成一堆灰卡片；对应口径是冷白页面、透明结构容器、白色输入 / 条目 / 结果承载面、蓝灰 metadata 和少量蓝色 focus / active 状态。任何白字、黑块、浅灰块叠浅灰块导致层级糊掉，都按主题缺陷处理。
 
 ## 5. “查看技能”按钮行为
 
@@ -377,14 +379,14 @@
 - 管理弹层使用 `conn-manager-dialog` / `conn-manager-list`，打开时只读取一次 `GET /v1/conns`；该列表响应已经带每个 conn 的 `latestRun` 摘要，不再为每个 conn 立即补一发 `GET /v1/conns/:connId/runs`。
 - conn 的 run 历史默认折叠，只用 `latestRun` 展示最新状态摘要；用户展开某个 conn 时，前端才按需请求 `GET /v1/conns/:connId/runs` 补完整 run 列表。旧后端没有 `latestRun` 字段时，前端最多 4 路并发 fallback 拉取 runs，不能再退回无限制 N+1。
 - 手机端后台任务管理器不再是贴底抽屉，而是全屏独立工作页：`conn-manager-dialog.open` 与 `conn-manager-panel` 占满 `100dvh`，顶部统一使用 `topbar asset-modal-head mobile-work-topbar`；左侧是返回箭头和 `后台任务` 标题，右侧直接放 `新建任务 / 刷新列表`，状态筛选和批量操作保留在内容区。conn 条目改成 `#0b0c18` 单列卡片，`立即执行 / 编辑 / 暂停 / 恢复 / 删除 / 查看` 这类操作以整宽网格按钮呈现，避免横向挤成一排小字按钮。
-- 手机端后台任务创建 / 编辑同样不再是弹窗，而是全屏编辑页：`conn-editor-dialog.open` 与 `conn-editor-panel` 占满 `100dvh`，顶部统一状态栏左侧是返回箭头和页面标题，右侧直接放 `保存 / 取消`；表单按 `标题 / 让它做什么 / 投递目标 / 调度 / 高级设置` 分块滚动，常用字段使用 `#0b0c18` 实心输入卡片。
+- 手机端后台任务创建 / 编辑同样不再是弹窗，而是全屏编辑页：`conn-editor-dialog.open` 与 `conn-editor-panel` 占满 `100dvh`，顶部统一状态栏左侧是返回箭头和页面标题，右侧直接放 `保存 / 取消`；表单按 `标题 / 让它做什么 / 投递目标 / 调度 / 高级设置` 分块滚动，深色主题常用字段使用 `#0b0c18` 实心输入卡片；浅色主题下字段容器保持透明，输入框和目标预览使用白色 / 冷蓝承载面，label 与 hint 必须是深蓝灰文字。
 - 管理弹层提供 `新建` 入口，每条 conn 提供 `编辑` 入口；编辑器使用 `conn-editor-dialog` / `conn-editor-form`，调用 `POST /v1/conns` 或 `PATCH /v1/conns/:connId`。
 - conn 创建 / 编辑器默认只露出常用字段：标题、`让它做什么`、`结果发到哪里`、调度和保存。编号输入只在选择“指定会话 / 飞书”时出现。
 - 调度入口只保留三种：`定时执行`、`间隔执行`、`每日执行`。前端负责把这三种映射回后端 `once / interval / cron` payload，创建时不再让用户接触 cron 细节。
 - conn 编辑器覆盖标题、prompt、投递目标、调度策略和高级运行字段：
   - 目标支持当前会话、指定 conversation、`feishu_chat`、`feishu_user`。
 - 调度区只保留三种模式：`定时执行`、`间隔执行`、`每日执行`。前端仍然映射回后端 `once / interval / cron`，但不再把 cron、工作日、每周这些复杂概念直接甩给用户。
-- 三种模式对应的输入也固定下来：`定时执行` 只点选 `执行时间`；`间隔执行` 只点选 `首次执行时间` 并填写 `间隔（分钟）`；`每日执行` 只点选 `每日执行时间`。时间选择统一使用本地打包的 `flatpickr`，配置 `enableTime / time_24hr / disableMobile`，不再依赖系统原生 `datetime-local` / `time` 控件。
+- 三种模式对应的输入也固定下来：`定时执行` 只点选 `执行时间`；`间隔执行` 只点选 `首次执行时间` 并填写 `间隔（分钟）`；`每日执行` 只点选 `每日执行时间`。时间选择统一使用本地打包的 `flatpickr`，配置 `enableTime / time_24hr / disableMobile`，不再依赖系统原生 `datetime-local` / `time` 控件；浅色主题必须覆盖日历的月份、星期、日期、禁用日期、hover、today、selected 和前后月箭头，不能让深色主题白字漏在白色日历上。
 - `每日执行时间` 解析现在兼容 `07:00`、`7:00` 与 `HH:mm:ss`，保存时不会再因为用户输入或浏览器差异误报“请填写每日执行时间”。
 - “附加资料”区域现在提供显式文件入口：可从文件库复用已有资产，也可直接上传新文件；用户看到的是文件名与选中状态，内部才映射成 `assetRefs`
   - 高级字段默认收进 `高级设置`，用户可见名称分别是 `任务身份`、`执行模板`、`能力包`、`模型策略`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `profileId`、`agentSpecId`、`skillSetId`、`modelPolicyId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。

@@ -364,6 +364,7 @@ test("ConnSqliteStore rejects invalid maxRunMs values with a clear validation er
 					at: "2026-04-25T10:31:00.000Z",
 				},
 				maxRunMs: 0,
+				now: new Date("2026-04-25T10:30:00.000Z"),
 			}),
 		/Invalid conn maxRunMs/,
 	);

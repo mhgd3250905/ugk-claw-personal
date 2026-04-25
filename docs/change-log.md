@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 浅色工作页细节复验与收口
+- 日期：2026-04-25
+- 主题：继续收口浅色主题，重点修复后台任务创建页 label / hint 仍继承深色白字、时间选择器月份 / 星期 / 日期仍是白字、表单字段被浅灰块层层包住、上下文详情模型信息条残留深色 pill、输入框 focus 使用浏览器默认黑边的问题。浅色模式不是半成品反色皮肤，白字漏出来和灰块套灰块都属于设计缺陷。
+- 影响范围：`src/ui/playground-theme-controller.ts` 将后台任务创建 / 编辑页的结构容器改成透明分组，只保留输入框、目标预览、列表条目和结果面板作为浅色承载面；补齐 `conn-editor-field span`、`conn-editor-field-hint`、`conn-editor-time-input`、`conn-editor-target-preview`、`conn-time-picker-calendar` 子元素、`context-usage-dialog`、`context-usage-dialog-model span` 与表单 focus ring 的浅色映射；`test/server.test.ts` 增加浅色工作页和时间选择器断言，防止白字、黑块和灰块堆叠回潮；已用移动端 CDP 打开新建后台任务并点开时间选择器，确认表单与日历 computed styles 都走浅色主题。
+- 对应入口：`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 历史消息改为触顶自动加载
 - 日期：2026-04-25
 - 主题：移除聊天区顶部可见的“加载更多历史”按钮，改成用户上滑到 transcript 顶部附近时自动加载更早消息。聊天历史本来就是滚动阅读流，塞一个后台分页按钮确实别扭，还容易让手机端误以为要点按钮才会继续加载。
