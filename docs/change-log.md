@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-04-26
+
+### 腾讯云生产环境增量更新到 `9d3cb37`
+- 日期：2026-04-26
+- 主题：按增量发布流程把腾讯云新加坡生产环境从 `95b32f7` 更新到 `9d3cb37`，上线 playground slash command `/new` 指令基础。继续使用 GitHub 工作目录 `~/ugk-claw-repo`，没有整目录替换，也没有触碰 `~/ugk-claw-shared` 下的 agent 数据、sidecar 登录态或日志目录。
+- 影响范围：服务器先备份 sidecar 登录态到 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260426-002901.tar.gz`，再给旧 `HEAD` 打回滚 tag `server-pre-deploy-20260426-003227`；执行 `git fetch --tags origin`、`git pull --ff-only origin main`、`docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 与 `up --build -d`，重建 `ugk-pi` 和 `ugk-pi-conn-worker`。发布后内网 / 公网 `/healthz` 均返回 `{"ok":true}`，内网 / 公网 `/playground` 源码均包含 `parsePlaygroundSlashCommand`，`check-deps.mjs`、sidecar `9222` 和 app 到 CDP `9223` 探针均通过。
+- 对应入口：`docs/tencent-cloud-singapore-deploy.md`、`docs/server-ops-quick-reference.md`
+
 ## 2026-04-25
 
 ### Playground slash command `/new` 指令基础

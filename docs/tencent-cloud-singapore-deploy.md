@@ -26,9 +26,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`8e836ea`
-- 当前服务器本地回滚 tag：`server-pre-deploy-20260425-211919`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260425-211919.tar.gz`
+- 当前线上应用提交：`9d3cb37`
+- 当前服务器本地回滚 tag：`server-pre-deploy-20260426-003227`
+- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260426-002901.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -172,6 +172,45 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-26 Playground `/new` 指令增量发布记录
+
+这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录 `~/ugk-claw-repo` 做增量更新；运行态继续留在 `~/ugk-claw-shared`，没有触碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+
+1. 本地已完成 `/new` 指令基础验证：
+   - `npm test`：`281 tests`，`279 pass`，`2 skip`
+   - `npm run design:lint`：`0 errors`，`0 warnings`，`1 info`
+   - `git diff --check`
+   - 本地 `docker compose restart ugk-pi` 后，`/playground` 源码包含 `parsePlaygroundSlashCommand`
+   - 浏览器实测 `/new` 只触发 `POST /v1/chat/conversations` 与新会话 hydrate，不进入 `/v1/chat/stream`，不写入 transcript
+2. 本地 `main` 已推送到 GitHub：`9d3cb37 Add playground slash new command`
+3. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `95b32f7`
+4. 服务器先备份 sidecar 登录态：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260426-002901.tar.gz`
+5. 服务器给旧 `HEAD` 打本地回滚 tag：`server-pre-deploy-20260426-003227`
+6. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `95b32f7` fast-forward 到 `9d3cb37`
+7. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`
+8. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`
+9. 发布后验收通过：
+   - 服务器 `HEAD` 为 `9d3cb37`
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `/playground` 源码包含 `parsePlaygroundSlashCommand`
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `/playground` 源码包含 `parsePlaygroundSlashCommand`
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+   - `ugk-pi-browser` 容器内 `127.0.0.1:9222/json/version` 探针通过
+   - `ugk-pi` 容器内 `172.31.250.10:9223/json/version` 探针通过
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+
+本次上线内容包括：
+
+- playground 浏览器端 slash command 分发层
+- `/new` 指令复用现有新会话创建流程
+- `/new` 不进入 agent runtime、不写 transcript、不触发 `/v1/chat/stream`
+- 未知 slash command 与“指令 + 附件 / 引用资产”的错误拦截
+
+本次远程发布再次踩到 Windows PowerShell 引号坑：远端 `$(date ...)` 如果放在本机双引号里，会被 PowerShell 当成本机表达式执行；远端 `git tag -m "..."` 也容易被多层引号拆坏。后续远端多步命令优先用单引号包整段 remote script，tag 信息不需要花哨时直接用轻量 tag，别让引号杂技抢了发布主线。
 
 ## 2026-04-25 Playground 浅色后台任务编辑器收口增量发布记录
 
