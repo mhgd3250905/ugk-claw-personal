@@ -86,6 +86,37 @@ export function getPlaygroundContextUsageControllerScript(): string {
 				'</div>';
 		}
 
+		function renderContextUsageTooltip(projectedUsage, statusLabel, modeLabel, summaryPrefix) {
+			const percent = Math.max(0, Math.min(100, Math.round(Number(projectedUsage.percent) || 0)));
+			const currentTokens = formatTokenCount(projectedUsage.currentTokens);
+			const contextWindow = formatTokenCount(projectedUsage.contextWindow);
+			const baseTokens = formatTokenCount(projectedUsage.baseTokens);
+			const draftTokens = formatTokenCount(projectedUsage.draftTokens);
+			const availableTokens = formatTokenCount(projectedUsage.availableTokens);
+			const model = escapeContextUsageHtml(projectedUsage.model);
+			const provider = escapeContextUsageHtml(projectedUsage.provider);
+
+			contextUsageMeta.innerHTML =
+				'<span class="context-usage-meta-head">' +
+				'<span class="context-usage-meta-kicker">' + escapeContextUsageHtml(summaryPrefix) + '</span>' +
+				'<span class="context-usage-meta-status">' + escapeContextUsageHtml(statusLabel) + '</span>' +
+				'</span>' +
+				'<span class="context-usage-meta-main">' +
+				'<strong>' + percent + '%</strong>' +
+				'<em>' + currentTokens + ' / ' + contextWindow + ' tokens</em>' +
+				'</span>' +
+				'<span class="context-usage-meta-grid">' +
+				'<span class="context-usage-meta-item"><span>会话</span><strong>' + baseTokens + '</strong></span>' +
+				'<span class="context-usage-meta-item"><span>待发</span><strong>' + draftTokens + '</strong></span>' +
+				'<span class="context-usage-meta-item"><span>可用</span><strong>' + availableTokens + '</strong></span>' +
+				'</span>' +
+				'<span class="context-usage-meta-model">' +
+				'<span>' + model + '</span>' +
+				'<span>' + provider + '</span>' +
+				'<span>' + escapeContextUsageHtml(modeLabel) + '</span>' +
+				'</span>';
+		}
+
 		function estimateTextTokenCount(text) {
 			return Math.ceil(String(text || "").length / 4);
 		}
@@ -246,39 +277,14 @@ export function getPlaygroundContextUsageControllerScript(): string {
 			const projectedUsage = buildProjectedContextUsage(state.contextUsage, draftUsage);
 			const hasDraft = draftUsage.totalTokens > 0;
 			const summaryPrefix = hasDraft ? "预计发送后" : "当前上下文";
-			const baseLabel = "会话 " + formatTokenCount(projectedUsage.baseTokens);
-			const draftLabel = "待发 " + formatTokenCount(projectedUsage.draftTokens);
-			const reserveLabel = "预留 " + formatTokenCount(projectedUsage.reserveTokens);
 			const statusLabel = CONTEXT_STATUS_LABELS[projectedUsage.status] || CONTEXT_STATUS_LABELS.safe;
 			const modeLabel = projectedUsage.mode === "usage" ? "基于最近一次 usage" : "按当前输入估算";
-			const summaryLine =
-				summaryPrefix +
-				" " +
-				formatTokenCount(projectedUsage.currentTokens) +
-				" / " +
-				formatTokenCount(projectedUsage.contextWindow) +
-				" tokens (" +
-				projectedUsage.percent +
-				"%)";
-			const breakdownLine = baseLabel + " · " + draftLabel + " · " + reserveLabel;
-			const detailLine =
-				"模型 " +
-				projectedUsage.model +
-				" · " +
-				projectedUsage.provider +
-				" · " +
-				modeLabel +
-				" · " +
-				statusLabel +
-				" · 可用 " +
-				formatTokenCount(projectedUsage.availableTokens);
-			const detailText = summaryLine + "\\n" + breakdownLine + "\\n" + detailLine;
 
 			contextUsageShell.dataset.status = projectedUsage.status;
 			contextUsageShell.dataset.expanded = state.contextUsageExpanded ? "true" : "false";
 			contextUsageSummary.textContent = projectedUsage.percent + "%";
 			contextUsageShell.setAttribute("aria-label", "上下文使用 " + projectedUsage.percent + "%，" + statusLabel);
-			contextUsageMeta.textContent = detailText;
+			renderContextUsageTooltip(projectedUsage, statusLabel, modeLabel, summaryPrefix);
 			renderContextUsageDialog(projectedUsage, statusLabel, modeLabel);
 			contextUsageProgress.style.setProperty("--context-usage-percent", projectedUsage.percent + "%");
 			contextUsageProgress.setAttribute("aria-valuenow", String(projectedUsage.percent));

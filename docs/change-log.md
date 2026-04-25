@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 上下文电池按钮与 hover 浮层仪表盘化
+- 日期：2026-04-25
+- 主题：优化顶部上下文百分比按钮的右侧留白，修复 hover tooltip 被聊天区域卡片遮挡的问题，并把上下文 hover 内容从三行裸文本升级成小型仪表盘。按钮贴边、浮层越界、内容像 debug 文本，这三件小事叠在一起就会显得很糙，不能留。
+- 影响范围：`src/ui/playground.ts` 将桌面上下文电池按钮宽度调整为 `88px`，增加右侧 padding 与百分比文字右侧留白；提高桌面 `topbar` 与 `.context-usage-meta` 层级，确保浮层在聊天流卡片之上；`.context-usage-meta` 改为从触发按钮下方展开、限制宽度不超过 viewport，并按标题 / 百分比 / token 指标 / 模型信息分块渲染；`src/ui/playground-context-usage-controller.ts` 新增结构化 tooltip HTML 渲染；`src/ui/playground-theme-controller.ts` 补齐浅色主题映射；`test/server.test.ts` 增加样式与结构回归断言；`DESIGN.md` 与 `docs/playground-current.md` 同步上下文按钮与 hover 浮层口径。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-context-usage-controller.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 桌面 active 会话顶部留白收紧
 - 日期：2026-04-25
 - 主题：修复桌面深色会话态顶部出现一大片空白的问题。根因是 active 聊天仍复用 `landing` 壳子，而 `.stream-layout` 继承了空态 hero 用的 `78px` 顶部 inset；聊天流不是展示海报，继续留这么大一块空地很傻。

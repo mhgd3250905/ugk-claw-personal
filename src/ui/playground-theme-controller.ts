@@ -524,7 +524,42 @@ export function getPlaygroundThemeStyles(): string {
 			background: transparent;
 		}
 
+		:root[data-theme="light"] .context-usage-meta {
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 244, 252, 0.98)),
+				#ffffff;
+			color: #24324a;
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .context-usage-meta-kicker,
+		:root[data-theme="light"] .context-usage-meta-main em,
+		:root[data-theme="light"] .context-usage-meta-item span,
+		:root[data-theme="light"] .context-usage-meta-model span {
+			color: #667085;
+		}
+
+		:root[data-theme="light"] .context-usage-meta-main strong,
+		:root[data-theme="light"] .context-usage-meta-item strong {
+			color: #142033;
+		}
+
+		:root[data-theme="light"] .context-usage-meta-status {
+			background: #e7f6ef;
+			color: #08784b;
+		}
+
+		:root[data-theme="light"] .context-usage-meta-item,
+		:root[data-theme="light"] .context-usage-meta-model span {
+			background: rgba(232, 240, 255, 0.72);
+		}
+
 		:root[data-theme="light"] .context-usage-dialog[data-status="caution"] .context-usage-dialog-main span {
+			background: #fff4dc;
+			color: #8a5a00;
+		}
+
+		:root[data-theme="light"] .context-usage-shell[data-status="caution"] .context-usage-meta-status {
 			background: #fff4dc;
 			color: #8a5a00;
 		}
@@ -534,7 +569,17 @@ export function getPlaygroundThemeStyles(): string {
 			color: #9a4b12;
 		}
 
+		:root[data-theme="light"] .context-usage-shell[data-status="warning"] .context-usage-meta-status {
+			background: #fff0e6;
+			color: #9a4b12;
+		}
+
 		:root[data-theme="light"] .context-usage-dialog[data-status="danger"] .context-usage-dialog-main span {
+			background: #fff0f3;
+			color: #9d2439;
+		}
+
+		:root[data-theme="light"] .context-usage-shell[data-status="danger"] .context-usage-meta-status {
 			background: #fff0f3;
 			color: #9d2439;
 		}

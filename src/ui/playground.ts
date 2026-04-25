@@ -1894,14 +1894,15 @@ function getPlaygroundStyles(): string {
 			grid-template-columns: 48px auto;
 			align-items: center;
 			gap: 7px;
-			width: 82px;
+			width: 88px;
 			height: 28px;
-			padding: 5px 7px;
+			padding: 5px 10px 5px 7px;
 			border: 1px solid rgba(201, 210, 255, 0.1);
 			border-radius: 4px;
 			background: rgba(9, 12, 22, 0.72);
 			color: rgba(247, 249, 255, 0.9);
 			box-shadow: none;
+			z-index: 50;
 		}
 
 		.context-usage-shell:hover,
@@ -1953,6 +1954,7 @@ function getPlaygroundStyles(): string {
 		.context-usage-summary {
 			position: relative;
 			z-index: 1;
+			padding-right: 2px;
 			font-size: 9px;
 			font-weight: 700;
 			letter-spacing: -0.03em;
@@ -1969,23 +1971,142 @@ function getPlaygroundStyles(): string {
 
 		.context-usage-meta {
 			position: absolute;
+			top: calc(100% + 10px);
 			right: 0;
-			bottom: calc(100% + 10px);
-			z-index: 20;
-			width: 286px;
-			padding: 10px 12px;
-			border: 1px solid rgba(201, 210, 255, 0.14);
-			background: rgba(7, 10, 18, 0.96);
+			bottom: auto;
+			z-index: 90;
+			display: grid;
+			gap: 9px;
+			width: min(318px, calc(100vw - 24px));
+			padding: 12px;
+			border: 0;
+			border-radius: 6px;
+			background:
+				linear-gradient(180deg, rgba(16, 21, 35, 0.98), rgba(7, 10, 18, 0.98)),
+				#070a12;
 			box-shadow: none;
-			color: rgba(225, 232, 247, 0.72);
+			color: rgba(225, 232, 247, 0.82);
 			font-size: 11px;
-			line-height: 1.75;
+			line-height: 1.35;
 			text-align: left;
-			white-space: pre-line;
+			white-space: normal;
 			opacity: 0;
 			pointer-events: none;
-			transform: translateY(4px);
+			transform: translateY(-4px);
 			transition: opacity 120ms ease, transform 120ms ease;
+		}
+
+		.context-usage-meta-head,
+		.context-usage-meta-main,
+		.context-usage-meta-grid,
+		.context-usage-meta-model {
+			display: block;
+			min-width: 0;
+		}
+
+		.context-usage-meta-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+		}
+
+		.context-usage-meta-kicker {
+			color: rgba(225, 232, 247, 0.58);
+			font-size: 10px;
+			font-weight: 700;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+		}
+
+		.context-usage-meta-status {
+			padding: 3px 6px;
+			border-radius: 4px;
+			background: rgba(141, 255, 178, 0.1);
+			color: rgba(141, 255, 178, 0.92);
+			font-size: 10px;
+			font-weight: 700;
+			line-height: 1;
+		}
+
+		.context-usage-meta-main {
+			display: grid;
+			gap: 2px;
+		}
+
+		.context-usage-meta-main strong {
+			color: rgba(247, 249, 255, 0.96);
+			font-family: var(--font-mono);
+			font-size: 30px;
+			line-height: 0.95;
+			letter-spacing: 0;
+		}
+
+		.context-usage-meta-main em {
+			color: rgba(225, 232, 247, 0.62);
+			font-style: normal;
+		}
+
+		.context-usage-meta-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 6px;
+		}
+
+		.context-usage-meta-item {
+			display: grid;
+			gap: 4px;
+			min-width: 0;
+			padding: 7px 8px;
+			border-radius: 4px;
+			background: rgba(255, 255, 255, 0.045);
+		}
+
+		.context-usage-meta-item span {
+			color: rgba(225, 232, 247, 0.5);
+			font-size: 10px;
+		}
+
+		.context-usage-meta-item strong {
+			overflow: hidden;
+			color: rgba(247, 249, 255, 0.9);
+			font-family: var(--font-mono);
+			font-size: 11px;
+			font-weight: 700;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.context-usage-meta-model {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 5px;
+		}
+
+		.context-usage-meta-model span {
+			max-width: 100%;
+			overflow: hidden;
+			padding: 3px 6px;
+			border-radius: 4px;
+			background: rgba(201, 210, 255, 0.06);
+			color: rgba(225, 232, 247, 0.58);
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.context-usage-shell[data-status="caution"] .context-usage-meta-status {
+			background: rgba(255, 214, 125, 0.12);
+			color: rgba(255, 214, 125, 0.96);
+		}
+
+		.context-usage-shell[data-status="warning"] .context-usage-meta-status {
+			background: rgba(255, 156, 92, 0.12);
+			color: rgba(255, 176, 112, 0.98);
+		}
+
+		.context-usage-shell[data-status="danger"] .context-usage-meta-status {
+			background: rgba(255, 113, 136, 0.14);
+			color: rgba(255, 144, 164, 1);
 		}
 
 		.context-usage-shell:hover .context-usage-meta,
@@ -2499,7 +2620,7 @@ function getPlaygroundStyles(): string {
 
 		.topbar {
 			position: relative;
-			z-index: 2;
+			z-index: 80;
 			width: 100%;
 			min-height: 64px;
 			margin: 0;
