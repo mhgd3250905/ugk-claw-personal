@@ -2898,6 +2898,10 @@ function getPlaygroundStyles(): string {
 				min-height: 48px;
 			}
 
+			.shell[data-primary-view="tasks"] .mobile-topbar {
+				display: none !important;
+			}
+
 			.topbar-context-slot {
 				position: absolute;
 				top: max(15px, calc(env(safe-area-inset-top) + 15px));

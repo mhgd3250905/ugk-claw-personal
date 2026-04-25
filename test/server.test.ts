@@ -1741,6 +1741,7 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /id="mobile-task-inbox-unread-badge"/);
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-primary-view="tasks"\] \.mobile-topbar\s*\{[\s\S]*display:\s*none !important;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);

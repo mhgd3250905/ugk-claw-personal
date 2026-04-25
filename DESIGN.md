@@ -171,7 +171,7 @@ Mobile conversation selection is a compact index, not a pile of oversized cards.
 
 Mobile operational surfaces are pages, not decorative modals. File library, background task manager, background task editor, and task inbox use a full-height `background` workspace with a solid `surface` sticky header and `surface-raised` cards. Keep actions in one reachable toolbar row when possible; use full-width grid buttons when a card has several commands.
 
-Every non-chat mobile work page uses an app-style topbar. The left side starts with a compact back arrow and the page title; the right side keeps the page's primary commands, such as refresh, create, save, filters, and bulk read actions, in one horizontally scrollable action row when space is tight. Do not add a visible `回到对话` text button to these work pages.
+Every non-chat mobile work page uses an app-style topbar. The left side starts with a compact back arrow and the page title; the right side keeps the page's primary commands, such as refresh, create, save, filters, and bulk read actions, in one horizontally scrollable action row when space is tight. Do not show the global chat `mobile-topbar` on these work pages, and do not add a visible `回到对话` text button to them.
 
 Non-chat pages and dialogs should follow the same borderless instrument-panel language as context usage details. File library, task inbox, background task manager, background task editor, run logs, confirmation dialogs, and run-detail dialogs use opaque dark layers, small radii, compact headers, and shadow/tonal depth instead of visible divider borders. Keep structural borders out of normal state; reserve them for true focus, warning, or table-like density.
 

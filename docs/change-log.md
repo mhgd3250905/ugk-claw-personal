@@ -12,6 +12,12 @@
 
 ## 2026-04-25
 
+### Playground 手机端任务消息隐藏全局顶部栏
+- 日期：2026-04-25
+- 主题：任务消息页已经是独立手机工作页，进入 `data-primary-view="tasks"` 后不再显示全局聊天用的 `<section id="mobile-topbar" class="mobile-topbar">`，只保留任务消息页自己的 `task-inbox-head mobile-work-topbar`。两层顶部栏叠在一起就是 UI 自己绊自己，没必要让用户替我们忍。
+- 影响范围：`src/ui/playground.ts` 在移动断点内新增 `.shell[data-primary-view="tasks"] .mobile-topbar { display: none !important; }`；`test/server.test.ts` 增加任务消息视图隐藏全局手机顶部栏的页面断言；`DESIGN.md` 与 `docs/playground-current.md` 同步非 chat 手机工作页不显示全局聊天 topbar 的设计口径。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`DESIGN.md`、`docs/playground-current.md`
+
 ### Playground 深浅主题切换
 - 日期：2026-04-25
 - 主题：为 playground 增加与当前深色仪表盘风格一一对应的浅色版本，并提供桌面端与手机端主题切换入口。浅色不是把页面刷白完事，那叫照明事故；这次保留同一套工作台信息层级、小圆角、无边框实体层和状态色，只把背景、文字、面板和阴影映射到冷白工作台语义。
