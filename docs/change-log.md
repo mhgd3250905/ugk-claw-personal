@@ -2385,6 +2385,21 @@
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+### Agent run result 构建收口
+- 日期：2026-04-26
+- 主题：把 `AgentService.runChat()` 里的最终文本、输出文件、`send_file` 合并、本地 artifact 链接改写和 `done` 事件构造收口到独立 helper，降低核心运行编排函数的职责密度。
+- 影响范围：
+  - `src/agent/agent-run-result.ts` 新增 `buildAgentRunResult()` 与 `buildDoneChatStreamEvent()`，统一处理 assistant 最终文本兜底、`ugk-file` 提取保存、`send_file` 文件合并和用户可见本地路径重写。
+  - `src/agent/agent-service.ts` 的 `runChat()` 改为调用 run result helper，保留 session 执行、事件分发、持久化和 cleanup 编排职责。
+  - `test/agent-run-result.test.ts` 补充 run result 聚焦测试，覆盖 inline file、`send_file`、本地路径改写、最终 assistant message 兜底和 done event 可选字段。
+  - `AGENTS.md`、`docs/traceability-map.md` 同步 agent 核心排查入口。
+- 对应入口：
+  - [src/agent/agent-run-result.ts](/E:/AII/ugk-pi/src/agent/agent-run-result.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [test/agent-run-result.test.ts](/E:/AII/ugk-pi/test/agent-run-result.test.ts)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Agent active run view 投影收口
 - 日期：2026-04-26
 - 主题：把 `ChatStreamEvent` 到 active run view 的投影逻辑从 `AgentService` 私有方法收口到 `src/agent/agent-active-run-view.ts`，让 service 只负责运行编排和事件分发。

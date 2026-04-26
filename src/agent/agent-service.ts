@@ -4,7 +4,6 @@ import { ConversationStore } from "./conversation-store.js";
 import {
 	extractConversationHistoryFiles,
 	extractSendFileArtifact,
-	mergeAgentFiles,
 	mergeConversationHistoryFiles,
 } from "./agent-file-history.js";
 import {
@@ -31,6 +30,7 @@ import {
 	type PersistedTurnCoverage,
 } from "./agent-conversation-history.js";
 import { cloneChatStreamEvent, isTerminalChatStreamEvent } from "./agent-run-events.js";
+import { buildAgentRunResult, buildDoneChatStreamEvent } from "./agent-run-result.js";
 import {
 	isMessageUpdateEvent,
 	isQueueUpdateEvent,
@@ -67,7 +67,6 @@ import type {
 } from "../types/api.js";
 import {
 	buildPromptWithAssetContext,
-	extractAgentFileDrafts,
 	prependCurrentTimeContext,
 	rewriteUserVisibleLocalArtifactLinks,
 	stripInternalPromptContext,
@@ -697,22 +696,15 @@ export class AgentService {
 				throw new Error(lastAssistantMessage.errorMessage ?? "Unknown upstream provider error");
 			}
 
-			if (!rawText) {
-				rawText = extractAssistantText(lastAssistantMessage);
-			}
-
-			let text = rawText;
-			let files: AgentFileArtifact[] | undefined;
-			if (this.options.assetStore) {
-				const extractedFiles = extractAgentFileDrafts(rawText);
-				text = extractedFiles.text;
-				files =
-					extractedFiles.files.length > 0
-						? await this.options.assetStore.saveFiles(conversationId, extractedFiles.files)
-						: undefined;
-			}
-			text = rewriteUserVisibleLocalArtifactLinks(text);
-			files = mergeAgentFiles(files, sentFiles);
+			const result = await buildAgentRunResult({
+				conversationId,
+				rawText,
+				lastAssistantMessage,
+				sessionFile: session.sessionFile,
+				inputAssets: preparedAssets.uploadedAssets,
+				sentFiles,
+				assetStore: this.options.assetStore,
+			});
 
 			if (session.sessionFile) {
 				await this.options.conversationStore.set(conversationId, session.sessionFile, {
@@ -728,38 +720,11 @@ export class AgentService {
 					conversationId,
 					runId: activeRun.view.runId,
 				});
-				return {
-					conversationId,
-					text,
-					sessionFile: session.sessionFile,
-					inputAssets: preparedAssets.uploadedAssets.length > 0 ? preparedAssets.uploadedAssets : undefined,
-					files: files && files.length > 0 ? files : undefined,
-				};
+				return result;
 			}
 
-			const result: ChatResult = {
-				conversationId,
-				text,
-				sessionFile: session.sessionFile,
-				inputAssets: preparedAssets.uploadedAssets.length > 0 ? preparedAssets.uploadedAssets : undefined,
-				files: files && files.length > 0 ? files : undefined,
-			};
-
-			const doneEvent: ChatStreamEvent = {
-				type: "done",
-				conversationId: result.conversationId,
-				runId: activeRun.view.runId,
-				text: result.text,
-				sessionFile: result.sessionFile,
-			};
-			if (result.files) {
-				doneEvent.files = result.files;
-			}
-			if (result.inputAssets) {
-				doneEvent.inputAssets = result.inputAssets;
-			}
 			this.refreshPersistedTurnCoverage(activeRun);
-			this.emitRunEvent(activeRun, onEvent, doneEvent);
+			this.emitRunEvent(activeRun, onEvent, buildDoneChatStreamEvent(result, activeRun.view.runId));
 
 			return result;
 		} catch (error) {
