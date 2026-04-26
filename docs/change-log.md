@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### 文件路由工具 helper 拆分
+- 日期：2026-04-26
+- 主题：把 multipart 上传附件转换、上传大小错误识别、下载 `Content-Disposition` / MIME 处理、本地 artifact 路径白名单解析从 `src/routes/files.ts` 拆到独立 helper。文件路由同时管上传、下载和本地文件桥接，继续把安全边界工具函数塞在路由底部，后续排障就是在刀尖上跳舞。
+- 影响范围：新增 `src/routes/file-route-utils.ts` 与 `test/file-route-utils.test.ts`，集中提供 `toMultipartAttachment()`、`resolveLocalArtifactPath()`、`buildContentDispositionHeader()`、`resolveFileResponseContentType()`、`supportsInlinePreview()` 等 helper；`src/routes/files.ts` 改为只保留 HTTP 编排，`/v1/assets/upload`、`/v1/files/:fileId`、`/v1/local-file` 的上传限制、文本预览、下载 header、inline preview 和 public/runtime 白名单语义保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/routes/file-route-utils.ts`、`src/routes/files.ts`、`test/file-route-utils.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent process text helper 拆分
 - 日期：2026-04-26
 - 主题：把工具过程 payload 格式化、空字符清理、嵌套文本提取和 assistant 文本块合并从 `AgentService` 拆到独立 helper。工具输出清洗是纯文本边界逻辑，不该继续挂在聊天服务主类里当私有杂物。

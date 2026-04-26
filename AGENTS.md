@@ -96,6 +96,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 聊天路由：`src/routes/chat.ts`，请求解析：`src/routes/chat-route-parsers.ts`
 - playground 路由：`src/routes/playground.ts`
 - 静态报告路由：`src/routes/static.ts`
+- 文件 / 资产路由：`src/routes/files.ts`，文件路由工具：`src/routes/file-route-utils.ts`
 - playground UI：`src/ui/playground.ts`
 - playground 设计系统：`DESIGN.md`，变更视觉 token / 组件口径后运行 `npm run design:lint`
 - agent 服务核心：`src/agent/agent-service.ts`，conversation history helper：`src/agent/agent-conversation-history.ts`，process text helper：`src/agent/agent-process-text.ts`，active run 视图 helper：`src/agent/agent-active-run-view.ts`，session event 守卫：`src/agent/agent-session-event-guards.ts`

@@ -117,15 +117,16 @@
 先看：
 
 1. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
-2. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
-3. [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
-4. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
-5. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
-6. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
-7. [src/agent/agent-file-history.ts](/E:/AII/ugk-pi/src/agent/agent-file-history.ts)
-8. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-9. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
-10. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+2. [src/routes/file-route-utils.ts](/E:/AII/ugk-pi/src/routes/file-route-utils.ts)
+3. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+4. [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
+5. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
+6. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+7. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+8. [src/agent/agent-file-history.ts](/E:/AII/ugk-pi/src/agent/agent-file-history.ts)
+9. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+10. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+11. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 适用问题：
 - 浏览器选择文件后没反应、上传接口返回 `413` 或 `400`
