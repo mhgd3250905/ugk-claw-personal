@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent conversation history helper 拆分
+- 日期：2026-04-26
+- 主题：把 conversation history 分页、active run 视图去重、terminal input echo 隐藏、assistant 连续消息合并、历史文件卡片挂载等纯逻辑从 `AgentService` 拆到独立 helper。刷新恢复和历史分页这块最怕“顺手一改”，继续让它埋在服务主文件底部就是给后续维护挖坑。
+- 影响范围：新增 `src/agent/agent-conversation-history.ts` 与 `test/agent-conversation-history.test.ts`，集中提供 `buildConversationViewMessages()`、`paginateConversationHistoryMessages()`、`derivePersistedTurnCoverageFromRunTail()`、`appendConversationHistoryMessage()`、`attachConversationHistoryFiles()` 等 helper；`src/agent/agent-service.ts` 改为导入这些纯逻辑，`GET /v1/chat/state`、`GET /v1/chat/history`、active run terminal snapshot、文件卡片合并和历史分页语义保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/agent/agent-conversation-history.ts`、`src/agent/agent-service.ts`、`test/agent-conversation-history.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent session event 守卫拆分
 - 日期：2026-04-26
 - 主题：把 raw agent session event 的类型守卫从 `AgentService` 拆到独立 helper。工具事件、消息事件、queue 事件的形状判断是输入边界，不是聊天服务生命周期本身；继续塞在主文件底部，就是给后续排障制造噪音。

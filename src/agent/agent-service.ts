@@ -14,6 +14,23 @@ import {
 	createActiveRunView,
 	sanitizeStateId,
 } from "./agent-active-run-view.js";
+import {
+	appendConversationHistoryMessage,
+	attachConversationHistoryFiles,
+	buildConversationViewMessages,
+	conversationTitleFromRole,
+	derivePersistedTurnCoverageFromRunTail,
+	normalizeConversationHistoryLimit,
+	omitTrailingActiveUserMessage,
+	paginateConversationHistoryMessages,
+	resolveConversationMessageCreatedAt,
+	shiftPersistedTurnCoverageToPage,
+	shouldExposeTerminalRunSnapshot,
+	shouldHideTerminalInputEcho,
+	summarizeConversationText,
+	type ConversationHistoryMessage,
+	type PersistedTurnCoverage,
+} from "./agent-conversation-history.js";
 import { cloneChatStreamEvent, isTerminalChatStreamEvent } from "./agent-run-events.js";
 import {
 	isMessageUpdateEvent,
@@ -40,9 +57,7 @@ import {
 } from "./context-usage.js";
 import type {
 	ChatActiveRunBody,
-	ChatAssetBody,
 	ChatContextUsageBody,
-	ChatHistoryFileBody,
 	ChatStreamEvent,
 	ConversationStateResponseBody,
 	QueueMessageMode,
@@ -152,19 +167,6 @@ export interface SwitchConversationResult {
 	reason?: "running" | "not_found";
 }
 
-export interface ConversationHistoryMessage {
-	id: string;
-	kind: "user" | "assistant" | "system" | "error" | "notification";
-	title: string;
-	text: string;
-	createdAt: string;
-	source?: string;
-	sourceId?: string;
-	runId?: string;
-	assetRefs?: ChatAssetBody[];
-	files?: ChatHistoryFileBody[];
-}
-
 export interface ConversationHistoryResult {
 	conversationId: string;
 	messages: ConversationHistoryMessage[];
@@ -209,11 +211,6 @@ interface ActiveRunState {
 	persistedTurnCoverage: PersistedTurnCoverage | null;
 }
 
-interface PersistedTurnCoverage {
-	inputCovered: boolean;
-	assistantIndex: number;
-}
-
 interface TerminalRunState {
 	view: ChatActiveRunBody;
 	events: ChatStreamEvent[];
@@ -223,7 +220,6 @@ interface TerminalRunState {
 const MAX_BUFFERED_RUN_EVENTS = 300;
 const DEFAULT_CONVERSATION_STATE_VIEW_LIMIT = 160;
 const DEFAULT_CONVERSATION_HISTORY_LIMIT = 80;
-const MAX_CONVERSATION_HISTORY_PAGE_LIMIT = 500;
 
 export class AgentService {
 	private readonly activeRuns = new Map<string, ActiveRunState>();
@@ -1351,409 +1347,8 @@ export class AgentService {
 	}
 }
 
-function conversationTitleFromRole(kind: "user" | "assistant" | "system" | "error"): string {
-	return kind === "user" ? "agent:global" : "助手";
-}
-
 function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {
 	return view.status === "done" || view.status === "error" || view.status === "interrupted";
-}
-
-function shouldExposeTerminalRunSnapshot(
-	messages: readonly ConversationHistoryMessage[],
-	view: ChatActiveRunBody,
-): boolean {
-	const terminalText = normalizeComparableMessageText(view.text);
-	if (!terminalText) {
-		return true;
-	}
-
-	return !messages.some((message) => {
-		if (message.kind !== "assistant") {
-			return false;
-		}
-
-		const messageText = normalizeComparableMessageText(message.text);
-		return messageText === terminalText || messageText.includes(terminalText);
-	});
-}
-
-function buildConversationViewMessages(
-	conversationId: string,
-	messages: readonly ConversationHistoryMessage[],
-	activeRun: ChatActiveRunBody | null,
-	persistedTurnCoverage?: PersistedTurnCoverage,
-): ConversationHistoryMessage[] {
-	const viewMessages = messages.map(cloneConversationHistoryMessage);
-	if (!activeRun) {
-		return viewMessages;
-	}
-
-	const effectivePersistedTurnCoverage =
-		activeRun.loading ? null : persistedTurnCoverage ?? findPersistedActiveRunTurnCoverage(viewMessages, activeRun);
-	const assistantIndex =
-		activeRun.loading
-			? -1
-			: effectivePersistedTurnCoverage?.assistantIndex ?? findActiveRunAssistantIndex(viewMessages, activeRun);
-	const assistantCovered = assistantIndex >= 0;
-	const inputCovered =
-		activeRun.loading
-			? false
-			: effectivePersistedTurnCoverage?.inputCovered ?? historyHasActiveRunInput(viewMessages, activeRun, assistantIndex);
-	if (assistantCovered) {
-		viewMessages[assistantIndex] = {
-			...viewMessages[assistantIndex],
-			runId: activeRun.runId,
-		};
-	}
-	if (!activeRun.loading && inputCovered && assistantCovered) {
-		return viewMessages;
-	}
-
-	if (!inputCovered && activeRun.input.message.trim()) {
-		viewMessages.push({
-			id: `active-input-${activeRun.runId}`,
-			kind: "user",
-			title: conversationId,
-			text: activeRun.input.message,
-			createdAt: activeRun.startedAt,
-			assetRefs: activeRun.input.inputAssets.map((asset) => ({ ...asset })),
-		});
-	}
-
-	if (!assistantCovered) {
-		viewMessages.push({
-			id: activeRun.assistantMessageId,
-			kind: "assistant",
-			title: conversationTitleFromRole("assistant"),
-			text: activeRun.text,
-			createdAt: activeRun.startedAt,
-			runId: activeRun.runId,
-		});
-	}
-
-	return viewMessages;
-}
-
-function cloneConversationHistoryMessage(message: ConversationHistoryMessage): ConversationHistoryMessage {
-	return {
-		...message,
-		...(message.assetRefs ? { assetRefs: message.assetRefs.map((asset) => ({ ...asset })) } : {}),
-		...(message.files ? { files: message.files.map((file) => ({ ...file })) } : {}),
-	};
-}
-
-interface ConversationHistoryPaginationInput {
-	limit?: number;
-	before?: string;
-	defaultLimit: number;
-}
-
-interface ConversationHistoryPage {
-	messages: ConversationHistoryMessage[];
-	startIndex: number;
-	hasMore: boolean;
-	nextBefore?: string;
-	limit: number;
-}
-
-function paginateConversationHistoryMessages(
-	messages: readonly ConversationHistoryMessage[],
-	input: ConversationHistoryPaginationInput,
-): ConversationHistoryPage {
-	const limit = normalizeConversationHistoryLimit(input.limit, input.defaultLimit);
-	const before = typeof input.before === "string" ? input.before.trim() : "";
-	const beforeIndex = before ? messages.findIndex((message) => message.id === before) : -1;
-	const endIndex = beforeIndex >= 0 ? beforeIndex : messages.length;
-	const startIndex = Math.max(0, endIndex - limit);
-	const pageMessages = messages.slice(startIndex, endIndex).map(cloneConversationHistoryMessage);
-	const hasMore = startIndex > 0;
-
-	return {
-		messages: pageMessages,
-		startIndex,
-		hasMore,
-		nextBefore: hasMore ? pageMessages[0]?.id : undefined,
-		limit,
-	};
-}
-
-function normalizeConversationHistoryLimit(limit: number | undefined, defaultLimit: number): number {
-	if (typeof limit !== "number" || !Number.isFinite(limit)) {
-		return defaultLimit;
-	}
-
-	return Math.min(MAX_CONVERSATION_HISTORY_PAGE_LIMIT, Math.max(1, Math.floor(limit)));
-}
-
-function shiftPersistedTurnCoverageToPage(
-	coverage: PersistedTurnCoverage | null | undefined,
-	pageStartIndex: number,
-	pageLength: number,
-): PersistedTurnCoverage | undefined {
-	if (!coverage) {
-		return undefined;
-	}
-	if (coverage.assistantIndex < 0) {
-		return {
-			inputCovered: coverage.inputCovered,
-			assistantIndex: -1,
-		};
-	}
-
-	const assistantIndex = coverage.assistantIndex - pageStartIndex;
-	if (assistantIndex < 0 || assistantIndex >= pageLength) {
-		return undefined;
-	}
-
-	return {
-		inputCovered: coverage.inputCovered,
-		assistantIndex,
-	};
-}
-
-function historyHasActiveRunInput(
-	messages: readonly ConversationHistoryMessage[],
-	activeRun: ChatActiveRunBody,
-	assistantIndex: number,
-): boolean {
-	const inputText = normalizeComparableMessageText(activeRun.input.message);
-	if (!inputText) {
-		return true;
-	}
-
-	const endIndex = assistantIndex >= 0 ? assistantIndex - 1 : messages.length - 1;
-	const startIndex = Math.max(0, endIndex - 8);
-	for (let index = endIndex; index >= startIndex; index -= 1) {
-		const message = messages[index];
-		if (message.kind === "assistant" || message.kind === "system" || message.kind === "error") {
-			return false;
-		}
-		if (message.kind === "user" && normalizeComparableMessageText(message.text) === inputText) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-function findPersistedActiveRunTurnCoverage(
-	messages: readonly ConversationHistoryMessage[],
-	activeRun: ChatActiveRunBody,
-): PersistedTurnCoverage | null {
-	const inputText = normalizeComparableMessageText(activeRun.input.message);
-	if (!inputText) {
-		return null;
-	}
-
-	const startIndex = Math.max(0, messages.length - 12);
-	for (let index = messages.length - 1; index >= startIndex; index -= 1) {
-		const message = messages[index];
-		if (message.kind !== "user") {
-			continue;
-		}
-		if (normalizeComparableMessageText(message.text) !== inputText) {
-			continue;
-		}
-
-		for (let nextIndex = index + 1; nextIndex < messages.length; nextIndex += 1) {
-			const nextMessage = messages[nextIndex];
-			if (nextMessage.kind === "assistant") {
-				return {
-					inputCovered: true,
-					assistantIndex: nextIndex,
-				};
-			}
-			if (nextMessage.kind === "user") {
-				return {
-					inputCovered: true,
-					assistantIndex: -1,
-				};
-			}
-		}
-
-		return {
-			inputCovered: true,
-			assistantIndex: -1,
-		};
-	}
-
-	return null;
-}
-
-function derivePersistedTurnCoverageFromRunTail(
-	messages: readonly ConversationHistoryMessage[],
-	historyMessageCountBeforeRun: number,
-	activeRun: ChatActiveRunBody,
-): PersistedTurnCoverage {
-	const inputText = normalizeComparableMessageText(activeRun.input.message);
-	const startIndex = Math.max(0, Math.min(historyMessageCountBeforeRun, messages.length));
-	let inputCovered = false;
-
-	for (let index = startIndex; index < messages.length; index += 1) {
-		const message = messages[index];
-		if (!inputCovered) {
-			if (message.kind !== "user") {
-				continue;
-			}
-			if (inputText && normalizeComparableMessageText(message.text) !== inputText) {
-				continue;
-			}
-			inputCovered = true;
-			continue;
-		}
-
-		if (message.kind === "assistant") {
-			return {
-				inputCovered: true,
-				assistantIndex: index,
-			};
-		}
-		if (message.kind === "user") {
-			break;
-		}
-	}
-
-	return {
-		inputCovered,
-		assistantIndex: -1,
-	};
-}
-
-function findActiveRunAssistantIndex(
-	messages: readonly ConversationHistoryMessage[],
-	activeRun: ChatActiveRunBody,
-): number {
-	const assistantText = normalizeComparableMessageText(activeRun.text);
-	if (!activeRun.assistantMessageId && !assistantText) {
-		return -1;
-	}
-
-	const startIndex = Math.max(0, messages.length - 8);
-	for (let index = messages.length - 1; index >= startIndex; index -= 1) {
-		const message = messages[index];
-		if (message.kind !== "assistant") {
-			continue;
-		}
-		if (message.id === activeRun.assistantMessageId) {
-			return index;
-		}
-		const messageText = normalizeComparableMessageText(message.text);
-		if (assistantText && (messageText === assistantText || messageText.includes(assistantText))) {
-			return index;
-		}
-	}
-
-	return -1;
-}
-
-function normalizeComparableMessageText(value: string | undefined): string {
-	return String(value ?? "")
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
-function resolveConversationMessageCreatedAt(message: AgentMessageLike): string {
-	const rawTimestamp = message.timestamp;
-	if (typeof rawTimestamp === "number" && Number.isFinite(rawTimestamp)) {
-		return new Date(rawTimestamp).toISOString();
-	}
-	if (typeof rawTimestamp === "string" && rawTimestamp.trim()) {
-		const normalized = new Date(rawTimestamp);
-		if (!Number.isNaN(normalized.getTime())) {
-			return normalized.toISOString();
-		}
-	}
-	return new Date(0).toISOString();
-}
-
-function shouldHideTerminalInputEcho(
-	messages: readonly ConversationHistoryMessage[],
-	inputMessage: string,
-): boolean {
-	const normalizedInput = normalizeComparableMessageText(inputMessage);
-	if (!normalizedInput) {
-		return false;
-	}
-
-	for (let index = messages.length - 1; index >= 0; index -= 1) {
-		const message = messages[index];
-		if (message.kind === "assistant" || message.kind === "system" || message.kind === "error") {
-			break;
-		}
-		if (message.kind === "user" && normalizeComparableMessageText(message.text) === normalizedInput) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-function summarizeConversationText(value: string | undefined, fallback: string): string {
-	const compact = String(value ?? "")
-		.replace(/\s+/g, " ")
-		.trim();
-	if (!compact) {
-		return fallback;
-	}
-
-	return compact.length > 48 ? compact.slice(0, 48).trimEnd() + "..." : compact;
-}
-
-function omitTrailingActiveUserMessage(
-	messages: ConversationHistoryMessage[],
-	activeInputMessage: string,
-): ConversationHistoryMessage[] {
-	const normalizedInput = activeInputMessage.trim();
-	if (!normalizedInput) {
-		return messages;
-	}
-
-	const lastMessage = messages.at(-1);
-	if (lastMessage?.kind !== "user") {
-		return messages;
-	}
-
-	return lastMessage.text.trim() === normalizedInput ? messages.slice(0, -1) : messages;
-}
-
-function appendConversationHistoryMessage(
-	messages: ConversationHistoryMessage[],
-	message: ConversationHistoryMessage,
-): void {
-	const previous = messages.at(-1);
-	if (previous?.kind === "assistant" && message.kind === "assistant") {
-		previous.text = [previous.text, message.text].filter((text) => text.trim().length > 0).join("\n\n");
-		previous.files = mergeConversationHistoryFiles(previous.files, message.files ?? []);
-		return;
-	}
-
-	messages.push({ ...message });
-}
-
-function attachConversationHistoryFiles(
-	messages: ConversationHistoryMessage[],
-	files: readonly ChatHistoryFileBody[],
-	createdAt: string,
-	messageIndex: number,
-): void {
-	for (let index = messages.length - 1; index >= 0; index -= 1) {
-		const message = messages[index];
-		if (message.kind !== "assistant") {
-			continue;
-		}
-		message.files = mergeConversationHistoryFiles(message.files, files);
-		return;
-	}
-
-	messages.push({
-		id: `session-message-file-${messageIndex}`,
-		kind: "assistant",
-		title: conversationTitleFromRole("assistant"),
-		text: "",
-		createdAt,
-		files: mergeConversationHistoryFiles(undefined, files),
-	});
 }
 
 function createBrowserCleanupScope(conversationId: string): string {

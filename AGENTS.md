@@ -98,7 +98,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 静态报告路由：`src/routes/static.ts`
 - playground UI：`src/ui/playground.ts`
 - playground 设计系统：`DESIGN.md`，变更视觉 token / 组件口径后运行 `npm run design:lint`
-- agent 服务核心：`src/agent/agent-service.ts`，active run 视图 helper：`src/agent/agent-active-run-view.ts`，session event 守卫：`src/agent/agent-session-event-guards.ts`
+- agent 服务核心：`src/agent/agent-service.ts`，conversation history helper：`src/agent/agent-conversation-history.ts`，active run 视图 helper：`src/agent/agent-active-run-view.ts`，session event 守卫：`src/agent/agent-session-event-guards.ts`
 - web-access 任务结束清理：`src/agent/browser-cleanup.ts`
 - session 工厂：`src/agent/agent-session-factory.ts`
 - 资产库：`src/agent/asset-store.ts`
