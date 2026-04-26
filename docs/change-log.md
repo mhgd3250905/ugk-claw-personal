@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 弹层焦点控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 中多个弹层共用的焦点释放与返回焦点 helper 拆到独立浏览器脚本模块。`playground.ts` 已经够臃肿了，继续把确认框、文件库、任务消息和后台任务的通用焦点边界塞在主脚本里，后面排查弹层关闭后焦点乱跳时就会像翻垃圾堆。
+- 影响范围：新增 `src/ui/playground-panel-focus-controller.ts` 与 `test/playground-panel-focus-controller.test.ts`，主页面通过 `getPlaygroundPanelFocusControllerScript()` 注入原有 helper；`rememberPanelReturnFocus()`、`releasePanelFocusBeforeHide()`、`restoreFocusAfterPanelClose()` 等函数名与调用语义保持不变。`AGENTS.md`、`docs/traceability-map.md` 和 `docs/playground-current.md` 同步新的维护入口。
+- 对应入口：`src/ui/playground-panel-focus-controller.ts`、`src/ui/playground.ts`、`test/playground-panel-focus-controller.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Conn 路由 response presenter 拆分
 - 日期：2026-04-26
 - 主题：把 `src/routes/conns.ts` 里的 conn / run / file / event 响应体映射拆到独立 presenter。`conns.ts` 已经承担 HTTP 编排、请求解析、状态变更和 run 查询，再继续把 DTO 映射塞在底部，只会让后续排查“接口字段为什么这样返回”时像翻旧账本一样烦。
