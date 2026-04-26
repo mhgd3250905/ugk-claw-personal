@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent active run 视图 helper 拆分
+- 日期：2026-04-26
+- 主题：把 active run 视图创建、过程区条目追加、完成标记、状态 id 规整和深拷贝从 `AgentService` 拆到独立 helper。`AgentService` 应该管 run lifecycle，不应该把 UI 状态对象的每个小零件也攥在手里；这类膨胀迟早把维护者拖进泥潭。
+- 影响范围：新增 `src/agent/agent-active-run-view.ts` 与 `test/agent-active-run-view.test.ts`，集中提供 `createActiveRunView()`、`appendProcessEntry()`、`completeProcess()`、`cloneActiveRunView()` 和 `sanitizeStateId()`；`src/agent/agent-service.ts` 改为导入这些 helper，active run 的 `runId` / `assistantMessageId` 形态、过程区 narration、queue 深拷贝和浏览器清理 scope 保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/agent/agent-active-run-view.ts`、`src/agent/agent-service.ts`、`test/agent-active-run-view.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Chat 路由请求 parser 拆分
 - 日期：2026-04-26
 - 主题：把聊天入口的 message、attachments、assetRefs、queue mode 和分页 limit 解析从 `src/routes/chat.ts` 拆到独立 helper。聊天路由已经要承接 SSE、续订、队列、打断和历史接口，再把请求体字段校验也堆在里面，就是典型“入口层越写越胖”的老毛病。
