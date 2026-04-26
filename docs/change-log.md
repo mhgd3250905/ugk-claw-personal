@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 本地历史存储拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的 localStorage 历史索引、附件 / 资产 / 文件克隆、最近历史持久化和 transient network 错误过滤拆到 `src/ui/playground-conversation-history-store.ts`。这块是浏览器端历史缓存边界，不该继续混在会话恢复、分页补页和 DOM 渲染编排里。
+- 影响范围：`getConversationHistoryStorageKey()`、`readConversationHistoryIndex()`、`writeConversationHistoryIndex()`、`cloneHistoryAttachments()`、`cloneHistoryAssetRefs()`、`cloneHistoryFiles()`、`loadConversationHistoryEntries()`、`persistConversationHistory()`、`scheduleConversationHistoryPersist()`、`flushConversationHistoryPersist()` 函数名和调用语义保持不变；`restoreConversationHistory()` / `restoreConversationHistoryFromServer()` 仍留在 `src/ui/playground.ts`。新增 `test/playground-conversation-history-store.test.ts` 锁定本地历史存储脚本边界。
+- 对应入口：`src/ui/playground-conversation-history-store.ts`、`src/ui/playground.ts`、`test/playground-conversation-history-store.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground 历史补页控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的更早历史补页 helper 拆到 `src/ui/playground-history-pagination-controller.ts`。触顶加载历史、补服务端分页、prepend DOM、保持滚动位置这些逻辑跟会话恢复相关，但不是 sync ownership 本体，继续塞在主脚本里会让“为什么一上滑就跳位置”这种问题很难查。
