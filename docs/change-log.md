@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### 空闲会话 state 最近窗口 JSONL 尾读
+- 日期：2026-04-26
+- 主题：继续收口长会话切换和刷新恢复的后端成本。之前 `GET /v1/chat/state` 虽然响应层只返回最近 160 条可渲染历史，但底层仍可能先把整份 session JSONL 全量读入并解析，再在内存里截尾；这不叫优化，顶多叫把大箱子搬到门口再说“我只拿了最后一件”。现在默认 session factory 增加 `readRecentSessionMessages()`，可以从 JSONL 尾部读取最近消息窗口，并在需要上下文用量时向前补到最近的 assistant usage anchor；损坏的旧行不会让最近窗口恢复直接炸掉。
+- 影响范围：`src/agent/agent-session-factory.ts` 新增 recent reader、原始 message index offset 和轻量前缀 message 计数；`src/agent/agent-service.ts` 的空闲会话 `getConversationState()` 优先使用 recent reader，保持 `GET /v1/chat/history` 游标分页和 `GET /v1/chat/status` 完整读取语义不变。`test/agent-session-factory.test.ts` 覆盖尾读、损坏行跳过、末尾无全量解析和 usage anchor；`test/agent-service.test.ts` 覆盖 state 使用 recent window 时不打开 agent session、不调用完整 reader、`session-message-*` id 与 `historyPage.nextBefore` 仍可用于补页。
+- 对应入口：`src/agent/agent-session-factory.ts`、`src/agent/agent-service.ts`、`test/agent-session-factory.test.ts`、`test/agent-service.test.ts`、`docs/playground-current.md`
+
 ### AssetStore 并发索引写入收口
 - 日期：2026-04-26
 - 主题：修复 `AssetStore` 在同一进程内并发注册用户上传和 agent 输出资产时的索引覆盖风险。之前 `registerAttachments()`、`saveFiles()` 和 `saveFileBuffers()` 都是读完整 `asset-index.json`、改内存对象、再直接 `writeFile()` 覆盖；多个上传 / `send_file` 同时完成时，后写入者可能把先写入者的资产元数据洗掉。这个坑很低级，但破坏性不小，尤其文件卡片刷新后消失会让用户以为 agent 把文件弄丢了。

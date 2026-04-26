@@ -251,3 +251,87 @@ test("default session factory reads persisted messages from session jsonl withou
 		},
 	]);
 });
+
+test("default session factory reads a recent message window without parsing the whole jsonl", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-session-recent-"));
+	const sessionDir = join(projectRoot, ".data", "agent", "sessions");
+	const sessionFile = join(sessionDir, "long.jsonl");
+	await mkdir(sessionDir, { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({ providers: [] }),
+		"utf8",
+	);
+
+	const oldMessages = Array.from({ length: 120 }, (_, index) =>
+		JSON.stringify({
+			type: "message",
+			timestamp: `2026-04-24T00:00:${String(index % 60).padStart(2, "0")}.000Z`,
+			message: {
+				role: "user",
+				content: [{ type: "text", text: `old ${index + 1}` }],
+			},
+		}),
+	);
+	await writeFile(
+		sessionFile,
+		[
+			"{bad json that should stay outside the recent scan",
+			...oldMessages,
+			"{bad json inside the scanned tail",
+			JSON.stringify({
+				type: "message",
+				timestamp: "2026-04-24T01:00:00.000Z",
+				message: {
+					role: "assistant",
+					content: [{ type: "text", text: "usage anchor" }],
+					stopReason: "stop",
+					usage: { totalTokens: 4096 },
+				},
+			}),
+			JSON.stringify({
+				type: "message",
+				timestamp: "2026-04-24T01:00:01.000Z",
+				message: {
+					role: "user",
+					content: [{ type: "text", text: "recent question" }],
+				},
+			}),
+			JSON.stringify({
+				type: "message",
+				timestamp: "2026-04-24T01:00:02.000Z",
+				message: {
+					role: "assistant",
+					content: [{ type: "text", text: "recent answer" }],
+				},
+			}),
+		].join("\n"),
+		"utf8",
+	);
+	const factory = createDefaultAgentSessionFactory({ projectRoot, sessionDir });
+
+	const recent = await factory.readRecentSessionMessages?.(sessionFile, {
+		limit: 2,
+		includeContextUsageAnchor: true,
+		chunkSizeBytes: 1024,
+	});
+
+	assert.equal(recent?.reachedStart, false);
+	assert.equal(recent?.messageIndexOffset, 121);
+	assert.deepEqual(
+		recent?.messages.map((message) => message.content),
+		[
+			[{ type: "text", text: "recent question" }],
+			[{ type: "text", text: "recent answer" }],
+		],
+	);
+	assert.deepEqual(
+		recent?.contextMessages.map((message) => message.content),
+		[
+			[{ type: "text", text: "usage anchor" }],
+			[{ type: "text", text: "recent question" }],
+			[{ type: "text", text: "recent answer" }],
+		],
+	);
+});

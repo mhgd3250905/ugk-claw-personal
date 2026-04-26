@@ -12,8 +12,8 @@ import type {
 	ToolExecutionStartEventLike,
 	ToolExecutionUpdateEventLike,
 	ProjectDefaultModelContext,
-	type RuntimeSkillInfo,
-	type RuntimeSkillListResult,
+	RuntimeSkillInfo,
+	RuntimeSkillListResult,
 } from "./agent-session-factory.js";
 import {
 	buildContextUsageSnapshot,
@@ -462,13 +462,15 @@ export class AgentService {
 	): Promise<ConversationStateResult> {
 		const activeRun = this.activeRuns.get(conversationId);
 		const existingConversation = await this.options.conversationStore.get(conversationId);
-		const rawContextMessages = await this.getContextMessages(conversationId);
-		const contextMessages = this.getStableContextMessagesForHistory(rawContextMessages, activeRun);
+		const stateContext = await this.getConversationStateContext(conversationId, options?.viewLimit);
+		const rawContextMessages = stateContext.contextUsageMessages;
+		const contextMessages = this.getStableContextMessagesForHistory(stateContext.historyMessages, activeRun);
 		const modelContext = this.getDefaultModelContext();
 		const contextUsage = buildContextUsageSnapshot(modelContext, rawContextMessages);
 		const sessionMessages = this.buildConversationHistoryMessages(
 			contextMessages,
 			activeRun?.view,
+			stateContext.messageIndexOffset,
 		);
 		const terminalRun = activeRun ? undefined : this.getRenderableTerminalRun(conversationId, sessionMessages);
 		const historyPage = paginateConversationHistoryMessages(sessionMessages, {
@@ -485,6 +487,7 @@ export class AgentService {
 			historyPage.startIndex,
 			historyPage.messages.length,
 		);
+		const hasMoreHistory = historyPage.hasMore || stateContext.hasMoreBeforeWindow;
 		const viewMessages = buildConversationViewMessages(
 			conversationId,
 			historyPage.messages,
@@ -500,8 +503,8 @@ export class AgentService {
 			viewMessages,
 			activeRun: activeRunView,
 			historyPage: {
-				hasMore: historyPage.hasMore,
-				nextBefore: historyPage.nextBefore,
+				hasMore: hasMoreHistory,
+				nextBefore: hasMoreHistory ? historyPage.messages[0]?.id : undefined,
 				limit: historyPage.limit,
 			},
 			updatedAt:
@@ -978,6 +981,60 @@ export class AgentService {
 		return ((session?.messages as AgentMessageLike[] | undefined) ?? []);
 	}
 
+	private async getConversationStateContext(
+		conversationId: string,
+		viewLimit: number | undefined,
+	): Promise<{
+		historyMessages: AgentMessageLike[];
+		contextUsageMessages: AgentMessageLike[];
+		messageIndexOffset: number;
+		hasMoreBeforeWindow: boolean;
+	}> {
+		if (this.activeRuns.has(conversationId) || this.terminalRuns.has(conversationId)) {
+			const messages = await this.getContextMessages(conversationId);
+			return {
+				historyMessages: messages,
+				contextUsageMessages: messages,
+				messageIndexOffset: 0,
+				hasMoreBeforeWindow: false,
+			};
+		}
+
+		const existingConversation = await this.options.conversationStore.get(conversationId);
+		if (!existingConversation?.sessionFile) {
+			return {
+				historyMessages: [],
+				contextUsageMessages: [],
+				messageIndexOffset: 0,
+				hasMoreBeforeWindow: false,
+			};
+		}
+
+		if (this.options.sessionFactory.readRecentSessionMessages) {
+			const limit = normalizeConversationHistoryLimit(viewLimit, DEFAULT_CONVERSATION_STATE_VIEW_LIMIT);
+			const recentMessages = await this.options.sessionFactory.readRecentSessionMessages(existingConversation.sessionFile, {
+				limit,
+				includeContextUsageAnchor: true,
+			});
+			if (recentMessages) {
+				return {
+					historyMessages: recentMessages.messages as AgentMessageLike[],
+					contextUsageMessages: recentMessages.contextMessages as AgentMessageLike[],
+					messageIndexOffset: recentMessages.messageIndexOffset,
+					hasMoreBeforeWindow: !recentMessages.reachedStart,
+				};
+			}
+		}
+
+		const messages = await this.getContextMessages(conversationId);
+		return {
+			historyMessages: messages,
+			contextUsageMessages: messages,
+			messageIndexOffset: 0,
+			hasMoreBeforeWindow: false,
+		};
+	}
+
 	private getStableContextMessagesForHistory(
 		messages: readonly AgentMessageLike[],
 		activeRun: ActiveRunState | undefined,
@@ -1194,17 +1251,19 @@ export class AgentService {
 	private buildConversationHistoryMessages(
 		messages: readonly AgentMessageLike[],
 		activeRunView?: ChatActiveRunBody,
+		messageIndexOffset = 0,
 	): ConversationHistoryMessage[] {
 		const coalescedMessages: ConversationHistoryMessage[] = [];
 		messages.forEach((message, index) => {
-			const normalizedMessage = this.toConversationHistoryMessage(message, index);
+			const messageIndex = messageIndexOffset + index;
+			const normalizedMessage = this.toConversationHistoryMessage(message, messageIndex);
 			if (normalizedMessage) {
 				appendConversationHistoryMessage(coalescedMessages, normalizedMessage);
 			}
 
 			const files = extractConversationHistoryFiles(message);
 			if (files) {
-				attachConversationHistoryFiles(coalescedMessages, files, resolveConversationMessageCreatedAt(message), index + 1);
+				attachConversationHistoryFiles(coalescedMessages, files, resolveConversationMessageCreatedAt(message), messageIndex + 1);
 			}
 		});
 

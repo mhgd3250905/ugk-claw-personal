@@ -10,6 +10,8 @@ import type {
 	MessageUpdateEventLike,
 	PromptOptionsLike,
 	RawAgentSessionEventLike,
+	RecentSessionMessagesInput,
+	RecentSessionMessagesResult,
 } from "../src/agent/agent-session-factory.js";
 import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
@@ -287,12 +289,14 @@ class InterruptHistorySession implements AgentSessionLike {
 class FakeAgentSessionFactory implements AgentSessionFactory {
 	public calls: Array<{ conversationId: string; sessionFile?: string }> = [];
 	public readCalls: string[] = [];
+	public readRecentCalls: Array<{ sessionFile: string; input: RecentSessionMessagesInput }> = [];
 	public availableSkills: Array<{ name: string; path?: string }> = [];
 	public skillFingerprint?: string;
 	public readonly persistedMessages = new Map<
 		string,
 		NonNullable<AgentSessionLike["messages"]>
 	>();
+	public readonly recentMessages = new Map<string, RecentSessionMessagesResult>();
 
 	constructor(private readonly buildSession: (callIndex: number) => AgentSessionLike) {}
 
@@ -304,6 +308,14 @@ class FakeAgentSessionFactory implements AgentSessionFactory {
 	async readSessionMessages(sessionFile: string): Promise<NonNullable<AgentSessionLike["messages"]> | undefined> {
 		this.readCalls.push(sessionFile);
 		return this.persistedMessages.get(sessionFile);
+	}
+
+	async readRecentSessionMessages(
+		sessionFile: string,
+		input: RecentSessionMessagesInput,
+	): Promise<RecentSessionMessagesResult | undefined> {
+		this.readRecentCalls.push({ sessionFile, input });
+		return this.recentMessages.get(sessionFile);
 	}
 
 	async getAvailableSkills(): Promise<{
@@ -1139,6 +1151,83 @@ test("getConversationState returns a bounded recent history page by default", as
 		hasMore: true,
 		nextBefore: "session-message-41",
 		limit: 160,
+	});
+});
+
+test("getConversationState can hydrate an idle conversation from a recent session window", async () => {
+	const store = await createStore();
+	const sessionFile = "E:/sessions/recent-state.jsonl";
+	await store.set("manual:recent-state", sessionFile, {
+		title: "Recent state",
+		preview: "message 200",
+		messageCount: 200,
+	});
+	const factory = new FakeAgentSessionFactory(() => {
+		throw new Error("recent state reads must not create an agent session");
+	});
+	factory.recentMessages.set(sessionFile, {
+		messages: [
+			{
+				role: "user",
+				content: [{ type: "text", text: "message 199" }],
+				timestamp: "2026-04-24T01:00:01.000Z",
+			} as never,
+			{
+				role: "assistant",
+				content: [{ type: "text", text: "message 200" }],
+				timestamp: "2026-04-24T01:00:02.000Z",
+			} as never,
+		],
+		contextMessages: [
+			{
+				role: "assistant",
+				content: [{ type: "text", text: "usage anchor" }],
+				stopReason: "stop",
+				usage: { totalTokens: 8192 },
+				timestamp: "2026-04-24T01:00:00.000Z",
+			} as never,
+			{
+				role: "user",
+				content: [{ type: "text", text: "message 199" }],
+				timestamp: "2026-04-24T01:00:01.000Z",
+			} as never,
+			{
+				role: "assistant",
+				content: [{ type: "text", text: "message 200" }],
+				timestamp: "2026-04-24T01:00:02.000Z",
+			} as never,
+		],
+		messageIndexOffset: 198,
+		reachedStart: false,
+	});
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const state = await service.getConversationState("manual:recent-state", { viewLimit: 2 });
+
+	assert.deepEqual(factory.calls, []);
+	assert.deepEqual(factory.readCalls, []);
+	assert.deepEqual(factory.readRecentCalls, [
+		{
+			sessionFile,
+			input: {
+				limit: 2,
+				includeContextUsageAnchor: true,
+			},
+		},
+	]);
+	assert.equal(state.contextUsage.mode, "usage");
+	assert.equal(state.contextUsage.currentTokens, 8198);
+	assert.deepEqual(
+		state.messages.map((message) => ({ id: message.id, kind: message.kind, text: message.text })),
+		[
+			{ id: "session-message-199", kind: "user", text: "message 199" },
+			{ id: "session-message-200", kind: "assistant", text: "message 200" },
+		],
+	);
+	assert.deepEqual(state.historyPage, {
+		hasMore: true,
+		nextBefore: "session-message-199",
+		limit: 2,
 	});
 });
 

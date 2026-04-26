@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { open, readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import {
 	AuthStorage,
@@ -99,9 +99,26 @@ export interface AgentSessionMessageLike {
 export interface AgentSessionFactory {
 	createSession(input: { conversationId: string; sessionFile?: string }): Promise<AgentSessionLike>;
 	readSessionMessages?(sessionFile: string): Promise<AgentSessionMessageLike[] | undefined>;
+	readRecentSessionMessages?(
+		sessionFile: string,
+		input: RecentSessionMessagesInput,
+	): Promise<RecentSessionMessagesResult | undefined>;
 	getAvailableSkills?(): Promise<RuntimeSkillListResult>;
 	getSkillFingerprint?(): Promise<string | undefined>;
 	getDefaultModelContext?(): ProjectDefaultModelContext;
+}
+
+export interface RecentSessionMessagesInput {
+	limit: number;
+	includeContextUsageAnchor?: boolean;
+	chunkSizeBytes?: number;
+}
+
+export interface RecentSessionMessagesResult {
+	messages: AgentSessionMessageLike[];
+	contextMessages: AgentSessionMessageLike[];
+	messageIndexOffset: number;
+	reachedStart: boolean;
 }
 
 export interface RuntimeSkillInfo {
@@ -278,6 +295,188 @@ async function readSessionMessagesFromJsonl(sessionFile: string, projectRoot: st
 	return messages;
 }
 
+async function readRecentSessionMessagesFromJsonl(
+	sessionFile: string,
+	projectRoot: string,
+	input: RecentSessionMessagesInput,
+): Promise<RecentSessionMessagesResult> {
+	const sessionPath = normalizeSessionFilePath(sessionFile, projectRoot);
+	const limit = normalizeRecentSessionMessageLimit(input.limit);
+	const chunkSizeBytes = normalizeRecentSessionChunkSize(input.chunkSizeBytes);
+	const handle = await open(sessionPath, "r");
+
+	try {
+		const stat = await handle.stat();
+		let position = stat.size;
+		let carry = "";
+		let lines: string[] = [];
+		let reachedStart = stat.size === 0;
+		let firstCompleteLineOffset = stat.size;
+
+		while (position > 0) {
+			const readSize = Math.min(chunkSizeBytes, position);
+			position -= readSize;
+			const buffer = Buffer.allocUnsafe(readSize);
+			const { bytesRead } = await handle.read(buffer, 0, readSize, position);
+			const chunk = buffer.subarray(0, bytesRead).toString("utf8");
+			const combined = chunk + carry;
+			const splitLines = combined.split(/\r?\n/);
+
+			if (position > 0) {
+				const newlineMatch = /\r?\n/.exec(combined);
+				carry = splitLines.shift() ?? "";
+				if (newlineMatch && splitLines.length > 0) {
+					firstCompleteLineOffset = position + Buffer.byteLength(combined.slice(0, newlineMatch.index + newlineMatch[0].length), "utf8");
+				}
+			} else {
+				carry = "";
+				reachedStart = true;
+				firstCompleteLineOffset = 0;
+			}
+
+			lines = splitLines.concat(lines);
+			const parsedMessages = parseSessionMessageLines(lines);
+			if (
+				parsedMessages.length >= limit &&
+				(!input.includeContextUsageAnchor || findLastUsableAssistantUsageIndex(parsedMessages) >= 0)
+			) {
+				const messageIndexOffset = await countSessionMessageEventsBeforeOffset(handle, firstCompleteLineOffset);
+				return buildRecentSessionMessagesResult(parsedMessages, {
+					limit,
+					messageIndexOffset,
+					reachedStart,
+					includeContextUsageAnchor: Boolean(input.includeContextUsageAnchor),
+				});
+			}
+		}
+
+		const parsedMessages = parseSessionMessageLines(lines);
+		return buildRecentSessionMessagesResult(parsedMessages, {
+			limit,
+			messageIndexOffset: 0,
+			reachedStart: true,
+			includeContextUsageAnchor: Boolean(input.includeContextUsageAnchor),
+		});
+	} finally {
+		await handle.close();
+	}
+}
+
+function buildRecentSessionMessagesResult(
+	parsedMessages: AgentSessionMessageLike[],
+	input: {
+		limit: number;
+		messageIndexOffset: number;
+		reachedStart: boolean;
+		includeContextUsageAnchor: boolean;
+	},
+): RecentSessionMessagesResult {
+	const messages = parsedMessages.slice(-input.limit);
+	const usageAnchorIndex = input.includeContextUsageAnchor ? findLastUsableAssistantUsageIndex(parsedMessages) : -1;
+	return {
+		messages,
+		contextMessages: usageAnchorIndex >= 0 ? parsedMessages.slice(usageAnchorIndex) : messages,
+		messageIndexOffset: input.messageIndexOffset + Math.max(0, parsedMessages.length - messages.length),
+		reachedStart: input.reachedStart,
+	};
+}
+
+function parseSessionMessageLines(lines: readonly string[]): AgentSessionMessageLike[] {
+	const messages: AgentSessionMessageLike[] = [];
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (!trimmed) {
+			continue;
+		}
+
+		let event: {
+			type?: string;
+			timestamp?: string;
+			message?: AgentSessionMessageLike;
+		};
+		try {
+			event = JSON.parse(trimmed) as typeof event;
+		} catch {
+			continue;
+		}
+
+		if (event.type !== "message" || !event.message || typeof event.message.role !== "string") {
+			continue;
+		}
+		messages.push({
+			...event.message,
+			timestamp: event.message.timestamp ?? event.timestamp,
+		});
+	}
+	return messages;
+}
+
+async function countSessionMessageEventsBeforeOffset(
+	handle: Awaited<ReturnType<typeof open>>,
+	byteLimit: number,
+): Promise<number> {
+	if (byteLimit <= 0) {
+		return 0;
+	}
+
+	const chunkSizeBytes = 64 * 1024;
+	let position = 0;
+	let carry = "";
+	let count = 0;
+
+	while (position < byteLimit) {
+		const readSize = Math.min(chunkSizeBytes, byteLimit - position);
+		const buffer = Buffer.allocUnsafe(readSize);
+		const { bytesRead } = await handle.read(buffer, 0, readSize, position);
+		if (bytesRead <= 0) {
+			break;
+		}
+
+		position += bytesRead;
+		const combined = carry + buffer.subarray(0, bytesRead).toString("utf8");
+		const lines = combined.split(/\r?\n/);
+		carry = lines.pop() ?? "";
+		count += countSessionMessageEventLines(lines);
+	}
+
+	if (carry.trim()) {
+		count += countSessionMessageEventLines([carry]);
+	}
+	return count;
+}
+
+function countSessionMessageEventLines(lines: readonly string[]): number {
+	return lines.reduce((count, line) => count + (/"type"\s*:\s*"message"/.test(line) ? 1 : 0), 0);
+}
+
+function findLastUsableAssistantUsageIndex(messages: readonly AgentSessionMessageLike[]): number {
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const message = messages[index];
+		if (message.role !== "assistant" || !message.usage) {
+			continue;
+		}
+		if (message.stopReason === "aborted" || message.stopReason === "error") {
+			continue;
+		}
+		return index;
+	}
+	return -1;
+}
+
+function normalizeRecentSessionMessageLimit(limit: number): number {
+	if (!Number.isFinite(limit)) {
+		return 1;
+	}
+	return Math.max(1, Math.floor(limit));
+}
+
+function normalizeRecentSessionChunkSize(chunkSizeBytes: number | undefined): number {
+	if (typeof chunkSizeBytes !== "number" || !Number.isFinite(chunkSizeBytes)) {
+		return 64 * 1024;
+	}
+	return Math.max(1024, Math.floor(chunkSizeBytes));
+}
+
 function normalizeSessionFilePath(sessionFile: string, projectRoot: string): string {
 	const normalizedProjectRoot = projectRoot.replace(/\\/g, "/");
 	if (sessionFile === "/app") {
@@ -374,6 +573,9 @@ export function createDefaultAgentSessionFactory(
 		},
 		async readSessionMessages(sessionFile) {
 			return await readSessionMessagesFromJsonl(sessionFile, options.projectRoot);
+		},
+		async readRecentSessionMessages(sessionFile, input) {
+			return await readRecentSessionMessagesFromJsonl(sessionFile, options.projectRoot, input);
 		},
 		async getAvailableSkills() {
 			return await getAvailableSkills();

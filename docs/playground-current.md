@@ -1,6 +1,6 @@
 # Playground 当前状态
 
-更新时间：`2026-04-25`
+更新时间：`2026-04-26`
 
 这份文档只记录当前 `playground` 的真实前端约束，避免下一个人又拿旧截图和过时口径瞎猜。
 
@@ -66,6 +66,7 @@
 - `GET /v1/chat/state` 必须返回后端已经归并好的 `viewMessages`：服务端负责把 canonical `messages` 与 active / terminal run 合成最终可渲染视图；前端优先渲染 `viewMessages`，不再保留自己补画 active input / active assistant 的兼容分支，否则同一轮刚结束就会显示成“问题 / 回答 / 问题 / 回答”
 - 运行中的 active run 必须把“稳定历史”和“本轮进行中尾巴”分开：底层 `session.messages` 可能已经提前写入当前 run 的 user / assistant 片段，但这些片段在 `activeRun.loading=true` 时不能进入 canonical `messages`；`viewMessages` 只能由 run 开始前的稳定历史 + activeRun snapshot 合成，避免页面运行中偶发 `user-agent / user-agent` 双轮显示。刷新后正常不代表运行中正常，别又拿前端文本去重当创可贴。
 - `GET /v1/chat/state` 支持 `viewLimit`，默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 告诉前端是否还有更早历史；别再让 state 为了切换会话把完整 JSONL 和完整 transcript 一口气塞给浏览器。
+- 空闲旧会话的 `GET /v1/chat/state` 底层优先使用 `readRecentSessionMessages()` 从 session JSONL 尾部读取最近窗口；返回给前端的消息 id 仍按原始 session message 序号计算，`historyPage.nextBefore` 可以继续交给 `/v1/chat/history?before=...` 补页。`GET /v1/chat/history` 和 `GET /v1/chat/status` 仍保留完整读取语义，别为了省 I/O 把游标分页和上下文用量口径一起砍歪。
 - `GET /v1/chat/history` 支持 `limit` 和 `before` 游标分页，响应带 `hasMore / nextBefore / limit`；聊天区不再显示“加载更多历史”分页按钮，用户向上滑到 transcript 顶部附近时自动补页，不能只吃 `localStorage` 里最近 160 条缓存。
 - 当前 active run 在 transcript 里只保留一个助手气泡：正文上方是一条会持续改写的人话状态摘要，下面是一枚可点击的动态 loading 气泡；旧的独立“过程展开区”已经下线，不再额外制造第二层消息结构
 - 手机端 active run 的状态摘要不再塞进助手气泡内部，而是作为气泡上方的浅灰色单行状态文本展示；运行日志 loading 按钮移动到 `助手` 标签右侧，只保留动态点，减少空正文气泡里的视觉噪音。
@@ -303,7 +304,7 @@
 - 刷新页面后，playground 先请求 `GET /v1/chat/conversations` 获取服务端当前会话，再按该 `conversationId` 请求 `GET /v1/chat/state`，把历史消息、当前 running 状态、active assistant 正文、状态壳层、队列和上下文占用作为 canonical state 渲染。
 - `GET /v1/chat/history` 与 `GET /v1/chat/status` 继续保留兼容，但刷新恢复不再靠前端把 history、status、events、localStorage 和 DOM 指针拼成一份“猜出来的状态”。
 - `/v1/chat/state` 与 `/v1/chat/history` 都会合并连续 assistant 历史消息，保证同一轮完成后的浏览器处理叙述和最终回答恢复为一个助手气泡，而不是刷新后散成多条独立消息。
-- `/v1/chat/state` 的恢复响应现在是最近窗口，不是全量历史；需要更早消息时，前端用 `/v1/chat/history?before=...&limit=...` 按页补齐。`localStorage` 仍只保存最近快照，不能被当成完整历史源。
+- `/v1/chat/state` 的恢复响应现在是最近窗口，不是全量历史；空闲旧会话会优先从 session JSONL 尾部读取这个窗口，并保留原始 message index offset，避免最近窗口里的 `session-message-*` id 重新从 1 开始。需要更早消息时，前端用 `/v1/chat/history?before=...&limit=...` 按页补齐。`localStorage` 仍只保存最近快照，不能被当成完整历史源。
 - 点击 `新会话` 后，如果当前不是空白会话，页面会请求 `POST /v1/chat/conversations` 创建并激活一条新会话，然后立即进入新会话 shell；新会话的一次 `GET /v1/chat/state` 作为后台真源恢复 UI。旧会话保留在历史列表里，不再先额外同步一轮 `GET /v1/chat/conversations`，也不再等待 hydrate 完成才给用户切过去。当前已经是空白会话时，重复点击 `新会话` 不再产生新的空会话。
 - `localStorage` 只作为当前设备的冷启动缓存；一旦 `/v1/chat/state` 返回，页面必须以服务端 state 覆盖本地缓存。
 - `activeRun` 存在时，前端仍只维护一个 active assistant 气泡；但气泡是否出现在 transcript、对应用户输入是否补齐，都以 `viewMessages` 为准，同一 run 不允许拆出多条“助手 / 过程区 / 结果区”消息。
