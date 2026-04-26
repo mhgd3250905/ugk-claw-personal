@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 过程与技能控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的停止意图识别、过程摘要/叙述、流式过程状态、技能清单展示 helper 拆到 `src/ui/playground-process-controller.ts`。这些函数被 stream、asset、transcript 和移动菜单共同调用，属于过程展示边界，不该继续挤在页面装配层。
+- 影响范围：`isInterruptIntentMessage()`、`summarizeDetail()`、`formatProcessAction()`、`formatSkillsReply()`、`describeProcessNarration()`、`appendProcessEvent()`、`updateStreamingProcess()`、`resetStreamingState()`、`loadSkills()` 函数名和浏览器脚本作用域保持不变；`src/ui/playground.ts` 只负责注入控制器。新增 `test/playground-process-controller.test.ts` 锁定过程/技能 helper 边界。
+- 对应入口：`src/ui/playground-process-controller.ts`、`src/ui/playground.ts`、`test/playground-process-controller.test.ts`、`docs/playground-current.md`、`AGENTS.md`
+
 ### Playground 上下文用量控制器收口
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里残留的 `toggleContextUsageDetails()` 和 `syncContextUsage()` 移入 `src/ui/playground-context-usage-controller.ts`。上下文用量的展开、移动端详情弹层、状态接口同步和错误兜底本来就属于同一个控制器，继续留在主脚本里只是让页面装配层背业务逻辑锅。
