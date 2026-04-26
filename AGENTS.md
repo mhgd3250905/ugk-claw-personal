@@ -99,7 +99,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 文件 / 资产路由：`src/routes/files.ts`，文件路由工具：`src/routes/file-route-utils.ts`
 - 任务消息路由：`src/routes/activity.ts`，任务消息路由工具：`src/routes/activity-route-utils.ts`
 - 实时通知路由：`src/routes/notifications.ts`，实时通知路由工具：`src/routes/notification-route-utils.ts`
-- playground UI：`src/ui/playground.ts`，弹层焦点 helper：`src/ui/playground-panel-focus-controller.ts`
+- playground UI：`src/ui/playground.ts`，共享基础样式：`src/ui/playground-styles.ts`，弹层焦点 helper：`src/ui/playground-panel-focus-controller.ts`
 - playground 设计系统：`DESIGN.md`，变更视觉 token / 组件口径后运行 `npm run design:lint`
 - agent 服务核心：`src/agent/agent-service.ts`，conversation history helper：`src/agent/agent-conversation-history.ts`，process text helper：`src/agent/agent-process-text.ts`，active run 视图 helper：`src/agent/agent-active-run-view.ts`，session event 守卫：`src/agent/agent-session-event-guards.ts`
 - web-access 任务结束清理：`src/agent/browser-cleanup.ts`
@@ -138,6 +138,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 8. `src/agent/agent-service.ts`
 9. `src/agent/agent-session-factory.ts`
 10. `src/ui/playground.ts`
+11. `src/ui/playground-styles.ts`
 
 如果这次 `/init` 的目标是接手云服务器，而不是本机开发，先记住三件事：
 
@@ -148,7 +149,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 如果这次 `/init` 还要接手 `playground` 前端，再记住两件事：
 
 - 手机端当前不是桌面端压缩版，而是独立收口过的移动展示层；先看 `docs/playground-current.md`，别上来就按桌面布局推断手机样式。
-- 手机端近期高频改动集中在 `src/ui/playground.ts` 的移动断点、`test/server.test.ts` 的页面断言，以及 `docs/playground-current.md` 的真实口径。
+- 手机端近期高频改动集中在 `src/ui/playground-styles.ts` 的移动断点、`src/ui/playground.ts` 的页面装配、`test/server.test.ts` 的页面断言，以及 `docs/playground-current.md` 的真实口径。
 
 ### B 场景：查聊天、会话、流式、打断
 
@@ -167,6 +168,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 ### C 场景：查 playground 页面、消息气泡、思考过程、品牌和文件展示
 
 - `src/ui/playground.ts`
+- `src/ui/playground-styles.ts`
 - `src/ui/playground-panel-focus-controller.ts`
 - `test/server.test.ts`
 - `docs/playground-current.md`

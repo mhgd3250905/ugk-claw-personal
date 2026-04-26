@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 基础样式模块拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的巨大 `getPlaygroundStyles()` 静态样式块拆到 `src/ui/playground-styles.ts`。主页面入口本来就要装配 HTML、浏览器脚本、Markdown vendor 注入和各种控制器，再继续背几千行 CSS，后续 agent 修一个移动断点都得从脚本和 DOM 里穿过去，维护体验很烂。
+- 影响范围：`renderPlaygroundPage()` 仍然通过 `<style>${getPlaygroundStyles()}</style>` 注入同一份 CSS；样式依赖的资产、conn、任务消息和主题 style fragment 改由 `playground-styles.ts` 导入，`playground.ts` 只保留页面结构与脚本装配。新增 `test/playground-styles.test.ts` 锁定移动 active transcript rail 的 `inset: auto` 回归约束。
+- 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground.ts`、`test/playground-styles.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### 手机端消息轨道右偏修复
 - 日期：2026-04-26
 - 主题：修复手机端 active 对话里用户 / 助手气泡整列向右偏移、右侧贴边甚至裁切的问题。根因是移动端消息轨道仍间接受桌面 `--conversation-width` / composer 宽度推导影响，最终 active `.stream-layout` 和 transcript 容器缺少 `width / min-width / max-width` 的硬边界。手机端还拿桌面宽度逻辑兜底，属于典型“桌面布局压成移动端”的坑。
