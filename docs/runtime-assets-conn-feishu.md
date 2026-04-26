@@ -26,6 +26,7 @@
 - agent 生成了真实文件时，优先通过 `send_file` 交付
 - `/v1/files/:fileId` 负责文件内容返回
 - `/v1/assets` 与 `/v1/assets/:assetId` 提供资产元数据
+- `AssetStore` 的 `asset-index.json` 写入走进程内串行队列，并通过同目录临时文件 + `rename` 原子替换落盘；主 chat 上传、`conn` 上传和 agent `send_file` / `ugk-file` 输出即使在同一进程内并发写入，也不能互相覆盖资产索引记录。不要把它退回成普通 `readIndex()` + `writeFile()`，那是并发丢资产记录的老坑。
 
 关键入口：
 

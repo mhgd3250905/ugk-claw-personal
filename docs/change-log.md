@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### AssetStore 并发索引写入收口
+- 日期：2026-04-26
+- 主题：修复 `AssetStore` 在同一进程内并发注册用户上传和 agent 输出资产时的索引覆盖风险。之前 `registerAttachments()`、`saveFiles()` 和 `saveFileBuffers()` 都是读完整 `asset-index.json`、改内存对象、再直接 `writeFile()` 覆盖；多个上传 / `send_file` 同时完成时，后写入者可能把先写入者的资产元数据洗掉。这个坑很低级，但破坏性不小，尤其文件卡片刷新后消失会让用户以为 agent 把文件弄丢了。
+- 影响范围：`src/agent/asset-store.ts` 新增进程内写队列，所有资产索引 mutation 串行执行；`asset-index.json` 改为同目录临时文件写入后 `rename` 原子替换，失败时清理临时文件；`test/asset-store.test.ts` 增加并发 `registerAttachments()` 以及 `saveFiles()` + `registerAttachments()` 混合写入回归，锁住 24 条并发资产不丢记录且持久化 JSON 合法；`docs/runtime-assets-conn-feishu.md` 同步资产索引并发写入口径。
+- 对应入口：`src/agent/asset-store.ts`、`test/asset-store.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### 腾讯云生产环境增量更新到 `9d3cb37`
 - 日期：2026-04-26
 - 主题：按增量发布流程把腾讯云新加坡生产环境从 `95b32f7` 更新到 `9d3cb37`，上线 playground slash command `/new` 指令基础。继续使用 GitHub 工作目录 `~/ugk-claw-repo`，没有整目录替换，也没有触碰 `~/ugk-claw-shared` 下的 agent 数据、sidecar 登录态或日志目录。

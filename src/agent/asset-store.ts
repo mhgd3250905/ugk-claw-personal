@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import type { AgentFileArtifact, AgentFileDraft } from "./file-artifacts.js";
 
@@ -72,6 +72,8 @@ const DEFAULT_TEXT_PREVIEW_CHARS = 4000;
 const DEFAULT_READ_TEXT_CHARS = 24000;
 
 export class AssetStore implements AssetStoreLike {
+	private writeQueue: Promise<void> = Promise.resolve();
+
 	constructor(
 		private readonly options: {
 			blobsDir: string;
@@ -84,18 +86,17 @@ export class AssetStore implements AssetStoreLike {
 			return [];
 		}
 
-		const index = await this.readIndex();
-		await this.ensureStorage();
-		const saved: AssetRecord[] = [];
+		return await this.mutateIndex(async (index) => {
+			const saved: AssetRecord[] = [];
 
-		for (const attachment of attachments) {
-			const entry = await this.createAttachmentEntry(conversationId, attachment);
-			index[entry.assetId] = entry;
-			saved.push(toPublicAsset(entry));
-		}
+			for (const attachment of attachments) {
+				const entry = await this.createAttachmentEntry(conversationId, attachment);
+				index[entry.assetId] = entry;
+				saved.push(toPublicAsset(entry));
+			}
 
-		await this.writeIndex(index);
-		return saved;
+			return saved;
+		});
 	}
 
 	async saveFiles(conversationId: string, files: readonly AgentFileDraft[]): Promise<AgentFileArtifact[]> {
@@ -103,28 +104,27 @@ export class AssetStore implements AssetStoreLike {
 			return [];
 		}
 
-		const index = await this.readIndex();
-		await this.ensureStorage();
-		const saved: AgentFileArtifact[] = [];
+		return await this.mutateIndex(async (index) => {
+			const saved: AgentFileArtifact[] = [];
 
-		for (const file of files) {
-			const content = Buffer.from(file.content, "utf8");
-			const entry = await this.createAssetEntry({
-				conversationId,
-				fileName: file.fileName,
-				mimeType: file.mimeType,
-				sizeBytes: content.byteLength,
-				content,
-				textPreview: buildTextPreview(file.content),
-				kind: isTextMimeType(file.mimeType) ? "text" : "binary",
-				source: "agent_output",
-			});
-			index[entry.assetId] = entry;
-			saved.push(toAgentFileArtifact(entry));
-		}
+			for (const file of files) {
+				const content = Buffer.from(file.content, "utf8");
+				const entry = await this.createAssetEntry({
+					conversationId,
+					fileName: file.fileName,
+					mimeType: file.mimeType,
+					sizeBytes: content.byteLength,
+					content,
+					textPreview: buildTextPreview(file.content),
+					kind: isTextMimeType(file.mimeType) ? "text" : "binary",
+					source: "agent_output",
+				});
+				index[entry.assetId] = entry;
+				saved.push(toAgentFileArtifact(entry));
+			}
 
-		await this.writeIndex(index);
-		return saved;
+			return saved;
+		});
 	}
 
 	async saveFileBuffers(conversationId: string, files: readonly AgentFileBufferDraft[]): Promise<AgentFileArtifact[]> {
@@ -132,27 +132,26 @@ export class AssetStore implements AssetStoreLike {
 			return [];
 		}
 
-		const index = await this.readIndex();
-		await this.ensureStorage();
-		const saved: AgentFileArtifact[] = [];
+		return await this.mutateIndex(async (index) => {
+			const saved: AgentFileArtifact[] = [];
 
-		for (const file of files) {
-			const entry = await this.createAssetEntry({
-				conversationId,
-				fileName: file.fileName,
-				mimeType: file.mimeType,
-				sizeBytes: file.content.byteLength,
-				content: file.content,
-				textPreview: file.textPreview,
-				kind: isTextMimeType(file.mimeType) ? "text" : "binary",
-				source: "agent_output",
-			});
-			index[entry.assetId] = entry;
-			saved.push(toAgentFileArtifact(entry));
-		}
+			for (const file of files) {
+				const entry = await this.createAssetEntry({
+					conversationId,
+					fileName: file.fileName,
+					mimeType: file.mimeType,
+					sizeBytes: file.content.byteLength,
+					content: file.content,
+					textPreview: file.textPreview,
+					kind: isTextMimeType(file.mimeType) ? "text" : "binary",
+					source: "agent_output",
+				});
+				index[entry.assetId] = entry;
+				saved.push(toAgentFileArtifact(entry));
+			}
 
-		await this.writeIndex(index);
-		return saved;
+			return saved;
+		});
 	}
 
 	async listAssets(options?: { conversationId?: string; limit?: number }): Promise<AssetRecord[]> {
@@ -282,6 +281,11 @@ export class AssetStore implements AssetStoreLike {
 	}
 
 	private async readIndex(): Promise<AssetIndex> {
+		await this.writeQueue;
+		return await this.readIndexFromDisk();
+	}
+
+	private async readIndexFromDisk(): Promise<AssetIndex> {
 		try {
 			const content = await readFile(this.options.indexPath, "utf8");
 			if (!content.trim()) {
@@ -301,8 +305,35 @@ export class AssetStore implements AssetStoreLike {
 	}
 
 	private async writeIndex(index: AssetIndex): Promise<void> {
-		await mkdir(dirname(this.options.indexPath), { recursive: true });
-		await writeFile(this.options.indexPath, JSON.stringify(index, null, 2), "utf8");
+		const dir = dirname(this.options.indexPath);
+		const tempPath = join(dir, `.${basename(this.options.indexPath)}.${process.pid}.${process.hrtime.bigint()}.tmp`);
+		await mkdir(dir, { recursive: true });
+		try {
+			await writeFile(tempPath, JSON.stringify(index, null, 2), "utf8");
+			await rename(tempPath, this.options.indexPath);
+		} catch (error) {
+			await unlink(tempPath).catch(() => undefined);
+			throw error;
+		}
+	}
+
+	private async mutateIndex<T>(mutator: (index: AssetIndex) => T | Promise<T>): Promise<T> {
+		let result: T;
+		const operation = this.writeQueue
+			.catch(() => undefined)
+			.then(async () => {
+				const index = await this.readIndexFromDisk();
+				await this.ensureStorage();
+				result = await mutator(index);
+				await this.writeIndex(index);
+			});
+
+		this.writeQueue = operation.then(
+			() => undefined,
+			() => undefined,
+		);
+		await operation;
+		return result!;
 	}
 
 	private async ensureStorage(): Promise<void> {
