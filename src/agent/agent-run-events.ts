@@ -1,6 +1,31 @@
-import type { ChatStreamEvent } from "../types/api.js";
+import type { ChatActiveRunBody, ChatStreamEvent } from "../types/api.js";
+import {
+	applyChatStreamEventToActiveRunView,
+} from "./agent-active-run-view.js";
 
 export type ChatStreamEventSink = (event: ChatStreamEvent) => void;
+
+export interface BufferedRunEventTarget {
+	view: ChatActiveRunBody;
+	events: ChatStreamEvent[];
+	subscribers: ReadonlySet<ChatStreamEventSink>;
+	primarySink?: ChatStreamEventSink;
+	event: ChatStreamEvent;
+	maxBufferedEvents: number;
+}
+
+export function emitBufferedRunEvent(target: BufferedRunEventTarget): void {
+	applyChatStreamEventToActiveRunView(target.view, target.event);
+	target.events.push(target.event);
+	if (target.events.length > target.maxBufferedEvents) {
+		target.events.shift();
+	}
+
+	deliverChatStreamEvent(target.primarySink, target.event);
+	for (const subscriber of target.subscribers) {
+		deliverChatStreamEvent(subscriber, target.event);
+	}
+}
 
 export function cloneChatStreamEvent(event: ChatStreamEvent): ChatStreamEvent {
 	switch (event.type) {

@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent run event buffer 收口
+- 日期：2026-04-26
+- 主题：把 active run 事件投影、事件缓冲截断、primary sink 和订阅者 best-effort 投递收进 `src/agent/agent-run-events.ts` 的 `emitBufferedRunEvent()`。`AgentService` 不再手写“更新 view + push buffer + shift + 分发”的细节；这类流式事件 plumbing 留在服务主类里，后续一改就很容易漏掉断线客户端不应杀死 run 这种约束。
+- 影响范围：`streamChat()`、`GET /v1/chat/events`、`GET /v1/chat/runs/:runId/events` 的事件缓冲和重放语义保持不变；新增测试覆盖 active view 更新、buffer 上限截断、主 sink 投递和失败订阅者隔离。
+- 对应入口：`src/agent/agent-run-events.ts`、`src/agent/agent-service.ts`、`test/agent-run-events.test.ts`
+
 ### Agent conversation catalog 与 metadata 收口
 - 日期：2026-04-26
 - 主题：把会话目录 DTO 映射、空会话 metadata、会话标题 / 预览 / messageCount 生成抽到 `src/agent/agent-conversation-catalog.ts`。`AgentService` 继续负责会话读写和运行态判断，不再自己拼展示层 catalog；这种纯映射还赖在服务主类里，属于“方便当下，折磨后来人”的典型小债。

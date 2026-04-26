@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
 import { ConversationStore } from "./conversation-store.js";
 import {
-	applyChatStreamEventToActiveRunView,
 	cloneActiveRunView,
 	createActiveRunView,
 } from "./agent-active-run-view.js";
@@ -25,6 +24,7 @@ import { buildConversationStatePage } from "./agent-conversation-state.js";
 import {
 	cloneChatStreamEvent,
 	deliverChatStreamEvent,
+	emitBufferedRunEvent,
 	isTerminalChatStreamEvent,
 	type ChatStreamEventSink,
 } from "./agent-run-events.js";
@@ -702,16 +702,14 @@ export class AgentService {
 		primarySink: ChatStreamEventSink | undefined,
 		event: ChatStreamEvent,
 	): void {
-		applyChatStreamEventToActiveRunView(activeRun.view, event);
-		activeRun.events.push(event);
-		if (activeRun.events.length > MAX_BUFFERED_RUN_EVENTS) {
-			activeRun.events.shift();
-		}
-
-		deliverChatStreamEvent(primarySink, event);
-		for (const subscriber of activeRun.subscribers) {
-			deliverChatStreamEvent(subscriber, event);
-		}
+		emitBufferedRunEvent({
+			view: activeRun.view,
+			events: activeRun.events,
+			subscribers: activeRun.subscribers,
+			primarySink,
+			event,
+			maxBufferedEvents: MAX_BUFFERED_RUN_EVENTS,
+		});
 	}
 
 	private async ensureCurrentConversationId(): Promise<string> {
