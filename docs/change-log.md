@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent conversation context 读取路径收口
+- 日期：2026-04-26
+- 主题：把 `AgentService` 中 active session、persisted session、recent session window 的上下文读取逻辑抽到 `src/agent/agent-conversation-context.ts`。这块以前散在 run status、history、state 读取路径里，后续再查“为什么刷新后上下文窗口不一致”会很绕，现在统一成一个 helper 边界。
+- 影响范围：`GET /v1/chat/status`、`GET /v1/chat/history`、`GET /v1/chat/state` 的消息来源语义保持不变；active run 和 terminal run 仍走全量上下文，idle state 优先读取 recent window 并携带 context usage anchor，缺少 recent reader 时再 fallback 到全量读取或打开 session。新增测试覆盖 active session 优先、持久化消息优先和 recent idle window。
+- 对应入口：`src/agent/agent-conversation-context.ts`、`src/agent/agent-service.ts`、`test/agent-conversation-context.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent terminal run snapshot 收口
 - 日期：2026-04-26
 - 主题：把 terminal run 是否持久化、刷新恢复时是否展示 terminal snapshot、以及重复输入 echo 隐藏逻辑抽到 `src/agent/agent-terminal-run.ts`。这块直接影响 completed / interrupted / error run 刷新后的可见状态，继续藏在 `AgentService` 私有方法里，后续排查“为什么刷新后又多一条助手气泡”会很费劲。

@@ -8,7 +8,6 @@ import {
 import {
 	buildConversationHistoryMessages,
 	derivePersistedTurnCoverageFromRunTail,
-	normalizeConversationHistoryLimit,
 	paginateConversationHistoryMessages,
 	type ConversationHistoryMessage,
 	type PersistedTurnCoverage,
@@ -18,6 +17,10 @@ import {
 	buildConversationMetadata,
 	buildEmptyConversationMetadata,
 } from "./agent-conversation-catalog.js";
+import {
+	resolveConversationContextMessages,
+	resolveConversationStateContext,
+} from "./agent-conversation-context.js";
 import { buildConversationStatePage } from "./agent-conversation-state.js";
 import {
 	cloneChatStreamEvent,
@@ -732,41 +735,15 @@ export class AgentService {
 		};
 	}
 
-	private async getContextSession(conversationId: string): Promise<AgentSessionLike | undefined> {
-		const activeRun = this.activeRuns.get(conversationId);
-		if (activeRun) {
-			return activeRun.session;
-		}
-
-		const existingConversation = await this.options.conversationStore.get(conversationId);
-		if (!existingConversation?.sessionFile) {
-			return undefined;
-		}
-
-		return await this.options.sessionFactory.createSession({
-			conversationId,
-			sessionFile: existingConversation.sessionFile,
-		});
-	}
-
 	private async getContextMessages(conversationId: string): Promise<AgentMessageLike[]> {
 		const activeRun = this.activeRuns.get(conversationId);
-		if (activeRun) {
-			return ((activeRun.session.messages as AgentMessageLike[] | undefined) ?? []);
-		}
-
 		const existingConversation = await this.options.conversationStore.get(conversationId);
-		if (!existingConversation?.sessionFile) {
-			return [];
-		}
-
-		const persistedMessages = await this.options.sessionFactory.readSessionMessages?.(existingConversation.sessionFile);
-		if (persistedMessages) {
-			return persistedMessages as AgentMessageLike[];
-		}
-
-		const session = await this.getContextSession(conversationId);
-		return ((session?.messages as AgentMessageLike[] | undefined) ?? []);
+		return await resolveConversationContextMessages({
+			conversationId,
+			activeSession: activeRun?.session,
+			sessionFile: existingConversation?.sessionFile,
+			sessionFactory: this.options.sessionFactory,
+		});
 	}
 
 	private async getConversationStateContext(
@@ -778,49 +755,17 @@ export class AgentService {
 		messageIndexOffset: number;
 		hasMoreBeforeWindow: boolean;
 	}> {
-		if (this.activeRuns.has(conversationId) || this.terminalRuns.has(conversationId)) {
-			const messages = await this.getContextMessages(conversationId);
-			return {
-				historyMessages: messages,
-				contextUsageMessages: messages,
-				messageIndexOffset: 0,
-				hasMoreBeforeWindow: false,
-			};
-		}
-
+		const activeRun = this.activeRuns.get(conversationId);
 		const existingConversation = await this.options.conversationStore.get(conversationId);
-		if (!existingConversation?.sessionFile) {
-			return {
-				historyMessages: [],
-				contextUsageMessages: [],
-				messageIndexOffset: 0,
-				hasMoreBeforeWindow: false,
-			};
-		}
-
-		if (this.options.sessionFactory.readRecentSessionMessages) {
-			const limit = normalizeConversationHistoryLimit(viewLimit, DEFAULT_CONVERSATION_STATE_VIEW_LIMIT);
-			const recentMessages = await this.options.sessionFactory.readRecentSessionMessages(existingConversation.sessionFile, {
-				limit,
-				includeContextUsageAnchor: true,
-			});
-			if (recentMessages) {
-				return {
-					historyMessages: recentMessages.messages as AgentMessageLike[],
-					contextUsageMessages: recentMessages.contextMessages as AgentMessageLike[],
-					messageIndexOffset: recentMessages.messageIndexOffset,
-					hasMoreBeforeWindow: !recentMessages.reachedStart,
-				};
-			}
-		}
-
-		const messages = await this.getContextMessages(conversationId);
-		return {
-			historyMessages: messages,
-			contextUsageMessages: messages,
-			messageIndexOffset: 0,
-			hasMoreBeforeWindow: false,
-		};
+		return await resolveConversationStateContext({
+			conversationId,
+			activeSession: activeRun?.session,
+			sessionFile: existingConversation?.sessionFile,
+			sessionFactory: this.options.sessionFactory,
+			forceFullContext: this.terminalRuns.has(conversationId),
+			viewLimit,
+			defaultViewLimit: DEFAULT_CONVERSATION_STATE_VIEW_LIMIT,
+		});
 	}
 
 	private getStableContextMessagesForHistory(
