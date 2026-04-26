@@ -36,6 +36,7 @@ import {
 import { buildAgentRunResult, buildDoneChatStreamEvent } from "./agent-run-result.js";
 import { createAgentSessionEventAdapter } from "./agent-session-event-adapter.js";
 import { extractAssistantText } from "./agent-process-text.js";
+import { preparePromptAssets } from "./agent-prompt-assets.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
 import type {
 	AgentSessionFactory,
@@ -61,8 +62,6 @@ import {
 	rewriteUserVisibleLocalArtifactLinks,
 	stripInternalPromptContext,
 	type AgentFileArtifact,
-	type PromptAssetContextEntry,
-	toPromptAssetFromStoredAsset,
 } from "./file-artifacts.js";
 
 export interface ChatInput {
@@ -358,7 +357,12 @@ export class AgentService {
 			};
 		}
 
-		const preparedAssets = await this.preparePromptAssets(input.conversationId, input.attachments, input.assetRefs);
+		const preparedAssets = await preparePromptAssets({
+			conversationId: input.conversationId,
+			attachments: input.attachments,
+			assetRefs: input.assetRefs,
+			assetStore: this.options.assetStore,
+		});
 		const message = buildPromptWithAssetContext(prependCurrentTimeContext(input.message), preparedAssets.promptAssets);
 		if (input.mode === "steer" && activeRun.session.steer) {
 			await activeRun.session.steer(message);
@@ -588,7 +592,12 @@ export class AgentService {
 			throw new Error("Another conversation is already running");
 		}
 		const { session, skillFingerprint } = await this.openSession(conversationId);
-		const preparedAssets = await this.preparePromptAssets(conversationId, input.attachments, input.assetRefs);
+		const preparedAssets = await preparePromptAssets({
+			conversationId,
+			attachments: input.attachments,
+			assetRefs: input.assetRefs,
+			assetStore: this.options.assetStore,
+		});
 		const sessionMessagesBeforeRun = ((session.messages as AgentMessageLike[] | undefined) ?? []);
 		const sessionMessageCountBeforeRun = sessionMessagesBeforeRun.length;
 		const historyMessageCountBeforeRun = this.buildConversationHistoryMessages(sessionMessagesBeforeRun).length;
@@ -890,61 +899,6 @@ export class AgentService {
 				reserveTokens: 16384,
 			}
 		);
-	}
-
-	private async preparePromptAssets(
-		conversationId: string,
-		attachments?: readonly ChatAttachment[],
-		assetRefs?: readonly string[],
-	): Promise<{
-		uploadedAssets: AssetRecord[];
-		promptAssets: PromptAssetContextEntry[];
-	}> {
-		if (!this.options.assetStore) {
-			return {
-				uploadedAssets: [],
-				promptAssets:
-					attachments?.map((attachment, index) => ({
-						assetId: `inline-upload-${index + 1}`,
-						reference: `@asset[inline-upload-${index + 1}]`,
-						fileName: attachment.fileName,
-						mimeType: attachment.mimeType?.trim() || "application/octet-stream",
-						sizeBytes: Number.isFinite(attachment.sizeBytes) ? attachment.sizeBytes ?? 0 : 0,
-						kind: typeof attachment.text === "string" ? "text" : "metadata",
-						hasContent: typeof attachment.text === "string",
-						source: "upload",
-						...(typeof attachment.text === "string" ? { textContent: attachment.text } : {}),
-					})) ?? [],
-			};
-		}
-
-		const uploadedAssets =
-			attachments && attachments.length > 0
-				? await this.options.assetStore.registerAttachments(conversationId, attachments)
-				: [];
-		const referencedAssets =
-			assetRefs && assetRefs.length > 0 ? await this.options.assetStore.resolveAssets(assetRefs) : [];
-
-		const uploadedPromptAssets = uploadedAssets.map((asset, index) =>
-			toPromptAssetFromStoredAsset(asset, {
-				source: "upload",
-				textContent: attachments?.[index]?.text,
-			}),
-		);
-
-		const referencedPromptAssets = await Promise.all(
-			referencedAssets.map(async (asset) =>
-				toPromptAssetFromStoredAsset(asset, {
-					source: "reference",
-					textContent: await this.options.assetStore?.readText(asset.assetId),
-				}),
-			),
-		);
-
-		return {
-			uploadedAssets,
-			promptAssets: [...uploadedPromptAssets, ...referencedPromptAssets],
-		};
 	}
 
 	private buildConversationHistoryMessages(

@@ -65,15 +65,16 @@
 4. [src/routes/http-errors.ts](/E:/AII/ugk-pi/src/routes/http-errors.ts)
 5. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
 6. [src/agent/agent-conversation-state.ts](/E:/AII/ugk-pi/src/agent/agent-conversation-state.ts)
-7. [src/agent/agent-run-result.ts](/E:/AII/ugk-pi/src/agent/agent-run-result.ts)
-8. [src/agent/agent-session-event-adapter.ts](/E:/AII/ugk-pi/src/agent/agent-session-event-adapter.ts)
-9. [src/agent/agent-conversation-history.ts](/E:/AII/ugk-pi/src/agent/agent-conversation-history.ts)
-10. [src/agent/agent-process-text.ts](/E:/AII/ugk-pi/src/agent/agent-process-text.ts)
-11. [src/agent/agent-active-run-view.ts](/E:/AII/ugk-pi/src/agent/agent-active-run-view.ts)
-12. [src/agent/agent-session-event-guards.ts](/E:/AII/ugk-pi/src/agent/agent-session-event-guards.ts)
-13. [src/agent/agent-run-events.ts](/E:/AII/ugk-pi/src/agent/agent-run-events.ts)
-14. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
-15. [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+7. [src/agent/agent-prompt-assets.ts](/E:/AII/ugk-pi/src/agent/agent-prompt-assets.ts)
+8. [src/agent/agent-run-result.ts](/E:/AII/ugk-pi/src/agent/agent-run-result.ts)
+9. [src/agent/agent-session-event-adapter.ts](/E:/AII/ugk-pi/src/agent/agent-session-event-adapter.ts)
+10. [src/agent/agent-conversation-history.ts](/E:/AII/ugk-pi/src/agent/agent-conversation-history.ts)
+11. [src/agent/agent-process-text.ts](/E:/AII/ugk-pi/src/agent/agent-process-text.ts)
+12. [src/agent/agent-active-run-view.ts](/E:/AII/ugk-pi/src/agent/agent-active-run-view.ts)
+13. [src/agent/agent-session-event-guards.ts](/E:/AII/ugk-pi/src/agent/agent-session-event-guards.ts)
+14. [src/agent/agent-run-events.ts](/E:/AII/ugk-pi/src/agent/agent-run-events.ts)
+15. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
+16. [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
 
 重点接口：
 
@@ -157,13 +158,14 @@
 2. [src/routes/file-route-utils.ts](/E:/AII/ugk-pi/src/routes/file-route-utils.ts)
 3. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
 4. [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
-5. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
-6. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
-7. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
-8. [src/agent/agent-file-history.ts](/E:/AII/ugk-pi/src/agent/agent-file-history.ts)
-9. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-10. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
-11. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+5. [src/agent/agent-prompt-assets.ts](/E:/AII/ugk-pi/src/agent/agent-prompt-assets.ts)
+6. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
+7. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+8. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+9. [src/agent/agent-file-history.ts](/E:/AII/ugk-pi/src/agent/agent-file-history.ts)
+10. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+11. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+12. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 适用问题：
 - 浏览器选择文件后没反应、上传接口返回 `413` 或 `400`
@@ -179,6 +181,7 @@
 如果问题是“agent 内部想继续用 `file:///app/...`，但用户看到的地址必须能打开”，重点看：
 
 - [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+- [src/agent/agent-prompt-assets.ts](/E:/AII/ugk-pi/src/agent/agent-prompt-assets.ts)
 - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
 
 ## E. 技能加载、真实技能清单、web-access

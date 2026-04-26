@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent prompt asset 准备逻辑收口
+- 日期：2026-04-26
+- 主题：把 `AgentService` 里的上传附件注册、引用资产解析、无 `assetStore` 兜底 prompt asset 组装抽到 `src/agent/agent-prompt-assets.ts`。这块属于资产输入边界，不该继续藏在聊天运行主流程里；否则后续调文件上传、资产复用、`assetRefs` 时还得在 `runChat()` 周边扒私有方法，维护体验太土了。
+- 影响范围：`AgentService.chat()` / `queueMessage()` 调用语义不变，上传资产仍先于引用资产进入 prompt，缺失引用资产继续被忽略，无 `assetStore` 时仍生成 `inline-upload-*` 兜底上下文；新增 `test/agent-prompt-assets.test.ts` 锁定 inline fallback、上传注册和引用文本读取。
+- 对应入口：`src/agent/agent-prompt-assets.ts`、`src/agent/agent-service.ts`、`test/agent-prompt-assets.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Playground canonical state 控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的 `syncConversationRunState()`、`renderConversationState()`、active assistant 匹配和会话历史恢复编排整体移到 `src/ui/playground-conversation-state-controller.ts`。这组逻辑是 canonical state 落地边界，必须整体搬迁，不能拆成半截导致刷新恢复和 active run 壳层互相看不见。
