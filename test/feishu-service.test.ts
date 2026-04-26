@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { FeishuConversationMapStore } from "../src/integrations/feishu/conversation-map-store.js";
@@ -9,11 +9,20 @@ import { FeishuService } from "../src/integrations/feishu/service.js";
 import type { FeishuClientLike, FeishuDeliveryTarget } from "../src/integrations/feishu/types.js";
 
 async function createConversationMapStore(): Promise<FeishuConversationMapStore> {
+	const { store } = await createConversationMapStoreWithPath();
+	return store;
+}
+
+async function createConversationMapStoreWithPath(): Promise<{ store: FeishuConversationMapStore; indexPath: string }> {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-feishu-"));
 	await mkdir(join(root, ".data", "agent", "feishu"), { recursive: true });
-	return new FeishuConversationMapStore({
-		indexPath: join(root, ".data", "agent", "feishu", "conversation-map.json"),
-	});
+	const indexPath = join(root, ".data", "agent", "feishu", "conversation-map.json");
+	return {
+		store: new FeishuConversationMapStore({
+			indexPath,
+		}),
+		indexPath,
+	};
 }
 
 async function waitForAsyncWebhookSideEffects(): Promise<void> {
@@ -90,6 +99,28 @@ test("FeishuService queues incoming text onto the active run with steer mode", a
 	assert.equal(queueCalls[0]?.message, "继续做这个任务");
 	assert.equal(deliveries.length, 1);
 	assert.equal(deliveries[0]?.text, "已收到你的补充消息，我会把它接到当前处理流程里。");
+});
+
+test("FeishuConversationMapStore preserves concurrent chat mappings", async () => {
+	const { store, indexPath } = await createConversationMapStoreWithPath();
+	const entries = Array.from({ length: 24 }, (_, index) => ({
+		key: `chat:concurrent-${index}`,
+		conversationId: `feishu:chat:concurrent-${index}`,
+	}));
+
+	const results = await Promise.all(
+		entries.map((entry) => store.getOrCreate(entry.key, () => entry.conversationId)),
+	);
+
+	assert.deepEqual(
+		results.sort(),
+		entries.map((entry) => entry.conversationId).sort(),
+	);
+	const persisted = JSON.parse(await readFile(indexPath, "utf8")) as Record<string, string>;
+	for (const entry of entries) {
+		assert.equal(persisted[entry.key], entry.conversationId);
+	}
+	assert.equal(Object.keys(persisted).length, entries.length);
 });
 
 test("FeishuService downloads incoming file resources and passes them to the agent", async () => {

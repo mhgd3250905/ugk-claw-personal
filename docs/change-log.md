@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Feishu 会话映射并发写入收口
+- 日期：2026-04-26
+- 主题：修复飞书 webhook 并发创建 chat 到本地 `conversationId` 映射时的 JSON 覆盖风险。之前 `FeishuConversationMapStore.getOrCreate()` 是读完整映射、改内存对象、直接 `writeFile()` 覆盖；多个群聊同时进来时，后写入者可以把先写入者洗掉。这种问题平时不吭声，一到真实 IM 流量就开始装死，很不体面。
+- 影响范围：`src/integrations/feishu/conversation-map-store.ts` 新增进程内写队列和 `mutateIndex()`，读操作等待已排队写入完成，写入改为同目录临时文件 + `rename` 原子替换，失败时清理临时文件；`test/feishu-service.test.ts` 增加 24 路并发 `getOrCreate()` 回归，锁住所有飞书 chat 映射都能保留；`docs/runtime-assets-conn-feishu.md` 与 `docs/traceability-map.md` 同步 Feishu 映射存储入口。
+- 对应入口：`src/integrations/feishu/conversation-map-store.ts`、`test/feishu-service.test.ts`、`docs/runtime-assets-conn-feishu.md`、`docs/traceability-map.md`
+
 ### Playground markdown renderer helper 拆分
 - 日期：2026-04-26
 - 主题：把 `renderPlaygroundMarkdown()` 及其 `marked` 配置从 `src/ui/playground.ts` 拆到独立 helper。主页面装配文件已经够胖了，继续把服务器端纯文本渲染器塞在顶部，只会让后续维护者在 UI 样式、浏览器脚本和 markdown 安全策略之间来回迷路。

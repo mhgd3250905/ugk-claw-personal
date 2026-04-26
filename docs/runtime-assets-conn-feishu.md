@@ -242,7 +242,7 @@ Run 查询接口：
 
 - `url_verification`
 - `im.message.receive_v1`
-- Feishu 会话与本地 `conversationId` 映射
+- Feishu 会话与本地 `conversationId` 映射；映射文件由 `FeishuConversationMapStore` 串行 mutation，并通过同目录临时文件 + `rename` 原子替换写入，避免多个飞书群聊/用户同时触发 webhook 时把彼此的映射覆盖掉。
 - 入站文件 / 图片不再只传文件名元数据；服务层会先下载飞书资源，再桥接成可直接喂给 agent 的 `ChatAttachment`
 - 出站结果现在先发文本，再尝试把 agent 返回的文件上传回飞书并发送 file message；上传失败时才退回文件 URL 文本，避免把“应该给文件”退化成一串链接
 - 单窗口消息队列不再靠中断关键字硬匹配瞎猜。当前策略由 `queue-policy` 根据消息内容决定：
@@ -253,6 +253,7 @@ Run 查询接口：
   - `attachment-bridge`：下载飞书附件并转成 agent 可消费的附件结构
   - `queue-policy`：在单窗口约束下决定追加消息的排队策略
   - `delivery`：发送文本、上传回传文件、失败时降级到链接
+  - `conversation-map-store`：维护飞书 chat/user 到本地 `conversationId` 的稳定映射，写入时串行化并原子替换 JSON
   - `client`：tenant access token、消息发送、文件上传、资源下载
   - `service`：把这些模块编排进统一 Feishu 接入流程
 
@@ -263,6 +264,7 @@ Run 查询接口：
 - [src/integrations/feishu/attachment-bridge.ts](/E:/AII/ugk-pi/src/integrations/feishu/attachment-bridge.ts)
 - [src/integrations/feishu/queue-policy.ts](/E:/AII/ugk-pi/src/integrations/feishu/queue-policy.ts)
 - [src/integrations/feishu/delivery.ts](/E:/AII/ugk-pi/src/integrations/feishu/delivery.ts)
+- [src/integrations/feishu/conversation-map-store.ts](/E:/AII/ugk-pi/src/integrations/feishu/conversation-map-store.ts)
 - [src/integrations/feishu/service.ts](/E:/AII/ugk-pi/src/integrations/feishu/service.ts)
 - [src/integrations/feishu/client.ts](/E:/AII/ugk-pi/src/integrations/feishu/client.ts)
 - [test/feishu-service.test.ts](/E:/AII/ugk-pi/test/feishu-service.test.ts)
