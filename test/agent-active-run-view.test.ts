@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+	applyChatStreamEventToActiveRunView,
 	appendProcessEntry,
 	cloneActiveRunView,
 	completeProcess,
@@ -76,6 +77,32 @@ test("cloneActiveRunView deep copies mutable nested fields", () => {
 	assert.equal(view.input.inputAssets[0]?.fileName, "note.txt");
 	assert.equal(view.process?.entries[0]?.title, "任务开始");
 	assert.deepEqual(view.queue?.steering, ["next"]);
+});
+
+test("applyChatStreamEventToActiveRunView projects text, queue, and terminal events", () => {
+	const view = createActiveRunView("manual:thread", "hello", []);
+
+	applyChatStreamEventToActiveRunView(view, { type: "text_delta", textDelta: "partial" });
+	assert.equal(view.text, "partial");
+	assert.equal(Number.isNaN(Date.parse(view.updatedAt)), false);
+
+	applyChatStreamEventToActiveRunView(view, {
+		type: "queue_updated",
+		steering: ["adjust"],
+		followUp: ["next"],
+	});
+	assert.deepEqual(view.queue, { steering: ["adjust"], followUp: ["next"] });
+
+	applyChatStreamEventToActiveRunView(view, {
+		type: "done",
+		conversationId: "manual:thread",
+		runId: view.runId,
+		text: "final answer",
+	});
+	assert.equal(view.status, "done");
+	assert.equal(view.loading, false);
+	assert.equal(view.text, "final answer");
+	assert.equal(view.process?.isComplete, true);
 });
 
 test("sanitizeStateId falls back to conversation when input has no safe characters", () => {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ChatActiveRunBody, ChatProcessBody, ChatProcessEntryBody } from "../types/api.js";
+import type { ChatActiveRunBody, ChatProcessBody, ChatProcessEntryBody, ChatStreamEvent } from "../types/api.js";
 import type { AssetRecord } from "./asset-store.js";
 
 export function createActiveRunView(
@@ -94,6 +94,74 @@ export function cloneActiveRunView(view: ChatActiveRunBody): ChatActiveRunBody {
 				}
 			: null,
 	};
+}
+
+export function applyChatStreamEventToActiveRunView(view: ChatActiveRunBody, event: ChatStreamEvent): void {
+	view.updatedAt = new Date().toISOString();
+	switch (event.type) {
+		case "run_started":
+			appendProcessEntry(view, {
+				kind: "system",
+				title: "任务开始",
+				detail: event.conversationId,
+			});
+			break;
+		case "text_delta":
+			view.text += event.textDelta;
+			break;
+		case "tool_started":
+			appendProcessEntry(view, {
+				kind: "tool",
+				title: "工具开始",
+				detail: event.args,
+				toolCallId: event.toolCallId,
+				toolName: event.toolName,
+			});
+			break;
+		case "tool_updated":
+			appendProcessEntry(view, {
+				kind: "tool",
+				title: "工具更新",
+				detail: event.partialResult,
+				toolCallId: event.toolCallId,
+				toolName: event.toolName,
+			});
+			break;
+		case "tool_finished":
+			appendProcessEntry(view, {
+				kind: event.isError ? "error" : "ok",
+				title: "工具结束",
+				detail: event.result,
+				toolCallId: event.toolCallId,
+				toolName: event.toolName,
+				isError: event.isError,
+			});
+			break;
+		case "queue_updated":
+			view.queue = {
+				steering: [...event.steering],
+				followUp: [...event.followUp],
+			};
+			break;
+		case "interrupted":
+			view.status = "interrupted";
+			view.loading = false;
+			completeProcess(view, "system", "任务已打断", event.conversationId);
+			break;
+		case "done":
+			view.status = "done";
+			view.loading = false;
+			view.text = event.text;
+			completeProcess(view, "ok", "任务完成", event.sessionFile ?? "");
+			break;
+		case "error":
+			view.status = "error";
+			view.loading = false;
+			completeProcess(view, "error", "任务错误", event.message);
+			break;
+		default:
+			break;
+	}
 }
 
 function formatProcessCurrentAction(title: string, toolName?: string): string {

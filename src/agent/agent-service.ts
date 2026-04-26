@@ -8,9 +8,8 @@ import {
 	mergeConversationHistoryFiles,
 } from "./agent-file-history.js";
 import {
-	appendProcessEntry,
+	applyChatStreamEventToActiveRunView,
 	cloneActiveRunView,
-	completeProcess,
 	createActiveRunView,
 	sanitizeStateId,
 } from "./agent-active-run-view.js";
@@ -813,7 +812,7 @@ export class AgentService {
 		primarySink: ChatStreamEventSink | undefined,
 		event: ChatStreamEvent,
 	): void {
-		this.applyEventToActiveRunView(activeRun, event);
+		applyChatStreamEventToActiveRunView(activeRun.view, event);
 		activeRun.events.push(event);
 		if (activeRun.events.length > MAX_BUFFERED_RUN_EVENTS) {
 			activeRun.events.shift();
@@ -822,75 +821,6 @@ export class AgentService {
 		this.emitEvent(primarySink, event);
 		for (const subscriber of activeRun.subscribers) {
 			this.emitEvent(subscriber, event);
-		}
-	}
-
-	private applyEventToActiveRunView(activeRun: ActiveRunState, event: ChatStreamEvent): void {
-		const view = activeRun.view;
-		view.updatedAt = new Date().toISOString();
-		switch (event.type) {
-			case "run_started":
-				appendProcessEntry(view, {
-					kind: "system",
-					title: "任务开始",
-					detail: event.conversationId,
-				});
-				break;
-			case "text_delta":
-				view.text += event.textDelta;
-				break;
-			case "tool_started":
-				appendProcessEntry(view, {
-					kind: "tool",
-					title: "工具开始",
-					detail: event.args,
-					toolCallId: event.toolCallId,
-					toolName: event.toolName,
-				});
-				break;
-			case "tool_updated":
-				appendProcessEntry(view, {
-					kind: "tool",
-					title: "工具更新",
-					detail: event.partialResult,
-					toolCallId: event.toolCallId,
-					toolName: event.toolName,
-				});
-				break;
-			case "tool_finished":
-				appendProcessEntry(view, {
-					kind: event.isError ? "error" : "ok",
-					title: "工具结束",
-					detail: event.result,
-					toolCallId: event.toolCallId,
-					toolName: event.toolName,
-					isError: event.isError,
-				});
-				break;
-			case "queue_updated":
-				view.queue = {
-					steering: [...event.steering],
-					followUp: [...event.followUp],
-				};
-				break;
-			case "interrupted":
-				view.status = "interrupted";
-				view.loading = false;
-				completeProcess(view, "system", "任务已打断", event.conversationId);
-				break;
-			case "done":
-				view.status = "done";
-				view.loading = false;
-				view.text = event.text;
-				completeProcess(view, "ok", "任务完成", event.sessionFile ?? "");
-				break;
-			case "error":
-				view.status = "error";
-				view.loading = false;
-				completeProcess(view, "error", "任务错误", event.message);
-				break;
-			default:
-				break;
 		}
 	}
 

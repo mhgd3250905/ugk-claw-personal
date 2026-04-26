@@ -2385,6 +2385,18 @@
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+### Agent active run view 投影收口
+- 日期：2026-04-26
+- 主题：把 `ChatStreamEvent` 到 active run view 的投影逻辑从 `AgentService` 私有方法收口到 `src/agent/agent-active-run-view.ts`，让 service 只负责运行编排和事件分发。
+- 影响范围：
+  - `src/agent/agent-active-run-view.ts` 新增 `applyChatStreamEventToActiveRunView()`，统一维护文本增量、工具过程、队列状态和终态事件对 active run view 的影响。
+  - `src/agent/agent-service.ts` 移除本地投影 switch，`emitRunEvent()` 改为调用 active run view helper，事件缓冲和订阅分发行为不变。
+  - `test/agent-active-run-view.test.ts` 补充投影测试，覆盖文本增量、队列更新和完成态。
+- 对应入口：
+  - [src/agent/agent-active-run-view.ts](/E:/AII/ugk-pi/src/agent/agent-active-run-view.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [test/agent-active-run-view.test.ts](/E:/AII/ugk-pi/test/agent-active-run-view.test.ts)
+
 ### Chat SSE 工具拆分
 - 日期：2026-04-26
 - 主题：把聊天路由里的 Server-Sent Events 写入、关闭和终态判断从 `src/routes/chat.ts` 拆到 `src/routes/chat-sse.ts`，避免路由入口继续混入底层响应写入细节。
