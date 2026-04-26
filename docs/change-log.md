@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### 腾讯云生产环境增量更新到 `46088a0`
+- 日期：2026-04-26
+- 主题：按用户明确确认的“增量更新”流程，把腾讯云新加坡生产环境从 `9d3cb37` 更新到 `46088a0`，上线本轮架构整理、会话 / 资产 / conn / playground 模块化收口以及最新交接文档。发布仍使用 GitHub 工作目录 `~/ugk-claw-repo`，没有整目录替换，也没有触碰 `~/ugk-claw-shared` 下的 agent 数据和 sidecar 登录态。
+- 影响范围：发布前本地通过 `git diff --check`、`npx tsc --noEmit`、`npm test`、`docker compose -f docker-compose.prod.yml config --quiet`；服务器发布前备份 sidecar 到 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260426-234533.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260426-234533`。`git pull --ff-only` 后执行 `docker compose ... up --build -d`；nginx 曾短暂返回 `502`，已按手册 `up -d --force-recreate nginx` 恢复。内外网 `/healthz`、`/playground`、compose 状态与 `check-deps.mjs` 均验收通过。
+- 对应入口：`docs/tencent-cloud-singapore-deploy.md`、`docs/server-ops-quick-reference.md`、`docs/handoff-current.md`
+
 ### 交接文档刷新与文档入口整理
 - 日期：2026-04-26
 - 主题：按用户要求为下一位 agent 刷新交接文档，把最近一轮架构整理、数据读边界防护、后续任务优先级和“现阶段跳过 Feishu”写进稳定入口。顺手修正追溯地图快速接手列表的重复编号，并把 README 阶段快照更新时间推到当前阶段。

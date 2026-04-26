@@ -8,6 +8,7 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
+- 当前生产运行提交：`46088a0 Refresh current handoff docs`
 - 上一轮架构整理代码落点：`524fb71 Extract assistant run result checks`
 - 本轮架构整理前备份 tag：`backup-pre-architecture-cleanup-20260426`
 - 云端正式入口：`http://43.134.167.179:3000/playground`
