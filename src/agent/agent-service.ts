@@ -13,10 +13,14 @@ import {
 	paginateConversationHistoryMessages,
 	shouldExposeTerminalRunSnapshot,
 	shouldHideTerminalInputEcho,
-	summarizeConversationText,
 	type ConversationHistoryMessage,
 	type PersistedTurnCoverage,
 } from "./agent-conversation-history.js";
+import {
+	buildConversationCatalog,
+	buildConversationMetadata,
+	buildEmptyConversationMetadata,
+} from "./agent-conversation-catalog.js";
 import { buildConversationStatePage } from "./agent-conversation-state.js";
 import {
 	cloneChatStreamEvent,
@@ -236,21 +240,11 @@ export class AgentService {
 	async getConversationCatalog(): Promise<ConversationCatalogResult> {
 		const currentConversationId = await this.ensureCurrentConversationId();
 		const conversationEntries = await this.options.conversationStore.list();
-		const conversations = conversationEntries.map((entry) => ({
-			conversationId: entry.conversationId,
-			title: entry.title || "?????",
-			preview: entry.preview || "",
-			messageCount: Number.isFinite(entry.messageCount) ? entry.messageCount ?? 0 : 0,
-			createdAt: entry.createdAt ?? entry.updatedAt,
-			updatedAt: entry.updatedAt,
-			running: this.activeRuns.has(entry.conversationId),
-		}));
-		conversations.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-
-		return {
+		return buildConversationCatalog({
 			currentConversationId,
-			conversations,
-		};
+			entries: conversationEntries,
+			runningConversationIds: new Set(this.activeRuns.keys()),
+		});
 	}
 
 	async createConversation(): Promise<CreateConversationResult> {
@@ -265,11 +259,7 @@ export class AgentService {
 		}
 
 		const conversationId = `manual:${randomUUID()}`;
-		await this.options.conversationStore.set(conversationId, undefined, {
-			title: "新会话",
-			preview: "",
-			messageCount: 0,
-		});
+		await this.options.conversationStore.set(conversationId, undefined, buildEmptyConversationMetadata());
 		await this.options.conversationStore.setCurrentConversationId(conversationId);
 		return {
 			conversationId,
@@ -644,7 +634,7 @@ export class AgentService {
 			if (session.sessionFile) {
 				await this.options.conversationStore.set(conversationId, session.sessionFile, {
 					skillFingerprint,
-					...this.buildConversationMetadata(session.messages),
+					...buildConversationMetadata(session.messages),
 				});
 			}
 
@@ -678,7 +668,7 @@ export class AgentService {
 			if (session.sessionFile) {
 				await this.options.conversationStore.set(conversationId, session.sessionFile, {
 					skillFingerprint,
-					...this.buildConversationMetadata(session.messages),
+					...buildConversationMetadata(session.messages),
 				});
 			}
 			if (this.activeRuns.get(conversationId) === activeRun) {
@@ -724,21 +714,6 @@ export class AgentService {
 		}
 	}
 
-	private buildConversationMetadata(messages: readonly AgentMessageLike[] | undefined): {
-		title: string;
-		preview: string;
-		messageCount: number;
-	} {
-		const history = buildConversationHistoryMessages(messages ?? []);
-		const firstUserMessage = history.find((message) => message.kind === "user");
-		const lastMessage = history.at(-1);
-		return {
-			title: summarizeConversationText(firstUserMessage?.text, "新会话"),
-			preview: summarizeConversationText(lastMessage?.text, ""),
-			messageCount: history.length,
-		};
-	}
-
 	private async ensureCurrentConversationId(): Promise<string> {
 		const currentConversationId = await this.options.conversationStore.getCurrentConversationId();
 		if (currentConversationId) {
@@ -752,11 +727,7 @@ export class AgentService {
 		}
 
 		const conversationId = `manual:${randomUUID()}`;
-		await this.options.conversationStore.set(conversationId, undefined, {
-			title: "新会话",
-			preview: "",
-			messageCount: 0,
-		});
+		await this.options.conversationStore.set(conversationId, undefined, buildEmptyConversationMetadata());
 		await this.options.conversationStore.setCurrentConversationId(conversationId);
 		return conversationId;
 	}

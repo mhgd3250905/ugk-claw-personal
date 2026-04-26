@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent conversation catalog 与 metadata 收口
+- 日期：2026-04-26
+- 主题：把会话目录 DTO 映射、空会话 metadata、会话标题 / 预览 / messageCount 生成抽到 `src/agent/agent-conversation-catalog.ts`。`AgentService` 继续负责会话读写和运行态判断，不再自己拼展示层 catalog；这种纯映射还赖在服务主类里，属于“方便当下，折磨后来人”的典型小债。
+- 影响范围：`GET /v1/chat/conversations` 的排序、running 标记、标题 / 预览 / messageCount 兜底保持不变；新建空会话、首次创建 current 会话、chat / streamChat 持久化 metadata 都改走同一个 helper。新增测试覆盖 catalog fallback、running flag、metadata 摘要和空会话形状。
+- 对应入口：`src/agent/agent-conversation-catalog.ts`、`src/agent/agent-service.ts`、`test/agent-conversation-catalog.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent run scope 环境边界收口
 - 日期：2026-04-26
 - 主题：把 `AgentService` 底部的 browser cleanup scope 生成与 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 临时环境设置抽到 `src/agent/agent-run-scope.ts`。这块直接影响 web-access sidecar 页面清理范围，继续靠服务类底部几个裸函数撑着，后面一改就容易留下环境变量污染。
