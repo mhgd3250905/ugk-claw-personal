@@ -16,6 +16,7 @@
 - 日期：2026-04-26
 - 主题：修复手机端 active 对话里用户 / 助手气泡整列向右偏移、右侧贴边甚至裁切的问题。根因是移动端消息轨道仍间接受桌面 `--conversation-width` / composer 宽度推导影响，最终 active `.stream-layout` 和 transcript 容器缺少 `width / min-width / max-width` 的硬边界。手机端还拿桌面宽度逻辑兜底，属于典型“桌面布局压成移动端”的坑。
 - 影响范围：`src/ui/playground.ts` 在 `max-width: 640px` 下为 `.stream-layout`、landing active `.stream-layout`、`.transcript-pane` 和 `.transcript` 增加 `width: 100%`、`min-width: 0`、`max-width: 100%` 约束；`test/server.test.ts` 增加精确 CSS block 断言，避免后续又被宽松正则糊过去。`docs/playground-current.md` 同步手机端轨道约束。
+- 追加校准：实际浏览器测量发现 active 桌面规则里的 `inset: 18px 34px ...` 仍会在移动端以相对偏移形式生效，导致 `.stream-layout` 从 `left=43` 延伸到视口外；移动断点现在同等优先级重置 `position: relative` 与 `inset: auto`，测试同步要求该约束存在。
 - 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`
 
 ### 文件库加载提示降噪

@@ -3180,6 +3180,8 @@ function getPlaygroundStyles(): string {
 
 			.shell[data-stage-mode="landing"][data-transcript-state="idle"] .stream-layout,
 			.shell[data-stage-mode="landing"][data-transcript-state="active"] .stream-layout {
+				position: relative;
+				inset: auto;
 				justify-content: flex-start;
 				width: 100%;
 				min-width: 0;

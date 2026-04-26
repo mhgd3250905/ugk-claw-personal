@@ -2031,6 +2031,8 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-meta span\s*\{[\s\S]*min-height:\s*20px;/);
 	assert.match(response.body, /deleteButton\.textContent = "×";/);
 	assert.match(response.body, /<span>运行中不能切换<\/span>/);
+	assert.match(mobileStreamLayoutBlock, /position:\s*relative;/);
+	assert.match(mobileStreamLayoutBlock, /inset:\s*auto;/);
 	assert.match(mobileStreamLayoutBlock, /width:\s*100%;/);
 	assert.match(mobileStreamLayoutBlock, /min-width:\s*0;/);
 	assert.match(mobileStreamLayoutBlock, /max-width:\s*100%;/);
