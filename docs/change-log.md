@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### 交接文档刷新与文档入口整理
+- 日期：2026-04-26
+- 主题：按用户要求为下一位 agent 刷新交接文档，把最近一轮架构整理、数据读边界防护、后续任务优先级和“现阶段跳过 Feishu”写进稳定入口。顺手修正追溯地图快速接手列表的重复编号，并把 README 阶段快照更新时间推到当前阶段。
+- 影响范围：`docs/handoff-current.md` 重写为当前交接入口；`docs/traceability-map.md` 修正快速接手编号；`README.md` 指向最新交接文档。生产发布仍按增量更新，不做整目录替换。
+- 对应入口：`docs/handoff-current.md`、`docs/traceability-map.md`、`README.md`
+
 ### Agent run result 助手消息检查收口
 - 日期：2026-04-26
 - 主题：把 `AgentService.runChat()` 中“查找最后一条 assistant message”和“provider error stopReason 转异常”的逻辑收进 `src/agent/agent-run-result.ts`。结果文本兜底和上游错误判断本来就是 run result 边界，继续散在主流程里只会让聊天编排掺杂消息结构细节。

@@ -13,7 +13,7 @@
 
 ## 阶段快照
 
-截至 `2026-04-19`，这个阶段的核心结论是：`web-access` 主链路已经从 Windows 宿主 IPC 迁移到 Docker Chrome sidecar。后续 `/init` 接手时，先把它当作 Linux / Docker 可部署方案看，不要默认回到宿主 Chrome。
+截至 `2026-04-26`，这个阶段的核心结论是：`web-access` 主链路已经从 Windows 宿主 IPC 迁移到 Docker Chrome sidecar，playground / 会话 / 资产 / conn runtime 已进入稳定整理阶段。后续 `/init` 接手时，先把它当作 Linux / Docker 可部署方案看，不要默认回到宿主 Chrome；最新交接入口看 [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)。
 
 当前主链路：
 
