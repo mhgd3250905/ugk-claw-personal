@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Feishu webhook 异步测试等待收口
+- 日期：2026-04-26
+- 主题：把 Feishu webhook 测试里的固定 `20ms` 睡眠改为按副作用完成条件轮询等待。`handleWebhook()` 本来就是先接受请求、再后台处理事件，测试还靠拍脑袋睡 20ms，机器稍微忙一点就会假失败，这种脆弱测试很会浪费维护时间。
+- 影响范围：`test/feishu-service.test.ts` 新增基于 predicate 的 `waitForAsyncWebhookSideEffects()`，文本入站和附件入站两条测试分别等待 queue/chat 调用与 delivery 完成后再断言；生产代码、Feishu webhook 行为、队列模式和交付逻辑不变。
+- 对应入口：`test/feishu-service.test.ts`
+
 ### Notification 广播 parser 拆分
 - 日期：2026-04-26
 - 主题：把实时通知内部广播 payload 解析从 `src/routes/notifications.ts` 拆到独立 helper。SSE 连接管理和广播请求校验是两类边界逻辑，继续混在一个路由文件里，后面要查“为什么通知没弹”时就得先穿过一堆字段校验废话。

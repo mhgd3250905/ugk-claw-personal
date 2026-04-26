@@ -25,8 +25,14 @@ async function createConversationMapStoreWithPath(): Promise<{ store: FeishuConv
 	};
 }
 
-async function waitForAsyncWebhookSideEffects(): Promise<void> {
-	await new Promise((resolve) => setTimeout(resolve, 20));
+async function waitForAsyncWebhookSideEffects(predicate: () => boolean): Promise<void> {
+	const deadline = Date.now() + 1000;
+	while (Date.now() < deadline) {
+		if (predicate()) {
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	}
 }
 
 test("FeishuService queues incoming text onto the active run with steer mode", async () => {
@@ -92,7 +98,7 @@ test("FeishuService queues incoming text onto the active run with steer mode", a
 		},
 	});
 	assert.equal(response.accepted, true);
-	await waitForAsyncWebhookSideEffects();
+	await waitForAsyncWebhookSideEffects(() => queueCalls.length === 1 && deliveries.length === 1);
 
 	assert.equal(queueCalls.length, 1);
 	assert.equal(queueCalls[0]?.mode, "steer");
@@ -206,7 +212,7 @@ test("FeishuService downloads incoming file resources and passes them to the age
 			},
 		},
 	});
-	await waitForAsyncWebhookSideEffects();
+	await waitForAsyncWebhookSideEffects(() => chatCalls.length === 1 && deliveries.length === 1);
 
 	assert.equal(chatCalls.length, 1);
 	assert.equal(chatCalls[0]?.message, "请结合我通过飞书发送的附件一起处理。");
