@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Feishu message parser 单测补齐
+- 日期：2026-04-26
+- 主题：补齐 Feishu 入站消息 parser 的独立测试。之前文本、文件、图片和坏 JSON 解析主要靠 `FeishuService` 集成测试间接兜着，真出问题时定位路径太绕，像隔着三层墙听水管漏水。
+- 影响范围：新增 `test/feishu-message-parser.test.ts`，直接覆盖 `getFeishuEventType()` 的 top-level / nested header 读取，以及 `parseFeishuInboundMessage()` 对文本、文件、图片、无效 JSON 和畸形 message envelope 的处理；生产代码不变。`docs/traceability-map.md` 同步 Feishu parser 与测试入口。
+- 对应入口：`src/integrations/feishu/message-parser.ts`、`test/feishu-message-parser.test.ts`、`docs/traceability-map.md`
+
 ### Feishu webhook 异步测试等待收口
 - 日期：2026-04-26
 - 主题：把 Feishu webhook 测试里的固定 `20ms` 睡眠改为按副作用完成条件轮询等待。`handleWebhook()` 本来就是先接受请求、再后台处理事件，测试还靠拍脑袋睡 20ms，机器稍微忙一点就会假失败，这种脆弱测试很会浪费维护时间。
