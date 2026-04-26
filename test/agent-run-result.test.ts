@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAgentRunResult, buildDoneChatStreamEvent } from "../src/agent/agent-run-result.js";
+import {
+	assertAssistantMessageSucceeded,
+	buildAgentRunResult,
+	buildDoneChatStreamEvent,
+	findLastAssistantMessage,
+} from "../src/agent/agent-run-result.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment, StoredAssetRecord } from "../src/agent/asset-store.js";
 import type { AgentFileArtifact } from "../src/agent/file-artifacts.js";
 
@@ -100,6 +105,37 @@ test("buildAgentRunResult falls back to the final assistant message when no stre
 
 	assert.equal(result.text, "final text");
 	assert.equal(result.files, undefined);
+});
+
+test("findLastAssistantMessage returns the newest assistant message", () => {
+	const latest = { role: "assistant", content: "latest" };
+
+	assert.equal(
+		findLastAssistantMessage([
+			{ role: "assistant", content: "older" },
+			{ role: "user", content: "question" },
+			latest,
+		]),
+		latest,
+	);
+	assert.equal(findLastAssistantMessage([{ role: "user", content: "question" }]), undefined);
+});
+
+test("assertAssistantMessageSucceeded throws provider errors with a stable fallback", () => {
+	assert.doesNotThrow(() => assertAssistantMessageSucceeded({ role: "assistant" }));
+	assert.throws(
+		() =>
+			assertAssistantMessageSucceeded({
+				role: "assistant",
+				stopReason: "error",
+				errorMessage: "401 invalid access token",
+			}),
+		/401 invalid access token/,
+	);
+	assert.throws(
+		() => assertAssistantMessageSucceeded({ role: "assistant", stopReason: "error" }),
+		/Unknown upstream provider error/,
+	);
 });
 
 test("buildDoneChatStreamEvent mirrors optional result fields", () => {

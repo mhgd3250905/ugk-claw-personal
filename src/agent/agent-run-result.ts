@@ -27,6 +27,12 @@ export interface AgentRunResult {
 	files?: AgentFileArtifact[];
 }
 
+export interface AssistantRunStatusMessage {
+	role: string;
+	stopReason?: string;
+	errorMessage?: string;
+}
+
 export async function buildAgentRunResult(input: AgentRunResultInput): Promise<AgentRunResult> {
 	const rawText = input.rawText || extractAssistantText(input.lastAssistantMessage);
 	const extracted = input.assetStore ? extractAgentFileDrafts(rawText) : { text: rawText, files: [] };
@@ -44,6 +50,17 @@ export async function buildAgentRunResult(input: AgentRunResultInput): Promise<A
 		inputAssets: input.inputAssets.length > 0 ? input.inputAssets : undefined,
 		files: files && files.length > 0 ? files : undefined,
 	};
+}
+
+export function findLastAssistantMessage<T extends { role: string }>(messages: readonly T[] | undefined): T | undefined {
+	return [...(messages ?? [])].reverse().find((message) => message.role === "assistant");
+}
+
+export function assertAssistantMessageSucceeded(message: AssistantRunStatusMessage | undefined): void {
+	if (message?.stopReason !== "error") {
+		return;
+	}
+	throw new Error(message.errorMessage ?? "Unknown upstream provider error");
 }
 
 export function buildDoneChatStreamEvent(result: AgentRunResult, runId: string): ChatStreamEvent {

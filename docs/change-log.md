@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent run result 助手消息检查收口
+- 日期：2026-04-26
+- 主题：把 `AgentService.runChat()` 中“查找最后一条 assistant message”和“provider error stopReason 转异常”的逻辑收进 `src/agent/agent-run-result.ts`。结果文本兜底和上游错误判断本来就是 run result 边界，继续散在主流程里只会让聊天编排掺杂消息结构细节。
+- 影响范围：无 stream text 时仍使用最终 assistant message 兜底；assistant `stopReason === "error"` 仍抛出上游错误消息，缺少错误文本时继续使用 `Unknown upstream provider error`。新增测试覆盖最后助手消息选择和错误 fallback。
+- 对应入口：`src/agent/agent-run-result.ts`、`src/agent/agent-service.ts`、`test/agent-run-result.test.ts`
+
 ### Agent terminal run snapshot 构造收口
 - 日期：2026-04-26
 - 主题：把 `AgentService.runChat()` 收尾阶段的 terminal run snapshot 构造抽进 `src/agent/agent-terminal-run.ts` 的 `buildTerminalRunSnapshot()`。是否保留 terminal run、如何 clone active view / events、以及缺少 persisted coverage 时如何从 run tail 推导，都归到 terminal run 边界里。

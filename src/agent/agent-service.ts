@@ -30,7 +30,12 @@ import {
 	isTerminalChatStreamEvent,
 	type ChatStreamEventSink,
 } from "./agent-run-events.js";
-import { buildAgentRunResult, buildDoneChatStreamEvent } from "./agent-run-result.js";
+import {
+	assertAssistantMessageSucceeded,
+	buildAgentRunResult,
+	buildDoneChatStreamEvent,
+	findLastAssistantMessage,
+} from "./agent-run-result.js";
 import {
 	createBrowserCleanupScope,
 	runWithScopedAgentEnvironment,
@@ -605,10 +610,8 @@ export class AgentService {
 				);
 			});
 
-			const lastAssistantMessage = [...(session.messages ?? [])].reverse().find((message) => message.role === "assistant");
-			if (lastAssistantMessage?.stopReason === "error") {
-				throw new Error(lastAssistantMessage.errorMessage ?? "Unknown upstream provider error");
-			}
+			const lastAssistantMessage = findLastAssistantMessage(session.messages);
+			assertAssistantMessageSucceeded(lastAssistantMessage);
 
 			const result = await buildAgentRunResult({
 				conversationId,
