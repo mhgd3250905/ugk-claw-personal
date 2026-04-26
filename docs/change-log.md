@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 实时通知 toast 控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的实时通知 toast helper 拆到 `src/ui/playground-notification-controller.ts`。`playground-stream-controller.ts` 已经负责 SSE 连接和重连，主脚本继续混着事件规范化、toast DOM 拼装、live region 显隐和自动移除，只会让通知链路像一坨散装电线。
+- 影响范围：`clearNotificationReconnectTimer()`、`normalizeNotificationBroadcastEvent()`、`showNotificationToast()`、`removeNotificationToast()` 等浏览器函数名和调用语义保持不变；`/v1/notifications/stream` 的连接生命周期仍由 `src/ui/playground-stream-controller.ts` 控制。新增 `test/playground-notification-controller.test.ts` 锁定事件规范化、toast 挂载、当前会话文案和自动移除逻辑。
+- 对应入口：`src/ui/playground-notification-controller.ts`、`src/ui/playground-stream-controller.ts`、`src/ui/playground.ts`、`test/playground-notification-controller.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground 确认弹窗控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的 `openConfirmDialog()` / `closeConfirmDialog()` 抽到 `src/ui/playground-confirm-dialog-controller.ts`。确认弹窗本来就是删除会话、删除后台任务等危险动作的公共边界，继续塞在主脚本里，只会让后续维护者在几千行浏览器脚本里翻 Promise resolve、焦点恢复和默认文案，属实没必要。
