@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### 文件库加载提示降噪
+- 日期：2026-04-26
+- 主题：移除打开 / 刷新文件库时写入 transcript 的“资产清单 · 请求 /v1/assets”和“资产清单已加载 · N”过程提示。正常加载本来就应该在文件库页面里体现，把内部请求流水账塞进聊天流，只会把用户界面搞得像调试控制台。
+- 影响范围：`src/ui/playground-assets-controller.ts` 的 `loadAssets()` 保留 `/v1/assets?limit=40` 请求、列表渲染、按钮忙态和失败提示，只删除正常请求与成功路径的 `appendProcessEvent()`；`test/server.test.ts` 增加页面断言，确保资产库仍请求接口但不再输出这两条过程提示。`docs/playground-current.md` 同步当前 UI 口径。
+- 对应入口：`src/ui/playground-assets-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ### Playground 弹层焦点控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 中多个弹层共用的焦点释放与返回焦点 helper 拆到独立浏览器脚本模块。`playground.ts` 已经够臃肿了，继续把确认框、文件库、任务消息和后台任务的通用焦点边界塞在主脚本里，后面排查弹层关闭后焦点乱跳时就会像翻垃圾堆。

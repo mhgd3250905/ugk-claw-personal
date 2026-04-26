@@ -720,7 +720,6 @@ export function getPlaygroundAssetControllerScript(): string {
 		async function loadAssets(silent) {
 			if (!silent) {
 				clearError();
-				appendProcessEvent("system", "\\u8d44\\u4ea7\\u6e05\\u5355", "请求 /v1/assets");
 			}
 			refreshAssetsButton.disabled = true;
 
@@ -749,9 +748,6 @@ export function getPlaygroundAssetControllerScript(): string {
 					renderConnEditorSelectedAssets();
 				}
 				renderAssetPickerList();
-				if (!silent) {
-					appendProcessEvent("ok", "\\u8d44\\u4ea7\\u6e05\\u5355\\u5df2\\u52a0\\u8f7d", String(state.recentAssets.length));
-				}
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "\\u52a0\\u8f7d\\u8d44\\u4ea7\\u5931\\u8d25";
 				if (!silent) {

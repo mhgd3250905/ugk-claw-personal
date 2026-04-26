@@ -1004,6 +1004,9 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /function fetchAssetDetail\(assetId, options\)\s*\{/);
 	assert.match(response.body, /function enqueueAssetDetailLoad\(assetId, options\)\s*\{/);
 	assert.match(response.body, /function pumpAssetDetailQueue\(\)\s*\{/);
+	assert.match(response.body, /fetch\("\/v1\/assets\?limit=40"/);
+	assert.doesNotMatch(response.body, /appendProcessEvent\("system", "\\u8d44\\u4ea7\\u6e05\\u5355"/);
+	assert.doesNotMatch(response.body, /appendProcessEvent\("ok", "\\u8d44\\u4ea7\\u6e05\\u5355\\u5df2\\u52a0\\u8f7d"/);
 	assert.match(response.body, /state\.assetDetailInFlightById\.has\(assetId\)/);
 	assert.match(response.body, /state\.assetDetailActiveCount >= ASSET_DETAIL_CONCURRENCY_LIMIT/);
 	assert.match(response.body, /state\.assetDetailInFlightById\.set\(assetId, promise\)/);
