@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 上下文用量控制器收口
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里残留的 `toggleContextUsageDetails()` 和 `syncContextUsage()` 移入 `src/ui/playground-context-usage-controller.ts`。上下文用量的展开、移动端详情弹层、状态接口同步和错误兜底本来就属于同一个控制器，继续留在主脚本里只是让页面装配层背业务逻辑锅。
+- 影响范围：函数名和调用语义保持不变；`contextUsageShell` 点击、composer 输入 debounce、会话状态同步和发送前后占用刷新仍调用同名 helper。新增 `test/playground-context-usage-controller.test.ts` 锁定控制器拥有 toggle / sync 边界。
+- 对应入口：`src/ui/playground-context-usage-controller.ts`、`src/ui/playground.ts`、`test/playground-context-usage-controller.test.ts`、`docs/playground-current.md`、`AGENTS.md`
+
 ### Playground 本地历史存储拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的 localStorage 历史索引、附件 / 资产 / 文件克隆、最近历史持久化和 transient network 错误过滤拆到 `src/ui/playground-conversation-history-store.ts`。这块是浏览器端历史缓存边界，不该继续混在会话恢复、分页补页和 DOM 渲染编排里。

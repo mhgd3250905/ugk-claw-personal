@@ -315,6 +315,46 @@ export function getPlaygroundContextUsageControllerScript(): string {
 			contextUsageDialog.setAttribute("aria-hidden", "true");
 		}
 
+		function toggleContextUsageDetails() {
+			if (isMobileContextUsageSurface()) {
+				openContextUsageDialog();
+				return;
+			}
+			state.contextUsageExpanded = !state.contextUsageExpanded;
+			renderContextUsageBar();
+		}
+
+		async function syncContextUsage(conversationId, options) {
+			const nextConversationId = String(conversationId || state.conversationId || "").trim();
+			if (!nextConversationId) {
+				state.contextUsage = null;
+				renderContextUsageBar();
+				return createFallbackContextUsage();
+			}
+
+			const requestToken = state.contextUsageSyncToken + 1;
+			state.contextUsageSyncToken = requestToken;
+
+			try {
+				const payload = await fetchConversationRunStatus(nextConversationId);
+				if (state.contextUsageSyncToken !== requestToken) {
+					return payload.contextUsage;
+				}
+				state.contextUsage = normalizeContextUsage(payload.contextUsage);
+				renderContextUsageBar();
+				return state.contextUsage;
+			} catch (error) {
+				if (!options?.silent) {
+					const messageText = error instanceof Error ? error.message : "无法同步上下文使用情况";
+					showError(messageText);
+				}
+				if (state.contextUsageSyncToken === requestToken) {
+					renderContextUsageBar();
+				}
+				return normalizeContextUsage(state.contextUsage);
+			}
+		}
+
 	`;
 }
 

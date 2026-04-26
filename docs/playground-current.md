@@ -349,7 +349,7 @@
 
 ## Context Usage Bar
 
-- 上下文用量常量、DOM 引用、token 估算、电池式分段进度条渲染、详情弹层和输入实时重算逻辑集中在 `src/ui/playground-context-usage-controller.ts`
+- 上下文用量常量、DOM 引用、token 估算、电池式分段进度条渲染、详情弹层、展开切换、`GET /v1/chat/status` 占用同步和输入实时重算逻辑集中在 `src/ui/playground-context-usage-controller.ts`
 - `src/ui/playground.ts` 仍保留 `state.contextUsage` / `contextUsageExpanded` / `contextUsageSyncToken`，因为这些状态会被会话恢复、流式事件和发送流程共同更新
 - 桌面 Web 把上下文入口放进 `landing-side-right` 工具栏内部最右侧，手机端仍显示在顶部状态栏右侧；二者都不再占用 composer 底部区域。视觉上使用 `4px` 圆角的水平电池式分段进度条，颜色随 safe / caution / warning / danger 状态变化。
 - 圆环中央只显示百分比；只要输入区里还有草稿、待发附件或已选资产，就按“预计发送后”口径计算。
