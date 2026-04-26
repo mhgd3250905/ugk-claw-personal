@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent conversation session 生命周期收口
+- 日期：2026-04-26
+- 主题：把当前会话兜底、新建空会话、sessionFile 复用打开和默认模型上下文 fallback 抽到 `src/agent/agent-conversation-session.ts`。这些逻辑属于会话生命周期边界，不应该继续混在 `AgentService` 的聊天编排尾部；那样以后查“为什么新会话没有激活 / 为什么旧 session 没复用”会很低效。
+- 影响范围：`GET /v1/chat/conversations` 的 current conversation 兜底、`POST /v1/chat/conversations` 新建空会话、无 conversationId 的 `POST /v1/chat` 新建运行会话、以及 context usage 的默认模型上下文语义保持不变。新增测试覆盖已存 current、提升既有会话、新建空会话、复用 sessionFile 和默认模型 fallback。
+- 对应入口：`src/agent/agent-conversation-session.ts`、`src/agent/agent-service.ts`、`test/agent-conversation-session.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent conversation context 读取路径收口
 - 日期：2026-04-26
 - 主题：把 `AgentService` 中 active session、persisted session、recent session window 的上下文读取逻辑抽到 `src/agent/agent-conversation-context.ts`。这块以前散在 run status、history、state 读取路径里，后续再查“为什么刷新后上下文窗口不一致”会很绕，现在统一成一个 helper 边界。

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
 import { ConversationStore } from "./conversation-store.js";
 import {
@@ -15,12 +14,17 @@ import {
 import {
 	buildConversationCatalog,
 	buildConversationMetadata,
-	buildEmptyConversationMetadata,
 } from "./agent-conversation-catalog.js";
 import {
 	resolveConversationContextMessages,
 	resolveConversationStateContext,
 } from "./agent-conversation-context.js";
+import {
+	createEmptyConversation,
+	ensureCurrentConversationId,
+	openConversationSession,
+	resolveDefaultModelContext,
+} from "./agent-conversation-session.js";
 import { buildConversationStatePage } from "./agent-conversation-state.js";
 import {
 	cloneChatStreamEvent,
@@ -45,7 +49,6 @@ import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.
 import type {
 	AgentSessionFactory,
 	AgentSessionLike,
-	ProjectDefaultModelContext,
 	RuntimeSkillInfo,
 	RuntimeSkillListResult,
 } from "./agent-session-factory.js";
@@ -260,9 +263,9 @@ export class AgentService {
 			};
 		}
 
-		const conversationId = `manual:${randomUUID()}`;
-		await this.options.conversationStore.set(conversationId, undefined, buildEmptyConversationMetadata());
-		await this.options.conversationStore.setCurrentConversationId(conversationId);
+		const conversationId = await createEmptyConversation({
+			conversationStore: this.options.conversationStore,
+		});
 		return {
 			conversationId,
 			currentConversationId: conversationId,
@@ -552,7 +555,9 @@ export class AgentService {
 		input: ChatInput,
 		onEvent?: ChatStreamEventSink,
 	): Promise<ChatResult> {
-		const conversationId = input.conversationId ?? `manual:${randomUUID()}`;
+		const conversationId = input.conversationId ?? await createEmptyConversation({
+			conversationStore: this.options.conversationStore,
+		});
 		const browserCleanupScope = createBrowserCleanupScope(conversationId);
 		if (this.activeRuns.has(conversationId)) {
 			throw new Error(`Conversation ${conversationId} is already running`);
@@ -700,39 +705,19 @@ export class AgentService {
 	}
 
 	private async ensureCurrentConversationId(): Promise<string> {
-		const currentConversationId = await this.options.conversationStore.getCurrentConversationId();
-		if (currentConversationId) {
-			return currentConversationId;
-		}
-
-		const existingConversation = (await this.options.conversationStore.list()).at(0);
-		if (existingConversation) {
-			await this.options.conversationStore.setCurrentConversationId(existingConversation.conversationId);
-			return existingConversation.conversationId;
-		}
-
-		const conversationId = `manual:${randomUUID()}`;
-		await this.options.conversationStore.set(conversationId, undefined, buildEmptyConversationMetadata());
-		await this.options.conversationStore.setCurrentConversationId(conversationId);
-		return conversationId;
+		return await ensureCurrentConversationId({
+			conversationStore: this.options.conversationStore,
+		});
 	}
 
 	private async openSession(
 		conversationId: string,
 	): Promise<{ session: AgentSessionLike; skillFingerprint?: string }> {
-		const existingConversation = await this.options.conversationStore.get(conversationId);
-		const skillFingerprint = await this.options.sessionFactory.getSkillFingerprint?.();
-		const shouldReuseExistingSession = existingConversation?.sessionFile !== undefined;
-
-		const session = await this.options.sessionFactory.createSession({
+		return await openConversationSession({
 			conversationId,
-			sessionFile: shouldReuseExistingSession ? existingConversation?.sessionFile : undefined,
+			conversationStore: this.options.conversationStore,
+			sessionFactory: this.options.sessionFactory,
 		});
-
-		return {
-			session,
-			skillFingerprint,
-		};
 	}
 
 	private async getContextMessages(conversationId: string): Promise<AgentMessageLike[]> {
@@ -779,16 +764,8 @@ export class AgentService {
 		return messages.slice(0, activeRun.sessionMessageCountBeforeRun);
 	}
 
-	private getDefaultModelContext(): ProjectDefaultModelContext {
-		return (
-			this.options.sessionFactory.getDefaultModelContext?.() ?? {
-				provider: "unknown",
-				model: "unknown",
-				contextWindow: 128000,
-				maxResponseTokens: 16384,
-				reserveTokens: 16384,
-			}
-		);
+	private getDefaultModelContext() {
+		return resolveDefaultModelContext(this.options.sessionFactory);
 	}
 
 	private refreshPersistedTurnCoverage(activeRun: ActiveRunState): void {
