@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 状态控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的 stage mode、顶部命令状态、loading 忙态、error banner 和控制动作错误文案拆到 `src/ui/playground-status-controller.ts`。这些函数被 stream、conversation、asset、task inbox、conn 和 transcript 多处调用，继续藏在主脚本中段，后续排查“按钮为什么禁用 / 状态为什么没恢复 / 错误为什么没清掉”就只能靠翻山越岭，太土了。
+- 影响范围：`setStageMode()`、`setCommandStatus()`、`setLoading()`、`showError()`、`clearError()`、`getControlActionErrorMessage()` 的函数名和全局调用语义保持不变；主页面仍按原顺序注入 status helper 后再注入 layout、mobile、theme、conversation、transcript 和 stream 相关控制器。新增 `test/playground-status-controller.test.ts` 锁定按钮忙态、状态文案、错误文案和 drawer 收口调用。
+- 对应入口：`src/ui/playground-status-controller.ts`、`src/ui/playground.ts`、`test/playground-status-controller.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground 实时通知 toast 控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的实时通知 toast helper 拆到 `src/ui/playground-notification-controller.ts`。`playground-stream-controller.ts` 已经负责 SSE 连接和重连，主脚本继续混着事件规范化、toast DOM 拼装、live region 显隐和自动移除，只会让通知链路像一坨散装电线。
