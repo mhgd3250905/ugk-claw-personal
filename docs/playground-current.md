@@ -290,6 +290,7 @@
 - `landing-screen` 在手机端直接隐藏，不再让 hero、大标题和装饰块继续吞掉首屏高度
 - 中间主区收口成全高 transcript 区域，去掉额外边框和背景壳层，优先把有限空间让给对话内容；空态时 transcript 中央展示方块字符组成的 `UGK` 标识，不再显示“开始一轮对话...”提示方块
 - 手机端 active transcript 底部使用安全区感知的滚动缓冲，最后一条回复在滚到底后仍能被继续上拖一点，避免被底部 composer 遮挡
+- 手机端 active 对话的 `.stream-layout`、`.transcript-pane` 和 `.transcript` 必须显式收口到 `width: 100% / min-width: 0 / max-width: 100%`；这层不能依赖桌面端 `--conversation-width` 跟随 composer 的推导结果，否则部分视口会出现整列消息向右偏移、用户气泡贴边甚至被裁掉。
 - 拖拽上传区在手机端隐藏；已选文件与资产改成可换行 chip 列表，超过可用高度后列表内部纵向滚动，避免多文件预览挤在同一行导致标题完全看不清。
 - Landing 空态底部 `#composer-drop-target.composer` 不再使用大输入框口径；桌面 landing composer 使用 `6px 8px 6px 10px` padding，textarea 初始最小高度为 `40px`，发送 / 打断按钮最小高度为 `40px`，并通过 `align-self: end`、`height: fit-content`、`max-height: none` 防止外层 section 被旧高度规则卡死
 - 底部 composer 改成手机优先结构：输入区单列铺满，右侧只保留紧凑 icon 控制；移动端 composer 背景使用单层纯色，不再叠加渐变；发送按钮使用居中的向上箭头 icon，打断按钮使用白色方形中断 icon，不再显示文字，也不再沿用桌面端按钮背景、边框和阴影；当前手机端这两个 icon 调整为 `28px`，避免把按钮本体撑大；中断按钮在未运行时也保留占位，只是禁用态变淡，不会直接消失；发送后的输入框立即清空，失败才回填草稿

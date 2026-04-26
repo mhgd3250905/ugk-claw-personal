@@ -3145,6 +3145,9 @@ function getPlaygroundStyles(): string {
 			}
 
 			.transcript {
+				width: 100%;
+				min-width: 0;
+				max-width: 100%;
 				padding: 8px 0 10px;
 			}
 
@@ -3155,6 +3158,9 @@ function getPlaygroundStyles(): string {
 			.stream-layout {
 				gap: 0;
 				flex: 1 1 auto;
+				width: 100%;
+				min-width: 0;
+				max-width: 100%;
 				min-height: 0;
 			}
 
@@ -3164,6 +3170,9 @@ function getPlaygroundStyles(): string {
 				display: flex;
 				align-items: stretch;
 				justify-content: flex-start;
+				width: 100%;
+				min-width: 0;
+				max-width: 100%;
 				overflow: hidden;
 				z-index: 1;
 				pointer-events: auto;
@@ -3172,10 +3181,15 @@ function getPlaygroundStyles(): string {
 			.shell[data-stage-mode="landing"][data-transcript-state="idle"] .stream-layout,
 			.shell[data-stage-mode="landing"][data-transcript-state="active"] .stream-layout {
 				justify-content: flex-start;
+				width: 100%;
+				min-width: 0;
+				max-width: 100%;
 			}
 
 			.shell[data-stage-mode="landing"] .transcript-pane {
 				width: 100%;
+				min-width: 0;
+				max-width: 100%;
 				margin: 0;
 			}
 

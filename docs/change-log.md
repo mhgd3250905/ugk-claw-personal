@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### 手机端消息轨道右偏修复
+- 日期：2026-04-26
+- 主题：修复手机端 active 对话里用户 / 助手气泡整列向右偏移、右侧贴边甚至裁切的问题。根因是移动端消息轨道仍间接受桌面 `--conversation-width` / composer 宽度推导影响，最终 active `.stream-layout` 和 transcript 容器缺少 `width / min-width / max-width` 的硬边界。手机端还拿桌面宽度逻辑兜底，属于典型“桌面布局压成移动端”的坑。
+- 影响范围：`src/ui/playground.ts` 在 `max-width: 640px` 下为 `.stream-layout`、landing active `.stream-layout`、`.transcript-pane` 和 `.transcript` 增加 `width: 100%`、`min-width: 0`、`max-width: 100%` 约束；`test/server.test.ts` 增加精确 CSS block 断言，避免后续又被宽松正则糊过去。`docs/playground-current.md` 同步手机端轨道约束。
+- 对应入口：`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ### 文件库加载提示降噪
 - 日期：2026-04-26
 - 主题：移除打开 / 刷新文件库时写入 transcript 的“资产清单 · 请求 /v1/assets”和“资产清单已加载 · N”过程提示。正常加载本来就应该在文件库页面里体现，把内部请求流水账塞进聊天流，只会把用户界面搞得像调试控制台。

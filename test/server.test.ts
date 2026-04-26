@@ -1936,6 +1936,11 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	const mobileConnRunPanelBlock = mobileCssBlock(".conn-run-details-panel");
 	const mobileTaskHeadBlock = mobileCssBlock(".task-inbox-head");
 	const mobileTaskBubbleBlock = mobileCssBlock(".task-inbox-result-bubble");
+	const mobileStreamLayoutBlock = mobileCssBlock(
+		'.shell[data-stage-mode="landing"][data-transcript-state="active"] .stream-layout',
+	);
+	const mobileTranscriptPaneBlock = mobileCssBlock('.shell[data-stage-mode="landing"] .transcript-pane');
+	const mobileTranscriptBlock = mobileCssBlock(".transcript");
 
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-shell\.open\s*\{[\s\S]*align-items:\s*stretch;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-shell\.open\s*\{[\s\S]*background:\s*#01030a;/);
@@ -2026,6 +2031,15 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-meta span\s*\{[\s\S]*min-height:\s*20px;/);
 	assert.match(response.body, /deleteButton\.textContent = "×";/);
 	assert.match(response.body, /<span>运行中不能切换<\/span>/);
+	assert.match(mobileStreamLayoutBlock, /width:\s*100%;/);
+	assert.match(mobileStreamLayoutBlock, /min-width:\s*0;/);
+	assert.match(mobileStreamLayoutBlock, /max-width:\s*100%;/);
+	assert.match(mobileTranscriptPaneBlock, /width:\s*100%;/);
+	assert.match(mobileTranscriptPaneBlock, /min-width:\s*0;/);
+	assert.match(mobileTranscriptPaneBlock, /max-width:\s*100%;/);
+	assert.match(mobileTranscriptBlock, /width:\s*100%;/);
+	assert.match(mobileTranscriptBlock, /min-width:\s*0;/);
+	assert.match(mobileTranscriptBlock, /max-width:\s*100%;/);
 	assert.match(response.body, /function restoreFocusAfterPanelClose\(panelElement, fallbackElement\)\s*\{/);
 	assert.match(response.body, /function closeAssetLibrary\(\)\s*\{[\s\S]*restoreFocusAfterPanelClose\(assetModal, state\.assetModalRestoreFocusElement\);/);
 	assert.match(response.body, /function closeConnManager\(\)\s*\{[\s\S]*restoreFocusAfterPanelClose\(connManagerDialog, state\.connManagerRestoreFocusElement\);/);
