@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Activity 路由工具 helper 拆分
+- 日期：2026-04-26
+- 主题：把任务消息列表查询解析、分页 limit 规整和 `AgentActivityItem` 响应体转换从 `src/routes/activity.ts` 拆到独立 helper。任务消息接口本身已经承担 summary、分页列表、单条已读和全部已读，再把 query parser 和 DTO 映射也塞在一起，就是典型入口层继续发胖。
+- 影响范围：新增 `src/routes/activity-route-utils.ts` 与 `test/activity-route-utils.test.ts`，集中提供 `parseActivityListOptions()`、`normalizeActivityListLimit()` 和 `toActivityBody()`；`src/routes/activity.ts` 改为只保留 HTTP 编排，`GET /v1/activity` 的 `limit`、`conversationId`、`before`、`unreadOnly` 解析、分页多取一条、`unreadCount` 返回和已读接口语义保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/routes/activity-route-utils.ts`、`src/routes/activity.ts`、`test/activity-route-utils.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### 文件路由工具 helper 拆分
 - 日期：2026-04-26
 - 主题：把 multipart 上传附件转换、上传大小错误识别、下载 `Content-Disposition` / MIME 处理、本地 artifact 路径白名单解析从 `src/routes/files.ts` 拆到独立 helper。文件路由同时管上传、下载和本地文件桥接，继续把安全边界工具函数塞在路由底部，后续排障就是在刀尖上跳舞。
