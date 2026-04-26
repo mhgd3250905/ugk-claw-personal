@@ -1,0 +1,346 @@
+export interface PlaygroundPageHtmlInput {
+	styles: string;
+	markedBrowserScript: string;
+	playgroundScript: string;
+	taskInboxView: string;
+	connActivityDialogs: string;
+	assetDialogs: string;
+}
+
+export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
+	return `<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>UGK Claw</title>
+		<link rel="icon" href="/ugk-claw-mobile-logo.png" />
+		<link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css" />
+		<style>${input.styles}</style>
+	</head>
+	<body>
+		<div id="drag-overlay" class="drag-overlay" aria-hidden="true">
+			<div class="drag-overlay-panel">
+				<strong>释放文件</strong>
+				<span>文件会进入当前消息，并自动补充文件处理描述</span>
+			</div>
+		</div>
+		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
+			<header class="topbar">
+				<aside class="landing-side landing-side-right">
+					<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button">
+						<span>全新的记忆</span>
+						<strong id="command-status">新会话</strong>
+					</button>
+					<button id="view-skills-button" class="telemetry-card telemetry-action" type="button">
+						<span>技能越多，能力越强？</span>
+						<strong>查看技能</strong>
+					</button>
+					<button id="file-picker-action" class="telemetry-card telemetry-action" type="button">
+						<span>文件或许更稳定</span>
+						<strong>选择文件</strong>
+					</button>
+					<button id="open-asset-library-button" class="telemetry-card telemetry-action" type="button">
+						<span>这里不是垃圾堆</span>
+						<strong>项目文件夹</strong>
+					</button>
+					<button id="open-conn-manager-button" class="telemetry-card telemetry-action" type="button">
+						<span>后台自己干，前台别被绑架</span>
+						<strong>后台任务</strong>
+					</button>
+					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false">
+						<span>&#21518;&#21488;&#20219;&#21153;&#32467;&#26524;&#32479;&#19968;&#25910;&#20214;&#31665;</span>
+						<strong>&#20219;&#21153;&#28040;&#24687;</strong>
+						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
+					</button>
+					<button id="theme-toggle-button" class="telemetry-card telemetry-action theme-toggle-button" type="button" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
+						<span>界面别太死板</span>
+						<strong id="theme-toggle-label">深色模式</strong>
+						<span class="theme-toggle-icon theme-toggle-icon-sun" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none">
+								<circle cx="12" cy="12" r="4" stroke-width="1.8" />
+								<path d="M12 2.8v2.4M12 18.8v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" stroke-width="1.8" stroke-linecap="round" />
+							</svg>
+						</span>
+						<span class="theme-toggle-icon theme-toggle-icon-moon" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none">
+								<path d="M20 14.2A7.3 7.3 0 0 1 9.8 4a8.1 8.1 0 1 0 10.2 10.2Z" stroke-width="1.8" stroke-linejoin="round" />
+							</svg>
+						</span>
+					</button>
+					<div class="topbar-context-slot">
+						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
+							<span class="context-usage-battery" aria-hidden="true">
+								<span id="context-usage-progress" class="context-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
+							</span>
+							<span id="context-usage-summary" class="context-usage-summary">0%</span>
+							<span id="context-usage-toggle" class="context-usage-toggle">&#19978;&#19979;&#25991;&#35814;&#24773;</span>
+							<span id="context-usage-meta" class="context-usage-meta" role="tooltip">&#24403;&#21069;&#19978;&#19979;&#25991; 0 / 128,000 tokens (0%)</span>
+						</button>
+					</div>
+				</aside>
+				<section id="mobile-topbar" class="mobile-topbar" aria-label="手机状态栏">
+					<button
+						id="mobile-brand-button"
+						class="mobile-brand"
+						type="button"
+						aria-haspopup="dialog"
+						aria-expanded="false"
+						aria-controls="mobile-conversation-drawer"
+						title="历史会话"
+					>
+						<img class="mobile-brand-logo" src="/ugk-claw-mobile-logo.png" alt="UGK Claw logo" />
+						<div class="mobile-brand-copy">
+							<span class="mobile-brand-wordmark">UGK Claw</span>
+						</div>
+					</button>
+					<div></div>
+					<template hidden>
+					<div class="topbar-context-slot">
+						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="涓婁笅鏂囦娇鐢?0%" aria-describedby="context-usage-meta">
+							<span class="context-usage-battery" aria-hidden="true">
+								<span id="context-usage-progress" class="context-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
+							</span>
+							<span id="context-usage-summary" class="context-usage-summary">0%</span>
+							<span id="context-usage-toggle" class="context-usage-toggle">涓婁笅鏂囪鎯?/span>
+							<span id="context-usage-meta" class="context-usage-meta" role="tooltip">褰撳墠涓婁笅鏂?0 / 128,000 tokens (0%)</span>
+						</button>
+					</div>
+					</template>
+					<button
+						id="mobile-new-conversation-button"
+						class="mobile-topbar-button"
+						type="button"
+						aria-label="新会话"
+						title="新会话"
+					>
+						<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<path d="M12 5v14M5 12h14" stroke-width="1.8" stroke-linecap="round" />
+						</svg>
+					</button>
+					<button
+						id="mobile-overflow-menu-button"
+						class="mobile-topbar-button mobile-topbar-button-with-badge"
+						type="button"
+						aria-haspopup="menu"
+						aria-expanded="false"
+						aria-controls="mobile-overflow-menu"
+						aria-label="更多操作"
+						title="更多操作"
+					>
+						<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+							<circle cx="12" cy="5" r="1.8"></circle>
+							<circle cx="12" cy="12" r="1.8"></circle>
+							<circle cx="12" cy="19" r="1.8"></circle>
+						</svg>
+						<span id="mobile-overflow-task-inbox-badge" class="mobile-topbar-notification-badge" hidden>0</span>
+					</button>
+					<div id="mobile-overflow-menu" class="mobile-overflow-menu" role="menu" hidden>
+						<button id="mobile-menu-skills-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span>技能</span>
+						</button>
+						<button id="mobile-menu-file-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M7 4h7l4 4v12H7V4Z" stroke-width="1.8" stroke-linejoin="round" />
+									<path d="M14 4v4h4" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span>文件</span>
+						</button>
+						<button id="mobile-menu-library-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M4 7h5l2 2h9v9H4V7Z" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span>文件库</span>
+						</button>
+						<button id="mobile-menu-conn-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M6 7h12M6 12h12M6 17h8" stroke-width="1.8" stroke-linecap="round" />
+									<path d="M4 5v14M20 5v14" stroke-width="1.8" stroke-linecap="round" />
+								</svg>
+							</span>
+							<span>后台任务</span>
+						</button>
+						<button id="mobile-menu-task-inbox-button" class="mobile-overflow-menu-item" type="button" role="menuitem" aria-pressed="false">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M5 7h14M5 12h14M5 17h9" stroke-width="1.8" stroke-linecap="round" />
+									<path d="M4 4v16" stroke-width="1.8" stroke-linecap="round" />
+								</svg>
+							</span>
+							<span>&#20219;&#21153;&#28040;&#24687;</span>
+							<span id="mobile-task-inbox-unread-badge" class="mobile-overflow-menu-item-badge" hidden>0</span>
+						</button>
+						<button id="mobile-menu-theme-button" class="mobile-overflow-menu-item" type="button" role="menuitem" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M12 3a9 9 0 1 0 9 9 6.5 6.5 0 0 1-9-9Z" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span id="mobile-theme-toggle-label">深色模式</span>
+						</button>
+					</div>
+				</section>
+				<div class="topbar-right">
+					<div class="status-row"><span>主题</span><strong>深色 / 极客</strong></div>
+					<div class="status-row"><span>传输</span><strong>SSE / 流式</strong></div>
+					<div class="status-row"><span>发送</span><strong>Enter</strong></div>
+				</div>
+			</header>
+
+			<div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop" hidden></div>
+			<aside
+				id="mobile-conversation-drawer"
+				class="mobile-conversation-drawer"
+				aria-label="历史会话"
+				hidden
+			>
+				<div class="mobile-drawer-head">
+					<div class="mobile-drawer-title">
+						<strong>历史会话</strong>
+						<span>运行中不能切换</span>
+					</div>
+					<button id="mobile-drawer-close-button" class="mobile-drawer-close" type="button" aria-label="关闭历史会话">
+						×
+					</button>
+				</div>
+				<div id="mobile-conversation-list" class="mobile-conversation-list"></div>
+			</aside>
+
+			<aside id="desktop-conversation-rail" class="desktop-conversation-rail" aria-label="&#21382;&#21490;&#20250;&#35805;">
+				<div class="desktop-conversation-rail-head">
+					<strong>&#21382;&#21490;&#20250;&#35805;</strong>
+					<span>&#24120;&#39547;</span>
+				</div>
+				<div id="desktop-conversation-list" class="desktop-conversation-list"></div>
+			</aside>
+
+			<main id="chat-stage" class="chat-stage">
+				<div hidden>
+					<div class="meta-chip">
+						<strong>会话</strong>
+						<input id="conversation-id" name="conversation-id" placeholder="manual:web-xxxx" />
+					</div>
+					<div class="meta-chip">
+						<strong>会话文件</strong>
+						<span id="session-file">尚未分配</span>
+					</div>
+				</div>
+
+				<div hidden>
+					<span>接口：POST /v1/chat/stream</span>
+					<div id="status-pill" class="state">就绪</div>
+				</div>
+
+				<section id="landing-screen" class="landing-screen" aria-hidden="false">
+					<div class="landing-grid">
+						<section id="hero-core" class="hero-core">
+							<div class="hero-wordmark">UGK CLAW</div>
+							<div class="hero-divider">
+								<span></span>
+								<em id="hero-version">v4.0.21.STABLE</em>
+								<span></span>
+							</div>
+						</section>
+					</div>
+				</section>
+
+				<div id="error-banner" class="error-banner" role="alert" hidden>
+					<span id="error-banner-message" class="error-banner-message"></span>
+					<button id="error-banner-close" class="error-banner-close" type="button" aria-label="关闭错误提示">×</button>
+				</div>
+
+				<div id="notification-live-region" class="notification-live-region" aria-live="polite" aria-atomic="false" hidden>
+					<div id="notification-toast-stack" class="notification-toast-stack"></div>
+				</div>
+
+				<section class="stream-layout">
+					<div class="transcript-pane">
+						<header class="pane-head">
+							<strong>对话流</strong>
+							<span>单列会话舞台会把用户与 Agent 的回应自然分层，焦点始终落在当前内容。</span>
+						</header>
+						<div id="history-auto-load-status" class="history-auto-load-status" aria-live="polite" hidden></div>
+						<section id="transcript" class="transcript" aria-live="polite">
+							<div id="transcript-archive" class="transcript-archive"></div>
+							<div id="transcript-current" class="transcript-current"></div>
+						</section>
+						<button id="scroll-to-bottom-button" class="scroll-to-bottom-button" type="button" hidden>回到底部</button>
+					</div>
+				</section>
+
+				<div id="command-deck" class="command-deck">
+					<div class="file-strip">
+						<div id="drop-zone" class="drop-zone">
+							<input id="file-input" class="file-input" name="files" type="file" multiple />
+						</div>
+						<div id="file-list" class="file-list" aria-live="polite"></div>
+						<section id="selected-assets" class="selected-assets" aria-live="polite">
+							<div id="selected-asset-list" class="selected-asset-list"></div>
+						</section>
+					</div>
+					<section id="composer-drop-target" class="composer">
+						<div class="composer-main">
+							<div class="composer-header">
+								<span>消息</span>
+								<span>Shift+Enter 换行</span>
+							</div>
+							<textarea id="message" name="message" rows="1" placeholder="和我聊聊吧"></textarea>
+						</div>
+						<div class="composer-side">
+							<button id="interrupt-button" type="button" disabled>打断</button>
+							<button id="send-button" type="button">发送</button>
+						</div>
+					</section>
+				</div>
+			</main>
+		</div>
+		${input.taskInboxView}
+		<div id="context-usage-dialog" class="context-usage-dialog" aria-hidden="true" inert hidden>
+			<section class="context-usage-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="context-usage-dialog-title">
+				<div class="context-usage-dialog-head">
+					<strong id="context-usage-dialog-title">上下文使用情况</strong>
+					<button id="context-usage-dialog-close" class="context-usage-dialog-close" type="button" aria-label="关闭上下文详情">×</button>
+				</div>
+				<div id="context-usage-dialog-body" class="context-usage-dialog-body">当前上下文 0 / 128,000 tokens (0%)</div>
+			</section>
+		</div>
+		<div id="chat-run-log-dialog" class="chat-run-log-dialog" aria-hidden="true" hidden>
+			<section class="chat-run-log-panel" role="dialog" aria-modal="true" aria-labelledby="chat-run-log-title">
+				<div class="chat-run-log-head">
+					<strong id="chat-run-log-title">运行日志</strong>
+					<button id="chat-run-log-close" class="chat-run-log-close" type="button" aria-label="关闭运行日志">×</button>
+				</div>
+				<div id="chat-run-log-body" class="chat-run-log-body"></div>
+			</section>
+		</div>
+		<div id="confirm-dialog" class="confirm-dialog" aria-hidden="true" hidden>
+			<section class="confirm-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+				<div class="confirm-dialog-head">
+					<strong id="confirm-dialog-title">请确认</strong>
+				</div>
+				<div id="confirm-dialog-body" class="confirm-dialog-body"></div>
+				<div class="confirm-dialog-actions">
+					<button id="confirm-dialog-cancel" type="button">取消</button>
+					<button id="confirm-dialog-confirm" class="danger-action" type="button">确认</button>
+				</div>
+			</section>
+		</div>
+		${input.connActivityDialogs}
+		${input.assetDialogs}
+		<script src="/vendor/flatpickr/flatpickr.min.js"></script>
+		<script src="/vendor/flatpickr/l10n/zh.js"></script>
+		<script>${input.markedBrowserScript}
+${input.playgroundScript}</script>
+	</body>
+</html>`;
+}

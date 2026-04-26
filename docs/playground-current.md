@@ -7,6 +7,7 @@
 核心实现文件：
 
 - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+- [src/ui/playground-page-shell.ts](/E:/AII/ugk-pi/src/ui/playground-page-shell.ts)
 - [src/ui/playground-styles.ts](/E:/AII/ugk-pi/src/ui/playground-styles.ts)
 - [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
@@ -226,7 +227,8 @@
 
 ## 7. 已知关联文件
 
-- 页面结构与浏览器脚本装配： [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+- 页面脚本装配与最终 `renderPlaygroundPage()` 参数组装： [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+- playground 静态 HTML shell 与外层页面骨架： [src/ui/playground-page-shell.ts](/E:/AII/ugk-pi/src/ui/playground-page-shell.ts)
 - playground 共享基础样式与移动断点主约束： [src/ui/playground-styles.ts](/E:/AII/ugk-pi/src/ui/playground-styles.ts)
 - 服务器端 Markdown 安全渲染与 `renderPlaygroundMarkdown()` 导出： [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
 - 文件 / 资产静态样式与资产库弹窗 HTML： [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)

@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 静态页面 shell 拆分
+- 日期：2026-04-26
+- 主题：把 `renderPlaygroundPage()` 里的外层 HTML shell、顶部栏、历史抽屉、主舞台、共享弹层和 vendor script 装配拆到 `src/ui/playground-page-shell.ts`。`playground.ts` 继续瘦身，只负责生成 styles、browser script 和各业务静态片段后传给 shell 渲染器；否则主文件迟早又变成“HTML、CSS、JS 三明治”，维护者看一眼血压就上来了。
+- 影响范围：新增 `renderPlaygroundHtml()`，通过参数注入 `styles`、`markedBrowserScript`、`playgroundScript`、任务消息视图、conn 弹层和资产弹层；`renderPlaygroundPage()` 的对外导出不变，`/playground` 页面结构和脚本注入顺序保持不变。新增 `test/playground-page-shell.test.ts` 锁定 shell 对注入片段的拼装语义。
+- 对应入口：`src/ui/playground-page-shell.ts`、`src/ui/playground.ts`、`test/playground-page-shell.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground 基础样式模块拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的巨大 `getPlaygroundStyles()` 静态样式块拆到 `src/ui/playground-styles.ts`。主页面入口本来就要装配 HTML、浏览器脚本、Markdown vendor 注入和各种控制器，再继续背几千行 CSS，后续 agent 修一个移动断点都得从脚本和 DOM 里穿过去，维护体验很烂。
