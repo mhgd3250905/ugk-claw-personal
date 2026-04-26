@@ -239,17 +239,18 @@
 
 先看：
 1. [src/routes/notifications.ts](/E:/AII/ugk-pi/src/routes/notifications.ts)
-2. [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
-3. [src/routes/activity-route-utils.ts](/E:/AII/ugk-pi/src/routes/activity-route-utils.ts)
-4. [src/agent/notification-hub.ts](/E:/AII/ugk-pi/src/agent/notification-hub.ts)
-5. [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
-6. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
-7. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
-8. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
-9. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
-10. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
-11. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
-12. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+2. [src/routes/notification-route-utils.ts](/E:/AII/ugk-pi/src/routes/notification-route-utils.ts)
+3. [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
+4. [src/routes/activity-route-utils.ts](/E:/AII/ugk-pi/src/routes/activity-route-utils.ts)
+5. [src/agent/notification-hub.ts](/E:/AII/ugk-pi/src/agent/notification-hub.ts)
+6. [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
+7. [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+8. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+9. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
+10. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+11. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+12. [test/notification-hub.test.ts](/E:/AII/ugk-pi/test/notification-hub.test.ts)
+13. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
 
 适用问题：
 - conn 任务明明跑完了，但在线页面不弹实时提示

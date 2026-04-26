@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Notification 广播 parser 拆分
+- 日期：2026-04-26
+- 主题：把实时通知内部广播 payload 解析从 `src/routes/notifications.ts` 拆到独立 helper。SSE 连接管理和广播请求校验是两类边界逻辑，继续混在一个路由文件里，后面要查“为什么通知没弹”时就得先穿过一堆字段校验废话。
+- 影响范围：新增 `src/routes/notification-route-utils.ts` 与 `test/notification-route-utils.test.ts`，集中提供 `parseNotificationBroadcastEvent()`；`src/routes/notifications.ts` 保留 SSE header、订阅释放和广播响应编排，`POST /v1/internal/notifications/broadcast` 的必填字段、`notificationId` / `activityId` 兜底、可选 `conversationId` / `runId` 裁剪和 `202` 响应语义保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/routes/notification-route-utils.ts`、`src/routes/notifications.ts`、`test/notification-route-utils.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Activity 路由工具 helper 拆分
 - 日期：2026-04-26
 - 主题：把任务消息列表查询解析、分页 limit 规整和 `AgentActivityItem` 响应体转换从 `src/routes/activity.ts` 拆到独立 helper。任务消息接口本身已经承担 summary、分页列表、单条已读和全部已读，再把 query parser 和 DTO 映射也塞在一起，就是典型入口层继续发胖。
