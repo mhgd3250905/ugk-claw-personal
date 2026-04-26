@@ -5,7 +5,6 @@ import {
 	applyChatStreamEventToActiveRunView,
 	cloneActiveRunView,
 	createActiveRunView,
-	sanitizeStateId,
 } from "./agent-active-run-view.js";
 import {
 	buildConversationHistoryMessages,
@@ -26,6 +25,10 @@ import {
 	type ChatStreamEventSink,
 } from "./agent-run-events.js";
 import { buildAgentRunResult, buildDoneChatStreamEvent } from "./agent-run-result.js";
+import {
+	createBrowserCleanupScope,
+	runWithScopedAgentEnvironment,
+} from "./agent-run-scope.js";
 import { createAgentSessionEventAdapter } from "./agent-session-event-adapter.js";
 import { preparePromptAssets } from "./agent-prompt-assets.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
@@ -901,40 +904,6 @@ export class AgentService {
 
 function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {
 	return view.status === "done" || view.status === "error" || view.status === "interrupted";
-}
-
-function createBrowserCleanupScope(conversationId: string): string {
-	return sanitizeStateId(conversationId);
-}
-
-async function runWithScopedAgentEnvironment<T>(scope: string, operation: () => Promise<T>): Promise<T> {
-	const previousValues = {
-		CLAUDE_AGENT_ID: process.env.CLAUDE_AGENT_ID,
-		CLAUDE_HOOK_AGENT_ID: process.env.CLAUDE_HOOK_AGENT_ID,
-		agent_id: process.env.agent_id,
-	};
-	process.env.CLAUDE_AGENT_ID = scope;
-	process.env.CLAUDE_HOOK_AGENT_ID = scope;
-	process.env.agent_id = scope;
-
-	try {
-		return await operation();
-	} finally {
-		restoreScopedAgentEnvironment("CLAUDE_AGENT_ID", previousValues.CLAUDE_AGENT_ID);
-		restoreScopedAgentEnvironment("CLAUDE_HOOK_AGENT_ID", previousValues.CLAUDE_HOOK_AGENT_ID);
-		restoreScopedAgentEnvironment("agent_id", previousValues.agent_id);
-	}
-}
-
-function restoreScopedAgentEnvironment(
-	key: "CLAUDE_AGENT_ID" | "CLAUDE_HOOK_AGENT_ID" | "agent_id",
-	value: string | undefined,
-): void {
-	if (value === undefined) {
-		delete process.env[key];
-		return;
-	}
-	process.env[key] = value;
 }
 
 function toError(error: unknown): Error {

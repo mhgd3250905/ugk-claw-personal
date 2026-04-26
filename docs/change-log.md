@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent run scope 环境边界收口
+- 日期：2026-04-26
+- 主题：把 `AgentService` 底部的 browser cleanup scope 生成与 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 临时环境设置抽到 `src/agent/agent-run-scope.ts`。这块直接影响 web-access sidecar 页面清理范围，继续靠服务类底部几个裸函数撑着，后面一改就容易留下环境变量污染。
+- 影响范围：`runChat()` 仍在每轮执行前后按 conversation scope 清理浏览器目标，agent scope 环境变量在正常返回和异常抛出后都会恢复；新增测试覆盖 scope sanitization、正常恢复和异常恢复。
+- 对应入口：`src/agent/agent-run-scope.ts`、`src/agent/agent-service.ts`、`test/agent-run-scope.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent conversation history 投影收口
 - 日期：2026-04-26
 - 主题：把 `AgentService` 私有的 session message 到 canonical conversation history 投影逻辑移入 `src/agent/agent-conversation-history.ts`。用户消息剥离内部 prompt 协议、助手消息合并、`send_file` 工具结果挂回文件卡片本来就是历史边界职责，继续留在服务编排类里，会让后续查“刷新后历史怎么变成这样”时绕远路。
