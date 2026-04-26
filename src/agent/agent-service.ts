@@ -39,6 +39,10 @@ import {
 	isToolExecutionStartEvent,
 	isToolExecutionUpdateEvent,
 } from "./agent-session-event-guards.js";
+import {
+	extractAssistantText,
+	formatProcessPayload,
+} from "./agent-process-text.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
 import type {
 	AgentSessionFactory,
@@ -695,7 +699,7 @@ export class AgentService {
 			}
 
 			if (!rawText) {
-				rawText = this.extractAssistantText(lastAssistantMessage);
+				rawText = extractAssistantText(lastAssistantMessage);
 			}
 
 			let text = rawText;
@@ -1149,7 +1153,7 @@ export class AgentService {
 			type: "tool_started",
 			toolCallId: event.toolCallId,
 			toolName: event.toolName,
-			args: this.formatProcessPayload(event.args),
+			args: formatProcessPayload(event.args),
 		};
 	}
 
@@ -1158,7 +1162,7 @@ export class AgentService {
 			type: "tool_updated",
 			toolCallId: event.toolCallId,
 			toolName: event.toolName,
-			partialResult: this.formatProcessPayload(event.partialResult),
+			partialResult: formatProcessPayload(event.partialResult),
 		};
 	}
 
@@ -1168,97 +1172,8 @@ export class AgentService {
 			toolCallId: event.toolCallId,
 			toolName: event.toolName,
 			isError: event.isError,
-			result: this.formatProcessPayload(event.result),
+			result: formatProcessPayload(event.result),
 		};
-	}
-
-	private formatProcessPayload(value: unknown): string {
-		if (value === undefined) {
-			return "";
-		}
-
-		if (typeof value === "string") {
-			return this.normalizeProcessText(value);
-		}
-		if (typeof value === "number" || typeof value === "boolean") {
-			return String(value);
-		}
-		if (Array.isArray(value)) {
-			return value
-				.map((entry) => this.formatProcessPayload(entry))
-				.filter((entry) => entry.length > 0)
-				.join("\n\n");
-		}
-		if (value !== null && typeof value === "object") {
-			const textContent = this.extractTextContent(value);
-			if (textContent) {
-				return textContent;
-			}
-
-			try {
-				return rewriteUserVisibleLocalArtifactLinks(JSON.stringify(value, null, 2));
-			} catch {
-				return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(String(value)));
-			}
-		}
-
-		return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(String(value)));
-	}
-
-	private extractTextContent(value: object): string {
-		if ("text" in value && typeof value.text === "string") {
-			return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(value.text));
-		}
-		if ("message" in value && typeof value.message === "string") {
-			return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(value.message));
-		}
-		if ("content" in value && Array.isArray(value.content)) {
-			return value.content
-				.map((entry) => {
-					if (typeof entry === "string") {
-						return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(entry));
-					}
-					if (entry && typeof entry === "object" && "text" in entry && typeof entry.text === "string") {
-						return rewriteUserVisibleLocalArtifactLinks(this.normalizeProcessText(entry.text));
-					}
-					return "";
-				})
-				.filter((entry) => entry.length > 0)
-				.join("\n");
-		}
-
-		return "";
-	}
-
-	private normalizeProcessText(text: string): string {
-		const withoutNulls = text.includes("\u0000") ? text.replace(/\u0000/g, "") : text;
-		return withoutNulls.replace(/\r\n/g, "\n").trim();
-	}
-
-	private extractAssistantText(
-		message:
-			| {
-					content?: unknown;
-			  }
-			| undefined,
-	): string {
-		if (!message?.content) {
-			return "";
-		}
-		const { content } = message;
-		if (typeof content === "string") {
-			return content;
-		}
-		if (!Array.isArray(content)) {
-			return "";
-		}
-
-		return content
-			.filter((item): item is { type: "text"; text: string } =>
-				Boolean(item && typeof item === "object" && "type" in item && item.type === "text" && "text" in item && typeof item.text === "string"),
-			)
-			.map((item) => item.text)
-			.join("");
 	}
 
 	private buildConversationHistoryMessages(
@@ -1322,7 +1237,7 @@ export class AgentService {
 
 	private extractMessageText(message: AgentMessageLike): string {
 		if (message.role === "assistant") {
-			return this.extractAssistantText(message);
+			return extractAssistantText(message);
 		}
 		const { content } = message;
 		if (typeof content === "string") {

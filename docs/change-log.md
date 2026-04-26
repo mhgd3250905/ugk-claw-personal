@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent process text helper 拆分
+- 日期：2026-04-26
+- 主题：把工具过程 payload 格式化、空字符清理、嵌套文本提取和 assistant 文本块合并从 `AgentService` 拆到独立 helper。工具输出清洗是纯文本边界逻辑，不该继续挂在聊天服务主类里当私有杂物。
+- 影响范围：新增 `src/agent/agent-process-text.ts` 与 `test/agent-process-text.test.ts`，集中提供 `formatProcessPayload()`、`normalizeProcessText()` 和 `extractAssistantText()`；`src/agent/agent-service.ts` 改为导入这些 helper，流式工具过程、空字符清理、JSON fallback、assistant final text fallback 和本地 artifact 链接重写保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/agent/agent-process-text.ts`、`src/agent/agent-service.ts`、`test/agent-process-text.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent conversation history helper 拆分
 - 日期：2026-04-26
 - 主题：把 conversation history 分页、active run 视图去重、terminal input echo 隐藏、assistant 连续消息合并、历史文件卡片挂载等纯逻辑从 `AgentService` 拆到独立 helper。刷新恢复和历史分页这块最怕“顺手一改”，继续让它埋在服务主文件底部就是给后续维护挖坑。
