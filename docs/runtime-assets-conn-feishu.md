@@ -377,6 +377,7 @@ GET /v1/local-file?path=...
 
 - `agent_activity_items` 是跨会话的任务消息读模型，不替代 conversation transcript。别把主聊天流硬改成“全局伪对话”，那是把上下文和观察层搅成一锅，后面一定会炸。
 - `conn-worker` 对所有终态 conn run 都会 best-effort 写入一条 `agent_activity_items`。成功、失败和超时结果都会进入任务消息页。
+- `agent_activity_items` 对带 `runId` 的投递使用数据库唯一约束 `source + sourceId + runId`；`AgentActivityStore.create()` 如果遇到并发插入已经赢了，会返回现有 activity，而不是把 SQLite 唯一约束错误当成普通写入失败。别再只靠“先 SELECT 再 INSERT”去重，那在多 worker 场景里就是纸门锁。
 - activity item 保留 `source / sourceId / runId / conversationId / title / text / files / createdAt / readAt`。其中 `source=conn` 且带有 `sourceId + runId` 的条目可以继续打开原有 conn run detail。
 - API：
   - `GET /v1/activity?limit=50`：按时间倒序读取任务消息列表，支持 `limit`、`conversationId`、`before`、`unreadOnly=true`；响应包含 `activities`、`hasMore` 和可选 `nextBefore`。

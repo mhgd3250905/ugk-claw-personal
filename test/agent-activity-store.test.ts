@@ -84,6 +84,49 @@ test("AgentActivityStore deduplicates delivery for the same source and run", asy
 	database.close();
 });
 
+test("AgentActivityStore returns the existing activity when a concurrent insert wins the same source run", async () => {
+	const { store, database } = await createStore();
+	const originalRun = database.run.bind(database);
+	let injectedConcurrentInsert = false;
+	database.run = (sql: string, ...params: unknown[]): void => {
+		if (!injectedConcurrentInsert && sql.includes("INSERT INTO agent_activity_items")) {
+			injectedConcurrentInsert = true;
+			originalRun(
+				"INSERT INTO agent_activity_items (activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"activity-existing",
+				"agent",
+				"conn",
+				"conn-race",
+				"run-race",
+				"manual:conn",
+				"conn_result",
+				"winner",
+				"winner text",
+				"[]",
+				"2026-04-22T10:01:05.000Z",
+			);
+		}
+		originalRun(sql, ...params);
+	};
+
+	const activity = await store.create({
+		source: "conn",
+		sourceId: "conn-race",
+		runId: "run-race",
+		conversationId: "manual:conn",
+		kind: "conn_result",
+		title: "late",
+		text: "late text",
+		createdAt: new Date("2026-04-22T10:02:05.000Z"),
+	});
+
+	assert.equal(activity.activityId, "activity-existing");
+	assert.equal(activity.title, "winner");
+	assert.equal((await store.list()).length, 1);
+
+	database.close();
+});
+
 test("AgentActivityStore lists newest-first, filters by conversation, and limits results", async () => {
 	const { store, database } = await createStore();
 

@@ -17,7 +17,7 @@ test("ConnDatabase initializes the sqlite schema and creates missing parent dire
 	await database.initialize();
 
 	assert.deepEqual(database.listTableNames(), CONN_DATABASE_TABLES);
-	assert.equal(database.getUserVersion(), 2);
+	assert.equal(database.getUserVersion(), 3);
 	assert.equal(
 		database.all<{ name: string }>("PRAGMA table_info(conns)").some((column) => column.name === "max_run_ms"),
 		true,
@@ -88,6 +88,49 @@ test("ConnDatabase initializes the agent activity timeline schema", async () => 
 	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_created_at"), true);
 	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_conversation_id"), true);
 	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_source_run"), true);
+	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_source_run_unique"), true);
+
+	database.close();
+});
+
+test("ConnDatabase enforces one agent activity item per source run", async () => {
+	const dbPath = await createTempDbPath();
+	const database = new ConnDatabase({ dbPath });
+
+	await database.initialize();
+	database.run(
+		"INSERT INTO agent_activity_items (activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"activity-1",
+		"agent",
+		"conn",
+		"conn-1",
+		"run-1",
+		undefined,
+		"conn_result",
+		"first",
+		"first text",
+		"[]",
+		"2026-04-22T10:01:05.000Z",
+	);
+
+	assert.throws(
+		() =>
+			database.run(
+				"INSERT INTO agent_activity_items (activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"activity-2",
+				"agent",
+				"conn",
+				"conn-1",
+				"run-1",
+				undefined,
+				"conn_result",
+				"second",
+				"second text",
+				"[]",
+				"2026-04-22T10:02:05.000Z",
+			),
+		/UNIQUE constraint failed/,
+	);
 
 	database.close();
 });

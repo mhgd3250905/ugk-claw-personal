@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent activity 投递数据库级去重
+- 日期：2026-04-26
+- 主题：把任务消息投递去重从应用层“先查再插”升级到数据库约束。之前 `AgentActivityStore.create()` 虽然会先查同一个 `source/sourceId/runId`，但 `agent_activity_items` 只有普通索引，多 worker 或异常重放时仍可能插出重复任务消息。这种去重方式说好听叫乐观，说难听点就是纸门锁。
+- 影响范围：`ConnDatabase` 升级到 `user_version=3`，为 `agent_activity_items(source, source_id, run_id)` 增加 `run_id IS NOT NULL` 的唯一索引，并在迁移时清理同源 run 的重复历史行；`AgentActivityStore.create()` 遇到 SQLite 唯一约束冲突时会回读并返回已存在的 activity，避免并发窗口变成 worker warning。新增数据库唯一约束和并发插入胜出回归测试。
+- 对应入口：`src/agent/conn-db.ts`、`src/agent/agent-activity-store.ts`、`test/conn-db.test.ts`、`test/agent-activity-store.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### Session JSONL 全量历史读取容错
 - 日期：2026-04-26
 - 主题：统一 session JSONL 历史读取的坏行容错。之前 recent window 读取会跳过坏 JSON 行，但全量 `readSessionMessages()` 直接 `JSON.parse()`，旧会话里只要混进一行半截 JSON，就能把空闲会话的历史 / 状态恢复打崩。同一个文件两套容错口径，属于维护者看了会皱眉的低级不一致。

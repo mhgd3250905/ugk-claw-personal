@@ -81,7 +81,7 @@ export class ConnDatabase {
 		const db = this.open();
 		db.exec(SCHEMA_SQL);
 		this.applyMigrations(db);
-		db.exec("PRAGMA user_version = 2");
+		db.exec("PRAGMA user_version = 3");
 	}
 
 	private async prepareDatabasePath(): Promise<void> {
@@ -135,6 +135,27 @@ export class ConnDatabase {
 		if (userVersion < 2 && !this.hasColumn("conns", "max_run_ms")) {
 			db.exec("ALTER TABLE conns ADD COLUMN max_run_ms INTEGER");
 		}
+		if (userVersion < 3) {
+			db.exec(
+				[
+					"DELETE FROM agent_activity_items",
+					"WHERE run_id IS NOT NULL",
+					"AND rowid NOT IN (",
+					"SELECT MIN(rowid)",
+					"FROM agent_activity_items",
+					"WHERE run_id IS NOT NULL",
+					"GROUP BY source, source_id, run_id",
+					")",
+				].join(" "),
+			);
+		}
+		db.exec(
+			[
+				"CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_activity_source_run_unique",
+				"ON agent_activity_items(source, source_id, run_id)",
+				"WHERE run_id IS NOT NULL",
+			].join(" "),
+		);
 	}
 
 	private hasColumn(tableName: string, columnName: string): boolean {

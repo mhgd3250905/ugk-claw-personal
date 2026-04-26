@@ -88,24 +88,34 @@ export class AgentActivityStore {
 			createdAt: (input.createdAt ?? new Date()).toISOString(),
 		};
 
-		this.options.database.run(
-			[
-				"INSERT INTO agent_activity_items (",
-				"activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at",
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			].join(" "),
-			activity.activityId,
-			activity.scope,
-			activity.source,
-			activity.sourceId,
-			activity.runId,
-			activity.conversationId,
-			activity.kind,
-			activity.title,
-			activity.text,
-			JSON.stringify(activity.files),
-			activity.createdAt,
-		);
+		try {
+			this.options.database.run(
+				[
+					"INSERT INTO agent_activity_items (",
+					"activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at",
+					") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				].join(" "),
+				activity.activityId,
+				activity.scope,
+				activity.source,
+				activity.sourceId,
+				activity.runId,
+				activity.conversationId,
+				activity.kind,
+				activity.title,
+				activity.text,
+				JSON.stringify(activity.files),
+				activity.createdAt,
+			);
+		} catch (error) {
+			const concurrentExisting = input.runId && isSqliteUniqueConstraintError(error)
+				? this.findBySourceRun(input.source, input.sourceId, input.runId)
+				: undefined;
+			if (concurrentExisting) {
+				return concurrentExisting;
+			}
+			throw error;
+		}
 
 		return activity;
 	}
@@ -188,6 +198,16 @@ export class AgentActivityStore {
 		const unreadCount = row?.unread_count;
 		return Number.isFinite(unreadCount) ? Number(unreadCount) : 0;
 	}
+
+	private findBySourceRun(source: string, sourceId: string, runId: string): AgentActivityItem | undefined {
+		const row = this.options.database.get<AgentActivityRow>(
+			"SELECT * FROM agent_activity_items WHERE source = ? AND source_id = ? AND run_id = ?",
+			source,
+			sourceId,
+			runId,
+		);
+		return row ? rowToActivity(row) : undefined;
+	}
 }
 
 function clampLimit(value: number | undefined): number {
@@ -221,4 +241,11 @@ function parseFiles(value: string): ConversationNotificationFile[] {
 	} catch {
 		return [];
 	}
+}
+
+function isSqliteUniqueConstraintError(error: unknown): boolean {
+	return error instanceof Error && (
+		"code" in error && (error as NodeJS.ErrnoException).code === "ERR_SQLITE_ERROR" ||
+		/UNIQUE constraint failed/i.test(error.message)
+	);
 }
