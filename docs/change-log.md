@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Session JSONL 全量历史读取容错
+- 日期：2026-04-26
+- 主题：统一 session JSONL 历史读取的坏行容错。之前 recent window 读取会跳过坏 JSON 行，但全量 `readSessionMessages()` 直接 `JSON.parse()`，旧会话里只要混进一行半截 JSON，就能把空闲会话的历史 / 状态恢复打崩。同一个文件两套容错口径，属于维护者看了会皱眉的低级不一致。
+- 影响范围：`readSessionMessagesFromJsonl()` 复用 `parseSessionMessageLines()`，和 recent window 路径一样跳过空行、坏 JSON 行和非 message 事件；合法 message 的 timestamp 继承语义保持不变。`test/agent-session-factory.test.ts` 在全量历史读取用例中加入坏 JSON 行回归。
+- 对应入口：`src/agent/agent-session-factory.ts`、`test/agent-session-factory.test.ts`
+
 ### AssetStore 资产索引读边界防护
 - 日期：2026-04-26
 - 主题：收口 `asset-index.json` 脏数据对文件库和下载入口的影响。之前资产索引读盘后几乎直接交给业务层，畸形条目缺少 `createdAt` 会让 `GET /v1/assets` 排序抛错；`hasContent=true` 但 `blobPath` 指到 blobs 目录外时，列表仍可能暴露下载链接，点开再 404，用户只会觉得文件库抽风。

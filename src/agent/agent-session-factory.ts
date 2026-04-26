@@ -273,26 +273,7 @@ function readFileSyncUtf8(filePath: string): string {
 async function readSessionMessagesFromJsonl(sessionFile: string, projectRoot: string): Promise<AgentSessionMessageLike[]> {
 	const sessionPath = normalizeSessionFilePath(sessionFile, projectRoot);
 	const content = await readFile(sessionPath, "utf8");
-	const messages: AgentSessionMessageLike[] = [];
-	for (const line of content.split(/\r?\n/)) {
-		const trimmed = line.trim();
-		if (!trimmed) {
-			continue;
-		}
-		const event = JSON.parse(trimmed) as {
-			type?: string;
-			timestamp?: string;
-			message?: AgentSessionMessageLike;
-		};
-		if (event.type !== "message" || !event.message || typeof event.message.role !== "string") {
-			continue;
-		}
-		messages.push({
-			...event.message,
-			timestamp: event.message.timestamp ?? event.timestamp,
-		});
-	}
-	return messages;
+	return parseSessionMessageLines(content.split(/\r?\n/));
 }
 
 async function readRecentSessionMessagesFromJsonl(

@@ -213,6 +213,7 @@ test("default session factory reads persisted messages from session jsonl withou
 		sessionFile,
 		[
 			JSON.stringify({ type: "session", version: 3 }),
+			"{bad json that should be ignored",
 			JSON.stringify({
 				type: "message",
 				timestamp: "2026-04-24T01:00:00.000Z",
