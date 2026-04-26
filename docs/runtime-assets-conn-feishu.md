@@ -27,6 +27,7 @@
 - `/v1/files/:fileId` 负责文件内容返回
 - `/v1/assets` 与 `/v1/assets/:assetId` 提供资产元数据
 - `AssetStore` 的 `asset-index.json` 写入走进程内串行队列，并通过同目录临时文件 + `rename` 原子替换落盘；主 chat 上传、`conn` 上传和 agent `send_file` / `ugk-file` 输出即使在同一进程内并发写入，也不能互相覆盖资产索引记录。不要把它退回成普通 `readIndex()` + `writeFile()`，那是并发丢资产记录的老坑。
+- `AssetStore` 读 `asset-index.json` 时会先规整条目：畸形条目不会进入资产列表，`createdAt` 不是字符串的记录不会参与排序；`hasContent=true` 但 `blobPath` 不在 blobs 目录内的记录会降级为仅元数据资产，不暴露 `/v1/files/:fileId` 下载链接。不要把文件库恢复成“读到什么就展示什么”，那是在邀请坏索引把前端拖进 404 表演。
 
 关键入口：
 

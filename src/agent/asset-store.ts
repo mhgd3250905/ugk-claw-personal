@@ -291,8 +291,8 @@ export class AssetStore implements AssetStoreLike {
 			if (!content.trim()) {
 				return {};
 			}
-			const parsed = JSON.parse(content) as AssetIndex;
-			return typeof parsed === "object" && parsed !== null ? parsed : {};
+			const parsed = JSON.parse(content) as unknown;
+			return sanitizeAssetIndex(parsed, this.options.blobsDir);
 		} catch (error) {
 			if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
 				return {};
@@ -375,6 +375,73 @@ function toAgentFileArtifact(entry: AssetIndexEntry): AgentFileArtifact {
 
 function formatAssetReference(assetId: string): string {
 	return `@asset[${assetId}]`;
+}
+
+function sanitizeAssetIndex(value: unknown, blobsDir: string): AssetIndex {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return {};
+	}
+
+	const index: AssetIndex = {};
+	for (const [assetKey, rawEntry] of Object.entries(value)) {
+		const entry = sanitizeAssetIndexEntry(assetKey, rawEntry, blobsDir);
+		if (entry) {
+			index[entry.assetId] = entry;
+		}
+	}
+	return index;
+}
+
+function sanitizeAssetIndexEntry(assetKey: string, value: unknown, blobsDir: string): AssetIndexEntry | undefined {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return undefined;
+	}
+
+	const rawEntry = value as Partial<AssetIndexEntry>;
+	const assetId = typeof rawEntry.assetId === "string" && rawEntry.assetId.trim()
+		? rawEntry.assetId.trim()
+		: assetKey.trim();
+	if (!assetId || typeof rawEntry.fileName !== "string" || typeof rawEntry.createdAt !== "string" || !rawEntry.createdAt) {
+		return undefined;
+	}
+	if (typeof rawEntry.conversationId !== "string" || !rawEntry.conversationId.trim()) {
+		return undefined;
+	}
+
+	const blobPath = sanitizeBlobPath(rawEntry.blobPath, blobsDir);
+	const hasContent = rawEntry.hasContent === true && Boolean(blobPath);
+	const kind = isAssetKind(rawEntry.kind) ? rawEntry.kind : "metadata";
+	const source = isAssetSource(rawEntry.source) ? rawEntry.source : "user_upload";
+	return {
+		assetId,
+		fileName: sanitizeFileName(rawEntry.fileName),
+		mimeType: normalizeMimeType(rawEntry.mimeType),
+		sizeBytes: normalizeSizeBytes(rawEntry.sizeBytes),
+		kind: hasContent ? kind : "metadata",
+		hasContent,
+		source,
+		conversationId: rawEntry.conversationId.trim(),
+		createdAt: rawEntry.createdAt,
+		...(typeof rawEntry.sha256 === "string" && rawEntry.sha256 ? { sha256: rawEntry.sha256 } : {}),
+		...(blobPath && hasContent ? { blobPath } : {}),
+		...(typeof rawEntry.textPreview === "string" ? { textPreview: rawEntry.textPreview } : {}),
+	};
+}
+
+function sanitizeBlobPath(blobPath: string | undefined, blobsDir: string): string | undefined {
+	if (typeof blobPath !== "string" || !blobPath.trim()) {
+		return undefined;
+	}
+	const resolvedBlobPath = resolve(blobPath);
+	return isPathInside(resolvedBlobPath, blobsDir) ? resolvedBlobPath : undefined;
+}
+
+function isAssetKind(value: unknown): value is AssetKind {
+	return value === "text" || value === "binary" || value === "metadata";
+}
+
+function isAssetSource(value: unknown): value is AssetSource {
+	return value === "user_upload" || value === "agent_output";
 }
 
 function decodeAttachmentContent(attachment: ChatAttachment): Buffer | undefined {

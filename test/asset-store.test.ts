@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AssetStore } from "../src/agent/asset-store.js";
@@ -135,4 +135,78 @@ test("saveFiles and registerAttachments share one serialized asset index", async
 
 	const persisted = JSON.parse(await readFile(indexPath, "utf8")) as Record<string, unknown>;
 	assert.equal(Object.keys(persisted).length, 24);
+});
+
+test("listAssets ignores malformed index entries and disables unsafe blob downloads", async () => {
+	const { store, indexPath } = await createAssetStoreContext();
+	const outsideBlobPath = join(tmpdir(), "ugk-pi-asset-store-outside.txt");
+	await writeFile(
+		indexPath,
+		JSON.stringify(
+			{
+				"asset-valid": {
+					assetId: "asset-valid",
+					fileName: "valid.txt",
+					mimeType: "text/plain",
+					sizeBytes: 12,
+					kind: "text",
+					hasContent: false,
+					source: "user_upload",
+					conversationId: "manual:valid",
+					createdAt: "2026-04-18T10:00:00.000Z",
+				},
+				"asset-unsafe": {
+					assetId: "asset-unsafe",
+					fileName: "unsafe.txt",
+					mimeType: "text/plain",
+					sizeBytes: 6,
+					kind: "text",
+					hasContent: true,
+					source: "agent_output",
+					conversationId: "manual:valid",
+					createdAt: "2026-04-19T10:00:00.000Z",
+					blobPath: outsideBlobPath,
+				},
+				"asset-blank": {},
+				"asset-null": null,
+				"asset-bad-date": {
+					assetId: "asset-bad-date",
+					fileName: "bad-date.txt",
+					mimeType: "text/plain",
+					sizeBytes: 2,
+					kind: "text",
+					hasContent: false,
+					source: "user_upload",
+					conversationId: "manual:valid",
+					createdAt: 123,
+				},
+			},
+			null,
+			2,
+		),
+		"utf8",
+	);
+
+	const assets = await store.listAssets({ limit: 10 });
+
+	assert.deepEqual(
+		assets.map((asset) => ({
+			assetId: asset.assetId,
+			downloadUrl: asset.downloadUrl,
+			hasContent: asset.hasContent,
+		})),
+		[
+			{
+				assetId: "asset-unsafe",
+				downloadUrl: undefined,
+				hasContent: false,
+			},
+			{
+				assetId: "asset-valid",
+				downloadUrl: undefined,
+				hasContent: false,
+			},
+		],
+	);
+	assert.equal(await store.getAsset("asset-blank"), undefined);
 });

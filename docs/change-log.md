@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### AssetStore 资产索引读边界防护
+- 日期：2026-04-26
+- 主题：收口 `asset-index.json` 脏数据对文件库和下载入口的影响。之前资产索引读盘后几乎直接交给业务层，畸形条目缺少 `createdAt` 会让 `GET /v1/assets` 排序抛错；`hasContent=true` 但 `blobPath` 指到 blobs 目录外时，列表仍可能暴露下载链接，点开再 404，用户只会觉得文件库抽风。
+- 影响范围：`AssetStore` 读索引时会过滤不可用条目，校正 MIME / 文件名 / size / kind / source，且只在 `blobPath` 位于配置的 blobs 目录内时保留 `hasContent` 和下载链接；不安全 blob 会降级为仅元数据资产。新增回归测试覆盖畸形条目排序和越界 blobPath 降级。
+- 对应入口：`src/agent/asset-store.ts`、`test/asset-store.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### ConversationStore 会话索引读边界防护
 - 日期：2026-04-26
 - 主题：收口会话索引 JSON 脏数据对 playground 当前会话恢复的影响。之前 `ConversationStore` 会原样信任 `currentConversationId`，即使它已经指向不存在的会话；畸形会话条目缺少 `updatedAt` 时还会在列表排序阶段抛 `TypeError`。这类问题看起来像“小概率坏文件”，实际上线上重启、手工排障、半截写入恢复后最容易把首页拖进假死，属于该清就清的低级坑。
