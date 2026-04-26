@@ -2,24 +2,16 @@ import { randomUUID } from "node:crypto";
 import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
 import { ConversationStore } from "./conversation-store.js";
 import {
-	extractConversationHistoryFiles,
-	mergeConversationHistoryFiles,
-} from "./agent-file-history.js";
-import {
 	applyChatStreamEventToActiveRunView,
 	cloneActiveRunView,
 	createActiveRunView,
 	sanitizeStateId,
 } from "./agent-active-run-view.js";
 import {
-	appendConversationHistoryMessage,
-	attachConversationHistoryFiles,
-	conversationTitleFromRole,
+	buildConversationHistoryMessages,
 	derivePersistedTurnCoverageFromRunTail,
 	normalizeConversationHistoryLimit,
-	omitTrailingActiveUserMessage,
 	paginateConversationHistoryMessages,
-	resolveConversationMessageCreatedAt,
 	shouldExposeTerminalRunSnapshot,
 	shouldHideTerminalInputEcho,
 	summarizeConversationText,
@@ -35,7 +27,6 @@ import {
 } from "./agent-run-events.js";
 import { buildAgentRunResult, buildDoneChatStreamEvent } from "./agent-run-result.js";
 import { createAgentSessionEventAdapter } from "./agent-session-event-adapter.js";
-import { extractAssistantText } from "./agent-process-text.js";
 import { preparePromptAssets } from "./agent-prompt-assets.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
 import type {
@@ -59,8 +50,6 @@ import type {
 import {
 	buildPromptWithAssetContext,
 	prependCurrentTimeContext,
-	rewriteUserVisibleLocalArtifactLinks,
-	stripInternalPromptContext,
 	type AgentFileArtifact,
 } from "./file-artifacts.js";
 
@@ -447,7 +436,7 @@ export class AgentService {
 			await this.getContextMessages(conversationId),
 			activeRun,
 		);
-		const messages = this.buildConversationHistoryMessages(contextMessages);
+		const messages = buildConversationHistoryMessages(contextMessages);
 		const page = paginateConversationHistoryMessages(messages, {
 			limit: options?.limit,
 			before: options?.before,
@@ -474,7 +463,7 @@ export class AgentService {
 		const contextMessages = this.getStableContextMessagesForHistory(stateContext.historyMessages, activeRun);
 		const modelContext = this.getDefaultModelContext();
 		const contextUsage = buildContextUsageSnapshot(modelContext, rawContextMessages);
-		const sessionMessages = this.buildConversationHistoryMessages(
+		const sessionMessages = buildConversationHistoryMessages(
 			contextMessages,
 			activeRun?.view,
 			stateContext.messageIndexOffset,
@@ -600,7 +589,7 @@ export class AgentService {
 		});
 		const sessionMessagesBeforeRun = ((session.messages as AgentMessageLike[] | undefined) ?? []);
 		const sessionMessageCountBeforeRun = sessionMessagesBeforeRun.length;
-		const historyMessageCountBeforeRun = this.buildConversationHistoryMessages(sessionMessagesBeforeRun).length;
+		const historyMessageCountBeforeRun = buildConversationHistoryMessages(sessionMessagesBeforeRun).length;
 		this.terminalRuns.delete(conversationId);
 		await this.options.conversationStore.setCurrentConversationId(conversationId);
 		const activeRun = {
@@ -693,7 +682,7 @@ export class AgentService {
 				this.activeRuns.delete(conversationId);
 			}
 			if (shouldPersistTerminalRun(activeRun.view)) {
-				const finalSessionMessages = this.buildConversationHistoryMessages(
+				const finalSessionMessages = buildConversationHistoryMessages(
 					((session.messages as AgentMessageLike[] | undefined) ?? []),
 				);
 				this.terminalRuns.set(conversationId, {
@@ -737,7 +726,7 @@ export class AgentService {
 		preview: string;
 		messageCount: number;
 	} {
-		const history = this.buildConversationHistoryMessages(messages ?? []);
+		const history = buildConversationHistoryMessages(messages ?? []);
 		const firstUserMessage = history.find((message) => message.kind === "user");
 		const lastMessage = history.at(-1);
 		return {
@@ -901,89 +890,12 @@ export class AgentService {
 		);
 	}
 
-	private buildConversationHistoryMessages(
-		messages: readonly AgentMessageLike[],
-		activeRunView?: ChatActiveRunBody,
-		messageIndexOffset = 0,
-	): ConversationHistoryMessage[] {
-		const coalescedMessages: ConversationHistoryMessage[] = [];
-		messages.forEach((message, index) => {
-			const messageIndex = messageIndexOffset + index;
-			const normalizedMessage = this.toConversationHistoryMessage(message, messageIndex);
-			if (normalizedMessage) {
-				appendConversationHistoryMessage(coalescedMessages, normalizedMessage);
-			}
-
-			const files = extractConversationHistoryFiles(message);
-			if (files) {
-				attachConversationHistoryFiles(coalescedMessages, files, resolveConversationMessageCreatedAt(message), messageIndex + 1);
-			}
-		});
-
-		if (!activeRunView?.loading) {
-			return coalescedMessages;
-		}
-
-		return omitTrailingActiveUserMessage(coalescedMessages, activeRunView.input.message);
-	}
-
 	private refreshPersistedTurnCoverage(activeRun: ActiveRunState): void {
 		activeRun.persistedTurnCoverage = derivePersistedTurnCoverageFromRunTail(
-			this.buildConversationHistoryMessages(((activeRun.session.messages as AgentMessageLike[] | undefined) ?? [])),
+			buildConversationHistoryMessages(((activeRun.session.messages as AgentMessageLike[] | undefined) ?? [])),
 			activeRun.historyMessageCountBeforeRun,
 			activeRun.view,
 		);
-	}
-
-	private toConversationHistoryMessage(
-		message: AgentMessageLike,
-		index: number,
-	): ConversationHistoryMessage | undefined {
-		const role = typeof message.role === "string" ? message.role : "";
-		if (role !== "user" && role !== "assistant" && role !== "system") {
-			return undefined;
-		}
-
-		const extractedText = this.extractMessageText(message);
-		const text = role === "user" ? stripInternalPromptContext(extractedText) : extractedText;
-		if (!text.trim()) {
-			return undefined;
-		}
-
-		const kind = role === "user" ? "user" : role === "system" ? "system" : "assistant";
-		return {
-			id: `session-message-${index + 1}`,
-			kind,
-			title: kind === "user" ? conversationTitleFromRole(kind) : "助手",
-			text: rewriteUserVisibleLocalArtifactLinks(text),
-			createdAt: resolveConversationMessageCreatedAt(message),
-		};
-	}
-
-	private extractMessageText(message: AgentMessageLike): string {
-		if (message.role === "assistant") {
-			return extractAssistantText(message);
-		}
-		const { content } = message;
-		if (typeof content === "string") {
-			return content;
-		}
-		if (!Array.isArray(content)) {
-			return "";
-		}
-
-		return content
-			.map((item) => {
-				if (typeof item === "string") {
-					return item;
-				}
-				if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
-					return item.text;
-				}
-				return "";
-			})
-			.filter((text) => text.length > 0)
-			.join("");
 	}
 }
 

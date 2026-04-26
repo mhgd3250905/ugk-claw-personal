@@ -1,6 +1,14 @@
 import type { ChatActiveRunBody, ChatAssetBody, ChatHistoryFileBody } from "../types/api.js";
 import type { AgentMessageLike } from "./context-usage.js";
-import { mergeConversationHistoryFiles } from "./agent-file-history.js";
+import {
+	extractConversationHistoryFiles,
+	mergeConversationHistoryFiles,
+} from "./agent-file-history.js";
+import { extractAssistantText } from "./agent-process-text.js";
+import {
+	rewriteUserVisibleLocalArtifactLinks,
+	stripInternalPromptContext,
+} from "./file-artifacts.js";
 
 const MAX_CONVERSATION_HISTORY_PAGE_LIMIT = 500;
 
@@ -57,6 +65,32 @@ export function shouldExposeTerminalRunSnapshot(
 		const messageText = normalizeComparableMessageText(message.text);
 		return messageText === terminalText || messageText.includes(terminalText);
 	});
+}
+
+export function buildConversationHistoryMessages(
+	messages: readonly AgentMessageLike[],
+	activeRunView?: ChatActiveRunBody,
+	messageIndexOffset = 0,
+): ConversationHistoryMessage[] {
+	const coalescedMessages: ConversationHistoryMessage[] = [];
+	messages.forEach((message, index) => {
+		const messageIndex = messageIndexOffset + index;
+		const normalizedMessage = toConversationHistoryMessage(message, messageIndex);
+		if (normalizedMessage) {
+			appendConversationHistoryMessage(coalescedMessages, normalizedMessage);
+		}
+
+		const files = extractConversationHistoryFiles(message);
+		if (files) {
+			attachConversationHistoryFiles(coalescedMessages, files, resolveConversationMessageCreatedAt(message), messageIndex + 1);
+		}
+	});
+
+	if (!activeRunView?.loading) {
+		return coalescedMessages;
+	}
+
+	return omitTrailingActiveUserMessage(coalescedMessages, activeRunView.input.message);
 }
 
 export function buildConversationViewMessages(
@@ -415,6 +449,57 @@ function findActiveRunAssistantIndex(
 	}
 
 	return -1;
+}
+
+function toConversationHistoryMessage(
+	message: AgentMessageLike,
+	index: number,
+): ConversationHistoryMessage | undefined {
+	const role = typeof message.role === "string" ? message.role : "";
+	if (role !== "user" && role !== "assistant" && role !== "system") {
+		return undefined;
+	}
+
+	const extractedText = extractMessageText(message);
+	const text = role === "user" ? stripInternalPromptContext(extractedText) : extractedText;
+	if (!text.trim()) {
+		return undefined;
+	}
+
+	const kind = role === "user" ? "user" : role === "system" ? "system" : "assistant";
+	return {
+		id: `session-message-${index + 1}`,
+		kind,
+		title: kind === "user" ? conversationTitleFromRole(kind) : "助手",
+		text: rewriteUserVisibleLocalArtifactLinks(text),
+		createdAt: resolveConversationMessageCreatedAt(message),
+	};
+}
+
+function extractMessageText(message: AgentMessageLike): string {
+	if (message.role === "assistant") {
+		return extractAssistantText(message);
+	}
+	const { content } = message;
+	if (typeof content === "string") {
+		return content;
+	}
+	if (!Array.isArray(content)) {
+		return "";
+	}
+
+	return content
+		.map((item) => {
+			if (typeof item === "string") {
+				return item;
+			}
+			if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
+				return item.text;
+			}
+			return "";
+		})
+		.filter((text) => text.length > 0)
+		.join("");
 }
 
 function normalizeComparableMessageText(value: string | undefined): string {

@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent conversation history 投影收口
+- 日期：2026-04-26
+- 主题：把 `AgentService` 私有的 session message 到 canonical conversation history 投影逻辑移入 `src/agent/agent-conversation-history.ts`。用户消息剥离内部 prompt 协议、助手消息合并、`send_file` 工具结果挂回文件卡片本来就是历史边界职责，继续留在服务编排类里，会让后续查“刷新后历史怎么变成这样”时绕远路。
+- 影响范围：`getConversationHistory()`、`getConversationState()`、运行结束后的 terminal run coverage 和会话 metadata 继续使用同一投影语义；新增测试覆盖用户 prompt 协议剥离、连续助手消息合并和 `send_file` 历史文件挂载。
+- 对应入口：`src/agent/agent-conversation-history.ts`、`src/agent/agent-service.ts`、`test/agent-conversation-history.test.ts`
+
 ### Agent prompt asset 准备逻辑收口
 - 日期：2026-04-26
 - 主题：把 `AgentService` 里的上传附件注册、引用资产解析、无 `assetStore` 兜底 prompt asset 组装抽到 `src/agent/agent-prompt-assets.ts`。这块属于资产输入边界，不该继续藏在聊天运行主流程里；否则后续调文件上传、资产复用、`assetRefs` 时还得在 `runChat()` 周边扒私有方法，维护体验太土了。

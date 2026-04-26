@@ -3,6 +3,7 @@ import test from "node:test";
 import {
 	appendConversationHistoryMessage,
 	attachConversationHistoryFiles,
+	buildConversationHistoryMessages,
 	buildConversationViewMessages,
 	derivePersistedTurnCoverageFromRunTail,
 	paginateConversationHistoryMessages,
@@ -10,6 +11,7 @@ import {
 	type ConversationHistoryMessage,
 } from "../src/agent/agent-conversation-history.js";
 import { createActiveRunView } from "../src/agent/agent-active-run-view.js";
+import { buildPromptWithAssetContext } from "../src/agent/file-artifacts.js";
 import type { ChatAssetBody, ChatHistoryFileBody } from "../src/types/api.js";
 
 function message(
@@ -113,6 +115,46 @@ test("appendConversationHistoryMessage coalesces consecutive assistant messages 
 	assert.equal(messages.length, 1);
 	assert.equal(messages[0]?.text, "first\n\nsecond");
 	assert.deepEqual(messages[0]?.files?.map((entry) => entry.fileName), ["report.md", "chart.png"]);
+});
+
+test("buildConversationHistoryMessages projects session messages into canonical history", () => {
+	const messages = buildConversationHistoryMessages([
+		{
+			role: "user",
+			content: buildPromptWithAssetContext("hello"),
+			timestamp: "2026-04-26T00:00:00.000Z",
+		},
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "first" }],
+			timestamp: "2026-04-26T00:00:01.000Z",
+		},
+		{
+			role: "assistant",
+			content: [{ type: "text", text: "second" }],
+			timestamp: "2026-04-26T00:00:02.000Z",
+		},
+		{
+			role: "toolResult",
+			toolName: "send_file",
+			details: {
+				file: {
+					id: "file-1",
+					assetId: "file-1",
+					reference: "@asset[file-1]",
+					...file(),
+				},
+			},
+			timestamp: "2026-04-26T00:00:03.000Z",
+		} as never,
+	]);
+
+	assert.equal(messages.length, 2);
+	assert.equal(messages[0]?.kind, "user");
+	assert.equal(messages[0]?.text, "hello");
+	assert.equal(messages[1]?.kind, "assistant");
+	assert.equal(messages[1]?.text, "first\n\nsecond");
+	assert.deepEqual(messages[1]?.files, [file()]);
 });
 
 test("attachConversationHistoryFiles attaches to the last assistant or creates a synthetic assistant", () => {
