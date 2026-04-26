@@ -17,6 +17,7 @@
 - [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
 - [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
 - [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
+- [src/ui/playground-active-run-normalizer.ts](/E:/AII/ugk-pi/src/ui/playground-active-run-normalizer.ts)
 - [src/ui/playground-conversation-api-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-api-controller.ts)
 - [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
 - [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
@@ -52,6 +53,7 @@
 - 非强制滚底现在会做冷却合并；顶部加载历史的触发阈值也收窄到真正接近顶部，避免滚动过程中反复打断阅读。
 - 浏览器端布局同步、composer textarea 自适应高度、`--conversation-width` / `--command-deck-offset` 更新、transcript 自动跟随、回到底部按钮、顶部加载更多触发、以及 `visibilitychange/pageshow/online` 恢复同步入口集中在 `src/ui/playground-layout-controller.ts`；`src/ui/playground.ts` 只保留主 state、DOM refs 和页面装配
 - 浏览器端 transcript 条目拼装、assistant 状态壳层、运行日志入口、正文复制按钮、markdown hydration、代码块 copy toolbar、历史恢复后的消息渲染，以及 `bindPlaygroundTranscriptRenderer()` 初始化入口集中在 `src/ui/playground-transcript-renderer.ts`；`src/ui/playground.ts` 只保留会话恢复、流式事件和这些渲染函数的调用点
+- 浏览器端 `normalizeActiveRun()`、`normalizeProcessView()` 和 `formatProcessViewEntry()` 集中在 `src/ui/playground-active-run-normalizer.ts`；该文件只做 active run / process view 数据兜底，不负责消息 DOM 查找或渲染
 - 浏览器端通知广播 SSE、active run 事件流 attach / teardown、断线恢复、`send / queue / interrupt` 主链路，以及 `bindPlaygroundStreamController()` 初始化入口集中在 `src/ui/playground-stream-controller.ts`；`src/ui/playground.ts` 不再兼任 stream lifecycle 泵站
 - 浏览器端 `fetchConversationRunStatus()`、`fetchConversationState()`、`fetchConversationHistoryPage()` 集中在 `src/ui/playground-conversation-api-controller.ts`；这里只负责请求 `/v1/chat/status`、`/v1/chat/state`、`/v1/chat/history` 和响应兜底归一化，不负责 DOM 渲染或 sync ownership
 - 浏览器端顶部状态、loading 忙态、stage mode、error banner、控制动作错误文案集中在 `src/ui/playground-status-controller.ts`；`src/ui/playground.ts` 只保留对应 DOM refs 和初始化调用点

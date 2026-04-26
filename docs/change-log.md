@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground active run 归一化拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的 `normalizeActiveRun()`、`normalizeProcessView()` 和 `formatProcessViewEntry()` 拆到 `src/ui/playground-active-run-normalizer.ts`。active run 是刷新恢复、流式续订和助手状态壳层的关键数据边界，归一化逻辑混在渲染编排里，后面一查“为什么 loading 还在 / process 文案不对”就很难下手。
+- 影响范围：active run / process view 的字段兜底、状态白名单、输入资产归一化、队列归一化和 process narration 生成语义保持不变；`src/ui/playground.ts` 仍负责查找已渲染助手消息、应用 process view 和 DOM 更新。新增 `test/playground-active-run-normalizer.test.ts` 锁定归一化脚本片段。
+- 对应入口：`src/ui/playground-active-run-normalizer.ts`、`src/ui/playground.ts`、`test/playground-active-run-normalizer.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground 会话 API 控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的 `fetchConversationRunStatus()`、`fetchConversationState()`、`fetchConversationHistoryPage()` 拆到 `src/ui/playground-conversation-api-controller.ts`。这三段只是前端请求与 payload 归一化，不该继续夹在 DOM 状态、布局控制和会话渲染中间；否则一查 `/v1/chat/state` 分页问题就像在电线杆上找耳机线。
