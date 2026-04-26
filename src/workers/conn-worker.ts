@@ -159,6 +159,7 @@ export class ConnWorker {
 				timeoutEventPromise = this.options.runStore
 					.appendEvent({
 						runId: run.runId,
+						leaseOwner: run.leaseOwner,
 						eventType: "run_timed_out",
 						event: {
 							maxRunMs: conn.maxRunMs,

@@ -248,6 +248,79 @@ test("ConnRunStore rejects finishing a run when the lease owner no longer matche
 	database.close();
 });
 
+test("ConnRunStore rejects stale lease owner runtime metadata, events, and files", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "daily digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-stale-metadata",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-stale-metadata",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runStore.claimNextDue({
+		workerId: "worker-a",
+		now: new Date("2026-04-21T10:01:00.000Z"),
+		leaseMs: 30_000,
+	});
+	await runStore.claimNextDue({
+		workerId: "worker-b",
+		now: new Date("2026-04-21T10:01:31.000Z"),
+		leaseMs: 30_000,
+	});
+
+	assert.equal(
+		await runStore.updateRuntimeInfo({
+			runId: run.runId,
+			leaseOwner: "worker-a",
+			sessionFile: "/tmp/stale-session.jsonl",
+		}),
+		undefined,
+	);
+	assert.equal(
+		await runStore.appendEvent({
+			runId: run.runId,
+			leaseOwner: "worker-a",
+			eventType: "stale_progress",
+			event: { message: "too late" },
+		}),
+		undefined,
+	);
+	assert.equal(
+		await runStore.recordFile({
+			runId: run.runId,
+			leaseOwner: "worker-a",
+			kind: "output",
+			relativePath: "output/stale.txt",
+			fileName: "stale.txt",
+			mimeType: "text/plain",
+			sizeBytes: 10,
+		}),
+		undefined,
+	);
+
+	const currentRun = await runStore.getRun(run.runId);
+	assert.equal(currentRun?.leaseOwner, "worker-b");
+	assert.equal(currentRun?.sessionFile, undefined);
+	assert.deepEqual(await runStore.listEvents(run.runId), []);
+	assert.deepEqual(await runStore.listFiles(run.runId), []);
+
+	database.close();
+});
+
 test("ConnRunStore appends ordered run events and output file records", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const conn = await connStore.create({
@@ -282,6 +355,8 @@ test("ConnRunStore appends ordered run events and output file records", async ()
 		event: { message: "finished" },
 		createdAt: new Date("2026-04-21T10:01:05.000Z"),
 	});
+	assert.ok(started);
+	assert.ok(finished);
 	assert.equal(started.seq, 1);
 	assert.equal(finished.seq, 2);
 	assert.deepEqual(await runStore.listEvents(run.runId), [started, finished]);
@@ -295,6 +370,7 @@ test("ConnRunStore appends ordered run events and output file records", async ()
 		sizeBytes: 123,
 		createdAt: new Date("2026-04-21T10:01:05.000Z"),
 	});
+	assert.ok(file);
 	assert.deepEqual(await runStore.listFiles(run.runId), [file]);
 
 	database.close();

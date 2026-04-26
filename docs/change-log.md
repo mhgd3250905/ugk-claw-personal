@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Conn run runtime 写入 lease owner 防护
+- 日期：2026-04-26
+- 主题：继续收紧 conn run 被新 worker 接管后的迟到写入问题。上一刀防住了终态，但旧 worker 仍可能把 `sessionFile`、过程事件或输出文件索引写进已被新 worker 接管的 run，结果就是状态没被污染，排障日志却混进幽灵进度，照样恶心。
+- 影响范围：`UpdateConnRunRuntimeInput`、`AppendConnRunEventInput` 和 `RecordConnRunFileInput` 新增可选 `leaseOwner`；带 owner 时只有 `status='running'` 且 `lease_owner` 匹配才允许写 runtime metadata、event 和 file，否则返回 `undefined`。`BackgroundAgentRunner` 的 workspace / snapshot / session event / success / failure / output file 写入，以及 `ConnWorker` 的 timeout event 写入都传入当前 owner；stale recovery 仍保留无 owner 的强制回收事件语义。`test/conn-run-store.test.ts` 增加 stale owner metadata / event / file 回归测试，`docs/runtime-assets-conn-feishu.md` 同步运行口径。
+- 对应入口：`src/agent/conn-run-store.ts`、`src/agent/background-agent-runner.ts`、`src/workers/conn-worker.ts`、`test/conn-run-store.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### Conn run 终态写入 lease owner 防护
 - 日期：2026-04-26
 - 主题：修复过期 worker 仍可完成已被新 worker 接管的 conn run 的风险。之前 `completeRun()` / `failRun()` 只按 `runId` 更新终态，worker-a 租约过期后如果 worker-b 已经重领，worker-a 的迟到完成仍能把 run 标成成功并污染 owning conn 的 `lastRunId`，这类竞态一旦发生排障会非常难看。

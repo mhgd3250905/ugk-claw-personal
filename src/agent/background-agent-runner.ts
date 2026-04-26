@@ -44,6 +44,7 @@ export class BackgroundAgentRunner {
 			});
 			await this.options.runStore.appendEvent({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				eventType: "workspace_created",
 				event: {
 					rootPath: workspace.rootPath,
@@ -61,6 +62,7 @@ export class BackgroundAgentRunner {
 			});
 			await this.options.runStore.appendEvent({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				eventType: "snapshot_resolved",
 				event: {
 					profileId: snapshot.profileId,
@@ -74,6 +76,7 @@ export class BackgroundAgentRunner {
 
 			await this.options.runStore.updateRuntimeInfo({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				workspacePath: workspace.rootPath,
 				resolvedSnapshot: { ...snapshot },
 				now,
@@ -87,7 +90,7 @@ export class BackgroundAgentRunner {
 				sessionFile: run.sessionFile,
 			});
 			unsubscribe = session.subscribe((event) => {
-				void this.recordSessionEvent(run.runId, event);
+				void this.recordSessionEvent(run.runId, run.leaseOwner, event);
 			});
 
 			const prompt = buildBackgroundPrompt(conn, workspace);
@@ -95,16 +98,18 @@ export class BackgroundAgentRunner {
 			unsubscribe?.();
 			unsubscribe = undefined;
 
-			await recordOutputFiles(this.options.runStore, run.runId, workspace, now);
+			await recordOutputFiles(this.options.runStore, run.runId, run.leaseOwner, workspace, now);
 			const resultText = extractAssistantText(session);
 			const summary = resultText.slice(0, 200) || "Conn run completed";
 			await this.options.runStore.updateRuntimeInfo({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				sessionFile: session.sessionFile,
 				now,
 			});
 			await this.options.runStore.appendEvent({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				eventType: "run_succeeded",
 				event: { summary },
 				createdAt: now,
@@ -121,6 +126,7 @@ export class BackgroundAgentRunner {
 			const message = error instanceof Error ? error.message : "Unknown background conn run error";
 			await this.options.runStore.appendEvent({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				eventType: "run_failed",
 				event: { error: message },
 				createdAt: now,
@@ -135,9 +141,10 @@ export class BackgroundAgentRunner {
 		}
 	}
 
-	private async recordSessionEvent(runId: string, event: RawAgentSessionEventLike): Promise<void> {
+	private async recordSessionEvent(runId: string, leaseOwner: string | undefined, event: RawAgentSessionEventLike): Promise<void> {
 		await this.options.runStore.appendEvent({
 			runId,
+			leaseOwner,
 			eventType: event.type,
 			event: normalizeEvent(event),
 		});
@@ -236,13 +243,20 @@ function stringifyVisibleAssistantContent(content: unknown): string {
 	return "";
 }
 
-async function recordOutputFiles(runStore: ConnRunStore, runId: string, workspace: RunWorkspace, now: Date): Promise<void> {
+async function recordOutputFiles(
+	runStore: ConnRunStore,
+	runId: string,
+	leaseOwner: string | undefined,
+	workspace: RunWorkspace,
+	now: Date,
+): Promise<void> {
 	const files = await listOutputFiles(workspace.outputDir);
 	for (const filePath of files) {
 		const fileStats = await stat(filePath);
 		const relativePath = join("output", relative(workspace.outputDir, filePath)).replace(/\\/g, "/");
 		await runStore.recordFile({
 			runId,
+			leaseOwner,
 			kind: "output",
 			relativePath,
 			fileName: basename(filePath),

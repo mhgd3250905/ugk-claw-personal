@@ -92,6 +92,7 @@ export interface FailConnRunInput {
 
 export interface AppendConnRunEventInput {
 	runId: string;
+	leaseOwner?: string;
 	eventType: string;
 	event: Record<string, unknown>;
 	createdAt?: Date;
@@ -99,6 +100,7 @@ export interface AppendConnRunEventInput {
 
 export interface RecordConnRunFileInput {
 	runId: string;
+	leaseOwner?: string;
 	kind: string;
 	relativePath: string;
 	fileName: string;
@@ -109,6 +111,7 @@ export interface RecordConnRunFileInput {
 
 export interface UpdateConnRunRuntimeInput {
 	runId: string;
+	leaseOwner?: string;
 	workspacePath?: string;
 	sessionFile?: string;
 	resolvedSnapshot?: Record<string, unknown>;
@@ -316,6 +319,9 @@ export class ConnRunStore {
 		if (!existing) {
 			return undefined;
 		}
+		if (!this.isCurrentLeaseOwner(input.runId, input.leaseOwner)) {
+			return undefined;
+		}
 
 		const updatedAt = (input.now ?? new Date()).toISOString();
 		this.options.database.run(
@@ -376,7 +382,10 @@ export class ConnRunStore {
 		});
 	}
 
-	async appendEvent(input: AppendConnRunEventInput): Promise<ConnRunEventRecord> {
+	async appendEvent(input: AppendConnRunEventInput): Promise<ConnRunEventRecord | undefined> {
+		if (!this.isCurrentLeaseOwner(input.runId, input.leaseOwner)) {
+			return undefined;
+		}
 		const createdAt = (input.createdAt ?? new Date()).toISOString();
 		const row = this.options.database.get<{ next_seq: number | null }>(
 			"SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM conn_run_events WHERE run_id = ?",
@@ -416,7 +425,10 @@ export class ConnRunStore {
 		return rows.map(rowToEvent);
 	}
 
-	async recordFile(input: RecordConnRunFileInput): Promise<ConnRunFileRecord> {
+	async recordFile(input: RecordConnRunFileInput): Promise<ConnRunFileRecord | undefined> {
+		if (!this.isCurrentLeaseOwner(input.runId, input.leaseOwner)) {
+			return undefined;
+		}
 		const file: ConnRunFileRecord = {
 			fileId: randomUUID(),
 			runId: input.runId,
@@ -559,6 +571,17 @@ export class ConnRunStore {
 		} catch {
 			// The transaction may already be closed by SQLite.
 		}
+	}
+
+	private isCurrentLeaseOwner(runId: string, leaseOwner: string | undefined): boolean {
+		if (!leaseOwner) {
+			return true;
+		}
+		const row = this.options.database.get<Pick<ConnRunRow, "status" | "lease_owner">>(
+			"SELECT status, lease_owner FROM conn_runs WHERE run_id = ?",
+			runId,
+		);
+		return row?.status === "running" && row.lease_owner === leaseOwner;
 	}
 }
 
