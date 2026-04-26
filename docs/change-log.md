@@ -12,6 +12,24 @@
 
 ## 2026-04-26
 
+### Playground markdown renderer helper 拆分
+- 日期：2026-04-26
+- 主题：把 `renderPlaygroundMarkdown()` 及其 `marked` 配置从 `src/ui/playground.ts` 拆到独立 helper。主页面装配文件已经够胖了，继续把服务器端纯文本渲染器塞在顶部，只会让后续维护者在 UI 样式、浏览器脚本和 markdown 安全策略之间来回迷路。
+- 影响范围：新增 `src/ui/playground-markdown.ts`，集中放置服务器端 markdown HTML 渲染、HTML 转义、链接白名单与 GFM parser 配置；`src/ui/playground.ts` 保持 `renderPlaygroundMarkdown` re-export，兼容现有 `test/server.test.ts` 导入路径，不改浏览器端 `marked.umd.js` 注入、transcript hydration、DOM 结构或 CSS。
+- 对应入口：`src/ui/playground-markdown.ts`、`src/ui/playground.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`
+
+### Agent run event 纯 helper 拆分
+- 日期：2026-04-26
+- 主题：从 `AgentService` 主文件里拆出 chat run event 的纯工具函数。`cloneChatStreamEvent()` 和 `isTerminalChatStreamEvent()` 不拥有运行态，也不应该继续埋在 2000 行服务中枢底部让后续维护者翻垃圾堆。
+- 影响范围：新增 `src/agent/agent-run-events.ts`，集中放置 run event clone 与 terminal event 判断；`src/agent/agent-service.ts` 改为导入该 helper，`activeRuns`、`terminalRuns`、session 生命周期和事件结构均不变。`test/agent-service.test.ts` 继续锁住 run event replay、completed run event buffer、terminal snapshot 等行为。
+- 对应入口：`src/agent/agent-run-events.ts`、`src/agent/agent-service.ts`、`test/agent-service.test.ts`、`docs/traceability-map.md`
+
+### 路由错误响应 helper 收口
+- 日期：2026-04-26
+- 主题：把路由层重复的 `BAD_REQUEST` / `PAYLOAD_TOO_LARGE` / `INTERNAL_ERROR` 响应拼装收口到统一 helper。之前 `chat`、`conns`、`activity`、`notifications`、`files` 各写各的错误 body，短期能跑，长期就是改一个接口漏三个地方的经典温床。
+- 影响范围：新增 `src/routes/http-errors.ts`，集中提供 `sendBadRequest()`、`sendPayloadTooLarge()` 和 `sendInternalError()`；`src/routes/chat.ts`、`src/routes/conns.ts`、`src/routes/activity.ts`、`src/routes/notifications.ts`、`src/routes/files.ts` 改为复用 helper，业务 parser、状态码和响应 body 语义保持不变。顺手补齐 `/v1/chat/stream` fallback error SSE 的 `runId` 字段，让它符合 `ChatStreamEvent` 类型。
+- 对应入口：`src/routes/http-errors.ts`、`src/routes/chat.ts`、`src/routes/conns.ts`、`src/routes/activity.ts`、`src/routes/notifications.ts`、`src/routes/files.ts`、`test/server.test.ts`
+
 ### 空闲会话 state 最近窗口 JSONL 尾读
 - 日期：2026-04-26
 - 主题：继续收口长会话切换和刷新恢复的后端成本。之前 `GET /v1/chat/state` 虽然响应层只返回最近 160 条可渲染历史，但底层仍可能先把整份 session JSONL 全量读入并解析，再在内存里截尾；这不叫优化，顶多叫把大箱子搬到门口再说“我只拿了最后一件”。现在默认 session factory 增加 `readRecentSessionMessages()`，可以从 JSONL 尾部读取最近消息窗口，并在需要上下文用量时向前补到最近的 assistant usage anchor；损坏的旧行不会让最近窗口恢复直接炸掉。

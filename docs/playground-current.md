@@ -13,6 +13,7 @@
 - [src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)
 - [src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)
 - [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
+- [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
 - [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
 - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
@@ -93,7 +94,7 @@
 - 消息操作栏当前包含复制正文和保存图片两个按钮：复制只复制当前消息正文，不复制时间、角色标签和文件按钮；保存图片会把 `.message-body` 的渲染效果导出为 PNG，导出图排除操作栏自身，并在图片外层加 `UGK Claw 导出` 签名 label。导出副本必须是自包含内容：外部 `@import`、`@font-face`、非片段 `url(...)` 和消息内媒体节点都不能进入 canvas 绘制路径，媒体内容使用紧凑占位块替代；包含 `foreignObject` 的 SVG 中间图必须使用 `data:image/svg+xml`，不要回退成 `blob:` URL，避免 `toBlob()` 因 tainted canvas 失败。
 - 消息操作栏按钮统一使用透明背景、无边框、无阴影，文字只保留在 `aria-label` / 隐藏文本里，不再占用纵向空间。
 - composer textarea 默认使用 `rows="1"`，不要让浏览器按 textarea 默认 2 行去算空内容高度；默认最小高度已收口到 `52px`，桌面端使用 `14px` 上下内边距；自适应高度脚本在空内容和单行内容时必须保留 CSS `min-height`，让 placeholder 与正文按同一行高纵向居中，多行内容才按 `scrollHeight` 扩展。不要再让浏览器 `scrollHeight` 把单行输入框算歪。
-- markdown 正文渲染使用 `marked`，不是项目内手写解析器；后续补 Markdown 能力时优先配置/升级渲染库，不要继续追加临时正则
+- markdown 正文渲染使用 `marked`，不是项目内手写解析器；服务器端 `renderPlaygroundMarkdown()` 在 `src/ui/playground-markdown.ts`，`src/ui/playground.ts` 只负责 re-export 给测试和页面入口兼容；浏览器端 transcript hydration 仍在 `src/ui/playground-transcript-renderer.ts`。后续补 Markdown 能力时优先配置/升级渲染库，不要继续追加临时正则
 - markdown 正文里的“普通段落 + 紧跟 fenced code block”必须能正常渲染，不能再把 `CODEBLOCK0` 之类占位符漏到用户界面上
 - markdown 正文里的 pipe table 与 `---` 分割线必须渲染为真正的 HTML 结构，不能继续把 `|------|` 或 `---` 当普通字符显示
 - 助手气泡里的 Markdown 正文使用更紧凑的阅读规格：正文 `12px`，`h1 / h2 / h3` 分别为 `18px / 16px / 14px`，链接、inline code、blockquote 和表格头使用轻量颜色区分；用户气泡不套这组助手正文色彩规则。
@@ -222,6 +223,7 @@
 ## 7. 已知关联文件
 
 - 页面结构、共享样式、脚本： [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+- 服务器端 Markdown 安全渲染与 `renderPlaygroundMarkdown()` 导出： [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
 - 文件 / 资产静态样式与资产库弹窗 HTML： [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - 文件 / 资产前端运行时控制器： [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
 - 上下文用量进度环、估算和详情弹层控制器： [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)

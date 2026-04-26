@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ServerResponse } from "node:http";
 import type { AgentService } from "../agent/agent-service.js";
+import { sendBadRequest, sendInternalError } from "./http-errors.js";
 import type {
 	ChatAttachmentBody,
 	ConversationCatalogResponseBody,
@@ -13,7 +14,6 @@ import type {
 	ChatStreamEvent,
 	ConversationStateResponseBody,
 	DebugSkillsResponseBody,
-	ErrorResponseBody,
 	InterruptChatRequestBody,
 	InterruptChatResponseBody,
 	CreateConversationResponseBody,
@@ -29,25 +29,6 @@ import type {
 
 interface ChatRouteDependencies {
 	agentService: AgentService;
-}
-
-function sendBadRequest(reply: FastifyReply, message: string): FastifyReply {
-	return reply.status(400).send({
-		error: {
-			code: "BAD_REQUEST",
-			message,
-		},
-	} satisfies ErrorResponseBody);
-}
-
-function sendInternalError(reply: FastifyReply, error: unknown): FastifyReply {
-	const messageText = error instanceof Error ? error.message : "Unknown internal error";
-	return reply.status(500).send({
-		error: {
-			code: "INTERNAL_ERROR",
-			message: messageText,
-		},
-	} satisfies ErrorResponseBody);
 }
 
 function writeSseEvent(raw: ServerResponse, event: ChatStreamEvent): void {
@@ -459,6 +440,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					writeSseEvent(reply.raw, {
 						type: "error",
 						conversationId: conversationId ?? "",
+						runId: "",
 						message: messageText,
 					});
 				}

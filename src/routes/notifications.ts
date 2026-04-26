@@ -1,19 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ServerResponse } from "node:http";
 import type { NotificationBroadcastEvent, NotificationHub } from "../agent/notification-hub.js";
-import type { ErrorResponseBody } from "../types/api.js";
+import { sendBadRequest } from "./http-errors.js";
 
 interface NotificationRouteDependencies {
 	notificationHub: NotificationHub;
-}
-
-function sendBadRequest(reply: FastifyReply, message: string): FastifyReply {
-	return reply.status(400).send({
-		error: {
-			code: "BAD_REQUEST",
-			message,
-		},
-	} satisfies ErrorResponseBody);
 }
 
 function writeSseEvent(raw: ServerResponse, event: NotificationBroadcastEvent): void {

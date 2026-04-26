@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
 import { ConversationStore } from "./conversation-store.js";
+import { cloneChatStreamEvent, isTerminalChatStreamEvent } from "./agent-run-events.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
 import type {
 	AgentSessionFactory,
@@ -1441,75 +1442,6 @@ function cloneActiveRunView(view: ChatActiveRunBody): ChatActiveRunBody {
 	};
 }
 
-function cloneChatStreamEvent(event: ChatStreamEvent): ChatStreamEvent {
-	switch (event.type) {
-		case "run_started":
-			return {
-				type: "run_started",
-				conversationId: event.conversationId,
-				runId: event.runId,
-			};
-		case "text_delta":
-			return {
-				type: "text_delta",
-				textDelta: event.textDelta,
-			};
-		case "tool_started":
-			return {
-				type: "tool_started",
-				toolCallId: event.toolCallId,
-				toolName: event.toolName,
-				args: event.args,
-			};
-		case "tool_updated":
-			return {
-				type: "tool_updated",
-				toolCallId: event.toolCallId,
-				toolName: event.toolName,
-				partialResult: event.partialResult,
-			};
-		case "tool_finished":
-			return {
-				type: "tool_finished",
-				toolCallId: event.toolCallId,
-				toolName: event.toolName,
-				isError: event.isError,
-				result: event.result,
-			};
-		case "queue_updated":
-			return {
-				type: "queue_updated",
-				steering: [...event.steering],
-				followUp: [...event.followUp],
-			};
-		case "interrupted":
-			return {
-				type: "interrupted",
-				conversationId: event.conversationId,
-				runId: event.runId,
-			};
-		case "done":
-			return {
-				type: "done",
-				conversationId: event.conversationId,
-				runId: event.runId,
-				text: event.text,
-				...(event.sessionFile ? { sessionFile: event.sessionFile } : {}),
-				...(event.inputAssets ? { inputAssets: event.inputAssets.map((asset) => ({ ...asset })) } : {}),
-				...(event.files ? { files: event.files.map((file) => ({ ...file })) } : {}),
-			};
-		case "error":
-			return {
-				type: "error",
-				conversationId: event.conversationId,
-				runId: event.runId,
-				message: event.message,
-			};
-		default:
-			return event;
-	}
-}
-
 function hasStringProperty(value: object, propertyName: string): boolean {
 	return propertyName in value && typeof value[propertyName as keyof typeof value] === "string";
 }
@@ -1657,10 +1589,6 @@ function isToolExecutionEndEvent(event: RawAgentSessionEventLike): event is Tool
 
 function isQueueUpdateEvent(event: RawAgentSessionEventLike): event is QueueUpdateEventLike {
 	return event.type === "queue_update" && Array.isArray(event.steering) && Array.isArray(event.followUp);
-}
-
-function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
-	return event.type === "done" || event.type === "interrupted" || event.type === "error";
 }
 
 function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {

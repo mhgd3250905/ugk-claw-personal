@@ -5,11 +5,11 @@ import { extname, resolve } from "node:path";
 import multipart from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
 import type { AssetStoreLike, ChatAttachment } from "../agent/asset-store.js";
+import { sendBadRequest, sendPayloadTooLarge } from "./http-errors.js";
 import type {
 	AssetDetailResponseBody,
 	AssetListResponseBody,
 	CreateAssetResponseBody,
-	ErrorResponseBody,
 } from "../types/api.js";
 
 export interface FileRouteOptions {
@@ -81,12 +81,7 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 				}
 
 				if (attachments.length >= MAX_ASSET_UPLOAD_FILES) {
-					return reply.status(400).send({
-						error: {
-							code: "BAD_REQUEST",
-							message: `Field "files" supports at most ${MAX_ASSET_UPLOAD_FILES} files`,
-						},
-					} satisfies ErrorResponseBody);
+					return sendBadRequest(reply, `Field "files" supports at most ${MAX_ASSET_UPLOAD_FILES} files`);
 				}
 
 				const content = await part.toBuffer();
@@ -94,26 +89,17 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 			}
 		} catch (error) {
 			const statusCode = isMultipartUploadTooLargeError(error) ? 413 : 400;
-			return reply.status(statusCode).send({
-				error: {
-					code: statusCode === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST",
-					message:
-						statusCode === 413
-							? `Uploaded files must be ${formatByteLimit(multipartAssetFileLimitBytes)} or smaller`
-							: error instanceof Error
-								? error.message
-								: "Invalid multipart upload",
-				},
-			} satisfies ErrorResponseBody);
+			const message =
+				statusCode === 413
+					? `Uploaded files must be ${formatByteLimit(multipartAssetFileLimitBytes)} or smaller`
+					: error instanceof Error
+						? error.message
+						: "Invalid multipart upload";
+			return statusCode === 413 ? sendPayloadTooLarge(reply, message) : sendBadRequest(reply, message);
 		}
 
 		if (attachments.length === 0) {
-			return reply.status(400).send({
-				error: {
-					code: "BAD_REQUEST",
-					message: 'Field "files" must include at least one file',
-				},
-			} satisfies ErrorResponseBody);
+			return sendBadRequest(reply, 'Field "files" must include at least one file');
 		}
 
 		return {

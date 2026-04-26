@@ -1,25 +1,16 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AgentActivityItem, AgentActivityListOptions, AgentActivityStore } from "../agent/agent-activity-store.js";
+import { sendBadRequest } from "./http-errors.js";
 import type {
 	AgentActivityItemBody,
 	AgentActivityListResponseBody,
 	AgentActivityMarkAllReadResponseBody,
 	AgentActivityReadResponseBody,
 	AgentActivitySummaryResponseBody,
-	ErrorResponseBody,
 } from "../types/api.js";
 
 interface ActivityRouteDependencies {
 	activityStore: Pick<AgentActivityStore, "get" | "list" | "markRead" | "markAllRead" | "getUnreadCount">;
-}
-
-function sendBadRequest(reply: FastifyReply, message: string): FastifyReply {
-	return reply.status(400).send({
-		error: {
-			code: "BAD_REQUEST",
-			message,
-		},
-	} satisfies ErrorResponseBody);
 }
 
 function isNonEmptyString(value: unknown): value is string {

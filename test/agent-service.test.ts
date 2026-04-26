@@ -16,7 +16,7 @@ import type {
 import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
 import { buildPromptWithAssetContext } from "../src/agent/file-artifacts.js";
-import type { ConversationStateResponseBody } from "../src/types/api.js";
+import type { ChatStreamEvent, ConversationStateResponseBody } from "../src/types/api.js";
 
 class FakeSession implements AgentSessionLike {
 	public prompts: Array<{ message: string; options?: PromptOptionsLike }> = [];
@@ -2807,11 +2807,12 @@ test("getRunEvents returns buffered events for a completed chat run", async () =
 		events.map((event) => event.type),
 		["run_started", "tool_started", "text_delta", "tool_finished", "done"],
 	);
-	assert.equal(events.at(-1)?.type, "done");
-	assert.equal(events.at(-1)?.conversationId, "manual:run-events");
-	assert.equal(events.at(-1)?.runId, runStarted?.runId);
-	assert.equal(events.at(-1)?.text, "weather summary");
-	assert.equal(events.at(-1)?.sessionFile, "E:/sessions/run-events.jsonl");
+	const doneEvent = events.at(-1) as ChatStreamEvent | undefined;
+	assert.ok(doneEvent && doneEvent.type === "done");
+	assert.equal(doneEvent.conversationId, "manual:run-events");
+	assert.equal(doneEvent.runId, runStarted?.runId);
+	assert.equal(doneEvent.text, "weather summary");
+	assert.equal(doneEvent.sessionFile, "E:/sessions/run-events.jsonl");
 });
 
 test("reuses an existing session when the skill fingerprint changes", async () => {

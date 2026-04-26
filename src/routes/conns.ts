@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ConnRunEventRecord, ConnRunFileRecord, ConnRunRecord } from "../agent/conn-run-store.js";
 import type { ConnDefinition, ConnSchedule, ConnTarget } from "../agent/conn-store.js";
+import { sendBadRequest, sendInternalError } from "./http-errors.js";
 import type {
 	ConnBulkDeleteRequestBody,
 	ConnBulkDeleteResponseBody,
@@ -12,7 +13,6 @@ import type {
 	ConnRunDetailResponseBody,
 	ConnRunEventsResponseBody,
 	ConnRunListResponseBody,
-	ErrorResponseBody,
 } from "../types/api.js";
 
 interface ConnRouteOptions {
@@ -74,25 +74,6 @@ interface ConnRunStoreLike {
 	getRun(runId: string): Promise<ConnRunRecord | undefined>;
 	listEvents(runId: string): Promise<ConnRunEventRecord[]>;
 	listFiles(runId: string): Promise<ConnRunFileRecord[]>;
-}
-
-function sendBadRequest(reply: FastifyReply, message: string): FastifyReply {
-	return reply.status(400).send({
-		error: {
-			code: "BAD_REQUEST",
-			message,
-		},
-	} satisfies ErrorResponseBody);
-}
-
-function sendInternalError(reply: FastifyReply, error: unknown): FastifyReply {
-	const messageText = error instanceof Error ? error.message : "Unknown internal error";
-	return reply.status(500).send({
-		error: {
-			code: "INTERNAL_ERROR",
-			message: messageText,
-		},
-	} satisfies ErrorResponseBody);
 }
 
 function sendConnValidationError(reply: FastifyReply, error: unknown): FastifyReply | undefined {
