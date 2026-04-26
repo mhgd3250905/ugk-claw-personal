@@ -93,7 +93,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 ## 5. 关键路径
 
 - 服务入口：`src/server.ts`
-- 聊天路由：`src/routes/chat.ts`，请求解析：`src/routes/chat-route-parsers.ts`
+- 聊天路由：`src/routes/chat.ts`，请求解析：`src/routes/chat-route-parsers.ts`，SSE 输出工具：`src/routes/chat-sse.ts`
 - playground 路由：`src/routes/playground.ts`
 - 静态报告路由：`src/routes/static.ts`
 - 文件 / 资产路由：`src/routes/files.ts`，文件路由工具：`src/routes/file-route-utils.ts`
@@ -169,6 +169,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `POST /v1/chat/current`
 - `POST /v1/chat/reset`
 - `src/routes/chat.ts`
+- `src/routes/chat-sse.ts`
+- `src/routes/chat-route-parsers.ts`
 - `src/agent/agent-service.ts`
 - `src/agent/agent-session-factory.ts`
 - `src/types/api.ts`

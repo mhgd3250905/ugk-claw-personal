@@ -2385,3 +2385,17 @@
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+### Chat SSE 工具拆分
+- 日期：2026-04-26
+- 主题：把聊天路由里的 Server-Sent Events 写入、关闭和终态判断从 `src/routes/chat.ts` 拆到 `src/routes/chat-sse.ts`，避免路由入口继续混入底层响应写入细节。
+- 影响范围：
+  - `src/routes/chat-sse.ts` 新增 `configureSseResponse()`、`writeSseEvent()`、`endSseResponse()`、`isTerminalChatStreamEvent()`，保持原有 SSE headers、`data: <json>\n\n` 帧格式、关闭响应保护和写入异常吞吐行为。
+  - `src/routes/chat.ts` 改为复用 SSE 工具，`GET /v1/chat/events` 与 `POST /v1/chat/stream` 的外部行为不变。
+  - `test/chat-sse.test.ts` 补充 SSE 输出、关闭保护、异常吞吐和终态事件识别测试。
+  - `AGENTS.md`、`docs/traceability-map.md` 同步聊天 / 流式排查入口。
+- 对应入口：
+  - [src/routes/chat-sse.ts](/E:/AII/ugk-pi/src/routes/chat-sse.ts)
+  - [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+  - [test/chat-sse.test.ts](/E:/AII/ugk-pi/test/chat-sse.test.ts)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)

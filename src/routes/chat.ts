@@ -1,6 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { ServerResponse } from "node:http";
 import type { AgentService } from "../agent/agent-service.js";
+import {
+	configureSseResponse,
+	endSseResponse,
+	isTerminalChatStreamEvent,
+	writeSseEvent,
+} from "./chat-sse.js";
 import {
 	isValidConversationId,
 	parseChatMessageBody,
@@ -15,7 +20,6 @@ import type {
 	ChatResponseBody,
 	ChatRunEventsResponseBody,
 	ChatStatusResponseBody,
-	ChatStreamEvent,
 	ConversationStateResponseBody,
 	DebugSkillsResponseBody,
 	InterruptChatRequestBody,
@@ -32,28 +36,6 @@ import type {
 
 interface ChatRouteDependencies {
 	agentService: AgentService;
-}
-
-function writeSseEvent(raw: ServerResponse, event: ChatStreamEvent): void {
-	if (raw.destroyed || raw.writableEnded) {
-		return;
-	}
-
-	try {
-		raw.write(`data: ${JSON.stringify(event)}\n\n`);
-	} catch {
-		// Browser refresh closes the SSE response, but the agent run should keep working.
-	}
-}
-
-function endSseResponse(raw: ServerResponse): void {
-	if (!raw.destroyed && !raw.writableEnded) {
-		raw.end();
-	}
-}
-
-function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
-	return event.type === "done" || event.type === "interrupted" || event.type === "error";
 }
 
 export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependencies): void {
@@ -195,11 +177,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}
 
 			reply.hijack();
-			reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-			reply.raw.setHeader("Cache-Control", "no-cache, no-transform");
-			reply.raw.setHeader("Connection", "keep-alive");
-			reply.raw.setHeader("X-Accel-Buffering", "no");
-			reply.raw.flushHeaders?.();
+			configureSseResponse(reply.raw);
 
 			let subscription:
 				| {
@@ -300,11 +278,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			const body = parsedBody.value!;
 
 			reply.hijack();
-			reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-			reply.raw.setHeader("Cache-Control", "no-cache, no-transform");
-			reply.raw.setHeader("Connection", "keep-alive");
-			reply.raw.setHeader("X-Accel-Buffering", "no");
-			reply.raw.flushHeaders?.();
+			configureSseResponse(reply.raw);
 
 			try {
 				await deps.agentService.streamChat(

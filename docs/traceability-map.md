@@ -61,15 +61,16 @@
 
 1. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
 2. [src/routes/chat-route-parsers.ts](/E:/AII/ugk-pi/src/routes/chat-route-parsers.ts)
-3. [src/routes/http-errors.ts](/E:/AII/ugk-pi/src/routes/http-errors.ts)
-4. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-5. [src/agent/agent-conversation-history.ts](/E:/AII/ugk-pi/src/agent/agent-conversation-history.ts)
-6. [src/agent/agent-process-text.ts](/E:/AII/ugk-pi/src/agent/agent-process-text.ts)
-7. [src/agent/agent-active-run-view.ts](/E:/AII/ugk-pi/src/agent/agent-active-run-view.ts)
-8. [src/agent/agent-session-event-guards.ts](/E:/AII/ugk-pi/src/agent/agent-session-event-guards.ts)
-9. [src/agent/agent-run-events.ts](/E:/AII/ugk-pi/src/agent/agent-run-events.ts)
-10. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
-11. [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+3. [src/routes/chat-sse.ts](/E:/AII/ugk-pi/src/routes/chat-sse.ts)
+4. [src/routes/http-errors.ts](/E:/AII/ugk-pi/src/routes/http-errors.ts)
+5. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+6. [src/agent/agent-conversation-history.ts](/E:/AII/ugk-pi/src/agent/agent-conversation-history.ts)
+7. [src/agent/agent-process-text.ts](/E:/AII/ugk-pi/src/agent/agent-process-text.ts)
+8. [src/agent/agent-active-run-view.ts](/E:/AII/ugk-pi/src/agent/agent-active-run-view.ts)
+9. [src/agent/agent-session-event-guards.ts](/E:/AII/ugk-pi/src/agent/agent-session-event-guards.ts)
+10. [src/agent/agent-run-events.ts](/E:/AII/ugk-pi/src/agent/agent-run-events.ts)
+11. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
+12. [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
 
 重点接口：
 
