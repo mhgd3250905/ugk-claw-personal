@@ -33,6 +33,7 @@
 - [src/agent/asset-store.ts](/E:/AII/ugk-pi/src/agent/asset-store.ts)
 - [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
 - [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
+- [src/agent/agent-file-history.ts](/E:/AII/ugk-pi/src/agent/agent-file-history.ts)
 - [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
 
 ## 2. 文件交付协议
@@ -49,6 +50,7 @@
 这层协议不只是“告诉 agent 怎么说”，还对应真实实现：
 
 - [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts) 负责协议与用户可见文本重写
+- [src/agent/agent-file-history.ts](/E:/AII/ugk-pi/src/agent/agent-file-history.ts) 负责把 `send_file` 工具结果规范化为 agent 文件与历史消息文件卡片，并合并去重
 - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts) 负责在正文、流式增量、工具输出里应用重写
 - [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts) 提供 `GET /v1/local-file?path=...`
 
@@ -67,7 +69,7 @@
 1. agent 调用 `send_file`
 2. 工具校验路径必须位于项目根目录内
 3. 文件以 Buffer 形式写入资产库
-4. `AgentService` 从 `tool_execution_end` 中提取文件元数据
+4. `AgentService` 通过 `agent-file-history` 从 `tool_execution_end` 中提取文件元数据
 5. `done.files` 返回给前端
 6. playground 渲染文件卡片
 7. canonical conversation history 也会把这些 `send_file` 结果挂回对应 assistant 消息；如果这一轮只有 `toolResult(send_file)`、没有可挂载的 assistant 正文，后端会补一条 synthetic assistant history entry 承载文件，避免文件卡片在刷新或晚到的 state 回包后凭空消失

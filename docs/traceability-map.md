@@ -117,15 +117,17 @@
 4. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 5. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
 6. [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)
-7. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-8. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
-9. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
+7. [src/agent/agent-file-history.ts](/E:/AII/ugk-pi/src/agent/agent-file-history.ts)
+8. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+9. [.pi/extensions/send-file.ts](/E:/AII/ugk-pi/.pi/extensions/send-file.ts)
+10. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 
 适用问题：
 - 浏览器选择文件后没反应、上传接口返回 `413` 或 `400`
 - 大文件不应该再被 base64 塞进 JSON body
 - `conn` 编辑器上传新文件失败，或者上传后没有进入“附加资料”
 - `send_file` 没出现在文件卡片里
+- `send_file` 工具结果在流式 done、刷新恢复或历史消息里没有挂回文件卡片；解析和合并逻辑看 `src/agent/agent-file-history.ts`
 - 图片/报告下载 0B
 - 用户拿到的是容器 `file:///app/...`
 - HTML / 图片已经生成，但浏览器打不开

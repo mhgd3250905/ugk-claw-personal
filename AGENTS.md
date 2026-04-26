@@ -103,6 +103,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - session 工厂：`src/agent/agent-session-factory.ts`
 - 资产库：`src/agent/asset-store.ts`
 - 文件交付协议：`src/agent/file-artifacts.ts`
+- 文件交付历史挂载与 `send_file` 结果合并：`src/agent/agent-file-history.ts`
 - agent 发文件工具：`.pi/extensions/send-file.ts`
 - conn：`src/agent/conn-store.ts`、`src/agent/conn-db.ts`、`src/agent/conn-sqlite-store.ts`、`src/agent/conn-run-store.ts`、`src/workers/conn-worker.ts`
 - 飞书：`src/integrations/feishu/`
@@ -171,6 +172,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `src/routes/files.ts`
 - `src/agent/asset-store.ts`
 - `src/agent/file-artifacts.ts`
+- `src/agent/agent-file-history.ts`
 - `.pi/extensions/send-file.ts`
 - `docs/runtime-assets-conn-feishu.md`
 

@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent 文件历史 helper 拆分
+- 日期：2026-04-26
+- 主题：把 `send_file` 工具结果解析、agent 文件合并、历史消息文件卡片合并从 `AgentService` 主文件拆到独立 helper。文件交付不是 run lifecycle 本身，继续把这些纯 normalization 函数塞在 1800 行服务中枢底部，只会让后续维护者为了一个文件卡片问题去翻整条聊天主链路。
+- 影响范围：新增 `src/agent/agent-file-history.ts`，集中提供 `extractSendFileArtifact()`、`extractConversationHistoryFiles()`、`mergeAgentFiles()` 和 `mergeConversationHistoryFiles()`；`src/agent/agent-service.ts` 改为导入这些纯 helper，流式事件、canonical history、synthetic assistant 文件承载和用户可见链接重写语义不变。`AGENTS.md`、`docs/runtime-assets-conn-feishu.md` 和 `docs/traceability-map.md` 同步新的文件交付排查入口。
+- 对应入口：`src/agent/agent-file-history.ts`、`src/agent/agent-service.ts`、`AGENTS.md`、`docs/runtime-assets-conn-feishu.md`、`docs/traceability-map.md`
+
 ### Feishu 会话映射并发写入收口
 - 日期：2026-04-26
 - 主题：修复飞书 webhook 并发创建 chat 到本地 `conversationId` 映射时的 JSON 覆盖风险。之前 `FeishuConversationMapStore.getOrCreate()` 是读完整映射、改内存对象、直接 `writeFile()` 覆盖；多个群聊同时进来时，后写入者可以把先写入者洗掉。这种问题平时不吭声，一到真实 IM 流量就开始装死，很不体面。
