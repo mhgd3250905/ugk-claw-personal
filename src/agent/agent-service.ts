@@ -3,7 +3,6 @@ import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
 import { ConversationStore } from "./conversation-store.js";
 import {
 	extractConversationHistoryFiles,
-	extractSendFileArtifact,
 	mergeConversationHistoryFiles,
 } from "./agent-file-history.js";
 import {
@@ -36,25 +35,12 @@ import {
 	type ChatStreamEventSink,
 } from "./agent-run-events.js";
 import { buildAgentRunResult, buildDoneChatStreamEvent } from "./agent-run-result.js";
-import {
-	isMessageUpdateEvent,
-	isQueueUpdateEvent,
-	isToolExecutionEndEvent,
-	isToolExecutionStartEvent,
-	isToolExecutionUpdateEvent,
-} from "./agent-session-event-guards.js";
-import {
-	extractAssistantText,
-	formatProcessPayload,
-} from "./agent-process-text.js";
+import { createAgentSessionEventAdapter } from "./agent-session-event-adapter.js";
+import { extractAssistantText } from "./agent-process-text.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
 import type {
 	AgentSessionFactory,
 	AgentSessionLike,
-	MessageUpdateEventLike,
-	ToolExecutionEndEventLike,
-	ToolExecutionStartEventLike,
-	ToolExecutionUpdateEventLike,
 	ProjectDefaultModelContext,
 	RuntimeSkillInfo,
 	RuntimeSkillListResult,
@@ -642,49 +628,10 @@ export class AgentService {
 			runId: activeRun.view.runId,
 		});
 
-		let rawText = "";
-		const sentFiles: AgentFileArtifact[] = [];
-		const unsubscribe = session.subscribe((event) => {
-			switch (event.type) {
-				case "message_update":
-					if (isMessageUpdateEvent(event)) {
-						rawText = this.handleMessageUpdate(event, rawText, (streamEvent) => {
-							this.emitRunEvent(activeRun, onEvent, streamEvent);
-						});
-					}
-					break;
-				case "tool_execution_start":
-					if (isToolExecutionStartEvent(event)) {
-						this.emitRunEvent(activeRun, onEvent, this.handleToolExecutionStart(event));
-					}
-					break;
-				case "tool_execution_update":
-					if (isToolExecutionUpdateEvent(event)) {
-						this.emitRunEvent(activeRun, onEvent, this.handleToolExecutionUpdate(event));
-					}
-					break;
-				case "tool_execution_end":
-					if (isToolExecutionEndEvent(event)) {
-						const sentFile = extractSendFileArtifact(event);
-						if (sentFile) {
-							sentFiles.push(sentFile);
-						}
-						this.emitRunEvent(activeRun, onEvent, this.handleToolExecutionEnd(event));
-					}
-					break;
-				case "queue_update":
-					if (isQueueUpdateEvent(event)) {
-						this.emitRunEvent(activeRun, onEvent, {
-							type: "queue_updated",
-							steering: event.steering,
-							followUp: event.followUp,
-						});
-					}
-					break;
-				default:
-					break;
-			}
+		const sessionEventAdapter = createAgentSessionEventAdapter((event) => {
+			this.emitRunEvent(activeRun, onEvent, event);
 		});
+		const unsubscribe = session.subscribe(sessionEventAdapter.handle);
 
 		try {
 			await closeBrowserTargetsForScope(browserCleanupScope);
@@ -701,11 +648,11 @@ export class AgentService {
 
 			const result = await buildAgentRunResult({
 				conversationId,
-				rawText,
+				rawText: sessionEventAdapter.getRawText(),
 				lastAssistantMessage,
 				sessionFile: session.sessionFile,
 				inputAssets: preparedAssets.uploadedAssets,
-				sentFiles,
+				sentFiles: sessionEventAdapter.getSentFiles(),
 				assetStore: this.options.assetStore,
 			});
 
@@ -1013,52 +960,6 @@ export class AgentService {
 		return {
 			uploadedAssets,
 			promptAssets: [...uploadedPromptAssets, ...referencedPromptAssets],
-		};
-	}
-
-	private handleMessageUpdate(
-		event: MessageUpdateEventLike,
-		currentText: string,
-		onEvent?: (event: ChatStreamEvent) => void,
-	): string {
-		if (event.assistantMessageEvent.type !== "text_delta" || typeof event.assistantMessageEvent.delta !== "string") {
-			return currentText;
-		}
-
-		const delta = event.assistantMessageEvent.delta;
-		const nextText = currentText + delta;
-		deliverChatStreamEvent(onEvent, {
-			type: "text_delta",
-			textDelta: rewriteUserVisibleLocalArtifactLinks(delta),
-		});
-		return nextText;
-	}
-
-	private handleToolExecutionStart(event: ToolExecutionStartEventLike): ChatStreamEvent {
-		return {
-			type: "tool_started",
-			toolCallId: event.toolCallId,
-			toolName: event.toolName,
-			args: formatProcessPayload(event.args),
-		};
-	}
-
-	private handleToolExecutionUpdate(event: ToolExecutionUpdateEventLike): ChatStreamEvent {
-		return {
-			type: "tool_updated",
-			toolCallId: event.toolCallId,
-			toolName: event.toolName,
-			partialResult: formatProcessPayload(event.partialResult),
-		};
-	}
-
-	private handleToolExecutionEnd(event: ToolExecutionEndEventLike): ChatStreamEvent {
-		return {
-			type: "tool_finished",
-			toolCallId: event.toolCallId,
-			toolName: event.toolName,
-			isError: event.isError,
-			result: formatProcessPayload(event.result),
 		};
 	}
 

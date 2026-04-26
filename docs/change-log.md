@@ -2385,6 +2385,21 @@
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+### Agent session event adapter 收口
+- 日期：2026-04-26
+- 主题：把 `AgentService.runChat()` 内部监听原始 session event 的 switch 拆到 `src/agent/agent-session-event-adapter.ts`，让 run 编排不再直接负责原始事件翻译、文本累积和 `send_file` 收集。
+- 影响范围：
+  - `src/agent/agent-session-event-adapter.ts` 新增 `createAgentSessionEventAdapter()`，统一把 `message_update`、`tool_execution_*`、`queue_update` 转成 `ChatStreamEvent`，并维护 `rawText` 与 `sentFiles`。
+  - `src/agent/agent-service.ts` 的 `runChat()` 改为订阅 adapter，继续负责 active run 生命周期、prompt 执行、持久化与 cleanup。
+  - `test/agent-session-event-adapter.test.ts` 补充文本 delta、本地路径改写、工具事件、队列事件、`send_file` 收集和无效事件忽略测试。
+  - `AGENTS.md`、`docs/traceability-map.md` 同步聊天 / 流式排查入口。
+- 对应入口：
+  - [src/agent/agent-session-event-adapter.ts](/E:/AII/ugk-pi/src/agent/agent-session-event-adapter.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [test/agent-session-event-adapter.test.ts](/E:/AII/ugk-pi/test/agent-session-event-adapter.test.ts)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Agent run event 投递收口
 - 日期：2026-04-26
 - 主题：把 `AgentService` 内部的 best-effort stream event 投递策略收口到 `src/agent/agent-run-events.ts`，让事件克隆、终态判断和投递容错集中在同一领域 helper。
