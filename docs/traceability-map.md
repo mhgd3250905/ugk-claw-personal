@@ -31,12 +31,13 @@
 20. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
 21. [src/ui/playground-active-run-normalizer.ts](/E:/AII/ugk-pi/src/ui/playground-active-run-normalizer.ts)
 22. [src/ui/playground-conversation-api-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-api-controller.ts)
-23. [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
-24. [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
-25. [src/ui/playground-notification-controller.ts](/E:/AII/ugk-pi/src/ui/playground-notification-controller.ts)
-26. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
-27. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-28. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+23. [src/ui/playground-history-pagination-controller.ts](/E:/AII/ugk-pi/src/ui/playground-history-pagination-controller.ts)
+24. [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
+25. [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
+26. [src/ui/playground-notification-controller.ts](/E:/AII/ugk-pi/src/ui/playground-notification-controller.ts)
+27. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
+28. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+29. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
@@ -98,17 +99,18 @@
 12. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
 13. [src/ui/playground-active-run-normalizer.ts](/E:/AII/ugk-pi/src/ui/playground-active-run-normalizer.ts)
 14. [src/ui/playground-conversation-api-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-api-controller.ts)
-15. [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
-16. [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
-17. [src/ui/playground-notification-controller.ts](/E:/AII/ugk-pi/src/ui/playground-notification-controller.ts)
-18. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
-19. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-20. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
-21. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
-22. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-23. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-24. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-25. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
+15. [src/ui/playground-history-pagination-controller.ts](/E:/AII/ugk-pi/src/ui/playground-history-pagination-controller.ts)
+16. [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
+17. [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
+18. [src/ui/playground-notification-controller.ts](/E:/AII/ugk-pi/src/ui/playground-notification-controller.ts)
+19. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
+20. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+21. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+22. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+23. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+24. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+25. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+26. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
 
 适用问题：
 
@@ -118,6 +120,7 @@
 - active run 和 process view 的前端数据归一化看 `src/ui/playground-active-run-normalizer.ts`
 - 上下文用量进度环、token 估算、详情弹层和输入实时重算；运行时逻辑看 `src/ui/playground-context-usage-controller.ts`
 - `/v1/chat/status`、`/v1/chat/state`、`/v1/chat/history` 的前端请求和响应兜底归一化看 `src/ui/playground-conversation-api-controller.ts`
+- 上滑触顶加载更早历史、history loading 状态和 prepend 后滚动位置补偿看 `src/ui/playground-history-pagination-controller.ts`
 - 顶部状态、loading 忙态、error banner、控制动作错误文案和 stage mode 切换看 `src/ui/playground-status-controller.ts`
 - 文件卡片“打开 / 下载”；文件上传区、文件 chip、资产库弹窗静态片段先看 `src/ui/playground-assets.ts`，运行时上传、拖拽、复用和下载卡片逻辑看 `src/ui/playground-assets-controller.ts`
 - 后台 conn 结果的“查看任务过程”入口；静态样式 / 弹窗 HTML 先看 `src/ui/playground-conn-activity.ts`，浏览器运行时逻辑看 `src/ui/playground-conn-activity-controller.ts`

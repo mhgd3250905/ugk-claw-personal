@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 历史补页控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的更早历史补页 helper 拆到 `src/ui/playground-history-pagination-controller.ts`。触顶加载历史、补服务端分页、prepend DOM、保持滚动位置这些逻辑跟会话恢复相关，但不是 sync ownership 本体，继续塞在主脚本里会让“为什么一上滑就跳位置”这种问题很难查。
+- 影响范围：`hasOlderConversationHistory()`、`syncHistoryAutoLoadStatus()`、`fetchOlderConversationHistoryFromServer()`、`renderMoreConversationHistory()` 函数名和调用语义保持不变；`restoreConversationHistory()`、`restoreConversationHistoryFromServer()` 和会话 sync token 仍留在 `src/ui/playground.ts` 编排层。新增 `test/playground-history-pagination-controller.test.ts` 锁定补页、prepend 和滚动补偿逻辑。
+- 对应入口：`src/ui/playground-history-pagination-controller.ts`、`src/ui/playground.ts`、`test/playground-history-pagination-controller.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground active run 归一化拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的 `normalizeActiveRun()`、`normalizeProcessView()` 和 `formatProcessViewEntry()` 拆到 `src/ui/playground-active-run-normalizer.ts`。active run 是刷新恢复、流式续订和助手状态壳层的关键数据边界，归一化逻辑混在渲染编排里，后面一查“为什么 loading 还在 / process 文案不对”就很难下手。

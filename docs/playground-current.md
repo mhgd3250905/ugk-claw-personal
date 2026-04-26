@@ -19,6 +19,7 @@
 - [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
 - [src/ui/playground-active-run-normalizer.ts](/E:/AII/ugk-pi/src/ui/playground-active-run-normalizer.ts)
 - [src/ui/playground-conversation-api-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-api-controller.ts)
+- [src/ui/playground-history-pagination-controller.ts](/E:/AII/ugk-pi/src/ui/playground-history-pagination-controller.ts)
 - [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
 - [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
 - [src/ui/playground-notification-controller.ts](/E:/AII/ugk-pi/src/ui/playground-notification-controller.ts)
@@ -56,6 +57,7 @@
 - 浏览器端 `normalizeActiveRun()`、`normalizeProcessView()` 和 `formatProcessViewEntry()` 集中在 `src/ui/playground-active-run-normalizer.ts`；该文件只做 active run / process view 数据兜底，不负责消息 DOM 查找或渲染
 - 浏览器端通知广播 SSE、active run 事件流 attach / teardown、断线恢复、`send / queue / interrupt` 主链路，以及 `bindPlaygroundStreamController()` 初始化入口集中在 `src/ui/playground-stream-controller.ts`；`src/ui/playground.ts` 不再兼任 stream lifecycle 泵站
 - 浏览器端 `fetchConversationRunStatus()`、`fetchConversationState()`、`fetchConversationHistoryPage()` 集中在 `src/ui/playground-conversation-api-controller.ts`；这里只负责请求 `/v1/chat/status`、`/v1/chat/state`、`/v1/chat/history` 和响应兜底归一化，不负责 DOM 渲染或 sync ownership
+- 浏览器端更早历史补页、`historyAutoLoadStatus`、服务端 history 分页合并、prepend 后滚动高度补偿集中在 `src/ui/playground-history-pagination-controller.ts`；会话恢复和 sync token 仍由 `src/ui/playground.ts` 编排
 - 浏览器端顶部状态、loading 忙态、stage mode、error banner、控制动作错误文案集中在 `src/ui/playground-status-controller.ts`；`src/ui/playground.ts` 只保留对应 DOM refs 和初始化调用点
 - 浏览器端弹层关闭前的焦点释放、关闭后的返回焦点恢复、确认框与文件库 / 任务消息 / 后台任务等面板共享的焦点 helper 集中在 `src/ui/playground-panel-focus-controller.ts`；`src/ui/playground.ts` 只负责注入脚本和调用这些 helper
 - 浏览器端二次确认弹窗的 `openConfirmDialog()` / `closeConfirmDialog()`、默认文案、tone 标记和 Promise resolve 逻辑集中在 `src/ui/playground-confirm-dialog-controller.ts`；`src/ui/playground.ts` 只保留 DOM refs、事件绑定和脚本注入
