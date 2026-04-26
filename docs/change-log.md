@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground canonical state 控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的 `syncConversationRunState()`、`renderConversationState()`、active assistant 匹配和会话历史恢复编排整体移到 `src/ui/playground-conversation-state-controller.ts`。这组逻辑是 canonical state 落地边界，必须整体搬迁，不能拆成半截导致刷新恢复和 active run 壳层互相看不见。
+- 影响范围：函数名、调用顺序、消息 diff / patch、滚动位置保护、active run 过程壳层挂载、历史补页入口和 sync token 校验语义保持不变；`src/ui/playground.ts` 只负责注入控制器与初始化装配。新增 `test/playground-conversation-state-controller.test.ts` 锁定 canonical state 控制器边界。
+- 对应入口：`src/ui/playground-conversation-state-controller.ts`、`src/ui/playground.ts`、`test/playground-conversation-state-controller.test.ts`、`docs/playground-current.md`、`AGENTS.md`
+
 ### Playground 会话同步 ownership 控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的会话 state 请求 ownership token、AbortController 清理、陈旧回包判断和 active run 续订协调 helper 拆到 `src/ui/playground-conversation-sync-controller.ts`。这些逻辑是刷新恢复和跨会话切换的防护栏，不应该和 canonical state DOM 渲染挤在同一段代码里。
