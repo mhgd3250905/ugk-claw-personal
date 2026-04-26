@@ -15,6 +15,7 @@ import {
 	getPlaygroundContextUsageEventHandlersScript,
 } from "./playground-context-usage-controller.js";
 import { getPlaygroundConversationApiControllerScript } from "./playground-conversation-api-controller.js";
+import { getPlaygroundConversationSyncControllerScript } from "./playground-conversation-sync-controller.js";
 import { getPlaygroundConfirmDialogControllerScript } from "./playground-confirm-dialog-controller.js";
 import { getPlaygroundConversationControllerScript } from "./playground-conversations-controller.js";
 import { getPlaygroundHistoryPaginationControllerScript } from "./playground-history-pagination-controller.js";
@@ -315,106 +316,7 @@ function getPlaygroundScript(): string {
 
 		${getPlaygroundConversationApiControllerScript()}
 
-		function abortConversationStateSync() {
-			const abortController = state.conversationStateAbortController;
-			state.conversationStateAbortController = null;
-			if (abortController && !abortController.signal.aborted) {
-				abortController.abort();
-			}
-		}
-
-		function releaseConversationStateSyncToken(syncToken) {
-			if (syncToken?.abortController && state.conversationStateAbortController === syncToken.abortController) {
-				state.conversationStateAbortController = null;
-			}
-		}
-
-		function isConversationStateAbortError(error) {
-			return (
-				error?.name === "AbortError" ||
-				error?.code === 20 ||
-				(typeof error?.message === "string" && error.message.toLowerCase().includes("abort"))
-			);
-		}
-
-		function invalidateConversationSyncOwnership(nextConversationId) {
-			const normalizedConversationId = String(nextConversationId || "").trim();
-			if (normalizedConversationId && normalizedConversationId === String(state.conversationId || "").trim()) {
-				return;
-			}
-			abortConversationStateSync();
-			state.conversationSyncGeneration += 1;
-			state.conversationAppliedSyncRequestId = 0;
-		}
-
-		function issueConversationSyncToken(conversationId) {
-			const nextConversationId = String(conversationId || "").trim();
-			abortConversationStateSync();
-			const abortController = typeof AbortController === "function" ? new AbortController() : null;
-			state.conversationStateAbortController = abortController;
-			const requestId = state.conversationSyncRequestId + 1;
-			state.conversationSyncRequestId = requestId;
-			return {
-				requestId,
-				generation: state.conversationSyncGeneration,
-				conversationId: nextConversationId,
-				abortController,
-			};
-		}
-
-		function isConversationSyncTokenCurrent(syncToken, conversationId) {
-			if (!syncToken || typeof syncToken !== "object") {
-				return false;
-			}
-			const nextConversationId = String(conversationId || syncToken.conversationId || "").trim();
-			if (!nextConversationId) {
-				return false;
-			}
-			return (
-				syncToken.generation === state.conversationSyncGeneration &&
-				nextConversationId === String(state.conversationId || "").trim() &&
-				syncToken.requestId >= state.conversationAppliedSyncRequestId
-			);
-		}
-
-		function shouldApplyConversationState(conversationState, syncToken) {
-			const nextConversationId = String(
-				conversationState?.conversationId || syncToken?.conversationId || state.conversationId || "",
-			).trim();
-			if (!nextConversationId) {
-				return false;
-			}
-			if (!state.conversationId) {
-				return true;
-			}
-			if (nextConversationId !== state.conversationId) {
-				return false;
-			}
-			if (!syncToken) {
-				return true;
-			}
-			return isConversationSyncTokenCurrent(syncToken, nextConversationId);
-		}
-
-		function reconcileSyncedConversationState(payload, conversationId, options) {
-			const nextConversationId = String(conversationId || payload?.conversationId || "").trim();
-			if (!nextConversationId) {
-				return payload;
-			}
-
-			if (payload?.running) {
-				if (options?.attachIfRunning !== false && !state.primaryStreamActive) {
-					void attachActiveRunEventStream(nextConversationId);
-				}
-				return payload;
-			}
-
-			if (state.loading && options?.clearIfIdle) {
-				stopActiveRunEventStream();
-				setLoading(false);
-			}
-			return payload;
-		}
+		${getPlaygroundConversationSyncControllerScript()}
 
 		${getConnActivityApiScript()}
 

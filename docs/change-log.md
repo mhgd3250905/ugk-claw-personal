@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 会话同步 ownership 控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的会话 state 请求 ownership token、AbortController 清理、陈旧回包判断和 active run 续订协调 helper 拆到 `src/ui/playground-conversation-sync-controller.ts`。这些逻辑是刷新恢复和跨会话切换的防护栏，不应该和 canonical state DOM 渲染挤在同一段代码里。
+- 影响范围：`abortConversationStateSync()`、`releaseConversationStateSyncToken()`、`isConversationStateAbortError()`、`invalidateConversationSyncOwnership()`、`issueConversationSyncToken()`、`isConversationSyncTokenCurrent()`、`shouldApplyConversationState()`、`reconcileSyncedConversationState()` 函数名和调用语义保持不变；`syncConversationRunState()`、`renderConversationState()` 和 `restoreConversationHistoryFromServer()` 仍留在 `src/ui/playground.ts` 编排层。新增 `test/playground-conversation-sync-controller.test.ts` 锁定 ownership helper 边界。
+- 对应入口：`src/ui/playground-conversation-sync-controller.ts`、`src/ui/playground.ts`、`test/playground-conversation-sync-controller.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground 过程与技能控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的停止意图识别、过程摘要/叙述、流式过程状态、技能清单展示 helper 拆到 `src/ui/playground-process-controller.ts`。这些函数被 stream、asset、transcript 和移动菜单共同调用，属于过程展示边界，不该继续挤在页面装配层。

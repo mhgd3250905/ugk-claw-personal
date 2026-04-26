@@ -99,7 +99,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 文件 / 资产路由：`src/routes/files.ts`，文件路由工具：`src/routes/file-route-utils.ts`
 - 任务消息路由：`src/routes/activity.ts`，任务消息路由工具：`src/routes/activity-route-utils.ts`
 - 实时通知路由：`src/routes/notifications.ts`，实时通知路由工具：`src/routes/notification-route-utils.ts`
-- playground UI：`src/ui/playground.ts`，页面静态 shell：`src/ui/playground-page-shell.ts`，共享基础样式：`src/ui/playground-styles.ts`，上下文用量控制器：`src/ui/playground-context-usage-controller.ts`，active run 归一化：`src/ui/playground-active-run-normalizer.ts`，会话 API 控制器：`src/ui/playground-conversation-api-controller.ts`，本地历史存储：`src/ui/playground-conversation-history-store.ts`，历史分页控制器：`src/ui/playground-history-pagination-controller.ts`，过程/技能控制器：`src/ui/playground-process-controller.ts`，状态控制器：`src/ui/playground-status-controller.ts`，确认弹窗控制器：`src/ui/playground-confirm-dialog-controller.ts`，通知 toast 控制器：`src/ui/playground-notification-controller.ts`，弹层焦点 helper：`src/ui/playground-panel-focus-controller.ts`
+- playground UI：`src/ui/playground.ts`，页面静态 shell：`src/ui/playground-page-shell.ts`，共享基础样式：`src/ui/playground-styles.ts`，上下文用量控制器：`src/ui/playground-context-usage-controller.ts`，active run 归一化：`src/ui/playground-active-run-normalizer.ts`，会话 API 控制器：`src/ui/playground-conversation-api-controller.ts`，会话同步 ownership：`src/ui/playground-conversation-sync-controller.ts`，本地历史存储：`src/ui/playground-conversation-history-store.ts`，历史分页控制器：`src/ui/playground-history-pagination-controller.ts`，过程/技能控制器：`src/ui/playground-process-controller.ts`，状态控制器：`src/ui/playground-status-controller.ts`，确认弹窗控制器：`src/ui/playground-confirm-dialog-controller.ts`，通知 toast 控制器：`src/ui/playground-notification-controller.ts`，弹层焦点 helper：`src/ui/playground-panel-focus-controller.ts`
 - playground 设计系统：`DESIGN.md`，变更视觉 token / 组件口径后运行 `npm run design:lint`
 - agent 服务核心：`src/agent/agent-service.ts`，conversation history helper：`src/agent/agent-conversation-history.ts`，process text helper：`src/agent/agent-process-text.ts`，active run 视图 helper：`src/agent/agent-active-run-view.ts`，session event 守卫：`src/agent/agent-session-event-guards.ts`
 - web-access 任务结束清理：`src/agent/browser-cleanup.ts`
@@ -180,6 +180,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `src/ui/playground-styles.ts`
 - `src/ui/playground-active-run-normalizer.ts`
 - `src/ui/playground-conversation-api-controller.ts`
+- `src/ui/playground-conversation-sync-controller.ts`
 - `src/ui/playground-conversation-history-store.ts`
 - `src/ui/playground-history-pagination-controller.ts`
 - `src/ui/playground-process-controller.ts`
