@@ -47,11 +47,12 @@
 先看：
 
 1. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-2. [src/routes/http-errors.ts](/E:/AII/ugk-pi/src/routes/http-errors.ts)
-3. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-4. [src/agent/agent-run-events.ts](/E:/AII/ugk-pi/src/agent/agent-run-events.ts)
-5. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
-6. [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
+2. [src/routes/chat-route-parsers.ts](/E:/AII/ugk-pi/src/routes/chat-route-parsers.ts)
+3. [src/routes/http-errors.ts](/E:/AII/ugk-pi/src/routes/http-errors.ts)
+4. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+5. [src/agent/agent-run-events.ts](/E:/AII/ugk-pi/src/agent/agent-run-events.ts)
+6. [src/agent/agent-session-factory.ts](/E:/AII/ugk-pi/src/agent/agent-session-factory.ts)
+7. [src/types/api.ts](/E:/AII/ugk-pi/src/types/api.ts)
 
 重点接口：
 

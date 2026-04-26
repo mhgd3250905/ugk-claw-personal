@@ -93,7 +93,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 ## 5. 关键路径
 
 - 服务入口：`src/server.ts`
-- 聊天路由：`src/routes/chat.ts`
+- 聊天路由：`src/routes/chat.ts`，请求解析：`src/routes/chat-route-parsers.ts`
 - playground 路由：`src/routes/playground.ts`
 - 静态报告路由：`src/routes/static.ts`
 - playground UI：`src/ui/playground.ts`

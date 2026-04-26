@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Chat 路由请求 parser 拆分
+- 日期：2026-04-26
+- 主题：把聊天入口的 message、attachments、assetRefs、queue mode 和分页 limit 解析从 `src/routes/chat.ts` 拆到独立 helper。聊天路由已经要承接 SSE、续订、队列、打断和历史接口，再把请求体字段校验也堆在里面，就是典型“入口层越写越胖”的老毛病。
+- 影响范围：新增 `src/routes/chat-route-parsers.ts` 和 `test/chat-route-parsers.test.ts`，集中提供 `parseChatMessageBody()`、`parseQueueMessageBody()`、`parseOptionalPositiveInteger()` 与 `isValidConversationId()`；`src/routes/chat.ts` 改为复用这些 parser，`/v1/chat`、`/v1/chat/stream`、`/v1/chat/queue` 的附件校验、资产引用裁剪、消息原文保留、队列模式错误文案和 SSE 错误事件字段保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/routes/chat-route-parsers.ts`、`src/routes/chat.ts`、`test/chat-route-parsers.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Conn 路由请求 parser 拆分
 - 日期：2026-04-26
 - 主题：把 `POST /v1/conns`、`PATCH /v1/conns/:connId` 和 `POST /v1/conns/bulk-delete` 的请求解析从 `src/routes/conns.ts` 拆到独立 parser 模块。路由文件继续同时负责 HTTP、store、run 查询、响应转换和一堆字段校验，那就是把入口层当垃圾桶用；现在至少把纯输入解析拿出去。
