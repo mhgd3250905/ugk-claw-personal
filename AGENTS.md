@@ -199,6 +199,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 ### G 场景：查 conn / Feishu 集成
 
 - `src/routes/conns.ts`
+- `src/routes/conn-route-presenters.ts`
 - `src/routes/feishu.ts`
 - `src/agent/conn-store.ts`
 - `src/agent/conn-db.ts`

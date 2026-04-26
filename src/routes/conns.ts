@@ -3,12 +3,12 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ConnRunEventRecord, ConnRunFileRecord, ConnRunRecord } from "../agent/conn-run-store.js";
 import type { ConnDefinition, ConnSchedule, ConnTarget } from "../agent/conn-store.js";
+import { toConnListBody, toConnRunBody, toConnRunEventBody, toConnRunFileBody } from "./conn-route-presenters.js";
 import { parseConnIdList, parseConnMutationBody } from "./conn-route-parsers.js";
 import { sendBadRequest, sendInternalError } from "./http-errors.js";
 import type {
 	ConnBulkDeleteRequestBody,
 	ConnBulkDeleteResponseBody,
-	ConnBody,
 	ConnDetailResponseBody,
 	ConnListResponseBody,
 	ConnRunDetailResponseBody,
@@ -288,62 +288,4 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 		}
 		return reply.status(204).send();
 	});
-}
-
-function toConnListBody(
-	conn: ConnDefinition,
-	latestRunsByConnId: Record<string, ConnRunRecord | undefined> | undefined,
-): ConnBody {
-	const latestRun = latestRunsByConnId?.[conn.connId];
-	return {
-		...conn,
-		...(latestRunsByConnId ? { latestRun: latestRun ? toConnRunBody(latestRun) : null } : {}),
-	};
-}
-
-function toConnRunBody(run: ConnRunRecord): ConnRunDetailResponseBody["run"] {
-	return {
-		runId: run.runId,
-		connId: run.connId,
-		status: run.status,
-		scheduledAt: run.scheduledAt,
-		...(run.claimedAt ? { claimedAt: run.claimedAt } : {}),
-		...(run.startedAt ? { startedAt: run.startedAt } : {}),
-		...(run.leaseOwner ? { leaseOwner: run.leaseOwner } : {}),
-		...(run.leaseUntil ? { leaseUntil: run.leaseUntil } : {}),
-		...(run.finishedAt ? { finishedAt: run.finishedAt } : {}),
-		workspacePath: run.workspacePath,
-		...(run.sessionFile ? { sessionFile: run.sessionFile } : {}),
-		...(run.resultSummary ? { resultSummary: run.resultSummary } : {}),
-		...(run.resultText ? { resultText: run.resultText } : {}),
-		...(run.errorText ? { errorText: run.errorText } : {}),
-		...(run.deliveredAt ? { deliveredAt: run.deliveredAt } : {}),
-		...(run.retryOfRunId ? { retryOfRunId: run.retryOfRunId } : {}),
-		createdAt: run.createdAt,
-		updatedAt: run.updatedAt,
-	};
-}
-
-function toConnRunFileBody(file: ConnRunFileRecord): NonNullable<ConnRunDetailResponseBody["files"]>[number] {
-	return {
-		fileId: file.fileId,
-		runId: file.runId,
-		kind: file.kind,
-		relativePath: file.relativePath,
-		fileName: file.fileName,
-		mimeType: file.mimeType,
-		sizeBytes: file.sizeBytes,
-		createdAt: file.createdAt,
-	};
-}
-
-function toConnRunEventBody(event: ConnRunEventRecord): ConnRunEventsResponseBody["events"][number] {
-	return {
-		eventId: event.eventId,
-		runId: event.runId,
-		seq: event.seq,
-		eventType: event.eventType,
-		event: event.event,
-		createdAt: event.createdAt,
-	};
 }

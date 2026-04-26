@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Conn 路由 response presenter 拆分
+- 日期：2026-04-26
+- 主题：把 `src/routes/conns.ts` 里的 conn / run / file / event 响应体映射拆到独立 presenter。`conns.ts` 已经承担 HTTP 编排、请求解析、状态变更和 run 查询，再继续把 DTO 映射塞在底部，只会让后续排查“接口字段为什么这样返回”时像翻旧账本一样烦。
+- 影响范围：新增 `src/routes/conn-route-presenters.ts` 与 `test/conn-route-presenters.test.ts`，集中提供 `toConnListBody()`、`toConnRunBody()`、`toConnRunFileBody()` 和 `toConnRunEventBody()`；`src/routes/conns.ts` 改为导入这些纯映射函数，`GET /v1/conns`、run detail、run events 等响应结构保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/routes/conn-route-presenters.ts`、`src/routes/conns.ts`、`test/conn-route-presenters.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent activity 投递数据库级去重
 - 日期：2026-04-26
 - 主题：把任务消息投递去重从应用层“先查再插”升级到数据库约束。之前 `AgentActivityStore.create()` 虽然会先查同一个 `source/sourceId/runId`，但 `agent_activity_items` 只有普通索引，多 worker 或异常重放时仍可能插出重复任务消息。这种去重方式说好听叫乐观，说难听点就是纸门锁。
