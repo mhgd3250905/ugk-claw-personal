@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent terminal run snapshot 构造收口
+- 日期：2026-04-26
+- 主题：把 `AgentService.runChat()` 收尾阶段的 terminal run snapshot 构造抽进 `src/agent/agent-terminal-run.ts` 的 `buildTerminalRunSnapshot()`。是否保留 terminal run、如何 clone active view / events、以及缺少 persisted coverage 时如何从 run tail 推导，都归到 terminal run 边界里。
+- 影响范围：completed / interrupted / error run 的刷新恢复快照语义保持不变；非 terminal run 不保存快照，terminal run 继续携带克隆后的 view / events 和 history coverage。新增测试覆盖非 terminal 跳过、已有 coverage 复用和 fallback coverage 推导。
+- 对应入口：`src/agent/agent-terminal-run.ts`、`src/agent/agent-service.ts`、`test/agent-terminal-run.test.ts`
+
 ### Agent conversation session 生命周期收口
 - 日期：2026-04-26
 - 主题：把当前会话兜底、新建空会话、sessionFile 复用打开和默认模型上下文 fallback 抽到 `src/agent/agent-conversation-session.ts`。这些逻辑属于会话生命周期边界，不应该继续混在 `AgentService` 的聊天编排尾部；那样以后查“为什么新会话没有激活 / 为什么旧 session 没复用”会很低效。

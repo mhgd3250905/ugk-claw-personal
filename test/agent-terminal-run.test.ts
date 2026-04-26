@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+	buildTerminalRunSnapshot,
 	buildRenderableTerminalRun,
 	shouldPersistTerminalRun,
 	type TerminalRunSnapshot,
@@ -32,6 +33,62 @@ test("shouldPersistTerminalRun keeps only terminal active run statuses", () => {
 	assert.equal(shouldPersistTerminalRun(view), true);
 	view.status = "interrupted";
 	assert.equal(shouldPersistTerminalRun(view), true);
+});
+
+test("buildTerminalRunSnapshot skips non-terminal active run views", () => {
+	const view = createActiveRunView("manual:terminal", "hello", []);
+
+	const snapshot = buildTerminalRunSnapshot({
+		view,
+		events: [],
+		sessionMessages: [],
+		historyMessageCountBeforeRun: 0,
+		persistedTurnCoverage: null,
+	});
+
+	assert.equal(snapshot, undefined);
+});
+
+test("buildTerminalRunSnapshot clones terminal view and events with existing coverage", () => {
+	const view = createActiveRunView("manual:terminal", "hello", []);
+	view.loading = false;
+	view.status = "done";
+	view.text = "answer";
+	const event = { type: "done" as const, conversationId: "manual:terminal", runId: view.runId, text: "answer" };
+	const coverage = { inputCovered: true, assistantIndex: 3 };
+
+	const snapshot = buildTerminalRunSnapshot({
+		view,
+		events: [event],
+		sessionMessages: [],
+		historyMessageCountBeforeRun: 0,
+		persistedTurnCoverage: coverage,
+	});
+
+	assert.ok(snapshot);
+	assert.notEqual(snapshot.view, view);
+	assert.notEqual(snapshot.events[0], event);
+	assert.deepEqual(snapshot.historyCoverage, coverage);
+});
+
+test("buildTerminalRunSnapshot derives fallback coverage from the run tail", () => {
+	const view = createActiveRunView("manual:terminal", "hello", []);
+	view.loading = false;
+	view.status = "done";
+	view.text = "answer";
+
+	const snapshot = buildTerminalRunSnapshot({
+		view,
+		events: [],
+		sessionMessages: [
+			{ role: "user", content: "hello" },
+			{ role: "assistant", content: "answer" },
+		],
+		historyMessageCountBeforeRun: 0,
+		persistedTurnCoverage: null,
+	});
+
+	assert.deepEqual(snapshot?.historyCoverage, { inputCovered: true, assistantIndex: 1 });
 });
 
 test("buildRenderableTerminalRun hides repeated input echo and clones mutable data", () => {

@@ -1,9 +1,6 @@
 import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
 import { ConversationStore } from "./conversation-store.js";
-import {
-	cloneActiveRunView,
-	createActiveRunView,
-} from "./agent-active-run-view.js";
+import { createActiveRunView } from "./agent-active-run-view.js";
 import {
 	buildConversationHistoryMessages,
 	derivePersistedTurnCoverageFromRunTail,
@@ -39,8 +36,8 @@ import {
 	runWithScopedAgentEnvironment,
 } from "./agent-run-scope.js";
 import {
+	buildTerminalRunSnapshot,
 	buildRenderableTerminalRun,
-	shouldPersistTerminalRun,
 	type TerminalRunSnapshot,
 } from "./agent-terminal-run.js";
 import { createAgentSessionEventAdapter } from "./agent-session-event-adapter.js";
@@ -666,21 +663,15 @@ export class AgentService {
 			if (this.activeRuns.get(conversationId) === activeRun) {
 				this.activeRuns.delete(conversationId);
 			}
-			if (shouldPersistTerminalRun(activeRun.view)) {
-				const finalSessionMessages = buildConversationHistoryMessages(
-					((session.messages as AgentMessageLike[] | undefined) ?? []),
-				);
-				this.terminalRuns.set(conversationId, {
-					view: cloneActiveRunView(activeRun.view),
-					events: activeRun.events.map(cloneChatStreamEvent),
-					historyCoverage:
-						activeRun.persistedTurnCoverage ??
-						derivePersistedTurnCoverageFromRunTail(
-							finalSessionMessages,
-							activeRun.historyMessageCountBeforeRun,
-							activeRun.view,
-						),
-				});
+			const terminalRun = buildTerminalRunSnapshot({
+				view: activeRun.view,
+				events: activeRun.events,
+				sessionMessages: ((session.messages as AgentMessageLike[] | undefined) ?? []),
+				historyMessageCountBeforeRun: activeRun.historyMessageCountBeforeRun,
+				persistedTurnCoverage: activeRun.persistedTurnCoverage,
+			});
+			if (terminalRun) {
+				this.terminalRuns.set(conversationId, terminalRun);
 			} else {
 				this.terminalRuns.delete(conversationId);
 			}
