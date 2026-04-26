@@ -2385,6 +2385,21 @@
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+### Agent conversation state page 构建收口
+- 日期：2026-04-26
+- 主题：把 `AgentService.getConversationState()` 中的 canonical history 分页、active / terminal run view 合并和 `historyPage` meta 构造收口到 `src/agent/agent-conversation-state.ts`。
+- 影响范围：
+  - `src/agent/agent-conversation-state.ts` 新增 `buildConversationStatePage()`，统一处理 `sessionMessages` 分页、`persistedTurnCoverage` 页内偏移、`viewMessages` 合成和 `hasMoreBeforeWindow` 合并。
+  - `src/agent/agent-service.ts` 的 `getConversationState()` 保留 state context 读取、context usage 计算、terminal run 选择和响应外壳组装，不再直接维护分页细节。
+  - `test/agent-conversation-state.test.ts` 补充状态页构建测试，覆盖分页 meta、active run 去重和 terminal run fallback。
+  - `AGENTS.md`、`docs/traceability-map.md` 同步聊天 / 状态恢复排查入口。
+- 对应入口：
+  - [src/agent/agent-conversation-state.ts](/E:/AII/ugk-pi/src/agent/agent-conversation-state.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [test/agent-conversation-state.test.ts](/E:/AII/ugk-pi/test/agent-conversation-state.test.ts)
+  - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
+  - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+
 ### Agent session event adapter 收口
 - 日期：2026-04-26
 - 主题：把 `AgentService.runChat()` 内部监听原始 session event 的 switch 拆到 `src/agent/agent-session-event-adapter.ts`，让 run 编排不再直接负责原始事件翻译、文本累积和 `send_file` 收集。

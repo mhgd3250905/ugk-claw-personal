@@ -14,20 +14,19 @@ import {
 import {
 	appendConversationHistoryMessage,
 	attachConversationHistoryFiles,
-	buildConversationViewMessages,
 	conversationTitleFromRole,
 	derivePersistedTurnCoverageFromRunTail,
 	normalizeConversationHistoryLimit,
 	omitTrailingActiveUserMessage,
 	paginateConversationHistoryMessages,
 	resolveConversationMessageCreatedAt,
-	shiftPersistedTurnCoverageToPage,
 	shouldExposeTerminalRunSnapshot,
 	shouldHideTerminalInputEcho,
 	summarizeConversationText,
 	type ConversationHistoryMessage,
 	type PersistedTurnCoverage,
 } from "./agent-conversation-history.js";
+import { buildConversationStatePage } from "./agent-conversation-state.js";
 import {
 	cloneChatStreamEvent,
 	deliverChatStreamEvent,
@@ -477,40 +476,25 @@ export class AgentService {
 			stateContext.messageIndexOffset,
 		);
 		const terminalRun = activeRun ? undefined : this.getRenderableTerminalRun(conversationId, sessionMessages);
-		const historyPage = paginateConversationHistoryMessages(sessionMessages, {
-			limit: options?.viewLimit,
-			defaultLimit: DEFAULT_CONVERSATION_STATE_VIEW_LIMIT,
-		});
-		const activeRunView = activeRun
-			? cloneActiveRunView(activeRun.view)
-			: terminalRun
-				? cloneActiveRunView(terminalRun.view)
-				: null;
-		const persistedTurnCoverage = shiftPersistedTurnCoverageToPage(
-			activeRun?.persistedTurnCoverage ?? terminalRun?.historyCoverage,
-			historyPage.startIndex,
-			historyPage.messages.length,
-		);
-		const hasMoreHistory = historyPage.hasMore || stateContext.hasMoreBeforeWindow;
-		const viewMessages = buildConversationViewMessages(
+		const statePage = buildConversationStatePage({
 			conversationId,
-			historyPage.messages,
-			activeRunView,
-			persistedTurnCoverage,
-		);
+			sessionMessages,
+			activeRunView: activeRun?.view,
+			terminalRunView: terminalRun?.view,
+			persistedTurnCoverage: activeRun?.persistedTurnCoverage ?? terminalRun?.historyCoverage,
+			viewLimit: options?.viewLimit,
+			defaultLimit: DEFAULT_CONVERSATION_STATE_VIEW_LIMIT,
+			hasMoreBeforeWindow: stateContext.hasMoreBeforeWindow,
+		});
 
 		return {
 			conversationId,
 			running: Boolean(activeRun),
 			contextUsage,
-			messages: historyPage.messages,
-			viewMessages,
-			activeRun: activeRunView,
-			historyPage: {
-				hasMore: hasMoreHistory,
-				nextBefore: hasMoreHistory ? historyPage.messages[0]?.id : undefined,
-				limit: historyPage.limit,
-			},
+			messages: statePage.messages,
+			viewMessages: statePage.viewMessages,
+			activeRun: statePage.activeRun,
+			historyPage: statePage.historyPage,
 			updatedAt:
 				activeRun?.view.updatedAt ??
 				terminalRun?.view.updatedAt ??
@@ -570,7 +554,7 @@ export class AgentService {
 
 		let replayedTerminalEvent = false;
 		for (const event of activeRun.events) {
-		deliverChatStreamEvent(onEvent, event);
+			deliverChatStreamEvent(onEvent, event);
 			replayedTerminalEvent ||= isTerminalChatStreamEvent(event);
 		}
 		if (replayedTerminalEvent) {
