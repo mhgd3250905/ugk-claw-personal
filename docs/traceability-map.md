@@ -29,9 +29,10 @@
 18. [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
 19. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
 20. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
-21. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
-22. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-23. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+21. [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
+22. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
+23. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+24. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
@@ -91,14 +92,15 @@
 10. [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
 11. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
 12. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
-13. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
-14. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-15. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
-16. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
-17. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-18. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-19. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-20. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
+13. [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
+14. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
+15. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+16. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+17. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+18. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+19. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+20. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+21. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
 
 适用问题：
 
@@ -109,6 +111,7 @@
 - 文件卡片“打开 / 下载”；文件上传区、文件 chip、资产库弹窗静态片段先看 `src/ui/playground-assets.ts`，运行时上传、拖拽、复用和下载卡片逻辑看 `src/ui/playground-assets-controller.ts`
 - 后台 conn 结果的“查看任务过程”入口；静态样式 / 弹窗 HTML 先看 `src/ui/playground-conn-activity.ts`，浏览器运行时逻辑看 `src/ui/playground-conn-activity-controller.ts`
 - 任务消息页、跨会话 conn 结果观察、`/v1/activity` 读取；任务消息主体在 `src/ui/playground-task-inbox.ts`，后台 run 详情弹层仍复用 `src/ui/playground-conn-activity.ts` 和 `src/ui/playground-conn-activity-controller.ts`
+- 删除会话、删除后台任务等二次确认弹窗的打开 / 关闭 / 默认文案 / tone 控制看 `src/ui/playground-confirm-dialog-controller.ts`
 - 文件库、任务消息、后台任务、确认框等弹层的关闭前焦点释放和返回焦点恢复；共享 helper 看 `src/ui/playground-panel-focus-controller.ts`
 - 刷新后运行态恢复
 - 新会话创建、当前会话切换、刷新后跟随服务端当前会话

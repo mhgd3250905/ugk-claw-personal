@@ -17,6 +17,7 @@
 - [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
 - [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
 - [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
+- [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
 - [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
 - [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 - [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
@@ -50,6 +51,7 @@
 - 浏览器端 transcript 条目拼装、assistant 状态壳层、运行日志入口、正文复制按钮、markdown hydration、代码块 copy toolbar、历史恢复后的消息渲染，以及 `bindPlaygroundTranscriptRenderer()` 初始化入口集中在 `src/ui/playground-transcript-renderer.ts`；`src/ui/playground.ts` 只保留会话恢复、流式事件和这些渲染函数的调用点
 - 浏览器端通知广播 SSE、active run 事件流 attach / teardown、断线恢复、`send / queue / interrupt` 主链路，以及 `bindPlaygroundStreamController()` 初始化入口集中在 `src/ui/playground-stream-controller.ts`；`src/ui/playground.ts` 不再兼任 stream lifecycle 泵站
 - 浏览器端弹层关闭前的焦点释放、关闭后的返回焦点恢复、确认框与文件库 / 任务消息 / 后台任务等面板共享的焦点 helper 集中在 `src/ui/playground-panel-focus-controller.ts`；`src/ui/playground.ts` 只负责注入脚本和调用这些 helper
+- 浏览器端二次确认弹窗的 `openConfirmDialog()` / `closeConfirmDialog()`、默认文案、tone 标记和 Promise resolve 逻辑集中在 `src/ui/playground-confirm-dialog-controller.ts`；`src/ui/playground.ts` 只保留 DOM refs、事件绑定和脚本注入
 - 浏览器端 slash command 也归 `src/ui/playground-stream-controller.ts` 管：`sendMessage()` 在计算正常 `outboundMessage` 和进入 `/v1/chat/stream` / `/v1/chat/queue` 前先调用 `parsePlaygroundSlashCommand()` 与 `runPlaygroundSlashCommand()`。当前只支持 `/new`，它复用既有 `startNewConversation()` 创建 / 激活新会话，不写 transcript、不追加用户气泡、不进入 agent runtime；未知 `/xxx` 指令只报错并保留草稿。指令不能和附件或引用资产一起发送，否则直接拦截并恢复 composer 草稿。这层是未来指令模式的入口，不要把 `/new` 当成聊天消息发给模型再让模型猜。
 - 深色 / 浅色主题切换集中在 `src/ui/playground-theme-controller.ts`：该文件输出 light theme 覆盖样式与浏览器端持久化脚本，`src/ui/playground.ts` 只注入桌面和手机入口。主题值存入 `localStorage` 的 `ugk-pi:playground-theme`，并通过 `<html data-theme="dark|light">` 生效。
 - 浅色主题现在按“冷白工作台”完整覆盖 chat、文件库、后台任务、任务消息、上下文详情弹窗、历史抽屉和移动更多菜单：根背景是 `#e8edf6` 冷白网格，主文字是 `#142033`，metadata 使用蓝灰，状态色继续区分成功 / 警告 / 危险。不能让深色主题的透明白文字漏到浅色卡片上，也不能在浅色工作页里保留整块黑色面板；markdown 标题 / strong / code、文件 metadata、任务消息 metadata、conn 状态徽标、上下文指标块和历史抽屉文字都必须有浅色专用映射。手机端品牌入口和历史抽屉头部只承担结构与文字，不承担层级背景，深浅主题都保持透明、无阴影。

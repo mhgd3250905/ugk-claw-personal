@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 确认弹窗控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的 `openConfirmDialog()` / `closeConfirmDialog()` 抽到 `src/ui/playground-confirm-dialog-controller.ts`。确认弹窗本来就是删除会话、删除后台任务等危险动作的公共边界，继续塞在主脚本里，只会让后续维护者在几千行浏览器脚本里翻 Promise resolve、焦点恢复和默认文案，属实没必要。
+- 影响范围：`renderPlaygroundPage()` 注入顺序保持为焦点 helper 之后、确认弹窗控制器前后无外部行为变化；确认弹窗仍复用 `state.confirmDialogResolve`、`state.confirmDialogRestoreFocusElement`、`rememberPanelReturnFocus()` 和 `releasePanelFocusBeforeHide()`。新增 `test/playground-confirm-dialog-controller.test.ts` 锁定函数名、焦点释放、默认文案和 tone 写入。
+- 对应入口：`src/ui/playground-confirm-dialog-controller.ts`、`src/ui/playground.ts`、`test/playground-confirm-dialog-controller.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground 静态页面 shell 拆分
 - 日期：2026-04-26
 - 主题：把 `renderPlaygroundPage()` 里的外层 HTML shell、顶部栏、历史抽屉、主舞台、共享弹层和 vendor script 装配拆到 `src/ui/playground-page-shell.ts`。`playground.ts` 继续瘦身，只负责生成 styles、browser script 和各业务静态片段后传给 shell 渲染器；否则主文件迟早又变成“HTML、CSS、JS 三明治”，维护者看一眼血压就上来了。
