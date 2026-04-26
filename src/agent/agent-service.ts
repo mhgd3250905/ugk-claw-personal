@@ -15,13 +15,18 @@ import {
 	sanitizeStateId,
 } from "./agent-active-run-view.js";
 import { cloneChatStreamEvent, isTerminalChatStreamEvent } from "./agent-run-events.js";
+import {
+	isMessageUpdateEvent,
+	isQueueUpdateEvent,
+	isToolExecutionEndEvent,
+	isToolExecutionStartEvent,
+	isToolExecutionUpdateEvent,
+} from "./agent-session-event-guards.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
 import type {
 	AgentSessionFactory,
 	AgentSessionLike,
 	MessageUpdateEventLike,
-	QueueUpdateEventLike,
-	RawAgentSessionEventLike,
 	ToolExecutionEndEventLike,
 	ToolExecutionStartEventLike,
 	ToolExecutionUpdateEventLike,
@@ -1348,36 +1353,6 @@ export class AgentService {
 
 function conversationTitleFromRole(kind: "user" | "assistant" | "system" | "error"): string {
 	return kind === "user" ? "agent:global" : "助手";
-}
-
-function hasStringProperty(value: object, propertyName: string): boolean {
-	return propertyName in value && typeof value[propertyName as keyof typeof value] === "string";
-}
-
-function isMessageUpdateEvent(event: RawAgentSessionEventLike): event is MessageUpdateEventLike {
-	return event.type === "message_update" && "assistantMessageEvent" in event;
-}
-
-function isToolExecutionStartEvent(event: RawAgentSessionEventLike): event is ToolExecutionStartEventLike {
-	return event.type === "tool_execution_start" && hasStringProperty(event, "toolCallId") && hasStringProperty(event, "toolName");
-}
-
-function isToolExecutionUpdateEvent(event: RawAgentSessionEventLike): event is ToolExecutionUpdateEventLike {
-	return event.type === "tool_execution_update" && hasStringProperty(event, "toolCallId") && hasStringProperty(event, "toolName");
-}
-
-function isToolExecutionEndEvent(event: RawAgentSessionEventLike): event is ToolExecutionEndEventLike {
-	return (
-		event.type === "tool_execution_end" &&
-		hasStringProperty(event, "toolCallId") &&
-		hasStringProperty(event, "toolName") &&
-		"isError" in event &&
-		typeof event.isError === "boolean"
-	);
-}
-
-function isQueueUpdateEvent(event: RawAgentSessionEventLike): event is QueueUpdateEventLike {
-	return event.type === "queue_update" && Array.isArray(event.steering) && Array.isArray(event.followUp);
 }
 
 function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {

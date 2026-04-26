@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent session event 守卫拆分
+- 日期：2026-04-26
+- 主题：把 raw agent session event 的类型守卫从 `AgentService` 拆到独立 helper。工具事件、消息事件、queue 事件的形状判断是输入边界，不是聊天服务生命周期本身；继续塞在主文件底部，就是给后续排障制造噪音。
+- 影响范围：新增 `src/agent/agent-session-event-guards.ts` 与 `test/agent-session-event-guards.test.ts`，集中提供 `isMessageUpdateEvent()`、`isToolExecutionStartEvent()`、`isToolExecutionUpdateEvent()`、`isToolExecutionEndEvent()` 和 `isQueueUpdateEvent()`；`src/agent/agent-service.ts` 改为导入这些守卫，流式事件处理、工具输出提取、queue 更新和错误处理逻辑保持不变。`AGENTS.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/agent/agent-session-event-guards.ts`、`src/agent/agent-service.ts`、`test/agent-session-event-guards.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent active run 视图 helper 拆分
 - 日期：2026-04-26
 - 主题：把 active run 视图创建、过程区条目追加、完成标记、状态 id 规整和深拷贝从 `AgentService` 拆到独立 helper。`AgentService` 应该管 run lifecycle，不应该把 UI 状态对象的每个小零件也攥在手里；这类膨胀迟早把维护者拖进泥潭。
