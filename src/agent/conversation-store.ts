@@ -27,6 +27,8 @@ interface CachedConversationStoreState {
 	state: ConversationStoreState;
 }
 
+const FALLBACK_ENTRY_UPDATED_AT = new Date(0).toISOString();
+
 export class ConversationStore {
 	private cache?: CachedConversationStoreState;
 	private writeQueue: Promise<void> = Promise.resolve();
@@ -131,17 +133,18 @@ export class ConversationStore {
 			}
 
 			if ("conversations" in parsed && parsed.conversations && typeof parsed.conversations === "object") {
+				const conversations = this.cloneConversations(parsed.conversations as Record<string, unknown>);
 				return this.cacheState({
-					currentConversationId:
-						typeof parsed.currentConversationId === "string" && parsed.currentConversationId
-							? parsed.currentConversationId
-							: undefined,
-					conversations: this.cloneConversations(parsed.conversations as Record<string, ConversationEntry>),
+					currentConversationId: this.normalizeCurrentConversationId(
+						conversations,
+						typeof parsed.currentConversationId === "string" ? parsed.currentConversationId : undefined,
+					),
+					conversations,
 				}, mtimeKey);
 			}
 
 			return this.cacheState({
-				conversations: this.cloneConversations(parsed as LegacyConversationIndex),
+				conversations: this.cloneConversations(parsed as Record<string, unknown>),
 			}, mtimeKey);
 		} catch (error) {
 			if (this.isRecoverableReadError(error)) {
@@ -169,7 +172,7 @@ export class ConversationStore {
 	private sortEntries(state: ConversationStoreState): ConversationListEntry[] {
 		return Object.entries(state.conversations)
 			.map(([conversationId, entry]) => {
-				const cloned = this.cloneEntry(entry) ?? { updatedAt: new Date(0).toISOString() };
+				const cloned = this.cloneEntry(entry) ?? { updatedAt: FALLBACK_ENTRY_UPDATED_AT, messageCount: 0 };
 				return {
 					conversationId,
 					...cloned,
@@ -221,48 +224,71 @@ export class ConversationStore {
 	}
 
 	private cloneState(state: ConversationStoreState): ConversationStoreState {
+		const conversations = this.cloneConversations(state.conversations);
 		return {
-			currentConversationId: state.currentConversationId,
-			conversations: this.cloneConversations(state.conversations),
+			currentConversationId: this.normalizeCurrentConversationId(conversations, state.currentConversationId),
+			conversations,
 		};
 	}
 
-	private cloneConversations(conversations: Record<string, ConversationEntry>): Record<string, ConversationEntry> {
+	private cloneConversations(conversations: Record<string, unknown>): Record<string, ConversationEntry> {
 		return Object.fromEntries(
 			Object.entries(conversations).map(([conversationId, entry]) => [
 				conversationId,
-				this.cloneEntry(entry) ?? { updatedAt: new Date(0).toISOString() },
+				this.cloneEntry(entry) ?? { updatedAt: FALLBACK_ENTRY_UPDATED_AT, messageCount: 0 },
 			]),
 		);
 	}
 
-	private cloneEntry(entry: ConversationEntry | undefined): ConversationEntry | undefined {
-		if (!entry) {
+	private cloneEntry(entry: unknown): ConversationEntry | undefined {
+		if (entry === undefined) {
 			return undefined;
 		}
+		if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+			return {
+				updatedAt: FALLBACK_ENTRY_UPDATED_AT,
+				messageCount: 0,
+			};
+		}
 
+		const rawEntry = entry as Partial<ConversationEntry>;
+
+		const hasValidUpdatedAt = typeof rawEntry.updatedAt === "string" && rawEntry.updatedAt;
 		const cloned: ConversationEntry = {
-			updatedAt: entry.updatedAt,
+			updatedAt: hasValidUpdatedAt ? rawEntry.updatedAt as string : FALLBACK_ENTRY_UPDATED_AT,
 		};
-		if (entry.sessionFile !== undefined) {
-			cloned.sessionFile = entry.sessionFile;
+		if (typeof rawEntry.sessionFile === "string") {
+			cloned.sessionFile = rawEntry.sessionFile;
 		}
-		if (entry.createdAt !== undefined) {
-			cloned.createdAt = entry.createdAt;
+		if (typeof rawEntry.createdAt === "string") {
+			cloned.createdAt = rawEntry.createdAt;
 		}
-		if (entry.skillFingerprint !== undefined) {
-			cloned.skillFingerprint = entry.skillFingerprint;
+		if (typeof rawEntry.skillFingerprint === "string") {
+			cloned.skillFingerprint = rawEntry.skillFingerprint;
 		}
-		if (entry.title !== undefined) {
-			cloned.title = entry.title;
+		if (typeof rawEntry.title === "string") {
+			cloned.title = rawEntry.title;
 		}
-		if (entry.preview !== undefined) {
-			cloned.preview = entry.preview;
+		if (typeof rawEntry.preview === "string") {
+			cloned.preview = rawEntry.preview;
 		}
-		if (entry.messageCount !== undefined) {
-			cloned.messageCount = entry.messageCount;
+		if (typeof rawEntry.messageCount === "number" && Number.isFinite(rawEntry.messageCount)) {
+			cloned.messageCount = rawEntry.messageCount;
+		} else if (!hasValidUpdatedAt) {
+			cloned.messageCount = 0;
 		}
 		return cloned;
+	}
+
+	private normalizeCurrentConversationId(
+		conversations: Record<string, ConversationEntry>,
+		currentConversationId: string | undefined,
+	): string | undefined {
+		if (currentConversationId && Object.hasOwn(conversations, currentConversationId)) {
+			return currentConversationId;
+		}
+
+		return this.sortEntries({ conversations }).at(0)?.conversationId;
 	}
 
 	private isRecoverableReadError(error: unknown): boolean {

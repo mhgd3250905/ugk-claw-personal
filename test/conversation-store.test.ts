@@ -193,3 +193,90 @@ test("lists conversations ordered by most recent update", async () => {
 		["manual:newer", "manual:older"],
 	);
 });
+
+test("falls back when the stored current conversation points at a missing entry", async () => {
+	const indexPath = await createTempPath();
+	await writeFile(
+		indexPath,
+		JSON.stringify(
+			{
+				currentConversationId: "manual:missing",
+				conversations: {
+					"manual:older": {
+						sessionFile: "E:/sessions/older.jsonl",
+						updatedAt: "2026-04-17T10:00:00.000Z",
+					},
+					"manual:newer": {
+						sessionFile: "E:/sessions/newer.jsonl",
+						updatedAt: "2026-04-18T10:00:00.000Z",
+					},
+				},
+			},
+			null,
+			2,
+		),
+		"utf8",
+	);
+	const store = new ConversationStore(indexPath);
+
+	assert.equal(await store.getCurrentConversationId(), "manual:newer");
+});
+
+test("normalizes malformed conversation entries instead of breaking list sorting", async () => {
+	const indexPath = await createTempPath();
+	await writeFile(
+		indexPath,
+		JSON.stringify(
+			{
+				currentConversationId: "manual:valid",
+				conversations: {
+					"manual:valid": {
+						sessionFile: "E:/sessions/valid.jsonl",
+						updatedAt: "2026-04-18T10:00:00.000Z",
+						messageCount: 2,
+					},
+					"manual:blank": {},
+					"manual:null": null,
+					"manual:odd": {
+						updatedAt: 123,
+						messageCount: "many",
+					},
+				},
+			},
+			null,
+			2,
+		),
+		"utf8",
+	);
+	const store = new ConversationStore(indexPath);
+
+	assert.deepEqual(
+		(await store.list()).map((entry) => ({
+			conversationId: entry.conversationId,
+			messageCount: entry.messageCount,
+			updatedAt: entry.updatedAt,
+		})),
+		[
+			{
+				conversationId: "manual:valid",
+				messageCount: 2,
+				updatedAt: "2026-04-18T10:00:00.000Z",
+			},
+			{
+				conversationId: "manual:blank",
+				messageCount: 0,
+				updatedAt: "1970-01-01T00:00:00.000Z",
+			},
+			{
+				conversationId: "manual:null",
+				messageCount: 0,
+				updatedAt: "1970-01-01T00:00:00.000Z",
+			},
+			{
+				conversationId: "manual:odd",
+				messageCount: 0,
+				updatedAt: "1970-01-01T00:00:00.000Z",
+			},
+		],
+	);
+});

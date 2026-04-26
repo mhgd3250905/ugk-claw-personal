@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### ConversationStore 会话索引读边界防护
+- 日期：2026-04-26
+- 主题：收口会话索引 JSON 脏数据对 playground 当前会话恢复的影响。之前 `ConversationStore` 会原样信任 `currentConversationId`，即使它已经指向不存在的会话；畸形会话条目缺少 `updatedAt` 时还会在列表排序阶段抛 `TypeError`。这类问题看起来像“小概率坏文件”，实际上线上重启、手工排障、半截写入恢复后最容易把首页拖进假死，属于该清就清的低级坑。
+- 影响范围：`ConversationStore` 读盘时会把悬空 `currentConversationId` 规整到最近更新的有效会话；畸形会话条目会用 `1970-01-01T00:00:00.000Z` 作为排序兜底，并只对畸形条目补 `messageCount: 0`，正常旧索引缺失字段保持原兼容形状。新增回归测试覆盖悬空 current 指针与畸形 entries 列表排序。
+- 对应入口：`src/agent/conversation-store.ts`、`test/conversation-store.test.ts`
+
 ### Conn run runtime 写入 lease owner 防护
 - 日期：2026-04-26
 - 主题：继续收紧 conn run 被新 worker 接管后的迟到写入问题。上一刀防住了终态，但旧 worker 仍可能把 `sessionFile`、过程事件或输出文件索引写进已被新 worker 接管的 run，结果就是状态没被污染，排障日志却混进幽灵进度，照样恶心。
