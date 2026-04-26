@@ -17,6 +17,7 @@
 - [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
 - [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
 - [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
+- [src/ui/playground-conversation-api-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-api-controller.ts)
 - [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
 - [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
 - [src/ui/playground-notification-controller.ts](/E:/AII/ugk-pi/src/ui/playground-notification-controller.ts)
@@ -52,6 +53,7 @@
 - 浏览器端布局同步、composer textarea 自适应高度、`--conversation-width` / `--command-deck-offset` 更新、transcript 自动跟随、回到底部按钮、顶部加载更多触发、以及 `visibilitychange/pageshow/online` 恢复同步入口集中在 `src/ui/playground-layout-controller.ts`；`src/ui/playground.ts` 只保留主 state、DOM refs 和页面装配
 - 浏览器端 transcript 条目拼装、assistant 状态壳层、运行日志入口、正文复制按钮、markdown hydration、代码块 copy toolbar、历史恢复后的消息渲染，以及 `bindPlaygroundTranscriptRenderer()` 初始化入口集中在 `src/ui/playground-transcript-renderer.ts`；`src/ui/playground.ts` 只保留会话恢复、流式事件和这些渲染函数的调用点
 - 浏览器端通知广播 SSE、active run 事件流 attach / teardown、断线恢复、`send / queue / interrupt` 主链路，以及 `bindPlaygroundStreamController()` 初始化入口集中在 `src/ui/playground-stream-controller.ts`；`src/ui/playground.ts` 不再兼任 stream lifecycle 泵站
+- 浏览器端 `fetchConversationRunStatus()`、`fetchConversationState()`、`fetchConversationHistoryPage()` 集中在 `src/ui/playground-conversation-api-controller.ts`；这里只负责请求 `/v1/chat/status`、`/v1/chat/state`、`/v1/chat/history` 和响应兜底归一化，不负责 DOM 渲染或 sync ownership
 - 浏览器端顶部状态、loading 忙态、stage mode、error banner、控制动作错误文案集中在 `src/ui/playground-status-controller.ts`；`src/ui/playground.ts` 只保留对应 DOM refs 和初始化调用点
 - 浏览器端弹层关闭前的焦点释放、关闭后的返回焦点恢复、确认框与文件库 / 任务消息 / 后台任务等面板共享的焦点 helper 集中在 `src/ui/playground-panel-focus-controller.ts`；`src/ui/playground.ts` 只负责注入脚本和调用这些 helper
 - 浏览器端二次确认弹窗的 `openConfirmDialog()` / `closeConfirmDialog()`、默认文案、tone 标记和 Promise resolve 逻辑集中在 `src/ui/playground-confirm-dialog-controller.ts`；`src/ui/playground.ts` 只保留 DOM refs、事件绑定和脚本注入

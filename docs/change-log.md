@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Playground 会话 API 控制器拆分
+- 日期：2026-04-26
+- 主题：把 `src/ui/playground.ts` 里的 `fetchConversationRunStatus()`、`fetchConversationState()`、`fetchConversationHistoryPage()` 拆到 `src/ui/playground-conversation-api-controller.ts`。这三段只是前端请求与 payload 归一化，不该继续夹在 DOM 状态、布局控制和会话渲染中间；否则一查 `/v1/chat/state` 分页问题就像在电线杆上找耳机线。
+- 影响范围：三个浏览器函数名、请求路径、错误兜底、`historyPage` 默认值、`normalizeContextUsage()` 与 `normalizeActiveRun()` 调用语义保持不变；会话 sync ownership、DOM diff 渲染、历史补页入口仍留在 `src/ui/playground.ts` 当前编排层。新增 `test/playground-conversation-api-controller.test.ts` 锁定 status / state / history 三个前端请求入口。
+- 对应入口：`src/ui/playground-conversation-api-controller.ts`、`src/ui/playground.ts`、`test/playground-conversation-api-controller.test.ts`、`docs/playground-current.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### Playground 状态控制器拆分
 - 日期：2026-04-26
 - 主题：把 `src/ui/playground.ts` 里的 stage mode、顶部命令状态、loading 忙态、error banner 和控制动作错误文案拆到 `src/ui/playground-status-controller.ts`。这些函数被 stream、conversation、asset、task inbox、conn 和 transcript 多处调用，继续藏在主脚本中段，后续排查“按钮为什么禁用 / 状态为什么没恢复 / 错误为什么没清掉”就只能靠翻山越岭，太土了。
