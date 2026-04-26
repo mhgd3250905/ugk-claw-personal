@@ -2385,6 +2385,18 @@
   - [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
   - [DESIGN.md](/E:/AII/ugk-pi/DESIGN.md)
   - [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+### Agent run event 投递收口
+- 日期：2026-04-26
+- 主题：把 `AgentService` 内部的 best-effort stream event 投递策略收口到 `src/agent/agent-run-events.ts`，让事件克隆、终态判断和投递容错集中在同一领域 helper。
+- 影响范围：
+  - `src/agent/agent-run-events.ts` 新增 `ChatStreamEventSink` 与 `deliverChatStreamEvent()`，继续保持 SSE / observer sink 抛错时不影响 agent run 的语义。
+  - `src/agent/agent-service.ts` 移除本地 `emitEvent()` 私有方法，文本增量、事件回放和 subscriber 分发统一调用 `deliverChatStreamEvent()`。
+  - `test/agent-run-events.test.ts` 补充 clone 深拷贝、终态判断和 best-effort 投递测试。
+- 对应入口：
+  - [src/agent/agent-run-events.ts](/E:/AII/ugk-pi/src/agent/agent-run-events.ts)
+  - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+  - [test/agent-run-events.test.ts](/E:/AII/ugk-pi/test/agent-run-events.test.ts)
+
 ### Agent run result 构建收口
 - 日期：2026-04-26
 - 主题：把 `AgentService.runChat()` 里的最终文本、输出文件、`send_file` 合并、本地 artifact 链接改写和 `done` 事件构造收口到独立 helper，降低核心运行编排函数的职责密度。

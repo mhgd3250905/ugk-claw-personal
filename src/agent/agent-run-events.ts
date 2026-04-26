@@ -1,5 +1,7 @@
 import type { ChatStreamEvent } from "../types/api.js";
 
+export type ChatStreamEventSink = (event: ChatStreamEvent) => void;
+
 export function cloneChatStreamEvent(event: ChatStreamEvent): ChatStreamEvent {
 	switch (event.type) {
 		case "run_started":
@@ -71,4 +73,16 @@ export function cloneChatStreamEvent(event: ChatStreamEvent): ChatStreamEvent {
 
 export function isTerminalChatStreamEvent(event: ChatStreamEvent): boolean {
 	return event.type === "done" || event.type === "interrupted" || event.type === "error";
+}
+
+export function deliverChatStreamEvent(onEvent: ChatStreamEventSink | undefined, event: ChatStreamEvent): void {
+	if (!onEvent) {
+		return;
+	}
+
+	try {
+		onEvent(event);
+	} catch {
+		// Event delivery is best-effort; a dead SSE client must not cancel the agent run.
+	}
 }

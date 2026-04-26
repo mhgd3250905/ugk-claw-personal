@@ -29,7 +29,12 @@ import {
 	type ConversationHistoryMessage,
 	type PersistedTurnCoverage,
 } from "./agent-conversation-history.js";
-import { cloneChatStreamEvent, isTerminalChatStreamEvent } from "./agent-run-events.js";
+import {
+	cloneChatStreamEvent,
+	deliverChatStreamEvent,
+	isTerminalChatStreamEvent,
+	type ChatStreamEventSink,
+} from "./agent-run-events.js";
 import { buildAgentRunResult, buildDoneChatStreamEvent } from "./agent-run-result.js";
 import {
 	isMessageUpdateEvent,
@@ -199,8 +204,6 @@ export interface AgentServiceOptions {
 	sessionFactory: AgentSessionFactory;
 	assetStore?: AssetStoreLike;
 }
-
-type ChatStreamEventSink = (event: ChatStreamEvent) => void;
 
 interface ActiveRunState {
 	session: AgentSessionLike;
@@ -581,7 +584,7 @@ export class AgentService {
 
 		let replayedTerminalEvent = false;
 		for (const event of activeRun.events) {
-			this.emitEvent(onEvent, event);
+		deliverChatStreamEvent(onEvent, event);
 			replayedTerminalEvent ||= isTerminalChatStreamEvent(event);
 		}
 		if (replayedTerminalEvent) {
@@ -783,21 +786,9 @@ export class AgentService {
 			activeRun.events.shift();
 		}
 
-		this.emitEvent(primarySink, event);
+		deliverChatStreamEvent(primarySink, event);
 		for (const subscriber of activeRun.subscribers) {
-			this.emitEvent(subscriber, event);
-		}
-	}
-
-	private emitEvent(onEvent: ChatStreamEventSink | undefined, event: ChatStreamEvent): void {
-		if (!onEvent) {
-			return;
-		}
-
-		try {
-			onEvent(event);
-		} catch {
-			// Event delivery is best-effort; a dead SSE client must not cancel the agent run.
+			deliverChatStreamEvent(subscriber, event);
 		}
 	}
 
@@ -1036,7 +1027,7 @@ export class AgentService {
 
 		const delta = event.assistantMessageEvent.delta;
 		const nextText = currentText + delta;
-		this.emitEvent(onEvent, {
+		deliverChatStreamEvent(onEvent, {
 			type: "text_delta",
 			textDelta: rewriteUserVisibleLocalArtifactLinks(delta),
 		});
