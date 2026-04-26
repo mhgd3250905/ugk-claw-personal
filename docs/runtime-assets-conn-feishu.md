@@ -323,6 +323,7 @@ GET /v1/local-file?path=...
 - 运行中的 conn run 现在会由 worker 周期性刷新 `updatedAt` 和 `leaseUntil`，不再长时间停在 claim 那一刻的时间戳上装死。
 - heartbeat 只允许当前 `leaseOwner` 续租，避免别的 worker 抢跑后把 lease 写乱。
 - 默认 heartbeat 间隔会按 lease 自动推导；显式传入的 heartbeat 间隔会被原样尊重，便于测试和后续调参。
+- runner / worker 完成或失败 run 时会带上当前 `leaseOwner` 做条件更新；如果 run 已经因租约过期被其他 worker 接管，迟到的旧 worker 不能再把它标成成功或失败，也不能污染 owning conn 的 `lastRunId`。
 
 ## Stale Run Recovery
 

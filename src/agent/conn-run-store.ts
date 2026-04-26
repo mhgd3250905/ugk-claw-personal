@@ -76,6 +76,7 @@ export interface HeartbeatConnRunInput {
 
 export interface CompleteConnRunInput {
 	runId: string;
+	leaseOwner?: string;
 	summary: string;
 	text?: string;
 	finishedAt?: Date;
@@ -83,6 +84,7 @@ export interface CompleteConnRunInput {
 
 export interface FailConnRunInput {
 	runId: string;
+	leaseOwner?: string;
 	summary: string;
 	errorText: string;
 	finishedAt?: Date;
@@ -355,6 +357,7 @@ export class ConnRunStore {
 	async completeRun(input: CompleteConnRunInput): Promise<ConnRunRecord | undefined> {
 		return await this.finishRun({
 			runId: input.runId,
+			leaseOwner: input.leaseOwner,
 			status: "succeeded",
 			summary: input.summary,
 			resultText: input.text,
@@ -365,6 +368,7 @@ export class ConnRunStore {
 	async failRun(input: FailConnRunInput): Promise<ConnRunRecord | undefined> {
 		return await this.finishRun({
 			runId: input.runId,
+			leaseOwner: input.leaseOwner,
 			status: "failed",
 			summary: input.summary,
 			errorText: input.errorText,
@@ -453,6 +457,7 @@ export class ConnRunStore {
 
 	private async finishRun(input: {
 		runId: string;
+		leaseOwner?: string;
 		status: "succeeded" | "failed";
 		summary: string;
 		resultText?: string;
@@ -469,21 +474,45 @@ export class ConnRunStore {
 
 		try {
 			this.options.database.exec("BEGIN IMMEDIATE");
-			this.options.database.run(
-				[
-					"UPDATE conn_runs SET",
-					"status = ?, finished_at = ?, lease_owner = NULL, lease_until = NULL,",
-					"result_summary = ?, result_text = ?, error_text = ?, updated_at = ?",
-					"WHERE run_id = ?",
-				].join(" "),
-				input.status,
-				finishedAtIso,
-				input.summary,
-				input.resultText,
-				input.errorText,
-				finishedAtIso,
-				input.runId,
-			);
+			if (input.leaseOwner) {
+				this.options.database.run(
+					[
+						"UPDATE conn_runs SET",
+						"status = ?, finished_at = ?, lease_owner = NULL, lease_until = NULL,",
+						"result_summary = ?, result_text = ?, error_text = ?, updated_at = ?",
+						"WHERE run_id = ? AND status = 'running' AND lease_owner = ?",
+					].join(" "),
+					input.status,
+					finishedAtIso,
+					input.summary,
+					input.resultText,
+					input.errorText,
+					finishedAtIso,
+					input.runId,
+					input.leaseOwner,
+				);
+			} else {
+				this.options.database.run(
+					[
+						"UPDATE conn_runs SET",
+						"status = ?, finished_at = ?, lease_owner = NULL, lease_until = NULL,",
+						"result_summary = ?, result_text = ?, error_text = ?, updated_at = ?",
+						"WHERE run_id = ?",
+					].join(" "),
+					input.status,
+					finishedAtIso,
+					input.summary,
+					input.resultText,
+					input.errorText,
+					finishedAtIso,
+					input.runId,
+				);
+			}
+			const changes = this.options.database.get<{ changes: number }>("SELECT changes() AS changes")?.changes ?? 0;
+			if (changes === 0) {
+				this.options.database.exec("COMMIT");
+				return undefined;
+			}
 			this.updateOwningConnAfterRun(existing.connId, input.runId, finishedAt);
 			this.options.database.exec("COMMIT");
 		} catch (error) {

@@ -196,6 +196,58 @@ test("ConnRunStore heartbeatRun refreshes updatedAt and leaseUntil for the ownin
 	database.close();
 });
 
+test("ConnRunStore rejects finishing a run when the lease owner no longer matches", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "daily digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-lease-owner",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-lease-owner",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runStore.claimNextDue({
+		workerId: "worker-a",
+		now: new Date("2026-04-21T10:01:00.000Z"),
+		leaseMs: 30_000,
+	});
+	await runStore.claimNextDue({
+		workerId: "worker-b",
+		now: new Date("2026-04-21T10:01:31.000Z"),
+		leaseMs: 30_000,
+	});
+
+	const staleCompletion = await runStore.completeRun({
+		runId: run.runId,
+		leaseOwner: "worker-a",
+		summary: "stale done",
+		text: "stale result",
+		finishedAt: new Date("2026-04-21T10:01:35.000Z"),
+	});
+
+	assert.equal(staleCompletion, undefined);
+	const currentRun = await runStore.getRun(run.runId);
+	assert.equal(currentRun?.status, "running");
+	assert.equal(currentRun?.leaseOwner, "worker-b");
+	assert.equal(currentRun?.resultSummary, undefined);
+	assert.equal((await connStore.get(conn.connId))?.lastRunId, undefined);
+
+	database.close();
+});
+
 test("ConnRunStore appends ordered run events and output file records", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const conn = await connStore.create({

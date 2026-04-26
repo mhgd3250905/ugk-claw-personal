@@ -111,6 +111,7 @@ export class BackgroundAgentRunner {
 			});
 			return await this.options.runStore.completeRun({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				summary,
 				text: resultText,
 				finishedAt: now,
@@ -126,6 +127,7 @@ export class BackgroundAgentRunner {
 			});
 			return await this.options.runStore.failRun({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				summary: message,
 				errorText: message,
 				finishedAt: now,

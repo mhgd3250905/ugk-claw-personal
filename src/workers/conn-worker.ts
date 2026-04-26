@@ -134,6 +134,7 @@ export class ConnWorker {
 		if (!conn) {
 			await this.options.runStore.failRun({
 				runId: run.runId,
+				leaseOwner: run.leaseOwner,
 				summary: "Conn definition no longer exists",
 				errorText: "Conn definition no longer exists",
 				finishedAt: now,
@@ -196,6 +197,7 @@ export class ConnWorker {
 			}
 			const failedRun = await this.options.runStore.failRun({
 				runId: run.runId,
+				leaseOwner: this.options.workerId,
 				summary: message,
 				errorText: message,
 				finishedAt: now,

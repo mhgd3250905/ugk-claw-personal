@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Conn run 终态写入 lease owner 防护
+- 日期：2026-04-26
+- 主题：修复过期 worker 仍可完成已被新 worker 接管的 conn run 的风险。之前 `completeRun()` / `failRun()` 只按 `runId` 更新终态，worker-a 租约过期后如果 worker-b 已经重领，worker-a 的迟到完成仍能把 run 标成成功并污染 owning conn 的 `lastRunId`，这类竞态一旦发生排障会非常难看。
+- 影响范围：`CompleteConnRunInput` 与 `FailConnRunInput` 新增可选 `leaseOwner`；带 owner 时 `ConnRunStore` 只允许 `status='running'` 且 `lease_owner` 匹配的 worker 写入终态，更新不到行时返回 `undefined` 且不更新 owning conn。`BackgroundAgentRunner` 和 `ConnWorker` 的正常完成 / 失败路径会传入当前 lease owner；stale recovery 仍保留无 owner 的强制回收语义。`test/conn-run-store.test.ts` 增加过期 worker 迟到完成的回归测试，`docs/runtime-assets-conn-feishu.md` 同步运行口径。
+- 对应入口：`src/agent/conn-run-store.ts`、`src/agent/background-agent-runner.ts`、`src/workers/conn-worker.ts`、`test/conn-run-store.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### Feishu message parser 单测补齐
 - 日期：2026-04-26
 - 主题：补齐 Feishu 入站消息 parser 的独立测试。之前文本、文件、图片和坏 JSON 解析主要靠 `FeishuService` 集成测试间接兜着，真出问题时定位路径太绕，像隔着三层墙听水管漏水。
