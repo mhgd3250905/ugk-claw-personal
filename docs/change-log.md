@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Conn 路由请求 parser 拆分
+- 日期：2026-04-26
+- 主题：把 `POST /v1/conns`、`PATCH /v1/conns/:connId` 和 `POST /v1/conns/bulk-delete` 的请求解析从 `src/routes/conns.ts` 拆到独立 parser 模块。路由文件继续同时负责 HTTP、store、run 查询、响应转换和一堆字段校验，那就是把入口层当垃圾桶用；现在至少把纯输入解析拿出去。
+- 影响范围：新增 `src/routes/conn-route-parsers.ts`，集中放置 target、schedule、assetRefs、profile/runtime id、upgradePolicy、maxRunMs 和 conn id list 解析；`src/routes/conns.ts` 改为导入 `parseConnMutationBody()` 与 `parseConnIdList()`，API 状态码、错误文案、默认 `task_inbox` 目标和响应结构保持不变。`docs/runtime-assets-conn-feishu.md` 与 `docs/traceability-map.md` 同步新的排查入口。
+- 对应入口：`src/routes/conn-route-parsers.ts`、`src/routes/conns.ts`、`docs/runtime-assets-conn-feishu.md`、`docs/traceability-map.md`
+
 ### Agent 文件历史 helper 拆分
 - 日期：2026-04-26
 - 主题：把 `send_file` 工具结果解析、agent 文件合并、历史消息文件卡片合并从 `AgentService` 主文件拆到独立 helper。文件交付不是 run lifecycle 本身，继续把这些纯 normalization 函数塞在 1800 行服务中枢底部，只会让后续维护者为了一个文件卡片问题去翻整条聊天主链路。

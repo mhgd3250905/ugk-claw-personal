@@ -232,7 +232,10 @@ Run 查询接口：
 - [src/agent/background-agent-runner.ts](/E:/AII/ugk-pi/src/agent/background-agent-runner.ts)
 - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
 - [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
+- [src/routes/conn-route-parsers.ts](/E:/AII/ugk-pi/src/routes/conn-route-parsers.ts)
 - [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
+
+`POST /v1/conns`、`PATCH /v1/conns/:connId` 和 `POST /v1/conns/bulk-delete` 的请求解析集中在 `src/routes/conn-route-parsers.ts`；`src/routes/conns.ts` 只负责 HTTP 编排、store 调用、run 查询和响应转换。别又把字段解析塞回路由主文件，入口层不是垃圾桶。
 
 ## 7. Feishu
 
