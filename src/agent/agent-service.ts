@@ -10,8 +10,6 @@ import {
 	derivePersistedTurnCoverageFromRunTail,
 	normalizeConversationHistoryLimit,
 	paginateConversationHistoryMessages,
-	shouldExposeTerminalRunSnapshot,
-	shouldHideTerminalInputEcho,
 	type ConversationHistoryMessage,
 	type PersistedTurnCoverage,
 } from "./agent-conversation-history.js";
@@ -33,6 +31,11 @@ import {
 	createBrowserCleanupScope,
 	runWithScopedAgentEnvironment,
 } from "./agent-run-scope.js";
+import {
+	buildRenderableTerminalRun,
+	shouldPersistTerminalRun,
+	type TerminalRunSnapshot,
+} from "./agent-terminal-run.js";
 import { createAgentSessionEventAdapter } from "./agent-session-event-adapter.js";
 import { preparePromptAssets } from "./agent-prompt-assets.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
@@ -196,11 +199,7 @@ interface ActiveRunState {
 	persistedTurnCoverage: PersistedTurnCoverage | null;
 }
 
-interface TerminalRunState {
-	view: ChatActiveRunBody;
-	events: ChatStreamEvent[];
-	historyCoverage: PersistedTurnCoverage;
-}
+type TerminalRunState = TerminalRunSnapshot;
 
 const MAX_BUFFERED_RUN_EVENTS = 300;
 const DEFAULT_CONVERSATION_STATE_VIEW_LIMIT = 160;
@@ -493,25 +492,10 @@ export class AgentService {
 		conversationId: string,
 		sessionMessages: readonly ConversationHistoryMessage[],
 	): TerminalRunState | undefined {
-		const terminalRun = this.terminalRuns.get(conversationId);
-		if (!terminalRun) {
-			return undefined;
-		}
-
-		if (!shouldExposeTerminalRunSnapshot(sessionMessages, terminalRun.view)) {
-			return undefined;
-		}
-
-		const view = cloneActiveRunView(terminalRun.view);
-		if (shouldHideTerminalInputEcho(sessionMessages, view.input.message)) {
-			view.input.message = "";
-		}
-
-		return {
-			view,
-			events: terminalRun.events.map(cloneChatStreamEvent),
-			historyCoverage: { ...terminalRun.historyCoverage },
-		};
+		return buildRenderableTerminalRun({
+			terminalRun: this.terminalRuns.get(conversationId),
+			sessionMessages,
+		});
 	}
 
 	async getRunEvents(conversationId: string, runId: string): Promise<ChatStreamEvent[]> {
@@ -869,10 +853,6 @@ export class AgentService {
 			activeRun.view,
 		);
 	}
-}
-
-function shouldPersistTerminalRun(view: ChatActiveRunBody): boolean {
-	return view.status === "done" || view.status === "error" || view.status === "interrupted";
 }
 
 function toError(error: unknown): Error {

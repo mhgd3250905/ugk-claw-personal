@@ -1,0 +1,79 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+	buildRenderableTerminalRun,
+	shouldPersistTerminalRun,
+	type TerminalRunSnapshot,
+} from "../src/agent/agent-terminal-run.js";
+import { createActiveRunView } from "../src/agent/agent-active-run-view.js";
+import type { ConversationHistoryMessage } from "../src/agent/agent-conversation-history.js";
+
+function historyMessage(
+	id: string,
+	kind: ConversationHistoryMessage["kind"],
+	text: string,
+): ConversationHistoryMessage {
+	return {
+		id,
+		kind,
+		title: kind === "user" ? "agent:global" : "助手",
+		text,
+		createdAt: "2026-04-26T00:00:00.000Z",
+	};
+}
+
+test("shouldPersistTerminalRun keeps only terminal active run statuses", () => {
+	const view = createActiveRunView("manual:terminal", "hello", []);
+	assert.equal(shouldPersistTerminalRun(view), false);
+
+	view.status = "done";
+	assert.equal(shouldPersistTerminalRun(view), true);
+	view.status = "error";
+	assert.equal(shouldPersistTerminalRun(view), true);
+	view.status = "interrupted";
+	assert.equal(shouldPersistTerminalRun(view), true);
+});
+
+test("buildRenderableTerminalRun hides repeated input echo and clones mutable data", () => {
+	const view = createActiveRunView("manual:terminal", "hello", []);
+	view.loading = false;
+	view.status = "interrupted";
+	view.text = "";
+	const terminalRun: TerminalRunSnapshot = {
+		view,
+		events: [{ type: "interrupted", conversationId: "manual:terminal", runId: view.runId }],
+		historyCoverage: { inputCovered: true, assistantIndex: -1 },
+	};
+
+	const renderable = buildRenderableTerminalRun({
+		terminalRun,
+		sessionMessages: [historyMessage("m1", "user", "hello")],
+	});
+
+	assert.ok(renderable);
+	assert.equal(renderable.view.input.message, "");
+	assert.notEqual(renderable.view, terminalRun.view);
+	assert.notEqual(renderable.events, terminalRun.events);
+	assert.notEqual(renderable.historyCoverage, terminalRun.historyCoverage);
+});
+
+test("buildRenderableTerminalRun skips terminal snapshots already covered by history", () => {
+	const view = createActiveRunView("manual:terminal", "hello", []);
+	view.loading = false;
+	view.status = "done";
+	view.text = "answer";
+
+	const renderable = buildRenderableTerminalRun({
+		terminalRun: {
+			view,
+			events: [{ type: "done", conversationId: "manual:terminal", runId: view.runId, text: "answer" }],
+			historyCoverage: { inputCovered: true, assistantIndex: 1 },
+		},
+		sessionMessages: [
+			historyMessage("m1", "user", "hello"),
+			historyMessage("m2", "assistant", "answer"),
+		],
+	});
+
+	assert.equal(renderable, undefined);
+});

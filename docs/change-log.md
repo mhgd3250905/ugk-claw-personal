@@ -12,6 +12,12 @@
 
 ## 2026-04-26
 
+### Agent terminal run snapshot 收口
+- 日期：2026-04-26
+- 主题：把 terminal run 是否持久化、刷新恢复时是否展示 terminal snapshot、以及重复输入 echo 隐藏逻辑抽到 `src/agent/agent-terminal-run.ts`。这块直接影响 completed / interrupted / error run 刷新后的可见状态，继续藏在 `AgentService` 私有方法里，后续排查“为什么刷新后又多一条助手气泡”会很费劲。
+- 影响范围：`GET /v1/chat/state` 对已结束 run 的 terminal snapshot 展示规则保持不变；历史里已有助手回答时不重复展示，历史尾部已有同输入时隐藏 terminal input echo，terminal run 事件和 coverage 返回克隆副本。新增测试覆盖持久化状态白名单、echo 隐藏和历史覆盖跳过。
+- 对应入口：`src/agent/agent-terminal-run.ts`、`src/agent/agent-service.ts`、`test/agent-terminal-run.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent run event buffer 收口
 - 日期：2026-04-26
 - 主题：把 active run 事件投影、事件缓冲截断、primary sink 和订阅者 best-effort 投递收进 `src/agent/agent-run-events.ts` 的 `emitBufferedRunEvent()`。`AgentService` 不再手写“更新 view + push buffer + shift + 分发”的细节；这类流式事件 plumbing 留在服务主类里，后续一改就很容易漏掉断线客户端不应杀死 run 这种约束。
