@@ -12,6 +12,36 @@
 
 ## 2026-04-27
 
+### Playground 浅色用户气泡视觉收口
+- 日期：2026-04-27
+- 主题：修复浅色主题下用户对话气泡仍像深色块状面板的问题，把用户消息单独收口为右侧轻量输入回显：冷白承载面、深色正文、右侧蓝色窄强调条，并保持正文左对齐。
+- 影响范围：只调整 playground 浅色主题 `.message.user` 视觉映射，不改变 transcript 数据结构、消息类型归一化、助手 markdown 渲染或运行态逻辑；同步补充 `/playground` 页面断言和 UI 设计文档，防止通用 `.message-body` 浅色覆盖再次误伤用户气泡。
+- 对应入口：`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
+### 后台任务模型与 SSE 长连接稳定性修复
+- 日期：2026-04-27
+- 主题：执行 `bugs/` 目录问题评估计划的 P0 修复：后台 conn session 创建时显式使用 resolved snapshot 中的 provider/model，模型不存在时明确失败；生产 nginx 入口补齐 SSE 长连接 timeout 和关闭 buffering；聊天 SSE 增加 comment heartbeat，前端流式读取增加 idle 保护和恢复路径。
+- 影响范围：后台任务不再静默 fallback 到 registry 第一个模型；`/v1/chat/stream`、`/v1/chat/events` 经 nginx 代理时允许 600 秒长读写并关闭响应缓冲，且后端会用 `: ping` 保活；前端会忽略 heartbeat comment frame，长时间无字节时回到 canonical state / events 恢复链路而不是渲染空回复。同步补充容器配置测试、SSE 测试、页面断言、运行手册和 conn 任务定义约束。
+- 对应入口：`src/workers/conn-worker.ts`、`test/conn-worker.test.ts`、`deploy/nginx/default.conf`、`test/containerization.test.ts`、`src/routes/chat-sse.ts`、`src/routes/chat.ts`、`test/chat-sse.test.ts`、`src/ui/playground-stream-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md`、`docs/tencent-cloud-singapore-deploy.md`、`docs/aliyun-ecs-deploy.md`
+
+### Playground 会话列表 idle 解锁修复
+- 日期：2026-04-27
+- 主题：修复 agent 任务已经结束、后端 `running=false`，但 playground 会话列表仍处于不可用状态的问题。根因是 `setLoading(true)` 会重绘会话列表并写入 `disabled`，而 `setLoading(false)` 只更新顶部状态和按钮，没有重新渲染会话列表，导致 DOM 残留禁用态。
+- 影响范围：任务结束、错误或打断后，会话列表会立即按 `state.loading=false` 重新渲染并恢复切换 / 删除可用状态；不改变后端会话状态、不改变运行中禁止切换的规则。同步补充 `/playground` HTML 断言，避免 `renderConversationDrawer()` 再被塞回 `if (next)` 分支里。
+- 对应入口：`src/ui/playground-status-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
+### Playground 浅色主题消息细节修正
+- 日期：2026-04-27
+- 主题：修正浅色主题下 active run 运行日志按钮、过程摘要和 Markdown 表格的视觉映射。终态 `assistant-run-log-trigger.ok` 的文字不再继承深色低透明白字；`assistant-status-summary` 与状态壳层保持透明；Markdown 表格滚动外壳、表头和单元格边线改为冷白 / 蓝灰承载面。
+- 影响范围：只调整 playground 浅色主题视觉，不改接口语义、不改会话状态模型。同步补充 `/playground` HTML 断言，防止表格外壳回退成深灰背景或运行状态文字再次不可读。
+- 对应入口：`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
+### 阿里云 ECS 首次部署与接手文档
+- 日期：2026-04-27
+- 主题：完成阿里云 ECS `101.37.209.54` 首次部署记录，公网入口为 `http://101.37.209.54:3000/playground`，健康检查为 `http://101.37.209.54:3000/healthz`。本次部署使用 `root` 用户、Ubuntu `22.04.5 LTS`、Docker Compose 生产栈，代码目录为 `/root/ugk-claw-repo`，shared 运行态目录为 `/root/ugk-claw-shared`。
+- 影响范围：阿里云首次部署因服务器访问 GitHub 超时，采用本地 `git archive HEAD` 上传解包，当前 `/root/ugk-claw-repo` 不是 Git 工作目录；后续更新暂时不能照抄腾讯云 `git pull` 流程。部署过程中配置 Docker registry mirrors，安全组仅放行公网 TCP `3000`；`3901` 和 `9223` 继续禁止公网开放。阿里云服务已由服务器本机 `/healthz`、`/playground` 以及用户公网访问确认通过。
+- 对应入口：`docs/aliyun-ecs-deploy.md`、`docs/server-ops-quick-reference.md`、`docs/handoff-current.md`、`docs/traceability-map.md`、`README.md`、`.gitignore`
+
 ### 生产服务器增量更新到 `fb3fc42`
 - 日期：2026-04-27
 - 主题：按“增量更新”流程把腾讯云新加坡生产目录 `~/ugk-claw-repo` 从 `2c309a5` fast-forward 到 `fb3fc42`，上线 DeepSeek Anthropic 兼容 provider、前端模型源查看 / 验证 / 保存入口，以及 DeepSeek `1M` context window 展示和动态上下文读取修复。

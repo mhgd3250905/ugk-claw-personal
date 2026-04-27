@@ -1,10 +1,12 @@
 # 服务器运维速查
 
-这份文档只做一件事：把腾讯云新加坡服务器上最常用、最容易手滑的操作压成一页速查。
+这份文档只做一件事：把生产服务器上最常用、最容易手滑的操作压成一页速查。
 
-长背景、历史迁移、踩坑记录看 [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)。
+长背景、历史迁移、踩坑记录看 [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md) 和 [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)。
 
 ## 当前事实
+
+### 腾讯云新加坡
 
 - 服务器：`ubuntu@43.134.167.179`
 - SSH 别名：`ssh ugk-claw-prod`
@@ -16,6 +18,17 @@
 - 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
 - 当前线上应用提交：`46088a0`
 - 不要再用：`snapshot-20260422-v4.1.1-stable`；那个 tag 打出来后才发现生产 compose YAML 缩进有病
+
+### 阿里云 ECS
+
+- 服务器：`root@101.37.209.54`
+- 代码目录：`/root/ugk-claw-repo`
+- shared 运行态目录：`/root/ugk-claw-shared`
+- 生产 compose：`docker-compose.prod.yml`
+- 公网入口：`http://101.37.209.54:3000/playground`
+- 健康检查：`http://101.37.209.54:3000/healthz`
+- 当前线上应用提交：`030d6f1`
+- 注意：当前阿里云目录是本地 archive 解包目录，不是 Git 工作目录；后续更新先看 `docs/aliyun-ecs-deploy.md`，不要直接照抄腾讯云的 `git pull` 流程。
 
 ## 登录
 
@@ -29,12 +42,27 @@ ssh ugk-claw-prod
 ssh ubuntu@43.134.167.179
 ```
 
+阿里云：
+
+```bash
+ssh root@101.37.209.54
+```
+
 ## 标准更新
+
+腾讯云当前是 Git 工作目录：
 
 ```bash
 cd ~/ugk-claw-repo
 git pull --ff-only origin main
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+```
+
+阿里云当前不是 Git 工作目录，暂时使用 archive 上传，详见 [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)。启动 / 重建时使用：
+
+```bash
+cd /root/ugk-claw-repo
+COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
 如果 `ugk-pi` 重建后自己是 healthy，但公网 / nginx 入口返回 `502`，先重建 nginx，让它重新解析 upstream：
@@ -45,6 +73,7 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 ```
 
 别在 `~/ugk-pi-claw` 里更新。那是旧目录，不是当前主入口。
+也别在阿里云 `/root/ugk-claw-repo` 里跑 `git pull`，除非已经确认那里有 `.git`。现在它只是解包目录，别跟它演 Git 魔术。
 
 ## 稳妥增量更新
 
@@ -93,6 +122,13 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 ```bash
 cd ~/ugk-claw-repo
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
+```
+
+阿里云：
+
+```bash
+cd /root/ugk-claw-repo
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
 ```
 
 期望至少看到：
@@ -148,6 +184,13 @@ cd ~/ugk-claw-repo
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
 ```
 
+阿里云把路径换成 `/root/...`：
+
+```bash
+cd /root/ugk-claw-repo
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
+```
+
 期望输出：
 
 ```text
@@ -178,6 +221,20 @@ https://127.0.0.1:13901/
 ```
 
 不要开放公网 `3901`。那不是勇敢，是犯病。
+
+阿里云 sidecar GUI：
+
+```bash
+ssh -L 13902:127.0.0.1:3901 root@101.37.209.54
+```
+
+本机打开：
+
+```text
+https://127.0.0.1:13902/
+```
+
+同样不要开放公网 `3901`。
 
 ## 运行态位置
 

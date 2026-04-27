@@ -4,6 +4,7 @@ import {
 	configureSseResponse,
 	endSseResponse,
 	isTerminalChatStreamEvent,
+	startSseHeartbeat,
 	writeSseEvent,
 } from "./chat-sse.js";
 import {
@@ -178,6 +179,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 
 			reply.hijack();
 			configureSseResponse(reply.raw);
+			const heartbeat = startSseHeartbeat(reply.raw);
 
 			let subscription:
 				| {
@@ -191,6 +193,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					return;
 				}
 				closed = true;
+				heartbeat.stop();
 				subscription?.unsubscribe();
 				endSseResponse(reply.raw);
 			};
@@ -279,6 +282,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 
 			reply.hijack();
 			configureSseResponse(reply.raw);
+			const heartbeat = startSseHeartbeat(reply.raw);
 
 			try {
 				await deps.agentService.streamChat(
@@ -308,6 +312,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					});
 				}
 			} finally {
+				heartbeat.stop();
 				if (!reply.raw.destroyed && !reply.raw.writableEnded) {
 					reply.raw.end();
 				}

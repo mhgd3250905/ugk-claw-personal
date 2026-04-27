@@ -10,7 +10,7 @@ import { ConnRunStore } from "../src/agent/conn-run-store.js";
 import { ConnSqliteStore } from "../src/agent/conn-sqlite-store.js";
 import type { ConnDefinition } from "../src/agent/conn-store.js";
 import type { NotificationBroadcastEvent } from "../src/agent/notification-hub.js";
-import { ConnWorker } from "../src/workers/conn-worker.js";
+import { ConnWorker, resolveBackgroundSessionModel } from "../src/workers/conn-worker.js";
 
 class FakeRunner {
 	calls: Array<{ conn: ConnDefinition; run: ConnRunRecord }> = [];
@@ -41,6 +41,53 @@ class FailingRunner {
 		};
 	}
 }
+
+test("resolveBackgroundSessionModel returns the model selected by the background snapshot", () => {
+	const expectedModel = {
+		provider: "deepseek-anthropic",
+		id: "deepseek-v4-pro",
+		name: "DeepSeek V4 Pro",
+		api: "anthropic",
+		baseUrl: "https://example.test",
+		reasoning: true,
+		contextWindow: 1048576,
+		maxTokens: 262144,
+		input: ["text"],
+		output: ["text"],
+	} as const;
+	const calls: Array<{ provider: string; model: string }> = [];
+	const modelRegistry = {
+		find(provider: string, model: string) {
+			calls.push({ provider, model });
+			return provider === expectedModel.provider && model === expectedModel.id ? expectedModel : undefined;
+		},
+	};
+
+	const resolved = resolveBackgroundSessionModel(modelRegistry as never, {
+		provider: "deepseek-anthropic",
+		model: "deepseek-v4-pro",
+	});
+
+	assert.equal(resolved, expectedModel);
+	assert.deepEqual(calls, [{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" }]);
+});
+
+test("resolveBackgroundSessionModel rejects missing background snapshot models instead of falling back", () => {
+	const modelRegistry = {
+		find() {
+			return undefined;
+		},
+	};
+
+	assert.throws(
+		() =>
+			resolveBackgroundSessionModel(modelRegistry as never, {
+				provider: "missing-provider",
+				model: "missing-model",
+			}),
+		/Background agent model not found: missing-provider\/missing-model/,
+	);
+});
 
 async function createWorker(runner: FakeRunner | FailingRunner): Promise<{
 	database: ConnDatabase;

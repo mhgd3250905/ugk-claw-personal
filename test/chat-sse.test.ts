@@ -4,6 +4,8 @@ import {
 	configureSseResponse,
 	endSseResponse,
 	isTerminalChatStreamEvent,
+	startSseHeartbeat,
+	writeSseComment,
 	writeSseEvent,
 } from "../src/routes/chat-sse.js";
 import type { ChatStreamEvent } from "../src/types/api.js";
@@ -85,6 +87,30 @@ test("writeSseEvent ignores closed responses and swallowed write failures", () =
 	assert.doesNotThrow(() => {
 		writeSseEvent(failed.raw, { type: "text_delta", textDelta: "ignored" });
 	});
+});
+
+test("writeSseComment writes a comment frame and tolerates closed responses", () => {
+	const response = createRawResponse();
+	writeSseComment(response.raw, "ping");
+	assert.deepEqual(response.writes, [": ping\n\n"]);
+
+	const closed = createRawResponse({ destroyed: true });
+	assert.doesNotThrow(() => writeSseComment(closed.raw, "ignored"));
+	assert.deepEqual(closed.writes, []);
+});
+
+test("startSseHeartbeat writes ping comments until stopped", async () => {
+	const response = createRawResponse();
+	const heartbeat = startSseHeartbeat(response.raw, 5);
+
+	await new Promise((resolve) => setTimeout(resolve, 15));
+	heartbeat.stop();
+	const writesAfterStop = response.writes.length;
+	await new Promise((resolve) => setTimeout(resolve, 15));
+
+	assert.ok(writesAfterStop >= 1);
+	assert.equal(response.writes.length, writesAfterStop);
+	assert.ok(response.writes.every((chunk) => chunk === ": ping\n\n"));
 });
 
 test("endSseResponse ends only open responses", () => {

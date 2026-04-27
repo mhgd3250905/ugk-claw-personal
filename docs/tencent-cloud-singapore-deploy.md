@@ -83,6 +83,8 @@ ssh -L 13901:127.0.0.1:3901 ubuntu@43.134.167.179
 
 当前 sidecar GUI 手点打开的浏览器，也已经被收口到同一个 `chrome-profile-sidecar`。后续如果再出现“GUI 里像是没登录、但 agent 还在用另一套 cookie”的现象，先怀疑是不是老容器没更新，而不是先脑补 shared 目录把登录态吃了。
 
+nginx 入口必须保留 SSE 长连接配置：`proxy_read_timeout 600s`、`proxy_send_timeout 600s`、`proxy_buffering off`。改到 `deploy/nginx/default.conf` 后不能只重启 `ugk-pi`，至少要重建或强制重建 nginx；否则长时间无 token 输出的 `/v1/chat/stream` / `/v1/chat/events` 仍可能被代理层当成空闲连接切掉。
+
 然后在本机打开：
 
 ```text

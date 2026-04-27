@@ -31,6 +31,7 @@ import type { ConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import { ConnSqliteStore as DefaultConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import type { ConnDefinition } from "../agent/conn-store.js";
 import type { NotificationBroadcastEvent } from "../agent/notification-hub.js";
+import type { ResolvedBackgroundAgentSnapshot } from "../agent/background-agent-profile.js";
 
 export interface ConnWorkerRunner {
 	run(conn: ConnDefinition, run: ConnRunRecord, now: Date, signal?: AbortSignal): Promise<ConnRunRecord | undefined>;
@@ -327,9 +328,7 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 		runId: string;
 		connId: string;
 		workspace: RunWorkspace;
-		snapshot: {
-			skills: Array<{ path: string }>;
-		};
+		snapshot: ResolvedBackgroundAgentSnapshot;
 		sessionFile?: string;
 	}): Promise<AgentSessionLike> {
 		const sessionManager = input.sessionFile
@@ -337,6 +336,7 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 			: SessionManager.create(input.workspace.rootPath, input.workspace.sessionDir);
 		const authStorage = AuthStorage.create();
 		const modelRegistry = ModelRegistry.create(authStorage, getProjectModelsPath(this.projectRoot));
+		const model = resolveBackgroundSessionModel(modelRegistry, input.snapshot);
 		const skillPaths = Array.from(new Set(input.snapshot.skills.map((skill) => dirname(skill.path))));
 		const resourceLoader = createSkillRestrictedResourceLoader({
 			projectRoot: input.workspace.rootPath,
@@ -350,12 +350,24 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 			agentDir: getProjectAgentDirPath(this.projectRoot),
 			authStorage,
 			modelRegistry,
+			model,
 			sessionManager,
 			resourceLoader,
 		});
 
 		return session;
 	}
+}
+
+export function resolveBackgroundSessionModel(
+	modelRegistry: Pick<ModelRegistry, "find">,
+	snapshot: Pick<ResolvedBackgroundAgentSnapshot, "provider" | "model">,
+): NonNullable<ReturnType<ModelRegistry["find"]>> {
+	const model = modelRegistry.find(snapshot.provider, snapshot.model);
+	if (!model) {
+		throw new Error(`Background agent model not found: ${snapshot.provider}/${snapshot.model}`);
+	}
+	return model;
 }
 
 async function main(): Promise<void> {

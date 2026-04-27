@@ -216,12 +216,15 @@ Run 查询接口：
 - `conn` 系统技能当前以 [.pi/skills/conn-orchestrator/SKILL.md](/E:/AII/ugk-pi/.pi/skills/conn-orchestrator/SKILL.md) 为准：agent 直接依赖语言理解与 `conn` 工具，不搞低级文字匹配；默认投递到任务消息页，当前回合如果已有上传或复用文件，应把可见 `assetRefs` 一起带入 `conn`。
 - 本地 `docker compose` 会把 `conn.sqlite` 放到 named volume `ugk-pi-conn-db`，避开 Docker Desktop bind mount 上的多进程 SQLite 打开问题；如果 volume 里还是空库，而 legacy `.data/agent/conn/conn.sqlite` 已存在，初始化时会自动迁移这份旧库。
 - 后台执行由独立 `ugk-pi-conn-worker` 进程轮询 SQLite，领取 due run 后在 `.data/agent/background/runs/<runId>/` 创建独立 workspace。
+- 后台 worker 创建 agent session 时必须使用 resolved snapshot 中的 `provider / model` 显式解析模型；如果 `runtime/pi-agent/models.json` 找不到对应模型，run 应明确失败，不允许静默 fallback 到 registry 第一个模型。否则后台定时任务会悄悄换模型，账单和效果都变成盲盒，别这么玩。
 - 后台 runner 生成 `resultText` 时会优先保留用户真正要的可见答案；如果最后一条 assistant 文本只是“输出文件已写入”这类低信息量收尾，会回退到前面更有用的回答。别再让通知正文只剩一个文件路径，用户不是来猜谜的。
 - run 成功后会扫描该 workspace 的 `output/` 目录，并把真实输出文件写入 `conn_run_files`；因此 run 详情里的“输出文件索引”应与后台生成物对齐。
 - conn 终态结果当前主链路写入 `agent_activity_items`，由任务消息页读取展示；成功、失败和超时失败都会留下记录，不会再以“写回前台 conversation transcript”作为默认投递方式。
 - playground 在任务消息页或后台任务列表里遇到 `source=conn` 且带 `sourceId + runId` 的条目时，会显示“查看后台任务过程”入口；点开后分别请求 run 详情和 run 事件，展示状态、workspace、结果摘要、输出文件和过程日志。
 - 这类条目依赖 `source / sourceId / runId` 维持可追溯性；如果这些字段丢了，优先查 activity 写入与前端条目归一化，不要再朝 conversation transcript 那条旧路上瞎补。
 - 旧的进程内 `conn-scheduler` / `conn-runner` 已移除，别再按前台同步执行链路排查。
+- Medtrum 舆情监控这类长链路任务定义要走 subagent 工具的 single / parallel / chain 能力，不要让主模型手写一堆 prompt 文件再串行拉 CLI。平台检索可以并行，汇总单独收口，邮件发送必须由最终主流程直接执行并留下完整输出；不要使用 `tee | tail` 这类会截断真实错误的管道。
+- 本地 `GET /v1/conns` 当前没有 Medtrum 舆情监控 conn，`GET /v1/assets/6d82261f-afb5-433c-a3c0-f11db172fb2a` 也返回 `404`；因此这台本地环境无法确认报告里提到的 v2 asset 已生效。生产排查时先查目标服务器的 `GET /v1/conns` 和 asset detail，再决定是否更新 conn `assetRefs`。
 
 关键入口：
 

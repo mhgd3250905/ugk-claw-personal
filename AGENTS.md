@@ -33,13 +33,13 @@ This file provides the highest-level working rules for AI coding agents in this 
 ## 2.1 当前阶段快照
 
 - 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
-- 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器当前主部署目录也已经迁到 GitHub 工作目录 `~/ugk-claw-repo`，不要再把 Gitee / tar 包搬运当成长期主流程理解。
+- 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器当前主部署目录已经迁到 GitHub 工作目录 `~/ugk-claw-repo`，不要再把 Gitee / tar 包搬运当成腾讯云长期主流程理解。阿里云 ECS 首次部署因 GitHub 连接超时，当前 `/root/ugk-claw-repo` 是本地 archive 解包目录，不是 Git 工作目录。
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - agent 任务结束时，`AgentService` 会通过 `src/agent/browser-cleanup.ts` 按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 清理本轮 `web-access` scope 下保留的浏览器页面；不要只在运行容器 `/app` 里热改，否则重建镜像会直接丢修复。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
 - 当前生产更新默认不能洗掉两类状态：sidecar 登录态挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，agent 会话 / session / 资产 / conn 数据挂在 `~/ugk-claw-shared/.data/agent` 并映射到容器 `/app/.data/agent`；如果更新后历史会话消失，先查 `docker inspect ugk-pi-claw-ugk-pi-1` 的 mounts 和 `UGK_AGENT_DATA_DIR`，别又让容器可写层背锅。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
-- 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`；当前公网入口是 `http://43.134.167.179:3000/playground`，sidecar GUI 只能走 SSH tunnel，不要开放公网 `3901`。
+- 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`，公网入口是 `http://43.134.167.179:3000/playground`；阿里云 ECS 的正式部署记录在 `docs/aliyun-ecs-deploy.md`，公网入口是 `http://101.37.209.54:3000/playground`。两边 sidecar GUI 都只能走 SSH tunnel，不要开放公网 `3901`。
 - Windows host IPC fallback 仍保留，但只用于 legacy 本机调试和紧急排障。
 - 本阶段标准验证命令是 `npm test` 与 `npm run docker:chrome:check`。
 - `playground` 手机端已经单独重写成移动聊天页；后续 `/init` 如果接手前端，不要把手机端继续按桌面端压缩版理解，先看 `docs/playground-current.md`。
@@ -118,6 +118,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 移动报告截图脚本：`runtime/screenshot-mobile.mjs`
 - web-access 浏览器桥接：`docs/web-access-browser-bridge.md`
 - 腾讯云新加坡部署运行手册：`docs/tencent-cloud-singapore-deploy.md`
+- 阿里云 ECS 部署运行手册：`docs/aliyun-ecs-deploy.md`
 - 项目级 subagent：`.pi/agents/`
 - 用户 subagent：`runtime/agents-user/`
 - 项目级 `pi` agent：`runtime/pi-agent/`
@@ -133,25 +134,27 @@ This file provides the highest-level working rules for AI coding agents in this 
 3. `docs/traceability-map.md`
 4. `docs/web-access-browser-bridge.md`
 5. `docs/tencent-cloud-singapore-deploy.md`
-6. `src/server.ts`
-7. `src/routes/chat.ts`
-8. `src/agent/agent-service.ts`
-9. `src/agent/agent-session-factory.ts`
-10. `src/ui/playground.ts`
-11. `src/ui/playground-page-shell.ts`
-12. `src/ui/playground-styles.ts`
-13. `src/ui/playground-active-run-normalizer.ts`
-14. `src/ui/playground-conversation-api-controller.ts`
-15. `src/ui/playground-conversation-history-store.ts`
-16. `src/ui/playground-history-pagination-controller.ts`
-17. `src/ui/playground-confirm-dialog-controller.ts`
-18. `src/ui/playground-notification-controller.ts`
-19. `src/ui/playground-status-controller.ts`
+6. `docs/aliyun-ecs-deploy.md`
+7. `src/server.ts`
+8. `src/routes/chat.ts`
+9. `src/agent/agent-service.ts`
+10. `src/agent/agent-session-factory.ts`
+11. `src/ui/playground.ts`
+12. `src/ui/playground-page-shell.ts`
+13. `src/ui/playground-styles.ts`
+14. `src/ui/playground-active-run-normalizer.ts`
+15. `src/ui/playground-conversation-api-controller.ts`
+16. `src/ui/playground-conversation-history-store.ts`
+17. `src/ui/playground-history-pagination-controller.ts`
+18. `src/ui/playground-confirm-dialog-controller.ts`
+19. `src/ui/playground-notification-controller.ts`
+20. `src/ui/playground-status-controller.ts`
 
 如果这次 `/init` 的目标是接手云服务器，而不是本机开发，先记住三件事：
 
-- 当前云端正式入口是 `http://43.134.167.179:3000/playground`。
-- 服务器当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
+- 腾讯云正式入口是 `http://43.134.167.179:3000/playground`；阿里云正式入口是 `http://101.37.209.54:3000/playground`。
+- 腾讯云当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
+- 阿里云当前主部署目录是 `/root/ugk-claw-repo`，是 archive 解包目录，不是 Git 工作目录；后续更新先看 `docs/aliyun-ecs-deploy.md`，不要直接照抄腾讯云 `git pull`。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
 
 如果这次 `/init` 还要接手 `playground` 前端，再记住两件事：
@@ -263,9 +266,11 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `docs/runtime-assets-conn-feishu.md`
   - 资产、附件、`conn`、飞书接入的运行说明
 - `docs/server-ops-quick-reference.md`
-  - 腾讯云服务器高频运维动作速查；只看更新、验收、日志、SSH tunnel 和回滚
+  - 生产服务器高频运维动作速查；只看更新、验收、日志、SSH tunnel 和回滚
 - `docs/tencent-cloud-singapore-deploy.md`
   - 腾讯云新加坡 CVM 的部署事实、`.env` 口径、更新发布流程、SSH tunnel、验证命令和踩坑记录
+- `docs/aliyun-ecs-deploy.md`
+  - 阿里云 ECS 的部署事实、archive 更新流程、`.env` 口径、安全组、验证命令和踩坑记录
 
 ## 8. 当前稳定事实
 
@@ -275,7 +280,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 当前品牌文案为 `UGK CLAW`；桌面端顶部与首页继续使用纯文字字标，手机端顶部状态栏显示品牌 logo + `UGK Claw` 字标。
 - 根目录 `DESIGN.md` 是当前 playground 视觉 identity 的机器可读入口；涉及颜色、字号、圆角、组件视觉语义的前端改动，先参考它，必要时同步更新并运行 `npm run design:lint`。
 - 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
-- 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
+- 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；阿里云 ECS 对应外置目录是 `/root/ugk-claw-shared/`。后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
 - playground 的 `GET /v1/chat/state` 默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 暴露分页状态；旧消息补页走 `GET /v1/chat/history?before=...&limit=...`，不要再让 state 扛完整历史，也不要把本地 `localStorage` 当完整历史真源。
@@ -306,4 +311,4 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `ugk-pi-browser` 当前通过容器内 healthcheck 自举 Chrome CDP；后续排障别只看 GUI 能不能打开，至少同时确认浏览器容器 `healthy`，以及 `127.0.0.1:9222` / `172.31.250.10:9223` 探针能通。
 - sidecar GUI 从桌面手点打开的 Chrome 也必须走同一个 `WEB_ACCESS_BROWSER_PROFILE_DIR=/config/chrome-profile-sidecar`；如果 GUI 和 agent 看起来像两套登录态，优先检查 desktop launcher 是否还是旧容器里的默认命令。
 - 宿主浏览器和 sidecar Chrome 都不能直接依赖容器内 `file:///app/...`：用户可见文本要改写成 `PUBLIC_BASE_URL` 下的 `GET /v1/local-file?path=...`，sidecar 自动化要改写成 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 下的同一路由，真实文件交付优先走 `send_file`。
-- 腾讯云新加坡生产样例使用 `docker-compose.prod.yml`，当前 `HOST_PORT=3000`、`PUBLIC_BASE_URL=http://43.134.167.179:3000`；后续切域名或 HTTPS 时必须同步服务器 `.env`、安全组和 `docs/tencent-cloud-singapore-deploy.md`。
+- 腾讯云新加坡和阿里云 ECS 都使用 `docker-compose.prod.yml` 与 `HOST_PORT=3000`；腾讯云 `PUBLIC_BASE_URL=http://43.134.167.179:3000`，阿里云 `PUBLIC_BASE_URL=http://101.37.209.54:3000`。后续切域名或 HTTPS 时必须同步对应服务器 `.env`、安全组和部署手册。

@@ -12,36 +12,37 @@
 2. [README.md](/E:/AII/ugk-pi/README.md)
 3. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
 4. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
-5. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
-6. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
-7. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-8. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-9. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-10. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
-11. [src/ui/playground-page-shell.ts](/E:/AII/ugk-pi/src/ui/playground-page-shell.ts)
-12. [src/ui/playground-styles.ts](/E:/AII/ugk-pi/src/ui/playground-styles.ts)
-13. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
-14. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
-15. [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)
-16. [src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)
-17. [src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)
-18. [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
-19. [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
-20. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
-21. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
-22. [src/ui/playground-active-run-normalizer.ts](/E:/AII/ugk-pi/src/ui/playground-active-run-normalizer.ts)
-23. [src/ui/playground-conversation-api-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-api-controller.ts)
-24. [src/ui/playground-conversation-sync-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-sync-controller.ts)
-25. [src/ui/playground-conversation-state-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-state-controller.ts)
-26. [src/ui/playground-conversation-history-store.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-history-store.ts)
-27. [src/ui/playground-history-pagination-controller.ts](/E:/AII/ugk-pi/src/ui/playground-history-pagination-controller.ts)
-28. [src/ui/playground-process-controller.ts](/E:/AII/ugk-pi/src/ui/playground-process-controller.ts)
-29. [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
-30. [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
-31. [src/ui/playground-notification-controller.ts](/E:/AII/ugk-pi/src/ui/playground-notification-controller.ts)
-32. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
-33. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
-34. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+5. [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)
+6. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+7. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
+8. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+9. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+10. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
+11. [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
+12. [src/ui/playground-page-shell.ts](/E:/AII/ugk-pi/src/ui/playground-page-shell.ts)
+13. [src/ui/playground-styles.ts](/E:/AII/ugk-pi/src/ui/playground-styles.ts)
+14. [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
+15. [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
+16. [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)
+17. [src/ui/playground-conversations-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversations-controller.ts)
+18. [src/ui/playground-layout-controller.ts](/E:/AII/ugk-pi/src/ui/playground-layout-controller.ts)
+19. [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
+20. [src/ui/playground-markdown.ts](/E:/AII/ugk-pi/src/ui/playground-markdown.ts)
+21. [src/ui/playground-stream-controller.ts](/E:/AII/ugk-pi/src/ui/playground-stream-controller.ts)
+22. [src/ui/playground-mobile-shell-controller.ts](/E:/AII/ugk-pi/src/ui/playground-mobile-shell-controller.ts)
+23. [src/ui/playground-active-run-normalizer.ts](/E:/AII/ugk-pi/src/ui/playground-active-run-normalizer.ts)
+24. [src/ui/playground-conversation-api-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-api-controller.ts)
+25. [src/ui/playground-conversation-sync-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-sync-controller.ts)
+26. [src/ui/playground-conversation-state-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-state-controller.ts)
+27. [src/ui/playground-conversation-history-store.ts](/E:/AII/ugk-pi/src/ui/playground-conversation-history-store.ts)
+28. [src/ui/playground-history-pagination-controller.ts](/E:/AII/ugk-pi/src/ui/playground-history-pagination-controller.ts)
+29. [src/ui/playground-process-controller.ts](/E:/AII/ugk-pi/src/ui/playground-process-controller.ts)
+30. [src/ui/playground-status-controller.ts](/E:/AII/ugk-pi/src/ui/playground-status-controller.ts)
+31. [src/ui/playground-confirm-dialog-controller.ts](/E:/AII/ugk-pi/src/ui/playground-confirm-dialog-controller.ts)
+32. [src/ui/playground-notification-controller.ts](/E:/AII/ugk-pi/src/ui/playground-notification-controller.ts)
+33. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
+34. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
+35. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
@@ -51,6 +52,7 @@
 
 - 服务器当前默认工作目录是 `~/ugk-claw-repo`，已经能直接 `git pull`；但旧的 `~/ugk-pi-claw` 还在，别在错误目录里更新完了还以为自己部署成功。
 - 服务器当前 shared 运行态目录是 `~/ugk-claw-shared`；如果你在仓库目录里找 `.env`、`.data/chrome-sidecar` 或生产日志，先想想自己是不是又走回头路了。
+- 阿里云 ECS 当前公网入口是 `http://101.37.209.54:3000/playground`，主目录是 `/root/ugk-claw-repo`，shared 目录是 `/root/ugk-claw-shared`；首次部署因为 GitHub 超时采用 archive 上传，当前目录不是 Git 工作目录。
 - 如果这次 `/init` 还要接手 `playground` 前端，先读 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)；当前手机端是单独重写的移动展示层，不要按桌面端缩略版理解
 - 如果这次还要接着改 `playground` runtime，而不是只看当前 UI 口径，再补读 [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)；这轮 controller / renderer / sync ownership / stream lifecycle 是怎么收口的，都在那里，别重复考古
 - 如果这次目标是直接交接、发布或接线上盘，优先读 [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)；当前稳定 tag、线上已部署提交、回滚点和推荐阅读顺序都在那里，别再拿旧 tag 当新基线
@@ -268,17 +270,19 @@
 3. [docker-compose.prod.yml](/E:/AII/ugk-pi/docker-compose.prod.yml)
 4. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 5. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
-6. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
-7. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-8. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
-9. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
-10. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
-11. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
+6. [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)
+7. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
+8. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
+9. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+10. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+11. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+12. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
 
 适用问题：
 
 - `healthz` 不通
 - 腾讯云新加坡服务器更新部署、回滚或 SSH tunnel 不通
+- 阿里云 ECS 首次部署、archive 更新、Docker 镜像拉取慢或 3000 安全组不通
 - 静态 HTML / PNG 路由不通
 - 截图脚本又回退到 `file://`
 - `PUBLIC_BASE_URL` 不对

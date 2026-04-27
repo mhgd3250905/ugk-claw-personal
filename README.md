@@ -20,7 +20,7 @@
   |
   <a href="./docs/playground-current.md">Playground 说明</a>
   |
-  <a href="./docs/tencent-cloud-singapore-deploy.md">部署手册</a>
+  <a href="./docs/server-ops-quick-reference.md">运维速查</a>
   |
   <a href="./docs/change-log.md">更新记录</a>
 </p>
@@ -173,6 +173,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 - [`docs/web-access-browser-bridge.md`](./docs/web-access-browser-bridge.md)：Chrome sidecar、CDP bridge、持久 profile 和排障口径。
 - [`docs/server-ops-quick-reference.md`](./docs/server-ops-quick-reference.md)：生产环境高频运维动作。
 - [`docs/tencent-cloud-singapore-deploy.md`](./docs/tencent-cloud-singapore-deploy.md)：腾讯云部署、更新、验收和回滚手册。
+- [`docs/aliyun-ecs-deploy.md`](./docs/aliyun-ecs-deploy.md)：阿里云 ECS 部署、验证和接手手册。
 - [`docs/change-log.md`](./docs/change-log.md)：行为、文档和部署更新记录。
 
 ## 当前状态
@@ -181,7 +182,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 - 主分支：`main`
 - 当前阶段：架构整理已阶段性完成；后续工作应该由真实产品需求或线上问题驱动，不要为了拆文件而拆文件。
 - 标准验证：`npm test`、`npx tsc --noEmit`，涉及部署时再加 Docker compose config 校验。
-- 生产更新默认走 Git 增量发布。不要整目录替换，更不要洗掉 shared runtime state。
+- 生产更新默认走增量发布。腾讯云当前走 Git 增量；阿里云首次部署因 GitHub 连接超时，暂时走本地 archive 上传。两边都不要洗掉 shared runtime state。
 
 ## 仓库边界
 

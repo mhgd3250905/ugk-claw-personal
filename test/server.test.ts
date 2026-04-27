@@ -483,6 +483,12 @@ test("GET /playground returns the test UI html", async () => {
 	);
 	assert.match(response.body, /\.message-content table\s*\{\s*width:\s*max-content;\s*border-collapse:\s*collapse;/);
 	assert.match(response.body, /wrapper\.className = "markdown-table-scroll";/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message-content \.markdown-table-scroll,[\s\S]*background:\s*#f8fbff;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message-content th,[\s\S]*border-right-color:\s*#c8d6ea;[\s\S]*background:\s*#dce8f8;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message-content td,[\s\S]*border-right-color:\s*#d7e1ee;[\s\S]*color:\s*#26344f;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.assistant-run-log-trigger\.ok \.assistant-run-log-hint,[\s\S]*color:\s*#08784b;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.assistant-status-shell\s*\{[\s\S]*background:\s*transparent;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.assistant-status-summary\s*\{[\s\S]*background:\s*transparent;/);
 	assert.match(response.body, /matchMedia\("\(max-width: 640px\)"\)/);
 	assert.match(response.body, /\/v1\/chat\/status\?conversationId=/);
 	assert.match(response.body, /mode:\s*"steer"/);
@@ -505,6 +511,10 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*box-shadow: none;/);
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*backdrop-filter: none;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*border:\s*1px solid rgba\(36, 84, 214, 0\.16\);/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*background:[\s\S]*rgba\(239, 245, 255, 0\.96\)[\s\S]*#ffffff;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body::after\s*\{[\s\S]*right:\s*0;[\s\S]*width:\s*3px;[\s\S]*background:\s*#2454d6;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-content\s*\{[\s\S]*color:\s*#172033;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*position:\s*relative;/);
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*position:\s*absolute;/);
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*display:\s*none;/);
@@ -2333,6 +2343,11 @@ test("GET /playground shows an explicit assistant loading bubble while a run is 
 	assert.match(response.body, /case "done":[\s\S]*completeAssistantLoadingBubble\("ok"/);
 	assert.match(response.body, /typeof event\.text === "string" && event\.text !== state\.streamingText/);
 	assert.doesNotMatch(response.body, /event\.text && event\.text !== state\.streamingText/);
+	assert.match(response.body, /function setLoading\(next\)\s*\{[\s\S]*renderConversationDrawer\(\);[\s\S]*setCommandStatus\(next \? "RUNNING" : "STANDBY"\);/);
+	assert.doesNotMatch(
+		response.body,
+		/function setLoading\(next\)\s*\{[\s\S]*if \(next\) \{[\s\S]*renderConversationDrawer\(\);[\s\S]*\}[\s\S]*setCommandStatus\(next \? "RUNNING" : "STANDBY"\);/,
+	);
 	await app.close();
 });
 
@@ -2498,7 +2513,9 @@ test("GET /playground injects stream lifecycle runtime from a dedicated controll
 	assert.match(response.body, /async function attachActiveRunEventStream\(conversationId\)\s*\{/);
 	assert.match(response.body, /async function recoverRunningStreamAfterDisconnect\(reason\)\s*\{/);
 	assert.match(response.body, /function handleStreamEvent\(event\)\s*\{/);
-	assert.match(response.body, /async function readEventStream\(response, onEvent\)\s*\{/);
+	assert.match(response.body, /async function readEventStream\(response, onEvent, options\)\s*\{/);
+	assert.match(response.body, /const STREAM_IDLE_TIMEOUT_MS = 90000;/);
+	assert.match(response.body, /async function readStreamChunkWithIdleTimeout\(reader, idleTimeoutMs\)\s*\{/);
 	assert.match(response.body, /async function sendMessage\(\)\s*\{/);
 	assert.match(response.body, /async function queueActiveMessage\(message, attachments, assetRefs, options\)\s*\{/);
 	assert.match(response.body, /async function interruptRun\(\)\s*\{/);
@@ -2606,6 +2623,8 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.doesNotMatch(response.body, /const liveRunState = await syncConversationRunState\(state\.conversationId, \{/);
 	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("missing_done"\);/);
 	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("network_error"\);/);
+	assert.match(response.body, /readEventStream\(response, handleStreamEvent, \{ idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS \}\);/);
+	assert.match(response.body, /reader\.cancel\("stream idle timeout"\)/);
 	assert.match(response.body, /const previousSignature = buildConversationStateSignature\(state\.conversationState\);/);
 	assert.match(response.body, /const nextSignature = buildConversationStateSignature\(state\.conversationState\);/);
 	assert.match(response.body, /nextSignature !== previousSignature \|\| Boolean\(state\.conversationState\?\.activeRun\)/);

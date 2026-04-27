@@ -1,5 +1,7 @@
 export function getPlaygroundStreamControllerScript(): string {
 	return `
+		const STREAM_IDLE_TIMEOUT_MS = 90000;
+
 		function scheduleNotificationStreamReconnect() {
 			if (
 				state.pageUnloading ||
@@ -120,10 +122,14 @@ export function getPlaygroundStreamControllerScript(): string {
 				}
 
 				let receivedTerminalEvent = false;
-				await readEventStream(response, (event) => {
-					receivedTerminalEvent ||= isTerminalRunEvent(event);
-					handleStreamEvent(event);
-				});
+				await readEventStream(
+					response,
+					(event) => {
+						receivedTerminalEvent ||= isTerminalRunEvent(event);
+						handleStreamEvent(event);
+					},
+					{ idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS },
+				);
 				shouldRecoverFromCanonicalState = !receivedTerminalEvent;
 			} catch (error) {
 				if (controller.signal.aborted || isAbortError(error) || isPageUnloadStreamError(error)) {
@@ -317,7 +323,7 @@ export function getPlaygroundStreamControllerScript(): string {
 			}
 		}
 
-		async function readEventStream(response, onEvent) {
+		async function readEventStream(response, onEvent, options) {
 			const reader = response.body?.getReader();
 			if (!reader) {
 				throw new Error("流式读取器不可用");
@@ -325,9 +331,13 @@ export function getPlaygroundStreamControllerScript(): string {
 
 			const decoder = new TextDecoder();
 			let buffer = "";
+			const idleTimeoutMs =
+				Number.isFinite(options?.idleTimeoutMs) && options.idleTimeoutMs > 0
+					? Math.trunc(options.idleTimeoutMs)
+					: 0;
 
 			while (true) {
-				const { value, done } = await reader.read();
+				const { value, done } = await readStreamChunkWithIdleTimeout(reader, idleTimeoutMs);
 				buffer += decoder.decode(value || new Uint8Array(), { stream: !done }).replace(/\\r/g, "");
 
 				let boundaryIndex = buffer.indexOf("\\n\\n");
@@ -350,6 +360,33 @@ export function getPlaygroundStreamControllerScript(): string {
 
 				if (done) {
 					break;
+				}
+			}
+		}
+
+		async function readStreamChunkWithIdleTimeout(reader, idleTimeoutMs) {
+			if (!idleTimeoutMs) {
+				return await reader.read();
+			}
+
+			let timer = null;
+			try {
+				return await Promise.race([
+					reader.read(),
+					new Promise((_resolve, reject) => {
+						timer = window.setTimeout(() => {
+							try {
+								void reader.cancel("stream idle timeout");
+							} catch {
+								// Best effort: the recovery path below is what matters.
+							}
+							reject(new Error("流式连接长时间没有新数据，正在恢复运行状态"));
+						}, idleTimeoutMs);
+					}),
+				]);
+			} finally {
+				if (timer !== null) {
+					window.clearTimeout(timer);
 				}
 			}
 		}
@@ -490,7 +527,7 @@ export function getPlaygroundStreamControllerScript(): string {
 
 				state.primaryStreamActive = true;
 				try {
-					await readEventStream(response, handleStreamEvent);
+					await readEventStream(response, handleStreamEvent, { idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS });
 				} finally {
 					state.primaryStreamActive = false;
 				}

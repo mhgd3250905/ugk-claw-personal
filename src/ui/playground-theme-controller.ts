@@ -289,9 +289,30 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .message.user .message-body {
-			background: linear-gradient(180deg, #e9efff 0%, #dce6ff 100%);
-			color: #142343;
+			position: relative;
+			overflow: hidden;
+			border: 1px solid rgba(36, 84, 214, 0.16);
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(239, 245, 255, 0.96) 100%),
+				#ffffff;
+			color: #172033;
 			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .message.user .message-body::after {
+			content: "";
+			position: absolute;
+			top: 10px;
+			right: 0;
+			bottom: 10px;
+			width: 3px;
+			border-radius: 3px 0 0 3px;
+			background: #2454d6;
+			opacity: 0.72;
+		}
+
+		:root[data-theme="light"] .message.user .message-content {
+			color: #172033;
 		}
 
 		:root[data-theme="light"] .message.assistant .message-content,
@@ -346,9 +367,18 @@ export function getPlaygroundThemeStyles(): string {
 			color: #2d405e;
 		}
 
+		:root[data-theme="light"] .message-content .markdown-table-scroll,
+		:root[data-theme="light"] .task-inbox-result-bubble .message-content .markdown-table-scroll,
+		:root[data-theme="light"] .conn-run-result-bubble .message-content .markdown-table-scroll {
+			border-color: #c8d6ea;
+			background: #f8fbff;
+		}
+
 		:root[data-theme="light"] .message-content th,
 		:root[data-theme="light"] .task-inbox-result-bubble .message-content th,
 		:root[data-theme="light"] .conn-run-result-bubble .message-content th {
+			border-right-color: #c8d6ea;
+			border-bottom-color: #c8d6ea;
 			background: #dce8f8;
 			color: #1d365c;
 		}
@@ -356,6 +386,8 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .message-content td,
 		:root[data-theme="light"] .task-inbox-result-bubble .message-content td,
 		:root[data-theme="light"] .conn-run-result-bubble .message-content td {
+			border-right-color: #d7e1ee;
+			border-bottom-color: #d7e1ee;
 			color: #26344f;
 		}
 
@@ -437,6 +469,23 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: rgba(8, 120, 75, 0.2);
 			background: #e7f6ef;
 			color: #08784b;
+		}
+
+		:root[data-theme="light"] .assistant-run-log-trigger.ok .assistant-run-log-hint,
+		:root[data-theme="light"] .assistant-loading-bubble.ok .assistant-run-log-hint {
+			color: #08784b;
+		}
+
+		:root[data-theme="light"] .assistant-status-shell {
+			border-color: transparent;
+			background: transparent;
+			color: #26344f;
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .assistant-status-summary {
+			background: transparent;
+			color: rgba(75, 86, 110, 0.76);
 		}
 
 		:root[data-theme="light"] :is(.context-usage-shell),

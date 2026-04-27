@@ -35,8 +35,8 @@ export function getPlaygroundStatusControllerScript(): string {
 			refreshAssetsButton.disabled = next;
 			if (next) {
 				closeMobileOverflowMenu();
-				renderConversationDrawer();
 			}
+			renderConversationDrawer();
 			setCommandStatus(next ? "RUNNING" : "STANDBY");
 			statusPill.textContent = next ? "运行中" : "就绪";
 		}

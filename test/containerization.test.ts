@@ -142,6 +142,9 @@ test("container runtime files exist with the expected base configuration", () =>
 	const nginxConfig = readFileSync(nginxConfigPath, "utf8");
 	assert.match(nginxConfig, /proxy_pass http:\/\/ugk-pi:3000/);
 	assert.match(nginxConfig, /location \/healthz/);
+	assert.match(nginxConfig, /proxy_read_timeout\s+600s;/);
+	assert.match(nginxConfig, /proxy_send_timeout\s+600s;/);
+	assert.match(nginxConfig, /proxy_buffering\s+off;/);
 
 	const packageJson = readFileSync(packageJsonPath, "utf8");
 	assert.match(packageJson, /"worker:conn":\s*"tsx src\/workers\/conn-worker\.ts"/);

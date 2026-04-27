@@ -5,6 +5,7 @@
 .data/
 api.txt
 deepseek-api.txt
+阿里-config.txt
 node_modules/
 skills/
 runtime/pi-agent/auth.json

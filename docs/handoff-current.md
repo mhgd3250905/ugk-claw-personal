@@ -8,19 +8,24 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- 当前本地 / GitHub 最新提交：`caa2eac Record production deploy to 46088a0`
-- 当前生产运行代码提交：`46088a0 Refresh current handoff docs`
-- 说明：`caa2eac` 只是生产发布记录文档提交，没有重新部署到服务器；服务器当前运行代码保持在 `46088a0`
+- 当前本地 / GitHub 最新提交：`030d6f1 Record DeepSeek production deploy`
+- 腾讯云生产运行代码提交：`fb3fc42 Add DeepSeek model provider switching`
+- 阿里云生产运行代码提交：`030d6f1 Record DeepSeek production deploy`
+- 说明：腾讯云已增量更新到 DeepSeek 功能提交并验证通过，`030d6f1` 只是腾讯云发布记录文档提交；阿里云首次部署使用本地 archive，包含 `030d6f1`
 - 上一轮架构整理代码落点：`524fb71 Extract assistant run result checks`
 - 本轮架构整理前备份 tag：`backup-pre-architecture-cleanup-20260426`
-- 云端正式入口：`http://43.134.167.179:3000/playground`
-- 云端健康检查：`http://43.134.167.179:3000/healthz`
-- 服务器主部署目录：`~/ugk-claw-repo`
-- shared 运行态目录：`~/ugk-claw-shared`
-- 最近一次生产回滚 tag：`server-pre-deploy-20260426-234533`
-- 最近一次 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260426-234533.tar.gz`
-- 服务器更新方式：默认且本次明确为“增量更新”，不要整目录替换
-- 当前未跟踪 runtime 文件不要顺手提交：`runtime/commit-playground-asset-detail-hydration.ps1`、`runtime/pudong-weather.md`、`runtime/zhihu-collection-ai-agent-summary.md`
+- 腾讯云正式入口：`http://43.134.167.179:3000/playground`
+- 腾讯云健康检查：`http://43.134.167.179:3000/healthz`
+- 腾讯云主部署目录：`/home/ubuntu/ugk-claw-repo`
+- 腾讯云 shared 运行态目录：`/home/ubuntu/ugk-claw-shared`
+- 腾讯云最近一次生产回滚 tag：`server-pre-deploy-20260427-144258`
+- 腾讯云最近一次 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260427-144258.tar.gz`
+- 阿里云正式入口：`http://101.37.209.54:3000/playground`
+- 阿里云健康检查：`http://101.37.209.54:3000/healthz`
+- 阿里云主部署目录：`/root/ugk-claw-repo`
+- 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
+- 服务器更新方式：默认倾向“增量更新”，不要洗 shared 运行态；阿里云当前不是 Git 工作目录，后续更新先看 `docs/aliyun-ecs-deploy.md`
+- 当前未跟踪 runtime / 本地密钥文件不要顺手提交：`runtime/commit-playground-asset-detail-hydration.ps1`、`runtime/pudong-weather.md`、`runtime/zhihu-collection-ai-agent-summary.md`、`阿里-config.txt`
 
 ## 最近已完成
 
@@ -52,20 +57,22 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 
 最近一次生产验收：
 
-- 服务器从 `9d3cb37` fast-forward 到 `46088a0`
+- 腾讯云服务器已增量更新到 DeepSeek provider 功能提交 `fb3fc42`
 - `ugk-pi`、`nginx`、`ugk-pi-browser` 均 healthy
 - 内网 / 公网 `/healthz` 返回 `{"ok":true}`
 - 内网 / 公网 `/playground` 返回 `200 OK`
 - `check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`
-- 发布中 nginx 曾短暂 `502`，已按手册 `up -d --force-recreate nginx` 恢复
+- DeepSeek provider 真实验证通过，模型源切换入口可用
+- 阿里云 ECS 首次部署已完成，`101.37.209.54:3000` 公网 playground 已由用户确认可访问；当前阿里云代码目录是 archive 解包目录，不是 Git 工作目录
 
 ## 下一步建议
 
 如果你是用户刚点了新会话后重新 `/init` 的新 agent，先别急着开工。先确认：
 
 1. `git status --short` 里只有上面列出的 runtime 临时文件，或者先处理它们。
-2. 不要重新部署 `caa2eac`，它只是发布记录文档；生产已经运行 `46088a0`。
-3. SQLite / JSON 字段边界本轮已扫完，`AgentService.queueMessage()` 已经抽到 `src/agent/agent-queue-message.ts`，新建 / 删除 / 切换 / 重置会话命令也已经抽到 `src/agent/agent-conversation-commands.ts`；下一步如果继续做架构整理，优先从 `AgentService.runChat()` 周边找真正可测的窄边界，别继续堆“为了拆而拆”的文件。
+2. 不要把腾讯云和阿里云当成一台机器。腾讯云是 `ubuntu@43.134.167.179` 且目录是 `/home/ubuntu/...`；阿里云是 `root@101.37.209.54` 且目录是 `/root/...`。
+3. 不要在阿里云 `/root/ugk-claw-repo` 里直接 `git pull`，除非已经迁移成 Git 工作目录。现在它是 archive 解包目录。
+4. SQLite / JSON 字段边界本轮已扫完，`AgentService.queueMessage()` 已经抽到 `src/agent/agent-queue-message.ts`，新建 / 删除 / 切换 / 重置会话命令也已经抽到 `src/agent/agent-conversation-commands.ts`；下一步如果继续做架构整理，优先从 `AgentService.runChat()` 周边找真正可测的窄边界，别继续堆“为了拆而拆”的文件。
 
 ### 1. 已完成的 SQLite / JSON 字段边界
 
@@ -101,6 +108,7 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 - [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
 - [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 - [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+- [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)
 
 如果只是代码内部小重构、外部行为不变，可以不写长篇发布故事；但影响运行口径、部署、接口、用户体验或接手路径时，必须更新 `docs/change-log.md`。
 
@@ -170,4 +178,5 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 5. [docs/runtime-assets-conn-feishu.md](/E:/AII/ugk-pi/docs/runtime-assets-conn-feishu.md)
 6. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 7. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
-8. [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
+8. [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)
+9. [docs/change-log.md](/E:/AII/ugk-pi/docs/change-log.md)
