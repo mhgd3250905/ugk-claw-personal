@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### 生产服务器增量更新到 `fb3fc42`
+- 日期：2026-04-27
+- 主题：按“增量更新”流程把腾讯云新加坡生产目录 `~/ugk-claw-repo` 从 `2c309a5` fast-forward 到 `fb3fc42`，上线 DeepSeek Anthropic 兼容 provider、前端模型源查看 / 验证 / 保存入口，以及 DeepSeek `1M` context window 展示和动态上下文读取修复。
+- 影响范围：发布前本地已通过 `npx tsc --noEmit`、`npm test`、`docker compose -f docker-compose.prod.yml config --quiet`；服务器发布前已备份 sidecar 登录态到 `~/ugk-claw-shared/backups/chrome-sidecar-20260427-144258.tar.gz`，并创建回滚 tag `server-pre-deploy-20260427-144258`。生产 `~/ugk-claw-shared/app.env` 已补充 `DEEPSEEK_API_KEY`，不输出也不提交真实密钥；`ugk-pi` / `ugk-pi-conn-worker` 已重建以读取新 env。
+- 对应入口：`runtime/pi-agent/models.json`、`src/agent/model-config.ts`、`src/routes/model-config.ts`、`src/agent/agent-session-factory.ts`、`src/ui/playground.ts`、`docs/server-ops-quick-reference.md`
+
 ### DeepSeek API 源与前端模型源切换入口
 - 日期：2026-04-27
 - 主题：把 DeepSeek Anthropic 兼容源注册到项目级 `runtime/pi-agent/models.json`，新增 `deepseek-anthropic` provider，暴露 `deepseek-v4-pro` 与 `deepseek-v4-flash` 两个模型；同时新增 `/v1/model-config`、`/v1/model-config/validate`、`/v1/model-config/default`，让前端可以查看、测试并在后端验证通过后保存默认 provider / model。
