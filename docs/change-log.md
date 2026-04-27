@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### 腾讯云生产环境增量更新到 `cefa960`
+- 日期：2026-04-27
+- 主题：按用户确认的“1 推 GitHub、2 服务器增量发布”完成本轮架构整理收尾上线。GitHub `origin/main` 已从 `caa2eac` 推进到 `cefa960`；腾讯云新加坡生产仓库 `~/ugk-claw-repo` 通过 `git pull --ff-only origin main` 从 `46088a0` 增量更新到 `cefa960`，没有整目录替换，也没有触碰 `~/ugk-claw-shared` 下的 agent 数据和 sidecar 登录态。
+- 影响范围：发布前本地通过 `npx tsc --noEmit`、`npm test`、`docker compose -f docker-compose.prod.yml config --quiet`；服务器发布前备份 sidecar 到 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260427-102259.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260427-102435`。发布后执行 `docker compose ... up --build -d`，内外网 `/healthz`、`/playground`、compose 状态与 `check-deps.mjs` 均验收通过。
+- 对应入口：`docs/handoff-current.md`、`docs/tencent-cloud-singapore-deploy.md`、`docker-compose.prod.yml`
+
 ### 架构整理阶段收尾判断
 - 日期：2026-04-27
 - 主题：为本轮代码整理补充阶段性收尾判断。当前主线已经完成约 `85%-90%`，后续不建议继续按“大文件就拆”的方式推进；`AgentService` 应保留运行编排中心职责，尤其是 `activeRuns` / `terminalRuns`、`runChat()` 生命周期、interrupt 和 run events 订阅回放。
