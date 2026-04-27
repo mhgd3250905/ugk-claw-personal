@@ -85,9 +85,12 @@ export class ConnSqliteStore {
 
 	async list(): Promise<ConnDefinition[]> {
 		const rows = this.options.database.all<ConnRow>(
-			"SELECT * FROM conns ORDER BY created_at DESC",
+			"SELECT * FROM conns ORDER BY created_at DESC, conn_id DESC",
 		);
-		return rows.map(rowToConnDefinition);
+		return rows.flatMap((row) => {
+			const conn = tryRowToConnDefinition(row);
+			return conn ? [conn] : [];
+		});
 	}
 
 	async get(connId: string): Promise<ConnDefinition | undefined> {
@@ -95,7 +98,7 @@ export class ConnSqliteStore {
 			"SELECT * FROM conns WHERE conn_id = ?",
 			connId,
 		);
-		return row ? rowToConnDefinition(row) : undefined;
+		return row ? tryRowToConnDefinition(row) : undefined;
 	}
 
 	async create(input: CreateConnInput): Promise<ConnDefinition> {
@@ -293,12 +296,27 @@ function rowToConnDefinition(row: ConnRow): ConnDefinition {
 	};
 }
 
+function tryRowToConnDefinition(row: ConnRow): ConnDefinition | undefined {
+	try {
+		return rowToConnDefinition(row);
+	} catch (error) {
+		if (isInvalidConnJsonError(error)) {
+			return undefined;
+		}
+		throw error;
+	}
+}
+
 function parseJsonField<T>(value: string, fieldName: string): T {
 	try {
 		return JSON.parse(value) as T;
 	} catch {
 		throw new Error(`Invalid JSON in conn database field ${fieldName}`);
 	}
+}
+
+function isInvalidConnJsonError(error: unknown): boolean {
+	return error instanceof Error && /^Invalid JSON in conn database field /.test(error.message);
 }
 
 function normalizeSchedule(schedule: ConnSchedule, now: Date): ConnSchedule {

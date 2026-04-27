@@ -41,7 +41,7 @@ export function registerActivityRoutes(app: FastifyInstance, deps: ActivityRoute
 			return {
 				activities: visibleActivities.map(toActivityBody),
 				hasMore,
-				...(hasMore && lastVisible?.createdAt ? { nextBefore: lastVisible.createdAt } : {}),
+				...(hasMore && lastVisible?.createdAt ? { nextBefore: `${lastVisible.createdAt}|${lastVisible.activityId}` } : {}),
 				unreadCount: await deps.activityStore.getUnreadCount(),
 			};
 		},

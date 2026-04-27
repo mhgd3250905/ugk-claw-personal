@@ -261,6 +261,37 @@ test("AgentActivityStore paginates unread activity items with a before cursor", 
 	database.close();
 });
 
+test("AgentActivityStore paginates activity items with a stable id tie-breaker", async () => {
+	const { store, database } = await createStore();
+	for (const activityId of ["activity-a", "activity-b", "activity-c"]) {
+		database.run(
+			"INSERT INTO agent_activity_items (activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			activityId,
+			"agent",
+			"conn",
+			activityId,
+			`run-${activityId}`,
+			"manual:conn",
+			"conn_result",
+			activityId,
+			`${activityId} text`,
+			"[]",
+			"2026-04-22T10:01:00.000Z",
+		);
+	}
+
+	const firstPage = await store.list({ limit: 2 });
+	const secondPage = await store.list({
+		limit: 2,
+		before: `${firstPage[1].createdAt}|${firstPage[1].activityId}`,
+	});
+
+	assert.deepEqual(firstPage.map((item) => item.activityId), ["activity-c", "activity-b"]);
+	assert.deepEqual(secondPage.map((item) => item.activityId), ["activity-a"]);
+
+	database.close();
+});
+
 test("AgentActivityStore marks activity items as read", async () => {
 	const { store, database } = await createStore();
 	const activity = await store.create({

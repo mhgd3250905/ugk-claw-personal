@@ -83,6 +83,63 @@ test("ConnRunStore creates due runs and leases them to one worker at a time", as
 	database.close();
 });
 
+test("ConnRunStore tolerates malformed optional JSON fields when reading runs and events", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "daily digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-bad-json",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-bad-json",
+		resolvedSnapshot: {
+			profileId: "background.default",
+		},
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	database.run(
+		"UPDATE conn_runs SET resolved_snapshot_json = ? WHERE run_id = ?",
+		"{not-json",
+		"run-bad-json",
+	);
+	database.run(
+		"INSERT INTO conn_run_events (event_id, run_id, seq, event_type, event_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"event-bad-json",
+		"run-bad-json",
+		1,
+		"log",
+		"{not-json",
+		"2026-04-21T10:01:00.000Z",
+	);
+
+	const run = await runStore.getRun("run-bad-json");
+	assert.equal(run?.runId, "run-bad-json");
+	assert.equal(run?.resolvedSnapshot, undefined);
+	assert.deepEqual(await runStore.listEvents("run-bad-json"), [
+		{
+			eventId: "event-bad-json",
+			runId: "run-bad-json",
+			seq: 1,
+			eventType: "log",
+			event: {},
+			createdAt: "2026-04-21T10:01:00.000Z",
+		},
+	]);
+
+	database.close();
+});
+
 test("ConnRunStore lists the latest run for each requested conn in one batch", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const firstConn = await connStore.create({
@@ -142,6 +199,102 @@ test("ConnRunStore lists the latest run for each requested conn in one batch", a
 	assert.equal(latestRuns[firstConn.connId]?.runId, "run-first-new");
 	assert.equal(latestRuns[secondConn.connId]?.runId, "run-second");
 	assert.equal(latestRuns["conn-missing"], undefined);
+	database.close();
+});
+
+test("ConnRunStore uses run ids as stable timestamp tie-breakers for run lists and claims", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "daily digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	for (const runId of ["run-a", "run-b", "run-c"]) {
+		await runStore.createRun({
+			runId,
+			connId: conn.connId,
+			scheduledAt: "2026-04-21T10:01:00.000Z",
+			workspacePath: `/tmp/conn/${runId}`,
+			now: new Date("2026-04-21T10:00:59.000Z"),
+		});
+	}
+
+	assert.deepEqual(
+		(await runStore.listRunsForConn(conn.connId)).map((run) => run.runId),
+		["run-c", "run-b", "run-a"],
+	);
+	assert.equal((await runStore.listLatestRunsForConns([conn.connId]))[conn.connId]?.runId, "run-c");
+	assert.equal(
+		(await runStore.claimNextDue({
+			workerId: "worker-a",
+			now: new Date("2026-04-21T10:01:00.000Z"),
+			leaseMs: 30_000,
+		}))?.runId,
+		"run-a",
+	);
+
+	database.close();
+});
+
+test("ConnRunStore finalizes a run even when the owning conn schedule JSON is malformed", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "daily digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-bad-schedule",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-bad-schedule",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	await runStore.claimNextDue({
+		workerId: "worker-a",
+		now: new Date("2026-04-21T10:01:00.000Z"),
+		leaseMs: 30_000,
+	});
+	database.run(
+		"UPDATE conns SET schedule_json = ? WHERE conn_id = ?",
+		"{not-json",
+		conn.connId,
+	);
+
+	const completed = await runStore.completeRun({
+		runId: run.runId,
+		leaseOwner: "worker-a",
+		summary: "done",
+		text: "full result",
+		finishedAt: new Date("2026-04-21T10:01:05.000Z"),
+	});
+
+	assert.equal(completed?.status, "succeeded");
+	assert.equal(completed?.resultSummary, "done");
+	const updatedConnRow = database.get<{ status: string; last_run_id?: string; next_run_at?: string | null }>(
+		"SELECT status, last_run_id, next_run_at FROM conns WHERE conn_id = ?",
+		conn.connId,
+	);
+	assert.equal(updatedConnRow?.last_run_id, run.runId);
+	assert.equal(updatedConnRow?.status, "completed");
+	assert.equal(updatedConnRow?.next_run_at, null);
+
 	database.close();
 });
 

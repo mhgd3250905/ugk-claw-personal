@@ -219,7 +219,7 @@ export class ConnRunStore {
 
 	async listRunsForConn(connId: string): Promise<ConnRunRecord[]> {
 		const rows = this.options.database.all<ConnRunRow>(
-			"SELECT * FROM conn_runs WHERE conn_id = ? ORDER BY scheduled_at DESC, created_at DESC",
+			"SELECT * FROM conn_runs WHERE conn_id = ? ORDER BY scheduled_at DESC, created_at DESC, run_id DESC",
 			connId,
 		);
 		return rows.map(rowToRun);
@@ -238,7 +238,7 @@ export class ConnRunStore {
 			[
 				"SELECT * FROM (",
 				"SELECT conn_runs.*,",
-				"ROW_NUMBER() OVER (PARTITION BY conn_id ORDER BY scheduled_at DESC, created_at DESC) AS row_number",
+				"ROW_NUMBER() OVER (PARTITION BY conn_id ORDER BY scheduled_at DESC, created_at DESC, run_id DESC) AS row_number",
 				"FROM conn_runs",
 				`WHERE conn_id IN (${placeholders})`,
 				") WHERE row_number = 1",
@@ -259,7 +259,7 @@ export class ConnRunStore {
 			[
 				"SELECT * FROM conn_runs",
 				"WHERE status = 'running' AND lease_until IS NOT NULL AND lease_until <= ?",
-				"ORDER BY scheduled_at ASC, created_at ASC",
+				"ORDER BY scheduled_at ASC, created_at ASC, run_id ASC",
 			].join(" "),
 			nowIso,
 		);
@@ -280,7 +280,7 @@ export class ConnRunStore {
 					"WHERE",
 					"((status = 'pending' AND scheduled_at <= ?)",
 					"OR (status = 'running' AND lease_until IS NOT NULL AND lease_until <= ?))",
-					"ORDER BY scheduled_at ASC, created_at ASC",
+					"ORDER BY scheduled_at ASC, created_at ASC, run_id ASC",
 					"LIMIT 1",
 				].join(" "),
 				nowIso,
@@ -461,7 +461,7 @@ export class ConnRunStore {
 
 	async listFiles(runId: string): Promise<ConnRunFileRecord[]> {
 		const rows = this.options.database.all<ConnRunFileRow>(
-			"SELECT * FROM conn_run_files WHERE run_id = ? ORDER BY created_at ASC, file_name ASC",
+			"SELECT * FROM conn_run_files WHERE run_id = ? ORDER BY created_at ASC, file_name ASC, file_id ASC",
 			runId,
 		);
 		return rows.map(rowToFile);
@@ -545,8 +545,8 @@ export class ConnRunStore {
 		}
 
 		const finishedAtIso = finishedAt.toISOString();
-		const schedule = parseJson<ConnSchedule>(conn.schedule_json, "schedule_json");
-		const nextRunAt = computeNextRunAt(schedule, finishedAt, finishedAt);
+		const schedule = parseJsonOrUndefined<ConnSchedule>(conn.schedule_json);
+		const nextRunAt = schedule ? computeNextRunAt(schedule, finishedAt, finishedAt) : undefined;
 		const nextStatus = conn.status === "active" ? (nextRunAt ? "active" : "completed") : conn.status;
 		const nextRunAtIso = conn.status === "active" ? nextRunAt?.toISOString() : undefined;
 
@@ -586,6 +586,9 @@ export class ConnRunStore {
 }
 
 function rowToRun(row: ConnRunRow): ConnRunRecord {
+	const resolvedSnapshot = row.resolved_snapshot_json
+		? parseJsonOrUndefined<Record<string, unknown>>(row.resolved_snapshot_json)
+		: undefined;
 	return {
 		runId: row.run_id,
 		connId: row.conn_id,
@@ -598,7 +601,7 @@ function rowToRun(row: ConnRunRow): ConnRunRecord {
 		...(row.lease_until ? { leaseUntil: row.lease_until } : {}),
 		workspacePath: row.workspace_path,
 		...(row.session_file ? { sessionFile: row.session_file } : {}),
-		...(row.resolved_snapshot_json ? { resolvedSnapshot: parseJson<Record<string, unknown>>(row.resolved_snapshot_json, "resolved_snapshot_json") } : {}),
+		...(resolvedSnapshot ? { resolvedSnapshot } : {}),
 		...(row.result_summary ? { resultSummary: row.result_summary } : {}),
 		...(row.result_text ? { resultText: row.result_text } : {}),
 		...(row.error_text ? { errorText: row.error_text } : {}),
@@ -615,7 +618,7 @@ function rowToEvent(row: ConnRunEventRow): ConnRunEventRecord {
 		runId: row.run_id,
 		seq: row.seq,
 		eventType: row.event_type,
-		event: parseJson<Record<string, unknown>>(row.event_json, "event_json"),
+		event: parseJsonOrUndefined<Record<string, unknown>>(row.event_json) ?? {},
 		createdAt: row.created_at,
 	};
 }
@@ -642,5 +645,13 @@ function parseJson<T>(value: string, fieldName: string): T {
 		return JSON.parse(value) as T;
 	} catch {
 		throw new Error(`Invalid JSON in conn run database field ${fieldName}`);
+	}
+}
+
+function parseJsonOrUndefined<T>(value: string): T | undefined {
+	try {
+		return JSON.parse(value) as T;
+	} catch {
+		return undefined;
 	}
 }

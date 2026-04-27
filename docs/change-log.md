@@ -10,7 +10,27 @@
 
 ---
 
+## 2026-04-27
+
+### Agent queue message 编排收口
+- 日期：2026-04-27
+- 主题：把 `AgentService.queueMessage()` 中的运行中队列消息编排抽到 `src/agent/agent-queue-message.ts`。队列消息不是 run 生命周期本体，继续塞在 `AgentService` 里只会让主服务类越来越像杂物间；现在附件 / 资产 prompt context、当前时间前缀、`steer` / `followUp` 显式 API 优先级和 fallback `prompt(..., { streamingBehavior })` 都有独立 helper 与聚焦测试覆盖。
+- 影响范围：外部接口语义不变；`POST /v1/chat/queue` 运行中仍返回 queued，未运行仍由 `AgentService` 返回 `not_running`。运行中消息继续复用 `preparePromptAssets()` 和 `buildPromptWithAssetContext()`，`steer` / `followUp` 存在时不会退回 `prompt(streamingBehavior)`。
+- 对应入口：`src/agent/agent-queue-message.ts`、`src/agent/agent-service.ts`、`test/agent-queue-message.test.ts`、`test/agent-service.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
+### SQLite / JSON 字段边界与任务消息分页游标加固
+- 日期：2026-04-27
+- 主题：按交接文档优先级完成非 Feishu 区域的 SQLite / JSON 边界扫描。坏 JSON 不应把列表、详情或后台 run 收尾拖垮；同 timestamp 的分页和 latest 选择也不能靠 SQLite 当前返回顺序碰运气。碰运气这种事适合抽卡，不适合生产系统。
+- 影响范围：`ConversationNotificationStore.create()` 遇到同源 run 唯一冲突时回读已有通知；`ConnSqliteStore.list()` / `get()` 对坏 JSON conn 行降级为跳过 / 空详情；`ConnRunStore` 对坏 `resolved_snapshot_json` / `event_json` 降级，并允许 run 在 owning conn `schedule_json` 损坏时完成收尾；conn / run / notification / activity 查询补稳定 id tie-breaker。`GET /v1/activity` 的 `nextBefore` 改为不透明游标 `createdAt|activityId`，旧 timestamp-only `before` 入参继续兼容。
+- 对应入口：`src/agent/agent-activity-store.ts`、`src/agent/conversation-notification-store.ts`、`src/agent/conn-sqlite-store.ts`、`src/agent/conn-run-store.ts`、`src/routes/activity.ts`、`test/agent-activity-store.test.ts`、`test/conversation-notification-store.test.ts`、`test/conn-sqlite-store.test.ts`、`test/conn-run-store.test.ts`、`test/server.test.ts`
+
 ## 2026-04-26
+
+### 清理 AgentService 遗留 skipped 测试
+- 日期：2026-04-26
+- 主题：处理交接文档点名的两个 `test.skip`。其中 catalog 排序测试的旧断言已经和当前“后台任务通知不影响会话目录 preview / ordering”的稳定行为相冲突；删除会话推进 current 指针的测试已经被后续非 skipped 用例覆盖。删除过时 / 重复 skipped 用例后，全量测试不再包含跳过项。
+- 影响范围：只调整测试与交接事实，不改生产代码。`test/agent-service.test.ts` 当前保留非 skipped 覆盖：后台任务结果不进入会话目录排序 / preview、删除会话后 current 指针推进。
+- 对应入口：`test/agent-service.test.ts`、`docs/handoff-current.md`
 
 ### 腾讯云生产环境增量更新到 `46088a0`
 - 日期：2026-04-26

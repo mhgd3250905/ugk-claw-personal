@@ -1921,49 +1921,6 @@ test("createConversation creates and activates a new empty conversation when idl
 	assert.equal(catalog.conversations[0]?.conversationId, result.conversationId);
 });
 
-test.skip("getConversationCatalog ignores background task notifications when ordering conversations", async () => {
-	const store = await createStore();
-	await store.set("manual:older", "E:/sessions/older.jsonl", {
-		title: "旧会话",
-		preview: "旧预览",
-		messageCount: 2,
-	});
-	await store.set("manual:newer", "E:/sessions/newer.jsonl", {
-		title: "新会话",
-		preview: "前台消息",
-		messageCount: 1,
-	});
-	await store.setCurrentConversationId("manual:newer");
-	const factory = new FakeAgentSessionFactory(() => new FakeSession(undefined, []));
-	const service = new AgentService({
-		conversationStore: store,
-		sessionFactory: factory,
-	}) as AgentService & {
-		getConversationCatalog(): Promise<{
-			currentConversationId: string;
-			conversations: Array<{
-				conversationId: string;
-				preview: string;
-				messageCount: number;
-				updatedAt: string;
-			}>;
-		}>;
-	};
-
-	const catalog = await service.getConversationCatalog();
-
-	assert.equal(catalog.currentConversationId, "manual:newer");
-	assert.deepEqual(catalog.conversations.map((conversation) => conversation.conversationId), [
-		"manual:newer",
-		"manual:older",
-	]);
-	assert.equal(catalog.conversations[0]?.preview, "后台结果已经送达");
-	assert.equal(catalog.conversations[0]?.messageCount, 3);
-	assert.equal(catalog.conversations[0]?.updatedAt, "2099-01-01T00:00:00.000Z");
-	assert.equal(catalog.conversations[1]?.preview, "前台消息");
-	assert.equal(catalog.conversations[1]?.messageCount, 1);
-});
-
 test("switchConversation activates an existing conversation when idle", async () => {
 	const store = await createStore();
 	await store.set("manual:older", "E:/sessions/older.jsonl");
@@ -1986,35 +1943,6 @@ test("switchConversation activates an existing conversation when idle", async ()
 		currentConversationId: "manual:older",
 		switched: true,
 	});
-	assert.equal(await store.getCurrentConversationId(), "manual:older");
-});
-
-test.skip("deleteConversation removes an existing conversation and advances the current pointer", async () => {
-	const store = await createStore();
-	await store.set("manual:older", "E:/sessions/older.jsonl");
-	await store.set("manual:newer", "E:/sessions/newer.jsonl");
-	await store.setCurrentConversationId("manual:newer");
-	const factory = new FakeAgentSessionFactory(() => new FakeSession(undefined, []));
-	const service = new AgentService({
-		conversationStore: store,
-		sessionFactory: factory,
-	}) as AgentService & {
-		deleteConversation(conversationId: string): Promise<{
-			conversationId: string;
-			currentConversationId: string;
-			deleted: boolean;
-			reason?: string;
-		}>;
-	};
-
-	const result = await service.deleteConversation("manual:newer");
-
-	assert.deepEqual(result, {
-		conversationId: "manual:newer",
-		currentConversationId: "manual:older",
-		deleted: true,
-	});
-	assert.equal(await store.get("manual:newer"), undefined);
 	assert.equal(await store.getCurrentConversationId(), "manual:older");
 });
 

@@ -4730,7 +4730,7 @@ test("GET /v1/activity returns pagination metadata when another task inbox page 
 			},
 		],
 		hasMore: true,
-		nextBefore: "2026-04-22T10:02:00.000Z",
+		nextBefore: "2026-04-22T10:02:00.000Z|activity-middle",
 		unreadCount: 2,
 	});
 	await app.close();

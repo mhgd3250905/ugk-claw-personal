@@ -12,6 +12,7 @@ import {
 	buildConversationCatalog,
 	buildConversationMetadata,
 } from "./agent-conversation-catalog.js";
+import { queueActiveMessage } from "./agent-queue-message.js";
 import {
 	resolveConversationContextMessages,
 	resolveConversationStateContext,
@@ -346,22 +347,15 @@ export class AgentService {
 			};
 		}
 
-		const preparedAssets = await preparePromptAssets({
+		await queueActiveMessage({
 			conversationId: input.conversationId,
+			message: input.message,
+			mode: input.mode,
+			session: activeRun.session,
 			attachments: input.attachments,
 			assetRefs: input.assetRefs,
 			assetStore: this.options.assetStore,
 		});
-		const message = buildPromptWithAssetContext(prependCurrentTimeContext(input.message), preparedAssets.promptAssets);
-		if (input.mode === "steer" && activeRun.session.steer) {
-			await activeRun.session.steer(message);
-		} else if (input.mode === "followUp" && activeRun.session.followUp) {
-			await activeRun.session.followUp(message);
-		} else {
-			await activeRun.session.prompt(message, {
-				streamingBehavior: input.mode,
-			});
-		}
 
 		return {
 			conversationId: input.conversationId,

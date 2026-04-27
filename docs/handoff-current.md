@@ -1,6 +1,6 @@
 # 当前交接总览
 
-更新时间：`2026-04-26`
+更新时间：`2026-04-27`
 
 这份文档给下一位接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
@@ -8,13 +8,17 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- 当前生产运行提交：`46088a0 Refresh current handoff docs`
+- 当前本地 / GitHub 最新提交：`caa2eac Record production deploy to 46088a0`
+- 当前生产运行代码提交：`46088a0 Refresh current handoff docs`
+- 说明：`caa2eac` 只是生产发布记录文档提交，没有重新部署到服务器；服务器当前运行代码保持在 `46088a0`
 - 上一轮架构整理代码落点：`524fb71 Extract assistant run result checks`
 - 本轮架构整理前备份 tag：`backup-pre-architecture-cleanup-20260426`
 - 云端正式入口：`http://43.134.167.179:3000/playground`
 - 云端健康检查：`http://43.134.167.179:3000/healthz`
 - 服务器主部署目录：`~/ugk-claw-repo`
 - shared 运行态目录：`~/ugk-claw-shared`
+- 最近一次生产回滚 tag：`server-pre-deploy-20260426-234533`
+- 最近一次 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260426-234533.tar.gz`
 - 服务器更新方式：默认且本次明确为“增量更新”，不要整目录替换
 - 当前未跟踪 runtime 文件不要顺手提交：`runtime/commit-playground-asset-detail-hydration.ps1`、`runtime/pudong-weather.md`、`runtime/zhihu-collection-ai-agent-summary.md`
 
@@ -23,7 +27,7 @@
 这一轮已经完成一批“低风险、小切片、可测试”的整理，核心目标是减少胖文件和隐性坏数据风险：
 
 - 路由 parser / presenter / SSE helper 拆分：chat、conn、activity、notification、files。
-- `AgentService` 继续瘦身：会话 catalog、context loading、session lifecycle、run scope、run result、terminal snapshot、event buffering 等逻辑已经拆到独立 helper。
+- `AgentService` 继续瘦身：会话 catalog、context loading、session lifecycle、queue message、run scope、run result、terminal snapshot、event buffering 等逻辑已经拆到独立 helper。
 - playground 运行时代码继续模块化：page shell、base styles、status、notification、confirm dialog、panel focus、conversation API / sync / state / history pagination / process controller、active run normalizer。
 - conn run 租约防护：过期 worker 不能迟到写入终态、runtime metadata、events 或 output files。
 - 数据索引读边界加固：`ConversationStore`、`AssetStore`、session JSONL 全量读取都已经补回归测试，坏索引 / 坏 JSONL 行不会直接拖垮页面恢复。
@@ -41,40 +45,53 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 
 - `git diff --check`
 - `npx tsc --noEmit`
+- `docker compose -f docker-compose.prod.yml config --quiet`
 - `npm test`
 
-截至最近一次全量测试，测试总数为 `390`，通过 `388`，跳过 `2`。下一个 agent 不要把 `test.skip` 当不存在，它们就是明晃晃的待判断债。
+截至最近一次全量测试，测试总数为 `399`，通过 `399`，跳过 `0`。上一版交接提到的两个 `test.skip` 已处理：一个是过时断言，另一个是重复覆盖；SQLite / JSON 字段边界也已完成一轮非 Feishu 区域加固。本轮新增了 `test/agent-queue-message.test.ts` 的 3 个队列消息 helper 用例，已纳入 `npm test` 全量验证。
+
+最近一次生产验收：
+
+- 服务器从 `9d3cb37` fast-forward 到 `46088a0`
+- `ugk-pi`、`nginx`、`ugk-pi-browser` 均 healthy
+- 内网 / 公网 `/healthz` 返回 `{"ok":true}`
+- 内网 / 公网 `/playground` 返回 `200 OK`
+- `check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`
+- 发布中 nginx 曾短暂 `502`，已按手册 `up -d --force-recreate nginx` 恢复
 
 ## 下一步建议
 
-### 1. 处理两个 `test.skip`
+如果你是用户刚点了新会话后重新 `/init` 的新 agent，先别急着开工。先确认：
 
-优先级最高。先判断这两个 skipped 是旧行为过时、测试应删除，还是现有能力缺口。不要为了“看起来全绿”机械取消 skip，测试不是许愿池。
+1. `git status --short` 里只有上面列出的 runtime 临时文件，或者先处理它们。
+2. 不要重新部署 `caa2eac`，它只是发布记录文档；生产已经运行 `46088a0`。
+3. SQLite / JSON 字段边界本轮已扫完，`AgentService.queueMessage()` 也已经抽到 `src/agent/agent-queue-message.ts`；下一步如果继续做架构整理，优先从 `AgentService` 剩余编排代码里找真正可测的纯边界，别继续堆“为了拆而拆”的文件。
 
-重点入口：
-- [test/agent-service.test.ts](/E:/AII/ugk-pi/test/agent-service.test.ts)
-- [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
-- [src/agent/agent-conversation-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-conversation-catalog.ts)
+### 1. 已完成的 SQLite / JSON 字段边界
 
-### 2. 继续扫 SQLite / JSON 字段边界
-
-优先看非 Feishu 区域：
+本轮覆盖非 Feishu 区域：
 - [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
 - [src/agent/conversation-notification-store.ts](/E:/AII/ugk-pi/src/agent/conversation-notification-store.ts)
 - [src/agent/conn-sqlite-store.ts](/E:/AII/ugk-pi/src/agent/conn-sqlite-store.ts)
 - [src/agent/conn-run-store.ts](/E:/AII/ugk-pi/src/agent/conn-run-store.ts)
+- [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
 
-检查点：
-- JSON 字段解析失败时是否会拖垮列表或详情。
-- 重复投递 / 重复 run 是否有真实唯一约束或幂等防护。
-- 分页排序是否有稳定 tie-breaker。
-- 删除 conn / conversation 后是否还会留下脏引用。
+已加固点：
+- `ConversationNotificationStore.create()` 遇到同源 run 并发唯一冲突时回读已有通知。
+- `ConnSqliteStore.list()` / `get()` 遇到坏 JSON conn 行时跳过 / 返回空，不拖垮列表或详情。
+- `ConnRunStore` 读取坏 `resolved_snapshot_json` / `event_json` 时降级为空对象或省略字段；完成 run 时如果 owning conn 的 `schedule_json` 已坏，仍能终结 run，并把 conn 收到 completed。
+- conn、run、notification、activity 查询补稳定 tie-breaker；`GET /v1/activity` 的 `nextBefore` 现在是不透明游标 `createdAt|activityId`，旧 timestamp-only `before` 入参仍兼容。
 
-### 3. 继续拆 `AgentService` 剩余编排代码
+### 2. 继续拆 `AgentService` 剩余编排代码
 
 不要为了拆而拆。只拆能让行为更可测、职责更清晰的片段。优先选择有纯函数边界、能补单测的 helper。已经拆过的模块不要重复造第二套名字。
 
-### 4. 文档整理只做事实校准
+本轮已新增：
+
+- [src/agent/agent-queue-message.ts](/E:/AII/ugk-pi/src/agent/agent-queue-message.ts)：运行中队列消息 helper，负责 prompt asset 准备、当前时间前缀、asset context 拼接，以及 `steer` / `followUp` 显式 API 优先。`AgentService.queueMessage()` 只保留 active run 存在性判断与响应外壳。
+- [test/agent-queue-message.test.ts](/E:/AII/ugk-pi/test/agent-queue-message.test.ts)：覆盖 steer、followUp、fallback prompt streaming behavior 与附件 / 引用资产上下文。
+
+### 3. 文档整理只做事实校准
 
 当前文档体系已经很重，后续不要再新增散落文档。优先更新：
 - [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)

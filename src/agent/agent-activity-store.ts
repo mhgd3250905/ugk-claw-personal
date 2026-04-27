@@ -141,8 +141,14 @@ export class AgentActivityStore {
 			conditions.push("read_at IS NULL");
 		}
 		if (options.before) {
-			conditions.push("created_at < ?");
-			params.push(options.before);
+			const cursor = parseActivityCursor(options.before);
+			if (cursor.activityId) {
+				conditions.push("(created_at < ? OR (created_at = ? AND activity_id < ?))");
+				params.push(cursor.createdAt, cursor.createdAt, cursor.activityId);
+			} else {
+				conditions.push("created_at < ?");
+				params.push(cursor.createdAt);
+			}
 		}
 
 		const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
@@ -208,6 +214,17 @@ export class AgentActivityStore {
 		);
 		return row ? rowToActivity(row) : undefined;
 	}
+}
+
+function parseActivityCursor(value: string): { createdAt: string; activityId?: string } {
+	const separatorIndex = value.lastIndexOf("|");
+	if (separatorIndex <= 0 || separatorIndex >= value.length - 1) {
+		return { createdAt: value };
+	}
+	return {
+		createdAt: value.slice(0, separatorIndex),
+		activityId: value.slice(separatorIndex + 1),
+	};
 }
 
 function clampLimit(value: number | undefined): number {

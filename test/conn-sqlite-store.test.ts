@@ -53,6 +53,87 @@ test("ConnSqliteStore creates, gets, and lists conn definitions with runtime pro
 	database.close();
 });
 
+test("ConnSqliteStore skips malformed JSON conn rows instead of breaking list and detail reads", async () => {
+	const { store, database } = await createConnSqliteStore();
+	const healthy = await store.create({
+		title: "healthy",
+		prompt: "run",
+		target: {
+			type: "conversation",
+			conversationId: "manual:healthy",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	database.run(
+		[
+			"INSERT INTO conns (",
+			"conn_id, title, prompt, target_json, schedule_json, asset_refs_json,",
+			"profile_id, agent_spec_id, skill_set_id, model_policy_id, upgrade_policy,",
+			"status, created_at, updated_at",
+			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		].join(" "),
+		"conn-bad-json",
+		"bad",
+		"run",
+		"{not-json",
+		JSON.stringify({ kind: "interval", everyMs: 60_000 }),
+		"[]",
+		"background.default",
+		"agent.default",
+		"skills.default",
+		"model.default",
+		"latest",
+		"active",
+		"2026-04-21T10:01:00.000Z",
+		"2026-04-21T10:01:00.000Z",
+	);
+
+	assert.deepEqual(await store.list(), [healthy]);
+	assert.equal(await store.get("conn-bad-json"), undefined);
+
+	database.close();
+});
+
+test("ConnSqliteStore lists same-timestamp conn definitions with a stable id tie-breaker", async () => {
+	const { store, database } = await createConnSqliteStore();
+	for (const connId of ["conn-a", "conn-b", "conn-c"]) {
+		database.run(
+			[
+				"INSERT INTO conns (",
+				"conn_id, title, prompt, target_json, schedule_json, asset_refs_json,",
+				"profile_id, agent_spec_id, skill_set_id, model_policy_id, upgrade_policy,",
+				"status, created_at, updated_at",
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			].join(" "),
+			connId,
+			connId,
+			"run",
+			JSON.stringify({ type: "conversation", conversationId: `manual:${connId}` }),
+			JSON.stringify({ kind: "interval", everyMs: 60_000 }),
+			"[]",
+			"background.default",
+			"agent.default",
+			"skills.default",
+			"model.default",
+			"latest",
+			"active",
+			"2026-04-21T10:00:00.000Z",
+			"2026-04-21T10:00:00.000Z",
+		);
+	}
+
+	assert.deepEqual(
+		(await store.list()).map((conn) => conn.connId),
+		["conn-c", "conn-b", "conn-a"],
+	);
+
+	database.close();
+});
+
 test("ConnSqliteStore updates, pauses, resumes, and deletes conn definitions", async () => {
 	const { store, database } = await createConnSqliteStore();
 	const created = await store.create({

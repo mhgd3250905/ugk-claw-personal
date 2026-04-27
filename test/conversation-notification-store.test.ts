@@ -82,6 +82,76 @@ test("ConversationNotificationStore deduplicates delivery for the same source an
 	database.close();
 });
 
+test("ConversationNotificationStore returns the existing notification when a concurrent insert wins the same source run", async () => {
+	const { store, database } = await createStore();
+	const originalRun = database.run.bind(database);
+	let injectedConcurrentInsert = false;
+	database.run = (sql: string, ...params: unknown[]): void => {
+		if (!injectedConcurrentInsert && sql.includes("INSERT INTO conversation_notifications")) {
+			injectedConcurrentInsert = true;
+			originalRun(
+				"INSERT INTO conversation_notifications (notification_id, conversation_id, source, source_id, run_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"notification-existing",
+				"manual:conn",
+				"conn",
+				"conn-race",
+				"run-race",
+				"conn_result",
+				"winner",
+				"winner text",
+				"[]",
+				"2026-04-21T10:01:05.000Z",
+			);
+		}
+		originalRun(sql, ...params);
+	};
+
+	const notification = await store.create({
+		conversationId: "manual:conn",
+		source: "conn",
+		sourceId: "conn-race",
+		runId: "run-race",
+		kind: "conn_result",
+		title: "late",
+		text: "late text",
+		createdAt: new Date("2026-04-21T10:02:05.000Z"),
+	});
+
+	assert.equal(notification.notificationId, "notification-existing");
+	assert.equal(notification.title, "winner");
+	assert.equal((await store.list("manual:conn")).length, 1);
+
+	database.close();
+});
+
+test("ConversationNotificationStore uses notification ids as stable timestamp tie-breakers", async () => {
+	const { store, database } = await createStore();
+	for (const notificationId of ["notification-a", "notification-b", "notification-c"]) {
+		database.run(
+			"INSERT INTO conversation_notifications (notification_id, conversation_id, source, source_id, run_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			notificationId,
+			"manual:conn",
+			"conn",
+			notificationId,
+			`run-${notificationId}`,
+			"conn_result",
+			notificationId,
+			`${notificationId} text`,
+			"[]",
+			"2026-04-21T10:01:05.000Z",
+		);
+	}
+
+	assert.deepEqual(
+		(await store.list("manual:conn")).map((notification) => notification.notificationId),
+		["notification-a", "notification-b", "notification-c"],
+	);
+	const summaries = await store.summarize(["manual:conn"]);
+	assert.equal(summaries.get("manual:conn")?.latest?.notificationId, "notification-c");
+
+	database.close();
+});
+
 test("ConversationNotificationStore marks notifications as read", async () => {
 	const { store, database } = await createStore();
 	const notification = await store.create({

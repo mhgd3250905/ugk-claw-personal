@@ -86,30 +86,40 @@ export class ConversationNotificationStore {
 			createdAt: (input.createdAt ?? new Date()).toISOString(),
 		};
 
-		this.options.database.run(
-			[
-				"INSERT INTO conversation_notifications (",
-				"notification_id, conversation_id, source, source_id, run_id, kind, title, text, files_json, created_at",
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			].join(" "),
-			notification.notificationId,
-			notification.conversationId,
-			notification.source,
-			notification.sourceId,
-			notification.runId,
-			notification.kind,
-			notification.title,
-			notification.text,
-			JSON.stringify(notification.files),
-			notification.createdAt,
-		);
+		try {
+			this.options.database.run(
+				[
+					"INSERT INTO conversation_notifications (",
+					"notification_id, conversation_id, source, source_id, run_id, kind, title, text, files_json, created_at",
+					") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				].join(" "),
+				notification.notificationId,
+				notification.conversationId,
+				notification.source,
+				notification.sourceId,
+				notification.runId,
+				notification.kind,
+				notification.title,
+				notification.text,
+				JSON.stringify(notification.files),
+				notification.createdAt,
+			);
+		} catch (error) {
+			const concurrentExisting = input.runId && isSqliteUniqueConstraintError(error)
+				? this.findBySourceRun(input.source, input.sourceId, input.runId)
+				: undefined;
+			if (concurrentExisting) {
+				return concurrentExisting;
+			}
+			throw error;
+		}
 
 		return notification;
 	}
 
 	async list(conversationId: string): Promise<ConversationNotification[]> {
 		const rows = this.options.database.all<ConversationNotificationRow>(
-			"SELECT * FROM conversation_notifications WHERE conversation_id = ? ORDER BY created_at ASC",
+			"SELECT * FROM conversation_notifications WHERE conversation_id = ? ORDER BY created_at ASC, notification_id ASC",
 			conversationId,
 		);
 		return rows.map(rowToNotification);
@@ -135,7 +145,7 @@ export class ConversationNotificationStore {
 			[
 				"SELECT * FROM conversation_notifications",
 				`WHERE conversation_id IN (${placeholders})`,
-				"ORDER BY conversation_id ASC, created_at DESC",
+				"ORDER BY conversation_id ASC, created_at DESC, notification_id DESC",
 			].join(" "),
 			...normalizedConversationIds,
 		);
@@ -180,6 +190,16 @@ export class ConversationNotificationStore {
 		);
 		return true;
 	}
+
+	private findBySourceRun(source: string, sourceId: string, runId: string): ConversationNotification | undefined {
+		const row = this.options.database.get<ConversationNotificationRow>(
+			"SELECT * FROM conversation_notifications WHERE source = ? AND source_id = ? AND run_id = ?",
+			source,
+			sourceId,
+			runId,
+		);
+		return row ? rowToNotification(row) : undefined;
+	}
 }
 
 function rowToNotification(row: ConversationNotificationRow): ConversationNotification {
@@ -205,4 +225,11 @@ function parseFiles(value: string): ConversationNotificationFile[] {
 	} catch {
 		return [];
 	}
+}
+
+function isSqliteUniqueConstraintError(error: unknown): boolean {
+	return error instanceof Error && (
+		"code" in error && (error as NodeJS.ErrnoException).code === "ERR_SQLITE_ERROR" ||
+		/UNIQUE constraint failed/i.test(error.message)
+	);
 }
