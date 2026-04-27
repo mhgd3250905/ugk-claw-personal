@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### GitHub social preview 预览图
+- 日期：2026-04-27
+- 主题：为 GitHub 仓库设置页准备横版 social preview 图，尺寸为 `1280x640`，用于仓库分享卡片和社交平台预览。设计方向采用深色 agent cockpit 风格，突出 `UGK CLAW`、自托管 coding agent cockpit 定位，以及 agent runtime / streaming sessions / browser automation 等核心能力。
+- 影响范围：只新增展示资产和设计说明，不改运行代码、不改接口语义、不改部署配置；GitHub 设置页仍需要手动上传该 PNG，或在 `gh` 重新登录后再自动配置。
+- 对应入口：`docs/assets/github-social-preview.png`、`docs/github-social-preview-design.md`
+
 ### README 多语言展示入口
 - 日期：2026-04-27
 - 主题：按“首页展示中文”的要求，把仓库首页 `README.md` 改为中文展示页，并新增 `README.en.md` 作为英文版。两个版本顶部互相链接，项目定位、核心亮点、系统结构、快速开始、API 速览、项目地图和文档导航保持同一套信息结构。
