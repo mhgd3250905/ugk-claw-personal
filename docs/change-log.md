@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### GitHub 首页 README 展示收口
+- 日期：2026-04-27
+- 主题：把 `README.md` 从偏内部交接备忘录改成 GitHub 首页展示入口，强化项目定位、核心亮点、系统架构、快速启动、API 速览和文档导航。旧 README 里大量本机绝对路径链接不适合 GitHub 展示，已经改为仓库相对链接；内部交接和运维细节继续指向 `docs/` 下的专门文档。
+- 影响范围：只调整项目展示文档，不改运行代码、不改接口语义、不改部署配置。
+- 对应入口：`README.md`、`docs/handoff-current.md`、`docs/playground-current.md`、`docs/tencent-cloud-singapore-deploy.md`
+
 ### 腾讯云生产环境增量更新到 `cefa960`
 - 日期：2026-04-27
 - 主题：按用户确认的“1 推 GitHub、2 服务器增量发布”完成本轮架构整理收尾上线。GitHub `origin/main` 已从 `caa2eac` 推进到 `cefa960`；腾讯云新加坡生产仓库 `~/ugk-claw-repo` 通过 `git pull --ff-only origin main` 从 `46088a0` 增量更新到 `cefa960`，没有整目录替换，也没有触碰 `~/ugk-claw-shared` 下的 agent 数据和 sidecar 登录态。
