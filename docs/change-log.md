@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### Playground 外部化双云增量发布
+- 日期：2026-04-28
+- 主题：将 `b288853 Pass playground externalized flag to containers` 以增量包 `runtime/playground-externalized-b288853-incremental.tar.gz` 发布到腾讯云新加坡与阿里云 ECS。两端均启用 `PLAYGROUND_EXTERNALIZED=1`，并确认 `/playground` 返回外部化资源引用 `/playground/styles.css` 与 `/playground/app.js`，容器内生成 `runtime/playground/app.js`，项目级 skill `.pi/skills/playground-runtime-ui/SKILL.md` 可用。
+- 影响范围：只覆盖本次提交涉及的源码、文档、测试、项目级 skill 与 `docker-compose.prod.yml`，不替换 shared 运行态目录，不触碰 `.data/agent`、sidecar 登录态、资产、conn 数据或生产日志。阿里云重建应用容器后出现 nginx `502`，按 runbook 强制重建 nginx 后恢复。
+- 对应入口：腾讯云 `http://43.134.167.179:3000/playground`，阿里云 `http://101.37.209.54:3000/playground`，部署记录见 `docs/tencent-cloud-singapore-deploy.md` 与 `docs/aliyun-ecs-deploy.md`。
+
 ### Playground 前端运行时外部化
 - 日期：2026-04-27
 - 主题：评估并落地 `proposal-playground-externalization.md` 的可行版本。原方案直接替换 `/playground` 内联渲染风险过高，本次改为 opt-in 外部化：默认仍使用现有 `renderPlaygroundPage()`，设置 `PLAYGROUND_EXTERNALIZED=1` 后从 `src/ui/` 生成 `runtime/playground-factory/`，初始化 `runtime/playground/`，并由 `/playground/styles.css`、`/playground/app.js`、`/playground/vendor/marked.umd.js` 提供运行时资源。修改运行时 CSS / JS 后刷新浏览器即可生效，不需要重启服务。
