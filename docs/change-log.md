@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### README 首页展示 social preview 横幅
+- 日期：2026-04-27
+- 主题：把 `docs/assets/github-social-preview.png` 同步放到 `README.md` 和 `README.en.md` 顶部，避免用户误以为提交 social preview 资产后 GitHub 仓库设置页会自动生效。GitHub 原生 social preview 仍需要在仓库 `Settings -> General -> Social preview` 手动上传；README 横幅用于仓库首页可见展示。
+- 影响范围：只调整 README 展示图，不改运行代码、不改接口语义、不改部署配置。
+- 对应入口：`README.md`、`README.en.md`、`docs/assets/github-social-preview.png`
+
 ### GitHub social preview 预览图
 - 日期：2026-04-27
 - 主题：为 GitHub 仓库设置页准备横版 social preview 图，尺寸为 `1280x640`，用于仓库分享卡片和社交平台预览。设计方向采用深色 agent cockpit 风格，突出 `UGK CLAW`、自托管 coding agent cockpit 定位，以及 agent runtime / streaming sessions / browser automation 等核心能力。

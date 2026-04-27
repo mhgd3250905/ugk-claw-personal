@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.png" alt="UGK CLAW logo" width="160" />
+  <img src="./docs/assets/github-social-preview.png" alt="UGK CLAW social preview" width="100%" />
 </p>
 
 <h1 align="center">UGK CLAW</h1>
