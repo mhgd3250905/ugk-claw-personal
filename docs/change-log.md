@@ -15,8 +15,8 @@
 ### Playground 前端运行时外部化
 - 日期：2026-04-27
 - 主题：评估并落地 `proposal-playground-externalization.md` 的可行版本。原方案直接替换 `/playground` 内联渲染风险过高，本次改为 opt-in 外部化：默认仍使用现有 `renderPlaygroundPage()`，设置 `PLAYGROUND_EXTERNALIZED=1` 后从 `src/ui/` 生成 `runtime/playground-factory/`，初始化 `runtime/playground/`，并由 `/playground/styles.css`、`/playground/app.js`、`/playground/vendor/marked.umd.js` 提供运行时资源。修改运行时 CSS / JS 后刷新浏览器即可生效，不需要重启服务。
-- 影响范围：新增 `POST /playground/reset` 恢复出厂 API；新增运行时资源路由；`runtime/playground/` 与 `runtime/playground-factory/` 作为运行产物忽略 Git。新增项目级 skill `playground-runtime-ui`，让运行时 `ugk-claw` agent 在用户要求修改 playground UI / 浅色主题 / 消息气泡 / composer / logo / 移动端布局时能知道外部化调试流程与正式落回源码的边界。默认模式保持兼容，不改变聊天、会话、SSE、文件资产或 conn 行为。
-- 对应入口：`src/routes/playground.ts`、`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-externalized.ts`、`.pi/skills/playground-runtime-ui/SKILL.md`、`test/server.test.ts`、`docs/playground-current.md`、`.codex/plans/2026-04-27-playground-externalization-plan.md`
+- 影响范围：新增 `POST /playground/reset` 恢复出厂 API；新增运行时资源路由；`runtime/playground/` 与 `runtime/playground-factory/` 作为运行产物忽略 Git。新增项目级 skill `playground-runtime-ui`，让运行时 `ugk-claw` agent 在用户要求修改 playground UI / 浅色主题 / 消息气泡 / composer / logo / 移动端布局时能知道外部化调试流程与正式落回源码的边界。生产 compose 显式透传 `PLAYGROUND_EXTERNALIZED`，避免 shared compose env 与 app env 分离时开关没有进入容器。默认模式保持兼容，不改变聊天、会话、SSE、文件资产或 conn 行为。
+- 对应入口：`src/routes/playground.ts`、`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-externalized.ts`、`.pi/skills/playground-runtime-ui/SKILL.md`、`docker-compose.prod.yml`、`test/server.test.ts`、`docs/playground-current.md`、`.codex/plans/2026-04-27-playground-externalization-plan.md`
 
 ### Playground 聊天背景 ASCII 标识
 - 日期：2026-04-27
