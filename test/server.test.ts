@@ -346,7 +346,8 @@ test("GET /playground returns the test UI html", async () => {
 	assert.equal(response.headers.pragma, "no-cache");
 	assert.equal(response.headers.expires, "0");
 	assert.match(response.body, /UGK CLAW/);
-	assert.match(response.body, /<link rel="icon" href="\/ugk-claw-mobile-logo\.png" \/>/);
+	assert.match(response.body, /<link rel="icon" href="data:image\/svg\+xml,/);
+	assert.doesNotMatch(response.body, /ugk-claw-mobile-logo\.png/);
 	assert.match(response.body, /--font-sans: "OpenAI Sans"/);
 	assert.match(response.body, /font-family: var\(--font-sans\)/);
 	assert.match(response.body, /--font-mono: "Agave"/);
@@ -963,13 +964,14 @@ test("GET /playground renders immersive landing home shell", async () => {
 
 	assert.equal(response.statusCode, 200);
 	assert.match(response.body, /id="landing-screen"/);
-	assert.match(response.body, /id="hero-core"/);
-	assert.match(response.body, /class="hero-wordmark">UGK CLAW</);
+	assert.doesNotMatch(response.body, /id="hero-core"/);
+	assert.doesNotMatch(response.body, /class="hero-wordmark">UGK CLAW</);
 	assert.match(response.body, /<header class="topbar">[\s\S]*<aside class="landing-side landing-side-right">/);
+	assert.match(response.body, /<aside id="desktop-conversation-rail"[\s\S]*<div class="desktop-conversation-rail-head">[\s\S]*class="desktop-brand" aria-label="UGK CLAW"/);
 	assert.doesNotMatch(response.body, /class="topbar-signal" aria-hidden="true">UGK CLAW</);
 	assert.match(response.body, /new-conversation-button/);
 	assert.match(response.body, /view-skills-button/);
-	assert.match(response.body, /id="hero-version"/);
+	assert.doesNotMatch(response.body, /id="hero-version"/);
 	assert.match(response.body, /id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle"/);
 	assert.match(response.body, /id="command-deck"/);
 	assert.match(response.body, /id="desktop-conversation-rail"/);
@@ -1128,9 +1130,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.doesNotMatch(response.body, /class="brand-logo"/);
 	assert.doesNotMatch(response.body, /class="hero-logo"/);
 	assert.doesNotMatch(response.body, /__legacy_empty_state_copy__/);
-	assert.match(response.body, /\.shell\[data-transcript-state="idle"\] \.transcript-current:empty::before\s*\{[\s\S]*content:/);
-	assert.match(response.body, /\.shell\[data-transcript-state="idle"\] \.transcript-current:empty::before\s*\{[\s\S]*font-family:\s*var\(--font-mono\);/);
-	assert.match(response.body, /\.shell\[data-transcript-state="idle"\] \.transcript-current:empty::before\s*\{[\s\S]*white-space:\s*pre;/);
+	assert.doesNotMatch(response.body, /\.shell\[data-transcript-state="idle"\] \.transcript-current:empty::before/);
 	await app.close();
 });
 
@@ -1860,8 +1860,11 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 
 	assert.equal(response.statusCode, 200);
 	assert.match(response.body, /class="mobile-topbar"/);
-	assert.match(response.body, /class="mobile-brand-logo"[^>]*src="\/ugk-claw-mobile-logo\.png"/);
-	assert.match(response.body, /class="mobile-brand-wordmark">UGK Claw</);
+	assert.match(response.body, /class="mobile-brand-logo desktop-brand"[^>]*aria-label="UGK CLAW"/);
+	assert.match(response.body, /class="ugk-ascii-logo ugk-ascii-logo-topbar"/);
+	assert.doesNotMatch(response.body, /class="ugk-ascii-logo ugk-ascii-logo-mobile"/);
+	assert.doesNotMatch(response.body, /class="mobile-brand-wordmark">UGK Claw</);
+	assert.doesNotMatch(response.body, /class="mobile-brand-logo"[^>]*src="\/ugk-claw-mobile-logo\.png"/);
 	assert.match(response.body, /id="mobile-new-conversation-button"/);
 	assert.match(response.body, /id="mobile-overflow-menu-button"/);
 	assert.match(response.body, /class="mobile-topbar-button mobile-topbar-button-with-badge"/);
@@ -2281,8 +2284,17 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.match(response.body, /\.shell\s*\{[\s\S]*grid-template-rows:\s*64px minmax\(0, 1fr\);/);
 	assert.match(response.body, /\.shell\s*\{[\s\S]*gap:\s*16px;/);
 	assert.match(response.body, /\.topbar\s*\{[\s\S]*z-index:\s*80;/);
-	assert.match(response.body, /\.topbar::before\s*\{[\s\S]*content:\s*"UGK CLAW";/);
-	assert.match(response.body, /\.topbar::before\s*\{[\s\S]*background-image:\s*url\("\/ugk-claw-mobile-logo\.png"\);/);
+	assert.match(response.body, /\.topbar\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+	assert.match(response.body, /class="desktop-brand" aria-label="UGK CLAW"/);
+	assert.match(response.body, /class="ugk-ascii-logo ugk-ascii-logo-topbar"/);
+	assert.doesNotMatch(response.body, /\.topbar::before\s*\{[\s\S]*content:\s*"UGK CLAW";/);
+	assert.doesNotMatch(response.body, /\.topbar::before\s*\{[\s\S]*background-image:\s*url\("\/ugk-claw-mobile-logo\.png"\);/);
+	assert.match(response.body, /class="chat-stage-watermark" aria-hidden="true"/);
+	assert.match(response.body, /class="ugk-ascii-logo ugk-ascii-logo-watermark"/);
+	assert.match(response.body, /\.ugk-ascii-logo\s*\{[\s\S]*font-family:\s*"Courier New", Consolas, "Cascadia Mono", monospace;/);
+	assert.match(response.body, /\.chat-stage-watermark\s*\{[\s\S]*width:\s*max-content;/);
+	assert.match(response.body, /\.ugk-ascii-logo-watermark\s*\{[\s\S]*color:\s*rgba\(138, 170, 218, 0\.2\);/);
+	assert.match(response.body, /\.chat-stage > :not\(\.chat-stage-watermark\)\s*\{[\s\S]*z-index:\s*1;/);
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*justify-self:\s*end;/);
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*width:\s*auto;/);
 	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*background:[\s\S]*#080c14;/);
@@ -2293,6 +2305,7 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar::before\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.desktop-conversation-rail\s*\{[\s\S]*background:[\s\S]*#ffffff;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.chat-stage\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.ugk-ascii-logo-watermark\s*\{[\s\S]*color:\s*rgba\(51, 112, 196, 0\.14\);/);
 	assert.doesNotMatch(response.body, /:root\[data-theme="light"\]\s+\.chat-stage\s*\{[\s\S]*rgba\(255, 255, 255, 0\.78\);/);
 	await app.close();
 });

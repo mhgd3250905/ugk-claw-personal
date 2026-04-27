@@ -145,7 +145,7 @@ TZ=Asia/Shanghai
 这次发布继续使用小包 archive 增量更新代码目录，只覆盖运行日志分页相关源码、测试和文档文件；`/root/ugk-claw-shared` 运行态目录保持原样，没有触碰 agent 会话、资产、conn 数据或 sidecar 登录态。
 
 实际结果：
-1. 本地提交 `34d0463 Tighten playground light UI spacing`，本次功能内容为当前任务运行日志 / 后台任务过程日志倒序分页、滚动增量加载、正文增量过滤、单条详情截断与浅色主题可读样式。
+1. 本地提交主题为 `Tighten playground light UI spacing`，本次功能内容为当前任务运行日志 / 后台任务过程日志倒序分页、滚动增量加载、正文增量过滤、单条详情截断与浅色主题可读样式；发布后继续 amend 追加部署记录，最终本地 `HEAD` 以 `git log` 为准。
 2. 本地执行 `git archive --format=tar.gz -o runtime/playground-log-pagination-incremental.tar.gz HEAD ...`，只打包本轮相关文件，避免把本地未推送的 `bugs/` 捕获报告带上生产。
 3. 通过 `paramiko` 读取本地密码文件并 SFTP 上传 `/root/playground-log-pagination-incremental.tar.gz`，没有把密码写入命令行参数或输出日志。
 4. 服务器在 `/root/ugk-claw-repo` 内执行 `tar -xzf /root/playground-log-pagination-incremental.tar.gz -C /root/ugk-claw-repo` 增量覆盖源码。

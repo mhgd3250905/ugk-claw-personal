@@ -39,9 +39,12 @@
 ## 1. 品牌与页面骨架
 
 - 当前品牌文案为 `UGK CLAW`
-- 桌面端首页重构为极客 cockpit 布局：`shell` 是 `250px-280px` 左侧历史会话栏 + 右侧工作台的两列网格，`topbar` 左侧由 logo 和 `UGK CLAW` 组成品牌信号，右侧是紧凑命令条，`chat-stage` 是真正的主工作画布。
-- 桌面端 landing 仍保留 `hero-wordmark` 作为主视觉，但它现在被收进右侧工作台内部；输入区是底部居中的 `760px` command deck，不再把整个页面做成居中表单。
-- 手机端顶部状态栏显示品牌 logo，并在右侧配套 `UGK Claw` 字标
+- 桌面端首页重构为极客 cockpit 布局：`shell` 是 `250px-280px` 左侧历史会话栏 + 右侧工作台的两列网格，左侧历史会话栏头部由真实 DOM 的彩色 ASCII `desktop-brand` 组成唯一品牌信号，`topbar` 只承载右侧紧凑命令条，`chat-stage` 是真正的主工作画布。
+- `chat-stage` 中心使用项目 ASCII 字标作为真实 DOM 水印：暗色主题为低透明冷白 / 青蓝，浅色主题为更低透明蓝灰；它必须在消息、composer 和弹层之下，不参与交互，也不能影响正文阅读。旧的 landing `hero-wordmark / hero-version` 空态 logo、旧 topbar 图片 logo 和旧 `UGK CLAW` 伪元素文字不再渲染，避免两套品牌层叠在聊天背景上。
+- ASCII 标识必须使用支持 box drawing 的系统等宽字体链 `"Courier New", Consolas, "Cascadia Mono", monospace`，不要套项目默认 `Agave` mono，也不要再用 `.chat-stage::before { content: ... }` 承载整段字标；`Agave` 和 CSS 伪元素缩放都会把 `██╗╚═` 这类字符排成错位鬼影。
+- 旧的 `.shell[data-transcript-state="idle"] .transcript-current:empty::before` 空态伪元素 logo 已下线；空 transcript 不再自己生成第二套品牌标识。
+- 桌面端 landing 输入区是底部居中的 `760px` command deck，不再把整个页面做成居中表单。
+- 手机端顶部状态栏左侧复用桌面 `desktop-brand` 的彩色 ASCII 图案，只做容器尺寸适配；不再渲染 `/ugk-claw-mobile-logo.png` 图片、右侧 `UGK Claw` 文字字标或单独缩水版 `ugk-ascii-logo-mobile`。
 - 手机端全局顶部状态栏只作为透明导航层：`mobile-topbar`、移动断点下的 `.topbar`、`topbar-context-slot`、`mobile-brand-button`、`mobile-new-conversation-button`、`mobile-overflow-menu-button` 和顶部上下文电池入口都不使用背景或阴影；真正的层级交给页面背景、历史抽屉和更多菜单承载。
 - 页面仍是单一 `landing` 壳子，通过 `data-transcript-state=idle|active` 切空态和会话态
 - 当前整体视觉基调已从偏冷蓝电子夜景收口为“深空黑 + 暗紫星云 + 冷白星尘”，蓝色只保留极弱余光，不再主导页面气质
@@ -304,7 +307,7 @@
 - 这一节覆盖并取代之前“只是做适配”的旧说法；当前手机端不是压缩版桌面，而是保留现有逻辑后单独重写的移动展示层
 - 手机端继续沿用桌面端的深空黑 / 暗紫星云 / 冷白星尘视觉语言，但页面组织改成更接近原生聊天页的结构
 - 手机端面板继续保持贴底抽屉和深色卡片结构，但圆角统一服从用户偏好：文件库 / 后台任务 / 新建后台任务 / 任务消息 / 后台 run 详情里的面板、卡片、工具栏和操作按钮都只使用 `4px` 圆角，不再回到 `22px` 或 `16px` 的大圆角语言。
-- 顶部只保留紧凑品牌状态栏：左侧是可点击的 logo + `UGK Claw` 历史会话入口，右侧保留上下文电池条、`新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库 / 后台任务 / 任务消息 / 主题切换` 收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
+- 顶部只保留紧凑品牌状态栏：左侧是可点击的彩色 ASCII logo 历史会话入口，右侧保留上下文电池条、`新会话` icon 与 `更多` icon；`技能 / 文件 / 文件库 / 后台任务 / 任务消息 / 主题切换` 收进右上角溢出菜单，每项统一是 `icon + 标题` 风格
 - 主题切换不会触发会话同步、transcript 重绘或 agent 请求，只更新 `<html data-theme>`、按钮状态和 `localStorage` 持久化值；桌面端对应入口是 `theme-toggle-button`，手机端对应入口是 `mobile-menu-theme-button`。
 - 手机端 topbar、更多菜单、历史抽屉开关、遮罩关闭、外部点击关闭和移动端入口绑定集中在 `src/ui/playground-mobile-shell-controller.ts`；历史列表渲染和会话切换由 `src/ui/playground-conversations-controller.ts` 负责，移动外壳控制器不反向持有 conversation catalog 逻辑
 - 手机端品牌区点击后展开左侧历史会话抽屉，宽度收口为 `min(88vw, 360px)`，右侧保留透明点击遮罩用于关闭；抽屉头部 sticky，列表项展示标题、两行摘要、更新时间和消息数，最小触摸高度 `92px`，标题 / 摘要 / meta 必须显式设置移动端行高，不能继续继承全局 button 的紧缩排版；当前会话只用左侧冷白蓝亮条和深色层级标记，不再铺大面积蓝色块，也不再靠细边框分区；删除按钮位于条目内部右上角，不再作为条目外侧独立列挤压内容；侧边栏内关闭按钮、空态和会话项使用 `6px` / `8px` 的小圆角并保持无边框；历史列表保留纵向滚动但隐藏侧边滚动条；运行中禁止切换，避免一个 agent 工人被硬拽到另一条产线

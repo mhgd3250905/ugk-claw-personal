@@ -202,7 +202,7 @@ cd ~/ugk-claw-repo
 这次发布没有走 GitHub `git pull`：本地 `main` 前面还有未推送的 `bugs/` 捕获报告提交，直接推送或整仓 archive 都会把不该上线的报告带到生产。实际采用小包 archive，只覆盖本轮运行日志分页相关文件；运行态继续保留在 `~/ugk-claw-shared`，没有触碰 `.data/agent`、sidecar 登录态或日志目录。
 
 实际结果：
-1. 本地提交 `ce2176c Tighten playground light UI spacing`，本次功能内容为当前任务运行日志 / 后台任务过程日志倒序分页、滚动增量加载、正文增量过滤、单条详情截断与浅色主题可读样式。
+1. 本地提交主题为 `Tighten playground light UI spacing`，本次功能内容为当前任务运行日志 / 后台任务过程日志倒序分页、滚动增量加载、正文增量过滤、单条详情截断与浅色主题可读样式；发布后继续 amend 追加部署记录，最终本地 `HEAD` 以 `git log` 为准。
 2. 本地执行 `git archive --format=tar.gz -o runtime/playground-log-pagination-incremental.tar.gz HEAD ...`，只打包本轮相关文件。
 3. 直连 `ubuntu@43.134.167.179` 的 `scp` 会卡在密码认证；`ssh -o BatchMode=yes ubuntu@43.134.167.179` 返回 `Permission denied (publickey,password)`。随后确认本机 SSH alias `ugk-claw-prod` 可用，改用该 alias 上传到 `~/playground-log-pagination-incremental.tar.gz`。
 4. 服务器进入 `~/ugk-claw-repo`，执行 `tar -xzf ~/playground-log-pagination-incremental.tar.gz -C ~/ugk-claw-repo` 增量覆盖源码。

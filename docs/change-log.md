@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### Playground 聊天背景 ASCII 标识
+- 日期：2026-04-27
+- 主题：把项目 ASCII 字标收口成真实 DOM `<pre>` 资产，桌面左侧历史栏头部与手机品牌入口共用同一套 `ugk-ascii-logo-topbar` 彩色图案，手机端只约束容器尺寸，不再使用单独缩水版会话按钮图案；`chat-stage` 中心使用低对比水印变体。移除旧 topbar 图片 logo、旧 `UGK CLAW` 伪元素文字、旧 landing `hero-wordmark / hero-version`、idle transcript `:empty::before` 伪元素 logo，以及 `.chat-stage::before { content: ... }` 巨型字符串。桌面端不再同时显示 `desktop-brand` 和“历史会话 / 常驻”头部，左侧历史栏头部就是唯一品牌入口，避免浅色主题下出现旧图标不变、字符错位和水印糊成一团。
+- 影响范围：调整 playground 品牌 DOM、背景装饰层、浅色主题覆盖、landing shell 旧品牌 DOM、页面断言和设计文档；不改变会话状态、发送逻辑或运行日志接口。
+- 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-page-shell.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
 ### Playground 运行日志倒序增量加载
 - 日期：2026-04-27
 - 主题：优化当前任务运行日志与后台任务过程日志，改为最新事件优先、首次 2 条、滚动到底增量加载更多，并过滤正文增量噪声。

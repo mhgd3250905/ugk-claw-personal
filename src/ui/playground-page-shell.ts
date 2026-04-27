@@ -7,6 +7,19 @@ export interface PlaygroundPageHtmlInput {
 	assetDialogs: string;
 }
 
+const UGK_ASCII_LOGO = [
+	"&#9608;&#9608;&#9559;   &#9608;&#9608;&#9559; &#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9559; &#9608;&#9608;&#9559;  &#9608;&#9608;&#9559;     &#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9559;&#9608;&#9608;&#9559;      &#9608;&#9608;&#9608;&#9608;&#9608;&#9559; &#9608;&#9608;&#9559;    &#9608;&#9608;&#9559;",
+	"&#9608;&#9608;&#9553;   &#9608;&#9608;&#9553;&#9608;&#9608;&#9556;&#9552;&#9552;&#9552;&#9552;&#9565; &#9608;&#9608;&#9553; &#9608;&#9608;&#9556;&#9565;    &#9608;&#9608;&#9556;&#9552;&#9552;&#9552;&#9552;&#9565;&#9608;&#9608;&#9553;     &#9608;&#9608;&#9556;&#9552;&#9552;&#9608;&#9608;&#9559;&#9608;&#9608;&#9553;    &#9608;&#9608;&#9553;",
+	"&#9608;&#9608;&#9553;   &#9608;&#9608;&#9553;&#9608;&#9608;&#9553;  &#9608;&#9608;&#9608;&#9559;&#9608;&#9608;&#9608;&#9608;&#9608;&#9556;&#9565;     &#9608;&#9608;&#9553;     &#9608;&#9608;&#9553;     &#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9553;&#9608;&#9608;&#9553; &#9608;&#9559; &#9608;&#9608;&#9553;",
+	"&#9608;&#9608;&#9553;   &#9608;&#9608;&#9553;&#9608;&#9608;&#9553;   &#9608;&#9608;&#9553;&#9608;&#9608;&#9556;&#9552;&#9608;&#9608;&#9559;     &#9608;&#9608;&#9553;     &#9608;&#9608;&#9553;     &#9608;&#9608;&#9556;&#9552;&#9552;&#9608;&#9608;&#9553;&#9608;&#9608;&#9553;&#9608;&#9608;&#9608;&#9559;&#9608;&#9608;&#9553;",
+	"&#9562;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9556;&#9565;&#9562;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9556;&#9565;&#9608;&#9608;&#9553;  &#9608;&#9608;&#9559;    &#9562;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9559;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9559;&#9608;&#9608;&#9553;  &#9608;&#9608;&#9553;&#9562;&#9608;&#9608;&#9608;&#9556;&#9608;&#9608;&#9608;&#9556;&#9565;",
+	" &#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;  &#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565; &#9562;&#9552;&#9565;  &#9562;&#9552;&#9565;     &#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;&#9562;&#9552;&#9565;  &#9562;&#9552;&#9565; &#9562;&#9552;&#9552;&#9565;&#9562;&#9552;&#9552;&#9565;",
+].join("\n");
+
+function renderAsciiLogo(className: string): string {
+	return `<pre class="ugk-ascii-logo ${className}" aria-hidden="true">${UGK_ASCII_LOGO}</pre>`;
+}
+
 export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 	return `<!doctype html>
 <html lang="zh-CN" data-theme="dark">
@@ -14,7 +27,7 @@ export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>UGK Claw</title>
-		<link rel="icon" href="/ugk-claw-mobile-logo.png" />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23080c14'/%3E%3Ctext x='32' y='38' text-anchor='middle' font-family='Consolas,monospace' font-size='16' font-weight='700' fill='%23e9f0ff'%3EUGK%3C/text%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css" />
 		<style>${input.styles}</style>
 	</head>
@@ -93,10 +106,9 @@ export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 						aria-controls="mobile-conversation-drawer"
 						title="历史会话"
 					>
-						<img class="mobile-brand-logo" src="/ugk-claw-mobile-logo.png" alt="UGK Claw logo" />
-						<div class="mobile-brand-copy">
-							<span class="mobile-brand-wordmark">UGK Claw</span>
-						</div>
+						<span class="mobile-brand-logo desktop-brand" aria-label="UGK CLAW">
+							${renderAsciiLogo("ugk-ascii-logo-topbar")}
+						</span>
 					</button>
 					<div></div>
 					<template hidden>
@@ -231,13 +243,17 @@ export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 
 			<aside id="desktop-conversation-rail" class="desktop-conversation-rail" aria-label="&#21382;&#21490;&#20250;&#35805;">
 				<div class="desktop-conversation-rail-head">
-					<strong>&#21382;&#21490;&#20250;&#35805;</strong>
-					<span>&#24120;&#39547;</span>
+					<div class="desktop-brand" aria-label="UGK CLAW">
+						${renderAsciiLogo("ugk-ascii-logo-topbar")}
+					</div>
 				</div>
 				<div id="desktop-conversation-list" class="desktop-conversation-list"></div>
 			</aside>
 
 			<main id="chat-stage" class="chat-stage">
+				<div class="chat-stage-watermark" aria-hidden="true">
+					${renderAsciiLogo("ugk-ascii-logo-watermark")}
+				</div>
 				<div hidden>
 					<div class="meta-chip">
 						<strong>会话</strong>
@@ -256,14 +272,6 @@ export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 
 				<section id="landing-screen" class="landing-screen" aria-hidden="false">
 					<div class="landing-grid">
-						<section id="hero-core" class="hero-core">
-							<div class="hero-wordmark">UGK CLAW</div>
-							<div class="hero-divider">
-								<span></span>
-								<em id="hero-version">v4.0.21.STABLE</em>
-								<span></span>
-							</div>
-						</section>
 					</div>
 				</section>
 

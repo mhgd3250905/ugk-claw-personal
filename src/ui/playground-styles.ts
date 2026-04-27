@@ -126,6 +126,40 @@ export function getPlaygroundStyles(): string {
 			color: rgba(238, 244, 255, 0.42);
 		}
 
+		.ugk-ascii-logo {
+			margin: 0;
+			font-family: "Courier New", Consolas, "Cascadia Mono", monospace;
+			font-weight: 700;
+			line-height: 0.94;
+			letter-spacing: 0;
+			white-space: pre;
+			text-transform: none;
+			font-variant-ligatures: none;
+			text-rendering: geometricPrecision;
+			direction: ltr;
+			unicode-bidi: isolate;
+			user-select: none;
+		}
+
+		.desktop-brand {
+			display: inline-flex;
+			align-items: center;
+			min-width: 0;
+			width: max-content;
+			max-width: 100%;
+			overflow: hidden;
+		}
+
+		.ugk-ascii-logo-topbar {
+			color: rgba(44, 56, 84, 0.94);
+			font-size: 4.1px;
+			line-height: 0.94;
+			text-shadow:
+				0.7px 0 rgba(255, 80, 94, 0.72),
+				-0.7px 0 rgba(34, 118, 255, 0.68),
+				0 0.7px rgba(255, 193, 49, 0.58);
+		}
+
 		.mobile-topbar {
 			display: none;
 			position: relative;
@@ -156,28 +190,17 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.mobile-brand-logo {
-			display: block;
-			width: 28px;
+			display: inline-flex;
+			width: min(174px, 48vw);
 			height: 28px;
+			align-items: center;
+			overflow: hidden;
 			flex: 0 0 auto;
 			filter: none;
 		}
 
-		.mobile-brand-copy {
-			display: grid;
-			min-width: 0;
-		}
-
-		.mobile-brand-wordmark {
-			display: block;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-			color: rgba(242, 246, 255, 0.94);
-			font-size: 13px;
-			font-weight: 600;
-			letter-spacing: 0.08em;
-			text-transform: uppercase;
+		.mobile-brand-logo .ugk-ascii-logo-topbar {
+			font-size: clamp(2.7px, 1.05vw, 3.9px);
 		}
 
 		.mobile-topbar-button {
@@ -477,6 +500,33 @@ export function getPlaygroundStyles(): string {
 			border-left: 0;
 			border-right: 0;
 			overflow: hidden;
+		}
+
+		.chat-stage-watermark {
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			z-index: 0;
+			width: max-content;
+			max-width: min(92%, 980px);
+			transform: translate(-50%, -50%);
+			overflow: hidden;
+			pointer-events: none;
+		}
+
+		.ugk-ascii-logo-watermark {
+			color: rgba(138, 170, 218, 0.2);
+			font-size: clamp(6px, 0.88vw, 10px);
+			line-height: 0.94;
+			text-shadow:
+				1px 0 rgba(86, 194, 255, 0.08),
+				-1px 0 rgba(255, 80, 112, 0.06),
+				0 1px rgba(255, 205, 86, 0.05);
+		}
+
+		.chat-stage > :not(.chat-stage-watermark) {
+			position: relative;
+			z-index: 1;
 		}
 
 		.chat-meta {
@@ -2637,6 +2687,11 @@ export function getPlaygroundStyles(): string {
 				border-right: 0;
 			}
 
+			.ugk-ascii-logo-watermark {
+				font-size: clamp(5px, 1.55vw, 8px);
+				opacity: 0.72;
+			}
+
 			.topbar {
 				width: 100%;
 				padding: 16px 18px 12px;
@@ -2723,7 +2778,7 @@ export function getPlaygroundStyles(): string {
 			min-height: 64px;
 			margin: 0;
 			padding: 0;
-			grid-template-columns: auto minmax(0, 1fr);
+			grid-template-columns: minmax(0, 1fr);
 			gap: 16px;
 			align-items: center;
 			justify-items: stretch;
@@ -2733,30 +2788,8 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.topbar::before {
-			content: "UGK CLAW";
-			display: inline-flex;
-			align-items: center;
-			min-height: 42px;
-			padding-left: 42px;
-			background-image: url("/ugk-claw-mobile-logo.png");
-			background-repeat: no-repeat;
-			background-position: 0 center;
-			background-size: 30px 30px;
-			color: rgba(245, 248, 255, 0.94);
-			font-family: var(--font-mono);
-			font-size: 16px;
-			font-weight: 700;
-			letter-spacing: 0.18em;
-			text-transform: uppercase;
-		}
-
-		.hero-wordmark {
-			font-family: var(--font-mono);
-			font-weight: 700;
-			text-transform: uppercase;
-			font-smooth: never;
-			-webkit-font-smoothing: none;
-			text-rendering: optimizeSpeed;
+			content: none;
+			display: none;
 		}
 
 		.chat-stage {
@@ -2794,51 +2827,6 @@ export function getPlaygroundStyles(): string {
 			align-items: center;
 			width: 100%;
 			height: 100%;
-		}
-
-		.hero-core {
-			position: absolute;
-			left: 50%;
-			top: 43%;
-			z-index: 1;
-			display: grid;
-			gap: 14px;
-			text-align: center;
-			transform: translate(-50%, -50%);
-			animation: hero-core-drift 8s ease-in-out infinite;
-		}
-
-		.hero-mark {
-			display: none;
-		}
-
-		.hero-wordmark {
-			color: rgba(101, 209, 255, 0.22);
-			font-size: clamp(58px, 8.8vw, 112px);
-			line-height: 0.88;
-			letter-spacing: 0.2em;
-			text-indent: 0.2em;
-			text-shadow: none;
-		}
-
-		.hero-divider {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			gap: 14px;
-		}
-
-		.hero-divider span {
-			width: 90px;
-			height: 1px;
-			background: linear-gradient(90deg, transparent, rgba(201, 210, 255, 0.24), transparent);
-		}
-
-		.hero-divider em {
-			color: rgba(214, 220, 255, 0.34);
-			font-size: 11px;
-			font-style: normal;
-			letter-spacing: 0.28em;
 		}
 
 		.landing-side-right {
@@ -2969,24 +2957,11 @@ export function getPlaygroundStyles(): string {
 
 		.desktop-conversation-rail-head {
 			display: flex;
-			align-items: flex-end;
-			justify-content: space-between;
-			gap: 10px;
-			padding: 2px 2px 10px;
+			align-items: center;
+			justify-content: flex-start;
+			min-width: 0;
+			padding: 0 2px 12px;
 			border-bottom: 1px solid rgba(201, 210, 255, 0.08);
-		}
-
-		.desktop-conversation-rail-head strong {
-			color: rgba(246, 249, 255, 0.94);
-			font-size: 12px;
-			letter-spacing: 0.08em;
-			text-transform: uppercase;
-		}
-
-		.desktop-conversation-rail-head span {
-			color: rgba(226, 234, 255, 0.44);
-			font-size: 10px;
-			white-space: nowrap;
 		}
 
 		.desktop-conversation-list {
@@ -3122,18 +3097,6 @@ export function getPlaygroundStyles(): string {
 
 		${getPlaygroundAssetLandingStyles()}
 
-		@keyframes hero-core-drift {
-			0%,
-			100% {
-				transform: translate(-50%, -50%) scale(1);
-				opacity: 0.92;
-			}
-			50% {
-				transform: translate(-50%, calc(-50% - 6px)) scale(1.015);
-				opacity: 1;
-			}
-		}
-
 		@media (max-width: 900px) {
 			.chat-stage {
 				padding: 0 18px 18px;
@@ -3141,11 +3104,6 @@ export function getPlaygroundStyles(): string {
 
 			.landing-grid {
 				grid-template-columns: 1fr;
-			}
-
-			.hero-core {
-				left: 50%;
-				top: 50%;
 			}
 
 			.landing-side-right {
@@ -3232,13 +3190,12 @@ export function getPlaygroundStyles(): string {
 			}
 
 			.mobile-brand-logo {
-				width: 26px;
+				width: min(164px, 48vw);
 				height: 26px;
 			}
 
-			.mobile-brand-wordmark {
-				font-size: 12px;
-				letter-spacing: 0.06em;
+			.mobile-brand-logo .ugk-ascii-logo-topbar {
+				font-size: clamp(2.55px, 1.05vw, 3.7px);
 			}
 
 			.landing-screen {
@@ -3347,26 +3304,6 @@ export function getPlaygroundStyles(): string {
 				align-content: end;
 				width: 100%;
 				margin-bottom: 0;
-			}
-
-			.shell[data-transcript-state="idle"] .transcript-current:empty::before {
-				content: "■   ■  ■■■  ■  ■\\A■   ■ ■     ■ ■ \\A■   ■ ■  ■■ ■■  \\A■   ■ ■   ■ ■ ■ \\A ■■■   ■■■  ■  ■";
-				display: block;
-				margin: 16vh auto 0;
-				width: max-content;
-				max-width: calc(100% - 32px);
-				padding: 0;
-				border: 0;
-				border-radius: 0;
-				background: transparent;
-				color: rgba(231, 236, 255, 0.58);
-				font-family: var(--font-mono);
-				font-size: 14px;
-				line-height: 1.08;
-				letter-spacing: 0.08em;
-				white-space: pre;
-				text-align: center;
-				text-shadow: none;
 			}
 
 			.file-strip {
@@ -3749,7 +3686,6 @@ export function getPlaygroundStyles(): string {
 			.mobile-topbar-button,
 			.mobile-overflow-menu,
 			.mobile-overflow-menu-item,
-			.shell[data-transcript-state="idle"] .transcript-current:empty::before,
 			.shell[data-stage-mode="landing"] .composer,
 			#send-button,
 			#interrupt-button,

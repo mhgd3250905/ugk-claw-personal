@@ -77,8 +77,12 @@ export function getPlaygroundThemeStyles(): string {
 			box-shadow: none;
 		}
 
-		:root[data-theme="light"] .topbar::before {
-			color: #142033;
+		:root[data-theme="light"] .ugk-ascii-logo-topbar {
+			color: rgba(33, 45, 70, 0.94);
+			text-shadow:
+				0.7px 0 rgba(231, 55, 78, 0.64),
+				-0.7px 0 rgba(31, 95, 200, 0.62),
+				0 0.7px rgba(214, 156, 20, 0.54);
 		}
 
 		:root[data-theme="light"] .landing-side-right {
@@ -106,6 +110,14 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: transparent;
 			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .ugk-ascii-logo-watermark {
+			color: rgba(51, 112, 196, 0.14);
+			text-shadow:
+				1px 0 rgba(31, 95, 200, 0.05),
+				-1px 0 rgba(212, 54, 88, 0.04),
+				0 1px rgba(214, 156, 20, 0.04);
 		}
 
 		:root[data-theme="light"] .command-deck {
@@ -183,7 +195,6 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .telemetry-card strong,
-		:root[data-theme="light"] .mobile-brand-wordmark,
 		:root[data-theme="light"] .mobile-drawer-title strong,
 		:root[data-theme="light"] .mobile-conversation-title {
 			color: #172033;
