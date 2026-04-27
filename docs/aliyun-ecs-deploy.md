@@ -19,7 +19,7 @@
 - 主部署目录：`/root/ugk-claw-repo`
 - shared 运行态目录：`/root/ugk-claw-shared`
 - 当前部署来源：本地 `git archive HEAD` 上传解包
-- 当前部署基线：`030d6f1 Record DeepSeek production deploy`
+- 当前部署基线：`4aeb01e Fix playground light theme runtime polish`
 
 注意：阿里云首次部署时，服务器访问 GitHub 超时，`git clone` 未成功。因此 `/root/ugk-claw-repo` 当前是 archive 解包目录，不是 Git 工作目录。后续如果阿里云到 GitHub 网络恢复，可以迁回 git clone / pull；迁移前不要在这台机器上硬跑 `git pull`，它没有 `.git`，跑了也只是在跟空气较劲。
 
@@ -117,6 +117,28 @@ TZ=Asia/Shanghai
 - `ugk-pi` 和 `ugk-pi-conn-worker` 并行构建同名镜像 `ugk-pi:prod` 时出现过 `image already exists`，后续使用 `COMPOSE_PARALLEL_LIMIT=1` 串行构建规避。
 
 这次没有把 Dockerfile 改成阿里云 apt 源；只是等官方源构建完成。后续如果阿里云构建仍然慢，可以正式给 Dockerfile 增加可配置 apt mirror，而不是继续在服务器上手改临时补丁。
+
+## 2026-04-27 浅色用户气泡与 SSE 稳定性增量发布记录
+
+这次发布继续使用 archive 增量更新代码目录；`/root/ugk-claw-shared` 运行态目录保持原样，没有触碰 agent 会话、资产、conn 数据或 sidecar 登录态。
+
+实际结果：
+1. 本地提交并推送 `4aeb01e Fix playground light theme runtime polish`。
+2. 本地执行 `git archive --format=tar.gz -o $env:TEMP\ugk-claw-aliyun-deploy.tar.gz HEAD`，生成当前提交的部署包。
+3. 本机 `ssh/scp` 起初因阿里云没有配置无交互 key 被 `Permission denied (publickey,password)` 拦住；确认 `阿里-config.txt` 中保存的是 root 密码后，改用 `paramiko` 读取密码并通过 SFTP 上传 `/root/ugk-claw-deploy.tar.gz`，没有把密码写入命令行参数或输出日志。
+4. 服务器备份 sidecar 登录态到 `/root/ugk-claw-shared/backups/chrome-sidecar-20260427-210929.tar.gz`。
+5. 服务器解包到 `/root/ugk-claw-repo-next`，合并旧目录下可能存在的 `runtime/skills-user` 与 `runtime/agents-user` 后，将旧代码目录移动为 `/root/ugk-claw-repo-prev-20260427-210929`，再把 next 目录切到 `/root/ugk-claw-repo`。
+6. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`。
+7. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`。
+8. 因本次包含 `deploy/nginx/default.conf` SSE 长连接配置，额外执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx`。
+9. 发布后验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://101.37.209.54:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `/playground` 源码包含 `message.user` 与 `2454d6`，确认浅色用户气泡样式已上线
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+
+这次额外证明：阿里云当前仍不是 Git 工作目录，不能照抄腾讯云 `git pull`；同时本机没有阿里云 SSH key 时，普通 `scp` 会卡在密码交互。后续要么给 `root@101.37.209.54` 配置 SSH key 和本机别名，要么继续走读取本地密码文件的非交互发布脚本，别让交互式密码提示把自动部署卡成沉默超时。
 
 ## 常用命令
 

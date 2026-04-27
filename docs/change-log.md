@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### 腾讯云与阿里云生产增量发布到 `4aeb01e`
+- 日期：2026-04-27
+- 主题：将 `4aeb01e Fix playground light theme runtime polish` 增量发布到腾讯云新加坡与阿里云 ECS 两套生产环境，包含浅色用户气泡、后台任务模型解析、SSE heartbeat / idle timeout 与 nginx 长连接配置。
+- 影响范围：腾讯云沿用 `~/ugk-claw-repo` Git 工作目录 fast-forward，从 `030d6f1` 更新到 `4aeb01e`，重建 `ugk-pi`、`ugk-pi-conn-worker` 并因 nginx 配置变更强制重建 nginx；阿里云仍是 archive 解包目录，通过本地 `git archive HEAD` 上传 `/root/ugk-claw-deploy.tar.gz`，替换 `/root/ugk-claw-repo` 代码目录并保留 `/root/ugk-claw-shared` 运行态。两边均验证 `/healthz`、`/playground` 样式标记、compose 状态与 `check-deps.mjs`。
+- 对应入口：`docs/tencent-cloud-singapore-deploy.md`、`docs/aliyun-ecs-deploy.md`、`docs/server-ops-quick-reference.md`
+
 ### Playground 浅色用户气泡视觉收口
 - 日期：2026-04-27
 - 主题：修复浅色主题下用户对话气泡仍像深色块状面板的问题，把用户消息单独收口为右侧轻量输入回显：冷白承载面、深色正文、右侧蓝色窄强调条，并保持正文左对齐。

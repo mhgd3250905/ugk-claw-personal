@@ -16,7 +16,7 @@
 - 公网入口：`http://43.134.167.179:3000/playground`
 - 健康检查：`http://43.134.167.179:3000/healthz`
 - 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`46088a0`
+- 当前线上应用提交：`4aeb01e`
 - 不要再用：`snapshot-20260422-v4.1.1-stable`；那个 tag 打出来后才发现生产 compose YAML 缩进有病
 
 ### 阿里云 ECS
@@ -27,7 +27,7 @@
 - 生产 compose：`docker-compose.prod.yml`
 - 公网入口：`http://101.37.209.54:3000/playground`
 - 健康检查：`http://101.37.209.54:3000/healthz`
-- 当前线上应用提交：`030d6f1`
+- 当前线上应用提交：`4aeb01e`
 - 注意：当前阿里云目录是本地 archive 解包目录，不是 Git 工作目录；后续更新先看 `docs/aliyun-ecs-deploy.md`，不要直接照抄腾讯云的 `git pull` 流程。
 
 ## 登录

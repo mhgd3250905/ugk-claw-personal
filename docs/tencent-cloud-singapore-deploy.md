@@ -26,7 +26,7 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`46088a0`
+- 当前线上应用提交：`4aeb01e`
 - 当前服务器本地回滚 tag：`server-pre-deploy-20260426-234533`
 - 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260426-234533.tar.gz`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
@@ -174,6 +174,28 @@ cd ~/ugk-claw-repo
 ```
 
 不要再条件反射跑回 `~/ugk-pi-claw`，不然你改了半天也只是对着旧目录自我感动。
+
+## 2026-04-27 浅色用户气泡与 SSE 稳定性增量发布记录
+
+这次发布继续沿用 GitHub 工作目录 `~/ugk-claw-repo` 做增量更新；运行态继续保留在 `~/ugk-claw-shared`，没有触碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+1. 本地提交并推送 `4aeb01e Fix playground light theme runtime polish`。
+2. 服务器进入 `~/ugk-claw-repo`，发布前 `HEAD` 为 `030d6f1`。
+3. 服务器先备份 sidecar 登录态到 `~/ugk-claw-shared/backups/chrome-sidecar-20260427-203732.tar.gz`，并创建本地回滚 tag `server-pre-deploy-20260427-203732`。
+4. 执行 `git fetch --tags origin` 与 `git pull --ff-only origin main`，从 `030d6f1` fast-forward 到 `4aeb01e`。
+5. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`。
+6. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`。
+7. 因本次包含 `deploy/nginx/default.conf` SSE 长连接配置，额外执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx`。
+8. 发布后验收通过：
+   - 服务器 `HEAD` 为 `4aeb01e`
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `/playground` 源码包含 `message.user` 与 `2454d6`，确认浅色用户气泡样式已上线
+   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+
+发布过程中第一次验收撞到 nginx / app 切换窗口，`curl` 返回过一次 `Empty reply from server`；等待后重验正常。远程页面标记检查也踩到一次 PowerShell / SSH 引号拆分坑，后续改为先保存到 `/tmp/ugk-playground.html` 再用固定字符串 `grep -F`，别再把带空格的 CSS selector 直接塞进远程管道里。
 
 ## 2026-04-26 Playground `/new` 指令增量发布记录
 
