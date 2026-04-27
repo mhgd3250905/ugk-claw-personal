@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### Agent conversation command 编排收口
+- 日期：2026-04-27
+- 主题：把 `AgentService` 中的新建 / 删除 / 切换 / 重置会话命令规则抽到 `src/agent/agent-conversation-commands.ts`。这些规则本质是 conversation command 边界：运行中拒绝切线、空闲时更新 current pointer、删除或重置时清理 terminal run。继续让主服务类手写这些分支，只会让 `AgentService` 像个什么都管的居委会。
+- 影响范围：外部接口语义不变；`POST /v1/chat/conversations`、`POST /v1/chat/current`、`DELETE /v1/chat/conversations/:conversationId`、`POST /v1/chat/reset` 仍保持原响应结构。`AgentService` 仍持有 active run / terminal run 状态，helper 只接收布尔运行态和 terminal cleanup callback，不反向窥探服务内部。
+- 对应入口：`src/agent/agent-conversation-commands.ts`、`src/agent/agent-service.ts`、`test/agent-conversation-commands.test.ts`、`test/agent-service.test.ts`、`AGENTS.md`、`docs/traceability-map.md`
+
 ### Agent queue message 编排收口
 - 日期：2026-04-27
 - 主题：把 `AgentService.queueMessage()` 中的运行中队列消息编排抽到 `src/agent/agent-queue-message.ts`。队列消息不是 run 生命周期本体，继续塞在 `AgentService` 里只会让主服务类越来越像杂物间；现在附件 / 资产 prompt context、当前时间前缀、`steer` / `followUp` 显式 API 优先级和 fallback `prompt(..., { streamingBehavior })` 都有独立 helper 与聚焦测试覆盖。

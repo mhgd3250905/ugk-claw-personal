@@ -27,7 +27,7 @@
 这一轮已经完成一批“低风险、小切片、可测试”的整理，核心目标是减少胖文件和隐性坏数据风险：
 
 - 路由 parser / presenter / SSE helper 拆分：chat、conn、activity、notification、files。
-- `AgentService` 继续瘦身：会话 catalog、context loading、session lifecycle、queue message、run scope、run result、terminal snapshot、event buffering 等逻辑已经拆到独立 helper。
+- `AgentService` 继续瘦身：会话 catalog、conversation commands、context loading、session lifecycle、queue message、run scope、run result、terminal snapshot、event buffering 等逻辑已经拆到独立 helper。
 - playground 运行时代码继续模块化：page shell、base styles、status、notification、confirm dialog、panel focus、conversation API / sync / state / history pagination / process controller、active run normalizer。
 - conn run 租约防护：过期 worker 不能迟到写入终态、runtime metadata、events 或 output files。
 - 数据索引读边界加固：`ConversationStore`、`AssetStore`、session JSONL 全量读取都已经补回归测试，坏索引 / 坏 JSONL 行不会直接拖垮页面恢复。
@@ -48,7 +48,7 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 - `docker compose -f docker-compose.prod.yml config --quiet`
 - `npm test`
 
-截至最近一次全量测试，测试总数为 `399`，通过 `399`，跳过 `0`。上一版交接提到的两个 `test.skip` 已处理：一个是过时断言，另一个是重复覆盖；SQLite / JSON 字段边界也已完成一轮非 Feishu 区域加固。本轮新增了 `test/agent-queue-message.test.ts` 的 3 个队列消息 helper 用例，已纳入 `npm test` 全量验证。
+截至最近一次全量测试，测试总数为 `404`，通过 `404`，跳过 `0`。上一版交接提到的两个 `test.skip` 已处理：一个是过时断言，另一个是重复覆盖；SQLite / JSON 字段边界也已完成一轮非 Feishu 区域加固。本轮新增了 `test/agent-queue-message.test.ts` 的 3 个队列消息 helper 用例和 `test/agent-conversation-commands.test.ts` 的 5 个会话命令 helper 用例，已纳入 `npm test` 全量验证。
 
 最近一次生产验收：
 
@@ -65,7 +65,7 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 
 1. `git status --short` 里只有上面列出的 runtime 临时文件，或者先处理它们。
 2. 不要重新部署 `caa2eac`，它只是发布记录文档；生产已经运行 `46088a0`。
-3. SQLite / JSON 字段边界本轮已扫完，`AgentService.queueMessage()` 也已经抽到 `src/agent/agent-queue-message.ts`；下一步如果继续做架构整理，优先从 `AgentService` 剩余编排代码里找真正可测的纯边界，别继续堆“为了拆而拆”的文件。
+3. SQLite / JSON 字段边界本轮已扫完，`AgentService.queueMessage()` 已经抽到 `src/agent/agent-queue-message.ts`，新建 / 删除 / 切换 / 重置会话命令也已经抽到 `src/agent/agent-conversation-commands.ts`；下一步如果继续做架构整理，优先从 `AgentService.runChat()` 周边找真正可测的窄边界，别继续堆“为了拆而拆”的文件。
 
 ### 1. 已完成的 SQLite / JSON 字段边界
 
@@ -90,6 +90,8 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 
 - [src/agent/agent-queue-message.ts](/E:/AII/ugk-pi/src/agent/agent-queue-message.ts)：运行中队列消息 helper，负责 prompt asset 准备、当前时间前缀、asset context 拼接，以及 `steer` / `followUp` 显式 API 优先。`AgentService.queueMessage()` 只保留 active run 存在性判断与响应外壳。
 - [test/agent-queue-message.test.ts](/E:/AII/ugk-pi/test/agent-queue-message.test.ts)：覆盖 steer、followUp、fallback prompt streaming behavior 与附件 / 引用资产上下文。
+- [src/agent/agent-conversation-commands.ts](/E:/AII/ugk-pi/src/agent/agent-conversation-commands.ts)：新建 / 删除 / 切换 / 重置会话命令 helper，负责运行中拒绝切线、空闲 current pointer 更新、删除 / 重置时触发 terminal run 清理 callback。`AgentService` 仍保留 active run / terminal run 状态所有权。
+- [test/agent-conversation-commands.test.ts](/E:/AII/ugk-pi/test/agent-conversation-commands.test.ts)：覆盖会话命令的 idle / running / missing / terminal cleanup 边界。
 
 ### 3. 文档整理只做事实校准
 

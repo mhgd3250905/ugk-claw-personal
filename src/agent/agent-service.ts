@@ -12,6 +12,12 @@ import {
 	buildConversationCatalog,
 	buildConversationMetadata,
 } from "./agent-conversation-catalog.js";
+import {
+	createConversationCommand,
+	deleteConversationCommand,
+	resetConversationCommand,
+	switchConversationCommand,
+} from "./agent-conversation-commands.js";
 import { queueActiveMessage } from "./agent-queue-message.js";
 import {
 	resolveConversationContextMessages,
@@ -256,84 +262,29 @@ export class AgentService {
 	}
 
 	async createConversation(): Promise<CreateConversationResult> {
-		const currentConversationId = await this.ensureCurrentConversationId();
-		if (this.activeRuns.size > 0) {
-			return {
-				conversationId: currentConversationId,
-				currentConversationId,
-				created: false,
-				reason: "running",
-			};
-		}
-
-		const conversationId = await createEmptyConversation({
+		return await createConversationCommand({
 			conversationStore: this.options.conversationStore,
+			hasActiveRun: this.activeRuns.size > 0,
 		});
-		return {
-			conversationId,
-			currentConversationId: conversationId,
-			created: true,
-		};
 	}
 
 	async deleteConversation(conversationId: string): Promise<DeleteConversationResult> {
-		const currentConversationId = await this.ensureCurrentConversationId();
-		if (this.activeRuns.size > 0) {
-			return {
-				conversationId: currentConversationId,
-				currentConversationId,
-				deleted: false,
-				reason: "running",
-			};
-		}
-
-		const existingConversation = await this.options.conversationStore.get(conversationId);
-		if (!existingConversation) {
-			return {
-				conversationId,
-				currentConversationId,
-				deleted: false,
-				reason: "not_found",
-			};
-		}
-
-		await this.options.conversationStore.delete(conversationId);
-		this.terminalRuns.delete(conversationId);
-		const nextCurrentConversationId = await this.ensureCurrentConversationId();
-		return {
+		return await deleteConversationCommand({
+			conversationStore: this.options.conversationStore,
 			conversationId,
-			currentConversationId: nextCurrentConversationId,
-			deleted: true,
-		};
+			hasActiveRun: this.activeRuns.size > 0,
+			deleteTerminalRun: (terminalConversationId) => {
+				this.terminalRuns.delete(terminalConversationId);
+			},
+		});
 	}
 
 	async switchConversation(conversationId: string): Promise<SwitchConversationResult> {
-		const currentConversationId = await this.ensureCurrentConversationId();
-		if (this.activeRuns.size > 0) {
-			return {
-				conversationId: currentConversationId,
-				currentConversationId,
-				switched: false,
-				reason: "running",
-			};
-		}
-
-		const existingConversation = await this.options.conversationStore.get(conversationId);
-		if (!existingConversation) {
-			return {
-				conversationId,
-				currentConversationId,
-				switched: false,
-				reason: "not_found",
-			};
-		}
-
-		await this.options.conversationStore.setCurrentConversationId(conversationId);
-		return {
+		return await switchConversationCommand({
+			conversationStore: this.options.conversationStore,
 			conversationId,
-			currentConversationId: conversationId,
-			switched: true,
-		};
+			hasActiveRun: this.activeRuns.size > 0,
+		});
 	}
 
 	async queueMessage(input: QueueMessageInput): Promise<QueueMessageResult> {
@@ -392,20 +343,14 @@ export class AgentService {
 	}
 
 	async resetConversation(input: ResetConversationInput): Promise<ResetConversationResult> {
-		if (this.activeRuns.has(input.conversationId)) {
-			return {
-				conversationId: input.conversationId,
-				reset: false,
-				reason: "running",
-			};
-		}
-
-		this.terminalRuns.delete(input.conversationId);
-		await this.options.conversationStore.delete(input.conversationId);
-		return {
+		return await resetConversationCommand({
+			conversationStore: this.options.conversationStore,
 			conversationId: input.conversationId,
-			reset: true,
-		};
+			hasActiveRun: this.activeRuns.has(input.conversationId),
+			deleteTerminalRun: (conversationId) => {
+				this.terminalRuns.delete(conversationId);
+			},
+		});
 	}
 
 	async getRunStatus(conversationId: string): Promise<RunStatusResult> {
