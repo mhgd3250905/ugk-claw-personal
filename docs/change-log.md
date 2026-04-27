@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### 架构整理阶段收尾判断
+- 日期：2026-04-27
+- 主题：为本轮代码整理补充阶段性收尾判断。当前主线已经完成约 `85%-90%`，后续不建议继续按“大文件就拆”的方式推进；`AgentService` 应保留运行编排中心职责，尤其是 `activeRuns` / `terminalRuns`、`runChat()` 生命周期、interrupt 和 run events 订阅回放。
+- 影响范围：只更新交接文档，不改运行代码。后续质量工作优先转向真实场景验证、新功能小范围测试和问题驱动拆分。
+- 对应入口：`docs/handoff-current.md`
+
 ### Agent conversation command 编排收口
 - 日期：2026-04-27
 - 主题：把 `AgentService` 中的新建 / 删除 / 切换 / 重置会话命令规则抽到 `src/agent/agent-conversation-commands.ts`。这些规则本质是 conversation command 边界：运行中拒绝切线、空闲时更新 current pointer、删除或重置时清理 terminal run。继续让主服务类手写这些分支，只会让 `AgentService` 像个什么都管的居委会。

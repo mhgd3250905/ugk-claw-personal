@@ -104,6 +104,32 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 
 如果只是代码内部小重构、外部行为不变，可以不写长篇发布故事；但影响运行口径、部署、接口、用户体验或接手路径时，必须更新 `docs/change-log.md`。
 
+## 架构整理阶段收尾判断
+
+截至 `2026-04-27`，本轮代码整理主线可以视为阶段完成，完成度约 `85%-90%`。后续不要继续按“看到大文件就拆”的方式推进；那不是工程洁癖，是把维护成本从一个文件搬到多个文件，听起来很高级，实际更烦人。
+
+已经完成并有测试压住的边界：
+
+- 路由层：chat / conn / activity / notification / files 的 parser、presenter、SSE、route utils 已经拆出。
+- AgentService 领域 helper：conversation catalog、conversation commands、conversation context、conversation session、conversation state、conversation history、prompt assets、queue message、run scope、run events、run result、terminal run、session event adapter / guards。
+- playground 运行时：page shell、基础样式、状态、通知、确认弹窗、panel focus、conversation API / sync / state / history pagination / process / active run normalizer 等控制器已经拆出。
+- 存储与坏数据边界：ConversationStore、AssetStore、AgentActivityStore、ConversationNotificationStore、ConnSqliteStore、ConnRunStore 已经完成一轮坏 JSON、并发、稳定排序、分页游标和 lease 防护加固。
+
+剩余不建议继续拆的区域：
+
+- `src/agent/agent-service.ts` 仍是运行编排中心，保留 `activeRuns` / `terminalRuns` 两个内存态 Map 是合理的；把它们抽成独立 store 只会让同步边界更绕。
+- `runChat()` 仍然较长，但它承载的是连续生命周期：创建会话、准备资产、注册 active run、订阅事件、执行 prompt、持久化、生成 terminal snapshot、清理浏览器 scope。强拆会让一次 run 的控制流散到多个文件，不值得。
+- `interruptChat()`、`getRunEvents()`、`subscribeRunEvents()` 都依赖 active / terminal run 状态，继续保留在 service 内更直观。
+
+后续如果继续做质量工作，优先级应改为：
+
+1. 验证真实用户场景，而不是继续拆 helper。
+2. 针对新增功能补小范围测试。
+3. 发现真实重复或真实 bug 后再拆边界。
+4. 涉及服务器发布时继续走增量更新，不做整目录替换。
+
+当前建议：不要再主动推进架构拆分，除非有新的功能需求或线上问题指向某个具体边界。
+
 ## 暂时不要做
 
 - 不要继续推进 Feishu 业务闭环。用户已经明确：现阶段飞书部分可以跳过。
