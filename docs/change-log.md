@@ -12,6 +12,12 @@
 
 ## 2026-04-27
 
+### DeepSeek API 源与前端模型源切换入口
+- 日期：2026-04-27
+- 主题：把 DeepSeek Anthropic 兼容源注册到项目级 `runtime/pi-agent/models.json`，新增 `deepseek-anthropic` provider，暴露 `deepseek-v4-pro` 与 `deepseek-v4-flash` 两个模型；同时新增 `/v1/model-config`、`/v1/model-config/validate`、`/v1/model-config/default`，让前端可以查看、测试并在后端验证通过后保存默认 provider / model。
+- 影响范围：当前默认仍是 `dashscope-coding / glm-5`；新增 DeepSeek 可选源、`.env.example` 占位变量、本地密钥文件忽略规则和 playground “模型源”设置弹窗。保存默认模型源前后端都会走真实 provider 验证，验证失败不写 `.pi/settings.json`；真实 key 仍不得提交进仓库。DeepSeek 模型按 `1048576` context window 和 `262144` max tokens 登记，模型源列表会展示上下文信息，保存切换后上下文用量从当前默认模型动态读取，不再缓存服务启动时的旧窗口。
+- 对应入口：`runtime/pi-agent/models.json`、`src/config.ts`、`src/agent/model-config.ts`、`src/agent/agent-session-factory.ts`、`src/routes/model-config.ts`、`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-mobile-shell-controller.ts`、`.env.example`、`.gitignore`、`test/config.test.ts`、`test/agent-session-factory.test.ts`、`test/model-config.test.ts`、`test/server.test.ts`
+
 ### README 首页展示 social preview 横幅
 - 日期：2026-04-27
 - 主题：把 `docs/assets/github-social-preview.png` 同步放到 `README.md` 和 `README.en.md` 顶部，避免用户误以为提交 social preview 资产后 GitHub 仓库设置页会自动生效。GitHub 原生 social preview 仍需要在仓库 `Settings -> General -> Social preview` 手动上传；README 横幅用于仓库首页可见展示。

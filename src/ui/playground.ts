@@ -162,6 +162,14 @@ function getPlaygroundScript(): string {
 			connManagerRestoreFocusElement: null,
 			connEditorRestoreFocusElement: null,
 			connRunDetailsRestoreFocusElement: null,
+			modelConfigOpen: false,
+			modelConfigRestoreFocusElement: null,
+			modelConfig: null,
+			modelConfigLoading: false,
+			modelConfigSaving: false,
+			modelConfigTesting: false,
+			modelConfigSelectedProvider: "",
+			modelConfigSelectedModel: "",
 			mobileOverflowMenuOpen: false,
 			mobileConversationDrawerOpen: false,
 			conversationCatalog: [],
@@ -253,6 +261,16 @@ function getPlaygroundScript(): string {
 		const interruptButton = document.getElementById("interrupt-button");
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
+		const openModelConfigButton = document.getElementById("open-model-config-button");
+		const modelConfigDialog = document.getElementById("model-config-dialog");
+		const modelConfigClose = document.getElementById("model-config-close");
+		const modelConfigCurrent = document.getElementById("model-config-current");
+		const modelConfigProvider = document.getElementById("model-config-provider");
+		const modelConfigModel = document.getElementById("model-config-model");
+		const modelConfigAuth = document.getElementById("model-config-auth");
+		const modelConfigStatus = document.getElementById("model-config-status");
+		const modelConfigTest = document.getElementById("model-config-test");
+		const modelConfigSave = document.getElementById("model-config-save");
 		${getPlaygroundMobileShellElementRefsScript()}
 		const topbarContextSlot = document.querySelector(".topbar-context-slot");
 		if (topbarContextSlot?.parentElement === mobileTopbar) {
@@ -303,6 +321,216 @@ function getPlaygroundScript(): string {
 
 		${getPlaygroundStatusControllerScript()}
 
+		function getSelectedModelConfig() {
+			return {
+				provider: String(modelConfigProvider.value || "").trim(),
+				model: String(modelConfigModel.value || "").trim(),
+			};
+		}
+
+		function findModelConfigProvider(providerId) {
+			return state.modelConfig?.providers?.find((provider) => provider.id === providerId) || null;
+		}
+
+		function formatModelTokenCount(value) {
+			const count = Number(value);
+			if (!Number.isFinite(count) || count <= 0) {
+				return "";
+			}
+			if (count >= 1000000) {
+				const millions = count / 1000000;
+				return (Number.isInteger(millions) ? String(millions) : millions.toFixed(1)) + "M";
+			}
+			if (count >= 1000) {
+				const thousands = count / 1000;
+				return (Number.isInteger(thousands) ? String(thousands) : String(Math.round(thousands))) + "K";
+			}
+			return String(Math.round(count));
+		}
+
+		function getModelConfigOptionLabel(model) {
+			const baseLabel = model.name ? model.name + " / " + model.id : model.id;
+			const contextWindow = formatModelTokenCount(model.contextWindow);
+			const maxTokens = formatModelTokenCount(model.maxTokens);
+			const meta = [];
+			if (contextWindow) {
+				meta.push("ctx " + contextWindow);
+			}
+			if (maxTokens) {
+				meta.push("out " + maxTokens);
+			}
+			return meta.length > 0 ? baseLabel + " · " + meta.join(" · ") : baseLabel;
+		}
+
+		function setModelConfigStatus(message, tone = "neutral") {
+			modelConfigStatus.textContent = message || "";
+			modelConfigStatus.dataset.tone = tone;
+		}
+
+		function setModelConfigBusy() {
+			const busy = state.modelConfigLoading || state.modelConfigSaving || state.modelConfigTesting;
+			modelConfigProvider.disabled = busy;
+			modelConfigModel.disabled = busy || !modelConfigProvider.value;
+			modelConfigTest.disabled = busy || !modelConfigProvider.value || !modelConfigModel.value;
+			modelConfigSave.disabled = busy || !modelConfigProvider.value || !modelConfigModel.value;
+			modelConfigTest.textContent = state.modelConfigTesting ? "测试中" : "测试连接";
+			modelConfigSave.textContent = state.modelConfigSaving ? "验证中" : "验证并保存";
+		}
+
+		function renderModelConfigModelOptions() {
+			const provider = findModelConfigProvider(modelConfigProvider.value);
+			const models = provider?.models || [];
+			modelConfigModel.innerHTML = "";
+			for (const model of models) {
+				const option = document.createElement("option");
+				option.value = model.id;
+				option.textContent = getModelConfigOptionLabel(model);
+				modelConfigModel.appendChild(option);
+			}
+			if (models.some((model) => model.id === state.modelConfigSelectedModel)) {
+				modelConfigModel.value = state.modelConfigSelectedModel;
+			}
+			if (!modelConfigModel.value && models[0]) {
+				modelConfigModel.value = models[0].id;
+			}
+			renderModelConfigAuth();
+			setModelConfigBusy();
+		}
+
+		function renderModelConfigAuth() {
+			const provider = findModelConfigProvider(modelConfigProvider.value);
+			if (!provider) {
+				modelConfigAuth.textContent = "未选择 API 源";
+				modelConfigAuth.dataset.state = "missing";
+				return;
+			}
+			const auth = provider.auth || {};
+			const envText = auth.envVar ? " · " + auth.envVar : "";
+			modelConfigAuth.textContent = (auth.configured ? "密钥已配置" : "密钥未配置") + envText;
+			modelConfigAuth.dataset.state = auth.configured ? "ready" : "missing";
+		}
+
+		function renderModelConfigDialog() {
+			const config = state.modelConfig;
+			modelConfigProvider.innerHTML = "";
+			const providers = config?.providers || [];
+			for (const provider of providers) {
+				const option = document.createElement("option");
+				option.value = provider.id;
+				option.textContent = provider.id;
+				modelConfigProvider.appendChild(option);
+			}
+			const current = config?.current || { provider: "", model: "" };
+			state.modelConfigSelectedProvider = state.modelConfigSelectedProvider || current.provider;
+			state.modelConfigSelectedModel = state.modelConfigSelectedModel || current.model;
+			if (providers.some((provider) => provider.id === state.modelConfigSelectedProvider)) {
+				modelConfigProvider.value = state.modelConfigSelectedProvider;
+			}
+			modelConfigCurrent.textContent = current.provider && current.model ? "当前：" + current.provider + " / " + current.model : "当前配置未知";
+			renderModelConfigModelOptions();
+		}
+
+		async function loadModelConfig() {
+			state.modelConfigLoading = true;
+			setModelConfigBusy();
+			setModelConfigStatus("正在读取模型源", "neutral");
+			try {
+				const response = await fetch("/v1/model-config");
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.error?.message || "读取模型源失败");
+				}
+				state.modelConfig = payload;
+				state.modelConfigSelectedProvider = payload?.current?.provider || "";
+				state.modelConfigSelectedModel = payload?.current?.model || "";
+				renderModelConfigDialog();
+				setModelConfigStatus("选择模型后可以先测试连接，保存时仍会再次验证。", "neutral");
+			} catch (error) {
+				setModelConfigStatus(error instanceof Error ? error.message : "读取模型源失败", "error");
+			} finally {
+				state.modelConfigLoading = false;
+				setModelConfigBusy();
+			}
+		}
+
+		async function openModelConfigDialog(returnFocusElement) {
+			state.modelConfigOpen = true;
+			state.modelConfigRestoreFocusElement = rememberPanelReturnFocus(returnFocusElement);
+			modelConfigDialog.hidden = false;
+			modelConfigDialog.inert = false;
+			modelConfigDialog.classList.add("open");
+			modelConfigDialog.setAttribute("aria-hidden", "false");
+			modelConfigProvider.focus();
+			await loadModelConfig();
+		}
+
+		function closeModelConfigDialog() {
+			if (!state.modelConfigOpen) {
+				return;
+			}
+			state.modelConfigOpen = false;
+			restoreFocusAfterPanelClose(modelConfigDialog, state.modelConfigRestoreFocusElement);
+			modelConfigDialog.classList.remove("open");
+			modelConfigDialog.setAttribute("aria-hidden", "true");
+			modelConfigDialog.inert = true;
+			modelConfigDialog.hidden = true;
+			state.modelConfigRestoreFocusElement = null;
+		}
+
+		async function testModelConfigSelection() {
+			const selection = getSelectedModelConfig();
+			state.modelConfigTesting = true;
+			setModelConfigBusy();
+			setModelConfigStatus("正在测试 " + selection.provider + " / " + selection.model, "neutral");
+			try {
+				const response = await fetch("/v1/model-config/validate", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify(selection),
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok || payload?.ok === false) {
+					throw new Error(payload?.error?.message || payload?.message || "模型源验证失败");
+				}
+				setModelConfigStatus("连接验证通过。", "success");
+			} catch (error) {
+				setModelConfigStatus(error instanceof Error ? error.message : "模型源验证失败", "error");
+			} finally {
+				state.modelConfigTesting = false;
+				setModelConfigBusy();
+			}
+		}
+
+		async function saveModelConfigSelection() {
+			const selection = getSelectedModelConfig();
+			state.modelConfigSaving = true;
+			setModelConfigBusy();
+			setModelConfigStatus("正在验证并保存", "neutral");
+			try {
+				const response = await fetch("/v1/model-config/default", {
+					method: "PUT",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify(selection),
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok || payload?.ok === false) {
+					throw new Error(payload?.error?.message || payload?.message || "保存模型源失败");
+				}
+				if (state.modelConfig) {
+					state.modelConfig.current = payload.current;
+				}
+				state.modelConfigSelectedProvider = payload.current.provider;
+				state.modelConfigSelectedModel = payload.current.model;
+				renderModelConfigDialog();
+				setModelConfigStatus("已保存，新会话生效。", "success");
+				void syncContextUsage({ silent: true });
+			} catch (error) {
+				setModelConfigStatus(error instanceof Error ? error.message : "保存模型源失败", "error");
+			} finally {
+				state.modelConfigSaving = false;
+				setModelConfigBusy();
+			}
+		}
 
 		${getPlaygroundLayoutControllerScript()}
 
@@ -363,6 +591,32 @@ function getPlaygroundScript(): string {
 				void loadSkills();
 			});
 
+			openModelConfigButton.addEventListener("click", () => {
+				void openModelConfigDialog(openModelConfigButton);
+			});
+			modelConfigClose.addEventListener("click", closeModelConfigDialog);
+			modelConfigDialog.addEventListener("click", (event) => {
+				if (event.target === modelConfigDialog) {
+					closeModelConfigDialog();
+				}
+			});
+			modelConfigProvider.addEventListener("change", () => {
+				state.modelConfigSelectedProvider = modelConfigProvider.value;
+				state.modelConfigSelectedModel = "";
+				renderModelConfigModelOptions();
+				setModelConfigStatus("选择模型后可以先测试连接，保存时仍会再次验证。", "neutral");
+			});
+			modelConfigModel.addEventListener("change", () => {
+				state.modelConfigSelectedModel = modelConfigModel.value;
+				setModelConfigBusy();
+				setModelConfigStatus("选择模型后可以先测试连接，保存时仍会再次验证。", "neutral");
+			});
+			modelConfigTest.addEventListener("click", () => {
+				void testModelConfigSelection();
+			});
+			modelConfigSave.addEventListener("click", () => {
+				void saveModelConfigSelection();
+			});
 
 			${getPlaygroundTaskInboxEventHandlersScript()}
 			${getConnActivityEventHandlersScript()}
@@ -419,6 +673,9 @@ function getPlaygroundScript(): string {
 				}
 				if (event.key === "Escape" && state.taskInboxOpen) {
 					closeTaskInbox();
+				}
+				if (event.key === "Escape" && state.modelConfigOpen) {
+					closeModelConfigDialog();
 				}
 				if (handleConnActivityPanelEscapeKey(event)) {
 					return;

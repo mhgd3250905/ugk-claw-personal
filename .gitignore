@@ -4,6 +4,7 @@
 .pi/sessions/
 .data/
 api.txt
+deepseek-api.txt
 node_modules/
 skills/
 runtime/pi-agent/auth.json

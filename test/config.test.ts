@@ -17,6 +17,18 @@ test("loads DASHSCOPE_CODING_API_KEY from api.txt when environment variable is a
 	delete process.env.TEST_DASHSCOPE_KEY;
 });
 
+test("loads DEEPSEEK_API_KEY from deepseek-api.txt when environment variable is absent", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
+	const apiTxtPath = join(dir, "deepseek-api.txt");
+	await writeFile(apiTxtPath, "api-key = sk-deepseek-test-123", "utf8");
+
+	const loaded = loadApiKeyFromApiTxt(dir, "TEST_DEEPSEEK_KEY", "deepseek-api.txt");
+
+	assert.equal(loaded, "sk-deepseek-test-123");
+	assert.equal(process.env.TEST_DEEPSEEK_KEY, "sk-deepseek-test-123");
+	delete process.env.TEST_DEEPSEEK_KEY;
+});
+
 test("keeps existing environment variable and does not override it from api.txt", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
 	const apiTxtPath = join(dir, "api.txt");

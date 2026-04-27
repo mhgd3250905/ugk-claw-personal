@@ -23,19 +23,20 @@ export interface AppConfig {
 export function loadApiKeyFromApiTxt(
 	projectRoot: string,
 	envVarName: string = "DASHSCOPE_CODING_API_KEY",
+	fileName: string = "api.txt",
 ): string | undefined {
 	const existingValue = process.env[envVarName];
 	if (existingValue && existingValue.trim().length > 0) {
 		return existingValue;
 	}
 
-	const apiTxtPath = join(projectRoot, "api.txt");
+	const apiTxtPath = join(projectRoot, fileName);
 	if (!existsSync(apiTxtPath)) {
 		return undefined;
 	}
 
 	const content = readFileSync(apiTxtPath, "utf8");
-	const match = content.match(/api-key:\s*(\S+)/i);
+	const match = content.match(/api-key\s*[:=]\s*(\S+)/i);
 	const apiKey = match?.[1]?.trim();
 	if (!apiKey) {
 		return undefined;
@@ -47,6 +48,7 @@ export function loadApiKeyFromApiTxt(
 
 export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 	loadApiKeyFromApiTxt(projectRoot);
+	loadApiKeyFromApiTxt(projectRoot, "DEEPSEEK_API_KEY", "deepseek-api.txt");
 	const dataDir = join(projectRoot, ".data");
 	const agentDataDir = join(dataDir, "agent");
 	const agentSessionsDir = join(agentDataDir, "sessions");

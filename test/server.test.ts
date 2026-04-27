@@ -4,6 +4,12 @@ import { NotificationHub } from "../src/agent/notification-hub.js";
 import { buildServer } from "../src/server.js";
 import type { AgentService } from "../src/agent/agent-service.js";
 import { renderPlaygroundMarkdown } from "../src/ui/playground.js";
+import type {
+	ModelConfigBody,
+	ModelConfigSelection,
+	ModelConfigStore,
+	ModelSelectionValidator,
+} from "../src/agent/model-config.js";
 
 type StreamEvent = Record<string, unknown>;
 
@@ -260,6 +266,55 @@ function createAgentServiceStub(overrides?: {
 	} as unknown as AgentService;
 }
 
+function createModelConfigStoreStub(): ModelConfigStore {
+	let current: ModelConfigSelection = {
+		provider: "dashscope-coding",
+		model: "glm-5",
+	};
+	const config = (): ModelConfigBody => ({
+		current,
+		providers: [
+			{
+				id: "dashscope-coding",
+				models: [{ id: "glm-5", name: "GLM-5" }],
+				auth: {
+					configured: true,
+					envVar: "DASHSCOPE_CODING_API_KEY",
+					source: "environment",
+				},
+			},
+			{
+				id: "deepseek-anthropic",
+				models: [
+					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
+					{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1048576, maxTokens: 262144 },
+				],
+				auth: {
+					configured: true,
+					envVar: "DEEPSEEK_API_KEY",
+					source: "environment",
+				},
+			},
+		],
+	});
+	return {
+		async getConfig() {
+			return config();
+		},
+		async setDefault(selection) {
+			current = selection;
+			return config();
+		},
+		async hasModel(selection) {
+			return Boolean(
+				config()
+					.providers.find((provider) => provider.id === selection.provider)
+					?.models.some((model) => model.id === selection.model),
+			);
+		},
+	};
+}
+
 test("GET /healthz returns ok", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -301,6 +356,14 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /file-list/);
 	assert.match(response.body, /selected-asset-list/);
 	assert.match(response.body, /open-asset-library-button/);
+	assert.match(response.body, /open-model-config-button/);
+	assert.match(response.body, /model-config-dialog/);
+	assert.match(response.body, /model-config-provider/);
+	assert.match(response.body, /model-config-model/);
+	assert.match(response.body, /验证并保存/);
+	assert.match(response.body, /\/v1\/model-config/);
+	assert.match(response.body, /\/v1\/model-config\/validate/);
+	assert.match(response.body, /\/v1\/model-config\/default/);
 	assert.match(response.body, /file-picker-action/);
 	assert.match(response.body, /asset-modal-list/);
 	assert.match(response.body, /close-asset-modal-button/);
@@ -1784,6 +1847,7 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /id="mobile-menu-file-button"/);
 	assert.match(response.body, /id="mobile-menu-library-button"/);
 	assert.match(response.body, /id="mobile-menu-task-inbox-button"/);
+	assert.match(response.body, /id="mobile-menu-model-config-button"/);
 	assert.match(response.body, /id="mobile-task-inbox-unread-badge"/);
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
@@ -4330,6 +4394,121 @@ test("GET /v1/debug/skills returns the runtime skill registry", async () => {
 		source: "cache",
 		cachedAt: "2026-04-24T00:00:00.000Z",
 	});
+	await app.close();
+});
+
+test("GET /v1/model-config returns current provider and selectable models", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		modelConfigStore: createModelConfigStoreStub(),
+		modelSelectionValidator: async () => ({ ok: true }),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/model-config",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		current: {
+			provider: "dashscope-coding",
+			model: "glm-5",
+		},
+		providers: [
+			{
+				id: "dashscope-coding",
+				models: [{ id: "glm-5", name: "GLM-5" }],
+				auth: {
+					configured: true,
+					envVar: "DASHSCOPE_CODING_API_KEY",
+					source: "environment",
+				},
+			},
+			{
+				id: "deepseek-anthropic",
+				models: [
+					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
+					{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1048576, maxTokens: 262144 },
+				],
+				auth: {
+					configured: true,
+					envVar: "DEEPSEEK_API_KEY",
+					source: "environment",
+				},
+			},
+		],
+	});
+	await app.close();
+});
+
+test("PUT /v1/model-config/default validates before switching default model", async () => {
+	const calls: ModelConfigSelection[] = [];
+	const validator: ModelSelectionValidator = async (selection) => {
+		calls.push(selection);
+		return { ok: true };
+	};
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		modelConfigStore: createModelConfigStoreStub(),
+		modelSelectionValidator: validator,
+	});
+
+	const response = await app.inject({
+		method: "PUT",
+		url: "/v1/model-config/default",
+		payload: {
+			provider: "deepseek-anthropic",
+			model: "deepseek-v4-pro",
+		},
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(calls, [{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" }]);
+	assert.deepEqual(response.json(), {
+		ok: true,
+		current: {
+			provider: "deepseek-anthropic",
+			model: "deepseek-v4-pro",
+		},
+		effective: "new_sessions",
+	});
+	await app.close();
+});
+
+test("PUT /v1/model-config/default does not switch when validation fails", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		modelConfigStore: createModelConfigStoreStub(),
+		modelSelectionValidator: async () => ({
+			ok: false,
+			code: "provider_validation_failed",
+			message: "provider failed",
+		}),
+	});
+
+	const response = await app.inject({
+		method: "PUT",
+		url: "/v1/model-config/default",
+		payload: {
+			provider: "deepseek-anthropic",
+			model: "deepseek-v4-pro",
+		},
+	});
+
+	assert.equal(response.statusCode, 400);
+	assert.deepEqual(response.json(), {
+		error: {
+			code: "PROVIDER_VALIDATION_FAILED",
+			message: "provider failed",
+		},
+	});
+	const configResponse = await app.inject({
+		method: "GET",
+		url: "/v1/model-config",
+	});
+	assert.equal(configResponse.json().current.provider, "dashscope-coding");
+	assert.equal(configResponse.json().current.model, "glm-5");
 	await app.close();
 });
 

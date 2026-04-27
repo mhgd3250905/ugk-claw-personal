@@ -48,6 +48,10 @@ export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 						<span>后台自己干，前台别被绑架</span>
 						<strong>后台任务</strong>
 					</button>
+					<button id="open-model-config-button" class="telemetry-card telemetry-action" type="button">
+						<span>换源前先验货</span>
+						<strong>模型源</strong>
+					</button>
 					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false">
 						<span>&#21518;&#21488;&#20219;&#21153;&#32467;&#26524;&#32479;&#19968;&#25910;&#20214;&#31665;</span>
 						<strong>&#20219;&#21153;&#28040;&#24687;</strong>
@@ -179,6 +183,15 @@ export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 							</span>
 							<span>&#20219;&#21153;&#28040;&#24687;</span>
 							<span id="mobile-task-inbox-unread-badge" class="mobile-overflow-menu-item-badge" hidden>0</span>
+						</button>
+						<button id="mobile-menu-model-config-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M5 7h14M7 12h10M9 17h6" stroke-width="1.8" stroke-linecap="round" />
+									<path d="M4 4h16v16H4V4Z" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+							<span>模型源</span>
 						</button>
 						<button id="mobile-menu-theme-button" class="mobile-overflow-menu-item" type="button" role="menuitem" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
 							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
@@ -333,6 +346,33 @@ export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 					<button id="confirm-dialog-cancel" type="button">取消</button>
 					<button id="confirm-dialog-confirm" class="danger-action" type="button">确认</button>
 				</div>
+			</section>
+		</div>
+		<div id="model-config-dialog" class="model-config-dialog" aria-hidden="true" inert hidden>
+			<section class="model-config-panel" role="dialog" aria-modal="true" aria-labelledby="model-config-title">
+				<header class="model-config-head">
+					<div>
+						<strong id="model-config-title">模型源设置</strong>
+						<span id="model-config-current">当前配置读取中</span>
+					</div>
+					<button id="model-config-close" class="model-config-close" type="button" aria-label="关闭模型源设置">×</button>
+				</header>
+				<div class="model-config-body">
+					<label class="model-config-field" for="model-config-provider">
+						<span>API 源</span>
+						<select id="model-config-provider"></select>
+					</label>
+					<label class="model-config-field" for="model-config-model">
+						<span>模型</span>
+						<select id="model-config-model"></select>
+					</label>
+					<div id="model-config-auth" class="model-config-auth">等待配置</div>
+					<div id="model-config-status" class="model-config-status" role="status" aria-live="polite"></div>
+				</div>
+				<footer class="model-config-actions">
+					<button id="model-config-test" type="button">测试连接</button>
+					<button id="model-config-save" type="button">验证并保存</button>
+				</footer>
 			</section>
 		</div>
 		${input.connActivityDialogs}

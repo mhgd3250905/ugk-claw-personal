@@ -2354,6 +2354,148 @@ export function getPlaygroundStyles(): string {
 			gap: 10px;
 		}
 
+		.model-config-dialog[hidden] {
+			display: none !important;
+		}
+
+		.model-config-dialog {
+			position: fixed;
+			inset: 0;
+			z-index: 86;
+			display: none;
+			align-items: center;
+			justify-content: center;
+			padding: 18px;
+			background: rgba(3, 5, 10, 0.72);
+		}
+
+		.model-config-dialog.open {
+			display: flex;
+		}
+
+		.model-config-panel {
+			width: min(520px, 100%);
+			display: grid;
+			gap: 14px;
+			padding: 16px;
+			border: 1px solid rgba(201, 210, 255, 0.12);
+			border-radius: 8px;
+			background:
+				linear-gradient(180deg, #121522 0%, #080a15 46%, #04050d 100%),
+				#060711;
+			box-shadow: none;
+		}
+
+		.model-config-head {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 14px;
+		}
+
+		.model-config-head div {
+			display: grid;
+			gap: 5px;
+			min-width: 0;
+		}
+
+		.model-config-head strong {
+			color: rgba(247, 249, 255, 0.95);
+			font-size: 13px;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.model-config-head span {
+			color: rgba(225, 232, 247, 0.56);
+			font-size: 11px;
+			line-height: 1.4;
+			overflow-wrap: anywhere;
+		}
+
+		.model-config-close {
+			width: 30px;
+			height: 30px;
+			padding: 0;
+			border: 0;
+			background: transparent;
+			box-shadow: none;
+			color: rgba(238, 244, 255, 0.68);
+			font-size: 20px;
+			line-height: 1;
+		}
+
+		.model-config-close:hover:not(:disabled),
+		.model-config-close:focus-visible {
+			background: rgba(255, 255, 255, 0.08);
+			box-shadow: none;
+			transform: none;
+		}
+
+		.model-config-body {
+			display: grid;
+			gap: 10px;
+		}
+
+		.model-config-field {
+			display: grid;
+			gap: 6px;
+		}
+
+		.model-config-field span {
+			color: rgba(225, 232, 247, 0.58);
+			font-size: 10px;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+
+		.model-config-field select {
+			width: 100%;
+			min-height: 38px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 6px;
+			background: #080a15;
+			color: rgba(247, 249, 255, 0.92);
+			padding: 0 10px;
+			font: inherit;
+			font-size: 12px;
+		}
+
+		.model-config-auth,
+		.model-config-status {
+			min-height: 30px;
+			display: flex;
+			align-items: center;
+			padding: 8px 10px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 6px;
+			background: rgba(255, 255, 255, 0.035);
+			color: rgba(225, 232, 247, 0.66);
+			font-size: 11px;
+			line-height: 1.45;
+			overflow-wrap: anywhere;
+		}
+
+		.model-config-auth[data-state="ready"],
+		.model-config-status[data-tone="success"] {
+			border-color: rgba(141, 255, 178, 0.18);
+			color: rgba(174, 255, 201, 0.86);
+			background: rgba(141, 255, 178, 0.055);
+		}
+
+		.model-config-auth[data-state="missing"],
+		.model-config-status[data-tone="error"] {
+			border-color: rgba(255, 113, 136, 0.2);
+			color: rgba(255, 185, 198, 0.9);
+			background: rgba(255, 113, 136, 0.055);
+		}
+
+		.model-config-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 10px;
+		}
+
 		${getConnRunDetailsStyles()}
 		.drag-overlay {
 			position: fixed;

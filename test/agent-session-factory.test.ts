@@ -186,8 +186,45 @@ test("project models.json exposes the checked-in dashscope-coding glm-5 provider
 	assert.equal(model?.id, "glm-5");
 });
 
-test("resolveProjectDefaultModelContext uses the checked-in project defaults and reserve budget", () => {
-	const context = resolveProjectDefaultModelContext(process.cwd());
+test("project models.json exposes the checked-in DeepSeek Anthropic provider", () => {
+	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(process.cwd()));
+	const proModel = registry.find("deepseek-anthropic", "deepseek-v4-pro");
+	const flashModel = registry.find("deepseek-anthropic", "deepseek-v4-flash");
+
+	assert.notEqual(proModel, undefined);
+	assert.equal(proModel?.provider, "deepseek-anthropic");
+	assert.equal(proModel?.id, "deepseek-v4-pro");
+	assert.notEqual(flashModel, undefined);
+	assert.equal(flashModel?.provider, "deepseek-anthropic");
+	assert.equal(flashModel?.id, "deepseek-v4-flash");
+});
+
+test("resolveProjectDefaultModelContext uses project defaults and reserve budget", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-default-context-"));
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		JSON.stringify({
+			defaultProvider: "dashscope-coding",
+			defaultModel: "glm-5",
+			compaction: { reserveTokens: 16384 },
+		}),
+		"utf8",
+	);
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: {
+				"dashscope-coding": {
+					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
+				},
+			},
+		}),
+		"utf8",
+	);
+
+	const context = resolveProjectDefaultModelContext(projectRoot);
 
 	assert.deepEqual(context, {
 		provider: "dashscope-coding",
@@ -196,6 +233,80 @@ test("resolveProjectDefaultModelContext uses the checked-in project defaults and
 		maxResponseTokens: 16384,
 		reserveTokens: 16384,
 	});
+});
+
+test("default session factory reflects model context changes after default model switches", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-model-context-refresh-"));
+	const sessionDir = join(projectRoot, ".data", "agent", "sessions");
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await mkdir(sessionDir, { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		JSON.stringify({
+			defaultProvider: "dashscope-coding",
+			defaultModel: "glm-5",
+			compaction: { reserveTokens: 16384 },
+		}),
+		"utf8",
+	);
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: {
+				"dashscope-coding": {
+					baseUrl: "https://coding.dashscope.aliyuncs.com/v1",
+					api: "openai-completions",
+					apiKey: "DASHSCOPE_CODING_API_KEY",
+					models: [
+						{
+							id: "glm-5",
+							name: "GLM-5",
+							reasoning: true,
+							input: ["text"],
+							contextWindow: 128000,
+							maxTokens: 16384,
+						},
+					],
+				},
+				"deepseek-anthropic": {
+					baseUrl: "https://api.deepseek.com/anthropic",
+					api: "anthropic-messages",
+					apiKey: "DEEPSEEK_API_KEY",
+					models: [
+						{
+							id: "deepseek-v4-pro",
+							name: "DeepSeek V4 Pro",
+							reasoning: true,
+							input: ["text"],
+							contextWindow: 1048576,
+							maxTokens: 262144,
+						},
+					],
+				},
+			},
+		}),
+		"utf8",
+	);
+	const factory = createDefaultAgentSessionFactory({ projectRoot, sessionDir });
+
+	assert.equal(factory.getDefaultModelContext?.().contextWindow, 128000);
+
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		JSON.stringify({
+			defaultProvider: "deepseek-anthropic",
+			defaultModel: "deepseek-v4-pro",
+			compaction: { reserveTokens: 16384 },
+		}),
+		"utf8",
+	);
+
+	const updatedContext = factory.getDefaultModelContext?.();
+	assert.equal(updatedContext?.provider, "deepseek-anthropic");
+	assert.equal(updatedContext?.model, "deepseek-v4-pro");
+	assert.equal(updatedContext?.contextWindow, 1048576);
+	assert.equal(updatedContext?.maxResponseTokens, 262144);
 });
 
 test("default session factory reads persisted messages from session jsonl without loading a runtime session", async () => {

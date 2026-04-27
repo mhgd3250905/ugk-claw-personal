@@ -473,7 +473,6 @@ export function createDefaultAgentSessionFactory(
 	options: DefaultAgentSessionFactoryOptions,
 ): AgentSessionFactory {
 	const allowedSkillPaths = options.allowedSkillPaths ?? getDefaultAllowedSkillPaths(options.projectRoot);
-	const defaultModelContext = resolveProjectDefaultModelContext(options.projectRoot);
 	let cachedSkillList: { fingerprint: string; skills: RuntimeSkillInfo[]; cachedAt: string; checkedAtMs: number } | null = null;
 	let lastSkillCacheTimestampMs = 0;
 
@@ -565,7 +564,7 @@ export function createDefaultAgentSessionFactory(
 			return await buildSkillFingerprint(allowedSkillPaths);
 		},
 		getDefaultModelContext() {
-			return defaultModelContext;
+			return resolveProjectDefaultModelContext(options.projectRoot);
 		},
 	};
 }

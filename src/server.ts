@@ -10,6 +10,7 @@ import { ConversationStore } from "./agent/conversation-store.js";
 import { ConnDatabase } from "./agent/conn-db.js";
 import { ConnRunStore } from "./agent/conn-run-store.js";
 import { ConnSqliteStore } from "./agent/conn-sqlite-store.js";
+import type { ModelConfigStore, ModelSelectionValidator } from "./agent/model-config.js";
 import { NotificationHub } from "./agent/notification-hub.js";
 import { FeishuClient } from "./integrations/feishu/client.js";
 import { FeishuConversationMapStore } from "./integrations/feishu/conversation-map-store.js";
@@ -20,6 +21,7 @@ import { registerChatRoutes } from "./routes/chat.js";
 import { registerConnRoutes } from "./routes/conns.js";
 import { registerFeishuRoutes } from "./routes/feishu.js";
 import { registerFileRoutes } from "./routes/files.js";
+import { registerModelConfigRoutes } from "./routes/model-config.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerPlaygroundRoute } from "./routes/playground.js";
 import { registerStaticRoutes } from "./routes/static.js";
@@ -33,6 +35,8 @@ export interface BuildServerOptions {
 	notificationHub?: NotificationHub;
 	backgroundDataDir?: string;
 	feishuService?: FeishuService;
+	modelConfigStore?: ModelConfigStore;
+	modelSelectionValidator?: ModelSelectionValidator;
 }
 
 function createDefaultAssetStore(): AssetStore {
@@ -118,6 +122,11 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	registerStaticRoutes(app, { projectRoot: config.projectRoot });
 	registerActivityRoutes(app, { activityStore });
 	registerChatRoutes(app, { agentService });
+	registerModelConfigRoutes(app, {
+		projectRoot: config.projectRoot,
+		store: options.modelConfigStore,
+		validator: options.modelSelectionValidator,
+	});
 	registerNotificationRoutes(app, { notificationHub });
 	registerConnRoutes(app, {
 		connStore,

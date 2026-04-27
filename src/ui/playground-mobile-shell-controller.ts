@@ -9,6 +9,7 @@ export function getPlaygroundMobileShellElementRefsScript(): string {
 		const mobileMenuFileButton = document.getElementById("mobile-menu-file-button");
 		const mobileMenuLibraryButton = document.getElementById("mobile-menu-library-button");
 		const mobileMenuTaskInboxButton = document.getElementById("mobile-menu-task-inbox-button");
+		const mobileMenuModelConfigButton = document.getElementById("mobile-menu-model-config-button");
 		const mobileTaskInboxUnreadBadge = document.getElementById("mobile-task-inbox-unread-badge");
 		const mobileMenuConnButton = document.getElementById("mobile-menu-conn-button");
 		const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
@@ -83,6 +84,10 @@ export function getPlaygroundMobileShellEventHandlersScript(): string {
 		mobileMenuLibraryButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();
 			openAssetLibrary(mobileOverflowMenuButton);
+		});
+		mobileMenuModelConfigButton.addEventListener("click", () => {
+			closeMobileOverflowMenu();
+			void openModelConfigDialog(mobileOverflowMenuButton);
 		});
 
 		document.addEventListener("click", (event) => {
