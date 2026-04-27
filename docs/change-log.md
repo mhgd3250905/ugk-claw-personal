@@ -12,10 +12,17 @@
 
 ## 2026-04-27
 
+### Playground 前端运行时外部化
+- 日期：2026-04-27
+- 主题：评估并落地 `proposal-playground-externalization.md` 的可行版本。原方案直接替换 `/playground` 内联渲染风险过高，本次改为 opt-in 外部化：默认仍使用现有 `renderPlaygroundPage()`，设置 `PLAYGROUND_EXTERNALIZED=1` 后从 `src/ui/` 生成 `runtime/playground-factory/`，初始化 `runtime/playground/`，并由 `/playground/styles.css`、`/playground/app.js`、`/playground/vendor/marked.umd.js` 提供运行时资源。修改运行时 CSS / JS 后刷新浏览器即可生效，不需要重启服务。
+- 影响范围：新增 `POST /playground/reset` 恢复出厂 API；新增运行时资源路由；`runtime/playground/` 与 `runtime/playground-factory/` 作为运行产物忽略 Git。新增项目级 skill `playground-runtime-ui`，让运行时 `ugk-claw` agent 在用户要求修改 playground UI / 浅色主题 / 消息气泡 / composer / logo / 移动端布局时能知道外部化调试流程与正式落回源码的边界。默认模式保持兼容，不改变聊天、会话、SSE、文件资产或 conn 行为。
+- 对应入口：`src/routes/playground.ts`、`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-externalized.ts`、`.pi/skills/playground-runtime-ui/SKILL.md`、`test/server.test.ts`、`docs/playground-current.md`、`.codex/plans/2026-04-27-playground-externalization-plan.md`
+
 ### Playground 聊天背景 ASCII 标识
 - 日期：2026-04-27
 - 主题：把项目 ASCII 字标收口成真实 DOM `<pre>` 资产，桌面左侧历史栏头部与手机品牌入口共用同一套 `ugk-ascii-logo-topbar` 彩色图案，手机端只约束容器尺寸，不再使用单独缩水版会话按钮图案；`chat-stage` 中心使用低对比水印变体。移除旧 topbar 图片 logo、旧 `UGK CLAW` 伪元素文字、旧 landing `hero-wordmark / hero-version`、idle transcript `:empty::before` 伪元素 logo，以及 `.chat-stage::before { content: ... }` 巨型字符串。桌面端不再同时显示 `desktop-brand` 和“历史会话 / 常驻”头部，左侧历史栏头部就是唯一品牌入口，避免浅色主题下出现旧图标不变、字符错位和水印糊成一团。
 - 影响范围：调整 playground 品牌 DOM、背景装饰层、浅色主题覆盖、landing shell 旧品牌 DOM、页面断言和设计文档；不改变会话状态、发送逻辑或运行日志接口。
+- 发布记录：本地提交 `66dcae1 Unify playground ASCII branding`，使用 `runtime/playground-ascii-branding-incremental.tar.gz` 对腾讯云新加坡 `43.134.167.179` 和阿里云 ECS `101.37.209.54` 做增量覆盖更新；两端均保留 shared 运行态目录，不触碰 `.data/agent`、sidecar 登录态、资产、conn 或日志。腾讯云首次验收遇到 nginx upstream `502`，按 runbook 强制重建 nginx 后恢复；两端最终 `/healthz` 均返回 `{"ok":true}`，`/playground` 均确认包含 `mobile-brand-logo desktop-brand`、`ugk-ascii-logo-topbar`、`chat-stage-watermark`，且不再包含 `ugk-ascii-logo-mobile` 或 `ugk-claw-mobile-logo.png`。
 - 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-page-shell.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
 
 ### Playground 运行日志倒序增量加载

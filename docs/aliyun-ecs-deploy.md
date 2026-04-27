@@ -301,3 +301,20 @@ COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose
 - 不要开放公网 `3901` 或 `9223`。
 - 不要在当前阿里云目录里直接跑 `git pull`，除非已经确认 `.git` 存在。
 - 不要把腾讯云的 `ubuntu@43.134.167.179` 命令原样粘到阿里云机器上；阿里云是 `root@101.37.209.54`。
+## 2026-04-27 Playground ASCII 品牌增量发布记录
+
+本次发布继续使用 archive 小包增量覆盖 `/root/ugk-claw-repo`，没有执行整目录替换，也没有触碰 `/root/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。阿里云当前目录仍不是 Git 工作目录，不要照抄腾讯云 `git pull`。
+
+实际结果：
+1. 本地提交：`66dcae1 Unify playground ASCII branding`。
+2. 本地生成增量包：`runtime/playground-ascii-branding-incremental.tar.gz`，只包含 playground ASCII 品牌相关源码、测试和文档。
+3. 通过本地 `*config.txt` 中的 root 密码用 `paramiko` SFTP 上传到 `/root/playground-ascii-branding-incremental.tar.gz`，密码没有写入命令行参数或输出日志。
+4. 服务器在 `/root/ugk-claw-repo` 内执行 `tar -xzf /root/playground-ascii-branding-incremental.tar.gz -C /root/ugk-claw-repo` 增量覆盖对应文件。
+5. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+6. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建 `ugk-pi` 和 `ugk-pi-conn-worker`。
+7. 最终验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://101.37.209.54:3000/healthz` 返回 `{"ok":true}`
+   - `/playground` 源码包含 `mobile-brand-logo desktop-brand`、`ugk-ascii-logo-topbar`、`chat-stage-watermark`
+   - `/playground` 源码不再包含 `ugk-ascii-logo-mobile` 或 `ugk-claw-mobile-logo.png`
+   - `docker compose ... ps` 显示 nginx、ugk-pi、ugk-pi-browser healthy，CDP relay 与 conn-worker 正常运行

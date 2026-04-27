@@ -1224,3 +1224,20 @@ free -h
 - `ugk-pi-deploy.tar.gz`
 
 如果后续要把安装脚本产品化，应放到 `deploy/` 下并重新审查命名、参数和幂等性；不要把临时脚本直接当正式资产塞进去。
+## 2026-04-27 Playground ASCII 品牌增量发布记录
+
+本次发布沿用腾讯云 GitHub 工作目录 `~/ugk-claw-repo` 做小包增量覆盖，没有执行整目录替换，也没有触碰 `~/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。
+
+实际结果：
+1. 本地提交：`66dcae1 Unify playground ASCII branding`。
+2. 本地生成增量包：`runtime/playground-ascii-branding-incremental.tar.gz`，只包含 playground ASCII 品牌相关源码、测试和文档。
+3. 通过 SSH alias `ugk-claw-prod` 上传到 `~/playground-ascii-branding-incremental.tar.gz`，并在 `~/ugk-claw-repo` 内执行 `tar -xzf` 覆盖对应文件。
+4. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+5. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建 `ugk-pi` 和 `ugk-pi-conn-worker`。
+6. 首次验收 `http://127.0.0.1:3000/healthz` 返回 `502`；`ugk-pi` 容器 healthy 但 nginx 仍在旧 upstream 状态，随后执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx` 强制重建 nginx。
+7. 最终验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - `/playground` 源码包含 `mobile-brand-logo desktop-brand`、`ugk-ascii-logo-topbar`、`chat-stage-watermark`
+   - `/playground` 源码不再包含 `ugk-ascii-logo-mobile` 或 `ugk-claw-mobile-logo.png`
+   - `docker compose ... ps` 显示 nginx、ugk-pi、ugk-pi-browser healthy，CDP relay 与 conn-worker 正常运行

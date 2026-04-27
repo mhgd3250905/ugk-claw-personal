@@ -330,6 +330,80 @@ test("GET /healthz returns ok", async () => {
 	await app.close();
 });
 
+test("GET /playground can serve externalized runtime assets", async () => {
+	const previousExternalized = process.env.PLAYGROUND_EXTERNALIZED;
+	process.env.PLAYGROUND_EXTERNALIZED = "1";
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	try {
+		const response = await app.inject({
+			method: "GET",
+			url: "/playground",
+		});
+
+		assert.equal(response.statusCode, 200);
+		assert.match(response.headers["content-type"] ?? "", /^text\/html/);
+		assert.match(response.body, /<link rel="stylesheet" href="\/playground\/styles\.css" \/>/);
+		assert.match(response.body, /<script src="\/playground\/vendor\/marked\.umd\.js"><\/script>/);
+		assert.match(response.body, /<script src="\/playground\/app\.js"><\/script>/);
+		assert.doesNotMatch(response.body, /function initializePlaygroundAssembler\(\)/);
+
+		const stylesResponse = await app.inject({
+			method: "GET",
+			url: "/playground/styles.css",
+		});
+		assert.equal(stylesResponse.statusCode, 200);
+		assert.match(stylesResponse.headers["content-type"] ?? "", /^text\/css/);
+		assert.match(stylesResponse.body, /\.chat-stage/);
+
+		const scriptResponse = await app.inject({
+			method: "GET",
+			url: "/playground/app.js",
+		});
+		assert.equal(scriptResponse.statusCode, 200);
+		assert.match(scriptResponse.headers["content-type"] ?? "", /^text\/javascript/);
+		assert.match(scriptResponse.body, /function initializePlaygroundAssembler\(\)/);
+
+		const markedResponse = await app.inject({
+			method: "GET",
+			url: "/playground/vendor/marked.umd.js",
+		});
+		assert.equal(markedResponse.statusCode, 200);
+		assert.match(markedResponse.body, /marked v\d+/);
+		assert.match(markedResponse.body, /g\["marked"\]/);
+	} finally {
+		if (previousExternalized === undefined) {
+			delete process.env.PLAYGROUND_EXTERNALIZED;
+		} else {
+			process.env.PLAYGROUND_EXTERNALIZED = previousExternalized;
+		}
+		await app.close();
+	}
+});
+
+test("POST /playground/reset restores externalized runtime files", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	try {
+		const response = await app.inject({
+			method: "POST",
+			url: "/playground/reset",
+		});
+
+		assert.equal(response.statusCode, 200);
+		const payload = JSON.parse(response.body) as { ok?: boolean; runtimeDir?: string; factoryDir?: string };
+		assert.equal(payload.ok, true);
+		assert.match(payload.runtimeDir ?? "", /runtime[\\/]playground$/);
+		assert.match(payload.factoryDir ?? "", /runtime[\\/]playground-factory$/);
+	} finally {
+		await app.close();
+	}
+});
+
 test("GET /playground returns the test UI html", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

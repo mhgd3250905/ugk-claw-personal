@@ -57,6 +57,15 @@ import { getPlaygroundStyles } from "./playground-styles.js";
 
 export { renderPlaygroundMarkdown } from "./playground-markdown.js";
 
+export interface PlaygroundRenderBundle {
+	styles: string;
+	markedBrowserScript: string;
+	playgroundScript: string;
+	taskInboxView: string;
+	connActivityDialogs: string;
+	assetDialogs: string;
+}
+
 let markedBrowserScriptCache: string | undefined;
 
 function getMarkedBrowserScript(): string {
@@ -725,13 +734,17 @@ function getPlaygroundScript(): string {
 	`;
 }
 
-export function renderPlaygroundPage(): string {
-	return renderPlaygroundHtml({
+export function getPlaygroundRenderBundle(): PlaygroundRenderBundle {
+	return {
 		styles: getPlaygroundStyles(),
 		markedBrowserScript: getMarkedBrowserScript(),
 		playgroundScript: getPlaygroundScript(),
 		taskInboxView: getPlaygroundTaskInboxView(),
 		connActivityDialogs: getConnActivityDialogs(),
 		assetDialogs: getPlaygroundAssetDialogs(),
-	});
+	};
+}
+
+export function renderPlaygroundPage(): string {
+	return renderPlaygroundHtml(getPlaygroundRenderBundle());
 }

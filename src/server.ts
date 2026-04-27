@@ -118,7 +118,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		assetStore,
 		projectRoot: config.projectRoot,
 	});
-	registerPlaygroundRoute(app);
+	registerPlaygroundRoute(app, { projectRoot: config.projectRoot });
 	registerStaticRoutes(app, { projectRoot: config.projectRoot });
 	registerActivityRoutes(app, { activityStore });
 	registerChatRoutes(app, { agentService });
