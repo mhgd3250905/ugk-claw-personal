@@ -1122,23 +1122,39 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			}
 		}
 
-		async function fetchChatRunEvents(conversationId, runId) {
-			const response = await fetch(
-				"/v1/chat/runs/" +
-					encodeURIComponent(runId) +
-					"/events?conversationId=" +
-					encodeURIComponent(conversationId),
-				{
-					method: "GET",
-					headers: { accept: "application/json" },
-				},
-			);
+		const RUN_LOG_PAGE_SIZE = 2;
+		const RUN_LOG_DETAIL_MAX_CHARS = 900;
+
+		function trimRunLogText(text) {
+			const normalizedText = String(text || "");
+			if (normalizedText.length <= RUN_LOG_DETAIL_MAX_CHARS) {
+				return normalizedText;
+			}
+			return normalizedText.slice(0, RUN_LOG_DETAIL_MAX_CHARS).trimEnd() + "\\n...[truncated]";
+		}
+
+		async function fetchChatRunEvents(conversationId, runId, before) {
+			const params = new URLSearchParams({
+				conversationId,
+				limit: String(RUN_LOG_PAGE_SIZE),
+			});
+			if (before) {
+				params.set("before", String(before));
+			}
+			const response = await fetch("/v1/chat/runs/" + encodeURIComponent(runId) + "/events?" + params.toString(), {
+				method: "GET",
+				headers: { accept: "application/json" },
+			});
 			const payload = await response.json().catch(() => ({}));
 			if (!response.ok) {
 				const errorMessage = payload?.error?.message || payload?.message || "无法读取运行日志";
 				throw new Error(errorMessage);
 			}
-			return Array.isArray(payload?.events) ? payload.events : [];
+			return {
+				events: Array.isArray(payload?.events) ? payload.events : [],
+				hasMore: Boolean(payload?.hasMore),
+				nextBefore: payload?.nextBefore ? String(payload.nextBefore) : "",
+			};
 		}
 
 		function closeChatRunLog() {
@@ -1150,10 +1166,27 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			chatRunLogDialog.hidden = true;
 			chatRunLogDialog.setAttribute("aria-hidden", "true");
 			state.chatRunLogRestoreFocusElement = null;
+			state.chatRunLogPagination = null;
 			return true;
 		}
 
-		function renderChatRunLog(conversationId, runId, events) {
+		function appendChatRunLogEvents(list, events) {
+			for (const event of events) {
+				const item = document.createElement("article");
+				item.className = "chat-run-log-item";
+				const title = document.createElement("strong");
+				title.className = "chat-run-log-item-title";
+				title.textContent = formatChatRunEventTitle(event);
+				const detail = document.createElement("pre");
+				detail.className = "chat-run-log-item-detail";
+				detail.textContent = trimRunLogText(formatChatRunEventDetail(event));
+				item.appendChild(title);
+				item.appendChild(detail);
+				list.appendChild(item);
+			}
+		}
+
+		function renderChatRunLog(conversationId, runId, payload) {
 			chatRunLogTitle.textContent = "运行日志";
 			chatRunLogBody.innerHTML = "";
 
@@ -1162,7 +1195,8 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			meta.textContent = "会话 " + conversationId + " · 运行 " + runId;
 			chatRunLogBody.appendChild(meta);
 
-			if (!Array.isArray(events) || events.length === 0) {
+			const events = Array.isArray(payload?.events) ? payload.events : [];
+			if (events.length === 0) {
 				const empty = document.createElement("div");
 				empty.className = "chat-run-log-empty";
 				empty.textContent = "这一轮还没有可以展示的运行日志。";
@@ -1172,20 +1206,45 @@ export function getPlaygroundTranscriptRendererScript(): string {
 
 			const list = document.createElement("div");
 			list.className = "chat-run-log-list";
-			for (const event of events) {
-				const item = document.createElement("article");
-				item.className = "chat-run-log-item";
-				const title = document.createElement("strong");
-				title.className = "chat-run-log-item-title";
-				title.textContent = formatChatRunEventTitle(event);
-				const detail = document.createElement("pre");
-				detail.className = "chat-run-log-item-detail";
-				detail.textContent = formatChatRunEventDetail(event);
-				item.appendChild(title);
-				item.appendChild(detail);
-				list.appendChild(item);
-			}
+			appendChatRunLogEvents(list, events);
 			chatRunLogBody.appendChild(list);
+			const loadState = document.createElement("div");
+			loadState.className = "chat-run-log-load-state";
+			chatRunLogBody.appendChild(loadState);
+			state.chatRunLogPagination = {
+				conversationId,
+				runId,
+				list,
+				loadState,
+				nextBefore: payload?.nextBefore || "",
+				hasMore: Boolean(payload?.hasMore),
+				loading: false,
+			};
+			loadState.textContent = state.chatRunLogPagination.hasMore ? "向下滚动加载更早的日志" : "已显示全部日志";
+		}
+
+		async function loadMoreChatRunLog() {
+			const pagination = state.chatRunLogPagination;
+			if (!pagination || !pagination.hasMore || pagination.loading) {
+				return;
+			}
+			pagination.loading = true;
+			pagination.loadState.textContent = "正在加载更早的日志...";
+			try {
+				const payload = await fetchChatRunEvents(
+					pagination.conversationId,
+					pagination.runId,
+					pagination.nextBefore,
+				);
+				appendChatRunLogEvents(pagination.list, payload.events);
+				pagination.nextBefore = payload.nextBefore || "";
+				pagination.hasMore = Boolean(payload.hasMore);
+				pagination.loadState.textContent = pagination.hasMore ? "向下滚动加载更早的日志" : "已显示全部日志";
+			} catch (error) {
+				pagination.loadState.textContent = error instanceof Error ? error.message : "无法加载更多运行日志";
+			} finally {
+				pagination.loading = false;
+			}
 		}
 
 		async function openChatRunLog(runId, restoreFocusElement) {
@@ -1202,8 +1261,8 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			chatRunLogBody.textContent = "正在读取运行日志...";
 
 			try {
-				const events = await fetchChatRunEvents(conversationId, nextRunId);
-				renderChatRunLog(conversationId, nextRunId, events);
+				const payload = await fetchChatRunEvents(conversationId, nextRunId);
+				renderChatRunLog(conversationId, nextRunId, payload);
 			} catch (error) {
 				chatRunLogBody.textContent = error instanceof Error ? error.message : "无法读取运行日志";
 			}
@@ -1319,6 +1378,11 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			chatRunLogDialog?.addEventListener("click", (event) => {
 				if (event.target === chatRunLogDialog) {
 					closeChatRunLog();
+				}
+			});
+			chatRunLogBody?.addEventListener("scroll", () => {
+				if (chatRunLogBody.scrollTop + chatRunLogBody.clientHeight >= chatRunLogBody.scrollHeight - 32) {
+					void loadMoreChatRunLog();
 				}
 			});
 			document.addEventListener("keydown", (event) => {

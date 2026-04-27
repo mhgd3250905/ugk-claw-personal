@@ -511,9 +511,9 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*box-shadow: none;/);
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*backdrop-filter: none;/);
-	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*border:\s*1px solid rgba\(36, 84, 214, 0\.16\);/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*border:\s*1px solid rgba\(8, 120, 75, 0\.28\);/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*background:[\s\S]*rgba\(239, 245, 255, 0\.96\)[\s\S]*#ffffff;/);
-	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body::after\s*\{[\s\S]*right:\s*0;[\s\S]*width:\s*3px;[\s\S]*background:\s*#2454d6;/);
+	assert.doesNotMatch(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body::after/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-content\s*\{[\s\S]*color:\s*#172033;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*position:\s*relative;/);
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*position:\s*absolute;/);
@@ -807,7 +807,13 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /sourceId:\s*typeof options\?\.sourceId === "string" \? options\.sourceId : undefined/);
 	assert.match(response.body, /runId:\s*typeof options\?\.runId === "string" \? options\.runId : undefined/);
 	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(entry\.sourceId\)\s*\+\s*"\/runs\/"\s*\+\s*encodeURIComponent\(entry\.runId\)/);
-	assert.match(response.body, /\/v1\/conns\/"\s*\+\s*encodeURIComponent\(entry\.sourceId\)\s*\+\s*"\/runs\/"\s*\+\s*encodeURIComponent\(entry\.runId\)\s*\+\s*"\/events"/);
+	assert.match(response.body, /encodeURIComponent\(entry\.runId\)[\s\S]*"\/events\?"[\s\S]*params\.toString\(\)/);
+	assert.match(response.body, /const CONN_RUN_LOG_PAGE_SIZE = 2;/);
+	assert.match(response.body, /params = new URLSearchParams\(\{ limit: String\(CONN_RUN_LOG_PAGE_SIZE\) \}\)/);
+	assert.match(response.body, /function trimConnRunLogText\(text\)/);
+	assert.match(response.body, /connRunDetailsBody\.addEventListener\("scroll"/);
+	assert.match(response.body, /loadMoreConnRunEvents\(\)/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.conn-run-details-body\s*\{[\s\S]*color:\s*#34435f;/);
 	assert.match(response.body, /conn-run-open-button/);
 	assert.doesNotMatch(response.body, /appendTranscriptMessage\("error"/);
 	assert.doesNotMatch(response.body, /\.message\.error/);
@@ -850,6 +856,12 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.assistant-run-log-trigger:disabled\s*\{[\s\S]*opacity:\s*0\.64;/);
 	assert.match(response.body, /\.chat-run-log-dialog\s*\{[\s\S]*place-items:\s*center;/);
 	assert.match(response.body, /\.chat-run-log-body\s*\{[\s\S]*overflow:\s*auto;/);
+	assert.match(response.body, /const RUN_LOG_PAGE_SIZE = 2;/);
+	assert.match(response.body, /params = new URLSearchParams\(\{\s*conversationId,[\s\S]*limit: String\(RUN_LOG_PAGE_SIZE\),/);
+	assert.match(response.body, /function trimRunLogText\(text\)/);
+	assert.match(response.body, /chatRunLogBody\?\.addEventListener\("scroll"/);
+	assert.match(response.body, /loadMoreChatRunLog\(\)/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.chat-run-log-item-detail\s*\{[\s\S]*color:\s*#34435f;/);
 	assert.match(response.body, /function updateStreamingProcess\(kind, title, detail\)\s*\{\s*appendProcessNarrationLine\(describeProcessNarration\(kind, title, detail\)\);\s*setProcessCurrentAction\(formatProcessAction\(title, detail\), kind\);\s*\}/);
 	assert.match(response.body, /function ensureStreamingAssistantMessage\(\)\s*\{[\s\S]*appendTranscriptMessage\("assistant", /);
 	assert.doesNotMatch(response.body, /withProcess:\s*true/);
@@ -861,7 +873,8 @@ test("GET /playground returns the test UI html", async () => {
 	assert.doesNotMatch(response.body, /stream\.summary\.textContent = process\.narration\.at\(-1\)/);
 	assert.match(response.body, /function setTranscriptState\(next\)\s*\{/);
 	assert.match(response.body, /function syncConversationWidth\(\)\s*\{/);
-	assert.match(response.body, /composerDropTarget\.getBoundingClientRect\(\)\.width/);
+	assert.match(response.body, /const commandDeckWidth = Math\.round\(commandDeckRect\.width \|\| 0\);/);
+	assert.match(response.body, /shell\.style\.setProperty\("--conversation-width", commandDeckWidth \+ "px"\);/);
 	assert.match(response.body, /function formatProcessAction\(title, detail\)\s*\{[\s\S]*summarizeDetail\(detail\)\.summary/);
 	assert.match(response.body, /async function sendMessage\(\)\s*\{[\s\S]*setTranscriptState\("active"\);[\s\S]*resetStreamingState\(\);/);
 	assert.match(response.body, /const composerDraft = createComposerDraft\(\);/);
@@ -996,8 +1009,8 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /shell\.style\.setProperty\("--command-deck-offset", commandDeckOffset \+ "px"\);/);
 	assert.match(response.body, /const layoutObserver = new ResizeObserver\(\(\) => \{/);
 	assert.match(response.body, /scheduleConversationLayoutSync\(\);/);
-	assert.match(response.body, /layoutObserver\.observe\(composerDropTarget\);/);
-	assert.doesNotMatch(response.body, /layoutObserver\.observe\(commandDeck\);/);
+	assert.match(response.body, /layoutObserver\.observe\(commandDeck\);/);
+	assert.doesNotMatch(response.body, /layoutObserver\.observe\(composerDropTarget\);/);
 	assert.doesNotMatch(response.body, /layoutObserver\.observe\(chatStage\);/);
 	assert.match(response.body, /skipNextPageShowResumeSync:\s*true/);
 	assert.match(
@@ -1066,6 +1079,8 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /body\.classList\.add\("has-file-chips"\)/);
 	assert.match(response.body, /asset\.fileName/);
 	assert.match(response.body, /removeSelectedAsset\(asset\.assetId\)/);
+	assert.doesNotMatch(response.body, /updateStreamingProcess\("system", "文件上传中"/);
+	assert.doesNotMatch(response.body, /appendProcessEvent\("system", "\\u6587\\u4ef6\\u5df2\\u622a\\u65ad"/);
 	assert.doesNotMatch(response.body, /removePendingAttachment/);
 	assert.match(response.body, /async function loadAssetDetails\(assetIds, options\)\s*\{/);
 	assert.match(response.body, /async function ensureRecentAssetsForRefs\(assetRefs, options\)\s*\{/);
@@ -1642,7 +1657,8 @@ test("GET /playground embeds conversation history restore and message copy contr
 	);
 	assert.match(response.body, /syncRenderedMessageActions\(historyEntry\);/);
 	assert.doesNotMatch(response.body, /card\.appendChild\(messageActions\.actions\);/);
-	assert.match(response.body, /\.message-body > \.message-actions\s*\{[\s\S]*margin-top:\s*8px;/);
+	assert.match(response.body, /\.message-body > \.message-actions\s*\{[\s\S]*margin-top:\s*0;/);
+	assert.match(response.body, /\.message\.assistant \.message-body\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*10px;/);
 	const messageActionButtonBlock = response.body.match(
 		/\.message-copy-button,\s*\n\s*\.message-image-export-button\s*\{([\s\S]*?)\n\s*\}/,
 	);
@@ -1938,6 +1954,13 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /--fg:\s*#142033;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+body\s*\{/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+body::after\s*\{[\s\S]*rgba\(221, 229, 240, 0\.36\)[\s\S]*opacity:\s*1;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+#composer-drop-target\.composer\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*rgba\(255, 255, 255, 0\.86\);[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.file-strip\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+#message\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.92\);[\s\S]*color:\s*#172033;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.telemetry-card,[\s\S]*:root\[data-theme="light"\]\s+\.drop-zone-top\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*transparent;[\s\S]*color:\s*var\(--fg\);[\s\S]*box-shadow:\s*none;/);
+	assert.doesNotMatch(response.body, /:root\[data-theme="light"\]\s+\.telemetry-card,[^}]*background:\s*rgba\(255, 255, 255, 0\.86\);/);
+	assert.doesNotMatch(response.body, /:root\[data-theme="light"\]\s+\.shell\[data-stage-mode="landing"\] \.composer\s*\{[^}]*rgba\(255, 255, 255, 0\.92\);/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.message-body/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.message\.assistant \.message-content strong/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+#send-button::before/);
@@ -2269,7 +2292,8 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width:\s*min\(760px, 100%\);/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar::before\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.desktop-conversation-rail\s*\{[\s\S]*background:[\s\S]*#ffffff;/);
-	assert.match(response.body, /:root\[data-theme="light"\]\s+\.chat-stage\s*\{[\s\S]*background:[\s\S]*rgba\(255, 255, 255, 0\.78\);/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.chat-stage\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
+	assert.doesNotMatch(response.body, /:root\[data-theme="light"\]\s+\.chat-stage\s*\{[\s\S]*rgba\(255, 255, 255, 0\.78\);/);
 	await app.close();
 });
 
@@ -4185,6 +4209,8 @@ test("GET /v1/conns/:connId/runs/:runId/events returns ordered run events", asyn
 				createdAt: "2026-04-21T09:00:01.000Z",
 			},
 		],
+		hasMore: false,
+		limit: 2,
 	});
 	await app.close();
 });
@@ -4640,6 +4666,10 @@ test("GET /v1/chat/runs/:runId/events returns buffered chat run events", async (
 						conversationId,
 					},
 					{
+						type: "text_delta",
+						textDelta: "ignored incremental body",
+					},
+					{
 						type: "tool_started",
 						toolCallId: "tool-1",
 						toolName: "weather",
@@ -4666,8 +4696,9 @@ test("GET /v1/chat/runs/:runId/events returns buffered chat run events", async (
 		runId: "run-chat-1",
 		events: [
 			{
-				type: "run_started",
+				type: "done",
 				conversationId: "manual:events",
+				text: "sunny",
 			},
 			{
 				type: "tool_started",
@@ -4675,12 +4706,10 @@ test("GET /v1/chat/runs/:runId/events returns buffered chat run events", async (
 				toolName: "weather",
 				args: '{"city":"Shanghai"}',
 			},
-			{
-				type: "done",
-				conversationId: "manual:events",
-				text: "sunny",
-			},
 		],
+		hasMore: true,
+		nextBefore: "1",
+		limit: 2,
 	});
 	assert.deepEqual(calls, [{ conversationId: "manual:events", runId: "run-chat-1" }]);
 	await app.close();

@@ -200,6 +200,52 @@ export function getConnRunDetailsStyles(): string {
 			font-size: 10px;
 		}
 
+		.conn-run-event-load-state {
+			color: rgba(226, 234, 255, 0.46);
+			font-size: 11px;
+			text-align: center;
+		}
+
+		:root[data-theme="light"] .conn-run-details-dialog {
+			background: rgba(15, 23, 42, 0.24);
+		}
+
+		:root[data-theme="light"] .conn-run-details-panel {
+			background: rgba(255, 255, 255, 0.96);
+			color: #1f2937;
+		}
+
+		:root[data-theme="light"] .conn-run-details-head strong {
+			color: #172033;
+		}
+
+		:root[data-theme="light"] .conn-run-details-close {
+			background: rgba(229, 236, 248, 0.92);
+			color: #34435f;
+		}
+
+		:root[data-theme="light"] .conn-run-details-body {
+			color: #34435f;
+		}
+
+		:root[data-theme="light"] .conn-run-section {
+			background: rgba(246, 249, 253, 0.96);
+			border: 1px solid rgba(31, 95, 200, 0.1);
+		}
+
+		:root[data-theme="light"] .conn-run-section code {
+			color: #24344f;
+		}
+
+		:root[data-theme="light"] .conn-run-event {
+			border-top-color: rgba(31, 95, 200, 0.1);
+		}
+
+		:root[data-theme="light"] .conn-run-event span,
+		:root[data-theme="light"] .conn-run-event-load-state {
+			color: rgba(52, 67, 95, 0.68);
+		}
+
 		.conn-run-open-button {
 			display: inline-flex;
 			align-items: center;

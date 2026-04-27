@@ -12,6 +12,48 @@
 
 ## 2026-04-27
 
+### Playground 运行日志倒序增量加载
+- 日期：2026-04-27
+- 主题：优化当前任务运行日志与后台任务过程日志，改为最新事件优先、首次 2 条、滚动到底增量加载更多，并过滤正文增量噪声。
+- 影响范围：`GET /v1/chat/runs/:runId/events` 与 `GET /v1/conns/:connId/runs/:runId/events` 增加 `limit / before / hasMore / nextBefore` 分页口径；前端日志弹层增加截断预览和浅色主题可读样式。
+- 对应入口：`src/routes/chat.ts`、`src/routes/conns.ts`、`src/agent/conn-run-store.ts`、`src/ui/playground-transcript-renderer.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-conn-activity.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
+### Playground 消息列对齐 command-deck
+- 日期：2026-04-27
+- 主题：将 transcript 消息列宽度的运行时真源从 `#composer-drop-target` 改为 `#command-deck`，确保对话气泡左右边界与底部命令区一致对齐。
+- 影响范围：只调整前端布局测量与页面断言，不改变消息 DOM、发送逻辑、文件上传或移动端结构；ResizeObserver 改为监听 `commandDeck`。
+- 对应入口：`src/ui/playground-layout-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
+### Playground 文件选择不再生成助手气泡
+- 日期：2026-04-27
+- 主题：修复点击文件选择器上传文件时，composer 本地资产上传动作被 `updateStreamingProcess()` 当成 agent 运行过程，进而在 transcript 里生成空助手气泡的问题。
+- 影响范围：主 chat 文件选择 / 拖拽上传仍会注册资产并加入已选资产区，但不再写入助手过程流；超过文件数限制走顶部反馈，不再用 `appendProcessEvent()` 生成对话提示。真正发送消息和 agent run 的过程流不变。
+- 对应入口：`src/ui/playground-assets-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
+### Playground 消息操作栏间距收口
+- 日期：2026-04-27
+- 主题：优化对话气泡底部 `.message-actions` 与助手 `.message-body` 的叠加间距，取消操作栏额外 `margin-top`，并把助手气泡内部 grid 间距收紧，避免浅色主题消息底部出现空白尾巴；同时修正浅色 `#composer-drop-target.composer`、`.file-strip` 与 `#message` 的层级：composer 投放区和输入框本体保留冷白背景，文件条容器保持透明。
+- 影响范围：只调整 playground 消息气泡内部视觉间距，不改变消息 DOM、复制正文、导出图片、附件渲染或深浅主题切换逻辑；同步补充页面断言与 UI 文档口径。
+- 对应入口：`src/ui/playground-styles.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
+### Playground 浅色用户气泡来源边框
+- 日期：2026-04-27
+- 主题：移除浅色主题用户气泡右侧蓝色竖线，改用浅绿色边框区分用户来源，避免输入回显看起来像系统状态标记。
+- 影响范围：只调整浅色 `.message.user` 视觉映射，不改变消息 DOM、历史渲染、复制 / 导图操作或深色主题样式；同步更新页面断言与 UI 文档。
+- 对应入口：`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
+### Playground 浅色输入与工具壳层透明化
+- 日期：2026-04-27
+- 主题：优化浅色主题下 `telemetry-card`、`telemetry-action`、`command-deck`、`composer`、`selected-assets`、`drop-zone-top` 被同一组规则刷成半透明白底的问题，改为结构壳层透明，只让真正的输入、按钮、file chip 和状态面板承担可见背景。
+- 影响范围：只调整浅色主题结构壳层视觉覆盖，不改变 composer 布局、发送行为、附件/资产状态和深色主题；同步更新页面断言与 UI 文档口径。
+- 对应入口：`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
+### Playground 浅色 chat-stage 背景移除
+- 日期：2026-04-27
+- 主题：按浅色主题工作台口径移除 `.chat-stage` 的浅色实体背景，并显式覆盖为透明，避免基础深色 `.chat-stage` 背景或浅色白色面板继续套在对话工作区外层。
+- 影响范围：只调整 `:root[data-theme="light"] .chat-stage` 的视觉覆盖，不改变深色主题、不改变 transcript 布局和消息渲染；同步更新页面断言与 UI 文档口径。
+- 对应入口：`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
+
 ### 腾讯云与阿里云生产增量发布到 `4aeb01e`
 - 日期：2026-04-27
 - 主题：将 `4aeb01e Fix playground light theme runtime polish` 增量发布到腾讯云新加坡与阿里云 ECS 两套生产环境，包含浅色用户气泡、后台任务模型解析、SSE heartbeat / idle timeout 与 nginx 长连接配置。

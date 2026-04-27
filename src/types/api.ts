@@ -186,6 +186,9 @@ export interface ConnRunEventBody {
 
 export interface ConnRunEventsResponseBody {
 	events: ConnRunEventBody[];
+	hasMore?: boolean;
+	nextBefore?: string;
+	limit?: number;
 }
 
 export interface NotificationStreamEventBody {
@@ -398,6 +401,9 @@ export interface ChatRunEventsResponseBody {
 	conversationId: string;
 	runId: string;
 	events: ChatStreamEvent[];
+	hasMore?: boolean;
+	nextBefore?: string;
+	limit?: number;
 }
 
 export type QueueMessageMode = "steer" | "followUp";

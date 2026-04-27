@@ -20,6 +20,7 @@ import type {
 	ChatRequestBody,
 	ChatResponseBody,
 	ChatRunEventsResponseBody,
+	ChatStreamEvent,
 	ChatStatusResponseBody,
 	ConversationStateResponseBody,
 	DebugSkillsResponseBody,
@@ -34,6 +35,48 @@ import type {
 	SwitchConversationRequestBody,
 	SwitchConversationResponseBody,
 } from "../types/api.js";
+
+const RUN_EVENT_PAGE_SIZE = 2;
+const RUN_EVENT_MAX_PAGE_SIZE = 20;
+
+function isChatRunLogNoiseEvent(event: ChatStreamEvent): boolean {
+	return event.type === "text_delta";
+}
+
+function parseChatRunEventPageQuery(query: Record<string, unknown>): {
+	value?: { limit: number; before?: number };
+	error?: string;
+} {
+	const parsedLimit = parseOptionalPositiveInteger(query.limit, "limit");
+	if (parsedLimit.error) {
+		return { error: parsedLimit.error };
+	}
+	const parsedBefore = parseOptionalPositiveInteger(query.before, "before");
+	if (parsedBefore.error) {
+		return { error: parsedBefore.error };
+	}
+	return {
+		value: {
+			limit: Math.min(parsedLimit.value ?? RUN_EVENT_PAGE_SIZE, RUN_EVENT_MAX_PAGE_SIZE),
+			before: parsedBefore.value,
+		},
+	};
+}
+
+function paginateChatRunEvents(
+	events: ChatStreamEvent[],
+	options: { limit: number; before?: number },
+): { events: ChatStreamEvent[]; hasMore: boolean; nextBefore?: string } {
+	const meaningfulEvents = events.filter((event) => !isChatRunLogNoiseEvent(event));
+	const endIndex = Math.min(options.before ?? meaningfulEvents.length, meaningfulEvents.length);
+	const startIndex = Math.max(0, endIndex - options.limit);
+	const visibleEvents = meaningfulEvents.slice(startIndex, endIndex).reverse();
+	return {
+		events: visibleEvents,
+		hasMore: startIndex > 0,
+		...(startIndex > 0 ? { nextBefore: String(startIndex) } : {}),
+	};
+}
 
 interface ChatRouteDependencies {
 	agentService: AgentService;
@@ -220,7 +263,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 	app.get(
 		"/v1/chat/runs/:runId/events",
 		async (
-			request: FastifyRequest<{ Params: { runId?: string }; Querystring: { conversationId?: string } }>,
+			request: FastifyRequest<{
+				Params: { runId?: string };
+				Querystring: { conversationId?: string; limit?: string; before?: string };
+			}>,
 			reply,
 		): Promise<ChatRunEventsResponseBody | FastifyReply> => {
 			const { runId } = request.params ?? {};
@@ -232,12 +278,20 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			if (!isValidConversationId(runId)) {
 				return sendBadRequest(reply, 'Field "runId" must be a non-empty string');
 			}
+			const parsedPage = parseChatRunEventPageQuery(request.query ?? {});
+			if (parsedPage.error || !parsedPage.value) {
+				return sendBadRequest(reply, parsedPage.error || "Invalid run event query");
+			}
 
 			try {
+				const page = paginateChatRunEvents(await deps.agentService.getRunEvents(conversationId, runId), parsedPage.value);
 				return {
 					conversationId,
 					runId,
-					events: await deps.agentService.getRunEvents(conversationId, runId),
+					events: page.events,
+					hasMore: page.hasMore,
+					...(page.nextBefore ? { nextBefore: page.nextBefore } : {}),
+					limit: parsedPage.value.limit,
 				};
 			} catch (error) {
 				return sendInternalError(reply, error);

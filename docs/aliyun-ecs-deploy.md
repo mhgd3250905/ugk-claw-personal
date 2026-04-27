@@ -140,6 +140,26 @@ TZ=Asia/Shanghai
 
 这次额外证明：阿里云当前仍不是 Git 工作目录，不能照抄腾讯云 `git pull`；同时本机没有阿里云 SSH key 时，普通 `scp` 会卡在密码交互。后续要么给 `root@101.37.209.54` 配置 SSH key 和本机别名，要么继续走读取本地密码文件的非交互发布脚本，别让交互式密码提示把自动部署卡成沉默超时。
 
+## 2026-04-27 Playground 运行日志分页增量发布记录
+
+这次发布继续使用小包 archive 增量更新代码目录，只覆盖运行日志分页相关源码、测试和文档文件；`/root/ugk-claw-shared` 运行态目录保持原样，没有触碰 agent 会话、资产、conn 数据或 sidecar 登录态。
+
+实际结果：
+1. 本地提交 `34d0463 Tighten playground light UI spacing`，本次功能内容为当前任务运行日志 / 后台任务过程日志倒序分页、滚动增量加载、正文增量过滤、单条详情截断与浅色主题可读样式。
+2. 本地执行 `git archive --format=tar.gz -o runtime/playground-log-pagination-incremental.tar.gz HEAD ...`，只打包本轮相关文件，避免把本地未推送的 `bugs/` 捕获报告带上生产。
+3. 通过 `paramiko` 读取本地密码文件并 SFTP 上传 `/root/playground-log-pagination-incremental.tar.gz`，没有把密码写入命令行参数或输出日志。
+4. 服务器在 `/root/ugk-claw-repo` 内执行 `tar -xzf /root/playground-log-pagination-incremental.tar.gz -C /root/ugk-claw-repo` 增量覆盖源码。
+5. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`。
+6. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`。
+7. 首次验收 `http://127.0.0.1:3000/healthz` 持续返回 `502`，排查确认 `ugk-pi` 容器为 healthy、nginx 容器为 unhealthy；按既有口径执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx`，恢复入口。
+8. 发布后验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `/playground` 源码包含 `const RUN_LOG_PAGE_SIZE = 2;`
+   - 服务器内网 `/playground` 源码包含 `loadMoreChatRunLog`
+   - 服务器内网 `/playground` 源码包含 `const CONN_RUN_LOG_PAGE_SIZE = 2;`
+   - 服务器内网 `/playground` 源码包含 `loadMoreConnRunEvents`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+
 ## 常用命令
 
 登录：

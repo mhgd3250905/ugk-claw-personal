@@ -197,6 +197,25 @@ cd ~/ugk-claw-repo
 
 发布过程中第一次验收撞到 nginx / app 切换窗口，`curl` 返回过一次 `Empty reply from server`；等待后重验正常。远程页面标记检查也踩到一次 PowerShell / SSH 引号拆分坑，后续改为先保存到 `/tmp/ugk-playground.html` 再用固定字符串 `grep -F`，别再把带空格的 CSS selector 直接塞进远程管道里。
 
+## 2026-04-27 Playground 运行日志分页增量发布记录
+
+这次发布没有走 GitHub `git pull`：本地 `main` 前面还有未推送的 `bugs/` 捕获报告提交，直接推送或整仓 archive 都会把不该上线的报告带到生产。实际采用小包 archive，只覆盖本轮运行日志分页相关文件；运行态继续保留在 `~/ugk-claw-shared`，没有触碰 `.data/agent`、sidecar 登录态或日志目录。
+
+实际结果：
+1. 本地提交 `ce2176c Tighten playground light UI spacing`，本次功能内容为当前任务运行日志 / 后台任务过程日志倒序分页、滚动增量加载、正文增量过滤、单条详情截断与浅色主题可读样式。
+2. 本地执行 `git archive --format=tar.gz -o runtime/playground-log-pagination-incremental.tar.gz HEAD ...`，只打包本轮相关文件。
+3. 直连 `ubuntu@43.134.167.179` 的 `scp` 会卡在密码认证；`ssh -o BatchMode=yes ubuntu@43.134.167.179` 返回 `Permission denied (publickey,password)`。随后确认本机 SSH alias `ugk-claw-prod` 可用，改用该 alias 上传到 `~/playground-log-pagination-incremental.tar.gz`。
+4. 服务器进入 `~/ugk-claw-repo`，执行 `tar -xzf ~/playground-log-pagination-incremental.tar.gz -C ~/ugk-claw-repo` 增量覆盖源码。
+5. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`。
+6. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`。
+7. 发布后验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 服务器内网 `/playground` 源码包含 `const RUN_LOG_PAGE_SIZE = 2;`
+   - 服务器内网 `/playground` 源码包含 `loadMoreChatRunLog`
+   - 服务器内网 `/playground` 源码包含 `const CONN_RUN_LOG_PAGE_SIZE = 2;`
+   - 服务器内网 `/playground` 源码包含 `loadMoreConnRunEvents`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+
 ## 2026-04-26 Playground `/new` 指令增量发布记录
 
 这次发布仍然不是整目录替换，而是沿用 GitHub 工作目录 `~/ugk-claw-repo` 做增量更新；运行态继续留在 `~/ugk-claw-shared`，没有触碰 `.data/agent`、sidecar 登录态或日志目录。

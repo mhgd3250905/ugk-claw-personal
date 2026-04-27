@@ -98,6 +98,12 @@ export interface AppendConnRunEventInput {
 	createdAt?: Date;
 }
 
+export interface ListConnRunEventsOptions {
+	beforeSeq?: number;
+	limit?: number;
+	descending?: boolean;
+}
+
 export interface RecordConnRunFileInput {
 	runId: string;
 	leaseOwner?: string;
@@ -417,10 +423,21 @@ export class ConnRunStore {
 		return event;
 	}
 
-	async listEvents(runId: string): Promise<ConnRunEventRecord[]> {
+	async listEvents(runId: string, options: ListConnRunEventsOptions = {}): Promise<ConnRunEventRecord[]> {
+		const conditions = ["run_id = ?"];
+		const params: Array<string | number> = [runId];
+		if (options.beforeSeq !== undefined) {
+			conditions.push("seq < ?");
+			params.push(options.beforeSeq);
+		}
+		const orderDirection = options.descending ? "DESC" : "ASC";
+		const limitClause = options.limit && options.limit > 0 ? " LIMIT ?" : "";
+		if (limitClause) {
+			params.push(options.limit as number);
+		}
 		const rows = this.options.database.all<ConnRunEventRow>(
-			"SELECT * FROM conn_run_events WHERE run_id = ? ORDER BY seq ASC",
-			runId,
+			`SELECT * FROM conn_run_events WHERE ${conditions.join(" AND ")} ORDER BY seq ${orderDirection}${limitClause}`,
+			...params,
 		);
 		return rows.map(rowToEvent);
 	}

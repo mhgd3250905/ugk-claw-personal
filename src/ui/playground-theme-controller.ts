@@ -103,10 +103,8 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .chat-stage {
-			border-color: rgba(31, 95, 200, 0.1);
-			background:
-				linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(235, 241, 249, 0.8)),
-				rgba(255, 255, 255, 0.78);
+			border-color: transparent;
+			background: transparent;
 			box-shadow: none;
 		}
 
@@ -116,10 +114,8 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .shell[data-stage-mode="landing"] .composer {
-			border-color: rgba(31, 95, 200, 0.1);
-			background:
-				linear-gradient(90deg, rgba(31, 95, 200, 0.08), transparent 24%),
-				rgba(255, 255, 255, 0.92);
+			border-color: transparent;
+			background: transparent;
 			box-shadow: none;
 		}
 
@@ -159,8 +155,21 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .selected-assets,
 		:root[data-theme="light"] .drop-zone-top {
 			border-color: transparent;
+			background: transparent;
+			color: var(--fg);
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] #composer-drop-target.composer {
+			border-color: transparent;
 			background: rgba(255, 255, 255, 0.86);
 			color: var(--fg);
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .file-strip {
+			border-color: transparent;
+			background: transparent;
 			box-shadow: none;
 		}
 
@@ -269,7 +278,7 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] #message {
-			background: transparent;
+			background: rgba(255, 255, 255, 0.92);
 			color: #172033;
 			box-shadow: none;
 		}
@@ -291,24 +300,12 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .message.user .message-body {
 			position: relative;
 			overflow: hidden;
-			border: 1px solid rgba(36, 84, 214, 0.16);
+			border: 1px solid rgba(8, 120, 75, 0.28);
 			background:
 				linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(239, 245, 255, 0.96) 100%),
 				#ffffff;
 			color: #172033;
 			box-shadow: none;
-		}
-
-		:root[data-theme="light"] .message.user .message-body::after {
-			content: "";
-			position: absolute;
-			top: 10px;
-			right: 0;
-			bottom: 10px;
-			width: 3px;
-			border-radius: 3px 0 0 3px;
-			background: #2454d6;
-			opacity: 0.72;
 		}
 
 		:root[data-theme="light"] .message.user .message-content {

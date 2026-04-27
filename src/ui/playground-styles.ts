@@ -1546,6 +1546,53 @@ export function getPlaygroundStyles(): string {
 			line-height: 1.6;
 		}
 
+		.chat-run-log-load-state {
+			color: rgba(226, 234, 255, 0.46);
+			font-size: 11px;
+			line-height: 1.6;
+			text-align: center;
+		}
+
+		:root[data-theme="light"] .chat-run-log-dialog {
+			background: rgba(15, 23, 42, 0.28);
+		}
+
+		:root[data-theme="light"] .chat-run-log-panel {
+			background: rgba(255, 255, 255, 0.96);
+			color: #1f2937;
+		}
+
+		:root[data-theme="light"] .chat-run-log-head {
+			background: rgba(248, 251, 255, 0.96);
+			color: #172033;
+			border-bottom: 1px solid rgba(31, 95, 200, 0.1);
+		}
+
+		:root[data-theme="light"] .chat-run-log-close {
+			background: rgba(229, 236, 248, 0.92);
+			color: #34435f;
+		}
+
+		:root[data-theme="light"] .chat-run-log-meta,
+		:root[data-theme="light"] .chat-run-log-load-state {
+			color: rgba(52, 67, 95, 0.62);
+		}
+
+		:root[data-theme="light"] .chat-run-log-item,
+		:root[data-theme="light"] .chat-run-log-empty {
+			background: rgba(246, 249, 253, 0.96);
+			color: #1f2937;
+			border: 1px solid rgba(31, 95, 200, 0.1);
+		}
+
+		:root[data-theme="light"] .chat-run-log-item-title {
+			color: #162238;
+		}
+
+		:root[data-theme="light"] .chat-run-log-item-detail {
+			color: #34435f;
+		}
+
 		@keyframes assistant-loading-pulse {
 			0%,
 			80%,
@@ -1564,7 +1611,7 @@ export function getPlaygroundStyles(): string {
 			display: flex;
 			justify-content: flex-end;
 			gap: 8px;
-			margin-top: 8px;
+			margin-top: 0;
 		}
 
 		.message-copy-button,
@@ -1686,7 +1733,7 @@ export function getPlaygroundStyles(): string {
 
 		.message.assistant .message-body {
 			display: grid;
-			gap: 14px;
+			gap: 10px;
 		}
 
 

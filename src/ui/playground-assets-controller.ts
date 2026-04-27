@@ -617,7 +617,6 @@ export function getPlaygroundAssetControllerScript(): string {
 				state.composerUploadingAssets = true;
 				filePickerAction.disabled = true;
 				fileInput.disabled = true;
-				updateStreamingProcess("system", "文件上传中", sourceLabel || "composer");
 				const assets = await uploadFilesAsAssets(files, {
 					conversationId: state.conversationId,
 				});
@@ -835,9 +834,6 @@ export function getPlaygroundAssetEventHandlersScript(): string {
 
 		fileInput.addEventListener("change", async () => {
 			await handleDroppedFiles(fileInput.files, "pick");
-			if (fileInput.files && fileInput.files.length > 5) {
-				appendProcessEvent("system", "\\u6587\\u4ef6\\u5df2\\u622a\\u65ad", "\\u4e00\\u6b21\\u6700\\u591a\\u53d1\\u9001 5 \\u4e2a\\u6587\\u4ef6");
-			}
 		});
 
 

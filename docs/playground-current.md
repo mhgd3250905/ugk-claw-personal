@@ -69,7 +69,7 @@
 - 浏览器端 slash command 也归 `src/ui/playground-stream-controller.ts` 管：`sendMessage()` 在计算正常 `outboundMessage` 和进入 `/v1/chat/stream` / `/v1/chat/queue` 前先调用 `parsePlaygroundSlashCommand()` 与 `runPlaygroundSlashCommand()`。当前只支持 `/new`，它复用既有 `startNewConversation()` 创建 / 激活新会话，不写 transcript、不追加用户气泡、不进入 agent runtime；未知 `/xxx` 指令只报错并保留草稿。指令不能和附件或引用资产一起发送，否则直接拦截并恢复 composer 草稿。这层是未来指令模式的入口，不要把 `/new` 当成聊天消息发给模型再让模型猜。
 - 深色 / 浅色主题切换集中在 `src/ui/playground-theme-controller.ts`：该文件输出 light theme 覆盖样式与浏览器端持久化脚本，`src/ui/playground.ts` 只注入桌面和手机入口。主题值存入 `localStorage` 的 `ugk-pi:playground-theme`，并通过 `<html data-theme="dark|light">` 生效。
 - 浅色主题现在按“冷白工作台”完整覆盖 chat、文件库、后台任务、任务消息、上下文详情弹窗、历史抽屉和移动更多菜单：根背景是 `#e8edf6` 冷白网格，主文字是 `#142033`，metadata 使用蓝灰，状态色继续区分成功 / 警告 / 危险。不能让深色主题的透明白文字漏到浅色卡片上，也不能在浅色工作页里保留整块黑色面板；markdown 标题 / strong / code / 表格滚动外壳、文件 metadata、任务消息 metadata、conn 状态徽标、上下文指标块和历史抽屉文字都必须有浅色专用映射。手机端品牌入口和历史抽屉头部只承担结构与文字，不承担层级背景，深浅主题都保持透明、无阴影。
-- 浅色工作页的层级策略是“透明分组 + 白色承载面”：只负责排版的表单字段、工具栏、列表外壳和高级设置容器保持透明；输入框、重复条目、结果气泡、目标预览和真正的状态面板才使用浅色实体背景。后台任务创建页的 label / hint / `conn-editor-target-preview` / 时间输入 / 时间选择器日历 / focus ring 都由 `src/ui/playground-theme-controller.ts` 显式覆盖，不能再继承深色主题的白字、黑色输入块或默认浏览器黑色 focus 边。
+- 浅色工作页的层级策略是“透明分组 + 白色承载面”：只负责排版的 `chat-stage`、`command-deck`、`.file-strip`、已选资产容器、顶部拖拽提示、表单字段、工具栏、列表外壳和高级设置容器保持透明；真正的 `#composer-drop-target.composer`、输入框本体、按钮、file chip、重复条目、结果气泡、目标预览和状态面板才使用浅色实体背景。`#message` 不能跟随外层分组透明化，它必须保留冷白输入承载面。后台任务创建页的 label / hint / `conn-editor-target-preview` / 时间输入 / 时间选择器日历 / focus ring 都由 `src/ui/playground-theme-controller.ts` 显式覆盖，不能再继承深色主题的白字、黑色输入块或默认浏览器黑色 focus 边。
 - `src/ui/playground.ts` 当前尾部初始化已经收口为 `bindPlaygroundAssemblerEvents()` 与 `initializePlaygroundAssembler()`；旧的 `fetchConversationHistory()` 死 helper 已移除，页面入口不再继续堆散装初始化语句
 - 用户离开底部阅读历史时，页面显示“回到底部”按钮；点击后立即回到底部，并恢复后续自动跟随
 - active 对话态的 `transcript-current` 底部必须保留额外可滚动余量，让最后一条消息能被用户继续上拖到 composer 上方，不被底部输入框压住
@@ -92,12 +92,13 @@
 - 当前 active run 在 transcript 里只保留一个助手气泡：正文上方是一条会持续改写的人话状态摘要，下面是一枚可点击的动态 loading 气泡；旧的独立“过程展开区”已经下线，不再额外制造第二层消息结构
 - 手机端 active run 的状态摘要不再塞进助手气泡内部，而是作为气泡上方的浅灰色单行状态文本展示；运行日志 loading 按钮移动到 `助手` 标签右侧，只保留动态点，减少空正文气泡里的视觉噪音。
 - active run 刚开始、助手正文还没吐出任何文字时，空 `.message-body` 不应显示成一块空白气泡；等真正有正文、文件或附件内容后再展示气泡主体。
-- 空助手占位阶段也不能提前渲染 `.message-actions`；复制 / 导图按钮只有在该条消息已经有正文、附件、引用资产或文件结果时才挂到 `.message-body` 底部。否则操作栏本身会把空 body 撑开，老问题又回来，属于自找麻烦。
+- 空助手占位阶段也不能提前渲染 `.message-actions`；复制 / 导图按钮只有在该条消息已经有正文、附件、引用资产或文件结果时才挂到 `.message-body` 底部。否则操作栏本身会把空 body 撑开，老问题又回来，属于自找麻烦。操作栏不再叠加自己的上边距，助手气泡内部只保留紧凑 grid 间距，避免浅色气泡底部出现一截无意义空白。
 - 新一轮助手状态从无到有第一次出现时，会强制把 transcript 拉到底部，让用户看到 agent 已经开始响应；后续流式过程更新仍遵守“用户上滑阅读历史时不抢滚动”的规则。
 - 状态摘要 `assistant-status-summary` 现在固定为单行省略；它负责给人一个稳定的人话进度感，不再允许换行把整条消息高度顶来顶去
 - 浅色主题下 `assistant-status-summary` 和承载它的状态壳层保持透明，只承担文字进度提示；终态 `assistant-run-log-trigger.ok` 的“查看运行日志”文案必须使用可读的绿色文字，不能继承深色主题的低透明白字。
 - 运行日志按钮不再显示工具执行结果、bash 输出或 JSON 长文本；页面可见层只保留动态点和“查看运行日志”入口，过程细节只留在运行日志弹层与按钮的辅助文案里
 - 动态 loading 气泡点击后会打开运行日志弹层，并按 `conversationId + runId` 请求 `GET /v1/chat/runs/:runId/events`；任务过程追溯从对话正文里解耦，不再把工具过程当成正文的一部分硬塞进气泡
+- 运行日志弹层按倒序分页展示：首次只取最新 2 条非 `text_delta` 事件，用户向下滚动到底部后按 `nextBefore` 增量加载更早日志；单条详情最多显示预览，避免长工具输出或最终正文撑爆弹层。
 - active run 的状态摘要和运行日志入口在同一条助手消息内必须保持单例；前端每次挂载新的 `.assistant-status-shell` / `.assistant-run-log-trigger` 前都会清掉同卡片旧控件，避免流式 patch 或状态恢复把多个 loading 气泡堆在同一条消息里。刷新后才正常这种“薛定谔 UI”不算正常，必须在运行中就稳定。
 - `done / error / interrupted` 终态 run 也会保留 `runId` 和 buffered events；刷新页面后，如果这轮仍是当前 terminal snapshot，用户应该还能从同一条助手气泡继续查看运行日志
 - 会话列表按钮的可用状态必须跟随前端 `state.loading` 重绘：进入运行态时禁用切换 / 删除，任务 `done / error / interrupted` 或 canonical state 确认为 idle 后，`setLoading(false)` 必须重新渲染会话列表并释放 DOM 上残留的 `disabled`。不能只更新后端 `running=false` 或顶部状态文案，却让列表按钮继续假死。
@@ -106,12 +107,13 @@
 - 从后端 session 恢复已完成任务时，连续的 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并为同一条助手回复；不要让刷新后的页面把同一轮浏览器处理过程拆成多条“助手”气泡
 - 历史消息默认先渲染最近一段；向上滚动到 transcript 顶部附近时，会自动继续向服务端补更多旧消息，并保持当前阅读位置。顶部只允许出现非交互的加载状态提示，不再放可点击分页按钮；聊天界面不是后台列表页，别把分页按钮硬塞进消息流。
 - `landing` 模式下，对话区底部避让按“`chat-stage` 底部到 `command-deck` 顶部的真实距离”动态计算，不再偷懒拿固定值或只拿 `command-deck` 高度瞎猜
+- 对话消息列宽度必须跟 `#command-deck.command-deck` 的左右边界一致；`syncConversationLayout()` 用 `commandDeck.getBoundingClientRect().width` 写入 `--conversation-width`，不要再改回按 `#composer-drop-target` 的内部输入区宽度计算，否则消息气泡会和底部命令区左右错位。
 - `landing` 模式下 transcript 容器会被锁进可用高度内，多选文件 / 资产后应表现为对话区收缩并滚动，而不是继续向下顶进 `command-deck`
 - 桌面端 active 会话虽然仍复用 `landing` 壳子，但 transcript 顶部不能继承空态 hero 的大留白；`data-transcript-state="active"` 下 `.stream-layout` 顶部 inset 固定收紧到 `18px`，让第一条消息靠近工作台顶部。空态 idle 仍保留较大的 hero 呼吸空间。
 - 用户消息固定靠右
 - 用户消息正文保持标准左对齐，避免右侧大段文字影响阅读
 - 用户消息 `message-meta` 只显示时间，并贴右展示
-- 浅色主题下用户消息必须有自己的轻量回显样式：右侧白色承载面、蓝色窄强调条、深色正文；不要继承助手消息的整块白色阅读面，也不要继续使用深色主题留下来的灰黑气泡。
+- 浅色主题下用户消息必须有自己的轻量回显样式：右侧白色承载面、浅绿色来源边框、深色正文；不要再加右侧竖线，不要继承助手消息的整块白色阅读面，也不要继续使用深色主题留下来的灰黑气泡。
 - 历史消息时间优先使用 session message 自带的 `timestamp` 透传成 `createdAt`；不要再把所有恢复消息默认写成 Unix epoch，否则前端会整排显示 `08:00:00`
 - 每个消息气泡的操作栏固定放在 `.message-body` 内部底部，不再挂在气泡外层；操作栏只保留紧凑 icon-only 控件，贴近正文但不挤压 meta。
 - 消息操作栏当前包含复制正文和保存图片两个按钮：复制只复制当前消息正文，不复制时间、角色标签和文件按钮；保存图片会把 `.message-body` 的渲染效果导出为 PNG，导出图排除操作栏自身，并在图片外层加 `UGK Claw 导出` 签名 label。导出副本必须是自包含内容：外部 `@import`、`@font-face`、非片段 `url(...)` 和消息内媒体节点都不能进入 canvas 绘制路径，媒体内容使用紧凑占位块替代；包含 `foreignObject` 的 SVG 中间图必须使用 `data:image/svg+xml`，不要回退成 `blob:` URL，避免 `toBlob()` 因 tainted canvas 失败。
@@ -153,7 +155,7 @@
 - 手机端文件库不再按桌面居中弹窗或底部抽屉压缩显示，而是全屏工作页：`asset-modal-shell.open` 使用不透明 `#01030a` 背景，`asset-modal` 占满 `100dvh`，顶部是带 `topbar asset-modal-head mobile-work-topbar` 的统一状态栏；左侧是返回箭头和 `可复用资产` 标题，右侧直接放 `刷新文件库`，不再显示占位很蠢的 `回到对话` 文字按钮。顶部和列表都沿用无边框仪表盘语言：工作页头部克制承载导航，列表条目使用 `#0b0e19` 实心层级，靠背景深浅、字号和留白分区，不再靠浅色边框把每块内容圈起来。
 - 待发送附件和已选资产统一用 chip 风格展示
 - 待发送附件和已选资产的 chip 列表必须允许多行换行，文件名最多两行展示，列表自身最多占一小段高度后内部滚动；不要再把多个 PNG / TXT chip 挤成一条横向小火车，标题看不清就是失败。
-- 一次最多只发送 5 个文件；用户选择超过 5 个时，提示要作为 transcript 里的“系统提示”消息出现，不再渲染成孤零零的 `process-note-text`。
+- 一次最多只发送 5 个文件；用户选择超过 5 个时，提示走顶部错误 / 通知反馈，不得再写入 transcript，也不得渲染成孤零零的 `process-note-text`。
 - chip 包含：
   - 类型 badge
   - 文件名
@@ -162,7 +164,7 @@
 - 历史消息里的 chip 不显示删除按钮
 - 已发送附件 / 引用资产会直接显示为 chip，不再自动补“引用资产:”文案
 - 选择文件后，输入框不会自动注入文件清单文本
-- 选择文件后，也不会再出现“文件已载入 / 待发送附件”这类额外提示
+- 选择文件后，也不会再出现“文件已载入 / 待发送附件 / 文件上传中”这类额外对话提示；选文件只是 composer 本地资产上传动作，不是 agent run，不能调用 `updateStreamingProcess()` 或 `appendProcessEvent()` 生成空助手气泡。
 - 打开或刷新文件库时，`GET /v1/assets?limit=40` 的正常请求和成功结果不再写入 transcript 过程提示；资产列表直接在文件库页面更新。只有失败才通过顶部错误和错误过程提示暴露，别再把“资产清单 · 请求 /v1/assets”这种内部流水账塞给用户看。
 - 助手返回的文件下载卡片现在区分“打开”和“下载”两个动作：
   - 安全可预览文件（如 `png`、`jpg`、`gif`、`webp`、`pdf`、`txt`、`md`、`json`、`csv`）会显示“打开”按钮
@@ -188,6 +190,7 @@
 - 普通状态下不要用浅灰边框划分结构，也不要用阴影制造层级；优先用 `#01030a` 页面背景、`#101421` header、`#0b0e19` 内容卡片、`#080a13` 次级条目、字号、留白和状态色制造层次。
 - 圆角保持克制：页面外壳为 `0`，常规卡片和按钮以 `4px` 为主，独立信息面板最多 `8px`。别再把工作页做成一堆大圆角卡片，后台味和玩具味都会冒出来。
 - 浅色模式不是把这些工作页反相成一堆灰卡片；对应口径是冷白页面、透明结构容器、白色输入 / 条目 / 结果承载面、蓝灰 metadata 和少量蓝色 focus / active 状态。任何白字、黑块、浅灰块叠浅灰块导致层级糊掉，都按主题缺陷处理。
+- 浅色主题下运行日志弹窗和后台任务过程弹窗必须使用浅色面板 + 深色正文；不要把暗色主题的白字直接套到浅色背景上。
 
 ## 5. “查看技能”按钮行为
 
@@ -208,6 +211,7 @@
 - 点开后前端会分别请求：
   - `GET /v1/conns/:connId/runs/:runId`
   - `GET /v1/conns/:connId/runs/:runId/events`
+- 后台任务过程的事件列表同样按倒序分页展示：首次只取最新 2 条，向下滚动继续按 `nextBefore` 加载更早事件；`text_delta` 类正文增量不展示，事件 JSON 详情只显示截断预览。
 - 弹层里当前展示 run 状态、时间戳、workspace、sessionFile、结果摘要、输出文件索引和过程事件列表
 - 后台 conn 通知正文来自 `conn_runs.resultText`。runner 会避免把“输出文件已写入”这种低信息量尾句当成唯一结果；如果模型先回答了问题、后面只是补一句文件写入提示，通知应优先展示真正回答。
 - 后台 run 成功后会扫描该次 workspace 的 `output/` 目录并写入 `conn_run_files`；所以弹层里的输出文件索引应该能看到真实产物，而不是只在正文里出现一个打不开的路径。

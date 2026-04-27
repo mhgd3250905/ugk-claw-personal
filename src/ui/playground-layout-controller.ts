@@ -10,12 +10,12 @@ export function getPlaygroundLayoutConstantsScript(): string {
 export function getPlaygroundLayoutControllerScript(): string {
 	return `
 		function syncConversationLayout() {
-			const composerWidth = Math.round(composerDropTarget.getBoundingClientRect().width || 0);
-			if (composerWidth > 0) {
-				shell.style.setProperty("--conversation-width", composerWidth + "px");
-			}
 			const chatStageRect = chatStage.getBoundingClientRect();
 			const commandDeckRect = commandDeck.getBoundingClientRect();
+			const commandDeckWidth = Math.round(commandDeckRect.width || 0);
+			if (commandDeckWidth > 0) {
+				shell.style.setProperty("--conversation-width", commandDeckWidth + "px");
+			}
 			const commandDeckOffset = Math.ceil(chatStageRect.bottom - commandDeckRect.top || 0);
 			if (commandDeckOffset > 0) {
 				shell.style.setProperty("--command-deck-offset", commandDeckOffset + "px");
@@ -309,7 +309,7 @@ export function getPlaygroundLayoutControllerScript(): string {
 			const layoutObserver = new ResizeObserver(() => {
 				scheduleConversationLayoutSync();
 			});
-			layoutObserver.observe(composerDropTarget);
+			layoutObserver.observe(commandDeck);
 			syncComposerTextareaHeight();
 			scrollToBottomButton.addEventListener("click", () => {
 				scrollTranscriptToBottom({ force: true });

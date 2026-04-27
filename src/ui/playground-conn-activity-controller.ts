@@ -84,6 +84,7 @@ export function getConnActivityEditorScript(): string {
 		function closeConnRunDetailsDialog() {
 			releasePanelFocusBeforeHide(connRunDetailsDialog, state.connRunDetailsRestoreFocusElement);
 			state.connRunDetailsRestoreFocusElement = null;
+			state.connRunDetailsPagination = null;
 			connRunDetailsDialog.classList.remove("open");
 			connRunDetailsDialog.hidden = true;
 			connRunDetailsDialog.setAttribute("aria-hidden", "true");
@@ -726,9 +727,29 @@ export function getConnActivityApiScript(): string {
 			return payload;
 		}
 
-		async function fetchConnRunEvents(entry) {
+		const CONN_RUN_LOG_PAGE_SIZE = 2;
+		const CONN_RUN_LOG_MAX_CHARS = 900;
+
+		function trimConnRunLogText(text) {
+			const normalizedText = String(text || "");
+			if (normalizedText.length <= CONN_RUN_LOG_MAX_CHARS) {
+				return normalizedText;
+			}
+			return normalizedText.slice(0, CONN_RUN_LOG_MAX_CHARS).trimEnd() + "\\n...[truncated]";
+		}
+
+		async function fetchConnRunEvents(entry, before) {
+			const params = new URLSearchParams({ limit: String(CONN_RUN_LOG_PAGE_SIZE) });
+			if (before) {
+				params.set("before", String(before));
+			}
 			const response = await fetch(
-				"/v1/conns/" + encodeURIComponent(entry.sourceId) + "/runs/" + encodeURIComponent(entry.runId) + "/events",
+				"/v1/conns/" +
+					encodeURIComponent(entry.sourceId) +
+					"/runs/" +
+					encodeURIComponent(entry.runId) +
+					"/events?" +
+					params.toString(),
 				{
 					method: "GET",
 					headers: { accept: "application/json" },
@@ -739,7 +760,11 @@ export function getConnActivityApiScript(): string {
 				const errorMessage = payload?.error?.message || payload?.message || "无法获取后台任务事件";
 				throw new Error(errorMessage);
 			}
-			return payload;
+			return {
+				events: Array.isArray(payload?.events) ? payload.events : [],
+				hasMore: Boolean(payload?.hasMore),
+				nextBefore: payload?.nextBefore ? String(payload.nextBefore) : "",
+			};
 		}
 
 		async function fetchConnRunsForConn(conn) {
@@ -1537,6 +1562,23 @@ export function getConnActivityRendererScript(): string {
 			section.appendChild(row);
 		}
 
+		function appendConnRunEvents(list, events) {
+			for (const event of events) {
+				const item = document.createElement("li");
+				item.className = "conn-run-event";
+				const title = document.createElement("code");
+				title.textContent = "#" + event.seq + " " + event.eventType;
+				const meta = document.createElement("span");
+				meta.textContent = event.createdAt ? new Date(event.createdAt).toLocaleString() : "";
+				const body = document.createElement("span");
+				body.textContent = trimConnRunLogText(JSON.stringify(event.event || {}));
+				item.appendChild(title);
+				item.appendChild(meta);
+				item.appendChild(body);
+				list.appendChild(item);
+			}
+		}
+
 		function renderConnRunDetails(entry, detailPayload, eventsPayload) {
 			connRunDetailsBody.innerHTML = "";
 			const run = detailPayload?.run || {};
@@ -1618,28 +1660,47 @@ export function getConnActivityRendererScript(): string {
 			eventSection.appendChild(heading);
 			const list = document.createElement("ul");
 			list.className = "conn-run-event-list";
-			for (const event of events) {
-				const item = document.createElement("li");
-				item.className = "conn-run-event";
-				const title = document.createElement("code");
-				title.textContent = "#" + event.seq + " " + event.eventType;
-				const meta = document.createElement("span");
-				meta.textContent = event.createdAt ? new Date(event.createdAt).toLocaleString() : "";
-				const body = document.createElement("span");
-				body.textContent = JSON.stringify(event.event || {});
-				item.appendChild(title);
-				item.appendChild(meta);
-				item.appendChild(body);
-				list.appendChild(item);
-			}
+			appendConnRunEvents(list, events);
 			if (events.length === 0) {
 				const empty = document.createElement("span");
 				empty.textContent = "No events recorded yet";
 				eventSection.appendChild(empty);
 			} else {
 				eventSection.appendChild(list);
+				const loadState = document.createElement("span");
+				loadState.className = "conn-run-event-load-state";
+				eventSection.appendChild(loadState);
+				state.connRunDetailsPagination = {
+					entry,
+					list,
+					loadState,
+					nextBefore: eventsPayload?.nextBefore || "",
+					hasMore: Boolean(eventsPayload?.hasMore),
+					loading: false,
+				};
+				loadState.textContent = state.connRunDetailsPagination.hasMore ? "向下滚动加载更早的事件" : "已显示全部事件";
 			}
 			connRunDetailsBody.appendChild(eventSection);
+		}
+
+		async function loadMoreConnRunEvents() {
+			const pagination = state.connRunDetailsPagination;
+			if (!pagination || !pagination.hasMore || pagination.loading) {
+				return;
+			}
+			pagination.loading = true;
+			pagination.loadState.textContent = "正在加载更早的事件...";
+			try {
+				const payload = await fetchConnRunEvents(pagination.entry, pagination.nextBefore);
+				appendConnRunEvents(pagination.list, payload.events);
+				pagination.nextBefore = payload.nextBefore || "";
+				pagination.hasMore = Boolean(payload.hasMore);
+				pagination.loadState.textContent = pagination.hasMore ? "向下滚动加载更早的事件" : "已显示全部事件";
+			} catch (error) {
+				pagination.loadState.textContent = error instanceof Error ? error.message : "无法加载更多后台事件";
+			} finally {
+				pagination.loading = false;
+			}
 		}
 
 		async function openConnRunDetails(entry, restoreFocusElement) {
@@ -1647,6 +1708,7 @@ export function getConnActivityRendererScript(): string {
 				return;
 			}
 			state.connRunDetailsRestoreFocusElement = rememberPanelReturnFocus(restoreFocusElement);
+			state.connRunDetailsPagination = null;
 			connRunDetailsBody.textContent = "Loading conn run details...";
 			connRunDetailsDialog.hidden = false;
 			connRunDetailsDialog.classList.add("open");
@@ -1743,6 +1805,11 @@ export function getConnActivityEventHandlersScript(): string {
 		connRunDetailsDialog.addEventListener("click", (event) => {
 			if (event.target === connRunDetailsDialog) {
 				closeConnRunDetailsDialog();
+			}
+		});
+		connRunDetailsBody.addEventListener("scroll", () => {
+			if (connRunDetailsBody.scrollTop + connRunDetailsBody.clientHeight >= connRunDetailsBody.scrollHeight - 32) {
+				void loadMoreConnRunEvents();
 			}
 		});
 

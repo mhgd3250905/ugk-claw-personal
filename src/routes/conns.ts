@@ -1,7 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { ConnRunEventRecord, ConnRunFileRecord, ConnRunRecord } from "../agent/conn-run-store.js";
+import type {
+	ConnRunEventRecord,
+	ConnRunFileRecord,
+	ConnRunRecord,
+	ListConnRunEventsOptions,
+} from "../agent/conn-run-store.js";
 import type { ConnDefinition, ConnSchedule, ConnTarget } from "../agent/conn-store.js";
 import { toConnListBody, toConnRunBody, toConnRunEventBody, toConnRunFileBody } from "./conn-route-presenters.js";
 import { parseConnIdList, parseConnMutationBody } from "./conn-route-parsers.js";
@@ -73,8 +78,48 @@ interface ConnRunStoreLike {
 	listRunsForConn(connId: string): Promise<ConnRunRecord[]>;
 	listLatestRunsForConns?(connIds: readonly string[]): Promise<Record<string, ConnRunRecord | undefined>>;
 	getRun(runId: string): Promise<ConnRunRecord | undefined>;
-	listEvents(runId: string): Promise<ConnRunEventRecord[]>;
+	listEvents(runId: string, options?: ListConnRunEventsOptions): Promise<ConnRunEventRecord[]>;
 	listFiles(runId: string): Promise<ConnRunFileRecord[]>;
+}
+
+const RUN_EVENT_PAGE_SIZE = 2;
+const RUN_EVENT_MAX_PAGE_SIZE = 20;
+
+function parseRunEventPageQuery(query: Record<string, unknown>): {
+	value?: { limit: number; beforeSeq?: number };
+	error?: string;
+} {
+	const rawLimit = query.limit;
+	let limit = RUN_EVENT_PAGE_SIZE;
+	if (rawLimit !== undefined) {
+		if (typeof rawLimit !== "string" || rawLimit.trim().length === 0) {
+			return { error: 'Field "limit" must be a positive integer when provided' };
+		}
+		const parsedLimit = Number(rawLimit);
+		if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
+			return { error: 'Field "limit" must be a positive integer when provided' };
+		}
+		limit = Math.min(parsedLimit, RUN_EVENT_MAX_PAGE_SIZE);
+	}
+
+	const rawBefore = query.before;
+	if (rawBefore === undefined || rawBefore === "") {
+		return { value: { limit } };
+	}
+	if (typeof rawBefore !== "string") {
+		return { error: 'Field "before" must be a positive integer when provided' };
+	}
+	const beforeSeq = Number(rawBefore);
+	if (!Number.isInteger(beforeSeq) || beforeSeq <= 0) {
+		return { error: 'Field "before" must be a positive integer when provided' };
+	}
+	return { value: { limit, beforeSeq } };
+}
+
+function isConnRunLogNoiseEvent(event: ConnRunEventRecord): boolean {
+	const normalizedEventType = event.eventType.toLowerCase();
+	const nestedType = typeof event.event?.type === "string" ? event.event.type.toLowerCase() : "";
+	return normalizedEventType === "text_delta" || nestedType === "text_delta";
 }
 
 function sendConnValidationError(reply: FastifyReply, error: unknown): FastifyReply | undefined {
@@ -134,15 +179,37 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 
 	app.get(
 		"/v1/conns/:connId/runs/:runId/events",
-		async (request, reply): Promise<ConnRunEventsResponseBody | FastifyReply> => {
+		async (
+			request: FastifyRequest<{
+				Params: { connId: string; runId: string };
+				Querystring: { limit?: string; before?: string };
+			}>,
+			reply,
+		): Promise<ConnRunEventsResponseBody | FastifyReply> => {
 			const { connId, runId } = request.params as { connId: string; runId: string };
 			const run = await options.connRunStore.getRun(runId);
 			if (!run || run.connId !== connId) {
 				return reply.status(404).send();
 			}
-			const events = await options.connRunStore.listEvents(runId);
+			const parsed = parseRunEventPageQuery(request.query ?? {});
+			if (parsed.error || !parsed.value) {
+				return sendBadRequest(reply, parsed.error || "Invalid run event query");
+			}
+			const events = await options.connRunStore.listEvents(runId, {
+				beforeSeq: parsed.value.beforeSeq,
+				descending: true,
+				limit: parsed.value.limit * 6 + 1,
+			});
+			const meaningfulEvents = events.filter((event) => !isConnRunLogNoiseEvent(event));
+			const visibleEvents = meaningfulEvents.slice(0, parsed.value.limit);
+			const lastVisible = visibleEvents.at(-1);
+			const hasMore =
+				!!lastVisible && (meaningfulEvents.length > parsed.value.limit || events.length > parsed.value.limit * 6);
 			return {
-				events: events.map(toConnRunEventBody),
+				events: visibleEvents.map(toConnRunEventBody),
+				hasMore,
+				...(hasMore && lastVisible ? { nextBefore: String(lastVisible.seq) } : {}),
+				limit: parsed.value.limit,
 			};
 		},
 	);
