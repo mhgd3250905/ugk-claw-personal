@@ -1,13 +1,14 @@
 # Playground 当前状态
 
-更新时间：`2026-04-27`
+更新时间：`2026-04-28`
 
 ## 运行时外部化模式
 
 - 默认入口 `GET /playground` 仍使用 `src/ui/playground.ts` + `src/ui/playground-page-shell.ts` 的内联渲染，保证现有回归断言和源码调试路径不变。
 - 设置 `PLAYGROUND_EXTERNALIZED=1` 后，服务会从当前 `src/ui/` 渲染出 `runtime/playground-factory/`，并在 `runtime/playground/` 缺少必要文件时初始化运行时副本。
-- 外部化模式下 `/playground` 只加载 `/playground/styles.css`、`/playground/vendor/marked.umd.js`、`/playground/app.js` 和 `extensions/custom-*`；Agent 或开发者修改 `runtime/playground/styles.css` / `runtime/playground/app.js` 后，刷新浏览器即可生效，不需要重启 `ugk-pi`。
-- `POST /playground/reset` 会把 factory 文件重新复制到 `runtime/playground/`，用于运行时前端被改坏后的恢复。`runtime/playground/` 和 `runtime/playground-factory/` 都是运行产物，不进 Git；源码真源仍在 `src/ui/`。
+- 外部化模式下 `/playground` 只加载 `/playground/styles.css`、`/playground/vendor/marked.umd.js`、`/playground/app.js` 和 `extensions/custom-*`；Agent 或开发者修改 `runtime/playground/styles.css` / `runtime/playground/app.js` / `runtime/playground/extensions/custom-styles.css` / `runtime/playground/extensions/custom-scripts.js` 后，刷新浏览器即可生效，不需要重启 `ugk-pi`。
+- 这条“零重启”只适用于 `runtime/playground/` 运行时文件。修改 `src/ui/playground-styles.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground.ts` 或其他 `src/ui/` TypeScript 源码后，必须重启 `ugk-pi`，或使用 `npm run dev` 的 watch 进程让服务重新加载模块；运行中的 `tsx src/server.ts` / 生产 Docker 进程不会自动热加载这些源码。
+- `POST /playground/reset` 会把 factory 文件重新复制到 `runtime/playground/`，用于运行时前端被改坏后的恢复。它不会重新加载 `src/ui/` TypeScript 模块；如果当前服务进程里的 factory 来自旧的内存模块，reset 会继续恢复旧 factory，直到服务重启或 watch 重新加载。`runtime/playground/` 和 `runtime/playground-factory/` 都是运行产物，不进 Git；源码真源仍在 `src/ui/`。
 - 运行时 agent 通过项目级 skill `.pi/skills/playground-runtime-ui/SKILL.md` 获得这套用法；用户要求修改 playground UI、浅色主题、消息气泡、composer、logo、移动端布局或零重启前端调试时，应先触发该 skill，再决定是临时改 `runtime/playground/extensions/custom-styles.css`，还是把正式修复落回 `src/ui/`。
 
 这份文档只记录当前 `playground` 的真实前端约束，避免下一个人又拿旧截图和过时口径瞎猜。

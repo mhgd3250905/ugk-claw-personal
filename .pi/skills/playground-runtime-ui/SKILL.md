@@ -20,6 +20,8 @@ The authoritative UI source remains in `src/ui/`:
 
 Runtime files under `runtime/playground/` are editable overrides for fast iteration. They are not the long-term source of truth and are ignored by Git.
 
+Important boundary: externalized runtime files support refresh-only iteration; TypeScript source files under `src/ui/` do not hot-reload inside an already running `tsx src/server.ts` or production Docker process.
+
 ## Runtime Externalized Mode
 
 If the user wants quick visual/frontend iteration without restarting the service, use externalized mode:
@@ -75,6 +77,8 @@ runtime/playground/app.js
 
 Then refresh the browser. Do not restart `ugk-pi` unless externalized mode was just enabled or disabled.
 
+This refresh-only workflow applies only to files under `runtime/playground/`. If you edit `src/ui/playground-styles.ts`, `src/ui/playground-page-shell.ts`, `src/ui/playground.ts`, or any other `src/ui/` module, restart `ugk-pi` or use the existing `npm run dev` watch process so Node loads the changed TypeScript modules.
+
 ## Reset
 
 If runtime UI files are broken, restore the generated factory copy:
@@ -84,6 +88,8 @@ curl -X POST http://127.0.0.1:3000/playground/reset
 ```
 
 Then refresh `/playground`.
+
+`/playground/reset` restores `runtime/playground/` from the factory currently loaded in the running server process. It does not reload changed TypeScript modules from `src/ui/`. If the factory was generated from old in-memory source modules, reset will keep restoring that old factory until the service restarts or a watch process reloads it.
 
 ## Shipping A Real Fix
 
@@ -99,11 +105,12 @@ npx tsc --noEmit
 node --test --import tsx test/server.test.ts
 ```
 
-4. Restart `ugk-pi` and verify the real `/playground` entry.
+4. Restart `ugk-pi` or let `npm run dev` watch restart it, then verify the real `/playground` entry.
 
 ## Guardrails
 
 - Do not treat `runtime/playground/` as permanent product code.
+- Do not claim `src/ui/` edits are zero-restart changes; only `runtime/playground/` edits have that property.
 - Do not remove the default inline renderer unless the user explicitly asks for a full architecture migration.
 - Do not edit conversation, SSE, asset, or conn logic for a pure visual request.
 - For light theme fixes, check both `src/ui/playground-styles.ts` and `src/ui/playground-theme-controller.ts`.

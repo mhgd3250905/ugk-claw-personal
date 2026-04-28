@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-04-28
+
+### Playground 外部化热加载边界澄清
+- 日期：2026-04-28
+- 主题：评估 `bugs/frontend-hot-reload-issue.md`，确认 `src/ui/` 源码修改后 `/playground/reset` 不能零重启生效的现象成立，但这是 TypeScript 模块已被运行中 Node/tsx 进程加载后的正常边界；外部化模式承诺的零重启只适用于 `runtime/playground/` 运行时文件。
+- 影响范围：只更新项目级 skill、playground 当前状态文档和 bug 评估记录，不改运行代码、不改变 `/playground/reset` 行为、不引入 ESM 缓存清理。
+- 对应入口：`.pi/skills/playground-runtime-ui/SKILL.md`、`docs/playground-current.md`、`bugs/frontend-hot-reload-issue.md`
+
 ## 2026-04-27
 
 ### Playground 外部化双云增量发布
