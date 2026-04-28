@@ -339,3 +339,20 @@ COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose
    - 容器内 `PLAYGROUND_EXTERNALIZED=1`
    - 容器内存在 `.pi/skills/playground-runtime-ui/SKILL.md` 与 `runtime/playground/app.js`
    - `docker compose ... ps` 显示 nginx、ugk-pi、ugk-pi-browser healthy，CDP relay 与 conn-worker 正常运行
+
+## 2026-04-28 Playground 外部化热加载边界增量发布记录
+
+本次发布继续使用 archive 小包增量覆盖 `/root/ugk-claw-repo`，没有执行整目录替换，也没有触碰 `/root/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。阿里云当前目录仍不是 Git 工作目录，不要照抄腾讯云 `git pull`。
+
+实际结果：
+1. 本地提交并推送 `52f51fd Clarify playground runtime UI hot reload boundary`。
+2. 本地生成增量包 `runtime/playground-hot-reload-boundary-52f51fd-incremental.tar.gz`，只包含项目级 skill、playground 当前状态文档、change-log 和 bug 评估记录。
+3. 通过本地 `*config.txt` 中的 root 密码用 `paramiko` SFTP 上传到 `/root/playground-hot-reload-boundary-52f51fd-incremental.tar.gz`，密码没有写入命令行参数或输出日志。
+4. 服务器在 `/root/ugk-claw-repo` 内执行 `tar -xzf /root/playground-hot-reload-boundary-52f51fd-incremental.tar.gz -C /root/ugk-claw-repo` 增量覆盖对应文件。
+5. 执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+6. 执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml restart ugk-pi`，只重启应用容器以重新加载项目级 skill。
+7. 最终验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://101.37.209.54:3000/healthz` 返回 `{"ok":true}`
+   - `.pi/skills/playground-runtime-ui/SKILL.md` 包含 `Do not claim \`src/ui/\` edits are zero-restart changes`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行

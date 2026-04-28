@@ -1260,3 +1260,20 @@ free -h
    - 容器内 `PLAYGROUND_EXTERNALIZED=1`
    - 容器内存在 `.pi/skills/playground-runtime-ui/SKILL.md` 与 `runtime/playground/app.js`
    - `docker compose ... ps` 显示 nginx、ugk-pi、ugk-pi-browser healthy，CDP relay 与 conn-worker 正常运行
+
+## 2026-04-28 Playground 外部化热加载边界增量发布记录
+
+本次发布沿用腾讯云 GitHub 工作目录 `~/ugk-claw-repo` 做小包增量覆盖，没有执行整目录替换，也没有触碰 `~/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。
+
+实际结果：
+1. 本地提交并推送 `52f51fd Clarify playground runtime UI hot reload boundary`。
+2. 本地生成增量包 `runtime/playground-hot-reload-boundary-52f51fd-incremental.tar.gz`，只包含项目级 skill、playground 当前状态文档、change-log 和 bug 评估记录。
+3. 通过 SSH alias `ugk-claw-prod` 上传到 `~/playground-hot-reload-boundary-52f51fd-incremental.tar.gz`，并在 `~/ugk-claw-repo` 内执行 `tar -xzf` 覆盖对应文件。
+4. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+5. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml restart ugk-pi`，只重启应用容器以重新加载项目级 skill。
+6. 首次健康检查撞到应用重启窗口返回 nginx `502`；等待后复验恢复正常。
+7. 最终验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - `.pi/skills/playground-runtime-ui/SKILL.md` 包含 `Do not claim \`src/ui/\` edits are zero-restart changes`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
