@@ -12,14 +12,10 @@ import { ConnRunStore } from "./agent/conn-run-store.js";
 import { ConnSqliteStore } from "./agent/conn-sqlite-store.js";
 import type { ModelConfigStore, ModelSelectionValidator } from "./agent/model-config.js";
 import { NotificationHub } from "./agent/notification-hub.js";
-import { FeishuClient } from "./integrations/feishu/client.js";
-import { FeishuConversationMapStore } from "./integrations/feishu/conversation-map-store.js";
-import { FeishuService } from "./integrations/feishu/service.js";
 import { registerAssetRoutes } from "./routes/assets.js";
 import { registerActivityRoutes } from "./routes/activity.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerConnRoutes } from "./routes/conns.js";
-import { registerFeishuRoutes } from "./routes/feishu.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerModelConfigRoutes } from "./routes/model-config.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
@@ -34,7 +30,6 @@ export interface BuildServerOptions {
 	activityStore?: AgentActivityStore;
 	notificationHub?: NotificationHub;
 	backgroundDataDir?: string;
-	feishuService?: FeishuService;
 	modelConfigStore?: ModelConfigStore;
 	modelSelectionValidator?: ModelSelectionValidator;
 }
@@ -87,20 +82,6 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 			: createDefaultConnDatabase(config.connDatabasePath);
 	const notificationHub = options.notificationHub ?? new NotificationHub();
 	const agentService = options.agentService ?? createDefaultAgentService(assetStore);
-	const feishuService =
-		options.feishuService ??
-		new FeishuService({
-			agentService,
-			conversationMapStore: new FeishuConversationMapStore({
-				indexPath: config.feishuConversationMapPath,
-			}),
-			client: new FeishuClient({
-				appId: process.env.FEISHU_APP_ID,
-				appSecret: process.env.FEISHU_APP_SECRET,
-				apiBase: process.env.FEISHU_API_BASE,
-			}),
-			publicBaseUrl: config.publicBaseUrl,
-		});
 	const connStore = options.connStore ?? new ConnSqliteStore({ database: connDatabase! });
 	const connRunStore = options.connRunStore ?? new ConnRunStore({ database: connDatabase! });
 	const activityStore = options.activityStore ?? new AgentActivityStore({ database: connDatabase! });
@@ -133,7 +114,6 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		connRunStore,
 		backgroundDataDir: options.backgroundDataDir ?? config.backgroundDataDir,
 	});
-	registerFeishuRoutes(app, { feishuService });
 
 	return app;
 }

@@ -144,7 +144,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 - `GET /v1/conns/:connId/runs/:runId`
 - `GET /v1/conns/:connId/runs/:runId/events`
 - `POST /v1/conns/:connId/run`
-- `POST /v1/integrations/feishu/events`
+- 飞书入站不再暴露 HTTP webhook；通过 `npm run worker:feishu` 启动 WebSocket 订阅 worker。
 
 ## 项目地图
 
@@ -159,7 +159,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 | 文件与 artifact | [`src/agent/file-artifacts.ts`](./src/agent/file-artifacts.ts) |
 | 资产存储 | [`src/agent/asset-store.ts`](./src/agent/asset-store.ts) |
 | 后台 conn runtime | [`src/agent/conn-store.ts`](./src/agent/conn-store.ts) |
-| 后台 worker | [`src/workers/conn-worker.ts`](./src/workers/conn-worker.ts) |
+| 后台 worker | [`src/workers/conn-worker.ts`](./src/workers/conn-worker.ts)、[`src/workers/feishu-worker.ts`](./src/workers/feishu-worker.ts) |
 | Docker Chrome sidecar | [`docker-compose.yml`](./docker-compose.yml) |
 
 ## 文档导航

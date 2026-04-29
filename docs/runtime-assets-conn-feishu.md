@@ -8,7 +8,7 @@
 - `assetRefs`、`ugk-file`、`send_file`
 - `conn` 定时 / 周期任务
 - Agent Activity / 任务消息时间线
-- Feishu webhook 接入
+- Feishu WebSocket 接入
 
 如果你要查 playground 视觉和交互，去看 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
 
@@ -245,21 +245,39 @@ Run 查询接口：
 
 当前入口：
 
-- `POST /v1/integrations/feishu/events`
+- `src/workers/feishu-worker.ts` 通过飞书官方 `@larksuiteoapi/node-sdk` 的 `WSClient` + `EventDispatcher` 建立长连接订阅。
+- `ugk-pi` 主服务不再注册 `POST /v1/integrations/feishu/events`；HTTP webhook 已退出主链路，避免公网回调、验签和主服务路由耦合。
 
 已接通：
 
-- `url_verification`
 - `im.message.receive_v1`
-- Feishu 会话与本地 `conversationId` 映射；映射文件由 `FeishuConversationMapStore` 串行 mutation，并通过同目录临时文件 + `rename` 原子替换写入，避免多个飞书群聊/用户同时触发 webhook 时把彼此的映射覆盖掉。
+- WebSocket 长连接只负责收事件；出站文本、文件上传和附件下载继续复用现有 `FeishuClient` / `FeishuDeliveryService`，不重造轮子。
+- worker 通过 `FEISHU_AGENT_BASE_URL` 调用主服务 `/v1/chat/conversations`、`/v1/chat/status`、`/v1/chat` 和 `/v1/chat/queue`，主服务仍是唯一 `AgentService` 真源。不要在飞书 worker 里直接创建第二个前台 agent，否则 Web 和飞书会变成两套运行锁。
+- 飞书侧控制命令不会进入普通 agent prompt：
+  - `/status`：读取 Web 当前会话状态，返回是否运行中、上下文占用、当前输入和当前输出摘要。
+  - `/new`：调用主服务 `POST /v1/chat/conversations`，真正新建并切换 Web 当前会话；如果当前有 active run，会明确提示不能新建，而不是让 agent 嘴上假装新建。
+  - `/whoami`：返回当前飞书会话 `chat_id` 和发送者 `open_id`，用于配置后台通知发到群聊或机器人私聊。
+- 后台任务全局通知可以镜像到飞书：
+  - `FEISHU_ACTIVITY_CHAT_IDS`：发到固定飞书 chat，适合群聊或已知私聊 `chat_id`。
+  - `FEISHU_ACTIVITY_OPEN_IDS`：发到用户私聊，适合直接投递给机器人私聊用户。
+  - 两个配置都为空时不启用飞书全局通知镜像；飞书发送失败只记录 warning，不影响后台任务完成、任务消息页写入或 Web toast。
+- 当前默认采用 `current conversation mode`：飞书是 Web 当前会话的外挂收发窗口，入站消息永远投递到服务端当前 `conversationId`，不再默认按飞书群聊派生独立本地会话。Web playground 和飞书观察 / 输入的是同一个 agent 当前上下文。
+- 兼容层仍保留 `mapped` 模式；该模式才会使用 `FeishuConversationMapStore` 把飞书 `chat_id` 映射到 `feishu:chat:<chatId>`。映射文件由 `FeishuConversationMapStore` 串行 mutation，并通过同目录临时文件 + `rename` 原子替换写入，避免多个飞书群聊/用户同时触发 webhook 时把彼此的映射覆盖掉。不要把这个兼容模式重新当默认主链路。
+- 当前会话解析在 `FeishuConversationResolver` 内完成，`AgentService` 只暴露只读 `getCurrentConversationId()`；飞书适配逻辑不能散进主 agent 编排层，飞书只是外挂组件，不是第二套 runtime。
+- 可通过 `FEISHU_ALLOWED_CHAT_IDS` 配置允许写入当前会话的飞书 chat id，多个 id 用逗号分隔；配置为空表示不限制。current mode 下建议生产配置白名单，否则多个飞书群聊都能把消息混入当前 Web 会话。
+- 入站消息按飞书 `message_id` 做进程内幂等；重复 webhook 不会重复调用 agent。当前默认去重是进程内保护，重启后的持久化幂等后续再按生产需要扩展。
 - 入站文件 / 图片不再只传文件名元数据；服务层会先下载飞书资源，再桥接成可直接喂给 agent 的 `ChatAttachment`
 - 出站结果现在先发文本，再尝试把 agent 返回的文件上传回飞书并发送 file message；上传失败时才退回文件 URL 文本，避免把“应该给文件”退化成一串链接
 - 单窗口消息队列不再靠中断关键字硬匹配瞎猜。当前策略由 `queue-policy` 根据消息内容决定：
   - 纯文本补充：优先 `steer`
   - 带附件补充：优先 `followUp`
-- 当前 Feishu 模块已经按职责拆开，避免把 webhook、下载、队列和回传又揉成一锅：
-  - `message-parser`：解析 webhook / inbound message
+- 当前 Feishu 模块已经按职责拆开，避免把 WebSocket、下载、队列和回传又揉成一锅：
+  - `ws-subscription`：封装飞书官方 SDK 的 `WSClient` / `EventDispatcher`
+  - `http-agent-gateway`：把飞书 worker 的入站消息转发到主服务聊天 API，保持单 agent 运行态
+  - `message-parser`：解析飞书 inbound message
   - `attachment-bridge`：下载飞书附件并转成 agent 可消费的附件结构
+  - `conversation-resolver`：决定飞书消息进入当前 Web 会话还是兼容映射会话
+  - `message-deduper`：按飞书 `message_id` 做入站幂等
   - `queue-policy`：在单窗口约束下决定追加消息的排队策略
   - `delivery`：发送文本、上传回传文件、失败时降级到链接
   - `conversation-map-store`：维护飞书 chat/user 到本地 `conversationId` 的稳定映射，写入时串行化并原子替换 JSON
@@ -268,9 +286,13 @@ Run 查询接口：
 
 关键入口：
 
-- [src/routes/feishu.ts](/E:/AII/ugk-pi/src/routes/feishu.ts)
+- [src/workers/feishu-worker.ts](/E:/AII/ugk-pi/src/workers/feishu-worker.ts)
+- [src/integrations/feishu/ws-subscription.ts](/E:/AII/ugk-pi/src/integrations/feishu/ws-subscription.ts)
+- [src/integrations/feishu/http-agent-gateway.ts](/E:/AII/ugk-pi/src/integrations/feishu/http-agent-gateway.ts)
 - [src/integrations/feishu/message-parser.ts](/E:/AII/ugk-pi/src/integrations/feishu/message-parser.ts)
 - [src/integrations/feishu/attachment-bridge.ts](/E:/AII/ugk-pi/src/integrations/feishu/attachment-bridge.ts)
+- [src/integrations/feishu/conversation-resolver.ts](/E:/AII/ugk-pi/src/integrations/feishu/conversation-resolver.ts)
+- [src/integrations/feishu/message-deduper.ts](/E:/AII/ugk-pi/src/integrations/feishu/message-deduper.ts)
 - [src/integrations/feishu/queue-policy.ts](/E:/AII/ugk-pi/src/integrations/feishu/queue-policy.ts)
 - [src/integrations/feishu/delivery.ts](/E:/AII/ugk-pi/src/integrations/feishu/delivery.ts)
 - [src/integrations/feishu/conversation-map-store.ts](/E:/AII/ugk-pi/src/integrations/feishu/conversation-map-store.ts)

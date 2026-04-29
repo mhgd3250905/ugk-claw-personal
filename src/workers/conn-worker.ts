@@ -21,7 +21,7 @@ import {
 } from "../agent/background-agent-runner.js";
 import { BackgroundAgentProfileResolver } from "../agent/background-agent-profile.js";
 import { BackgroundWorkspaceManager, type RunWorkspace } from "../agent/background-workspace.js";
-import type { AgentActivityStore, CreateAgentActivityInput } from "../agent/agent-activity-store.js";
+import type { AgentActivityItem, AgentActivityStore, CreateAgentActivityInput } from "../agent/agent-activity-store.js";
 import { AgentActivityStore as DefaultAgentActivityStore } from "../agent/agent-activity-store.js";
 import { AssetStore } from "../agent/asset-store.js";
 import { ConnDatabase } from "../agent/conn-db.js";
@@ -32,6 +32,9 @@ import { ConnSqliteStore as DefaultConnSqliteStore } from "../agent/conn-sqlite-
 import type { ConnDefinition } from "../agent/conn-store.js";
 import type { NotificationBroadcastEvent } from "../agent/notification-hub.js";
 import type { ResolvedBackgroundAgentSnapshot } from "../agent/background-agent-profile.js";
+import { FeishuClient } from "../integrations/feishu/client.js";
+import { FeishuDeliveryService } from "../integrations/feishu/delivery.js";
+import type { FeishuDeliveryTarget } from "../integrations/feishu/types.js";
 
 export interface ConnWorkerRunner {
 	run(conn: ConnDefinition, run: ConnRunRecord, now: Date, signal?: AbortSignal): Promise<ConnRunRecord | undefined>;
@@ -44,6 +47,7 @@ export interface ConnWorkerOptions {
 	runStore: ConnRunStore;
 	activityStore?: Pick<AgentActivityStore, "create">;
 	notificationBroadcaster?: NotificationBroadcaster;
+	activityNotifier?: ActivityNotifier;
 	runner: ConnWorkerRunner;
 	leaseMs?: number;
 	heartbeatMs?: number;
@@ -52,6 +56,10 @@ export interface ConnWorkerOptions {
 
 export interface NotificationBroadcaster {
 	broadcast(event: NotificationBroadcastEvent): Promise<void>;
+}
+
+export interface ActivityNotifier {
+	notify(activity: AgentActivityItem): Promise<void>;
 }
 
 export class ConnWorker {
@@ -219,6 +227,11 @@ export class ConnWorker {
 				} catch (error) {
 					console.warn("[conn-worker] notification broadcast failed:", error);
 				}
+				try {
+					await this.options.activityNotifier?.notify(activity);
+				} catch (error) {
+					console.warn("[conn-worker] activity notifier failed:", error);
+				}
 			}
 		} catch (error) {
 			console.warn("[conn-worker] activity write failed:", error);
@@ -321,6 +334,25 @@ class HttpNotificationBroadcaster implements NotificationBroadcaster {
 	}
 }
 
+class FeishuActivityNotifier implements ActivityNotifier {
+	constructor(private readonly options: {
+		targets: FeishuDeliveryTarget[];
+		deliveryService: FeishuDeliveryService;
+	}) {}
+
+	async notify(activity: AgentActivityItem): Promise<void> {
+		const text = formatFeishuActivityNotification(activity);
+		await Promise.all(
+			this.options.targets.map((target) =>
+				this.options.deliveryService.deliverText(
+					target,
+					text,
+				),
+			),
+		);
+	}
+}
+
 class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 	constructor(private readonly projectRoot: string) {}
 
@@ -386,6 +418,11 @@ async function main(): Promise<void> {
 		process.env.NOTIFICATION_BROADCAST_URL?.trim() ||
 			`http://127.0.0.1:${config.port}/v1/internal/notifications/broadcast`,
 	);
+	const activityNotifier = createFeishuActivityNotifier({
+		chatIds: parseCommaSeparatedEnv(process.env.FEISHU_ACTIVITY_CHAT_IDS),
+		openIds: parseCommaSeparatedEnv(process.env.FEISHU_ACTIVITY_OPEN_IDS),
+		publicBaseUrl: config.publicBaseUrl,
+	});
 	const runner = new BackgroundAgentRunner({
 		runStore,
 		profileResolver: new BackgroundAgentProfileResolver({
@@ -404,6 +441,7 @@ async function main(): Promise<void> {
 		runStore,
 		activityStore,
 		notificationBroadcaster,
+		activityNotifier,
 		runner,
 		leaseMs: Number(process.env.CONN_WORKER_LEASE_MS ?? 300_000),
 		maxConcurrency: Number(process.env.CONN_WORKER_MAX_CONCURRENCY ?? 1),
@@ -452,6 +490,82 @@ function toNotificationBroadcastEvent(activity: Awaited<ReturnType<AgentActivity
 		title: activity.title,
 		createdAt: activity.createdAt,
 	};
+}
+
+function createFeishuActivityNotifier(input: {
+	chatIds?: string[];
+	openIds?: string[];
+	publicBaseUrl?: string;
+}): ActivityNotifier | undefined {
+	const targets = [
+		...(input.chatIds?.map((chatId): FeishuDeliveryTarget => ({
+			type: "feishu_chat",
+			chatId,
+		})) ?? []),
+		...(input.openIds?.map((openId): FeishuDeliveryTarget => ({
+			type: "feishu_user",
+			openId,
+		})) ?? []),
+	];
+	if (targets.length === 0) {
+		return undefined;
+	}
+	return new FeishuActivityNotifier({
+		targets,
+		deliveryService: new FeishuDeliveryService({
+			client: new FeishuClient({
+				appId: process.env.FEISHU_APP_ID,
+				appSecret: process.env.FEISHU_APP_SECRET,
+				apiBase: process.env.FEISHU_API_BASE,
+			}),
+			publicBaseUrl: input.publicBaseUrl,
+		}),
+	});
+}
+
+function parseCommaSeparatedEnv(value: string | undefined): string[] | undefined {
+	const values = value
+		?.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean);
+	return values?.length ? values : undefined;
+}
+
+function formatFeishuActivityNotification(activity: AgentActivityItem): string {
+	const lines = [
+		`后台任务通知：${activity.title}`,
+		`状态：${resolveActivityStatusLabel(activity.title)}`,
+		`来源：${activity.source}/${activity.sourceId}`,
+	];
+	if (activity.runId) {
+		lines.push(`Run：${activity.runId}`);
+	}
+	lines.push(`时间：${activity.createdAt}`);
+	if (activity.text.trim()) {
+		lines.push("", truncateNotificationText(activity.text.trim()));
+	}
+	return lines.join("\n");
+}
+
+function resolveActivityStatusLabel(title: string): string {
+	if (/\bfailed$/i.test(title)) {
+		return "失败";
+	}
+	if (/\bcancelled$/i.test(title)) {
+		return "已取消";
+	}
+	if (/\bcompleted$/i.test(title)) {
+		return "已完成";
+	}
+	return "已更新";
+}
+
+function truncateNotificationText(text: string, maxLength: number = 1200): string {
+	const normalized = text.replace(/\r\n/g, "\n").trim();
+	if (normalized.length <= maxLength) {
+		return normalized;
+	}
+	return `${normalized.slice(0, maxLength - 1)}…`;
 }
 
 function toAgentActivityInput(conn: ConnDefinition, run: ConnRunRecord, now: Date): CreateAgentActivityInput {

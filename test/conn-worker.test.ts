@@ -106,6 +106,7 @@ async function createWorkerWithOptions(
 		maxConcurrency?: number;
 		leaseMs?: number;
 		heartbeatMs?: number;
+		activityNotifications?: string[];
 	},
 ): Promise<{
 	database: ConnDatabase;
@@ -139,6 +140,13 @@ async function createWorkerWithOptions(
 					broadcasts.push(event);
 				},
 			},
+			activityNotifier: options.activityNotifications
+				? {
+						notify: async (activity) => {
+							options.activityNotifications?.push(`${activity.title}\n${activity.text}`);
+						},
+					}
+				: undefined,
 			runner,
 			leaseMs: options.leaseMs ?? 30_000,
 			heartbeatMs: options.heartbeatMs,
@@ -203,6 +211,34 @@ test("ConnWorker enqueues due conn runs, executes one claim, and creates a task 
 			},
 		],
 	);
+
+	database.close();
+});
+
+test("ConnWorker mirrors global activity notifications to the optional activity notifier", async () => {
+	const runner = new FakeRunner();
+	const activityNotifications: string[] = [];
+	const { database, connStore, activityStore, worker } = await createWorkerWithOptions(runner, {
+		activityNotifications,
+	});
+	const conn = await connStore.create({
+		title: "Feishu Mirror",
+		prompt: "Summarize",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:00:00.000Z",
+		},
+		now: new Date("2026-04-21T09:59:00.000Z"),
+	});
+
+	await worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+
+	const activities = await activityStore.list();
+	assert.equal(activities.length, 1);
+	assert.deepEqual(activityNotifications, ["Feishu Mirror completed\nresult for Feishu Mirror"]);
 
 	database.close();
 });

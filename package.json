@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "worker:conn": "tsx src/workers/conn-worker.ts",
+    "worker:feishu": "tsx src/workers/feishu-worker.ts",
     "test": "node --test --import tsx test/**/*.test.ts",
     "design:lint": "node ./node_modules/@google/design.md/dist/index.js lint DESIGN.md",
     "docker:build": "docker build -t ugk-pi:local .",
@@ -26,6 +27,7 @@
   },
   "dependencies": {
     "@fastify/multipart": "^10.0.0",
+    "@larksuiteoapi/node-sdk": "^1.62.0",
     "@mariozechner/pi-coding-agent": "^0.67.6",
     "@sinclair/typebox": "^0.34.41",
     "fastify": "^5.6.1",

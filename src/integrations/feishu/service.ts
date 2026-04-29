@@ -2,8 +2,16 @@ import type { ChatAttachment } from "../../agent/asset-store.js";
 import type { AgentService } from "../../agent/agent-service.js";
 import { FeishuAttachmentBridge } from "./attachment-bridge.js";
 import { FeishuClient } from "./client.js";
+import {
+	FeishuConversationResolver,
+	type FeishuConversationMode,
+} from "./conversation-resolver.js";
 import { FeishuDeliveryService } from "./delivery.js";
 import { getFeishuEventType, parseFeishuInboundMessage } from "./message-parser.js";
+import {
+	InMemoryFeishuMessageDeduper,
+	type FeishuMessageDeduperLike,
+} from "./message-deduper.js";
 import { planFeishuQueuedReply } from "./queue-policy.js";
 import { FeishuConversationMapStore } from "./conversation-map-store.js";
 import type { FeishuAttachmentBridgeLike, FeishuClientLike, FeishuDeliveryTarget } from "./types.js";
@@ -16,7 +24,10 @@ export interface TextDeliveryLike {
 	): Promise<void>;
 }
 
-interface FeishuAgentGateway {
+export interface FeishuAgentGateway {
+	getCurrentConversationId?(): Promise<string>;
+	createConversation?(): ReturnType<AgentService["createConversation"]>;
+	getConversationState?: AgentService["getConversationState"];
 	chat(input: { conversationId: string; message: string; attachments?: ChatAttachment[] }): ReturnType<AgentService["chat"]>;
 	queueMessage(input: {
 		conversationId: string;
@@ -32,13 +43,18 @@ interface FeishuServiceOptions {
 	conversationMapStore: FeishuConversationMapStore;
 	client: FeishuClientLike;
 	publicBaseUrl?: string;
+	conversationMode?: FeishuConversationMode;
+	allowedChatIds?: string[];
 	attachmentBridge?: FeishuAttachmentBridgeLike;
 	deliveryService?: TextDeliveryLike;
+	messageDeduper?: FeishuMessageDeduperLike;
 }
 
 export class FeishuService implements TextDeliveryLike {
 	private readonly attachmentBridge: FeishuAttachmentBridgeLike;
 	private readonly deliveryService: TextDeliveryLike;
+	private readonly conversationResolver: FeishuConversationResolver;
+	private readonly messageDeduper: FeishuMessageDeduperLike;
 
 	constructor(private readonly options: FeishuServiceOptions) {
 		this.attachmentBridge =
@@ -52,6 +68,12 @@ export class FeishuService implements TextDeliveryLike {
 				client: options.client,
 				publicBaseUrl: options.publicBaseUrl,
 			});
+		this.conversationResolver = new FeishuConversationResolver({
+			mode: options.conversationMode,
+			conversationMapStore: options.conversationMapStore,
+			currentConversationProvider: options.agentService,
+		});
+		this.messageDeduper = options.messageDeduper ?? new InMemoryFeishuMessageDeduper();
 	}
 
 	async handleWebhook(body: unknown): Promise<{ challenge?: string; accepted: boolean }> {
@@ -87,6 +109,12 @@ export class FeishuService implements TextDeliveryLike {
 		if (!incoming) {
 			return;
 		}
+		if (this.options.allowedChatIds?.length && !this.options.allowedChatIds.includes(incoming.chatId)) {
+			return;
+		}
+		if (!(await this.messageDeduper.accept(incoming.messageId))) {
+			return;
+		}
 
 		const attachments = await this.attachmentBridge.collectAttachments(incoming);
 		if (!incoming.text && attachments.length === 0) {
@@ -100,10 +128,19 @@ export class FeishuService implements TextDeliveryLike {
 			return;
 		}
 
-		const conversationId = await this.options.conversationMapStore.getOrCreate(
-			`chat:${incoming.chatId}`,
-			() => `feishu:chat:${incoming.chatId}`,
-		);
+		const conversationId = await this.conversationResolver.resolve(incoming);
+		if (incoming.text?.trim() === "/status") {
+			await this.handleStatusCommand(incoming.chatId, conversationId);
+			return;
+		}
+		if (incoming.text?.trim() === "/new") {
+			await this.handleNewConversationCommand(incoming.chatId);
+			return;
+		}
+		if (incoming.text?.trim() === "/whoami") {
+			await this.handleWhoamiCommand(incoming.chatId, incoming.senderOpenId);
+			return;
+		}
 		const outboundMessage = incoming.text || "请结合我通过飞书发送的附件一起处理。";
 		const status = await this.options.agentService.getRunStatus(conversationId);
 		if (status.running) {
@@ -151,6 +188,94 @@ export class FeishuService implements TextDeliveryLike {
 			},
 		);
 	}
+
+	private async handleStatusCommand(chatId: string, conversationId: string): Promise<void> {
+		const state = await this.options.agentService.getConversationState?.(conversationId, { viewLimit: 8 });
+		const status = state ?? await this.options.agentService.getRunStatus(conversationId);
+		const lines = [
+			`当前 Web 会话：${conversationId}`,
+			`状态：${status.running ? "正在运行" : "空闲"}`,
+		];
+		if ("contextUsage" in status) {
+			lines.push(`上下文：${status.contextUsage.percent}% (${status.contextUsage.status})`);
+		}
+		if (state?.activeRun) {
+			lines.push(`当前输入：${truncateStatusText(state.activeRun.input.message)}`);
+			const currentText = state.activeRun.text || state.activeRun.process?.currentAction || "";
+			if (currentText) {
+				lines.push(`当前输出：${truncateStatusText(currentText)}`);
+			}
+		} else if (state?.viewMessages?.length) {
+			const latest = state.viewMessages[state.viewMessages.length - 1];
+			lines.push(`最近消息：${latest.kind} - ${truncateStatusText(latest.text)}`);
+		}
+
+		await this.deliverText(
+			{
+				type: "feishu_chat",
+				chatId,
+			},
+			lines.join("\n"),
+		);
+	}
+
+	private async handleNewConversationCommand(chatId: string): Promise<void> {
+		if (!this.options.agentService.createConversation) {
+			await this.deliverText(
+				{
+					type: "feishu_chat",
+					chatId,
+				},
+				"当前运行环境不支持从飞书新建 Web 会话。",
+			);
+			return;
+		}
+
+		const result = await this.options.agentService.createConversation();
+		if (!result.created) {
+			await this.deliverText(
+				{
+					type: "feishu_chat",
+					chatId,
+				},
+				result.reason === "running"
+					? "当前 Web 会话正在运行，暂时不能新建会话。发送 /status 可以查看当前任务。"
+					: "新建 Web 会话失败。",
+			);
+			return;
+		}
+
+		await this.deliverText(
+			{
+				type: "feishu_chat",
+				chatId,
+			},
+			`已新建并切换 Web 当前会话：${result.currentConversationId}`,
+		);
+	}
+
+	private async handleWhoamiCommand(chatId: string, senderOpenId: string | undefined): Promise<void> {
+		await this.deliverText(
+			{
+				type: "feishu_chat",
+				chatId,
+			},
+			[
+				`chat_id：${chatId}`,
+				`open_id：${senderOpenId ?? "当前事件没有返回 open_id"}`,
+				"",
+				"后台任务通知发到这个私聊：把 chat_id 填到 FEISHU_ACTIVITY_CHAT_IDS，或把 open_id 填到 FEISHU_ACTIVITY_OPEN_IDS。",
+			].join("\n"),
+		);
+	}
+}
+
+function truncateStatusText(text: string, maxLength: number = 180): string {
+	const normalized = text.replace(/\s+/g, " ").trim();
+	if (normalized.length <= maxLength) {
+		return normalized;
+	}
+	return `${normalized.slice(0, maxLength - 1)}…`;
 }
 
 export function createFeishuService(input: {

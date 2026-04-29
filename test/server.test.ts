@@ -4336,16 +4336,9 @@ test("GET /v1/conns/:connId/runs/:runId/events returns ordered run events", asyn
 	await app.close();
 });
 
-test("POST /v1/integrations/feishu/events answers url verification challenge", async () => {
+test("POST /v1/integrations/feishu/events is not registered on the main server", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
-		feishuService: {
-			handleWebhook: async () => ({
-				challenge: "challenge-token",
-				accepted: true,
-			}),
-			deliverText: async () => undefined,
-		} as never,
 	});
 
 	const response = await app.inject({
@@ -4357,10 +4350,7 @@ test("POST /v1/integrations/feishu/events answers url verification challenge", a
 		},
 	});
 
-	assert.equal(response.statusCode, 200);
-	assert.deepEqual(response.json(), {
-		challenge: "challenge-token",
-	});
+	assert.equal(response.statusCode, 404);
 	await app.close();
 });
 

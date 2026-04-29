@@ -29,6 +29,26 @@ test("parseFeishuInboundMessage extracts text messages", () => {
 	});
 });
 
+test("parseFeishuInboundMessage extracts sender open id when Feishu provides it", () => {
+	const incoming = parseFeishuInboundMessage({
+		event: {
+			sender: {
+				sender_id: {
+					open_id: "ou-user",
+				},
+			},
+			message: {
+				chat_id: "chat-1",
+				message_id: "msg-1",
+				message_type: "text",
+				content: JSON.stringify({ text: "hello" }),
+			},
+		},
+	});
+
+	assert.equal(incoming?.senderOpenId, "ou-user");
+});
+
 test("parseFeishuInboundMessage turns file and image content into resources", () => {
 	assert.deepEqual(
 		parseFeishuInboundMessage({

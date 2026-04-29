@@ -261,6 +261,10 @@ export class AgentService {
 		});
 	}
 
+	async getCurrentConversationId(): Promise<string> {
+		return await this.ensureCurrentConversationId();
+	}
+
 	async createConversation(): Promise<CreateConversationResult> {
 		return await createConversationCommand({
 			conversationStore: this.options.conversationStore,

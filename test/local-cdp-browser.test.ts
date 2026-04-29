@@ -100,7 +100,7 @@ test("resolveBrowserInputUrl rewrites workspace public paths to the local artifa
 test("LocalCdpBrowser type action inserts text through CDP Input.insertText", async () => {
 	const calls: Array<{ method: string; params: unknown }> = [];
 	class TestBrowser extends LocalCdpBrowser {
-		override async withTarget(
+		async withTarget(
 			targetId: string,
 			callback: (cdp: { send: (method: string, params?: unknown) => Promise<unknown> }) => Promise<unknown>,
 		) {

@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### 飞书当前会话中转模式
+- 日期：2026-04-29
+- 主题：将飞书接入收口为 Web 当前会话的外挂收发窗口：默认 `current conversation mode` 下，飞书入站消息投递到服务端当前 `conversationId`，运行中消息继续复用 `queueMessage()`，纯文本走 `steer`，带附件走 `followUp`。保留 `mapped` 兼容模式，但不再作为默认主链路；新增飞书 `message_id` 进程内幂等与 `FEISHU_ALLOWED_CHAT_IDS` 白名单，避免 webhook 重试或非授权群聊重复 / 混入当前会话。
+- 影响范围：飞书 webhook 入站路由到 conversation 的策略、飞书入站幂等、飞书 chat 白名单配置与对应单测；不改变 Web playground、conn 后台任务、飞书 client / delivery / attachment bridge 的主实现。
+- 对应入口：`src/integrations/feishu/service.ts`、`src/integrations/feishu/conversation-resolver.ts`、`src/integrations/feishu/message-deduper.ts`、`src/agent/agent-service.ts`、`src/server.ts`、`.env.example`、`test/feishu-service.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### 后台任务事件日志体积上限
 - 日期：2026-04-29
 - 主题：定位腾讯云访问异常的根因不是 sidecar 页面过多，而是 `conn.sqlite` 与后台 session 历史膨胀导致 `ugk-pi` Node 进程多次 `JavaScript heap out of memory`。为 `ConnRunStore` 增加后台 run event 存储保护：单条事件递归截断超长字符串 / 深层结构，单个 run 只保留最近 2000 条事件，避免 `conn_run_events.event_json` 再次写到 GB 级。
@@ -2757,3 +2763,46 @@
   - [test/chat-sse.test.ts](/E:/AII/ugk-pi/test/chat-sse.test.ts)
   - [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
   - [docs/traceability-map.md](/E:/AII/ugk-pi/docs/traceability-map.md)
+### Feishu 控制命令状态查询与真实新会话
+- 日期：2026-04-29
+- 主题：新增飞书 `/status` 控制命令，并把飞书 `/new` 收口为真正调用主服务新建当前 Web 会话。
+- 影响范围：
+  - `src/integrations/feishu/service.ts` 在飞书入站服务层拦截 `/status` 和 `/new`，控制命令不再进入普通 agent prompt。
+  - `/status` 返回当前 Web 会话 ID、运行状态、上下文占用、active run 当前输入和当前输出摘要，方便飞书侧知道 Web 正在干嘛。
+  - `/new` 调用 `createConversation()`，成功后 Web 刷新会跟随新的服务端当前会话；当前有 active run 时明确拒绝新建。
+  - `src/integrations/feishu/http-agent-gateway.ts` 补齐 `GET /v1/chat/state` 和 `POST /v1/chat/conversations` 调用。
+  - `test/feishu-service.test.ts`、`test/feishu-http-agent-gateway.test.ts` 增加控制命令覆盖。
+- 对应入口：
+  - [src/integrations/feishu/service.ts](/E:/AII/ugk-pi/src/integrations/feishu/service.ts)
+  - [src/integrations/feishu/http-agent-gateway.ts](/E:/AII/ugk-pi/src/integrations/feishu/http-agent-gateway.ts)
+  - [test/feishu-service.test.ts](/E:/AII/ugk-pi/test/feishu-service.test.ts)
+  - [test/feishu-http-agent-gateway.test.ts](/E:/AII/ugk-pi/test/feishu-http-agent-gateway.test.ts)
+
+### 后台任务全局通知镜像到飞书
+- 日期：2026-04-29
+- 主题：后台 `conn` 任务完成、失败或取消后，除继续写入任务消息页和 Web 通知外，可选镜像一份到飞书。
+- 影响范围：
+  - `src/workers/conn-worker.ts` 新增 optional `activityNotifier`，在 activity 写入和 Web broadcast 后 best-effort 投递飞书；失败只 warn，不影响任务终态。
+  - 新增 `FEISHU_ACTIVITY_CHAT_IDS`，用于投递到固定飞书群聊或私聊 `chat_id`。
+  - 新增 `FEISHU_ACTIVITY_OPEN_IDS`，用于直接投递到用户机器人私聊。
+  - `docker-compose.yml` 的 `ugk-pi-conn-worker` 读取 `.env`，本地 compose 也能拿到飞书配置。
+- 对应入口：
+  - [src/workers/conn-worker.ts](/E:/AII/ugk-pi/src/workers/conn-worker.ts)
+  - [test/conn-worker.test.ts](/E:/AII/ugk-pi/test/conn-worker.test.ts)
+
+### Feishu WebSocket 订阅与 HTTP webhook 移除
+- 日期：2026-04-29
+- 主题：把飞书入站从主服务 HTTP webhook 改为独立 WebSocket worker，飞书继续作为 Web 当前会话的外挂收发窗口。
+- 影响范围：
+  - `src/server.ts` 不再注册 `POST /v1/integrations/feishu/events`，主服务只保留 playground、聊天、资产、conn 和通知等原有 HTTP API。
+  - `src/workers/feishu-worker.ts` 新增飞书长连接 worker，使用 `@larksuiteoapi/node-sdk` 的 `WSClient` / `EventDispatcher` 订阅 `im.message.receive_v1`。
+  - `src/integrations/feishu/http-agent-gateway.ts` 新增 HTTP gateway，worker 通过主服务 `/v1/chat*` API 调同一个 `AgentService`，避免飞书侧起第二个前台 agent。
+  - `src/integrations/feishu/ws-subscription.ts` 新增 SDK 封装；出站消息、附件下载和结果文件回传继续复用现有飞书模块。
+  - `docker-compose.yml`、`docker-compose.prod.yml` 新增 `ugk-pi-feishu-worker` 服务；`package.json` 新增 `worker:feishu`。
+  - `.env.example` 补齐 `FEISHU_ENABLED`、`FEISHU_SUBSCRIPTION_MODE=ws`、`FEISHU_VERIFICATION_TOKEN`、`FEISHU_ENCRYPT_KEY`、`FEISHU_AGENT_BASE_URL`。
+- 对应入口：
+  - [src/workers/feishu-worker.ts](/E:/AII/ugk-pi/src/workers/feishu-worker.ts)
+  - [src/integrations/feishu/ws-subscription.ts](/E:/AII/ugk-pi/src/integrations/feishu/ws-subscription.ts)
+  - [src/integrations/feishu/http-agent-gateway.ts](/E:/AII/ugk-pi/src/integrations/feishu/http-agent-gateway.ts)
+  - [test/feishu-ws-subscription.test.ts](/E:/AII/ugk-pi/test/feishu-ws-subscription.test.ts)
+  - [test/feishu-http-agent-gateway.test.ts](/E:/AII/ugk-pi/test/feishu-http-agent-gateway.test.ts)

@@ -38,6 +38,8 @@ services:
         condition: service_healthy
       ugk-pi-browser-cdp:
         condition: service_started
+    env_file:
+      - .env
     environment:
       CONN_DATABASE_PATH: /var/lib/ugk-pi/conn/conn.sqlite
       CONN_WORKER_MAX_CONCURRENCY: ${CONN_WORKER_MAX_CONCURRENCY:-3}
@@ -54,6 +56,27 @@ services:
       - ugk-pi-conn-db:/var/lib/ugk-pi/conn
       - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
     command: npm run worker:conn
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+    networks:
+      - ugk-pi-net
+  ugk-pi-feishu-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      ugk-pi:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      FEISHU_AGENT_BASE_URL: http://ugk-pi:3000
+      PUBLIC_BASE_URL: http://127.0.0.1:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run worker:feishu
     healthcheck:
       disable: true
     restart: unless-stopped

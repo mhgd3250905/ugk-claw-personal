@@ -21,6 +21,7 @@ export interface FeishuInboundMessage {
 	messageId: string;
 	messageType: string;
 	text?: string;
+	senderOpenId?: string;
 	resources: FeishuInboundResource[];
 }
 

@@ -36,10 +36,13 @@ export function parseFeishuInboundMessage(payload: Record<string, unknown> | und
 	}
 
 	const messageType = typeof message.message_type === "string" ? message.message_type : "unknown";
+	const sender = event?.sender as Record<string, unknown> | undefined;
+	const senderId = sender?.sender_id as Record<string, unknown> | undefined;
 	return {
 		chatId: message.chat_id,
 		messageId: message.message_id,
 		messageType,
+		...(typeof senderId?.open_id === "string" ? { senderOpenId: senderId.open_id } : {}),
 		...(messageType === "text" && typeof content.text === "string" ? { text: content.text } : {}),
 		resources: parseFeishuResources(messageType, content),
 	};

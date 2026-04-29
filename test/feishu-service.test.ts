@@ -8,6 +8,35 @@ import { FeishuDeliveryService } from "../src/integrations/feishu/delivery.js";
 import { FeishuService } from "../src/integrations/feishu/service.js";
 import type { FeishuClientLike, FeishuDeliveryTarget } from "../src/integrations/feishu/types.js";
 
+function makeContextUsage() {
+	return {
+		provider: "dashscope-coding",
+		model: "glm-5",
+		currentTokens: 0,
+		contextWindow: 128000,
+		reserveTokens: 16384,
+		maxResponseTokens: 16384,
+		availableTokens: 111616,
+		percent: 0,
+		status: "safe" as const,
+		mode: "estimate" as const,
+	};
+}
+
+function makeFeishuTextWebhook(chatId: string, messageId: string, text: string): Record<string, unknown> {
+	return {
+		header: { event_type: "im.message.receive_v1" },
+		event: {
+			message: {
+				chat_id: chatId,
+				message_id: messageId,
+				message_type: "text",
+				content: JSON.stringify({ text }),
+			},
+		},
+	};
+}
+
 async function createConversationMapStore(): Promise<FeishuConversationMapStore> {
 	const { store } = await createConversationMapStoreWithPath();
 	return store;
@@ -35,6 +64,59 @@ async function waitForAsyncWebhookSideEffects(predicate: () => boolean): Promise
 	}
 }
 
+test("FeishuService routes incoming messages to the current web conversation in current mode", async () => {
+	const chatCalls: Array<Record<string, unknown>> = [];
+	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		conversationMode: "current",
+		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: false,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage() {
+				throw new Error("queueMessage should not run while idle");
+			},
+			async chat(input) {
+				chatCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, text: "ok" };
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for pure text");
+			},
+		},
+		deliveryService: {
+			async deliverText(target, text) {
+				deliveries.push({ target, text });
+			},
+		},
+	});
+
+	await service.handleWebhook(makeFeishuTextWebhook("chat-1", "msg-current-1", "hello"));
+	await waitForAsyncWebhookSideEffects(() => chatCalls.length === 1 && deliveries.length === 1);
+
+	assert.equal(chatCalls.length, 1);
+	assert.equal(chatCalls[0]?.conversationId, "web-current-conversation");
+	assert.equal(chatCalls[0]?.message, "hello");
+	assert.equal(deliveries[0]?.text, "ok");
+});
+
 test("FeishuService queues incoming text onto the active run with steer mode", async () => {
 	const queueCalls: Array<Record<string, unknown>> = [];
 	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];
@@ -42,6 +124,9 @@ test("FeishuService queues incoming text onto the active run with steer mode", a
 
 	const service = new FeishuService({
 		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
 			async getRunStatus(conversationId) {
 				return {
 					conversationId,
@@ -101,10 +186,434 @@ test("FeishuService queues incoming text onto the active run with steer mode", a
 	await waitForAsyncWebhookSideEffects(() => queueCalls.length === 1 && deliveries.length === 1);
 
 	assert.equal(queueCalls.length, 1);
+	assert.equal(queueCalls[0]?.conversationId, "web-current-conversation");
 	assert.equal(queueCalls[0]?.mode, "steer");
 	assert.equal(queueCalls[0]?.message, "继续做这个任务");
 	assert.equal(deliveries.length, 1);
 	assert.equal(deliveries[0]?.text, "已收到你的补充消息，我会把它接到当前处理流程里。");
+});
+
+test("FeishuService keeps mapped conversation mode available for compatibility", async () => {
+	const chatCalls: Array<Record<string, unknown>> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		conversationMode: "mapped",
+		agentService: {
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: false,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage(input) {
+				return { conversationId: input.conversationId, mode: input.mode, queued: false };
+			},
+			async chat(input) {
+				chatCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, text: "ok" };
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for pure text");
+			},
+		},
+		deliveryService: {
+			async deliverText() {},
+		},
+	});
+
+	await service.handleWebhook(makeFeishuTextWebhook("chat-legacy", "msg-mapped-1", "first"));
+	await service.handleWebhook(makeFeishuTextWebhook("chat-legacy", "msg-mapped-2", "second"));
+	await waitForAsyncWebhookSideEffects(() => chatCalls.length === 2);
+
+	assert.equal(chatCalls.length, 2);
+	assert.equal(chatCalls[0]?.conversationId, "feishu:chat:chat-legacy");
+	assert.equal(chatCalls[1]?.conversationId, "feishu:chat:chat-legacy");
+});
+
+test("FeishuService answers /status with the current active run summary", async () => {
+	const chatCalls: Array<Record<string, unknown>> = [];
+	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
+			async getConversationState(conversationId) {
+				return {
+					conversationId,
+					running: true,
+					contextUsage: makeContextUsage(),
+					messages: [],
+					viewMessages: [],
+					activeRun: {
+						runId: "run-1",
+						status: "running",
+						assistantMessageId: "assistant-1",
+						input: {
+							message: "正在部署服务",
+							inputAssets: [],
+						},
+						text: "已经完成构建，正在重启容器",
+						process: null,
+						queue: null,
+						loading: true,
+						startedAt: "2026-04-29T00:00:00.000Z",
+						updatedAt: "2026-04-29T00:01:00.000Z",
+					},
+					historyPage: {
+						hasMore: false,
+						limit: 8,
+					},
+					updatedAt: "2026-04-29T00:01:00.000Z",
+				};
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: true,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage(input) {
+				return { conversationId: input.conversationId, mode: input.mode, queued: false };
+			},
+			async chat(input) {
+				chatCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, text: "should not chat" };
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for status command");
+			},
+		},
+		deliveryService: {
+			async deliverText(target, text) {
+				deliveries.push({ target, text });
+			},
+		},
+	});
+
+	await service.handleWebhook(makeFeishuTextWebhook("chat-status", "msg-status", "/status"));
+	await waitForAsyncWebhookSideEffects(() => deliveries.length === 1);
+
+	assert.equal(chatCalls.length, 0);
+	assert.match(deliveries[0]?.text ?? "", /状态：正在运行/);
+	assert.match(deliveries[0]?.text ?? "", /当前输入：正在部署服务/);
+	assert.match(deliveries[0]?.text ?? "", /当前输出：已经完成构建/);
+});
+
+test("FeishuService handles /new as a real current web conversation switch", async () => {
+	const chatCalls: Array<Record<string, unknown>> = [];
+	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		agentService: {
+			async getCurrentConversationId() {
+				return "old-conversation";
+			},
+			async createConversation() {
+				return {
+					conversationId: "new-conversation",
+					currentConversationId: "new-conversation",
+					created: true,
+				};
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: false,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage(input) {
+				return { conversationId: input.conversationId, mode: input.mode, queued: false };
+			},
+			async chat(input) {
+				chatCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, text: "should not chat" };
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for new command");
+			},
+		},
+		deliveryService: {
+			async deliverText(target, text) {
+				deliveries.push({ target, text });
+			},
+		},
+	});
+
+	await service.handleWebhook(makeFeishuTextWebhook("chat-new", "msg-new", "/new"));
+	await waitForAsyncWebhookSideEffects(() => deliveries.length === 1);
+
+	assert.equal(chatCalls.length, 0);
+	assert.match(deliveries[0]?.text ?? "", /已新建并切换 Web 当前会话：new-conversation/);
+});
+
+test("FeishuService answers /whoami with chat and sender ids for notification setup", async () => {
+	const chatCalls: Array<Record<string, unknown>> = [];
+	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: false,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage(input) {
+				return { conversationId: input.conversationId, mode: input.mode, queued: false };
+			},
+			async chat(input) {
+				chatCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, text: "should not chat" };
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for whoami command");
+			},
+		},
+		deliveryService: {
+			async deliverText(target, text) {
+				deliveries.push({ target, text });
+			},
+		},
+	});
+
+	await service.handleWebhook({
+		header: { event_type: "im.message.receive_v1" },
+		event: {
+			sender: {
+				sender_id: {
+					open_id: "ou-user",
+				},
+			},
+			message: {
+				chat_id: "oc-private-chat",
+				message_id: "msg-whoami",
+				message_type: "text",
+				content: JSON.stringify({ text: "/whoami" }),
+			},
+		},
+	});
+	await waitForAsyncWebhookSideEffects(() => deliveries.length === 1);
+
+	assert.equal(chatCalls.length, 0);
+	assert.match(deliveries[0]?.text ?? "", /chat_id：oc-private-chat/);
+	assert.match(deliveries[0]?.text ?? "", /open_id：ou-user/);
+	assert.match(deliveries[0]?.text ?? "", /FEISHU_ACTIVITY_OPEN_IDS/);
+});
+
+test("FeishuService queues incoming files onto the current active run with followUp mode", async () => {
+	const queueCalls: Array<Record<string, unknown>> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: true,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage(input) {
+				queueCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, mode: input.mode, queued: true };
+			},
+			async chat() {
+				throw new Error("chat should not run while the conversation is active");
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				return {
+					fileName: "running-source.txt",
+					mimeType: "text/plain",
+					bytes: new TextEncoder().encode("running file"),
+				};
+			},
+		},
+		deliveryService: {
+			async deliverText() {},
+		},
+	});
+
+	await service.handleWebhook({
+		header: { event_type: "im.message.receive_v1" },
+		event: {
+			message: {
+				chat_id: "chat-running-file",
+				message_id: "msg-running-file",
+				message_type: "file",
+				content: JSON.stringify({
+					file_key: "file-key-running",
+					file_name: "running-source.txt",
+				}),
+			},
+		},
+	});
+	await waitForAsyncWebhookSideEffects(() => queueCalls.length === 1);
+
+	assert.equal(queueCalls.length, 1);
+	assert.equal(queueCalls[0]?.conversationId, "web-current-conversation");
+	assert.equal(queueCalls[0]?.mode, "followUp");
+	assert.equal(queueCalls[0]?.message, "请结合我通过飞书发送的附件一起处理。");
+	const attachments = queueCalls[0]?.attachments as Array<{ fileName: string; base64?: string }>;
+	assert.equal(attachments.length, 1);
+	assert.equal(attachments[0]?.fileName, "running-source.txt");
+	assert.equal(Buffer.from(String(attachments[0]?.base64), "base64").toString("utf8"), "running file");
+});
+
+test("FeishuService ignores duplicate message ids before invoking the agent", async () => {
+	const chatCalls: Array<Record<string, unknown>> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: false,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage(input) {
+				return { conversationId: input.conversationId, mode: input.mode, queued: false };
+			},
+			async chat(input) {
+				chatCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, text: "ok" };
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for pure text");
+			},
+		},
+		deliveryService: {
+			async deliverText() {},
+		},
+	});
+
+	await service.handleWebhook(makeFeishuTextWebhook("chat-dup", "msg-dup", "hello"));
+	await service.handleWebhook(makeFeishuTextWebhook("chat-dup", "msg-dup", "hello again"));
+	await waitForAsyncWebhookSideEffects(() => chatCalls.length >= 1);
+
+	assert.equal(chatCalls.length, 1);
+	assert.equal(chatCalls[0]?.message, "hello");
+});
+
+test("FeishuService ignores messages from chats outside the allowlist", async () => {
+	const chatCalls: Array<Record<string, unknown>> = [];
+	const queueCalls: Array<Record<string, unknown>> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		allowedChatIds: ["chat-allowed"],
+		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: false,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage(input) {
+				queueCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, mode: input.mode, queued: true };
+			},
+			async chat(input) {
+				chatCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, text: "ok" };
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for denied chat");
+			},
+		},
+		deliveryService: {
+			async deliverText() {
+				throw new Error("denied chat should not receive a delivery");
+			},
+		},
+	});
+
+	const response = await service.handleWebhook(makeFeishuTextWebhook("chat-denied", "msg-denied", "hello"));
+	await new Promise((resolve) => setTimeout(resolve, 20));
+
+	assert.equal(response.accepted, true);
+	assert.equal(chatCalls.length, 0);
+	assert.equal(queueCalls.length, 0);
 });
 
 test("FeishuConversationMapStore preserves concurrent chat mappings", async () => {
@@ -136,6 +645,9 @@ test("FeishuService downloads incoming file resources and passes them to the age
 
 	const service = new FeishuService({
 		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
 			async getRunStatus(conversationId) {
 				return {
 					conversationId,
@@ -215,6 +727,7 @@ test("FeishuService downloads incoming file resources and passes them to the age
 	await waitForAsyncWebhookSideEffects(() => chatCalls.length === 1 && deliveries.length === 1);
 
 	assert.equal(chatCalls.length, 1);
+	assert.equal(chatCalls[0]?.conversationId, "web-current-conversation");
 	assert.equal(chatCalls[0]?.message, "请结合我通过飞书发送的附件一起处理。");
 	const attachments = chatCalls[0]?.attachments as Array<{ fileName: string; mimeType: string; base64?: string }>;
 	assert.equal(attachments.length, 1);
