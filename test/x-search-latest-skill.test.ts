@@ -52,6 +52,14 @@ test("web-access skill documents sidecar as primary and host IPC as legacy fallb
 	assert.match(skill, /Do not make sidecar Chrome open `http:\/\/127\.0\.0\.1:3000\/\.\.\.`/);
 });
 
+test("web-access skill documents CDP text insertion for rich editors", async () => {
+	const skill = await readFile("runtime/skills-user/web-access/SKILL.md", "utf8");
+
+	assert.match(skill, /\/type\?target=ID/);
+	assert.match(skill, /Input\.insertText/);
+	assert.match(skill, /editor\.focus\(\)/);
+});
+
 test("explicit browser search skills do not steer Docker users back to the Windows IPC bridge", async () => {
 	const skillRoot = "runtime/skills-user";
 	const browserSearchSkillPaths = [

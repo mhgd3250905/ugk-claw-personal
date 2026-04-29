@@ -496,6 +496,15 @@ export function getPlaygroundThemeStyles(): string {
 			color: rgba(75, 86, 110, 0.76);
 		}
 
+		:root[data-theme="light"] .scroll-to-bottom-button {
+			border-color: rgba(8, 120, 75, 0.4);
+			background: rgba(255, 255, 255, 0.92);
+			color: #08784b;
+			box-shadow:
+				0 4px 12px rgba(0, 0, 0, 0.15),
+				0 0 8px rgba(8, 120, 75, 0.1);
+		}
+
 		:root[data-theme="light"] :is(.context-usage-shell),
 		:root[data-theme="light"] :is(.context-usage-dialog-panel),
 		:root[data-theme="light"] :is(.chat-run-log-panel),

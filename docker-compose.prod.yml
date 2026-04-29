@@ -14,10 +14,13 @@ services:
       WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
       WEB_ACCESS_CDP_HOST: 172.31.250.10
       WEB_ACCESS_CDP_PORT: 9223
+      WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
+      WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
       PLAYGROUND_EXTERNALIZED: ${PLAYGROUND_EXTERNALIZED:-0}
     volumes:
       - ${UGK_APP_LOG_DIR:-./logs/app}:/var/log/ugk-pi
       - ${UGK_AGENT_DATA_DIR:-./.data/agent}:/app/.data/agent
+      - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
       - ./runtime/skills-user:/app/runtime/skills-user
     depends_on:
       ugk-pi-browser:
@@ -55,10 +58,13 @@ services:
       WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
       WEB_ACCESS_CDP_HOST: 172.31.250.10
       WEB_ACCESS_CDP_PORT: 9223
+      WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
+      WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
       PLAYGROUND_EXTERNALIZED: ${PLAYGROUND_EXTERNALIZED:-0}
     volumes:
       - ${UGK_APP_LOG_DIR:-./logs/app}:/var/log/ugk-pi
       - ${UGK_AGENT_DATA_DIR:-./.data/agent}:/app/.data/agent
+      - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
       - ./runtime/skills-user:/app/runtime/skills-user
     depends_on:
       ugk-pi-browser:
@@ -83,6 +89,7 @@ services:
       CHROME_CLI: "--remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --hide-crash-restore-bubble --ozone-platform=x11 --user-data-dir=${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar} about:blank"
     volumes:
       - ${UGK_BROWSER_CONFIG_DIR:-./.data/chrome-sidecar}:/config
+      - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/config/upload
       - ./scripts/ensure-sidecar-chrome.sh:/usr/local/bin/ensure-sidecar-chrome.sh:ro
     ports:
       - "127.0.0.1:${WEB_ACCESS_BROWSER_GUI_PORT:-3901}:3001"

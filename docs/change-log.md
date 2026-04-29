@@ -10,7 +10,33 @@
 
 ---
 
+## 2026-04-29
+
+### Web-access CDP 文本输入端点
+- 日期：2026-04-29
+- 主题：审核并落地 `bugs/CDP-Input-insertText-功能需求报告.md`，为 web-access 兼容代理新增 `POST /type`，通过 `LocalCdpBrowser` 调用 CDP `Input.insertText` 向当前焦点输入文本，解决 Draft.js / React 富文本编辑器里 `execCommand('insertText')` 只改 DOM、不触发框架状态同步的问题。
+- 影响范围：新增浏览器代理行为、web-access skill 使用说明、浏览器桥接文档与回归测试；调用方仍需先通过 `/eval` 或点击让目标编辑器 focus，`/type` 只负责在当前光标处插入文本，不负责清空或选择元素。
+- 对应入口：`runtime/skills-user/web-access/scripts/cdp-proxy.mjs`、`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`、`runtime/skills-user/web-access/SKILL.md`、`docs/web-access-browser-bridge.md`、`test/local-cdp-browser.test.ts`、`test/web-access-proxy.test.ts`、`test/x-search-latest-skill.test.ts`、`bugs/CDP-Input-insertText-功能需求报告.md`
+
 ## 2026-04-28
+
+### Agent 文件编辑效率规则
+- 日期：2026-04-28
+- 主题：复核 `bugs/edit-tool-efficiency-issue-report.md`，确认 pi `edit` 工具适合精确小范围替换，不适合用大段 HTML / Markdown / 模板文本做 `oldText`。将项目级编辑策略写入 `AGENTS.md`：小范围唯一替换、多处独立改动合并到一次非重叠编辑、连续失败 2 次后停止猜测并切换策略、全文重写只作为有条件方案。
+- 影响范围：只更新 agent 协作规则和问题报告，不改业务源码、不改 pi 官方工具实现。
+- 对应入口：`AGENTS.md`、`bugs/edit-tool-efficiency-issue-report.md`
+
+### Sidecar 图片上传路径桥接
+- 日期：2026-04-28
+- 主题：修复 sidecar 浏览器图片文件选择路径不统一的问题，新增共享上传目录桥：app / worker 侧写 `/app/.data/browser-upload`，sidecar Chrome 侧通过 `/config/upload` 选择，同一宿主目录由 `UGK_BROWSER_UPLOAD_DIR` 管理。
+- 影响范围：`docker-compose.yml`、`docker-compose.prod.yml`、`.env.example`、agent 文件响应 prompt、`web-access` skill 和部署文档；不改 Chrome 登录态目录，不把整个 sidecar profile 暴露给 app。
+- 对应入口：`docker-compose.yml`、`docker-compose.prod.yml`、`.env.example`、`src/agent/file-artifacts.ts`、`runtime/skills-user/web-access/SKILL.md`、`docs/web-access-browser-bridge.md`、`docs/tencent-cloud-singapore-deploy.md`、`docs/aliyun-ecs-deploy.md`、`bugs/sidecar-image-upload-issue.md`
+
+### Playground UI 报告问题落地修复
+- 日期：2026-04-28
+- 主题：按 `bugs/playground-ui-fix-report-2026-04-28.md` 修复 playground 视觉问题：landing 空态命令条居中、markdown 表格单元格长文本换行、桌面历史栏蓝色竖线移除、桌面历史列表滚动条隐藏，以及“回到底部”按钮在深浅主题下提高可发现性。
+- 影响范围：只调整 playground CSS、浅色主题覆盖、页面断言、当前状态文档和设计文档；不改变会话、SSE、文件资产、任务消息、conn 或 browser sidecar 逻辑。
+- 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`、`bugs/playground-ui-fix-report-2026-04-28.md`
 
 ### Playground 外部化热加载边界澄清
 - 日期：2026-04-28

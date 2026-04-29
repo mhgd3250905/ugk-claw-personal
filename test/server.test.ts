@@ -556,7 +556,14 @@ test("GET /playground returns the test UI html", async () => {
 		response.body,
 		/\.message-content \.markdown-table-scroll\s*\{\s*display:\s*block;\s*width:\s*fit-content;\s*max-width:\s*100%;\s*overflow-x:\s*auto;/,
 	);
-	assert.match(response.body, /\.message-content table\s*\{\s*width:\s*max-content;\s*border-collapse:\s*collapse;/);
+	assert.match(
+		response.body,
+		/\.message-content table\s*\{\s*width:\s*max-content;\s*max-width:\s*100%;\s*border-collapse:\s*collapse;/,
+	);
+	assert.match(
+		response.body,
+		/\.message-content th,[\s\S]*\.message-content td\s*\{[\s\S]*min-width:\s*60px;[\s\S]*white-space:\s*normal;[\s\S]*word-break:\s*break-word;/,
+	);
 	assert.match(response.body, /wrapper\.className = "markdown-table-scroll";/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.message-content \.markdown-table-scroll,[\s\S]*background:\s*#f8fbff;/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.message-content th,[\s\S]*border-right-color:\s*#c8d6ea;[\s\S]*background:\s*#dce8f8;/);
@@ -1108,8 +1115,11 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border-radius: 4px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*box-shadow: none;/);
-	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*flex-end;/);
-	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*padding:\s*6px 92px 6px 8px;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.topbar\s*\{[\s\S]*justify-items:\s*center;/);
+	assert.match(
+		response.body,
+		/\.shell\[data-stage-mode="landing"\] \.landing-side-right\s*\{[\s\S]*justify-content:\s*center;[\s\S]*justify-self:\s*center;[\s\S]*padding:\s*6px 12px;/,
+	);
 	assert.match(response.body, /\.topbar-context-slot\s*\{[\s\S]*position:\s*static;[\s\S]*right:\s*auto;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*2;/);
 	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*2;/);
@@ -2004,9 +2014,28 @@ test("GET /playground does not ship visible shadow effects", async () => {
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.doesNotMatch(response.body, /box-shadow\s*:(?!\s*none\s*;)[\s\S]*?;/);
+	const visibleBoxShadowValues = [...response.body.matchAll(/box-shadow\s*:\s*([\s\S]*?);/g)]
+		.map((match) => match[1]?.trim() ?? "")
+		.filter((value) => value !== "none");
+	assert.equal(visibleBoxShadowValues.length, 3);
+	assert.ok(
+		visibleBoxShadowValues.every(
+			(value) => value.includes("rgba(101, 209, 255") || value.includes("rgba(8, 120, 75"),
+		),
+	);
 	assert.doesNotMatch(response.body, /drop-shadow\s*\(/);
-	assert.doesNotMatch(response.body, /text-shadow\s*:(?!\s*none\s*;)[\s\S]*?;/);
+	const visibleTextShadowValues = [...response.body.matchAll(/text-shadow\s*:\s*([\s\S]*?);/g)]
+		.map((match) => match[1]?.trim() ?? "")
+		.filter((value) => value !== "none");
+	assert.ok(
+		visibleTextShadowValues.every(
+			(value) =>
+				value.includes("rgba(255, 80, 94") ||
+				value.includes("rgba(86, 194, 255") ||
+				value.includes("rgba(231, 55, 78") ||
+				value.includes("rgba(31, 95, 200"),
+		),
+	);
 	await app.close();
 });
 
@@ -2372,7 +2401,9 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*justify-self:\s*end;/);
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*width:\s*auto;/);
 	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*background:[\s\S]*#080c14;/);
-	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*border-left:\s*2px solid rgba\(101, 209, 255, 0\.48\);/);
+	assert.doesNotMatch(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*border-left:\s*2px solid rgba\(101, 209, 255, 0\.48\);/);
+	assert.match(response.body, /\.desktop-conversation-list\s*\{[\s\S]*scrollbar-width:\s*none;/);
+	assert.match(response.body, /\.desktop-conversation-list::-webkit-scrollbar\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*background:[\s\S]*rgba\(5, 8, 15, 0\.86\);/);
 	assert.match(response.body, /\.command-deck\s*\{[\s\S]*width:\s*min\(760px, 100%\);/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width:\s*min\(760px, 100%\);/);
@@ -2475,6 +2506,9 @@ test("GET /playground does not force-scroll when the user is reading history", a
 	assert.equal(response.statusCode, 200);
 	assert.match(response.body, /id="scroll-to-bottom-button"/);
 	assert.match(response.body, /\.scroll-to-bottom-button\s*\{[\s\S]*position:\s*absolute;/);
+	assert.match(response.body, /\.scroll-to-bottom-button\s*\{[\s\S]*border:\s*2px solid rgba\(101, 209, 255, 0\.5\);/);
+	assert.match(response.body, /\.scroll-to-bottom-button\s*\{[\s\S]*0 0 8px rgba\(101, 209, 255, 0\.2\);/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.scroll-to-bottom-button\s*\{[\s\S]*border-color:\s*rgba\(8, 120, 75, 0\.4\);/);
 	assert.match(response.body, /\.scroll-to-bottom-button\.visible\s*\{[\s\S]*display:\s*inline-flex;/);
 	assert.match(response.body, /const TRANSCRIPT_FOLLOW_THRESHOLD_PX = 120;/);
 	assert.match(response.body, /autoFollowTranscript: true,/);

@@ -21,6 +21,7 @@ output/
 tmp/
 server-install-docker.sh
 ugk-pi-deploy.tar.gz
+runtime/*.tar.gz
 hello.txt
 pixel.png
 runtime/*.png

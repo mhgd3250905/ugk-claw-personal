@@ -874,7 +874,7 @@ export function getPlaygroundStyles(): string {
 			justify-content: center;
 			min-height: 34px;
 			padding: 8px 12px;
-			border: 1px solid rgba(201, 210, 255, 0.2);
+			border: 2px solid rgba(101, 209, 255, 0.5);
 			border-radius: 4px;
 			background: rgba(9, 13, 22, 0.92);
 			color: rgba(238, 244, 255, 0.92);
@@ -882,7 +882,9 @@ export function getPlaygroundStyles(): string {
 			line-height: 1;
 			letter-spacing: 0.08em;
 			text-transform: uppercase;
-			box-shadow: none;
+			box-shadow:
+				0 4px 12px rgba(0, 0, 0, 0.4),
+				0 0 8px rgba(101, 209, 255, 0.2);
 			backdrop-filter: none;
 		}
 
@@ -896,7 +898,9 @@ export function getPlaygroundStyles(): string {
 			background: rgba(14, 18, 31, 0.96);
 			color: #f3fbff;
 			transform: none;
-			box-shadow: none;
+			box-shadow:
+				0 5px 14px rgba(0, 0, 0, 0.42),
+				0 0 10px rgba(101, 209, 255, 0.24);
 		}
 
 		.transcript-archive,
@@ -1092,6 +1096,7 @@ export function getPlaygroundStyles(): string {
 
 		.message-content table {
 			width: max-content;
+			max-width: 100%;
 			border-collapse: collapse;
 		}
 
@@ -1102,7 +1107,9 @@ export function getPlaygroundStyles(): string {
 			border-bottom: 1px solid rgba(201, 210, 255, 0.12);
 			text-align: left;
 			vertical-align: top;
-			white-space: nowrap;
+			min-width: 60px;
+			white-space: normal;
+			word-break: break-word;
 		}
 
 		.message-content th:last-child,
@@ -2854,6 +2861,16 @@ export function getPlaygroundStyles(): string {
 			transform: none;
 		}
 
+		.shell[data-stage-mode="landing"] .topbar {
+			justify-items: center;
+		}
+
+		.shell[data-stage-mode="landing"] .landing-side-right {
+			justify-content: center;
+			justify-self: center;
+			padding: 6px 12px;
+		}
+
 		.telemetry-card {
 			display: inline-flex;
 			align-items: center;
@@ -2946,7 +2963,6 @@ export function getPlaygroundStyles(): string {
 			margin: 0;
 			padding: 14px;
 			border: 0;
-			border-left: 2px solid rgba(101, 209, 255, 0.48);
 			border-radius: 6px;
 			background:
 				linear-gradient(180deg, rgba(11, 16, 27, 0.96), rgba(5, 8, 15, 0.96)),
@@ -2972,16 +2988,14 @@ export function getPlaygroundStyles(): string {
 			padding: 10px 0 0;
 			overflow-y: auto;
 			overflow-x: hidden;
-			scrollbar-width: thin;
-			scrollbar-color: rgba(201, 210, 255, 0.18) transparent;
+			scrollbar-width: none;
+			-ms-overflow-style: none;
 		}
 
 		.desktop-conversation-list::-webkit-scrollbar {
-			width: 4px;
-		}
-
-		.desktop-conversation-list::-webkit-scrollbar-thumb {
-			background: rgba(201, 210, 255, 0.18);
+			width: 0;
+			height: 0;
+			display: none;
 		}
 
 		.desktop-conversation-list .mobile-conversation-empty,

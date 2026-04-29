@@ -127,6 +127,22 @@ Do not make sidecar Chrome open `file:///app/...`. The sidecar is a different co
 
 Only in the final user-facing answer should you avoid raw container paths. For user delivery, return the `PUBLIC_BASE_URL`-reachable link or use `send_file`.
 
+## Sidecar File Uploads
+
+When a logged-in website needs a local image or other file selected through the sidecar browser, use the shared upload bridge instead of guessing profile paths:
+
+```text
+app / agent container writes:
+  /app/.data/browser-upload/<file-name>
+
+sidecar Chrome selects:
+  /config/upload/<file-name>
+```
+
+The two paths are the same host directory mounted into both containers. Do not pass `/app/.data/...` to `DOM.setFileInputFiles`; CDP resolves paths from the browser container's filesystem, so the browser-side path must be `/config/upload/<file-name>`.
+
+Do not use page JavaScript `fetch()` as the upload transport for third-party creator platforms. It is blocked by page origin, CORS, Private Network Access, or platform logic often enough that treating it as a file picker replacement is just asking the browser to be a confused courier. Use the native file input/CDP path first, then fall back to drag/drop or clipboard simulation only after confirming the file exists at `/config/upload`.
+
 ## Local Proxy API
 
 When `check-deps.mjs` passes, a compatibility proxy is available at `http://127.0.0.1:3456` inside the app container.
@@ -143,6 +159,7 @@ curl -s -X DELETE "http://127.0.0.1:3456/session/target?metaAgentScope=${AGENT_S
 curl -s -X POST "http://127.0.0.1:3456/session/close-all?metaAgentScope=${AGENT_SCOPE}"
 curl -s "http://127.0.0.1:3456/info?target=ID"
 curl -s -X POST "http://127.0.0.1:3456/eval?target=ID" -d 'document.title'
+curl -s -X POST "http://127.0.0.1:3456/type?target=ID" -H "Content-Type: text/plain; charset=utf-8" -d 'text to insert'
 curl -s "http://127.0.0.1:3456/navigate?target=ID&url=https%3A%2F%2Fexample.com"
 curl -s -X POST "http://127.0.0.1:3456/click?target=ID" -d 'button.submit'
 curl -s "http://127.0.0.1:3456/scroll?target=ID&direction=bottom"
@@ -151,6 +168,8 @@ curl -s "http://127.0.0.1:3456/close?target=ID"
 ```
 
 When passing a nested URL into `/new` or `/navigate`, URL-encode it first. Otherwise query params inside the target URL can be mistaken for proxy params.
+
+For React, Draft.js, and other rich text editors, prefer `/type` after focusing the editor with `/eval`, for example `editor.focus()`. The `/type` endpoint uses CDP `Input.insertText`, which follows the browser text input path more closely than `document.execCommand('insertText')`. It inserts at the current cursor position and does not clear existing content.
 
 ## Working Style
 

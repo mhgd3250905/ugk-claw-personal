@@ -9,6 +9,9 @@ test("buildPromptWithAssetContext allows local artifact paths internally while k
 	assert.match(prompt, /file:\/\/\/app\/\.\.\./);
 	assert.match(prompt, /host-reachable HTTP URL/i);
 	assert.match(prompt, /valid internal references for tools and browser automation/i);
+	assert.match(prompt, /sidecar browser file uploads/i);
+	assert.match(prompt, /\/app\/\.data\/browser-upload/);
+	assert.match(prompt, /\/config\/upload/);
 });
 
 test("rewriteUserVisibleLocalArtifactLinks does not wrap already translated local-file urls", () => {

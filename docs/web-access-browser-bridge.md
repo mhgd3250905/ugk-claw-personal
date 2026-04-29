@@ -136,6 +136,41 @@ http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fruntime%2Fzhihu-hot-card.html
 - 用户最终看到必须用 `PUBLIC_BASE_URL`。
 - 真实文件交付优先用 `send_file`。
 
+## 5.1 Sidecar File Upload Bridge
+
+sidecar 浏览器选择本地图片时，CDP 看到的是浏览器容器的文件系统，不是 app 容器的 `/app`。不要再把 `/app/.data/chrome-sidecar/...` 这类路径直接塞给 `DOM.setFileInputFiles`，这就是“返回 `{}` 但 `input.files.length` 还是 0”的高发坑。
+
+当前固定桥接口径：
+
+```text
+app / agent container writes:
+  /app/.data/browser-upload/<file-name>
+
+sidecar Chrome selects:
+  /config/upload/<file-name>
+
+host directory:
+  ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}
+```
+
+compose 会把同一个 `UGK_BROWSER_UPLOAD_DIR` 同时挂到 app / worker 的 `/app/.data/browser-upload` 和 sidecar 的 `/config/upload`。这样 agent 生成图片后只需要写 app 侧路径，文件选择器或 CDP 上传时使用 browser 侧路径。
+
+注意两点：
+
+- 只共享 `upload` 子目录，不把整个 Chrome profile 暴露给 app；登录态仍然只由 sidecar profile 管。
+- 页面内 `fetch("http://ugk-pi:3000/...")` 失败不等价于 Docker 网络断了。第三方页面 origin、CORS、Private Network Access 都可能挡住它，不能把 `fetch` 当文件上传通道。
+
+## 5.2 Rich Editor Text Input
+
+`POST http://127.0.0.1:3456/type?target=<targetId>&metaAgentScope=<scope>` 用 CDP `Input.insertText` 向当前焦点插入文本，主要用于 Draft.js、React rich editor 这类不会可靠响应 `document.execCommand('insertText')` 的编辑器。
+
+调用顺序必须是：
+1. 先用 `/eval` 或点击操作让目标编辑器获得焦点，例如 `editor.focus()`。
+2. 再用 `/type` 发送 `text/plain` 正文。
+3. `/type` 只在当前光标处插入文本，不负责清空旧内容，也不负责选择目标元素。
+
+这个端点属于 `web-access` 兼容代理，不是页面脚本 API。不要在第三方页面里 `fetch('/type')`；agent 应从 app 容器内调用 `127.0.0.1:3456`。
+
 ## 6. Operational Commands
 
 从项目根目录运行：

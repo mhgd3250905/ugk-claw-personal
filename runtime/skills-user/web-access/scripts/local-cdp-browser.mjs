@@ -397,6 +397,8 @@ export class LocalCdpBrowser {
         return { ok: true, page: await this.back(command.targetId) };
       case 'evaluate':
         return { ok: true, value: await this.evaluate(command.targetId, command.expression) };
+      case 'type':
+        return await this.typeText(command.targetId, command.text);
       case 'click':
       case 'click_at':
         return { ok: true, value: await this.click(command.targetId, command.selector) };
@@ -633,6 +635,19 @@ export class LocalCdpBrowser {
       }
       const value = result?.result?.value;
       return value === undefined ? result?.result?.description : value;
+    });
+  }
+
+  async typeText(targetId, text) {
+    const inputText = String(text ?? '');
+    return await this.withTarget(targetId, async (cdp) => {
+      try {
+        await cdp.send('Page.bringToFront');
+      } catch {
+        // The text insertion itself is the critical operation.
+      }
+      await cdp.send('Input.insertText', { text: inputText });
+      return { ok: true, textLength: inputText.length };
     });
   }
 

@@ -179,6 +179,7 @@ function buildFileResponseInstruction(): string {
 		"<file_response_protocol>",
 		"Local workspace artifact paths such as /app/runtime/..., /app/public/..., and file:///app/... are valid internal references for tools and browser automation.",
 		"When the host browser needs to open a local artifact, the runtime will translate those supported local paths to a host-reachable HTTP URL automatically.",
+		`For sidecar browser file uploads, write files into ${resolveBrowserUploadAppDir()} and pass the matching browser-container path ${resolveBrowserUploadBrowserDir()}/<file-name> to CDP file inputs or manual sidecar GUI file pickers.`,
 		"Only in the final user-facing answer should you avoid raw container file paths.",
 		"If the user should open the artifact in a browser, provide a host-reachable HTTP URL.",
 		"If you generated a real file inside the project workspace and the user should receive the file itself, prefer the send_file tool.",
@@ -188,6 +189,19 @@ function buildFileResponseInstruction(): string {
 		"when you need to deliver a small text file inline and send_file is not the right fit.",
 		"</file_response_protocol>",
 	].join("\n");
+}
+
+function resolveBrowserUploadAppDir(): string {
+	return normalizeContainerDirectory(process.env.WEB_ACCESS_BROWSER_UPLOAD_APP_DIR, "/app/.data/browser-upload");
+}
+
+function resolveBrowserUploadBrowserDir(): string {
+	return normalizeContainerDirectory(process.env.WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR, "/config/upload");
+}
+
+function normalizeContainerDirectory(value: string | undefined, fallback: string): string {
+	const normalized = String(value ?? "").trim().replace(/\\/g, "/").replace(/\/+$/, "");
+	return normalized.startsWith("/") ? normalized : fallback;
 }
 
 function limitAttachmentText(text: string): string {

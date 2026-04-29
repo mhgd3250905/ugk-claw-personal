@@ -786,11 +786,14 @@ UGK_APP_LOG_DIR=/home/ubuntu/ugk-claw-shared/logs/app
 UGK_AGENT_DATA_DIR=/home/ubuntu/ugk-claw-shared/.data/agent
 UGK_NGINX_LOG_DIR=/home/ubuntu/ugk-claw-shared/logs/nginx
 UGK_BROWSER_CONFIG_DIR=/home/ubuntu/ugk-claw-shared/.data/chrome-sidecar
+UGK_BROWSER_UPLOAD_DIR=/home/ubuntu/ugk-claw-shared/.data/browser-upload
 HOST_PORT=3000
 WEB_ACCESS_BROWSER_GUI_PORT=3901
 ```
 
 `UGK_AGENT_DATA_DIR` 必须存在并挂到容器 `/app/.data/agent`。这里保存的是 `conversation-index.json`、`sessions/`、`asset-index.json`、`conn/` 等真正的 agent 状态；如果漏掉它，`up --build -d` 重建 app 容器后历史会话会直接消失，这不是前端没显示，是状态被放在容器可写层里了。
+
+`UGK_BROWSER_UPLOAD_DIR` 是 sidecar 文件选择桥，不是 Chrome 登录态目录。compose 会把它挂到 app / worker 的 `/app/.data/browser-upload`，同时挂到 sidecar 的 `/config/upload`；agent 生成小红书等平台要上传的图片时写 app 侧路径，CDP 或 GUI 文件选择器使用 browser 侧路径。
 
 建议权限：
 

@@ -56,6 +56,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /WEB_ACCESS_CDP_HOST:\s*172\.31\.250\.10/);
 	assert.match(compose, /WEB_ACCESS_CDP_PORT:\s*9223/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL:\s*http:\/\/ugk-pi:3000/);
+	assert.match(compose, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR:\s*\/app\/\.data\/browser-upload/);
+	assert.match(compose, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR:\s*\/config\/upload/);
 	assert.match(compose, /lscr\.io\/linuxserver\/chrome:latest/);
 	assert.match(compose, /alpine\/socat:latest/);
 	assert.match(compose, /network_mode:\s*"service:ugk-pi-browser"/);
@@ -74,6 +76,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /npm run dev/);
 	assert.match(compose, /npm run worker:conn/);
 	assert.match(compose, /ugk-pi-conn-db:\/var\/lib\/ugk-pi\/conn/);
+	assert.match(compose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/app\/\.data\/browser-upload/);
+	assert.match(compose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/config\/upload/);
 	assert.match(compose, /volumes:\s*\n\s*ugk-pi-conn-db:/);
 	assert.match(workerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
 	assert.doesNotMatch(workerComposeBlock, /ports:/);
@@ -95,6 +99,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /WEB_ACCESS_CDP_HOST:\s*172\.31\.250\.10/);
 	assert.match(prodCompose, /WEB_ACCESS_CDP_PORT:\s*9223/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL:\s*http:\/\/ugk-pi:3000/);
+	assert.match(prodCompose, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR:\s*\/app\/\.data\/browser-upload/);
+	assert.match(prodCompose, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR:\s*\/config\/upload/);
 	assert.match(prodCompose, /127\.0\.0\.1:\$\{WEB_ACCESS_BROWSER_GUI_PORT:-3901\}:3001/);
 	assert.match(prodCompose, /lscr\.io\/linuxserver\/chrome:latest/);
 	assert.match(prodCompose, /alpine\/socat:latest/);
@@ -117,6 +123,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /logs\/app/);
 	assert.match(prodCompose, /logs\/nginx/);
 	assert.match(prodCompose, /\$\{UGK_AGENT_DATA_DIR:-\.\/\.data\/agent\}:\/app\/\.data\/agent/);
+	assert.match(prodCompose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/app\/\.data\/browser-upload/);
+	assert.match(prodCompose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/config\/upload/);
 	assert.match(prodCompose, /runtime\/skills-user/);
 	assert.match(prodWorkerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
 	assert.doesNotMatch(prodWorkerComposeBlock, /ports:/);
@@ -131,8 +139,11 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /WEB_ACCESS_BROWSER_GUI_PORT=3901/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_PROFILE_DIR=\/config\/chrome-profile-sidecar/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL=http:\/\/ugk-pi:3000/);
+	assert.match(envExample, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR=\/app\/\.data\/browser-upload/);
+	assert.match(envExample, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR=\/config\/upload/);
 	assert.match(envExample, /CONN_WORKER_MAX_CONCURRENCY=3/);
 	assert.match(envExample, /UGK_AGENT_DATA_DIR=\.\/\.data\/agent/);
+	assert.match(envExample, /UGK_BROWSER_UPLOAD_DIR=\.\/\.data\/chrome-sidecar\/upload/);
 
 	const dockerignore = readFileSync(dockerignorePath, "utf8");
 	assert.match(dockerignore, /node_modules/);

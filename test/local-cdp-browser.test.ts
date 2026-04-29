@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
 	findDockerHostCdpBaseUrl,
+	LocalCdpBrowser,
 	resolveBrowserInputUrl,
 	rewriteCdpTargetForBaseUrl,
 } from "../runtime/skills-user/web-access/scripts/local-cdp-browser.mjs";
@@ -94,4 +95,35 @@ test("resolveBrowserInputUrl rewrites workspace public paths to the local artifa
 		}),
 		"http://127.0.0.1:3000/v1/local-file?path=%2Fapp%2Fpublic%2Fx-api-report-card.html",
 	);
+});
+
+test("LocalCdpBrowser type action inserts text through CDP Input.insertText", async () => {
+	const calls: Array<{ method: string; params: unknown }> = [];
+	class TestBrowser extends LocalCdpBrowser {
+		override async withTarget(
+			targetId: string,
+			callback: (cdp: { send: (method: string, params?: unknown) => Promise<unknown> }) => Promise<unknown>,
+		) {
+			assert.equal(targetId, "target-1");
+			return await callback({
+				send: async (method: string, params?: unknown) => {
+					calls.push({ method, params });
+					return {};
+				},
+			});
+		}
+	}
+
+	const browser = new TestBrowser();
+	const result = await browser.handleCommand({
+		action: "type",
+		targetId: "target-1",
+		text: "你好 Draft",
+	});
+
+	assert.deepEqual(result, { ok: true, textLength: 8 });
+	assert.deepEqual(calls, [
+		{ method: "Page.bringToFront", params: undefined },
+		{ method: "Input.insertText", params: { text: "你好 Draft" } },
+	]);
 });

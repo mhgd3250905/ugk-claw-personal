@@ -7,6 +7,10 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 默认使用简体中文回复；只有用户明确要求英文时才切换。
 - 命令、代码、日志、报错保持原始语言；其余解释用中文。
 - 先读现有文件，再动手；优先编辑已有文件，不要无意义新建。
+- 文件编辑要先选对策略：精确替换只用于小范围、唯一、非重叠文本；`oldText` 必须尽量短但足够唯一，不要塞整段 HTML / Markdown / 模板做大块匹配。
+- 同一文件多处独立小改动应一次性提交多个非重叠替换；相邻或同块改动先合并成一个小块，不要连续多次赌同一片上下文。
+- 精确替换连续失败 2 次后必须停下来重新读取目标片段和行号，改用更小锚点、结构化解析 / 格式化脚本，或在完整读过且文件较小、结构简单时重写全文；禁止第三次继续靠猜 oldText 硬怼。
+- 小文件全文重写不是默认捷径。只有确认文件已完整读取、内容可控、改动范围密集且不会覆盖用户并发修改时才使用；否则优先精确小补丁。
 - 先判断任务性质：
   - 文档 / 规划任务：优先改文档，不要顺手碰源码。
   - 实现 / 修复任务：先看真实入口和调用链，再落代码。
@@ -37,6 +41,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - agent 任务结束时，`AgentService` 会通过 `src/agent/browser-cleanup.ts` 按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 清理本轮 `web-access` scope 下保留的浏览器页面；不要只在运行容器 `/app` 里热改，否则重建镜像会直接丢修复。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
+- sidecar 文件选择 / CDP 上传使用独立共享 upload 桥：agent/app 侧写 `/app/.data/browser-upload/<file>`，sidecar Chrome 侧选择 `/config/upload/<file>`，宿主目录由 `UGK_BROWSER_UPLOAD_DIR` 指向；不要把整个 Chrome profile 当上传交换区。
 - 当前生产更新默认不能洗掉两类状态：sidecar 登录态挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，agent 会话 / session / 资产 / conn 数据挂在 `~/ugk-claw-shared/.data/agent` 并映射到容器 `/app/.data/agent`；如果更新后历史会话消失，先查 `docker inspect ugk-pi-claw-ugk-pi-1` 的 mounts 和 `UGK_AGENT_DATA_DIR`，别又让容器可写层背锅。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
 - 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`，公网入口是 `http://43.134.167.179:3000/playground`；阿里云 ECS 的正式部署记录在 `docs/aliyun-ecs-deploy.md`，公网入口是 `http://101.37.209.54:3000/playground`。两边 sidecar GUI 都只能走 SSH tunnel，不要开放公网 `3901`。

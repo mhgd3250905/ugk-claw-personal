@@ -149,7 +149,9 @@ function isDirectExecution() {
   );
 }
 
-export function createProxyServer() {
+export function createProxyServer(options = {}) {
+  const requestBrowser = options.requestHostBrowser || requestHostBrowser;
+
   return http.createServer(async (req, res) => {
     const parsed = new URL(req.url || '/', `http://127.0.0.1:${PORT}`);
     const pathname = parsed.pathname;
@@ -333,6 +335,36 @@ export function createProxyServer() {
         },
       );
       sendJson(res, result.ok ? 200 : 500, result.ok ? result.value : result);
+      return;
+    }
+
+    if (pathname === '/type') {
+      const text = await readBody(req);
+      const result = await requestBrowser(
+        {
+          action: 'type',
+          targetId: requireTargetId(targetId),
+          text,
+        },
+        {
+          meta: buildRequestMeta(parsed, req, {
+            operation: 'type',
+          }),
+        },
+      );
+      sendJson(
+        res,
+        result.ok ? 200 : 500,
+        result.ok
+          ? {
+              ok: true,
+              textLength:
+                typeof result.textLength === 'number'
+                  ? result.textLength
+                  : text.length,
+            }
+          : result,
+      );
       return;
     }
 

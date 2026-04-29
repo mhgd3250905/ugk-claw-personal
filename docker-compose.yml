@@ -17,12 +17,15 @@ services:
       WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
       WEB_ACCESS_CDP_HOST: 172.31.250.10
       WEB_ACCESS_CDP_PORT: 9223
+      WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
+      WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
     ports:
       - "3000:3000"
     volumes:
       - .:/app
       - /app/node_modules
       - ugk-pi-conn-db:/var/lib/ugk-pi/conn
+      - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
     command: npm run dev
     networks:
       - ugk-pi-net
@@ -43,10 +46,13 @@ services:
       WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
       WEB_ACCESS_CDP_HOST: 172.31.250.10
       WEB_ACCESS_CDP_PORT: 9223
+      WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
+      WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
     volumes:
       - .:/app
       - /app/node_modules
       - ugk-pi-conn-db:/var/lib/ugk-pi/conn
+      - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
     command: npm run worker:conn
     healthcheck:
       disable: true
@@ -65,6 +71,7 @@ services:
       CHROME_CLI: "--remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --hide-crash-restore-bubble --ozone-platform=x11 --user-data-dir=${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar} about:blank"
     volumes:
       - ./.data/chrome-sidecar:/config
+      - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/config/upload
       - ./scripts/ensure-sidecar-chrome.sh:/usr/local/bin/ensure-sidecar-chrome.sh:ro
     ports:
       - "127.0.0.1:${WEB_ACCESS_BROWSER_GUI_PORT:-3901}:3001"

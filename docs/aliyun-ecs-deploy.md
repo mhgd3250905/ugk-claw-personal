@@ -87,12 +87,15 @@ UGK_APP_LOG_DIR=/root/ugk-claw-shared/logs/app
 UGK_AGENT_DATA_DIR=/root/ugk-claw-shared/.data/agent
 UGK_NGINX_LOG_DIR=/root/ugk-claw-shared/logs/nginx
 UGK_BROWSER_CONFIG_DIR=/root/ugk-claw-shared/.data/chrome-sidecar
+UGK_BROWSER_UPLOAD_DIR=/root/ugk-claw-shared/.data/browser-upload
 HOST_PORT=3000
 WEB_ACCESS_BROWSER_GUI_PORT=3901
 TZ=Asia/Shanghai
 ```
 
 `UGK_AGENT_DATA_DIR` 必须挂到容器 `/app/.data/agent`。少了这条，重建容器后历史会话、session、资产和 conn 数据会跟着容器可写层一起蒸发。别问为什么历史没了，答案通常就是这里没挂。
+
+`UGK_BROWSER_UPLOAD_DIR` 是 sidecar 文件选择桥，不是 Chrome 登录态目录。compose 会把它挂到 app / worker 的 `/app/.data/browser-upload`，同时挂到 sidecar 的 `/config/upload`；agent 生成要上传到小红书等站点的图片时写 app 侧路径，CDP 或 GUI 文件选择器使用 browser 侧路径。
 
 ## 首次部署记录
 
@@ -356,3 +359,17 @@ COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose
    - 公网 `curl -fsS http://101.37.209.54:3000/healthz` 返回 `{"ok":true}`
    - `.pi/skills/playground-runtime-ui/SKILL.md` 包含 `Do not claim \`src/ui/\` edits are zero-restart changes`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+
+## 2026-04-29 Web-access /type 增量发布记录
+
+本次发布继续使用 archive 小包增量覆盖 `/root/ugk-claw-repo`，没有执行整目录替换，也没有触碰 `/root/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。
+
+实际结果：
+1. 本地生成增量包 `runtime/web-access-type-20260429-incremental.tar.gz`，只包含 web-access `/type` 端点相关脚本、skill、测试、文档和 bug 落地记录。
+2. 通过本地 `*config.txt` 中的 root 密码用 `paramiko` SFTP 上传到 `/root/web-access-type-20260429-incremental.tar.gz`，密码没有写入命令行参数或输出日志。
+3. 服务器在 `/root/ugk-claw-repo` 内执行 `tar -xzf /root/web-access-type-20260429-incremental.tar.gz -C /root/ugk-claw-repo` 增量覆盖对应文件。
+4. 执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+5. 执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml restart ugk-pi ugk-pi-conn-worker`，重启应用与 worker 以重新加载 web-access proxy 脚本。
+6. 验收确认：内网 `/healthz`、公网 `/healthz`、`check-deps.mjs`、`POST /type` 真实 CDP 插入文本和 compose 状态均通过。
+
+补充确认：实际发布已完成。`ugk-pi` 容器内部 `/healthz` 返回 `200 {"ok":true}`；重启 app 后 nginx 曾短暂 unhealthy 并返回 502，按既有 runbook 强制重建 nginx 后恢复；最终服务器内网 `/healthz`、本机公网 `http://101.37.209.54:3000/healthz`、`check-deps.mjs`、真实 `/type` CDP 文本插入（`{"typed":{"ok":true,"textLength":10},"value":"aliyun-cdp"}`）和 compose 状态均通过。
