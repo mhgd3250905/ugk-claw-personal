@@ -4,6 +4,8 @@
 
 这台机器目前是第二套公网部署环境，不是腾讯云新加坡环境的替代品。后续接手时先分清服务器，别把两台机器的目录、账号和公网 IP 混在一起，那种混法很快就会把运维变成猜谜。
 
+如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md) 的“固定增量发布流程（先选目标云）”；阿里云当前固定口径是 archive 增量覆盖 `/root/ugk-claw-repo`，保留 `/root/ugk-claw-shared`，不要执行腾讯云的 `git pull` 流程。
+
 ## 当前部署快照
 
 - 日期：`2026-04-27`

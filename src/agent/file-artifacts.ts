@@ -175,10 +175,14 @@ function buildAssetResponseInstruction(): string {
 }
 
 function buildFileResponseInstruction(): string {
+	const publicBaseUrl = normalizePublicBaseUrl();
 	return [
 		"<file_response_protocol>",
 		"Local workspace artifact paths such as /app/runtime/..., /app/public/..., and file:///app/... are valid internal references for tools and browser automation.",
 		"When the host browser needs to open a local artifact, the runtime will translate those supported local paths to a host-reachable HTTP URL automatically.",
+		`Current user-facing base URL: ${publicBaseUrl}.`,
+		"Use this current base URL for service, playground, and local-file links unless the user explicitly asks for another deployment.",
+		"Do not mention Tencent Cloud, Aliyun, or another deployment public URL just because it exists in repository documentation.",
 		`For sidecar browser file uploads, write files into ${resolveBrowserUploadAppDir()} and pass the matching browser-container path ${resolveBrowserUploadBrowserDir()}/<file-name> to CDP file inputs or manual sidecar GUI file pickers.`,
 		"Only in the final user-facing answer should you avoid raw container file paths.",
 		"If the user should open the artifact in a browser, provide a host-reachable HTTP URL.",

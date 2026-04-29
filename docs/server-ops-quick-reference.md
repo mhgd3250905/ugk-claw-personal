@@ -48,7 +48,106 @@ ssh ubuntu@43.134.167.179
 ssh root@101.37.209.54
 ```
 
-## 标准更新
+## 固定增量发布流程（先选目标云）
+
+先判断目标云，别上来复制上一轮命令。腾讯云是 Git 工作目录，阿里云当前是 archive 解包目录；把这两套混用，就是自己给自己挖坑。
+
+### 发布前本地固定检查
+
+```bash
+git status --short
+npm test
+git diff --check
+```
+
+如果本次要发布的是已提交版本，先确保本地提交已经推到 GitHub：
+
+```bash
+git push origin main
+```
+
+### 腾讯云：Git 增量发布
+
+适用目标：`ubuntu@43.134.167.179`，目录：`~/ugk-claw-repo`。
+
+```bash
+ssh ugk-claw-prod
+cd ~/ugk-claw-repo
+git fetch origin main
+git status --short
+git pull --ff-only origin main
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
+COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
+```
+
+如果本次改过 `deploy/nginx/default.conf`，固定补一条 nginx 重建，别赌 bind mount 会自动换 inode：
+
+```bash
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx
+```
+
+### 阿里云：archive 增量发布
+
+适用目标：`root@101.37.209.54`，目录：`/root/ugk-claw-repo`。这里当前不是 Git 工作目录，不要跑 `git pull`，别跟一个解包目录谈恋爱，它不会回应你的。
+
+本地只打本次需要发布的文件，包放 `runtime/`，不要提交 tar 包：
+
+```bash
+tar -czf runtime/ugk-claw-incremental-YYYYMMDD-HHMMSS.tar.gz <file-or-dir> [more-files...]
+```
+
+上传固定使用 SFTP / `paramiko` 读取本机 `阿里-config.txt`，不要把 root 密码写到命令行或日志里。远端包路径统一放 `/root/<pkg>.tar.gz`。
+
+上传到阿里云后固定执行：
+
+```bash
+cd /root/ugk-claw-repo
+tar -xzf /root/ugk-claw-incremental-YYYYMMDD-HHMMSS.tar.gz -C /root/ugk-claw-repo
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
+```
+
+重启策略按改动类型选，不要临场猜：
+
+```bash
+# 只改 runtime/skills-user、文档或挂载脚本，且镜像内容不变：
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml restart ugk-pi ugk-pi-conn-worker
+```
+
+```bash
+# 改过 src、package、Dockerfile、compose、nginx 或生产构建相关文件：
+COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+```
+
+如果阿里云 app 容器内部健康但公网 / nginx 返回 `502`，不要绕圈试错，固定重建 nginx：
+
+```bash
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx
+```
+
+### 发布后固定验收
+
+腾讯云：
+
+```bash
+curl -fsS http://127.0.0.1:3000/healthz
+curl -fsS http://43.134.167.179:3000/healthz
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
+```
+
+阿里云：
+
+```bash
+curl -fsS http://127.0.0.1:3000/healthz
+curl -fsS http://101.37.209.54:3000/healthz
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
+```
+
+验收失败时先看 `ps` 和对应服务日志；不要删除 shared 目录，不要替换 `.data`，不要把整目录覆盖当“增量更新”。
+
+## 旧版命令备查
+
+下面保留旧命令是为了查历史口径；实际发布优先使用上面的“固定增量发布流程”。
 
 腾讯云当前是 Git 工作目录：
 
@@ -162,6 +261,23 @@ browser sidecar：
 cd ~/ugk-claw-repo
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml logs --tail=120 ugk-pi-browser ugk-pi-browser-cdp
 ```
+
+## OOM 与运行态膨胀排查
+
+如果公网突然不可用，但重启后又恢复，先别把锅甩给 sidecar。先查 app 日志里有没有 Node heap OOM：
+
+```bash
+cd ~/ugk-claw-repo
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml logs --tail=220 ugk-pi | grep -E "heap out of memory|FATAL ERROR"
+```
+
+再查运行态是否膨胀：
+
+```bash
+find ~/ugk-claw-shared/.data/agent/conn ~/ugk-claw-shared/.data/agent/sessions -type f -size +20M -printf '%s %TY-%Tm-%Td %TH:%TM %p\n' | sort -nr | head -30
+```
+
+`conn.sqlite` 或 session jsonl 到几百 MB / GB 级时，不要在线硬删。固定流程是：停 `ugk-pi` 与 `ugk-pi-conn-worker`，备份数据库和超大 session，清理 `conn_run_events` 旧事件，`VACUUM` 后再启动。`src/agent/conn-run-store.ts` 已有写入侧上限，生产清理只是处理历史债。
 
 ## 发布后验收
 

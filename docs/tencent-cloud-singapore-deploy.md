@@ -6,6 +6,8 @@
 
 如果你现在只想要高频命令速查，不想先读长文，直接看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)。
 
+后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 GitHub 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；不要把阿里云 archive 上传流程反套到这台机器上。
+
 ## 当前部署快照
 
 - 日期：`2026-04-20`

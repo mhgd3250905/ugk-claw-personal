@@ -173,6 +173,11 @@ interface ConnScheduleRow {
 }
 
 const DEFAULT_LEASE_MS = 5 * 60_000;
+const MAX_RUN_EVENTS_PER_RUN = 2_000;
+const MAX_EVENT_JSON_CHARS = 64_000;
+const MAX_EVENT_STRING_CHARS = 16_000;
+const MAX_EVENT_ARRAY_ITEMS = 40;
+const MAX_EVENT_OBJECT_KEYS = 80;
 
 export class ConnRunStore {
 	constructor(private readonly options: ConnRunStoreOptions) {}
@@ -402,9 +407,10 @@ export class ConnRunStore {
 			runId: input.runId,
 			seq: row?.next_seq ?? 1,
 			eventType: input.eventType,
-			event: input.event,
+			event: sanitizeRunEventForStorage(input.event),
 			createdAt,
 		};
+		const eventJson = serializeRunEvent(event.event);
 
 		this.options.database.run(
 			[
@@ -416,9 +422,10 @@ export class ConnRunStore {
 			event.runId,
 			event.seq,
 			event.eventType,
-			JSON.stringify(event.event),
+			eventJson,
 			event.createdAt,
 		);
+		this.pruneOldRunEvents(event.runId, event.seq);
 
 		return event;
 	}
@@ -440,6 +447,17 @@ export class ConnRunStore {
 			...params,
 		);
 		return rows.map(rowToEvent);
+	}
+
+	private pruneOldRunEvents(runId: string, latestSeq: number): void {
+		if (latestSeq <= MAX_RUN_EVENTS_PER_RUN) {
+			return;
+		}
+		this.options.database.run(
+			"DELETE FROM conn_run_events WHERE run_id = ? AND seq <= ?",
+			runId,
+			latestSeq - MAX_RUN_EVENTS_PER_RUN,
+		);
 	}
 
 	async recordFile(input: RecordConnRunFileInput): Promise<ConnRunFileRecord | undefined> {
@@ -655,6 +673,72 @@ function rowToFile(row: ConnRunFileRow): ConnRunFileRecord {
 
 function serializeOptionalJson(value: Record<string, unknown> | undefined): string | undefined {
 	return value ? JSON.stringify(value) : undefined;
+}
+
+function serializeRunEvent(event: Record<string, unknown>): string {
+	const json = JSON.stringify(event);
+	if (json.length <= MAX_EVENT_JSON_CHARS) {
+		return json;
+	}
+	return JSON.stringify({
+		type: typeof event.type === "string" ? event.type : "run_event",
+		truncated: true,
+		truncatedReason: "event_json_size",
+		originalJsonChars: json.length,
+		preview: json.slice(0, MAX_EVENT_STRING_CHARS),
+	});
+}
+
+function sanitizeRunEventForStorage(event: Record<string, unknown>): Record<string, unknown> {
+	const sanitized = sanitizeEventValue(event, 0);
+	if (sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)) {
+		const result = sanitized as Record<string, unknown>;
+		if (JSON.stringify(result).length > MAX_EVENT_JSON_CHARS) {
+			return {
+				type: typeof event.type === "string" ? event.type : "run_event",
+				truncated: true,
+				truncatedReason: "event_json_size",
+				preview: JSON.stringify(result).slice(0, MAX_EVENT_STRING_CHARS),
+			};
+		}
+		return result;
+	}
+	return { value: sanitized };
+}
+
+function sanitizeEventValue(value: unknown, depth: number): unknown {
+	if (typeof value === "string") {
+		if (value.length <= MAX_EVENT_STRING_CHARS) {
+			return value;
+		}
+		return `${value.slice(0, MAX_EVENT_STRING_CHARS)}\n[truncated ${value.length - MAX_EVENT_STRING_CHARS} chars]`;
+	}
+	if (value === null || typeof value !== "object") {
+		return value;
+	}
+	if (depth >= 6) {
+		return "[truncated nested value]";
+	}
+	if (Array.isArray(value)) {
+		const items = value.slice(0, MAX_EVENT_ARRAY_ITEMS).map((item) => sanitizeEventValue(item, depth + 1));
+		if (value.length > MAX_EVENT_ARRAY_ITEMS) {
+			items.push(`[truncated ${value.length - MAX_EVENT_ARRAY_ITEMS} items]`);
+		}
+		return items;
+	}
+
+	const entries = Object.entries(value as Record<string, unknown>);
+	const result: Record<string, unknown> = {};
+	for (const [key, nestedValue] of entries.slice(0, MAX_EVENT_OBJECT_KEYS)) {
+		result[key] = sanitizeEventValue(nestedValue, depth + 1);
+	}
+	if (entries.length > MAX_EVENT_OBJECT_KEYS) {
+		result.truncatedKeys = entries.length - MAX_EVENT_OBJECT_KEYS;
+	}
+	if (entries.some(([, nestedValue]) => typeof nestedValue === "string" && nestedValue.length > MAX_EVENT_STRING_CHARS)) {
+		result.truncated = true;
+	}
+	return result;
 }
 
 function parseJson<T>(value: string, fieldName: string): T {

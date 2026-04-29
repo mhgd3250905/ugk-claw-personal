@@ -3,11 +3,24 @@ import test from "node:test";
 import { buildPromptWithAssetContext, rewriteUserVisibleLocalArtifactLinks } from "../src/agent/file-artifacts.js";
 
 test("buildPromptWithAssetContext allows local artifact paths internally while keeping send_file for direct delivery", () => {
-	const prompt = buildPromptWithAssetContext("请生成报告");
+	const previousPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+	process.env.PUBLIC_BASE_URL = "http://101.37.209.54:3000";
+	let prompt = "";
+	try {
+		prompt = buildPromptWithAssetContext("请生成报告");
+	} finally {
+		if (typeof previousPublicBaseUrl === "undefined") {
+			delete process.env.PUBLIC_BASE_URL;
+		} else {
+			process.env.PUBLIC_BASE_URL = previousPublicBaseUrl;
+		}
+	}
 
 	assert.match(prompt, /send_file/);
 	assert.match(prompt, /file:\/\/\/app\/\.\.\./);
 	assert.match(prompt, /host-reachable HTTP URL/i);
+	assert.match(prompt, /Current user-facing base URL: http:\/\/101\.37\.209\.54:3000\./);
+	assert.match(prompt, /Do not mention Tencent Cloud, Aliyun, or another deployment public URL/i);
 	assert.match(prompt, /valid internal references for tools and browser automation/i);
 	assert.match(prompt, /sidecar browser file uploads/i);
 	assert.match(prompt, /\/app\/\.data\/browser-upload/);

@@ -12,6 +12,18 @@
 
 ## 2026-04-29
 
+### 后台任务事件日志体积上限
+- 日期：2026-04-29
+- 主题：定位腾讯云访问异常的根因不是 sidecar 页面过多，而是 `conn.sqlite` 与后台 session 历史膨胀导致 `ugk-pi` Node 进程多次 `JavaScript heap out of memory`。为 `ConnRunStore` 增加后台 run event 存储保护：单条事件递归截断超长字符串 / 深层结构，单个 run 只保留最近 2000 条事件，避免 `conn_run_events.event_json` 再次写到 GB 级。
+- 影响范围：后台任务运行日志持久化与历史查看；最近日志、分页查看和任务结果不变，但超大工具输出只保留摘要与截断标记。生产清理需要先备份 `conn.sqlite` 和超大 session，再 prune 旧事件并 `VACUUM`。
+- 对应入口：`src/agent/conn-run-store.ts`、`test/conn-run-store.test.ts`、`docs/server-ops-quick-reference.md`
+
+### 双云增量发布流程与用户可见 URL 边界
+- 日期：2026-04-29
+- 主题：收口腾讯云 / 阿里云生产增量发布 runbook，明确“先选目标云”：腾讯云使用 GitHub 工作目录 fast-forward，阿里云当前使用 archive 小包覆盖 `/root/ugk-claw-repo`，两边都必须保留 shared 运行态并按改动类型选择 `restart`、`up --build -d` 或 nginx `--force-recreate`。同时在 agent 文件响应 prompt 中注入当前 `PUBLIC_BASE_URL`，要求最终用户可见服务链接只使用当前运行环境地址，避免阿里云 agent 主动引用腾讯云公网入口。
+- 影响范围：部署文档、项目接手规则、agent 每轮文件交付 / 链接输出协议与对应回归测试；不改变 chat、SSE、sidecar CDP、会话或文件资产业务逻辑。
+- 对应入口：`docs/server-ops-quick-reference.md`、`docs/tencent-cloud-singapore-deploy.md`、`docs/aliyun-ecs-deploy.md`、`AGENTS.md`、`src/agent/file-artifacts.ts`、`test/file-artifacts.test.ts`
+
 ### Web-access CDP 文本输入端点
 - 日期：2026-04-29
 - 主题：审核并落地 `bugs/CDP-Input-insertText-功能需求报告.md`，为 web-access 兼容代理新增 `POST /type`，通过 `LocalCdpBrowser` 调用 CDP `Input.insertText` 向当前焦点输入文本，解决 Draft.js / React 富文本编辑器里 `execCommand('insertText')` 只改 DOM、不触发框架状态同步的问题。

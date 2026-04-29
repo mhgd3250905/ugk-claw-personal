@@ -44,6 +44,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - sidecar 文件选择 / CDP 上传使用独立共享 upload 桥：agent/app 侧写 `/app/.data/browser-upload/<file>`，sidecar Chrome 侧选择 `/config/upload/<file>`，宿主目录由 `UGK_BROWSER_UPLOAD_DIR` 指向；不要把整个 Chrome profile 当上传交换区。
 - 当前生产更新默认不能洗掉两类状态：sidecar 登录态挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，agent 会话 / session / 资产 / conn 数据挂在 `~/ugk-claw-shared/.data/agent` 并映射到容器 `/app/.data/agent`；如果更新后历史会话消失，先查 `docker inspect ugk-pi-claw-ugk-pi-1` 的 mounts 和 `UGK_AGENT_DATA_DIR`，别又让容器可写层背锅。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
+- 运行中的 agent 对用户输出服务入口、playground 或本地文件预览链接时，必须以当前容器 `PUBLIC_BASE_URL` 为准；只有用户明确询问双云部署事实时才同时列出腾讯云 / 阿里云公网入口。阿里云环境不要主动提腾讯云公网地址，腾讯云环境也不要主动提阿里云公网地址，别把部署手册里的备用事实当默认回复模板。
 - 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`，公网入口是 `http://43.134.167.179:3000/playground`；阿里云 ECS 的正式部署记录在 `docs/aliyun-ecs-deploy.md`，公网入口是 `http://101.37.209.54:3000/playground`。两边 sidecar GUI 都只能走 SSH tunnel，不要开放公网 `3901`。
 - Windows host IPC fallback 仍保留，但只用于 legacy 本机调试和紧急排障。
 - 本阶段标准验证命令是 `npm test` 与 `npm run docker:chrome:check`。
@@ -157,7 +158,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 如果这次 `/init` 的目标是接手云服务器，而不是本机开发，先记住三件事：
 
-- 腾讯云正式入口是 `http://43.134.167.179:3000/playground`；阿里云正式入口是 `http://101.37.209.54:3000/playground`。
+- 腾讯云正式入口是 `http://43.134.167.179:3000/playground`；阿里云正式入口是 `http://101.37.209.54:3000/playground`。这两条只用于云服务器接手和双云排障；普通运行回复、文件预览链接和 playground 链接必须优先使用当前环境的 `PUBLIC_BASE_URL`，不要默认把两边公网入口一起甩给用户。
 - 腾讯云当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
 - 阿里云当前主部署目录是 `/root/ugk-claw-repo`，是 archive 解包目录，不是 Git 工作目录；后续更新先看 `docs/aliyun-ecs-deploy.md`，不要直接照抄腾讯云 `git pull`。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。

@@ -529,6 +529,93 @@ test("ConnRunStore appends ordered run events and output file records", async ()
 	database.close();
 });
 
+test("ConnRunStore truncates oversized run events before storing them", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "large event digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-large-event",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	const event = await runStore.appendEvent({
+		runId: run.runId,
+		eventType: "tool_finished",
+		event: {
+			type: "tool_finished",
+			result: "x".repeat(120_000),
+			nested: {
+				output: "y".repeat(120_000),
+			},
+		},
+		createdAt: new Date("2026-04-21T10:01:00.000Z"),
+	});
+	const row = database.get<{ event_json: string }>(
+		"SELECT event_json FROM conn_run_events WHERE run_id = ?",
+		run.runId,
+	);
+
+	assert.ok(event);
+	assert.equal(event.event.truncated, true);
+	assert.equal(typeof event.event.result, "string");
+	assert.match(String(event.event.result), /\[truncated/);
+	assert.ok((row?.event_json.length ?? 0) < 80_000);
+
+	database.close();
+});
+
+test("ConnRunStore retains only the newest bounded run events", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "chatty digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-chatty",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	for (let index = 0; index < 2_005; index += 1) {
+		await runStore.appendEvent({
+			runId: run.runId,
+			eventType: "log",
+			event: { message: `event-${index}` },
+			createdAt: new Date("2026-04-21T10:01:00.000Z"),
+		});
+	}
+
+	const rows = await runStore.listEvents(run.runId);
+	assert.equal(rows.length, 2_000);
+	assert.equal(rows[0]?.seq, 6);
+	assert.equal(rows.at(-1)?.seq, 2005);
+
+	database.close();
+});
+
 test("ConnRunStore completing a run updates the owning conn schedule state", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const conn = await connStore.create({
