@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### 腾讯云 clean Git 更新主流程收口
+- 日期：2026-04-29
+- 主题：将腾讯云 `~/ugk-claw-repo` 从长期脏工作区收口为干净 Git 工作目录，并补齐 `gitee` 备用 remote；后续发布主流程统一为 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。
+- 影响范围：影响腾讯云生产发布流程和接手口径；保留 `~/ugk-claw-shared` 作为运行态目录，不把 agent 数据、Chrome 登录态、env 或日志并入 Git 仓库。
+- 对应入口：`docs/tencent-cloud-singapore-deploy.md`、`docs/server-ops-quick-reference.md`、`AGENTS.md`
+
 ### 阿里云 Git 更新主流程迁移
 - 日期：2026-04-29
 - 主题：将阿里云 `/root/ugk-claw-repo` 从 archive 解包目录迁移为 Git 工作目录，`origin` 指向 GitHub，`gitee` 作为备用 remote；后续发布主流程改为 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。

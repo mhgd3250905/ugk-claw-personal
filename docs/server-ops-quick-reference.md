@@ -16,7 +16,8 @@
 - 公网入口：`http://43.134.167.179:3000/playground`
 - 健康检查：`http://43.134.167.179:3000/healthz`
 - 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`e446ec2`
+- 当前线上应用提交：以服务器 `git log -1 --oneline` 为准，当前跟随远端 `main`
+- 备用远端：`gitee -> https://gitee.com/ksheng3250905/ugk-pi-claw.git`
 - 不要再用：`snapshot-20260422-v4.1.1-stable`；那个 tag 打出来后才发现生产 compose YAML 缩进有病
 
 ### 阿里云 ECS
@@ -27,7 +28,7 @@
 - 生产 compose：`docker-compose.prod.yml`
 - 公网入口：`http://101.37.209.54:3000/playground`
 - 健康检查：`http://101.37.209.54:3000/healthz`
-- 当前线上应用提交：`e446ec2`
+- 当前线上应用提交：以服务器 `git log -1 --oneline` 为准，当前跟随远端 `main`
 - 注意：当前阿里云目录已经迁移为 Git 工作目录，`origin` 指向 GitHub，`gitee` 作为备用 remote；后续更新优先 `git pull --ff-only origin main`，GitHub 不通时再从 Gitee 拉取。
 
 ## 登录
@@ -79,6 +80,14 @@ git pull --ff-only origin main
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
 COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
+```
+
+如果 GitHub 不通，确认本地提交已经推到 Gitee 后在服务器上改走备用 remote：
+
+```bash
+cd ~/ugk-claw-repo
+git fetch gitee main
+git pull --ff-only gitee main
 ```
 
 如果本次改过 `deploy/nginx/default.conf`，固定补一条 nginx 重建，别赌 bind mount 会自动换 inode：

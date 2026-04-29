@@ -6,7 +6,7 @@
 
 如果你现在只想要高频命令速查，不想先读长文，直接看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)。
 
-后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 GitHub 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；不要把阿里云 archive 上传流程反套到这台机器上。
+后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 Git 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；GitHub 不通时走 `git pull --ff-only gitee main`，不要再把小包覆盖当长期主流程。
 
 ## 2026-04-29 小米 MiMo 模型源增量发布记录
 
@@ -42,6 +42,19 @@
 
 后续接手时注意：腾讯云 `~/ugk-claw-repo` 当前工作树仍有历史脏状态，不能再假设 `git pull` 一定可用；在彻底整理远端 Git 状态前，生产小包增量覆盖比 `reset --hard` 更安全。
 
+## 2026-04-29 腾讯云 clean Git 工作目录收口记录
+
+本次将腾讯云 `~/ugk-claw-repo` 从“Git 仓库但长期脏工作区”收口为干净 Git 工作目录，目标提交为 `b2b862c docs: switch aliyun deploy flow to git`。迁移前确认 GitHub 与 Gitee 均能访问同一 `main`，迁移后保留 `origin` 和 `gitee` 两个 remote。
+
+实际结果：
+1. 迁移前备份当前代码目录、`git log` 和 `git status` 到 `/home/ubuntu/ugk-claw-shared/backups/tencent-git-clean-20260429-225108`。
+2. 同一备份目录内保留 `app.env`、`compose.env`、`.data/agent` 和 `.data/chrome-sidecar` 备份；运行态仍保留在 `~/ugk-claw-shared`，没有并入 Git 仓库。
+3. 原脏工作区移动到 `/home/ubuntu/ugk-claw-repo-pre-git-clean-20260429-225108`，并通过 `/home/ubuntu/ugk-claw-repo-pre-git-clean-latest` 保留最近一次 clean 迁移前目录指针。
+4. 新 `~/ugk-claw-repo` 是干净 Git 工作目录，`git status --short` 为空，`origin` 指向 GitHub，`gitee` 指向 Gitee。
+5. 迁移后执行生产 compose config、`up --build -d` 和 nginx 强制重建；内网与公网 `/healthz` 均返回 `{"ok":true}`，核心容器保持 healthy。
+
+后续腾讯云更新主流程：本地提交并推送 GitHub/Gitee，服务器执行 `git pull --ff-only origin main`；GitHub 不通时执行 `git pull --ff-only gitee main`。只有双远端都不可用时才考虑小包兜底。
+
 ## 当前部署快照
 
 - 日期：`2026-04-20`
@@ -62,9 +75,9 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`4aeb01e`
+- 当前线上应用提交：`b2b862c docs: switch aliyun deploy flow to git`
 - 当前服务器本地回滚 tag：`server-pre-deploy-20260426-234533`
-- 当前 sidecar 备份：`/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260426-234533.tar.gz`
+- 当前 clean Git 迁移备份：`/home/ubuntu/ugk-claw-shared/backups/tencent-git-clean-20260429-225108`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
 
 服务器初始核验结果：
@@ -199,7 +212,7 @@ newgrp docker
 
 - 默认更新目录：`~/ugk-claw-repo`
 - 当前目录类型：GitHub clone 出来的 Git 工作目录
-- 当前远程仓库：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`
+- 当前远程仓库：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`，`gitee -> https://gitee.com/ksheng3250905/ugk-pi-claw.git`
 - 当前 shared 运行态目录：`~/ugk-claw-shared`
 - 旧目录 `~/ugk-pi-claw` 及 `~/ugk-pi-claw-prev-*` 只保留给回滚与比对
 
