@@ -24,7 +24,7 @@
 
 本次发布 `3ac0d12 fix(playground): isolate desktop UI from mobile layout` 后，服务器 Git 已快进到新提交，但生产镜像重建卡在 Dockerfile 第一层 `apt-get update`，进程树显示 buildkit 内部仍在执行默认 Debian 源访问。旧 `ugk-pi` 容器保持 healthy，因此线上入口没有中断，但新 UI 未进入镜像，不能把“健康”误判成“已上线”。
 
-修复口径：`Dockerfile` 新增 `APT_MIRROR_HOST` build arg，传入后会把 `deb.debian.org` / `security.debian.org` 替换为指定 mirror；`docker-compose.prod.yml` 三个 `ugk-pi:prod` 构建目标统一透传 `${APT_MIRROR_HOST:-}`。阿里云 `/root/ugk-claw-shared/compose.env` 应设置：
+修复口径：`Dockerfile` 新增 `APT_MIRROR_HOST` build arg，传入后会把 `deb.debian.org` / `security.debian.org` 替换为指定 mirror；`docker-compose.prod.yml` 三个 `ugk-pi:prod` 构建目标统一透传 `${APT_MIRROR_HOST:-}`。同时 `cryptography` / `pyyaml` 改为 Debian 包 `python3-cryptography` / `python3-yaml`，避免 apt 修完后又卡在 PyPI，别从一个坑跳进另一个坑。阿里云 `/root/ugk-claw-shared/compose.env` 应设置：
 
 ```bash
 APT_MIRROR_HOST=mirrors.aliyun.com

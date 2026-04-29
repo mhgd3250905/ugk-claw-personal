@@ -35,7 +35,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(dockerfile, /ARG APT_MIRROR_HOST=""/);
 	assert.match(dockerfile, /deb\.debian\.org/);
 	assert.match(dockerfile, /security\.debian\.org/);
-	assert.match(dockerfile, /apt-get install -y --no-install-recommends git curl ca-certificates python3/i);
+	assert.match(dockerfile, /apt-get install -y --no-install-recommends git curl ca-certificates python3 python3-cryptography python3-yaml/i);
+	assert.doesNotMatch(dockerfile, /pip3 install/);
 	assert.match(dockerfile, /ENV HOST=0\.0\.0\.0/);
 	assert.match(dockerfile, /ENV PORT=3000/);
 	assert.match(dockerfile, /HEALTHCHECK/i);
