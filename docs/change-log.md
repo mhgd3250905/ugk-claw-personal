@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### 双云增量更新规范渐进式披露
+- 日期：2026-04-29
+- 主题：为腾讯云新加坡和阿里云 ECS 分别补齐 agent 可读的增量更新规范：`AGENTS.md` 只放目标、路径、shared 目录、默认 Git fast-forward 和禁区；`docs/server-ops-quick-reference.md` 放两台服务器各自的发布命令、Gitee 兜底、验收清单和避坑说明，形成“先短规则、再速查、异常才看单机手册”的渐进式披露入口。
+- 影响范围：只影响部署协作规范和未来 agent 接手流程；不改运行时代码，不改变服务器运行态目录，不把 `.env`、key、tar 包、`.data` 或临时报告纳入仓库。
+- 对应入口：`AGENTS.md`、`docs/server-ops-quick-reference.md`
+
 ### 腾讯云 clean Git 更新主流程收口
 - 日期：2026-04-29
 - 主题：将腾讯云 `~/ugk-claw-repo` 从长期脏工作区收口为干净 Git 工作目录，并补齐 `gitee` 备用 remote；后续发布主流程统一为 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。

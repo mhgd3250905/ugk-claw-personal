@@ -161,6 +161,9 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云正式入口是 `http://43.134.167.179:3000/playground`；阿里云正式入口是 `http://101.37.209.54:3000/playground`。这两条只用于云服务器接手和双云排障；普通运行回复、文件预览链接和 playground 链接必须优先使用当前环境的 `PUBLIC_BASE_URL`，不要默认把两边公网入口一起甩给用户。
 - 腾讯云当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
 - 阿里云当前主部署目录是 `/root/ugk-claw-repo`，已迁移为 Git 工作目录；旧的 archive 目录 `/root/ugk-claw-repo-pre-git-*` 只用于回滚和比对，不是默认更新入口。
+- 两台服务器都已经配置 `origin` GitHub 和 `gitee` 备用 remote；常规发布默认走 Git fast-forward，不要再默认打包上传。服务器增量更新按渐进式披露读文档：先看本段确认目标和禁区，再看 `docs/server-ops-quick-reference.md` 的双云发布规范；只有迁移、回滚、异常或备份时再展开 `docs/tencent-cloud-singapore-deploy.md` 或 `docs/aliyun-ecs-deploy.md`。
+- 腾讯云增量更新锚点：`ssh ugk-claw-prod` / `~/ugk-claw-repo` / `~/ugk-claw-shared` / `http://43.134.167.179:3000/healthz`。阿里云增量更新锚点：`root@101.37.209.54` / `/root/ugk-claw-repo` / `/root/ugk-claw-shared` / `http://101.37.209.54:3000/healthz`。
+- 增量更新禁区：不要 `git reset --hard`，不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、key、tar 包、runtime 报告或服务器 `.data`，不要在服务器 `git status --short` 非空时继续 pull；先备份/保全现场，再决定怎么收口。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
 
 如果这次 `/init` 还要接手 `playground` 前端，再记住两件事：

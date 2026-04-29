@@ -31,6 +31,104 @@
 - 当前线上应用提交：以服务器 `git log -1 --oneline` 为准，当前跟随远端 `main`
 - 注意：当前阿里云目录已经迁移为 Git 工作目录，`origin` 指向 GitHub，`gitee` 作为备用 remote；后续更新优先 `git pull --ff-only origin main`，GitHub 不通时再从 Gitee 拉取。
 
+## Agent 渐进式披露：双云增量更新
+
+给 agent 的阅读顺序就三层，别一上来全仓乱翻，更别靠上一轮记忆复制命令：
+
+1. 先读 `AGENTS.md` 云服务器段，只确认目标服务器、路径、shared 目录和禁区。
+2. 再读本节和下面的“固定增量发布流程”，按目标云执行对应命令。
+3. 只有遇到迁移、回滚、服务器脏工作区、GitHub/Gitee 都不通、shared 数据异常或 nginx/sidecar 深度排障时，才展开 `docs/tencent-cloud-singapore-deploy.md` 或 `docs/aliyun-ecs-deploy.md`。
+
+默认发布方式是 Git fast-forward：本地提交并推送 `origin main`，同时推送 `gitee main` 作为国内网络兜底；服务器优先 `origin`，GitHub 不通时再走 `gitee`。archive 小包只允许当 GitHub 和 Gitee 都不可用、且用户明确要紧急发布时使用。别拿 tar 包当日常流程，方便一时，后面排障就开始考古，太蠢。
+
+### 腾讯云增量更新规范
+
+- 目标：`ubuntu@43.134.167.179`
+- 登录：`ssh ugk-claw-prod`
+- 代码目录：`~/ugk-claw-repo`
+- shared 目录：`~/ugk-claw-shared`
+- 公网健康检查：`http://43.134.167.179:3000/healthz`
+- 默认远端：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`
+- 备用远端：`gitee -> https://gitee.com/ksheng3250905/ugk-pi-claw.git`
+
+执行前先在服务器确认：
+
+```bash
+cd ~/ugk-claw-repo
+git status --short
+git remote -v
+git log -1 --oneline
+```
+
+`git status --short` 必须为空。非空就停，不要 `reset --hard`，先把差异保存到 `~/ugk-claw-shared/backups/` 或独立保留目录，再判断是不是运行态误进仓库。
+
+常规发布：
+
+```bash
+cd ~/ugk-claw-repo
+git fetch origin main
+git pull --ff-only origin main
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
+COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
+```
+
+GitHub 不通时：
+
+```bash
+cd ~/ugk-claw-repo
+git fetch gitee main
+git pull --ff-only gitee main
+```
+
+### 阿里云增量更新规范
+
+- 目标：`root@101.37.209.54`
+- 登录：`ssh root@101.37.209.54`
+- 代码目录：`/root/ugk-claw-repo`
+- shared 目录：`/root/ugk-claw-shared`
+- 公网健康检查：`http://101.37.209.54:3000/healthz`
+- 默认远端：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`
+- 备用远端：`gitee -> https://gitee.com/ksheng3250905/ugk-pi-claw.git`
+
+执行前先在服务器确认：
+
+```bash
+cd /root/ugk-claw-repo
+git status --short
+git remote -v
+git log -1 --oneline
+```
+
+`git status --short` 必须为空。非空就停，不要覆盖 `/root/ugk-claw-repo`，不要删 `/root/ugk-claw-shared`，先备份脏差异和 shared 关键目录。
+
+常规发布：
+
+```bash
+cd /root/ugk-claw-repo
+git fetch origin main
+git pull --ff-only origin main
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
+COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
+```
+
+GitHub 不通时：
+
+```bash
+cd /root/ugk-claw-repo
+git fetch gitee main
+git pull --ff-only gitee main
+```
+
+### 双云共同避坑
+
+- 本地没提交、没推送，就不要让服务器 pull。服务器不是你的草稿箱。
+- `.env`、API key、`.data/agent`、`.data/chrome-sidecar`、日志、tar 包和临时报告都不属于 Git 仓库。
+- 改到 `Dockerfile`、`package*.json`、`docker-compose.prod.yml`、`deploy/nginx/default.conf`、`src/`、`runtime/skills-user/` 这类运行路径，默认重建容器；纯文档改动可以只 pull，不必重建。
+- 改过 nginx 配置或公网 `502` 但 app 容器内部健康时，优先 `up -d --force-recreate nginx`，别绕一圈怀疑模型、网络和玄学。
+- 发布后至少确认：`git log -1 --oneline`、`git status --short` 为空、内网 `/healthz`、公网 `/healthz`、`docker compose ps`。
+
 ## 登录
 
 ```bash
@@ -210,7 +308,7 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 ```
 
 别在 `~/ugk-pi-claw` 里更新。那是旧目录，不是当前主入口。
-也别在阿里云 `/root/ugk-claw-repo` 里跑 `git pull`，除非已经确认那里有 `.git`。现在它只是解包目录，别跟它演 Git 魔术。
+阿里云 `/root/ugk-claw-repo` 现在已经是 Git 工作目录；旧 archive 目录只做回滚和比对，不是默认更新入口。再把“打包上传”当主流程，就是自己把刚收好的线又拆开。
 
 ## 稳妥增量更新
 
