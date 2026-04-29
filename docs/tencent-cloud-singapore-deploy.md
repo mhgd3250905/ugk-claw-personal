@@ -1302,3 +1302,20 @@ free -h
    - 公网 `curl -fsS http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
    - `.pi/skills/playground-runtime-ui/SKILL.md` 包含 `Do not claim \`src/ui/\` edits are zero-restart changes`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
+
+## 2026-04-29 飞书动态接入增量发布记录
+
+本次发布沿用腾讯云 `~/ugk-claw-repo` 代码目录做小包增量覆盖；因为远端工作区存在未提交的生产侧文件差异，本次没有执行 `git pull`，避免把服务器本地状态当成可以随手碾平的草稿纸。没有触碰 `~/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。
+
+实际结果：
+1. 本地代码已提交并推送到 GitHub：`6a1cbc9 fix: harden feishu worker reload`。
+2. 本地生成增量包 `runtime/feishu-dynamic-6a1cbc9-incremental.tar.gz`，包含飞书 WebSocket worker、动态设置入口、测试与文档相关文件。
+3. 通过 SSH alias `ugk-claw-prod` 上传到 `~/feishu-dynamic-6a1cbc9-incremental.tar.gz`，并在 `~/ugk-claw-repo` 内执行 `tar -xzf` 增量覆盖对应文件。
+4. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+5. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建并启动 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`。
+6. 最终验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - `/playground` HTML 包含 `feishu-settings-dialog`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，CDP relay、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker` 正常运行
+   - `ugk-pi-feishu-worker` 日志显示 `[feishu-worker] disabled by settings`，表示当前生产配置未启用飞书，而不是 worker 启动失败

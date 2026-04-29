@@ -12,6 +12,13 @@
 
 ## 2026-04-29
 
+### 飞书动态接入双云增量发布
+- 日期：2026-04-29
+- 主题：将飞书 WebSocket 接入、Web 动态设置入口、后台通知读取最新飞书配置，以及 worker 启动失败重试修复增量发布到腾讯云新加坡和阿里云 ECS 两套生产环境。两边均保留 shared 运行态目录，不替换 `.data/agent`、sidecar 登录态、资产、conn 或生产日志。
+- 影响范围：腾讯云 `~/ugk-claw-repo` 因远端工作区存在未提交差异，本次没有 `git pull`，改用 `runtime/feishu-dynamic-6a1cbc9-incremental.tar.gz` 小包覆盖；阿里云 `/root/ugk-claw-repo` 仍不是 Git 工作目录，继续用 archive 小包覆盖。两端均通过 `up --build -d` 启动新增 `ugk-pi-feishu-worker`。阿里云重建后出现旧 nginx upstream `502`，应用容器自身健康，按 runbook `up -d --force-recreate nginx` 后恢复。
+- 验证记录：腾讯云与阿里云内网 `/healthz`、公网 `/healthz` 均返回 `{"ok":true}`；两端 `/playground` HTML 均包含 `feishu-settings-dialog`；两端 compose 状态均显示 `ugk-pi-feishu-worker` 运行中；worker 日志均为 `[feishu-worker] disabled by settings`，表示生产配置当前未启用飞书而非 worker 异常。
+- 对应入口：`docs/tencent-cloud-singapore-deploy.md`、`docs/aliyun-ecs-deploy.md`、`src/workers/feishu-worker.ts`、`src/routes/feishu-settings.ts`、`src/integrations/feishu/`、`docker-compose.prod.yml`
+
 ### 飞书接入测试通过与代码整理
 - 日期：2026-04-29
 - 主题：完成飞书动态绑定用户验收留存：Web 动态保存 App ID / App Secret、worker 自动重连和测试消息已通过实测。代码整理时清理未使用的 `FeishuSettingsStore.getVersion()`，并修复 worker 启动失败后的重试语义：WebSocket subscription 只有 `start()` 成功后才确认配置签名，临时失败不会让同一份配置被跳过。

@@ -375,3 +375,23 @@ COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose
 6. 验收确认：内网 `/healthz`、公网 `/healthz`、`check-deps.mjs`、`POST /type` 真实 CDP 插入文本和 compose 状态均通过。
 
 补充确认：实际发布已完成。`ugk-pi` 容器内部 `/healthz` 返回 `200 {"ok":true}`；重启 app 后 nginx 曾短暂 unhealthy 并返回 502，按既有 runbook 强制重建 nginx 后恢复；最终服务器内网 `/healthz`、本机公网 `http://101.37.209.54:3000/healthz`、`check-deps.mjs`、真实 `/type` CDP 文本插入（`{"typed":{"ok":true,"textLength":10},"value":"aliyun-cdp"}`）和 compose 状态均通过。
+
+## 2026-04-29 飞书动态接入增量发布记录
+
+本次发布继续使用 archive 小包增量覆盖 `/root/ugk-claw-repo`，没有执行整目录替换，也没有触碰 `/root/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。阿里云当前目录仍不是 Git 工作目录，不要照抄腾讯云 `git pull`。
+
+实际结果：
+1. 本地代码已提交并推送到 GitHub：`6a1cbc9 fix: harden feishu worker reload`。
+2. 本地生成增量包 `runtime/feishu-dynamic-6a1cbc9-incremental.tar.gz`，包含飞书 WebSocket worker、动态设置入口、测试与文档相关文件。
+3. 通过本地 `*config.txt` 中的 root 密码用 `paramiko` SFTP 上传到 `/root/feishu-dynamic-6a1cbc9-incremental.tar.gz`，密码没有写入命令行参数或输出日志。
+4. 服务器在 `/root/ugk-claw-repo` 内执行 `tar -xzf /root/feishu-dynamic-6a1cbc9-incremental.tar.gz -C /root/ugk-claw-repo` 增量覆盖对应文件。
+5. 执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+6. 执行 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建并启动 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`。
+7. 发布过程中本地 PowerShell 因 GBK 无法打印 Docker Compose 的勾选字符导致客户端退出；远端重建随后用 `COMPOSE_ANSI=never` 补跑完成。别把这个当服务端失败，罪魁祸首是本地输出编码，够土但很真实。
+8. 首次验收 `127.0.0.1:3000/healthz` 返回 nginx `502`；应用容器内 `curl -fsS http://127.0.0.1:3000/healthz` 正常返回 `{"ok":true}`，确认是旧 nginx upstream。随后执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx` 强制重建 nginx。
+9. 最终验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://101.37.209.54:3000/healthz` 返回 `{"ok":true}`
+   - `/playground` HTML 包含 `feishu-settings-dialog`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，CDP relay、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker` 正常运行
+   - `ugk-pi-feishu-worker` 日志显示 `[feishu-worker] disabled by settings`，表示当前生产配置未启用飞书，而不是 worker 启动失败
