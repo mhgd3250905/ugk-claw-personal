@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### 飞书动态凭据空白字符校验
+- 日期：2026-04-29
+- 主题：定位飞书 App ID / App Secret 修改“没生效”的真实原因：动态配置已经写入并触发 worker 重连，但保存的 App ID 中混入空白字符，导致飞书 WebSocket 连接失败。后端保存接口新增凭据空白字符校验，拒绝包含空格、换行或制表符的 `appId` / `appSecret`，避免把明显无效的飞书凭据写入运行态配置。
+- 影响范围：只影响 `PUT /v1/integrations/feishu/settings` 的输入校验；已有动态配置、worker 自动重连、后台任务通知读取逻辑不变。当前已保存的错误凭据不会被自动改写，需要用户在 Web 里重新填入正确 App ID / Secret。
+- 对应入口：`src/routes/feishu-settings.ts`、`test/server.test.ts`
+
 ### 飞书 App 凭据与绑定 Web 动态配置
 - 日期：2026-04-29
 - 主题：把飞书 App ID / App Secret / 白名单 / 后台通知接收人从纯 `.env` 启动配置升级为 Web 可配置运行态。playground 新增“飞书设置”入口，后端新增脱敏读取、保存和测试消息 API；动态配置持久化到 `UGK_AGENT_DATA_DIR/feishu/settings.json`，`App Secret` 不通过 API 回显。飞书 worker 轮询配置变化并自动关闭旧 WebSocket 后用新凭据重连，`conn-worker` 发送后台任务飞书通知时按次读取最新配置。

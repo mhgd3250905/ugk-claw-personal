@@ -66,11 +66,19 @@ function parseUpdateFeishuSettingsBody(body: unknown): { value: UpdateFeishuSett
 	if ("error" in allowedChatIds) {
 		return { error: allowedChatIds.error };
 	}
+	const appId = parseCredentialString(record.appId, "appId");
+	if ("error" in appId) {
+		return { error: appId.error };
+	}
+	const appSecret = parseCredentialString(record.appSecret, "appSecret");
+	if ("error" in appSecret) {
+		return { error: appSecret.error };
+	}
 	return {
 		value: {
 			...(typeof record.enabled === "boolean" ? { enabled: record.enabled } : {}),
-			...(typeof record.appId === "string" ? { appId: record.appId } : {}),
-			...(typeof record.appSecret === "string" ? { appSecret: record.appSecret } : {}),
+			...(appId.value !== undefined ? { appId: appId.value } : {}),
+			...(appSecret.value !== undefined ? { appSecret: appSecret.value } : {}),
 			...(record.clearAppSecret === true ? { clearAppSecret: true } : {}),
 			...(typeof record.apiBase === "string" ? { apiBase: record.apiBase } : {}),
 			...(allowedChatIds.value ? { allowedChatIds: allowedChatIds.value } : {}),
@@ -94,6 +102,23 @@ function parseFeishuTestMessageBody(body: unknown): { value: { target?: FeishuDe
 			...(typeof record.text === "string" && record.text.trim() ? { text: record.text.trim() } : {}),
 		},
 	};
+}
+
+function parseCredentialString(value: unknown, name: string): { value?: string } | { error: string } {
+	if (value === undefined) {
+		return {};
+	}
+	if (typeof value !== "string") {
+		return { error: `${name} must be a string` };
+	}
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return { value: "" };
+	}
+	if (/\s/.test(trimmed)) {
+		return { error: `${name} must not contain whitespace` };
+	}
+	return { value: trimmed };
 }
 
 function parseStringArray(value: unknown, name: string): { value?: string[] } | { error: string } {

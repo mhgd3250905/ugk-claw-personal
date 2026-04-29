@@ -4395,6 +4395,31 @@ test("PUT /v1/integrations/feishu/settings stores dynamic app credentials withou
 	await app.close();
 });
 
+test("PUT /v1/integrations/feishu/settings rejects credentials with whitespace", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-feishu-route-"));
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		feishuSettingsStore: new FeishuSettingsStore({
+			settingsPath: join(root, "settings.json"),
+			env: {},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "PUT",
+		url: "/v1/integrations/feishu/settings",
+		payload: {
+			enabled: true,
+			appId: "cli_bad value",
+			appSecret: "secret",
+		},
+	});
+
+	assert.equal(response.statusCode, 400);
+	assert.match(response.json().error.message, /appId must not contain whitespace/);
+	await app.close();
+});
+
 test("renderPlaygroundMarkdown renders safe markdown html for transcript messages", () => {
 	const html = renderPlaygroundMarkdown(
 		[
