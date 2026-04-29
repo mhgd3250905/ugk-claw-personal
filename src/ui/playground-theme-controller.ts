@@ -105,6 +105,26 @@ export function getPlaygroundThemeStyles(): string {
 			border-bottom-color: rgba(31, 95, 200, 0.1);
 		}
 
+		:root[data-theme="light"] .desktop-file-menu-panel,
+		:root[data-theme="light"] .desktop-rail-settings-menu {
+			border-color: rgba(31, 95, 200, 0.12);
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 244, 252, 0.96)),
+				#ffffff;
+			color: var(--fg);
+			box-shadow: 0 18px 34px rgba(31, 95, 200, 0.1);
+		}
+
+		:root[data-theme="light"] .desktop-rail-settings {
+			border-top-color: rgba(31, 95, 200, 0.1);
+		}
+
+		:root[data-theme="light"] .desktop-rail-settings-trigger {
+			border-color: rgba(31, 95, 200, 0.12);
+			background: rgba(255, 255, 255, 0.82);
+			color: #34435f;
+		}
+
 		:root[data-theme="light"] .chat-stage {
 			border-color: transparent;
 			background: transparent;
@@ -169,6 +189,15 @@ export function getPlaygroundThemeStyles(): string {
 			background: transparent;
 			color: var(--fg);
 			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .telemetry-action[data-tooltip-title]::after {
+			border-color: rgba(31, 95, 200, 0.12);
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 244, 252, 0.96)),
+				#ffffff;
+			color: #34435f;
+			box-shadow: 0 18px 34px rgba(31, 95, 200, 0.12);
 		}
 
 		:root[data-theme="light"] #composer-drop-target.composer {

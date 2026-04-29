@@ -76,53 +76,38 @@ ${input.playgroundScript ?? ""}</script>`;
 		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
 			<header class="topbar">
 				<aside class="landing-side landing-side-right">
-					<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button">
+					<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button" data-tooltip-title="新会话" data-tooltip-desc="创建一条新的服务端会话。">
 						<span>全新的记忆</span>
 						<strong id="command-status">新会话</strong>
 					</button>
-					<button id="view-skills-button" class="telemetry-card telemetry-action" type="button">
-						<span>技能越多，能力越强？</span>
-						<strong>查看技能</strong>
-					</button>
-					<button id="file-picker-action" class="telemetry-card telemetry-action" type="button">
-						<span>文件或许更稳定</span>
-						<strong>选择文件</strong>
-					</button>
-					<button id="open-asset-library-button" class="telemetry-card telemetry-action" type="button">
-						<span>这里不是垃圾堆</span>
-						<strong>项目文件夹</strong>
-					</button>
-					<button id="open-conn-manager-button" class="telemetry-card telemetry-action" type="button">
+					<div class="desktop-file-menu">
+						<button class="telemetry-card telemetry-action desktop-file-menu-trigger" type="button">
+							<span>文件或许更稳定</span>
+							<strong>文件</strong>
+						</button>
+						<div class="desktop-file-menu-panel" role="menu" aria-label="文件操作">
+							<button id="file-picker-action" class="telemetry-card telemetry-action" type="button" role="menuitem">
+								<span>文件或许更稳定</span>
+								<strong>上传文件</strong>
+							</button>
+							<button id="open-asset-library-button" class="telemetry-card telemetry-action" type="button" role="menuitem">
+								<span>这里不是垃圾堆</span>
+								<strong>项目文件</strong>
+							</button>
+						</div>
+					</div>
+					<button id="open-conn-manager-button" class="telemetry-card telemetry-action" type="button" data-tooltip-title="任务管理" data-tooltip-desc="管理定时和后台运行的 conn 任务。">
 						<span>后台自己干，前台别被绑架</span>
 						<strong>后台任务</strong>
 					</button>
-					<button id="open-model-config-button" class="telemetry-card telemetry-action" type="button">
-						<span>换源前先验货</span>
-						<strong>模型源</strong>
-					</button>
-					<button id="open-feishu-settings-button" class="telemetry-card telemetry-action" type="button">
-						<span>别再 SSH 改机器人配置</span>
-						<strong>飞书设置</strong>
-					</button>
-					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false">
+					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false" data-tooltip-title="任务消息" data-tooltip-desc="查看后台任务投递的结果。">
 						<span>&#21518;&#21488;&#20219;&#21153;&#32467;&#26524;&#32479;&#19968;&#25910;&#20214;&#31665;</span>
 						<strong>&#20219;&#21153;&#28040;&#24687;</strong>
 						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
 					</button>
-					<button id="theme-toggle-button" class="telemetry-card telemetry-action theme-toggle-button" type="button" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
-						<span>界面别太死板</span>
-						<strong id="theme-toggle-label">深色模式</strong>
-						<span class="theme-toggle-icon theme-toggle-icon-sun" aria-hidden="true">
-							<svg viewBox="0 0 24 24" fill="none">
-								<circle cx="12" cy="12" r="4" stroke-width="1.8" />
-								<path d="M12 2.8v2.4M12 18.8v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" stroke-width="1.8" stroke-linecap="round" />
-							</svg>
-						</span>
-						<span class="theme-toggle-icon theme-toggle-icon-moon" aria-hidden="true">
-							<svg viewBox="0 0 24 24" fill="none">
-								<path d="M20 14.2A7.3 7.3 0 0 1 9.8 4a8.1 8.1 0 1 0 10.2 10.2Z" stroke-width="1.8" stroke-linejoin="round" />
-							</svg>
-						</span>
+					<button id="view-skills-button" class="telemetry-card telemetry-action" type="button" data-tooltip-title="技能" data-tooltip-desc="查看当前 agent 真实加载的技能清单。">
+						<span>技能越多，能力越强？</span>
+						<strong>技能</strong>
 					</button>
 					<div class="topbar-context-slot">
 						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
@@ -297,6 +282,36 @@ ${input.playgroundScript ?? ""}</script>`;
 					</div>
 				</div>
 				<div id="desktop-conversation-list" class="desktop-conversation-list"></div>
+				<div class="desktop-rail-settings">
+					<button class="desktop-rail-settings-trigger" type="button" aria-haspopup="menu">
+						<span>设置</span>
+					</button>
+					<div class="desktop-rail-settings-menu" role="menu" aria-label="桌面设置">
+						<button id="open-model-config-button" class="telemetry-card telemetry-action" type="button" role="menuitem">
+							<span>换源前先验货</span>
+							<strong>模型源</strong>
+						</button>
+						<button id="open-feishu-settings-button" class="telemetry-card telemetry-action" type="button" role="menuitem">
+							<span>别再 SSH 改机器人配置</span>
+							<strong>飞书设置</strong>
+						</button>
+						<button id="theme-toggle-button" class="telemetry-card telemetry-action theme-toggle-button" type="button" role="menuitem" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
+							<span>界面别太死板</span>
+							<strong id="theme-toggle-label">深色模式</strong>
+							<span class="theme-toggle-icon theme-toggle-icon-sun" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<circle cx="12" cy="12" r="4" stroke-width="1.8" />
+									<path d="M12 2.8v2.4M12 18.8v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" stroke-width="1.8" stroke-linecap="round" />
+								</svg>
+							</span>
+							<span class="theme-toggle-icon theme-toggle-icon-moon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M20 14.2A7.3 7.3 0 0 1 9.8 4a8.1 8.1 0 1 0 10.2 10.2Z" stroke-width="1.8" stroke-linejoin="round" />
+								</svg>
+							</span>
+						</button>
+					</div>
+				</div>
 			</aside>
 
 			<main id="chat-stage" class="chat-stage">

@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### Playground 桌面布局合回与手机端隔离
+- 日期：2026-04-29
+- 主题：评估并合回 `C:\Users\29485\Downloads\0429-ui-fix.md` 中的桌面布局重构诉求：左侧会话 rail 改为贯穿全高并承载设置菜单，右侧 topbar 只保留新会话、文件、后台任务、任务消息、技能和上下文电池；文件入口收口为桌面子菜单，按钮 tooltip 使用 CSS 承载。移动端继续保留独立 `mobile-topbar`，仅隐藏桌面操作按钮和文件菜单，不隐藏上下文电池，避免桌面 grid 改动误伤 phone 端。
+- 影响范围：影响 playground 桌面端导航布局、浅色主题下的桌面菜单样式、手机端断点隔离规则，以及消息气泡导出图片时的样式收集逻辑；不改变聊天、SSE、会话、资产、conn、飞书或模型源 API 语义。
+- 对应入口：`src/ui/playground-page-shell.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-transcript-renderer.ts`、`test/playground-page-shell.test.ts`、`test/playground-styles.test.ts`、`test/server.test.ts`
+
 ### 双云增量更新规范渐进式披露
 - 日期：2026-04-29
 - 主题：为腾讯云新加坡和阿里云 ECS 分别补齐 agent 可读的增量更新规范：`AGENTS.md` 只放目标、路径、shared 目录、默认 Git fast-forward 和禁区；`docs/server-ops-quick-reference.md` 放两台服务器各自的发布命令、Gitee 兜底、验收清单和避坑说明，形成“先短规则、再速查、异常才看单机手册”的渐进式披露入口。

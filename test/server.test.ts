@@ -1141,14 +1141,14 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*border-radius: 4px;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] #send-button,[\s\S]*#interrupt-button\s*\{[\s\S]*box-shadow: none;/);
-	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.topbar\s*\{[\s\S]*justify-items:\s*center;/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.topbar\s*\{[\s\S]*justify-items:\s*stretch;/);
 	assert.match(
 		response.body,
-		/\.shell\[data-stage-mode="landing"\] \.landing-side-right\s*\{[\s\S]*justify-content:\s*center;[\s\S]*justify-self:\s*center;[\s\S]*padding:\s*6px 12px;/,
+		/\.shell\[data-stage-mode="landing"\] \.landing-side-right\s*\{[\s\S]*justify-content:\s*flex-start;[\s\S]*justify-self:\s*stretch;[\s\S]*padding:\s*6px 96px 6px 8px;/,
 	);
 	assert.match(response.body, /\.topbar-context-slot\s*\{[\s\S]*position:\s*static;[\s\S]*right:\s*auto;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*2;/);
-	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*2;/);
+	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*1 \/ -1;/);
 	assert.match(response.body, /function renderConversationListInto\(container\)/);
 	assert.match(response.body, /renderConversationListInto\(desktopConversationList\);/);
 	const headerIndex = response.body.indexOf('<header class="topbar">');
@@ -1747,7 +1747,7 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /function prepareExportCloneForCanvas\(clone\)\s*\{/);
 	assert.match(response.body, /clone\.querySelectorAll\("img, video, iframe, canvas"\)\.forEach/);
 	assert.match(response.body, /"data:image\/svg\+xml;charset=utf-8," \+ encodeURIComponent\(svgText\)/);
-	assert.match(response.body, /sanitizeExportStyles\(collectExportStyles\(\)\)/);
+	assert.match(response.body, /sanitizeExportStyles\(await collectExportStyles\(\)\)/);
 	assert.match(response.body, /showError\("图片导出失败，请稍后重试。"\);/);
 	assert.doesNotMatch(response.body, /showErrorBanner/);
 	assert.doesNotMatch(response.body, /new Blob\(\[svgText\]/);
@@ -1999,7 +1999,7 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action,[\s\S]*\.landing-side-right > \.desktop-file-menu\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*min-height:\s*48px;/);
@@ -2419,10 +2419,11 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.match(response.body, /\.shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(250px, 280px\) minmax\(0, 1fr\);/);
+	assert.match(response.body, /\.shell\s*\{[\s\S]*grid-template-columns:\s*260px minmax\(0, 1fr\);/);
 	assert.match(response.body, /\.shell\s*\{[\s\S]*grid-template-rows:\s*64px minmax\(0, 1fr\);/);
-	assert.match(response.body, /\.shell\s*\{[\s\S]*gap:\s*16px;/);
+	assert.match(response.body, /\.shell\s*\{[\s\S]*column-gap:\s*0;/);
 	assert.match(response.body, /\.topbar\s*\{[\s\S]*z-index:\s*80;/);
+	assert.match(response.body, /\.topbar\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*1;/);
 	assert.match(response.body, /\.topbar\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\);/);
 	assert.match(response.body, /class="desktop-brand" aria-label="UGK CLAW"/);
 	assert.match(response.body, /class="ugk-ascii-logo ugk-ascii-logo-topbar"/);
@@ -2439,6 +2440,7 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*justify-self:\s*end;/);
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*width:\s*auto;/);
 	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*background:[\s\S]*#080c14;/);
+	assert.match(response.body, /\.desktop-rail-settings\s*\{[\s\S]*border-top:\s*1px solid rgba\(201, 210, 255, 0\.08\);/);
 	assert.doesNotMatch(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*border-left:\s*2px solid rgba\(101, 209, 255, 0\.48\);/);
 	assert.match(response.body, /\.desktop-conversation-list\s*\{[\s\S]*scrollbar-width:\s*none;/);
 	assert.match(response.body, /\.desktop-conversation-list::-webkit-scrollbar\s*\{[\s\S]*display:\s*none;/);
@@ -2669,6 +2671,24 @@ test("GET /playground injects transcript rendering from a dedicated renderer", a
 	assert.match(response.body, /function hydrateMarkdownContent\(root\)\s*\{/);
 	assert.match(response.body, /function createMessageActions\(entry, content\)\s*\{/);
 	assert.match(response.body, /function ensureStreamingAssistantMessage\(\)\s*\{/);
+	await app.close();
+});
+
+test("GET /playground collects playground linked styles for message image export", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /async function collectExportStyles\(\)\s*\{/);
+	assert.match(response.body, /document\.querySelectorAll\('link\[rel="stylesheet"\]'\)/);
+	assert.match(response.body, /link\.href\.includes\("\/playground\/"\)/);
+	assert.match(response.body, /await collectExportStyles\(\)/);
 	await app.close();
 });
 

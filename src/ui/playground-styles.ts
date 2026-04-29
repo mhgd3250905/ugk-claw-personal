@@ -2887,22 +2887,25 @@ export function getPlaygroundStyles(): string {
 			background: transparent;
 			box-shadow: none;
 			backdrop-filter: none;
-			grid-template-columns: minmax(250px, 280px) minmax(0, 1fr);
 			grid-template-rows: 64px minmax(0, 1fr);
-			gap: 16px;
+			grid-template-columns: 260px minmax(0, 1fr);
+			column-gap: 0;
+			row-gap: 0;
 			isolation: isolate;
 			--conversation-width: 760px;
 		}
 
 		.topbar {
 			position: relative;
+			grid-column: 2;
+			grid-row: 1;
 			z-index: 80;
 			width: 100%;
 			min-height: 64px;
 			margin: 0;
-			padding: 0;
+			padding: 12px 16px;
 			grid-template-columns: minmax(0, 1fr);
-			gap: 16px;
+			gap: 0;
 			align-items: center;
 			justify-items: stretch;
 			border-bottom: 0;
@@ -2967,7 +2970,7 @@ export function getPlaygroundStyles(): string {
 			max-width: 100%;
 			min-width: 0;
 			margin: 0;
-			padding: 6px 92px 6px 8px;
+			padding: 6px 96px 6px 8px;
 			border: 1px solid rgba(201, 210, 255, 0.1);
 			border-radius: 4px;
 			background:
@@ -2978,13 +2981,13 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"] .topbar {
-			justify-items: center;
+			justify-items: stretch;
 		}
 
 		.shell[data-stage-mode="landing"] .landing-side-right {
-			justify-content: center;
-			justify-self: center;
-			padding: 6px 12px;
+			justify-content: flex-start;
+			justify-self: stretch;
+			padding: 6px 96px 6px 8px;
 		}
 
 		.telemetry-card {
@@ -3014,6 +3017,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.telemetry-action {
+			position: relative;
 			font: inherit;
 			color: inherit;
 			cursor: pointer;
@@ -3044,6 +3048,78 @@ export function getPlaygroundStyles(): string {
 			cursor: wait;
 		}
 
+		.telemetry-action[data-tooltip-title]::after {
+			content: attr(data-tooltip-title) "\\A" attr(data-tooltip-desc);
+			position: absolute;
+			top: calc(100% + 10px);
+			left: 50%;
+			z-index: 120;
+			min-width: 190px;
+			max-width: min(280px, calc(100vw - 32px));
+			padding: 10px 12px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 4px;
+			background:
+				linear-gradient(180deg, rgba(15, 20, 34, 0.96), rgba(7, 10, 18, 0.96)),
+				#080b12;
+			color: rgba(238, 244, 255, 0.78);
+			font-size: 11px;
+			line-height: 1.45;
+			text-align: left;
+			white-space: pre-line;
+			box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
+			opacity: 0;
+			pointer-events: none;
+			transform: translate(-50%, -4px);
+			transition: opacity 150ms ease, transform 150ms ease;
+			transition-delay: 150ms;
+		}
+
+		.telemetry-action[data-tooltip-title]:hover::after,
+		.telemetry-action[data-tooltip-title]:focus-visible::after {
+			opacity: 1;
+			transform: translate(-50%, 0);
+		}
+
+		.desktop-file-menu {
+			position: relative;
+			display: inline-flex;
+		}
+
+		.desktop-file-menu-panel {
+			position: absolute;
+			top: calc(100% + 8px);
+			left: 0;
+			z-index: 130;
+			display: grid;
+			gap: 4px;
+			min-width: 132px;
+			padding: 6px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 4px;
+			background:
+				linear-gradient(180deg, rgba(12, 17, 28, 0.96), rgba(7, 10, 18, 0.96)),
+				#080b12;
+			box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
+			opacity: 0;
+			pointer-events: none;
+			transform: translateY(-4px);
+			transition: opacity 120ms ease, transform 120ms ease;
+		}
+
+		.desktop-file-menu:hover .desktop-file-menu-panel,
+		.desktop-file-menu:focus-within .desktop-file-menu-panel {
+			opacity: 1;
+			pointer-events: auto;
+			transform: translateY(0);
+		}
+
+		.desktop-file-menu-panel .telemetry-action {
+			justify-content: flex-start;
+			width: 100%;
+			min-height: 34px;
+		}
+
 		.command-deck {
 			position: relative;
 			z-index: 2;
@@ -3072,9 +3148,9 @@ export function getPlaygroundStyles(): string {
 
 		.desktop-conversation-rail {
 			grid-column: 1;
-			grid-row: 2;
+			grid-row: 1 / -1;
 			display: grid;
-			grid-template-rows: auto minmax(0, 1fr);
+			grid-template-rows: auto minmax(0, 1fr) auto;
 			min-height: 0;
 			margin: 0;
 			padding: 14px;
@@ -3106,6 +3182,64 @@ export function getPlaygroundStyles(): string {
 			overflow-x: hidden;
 			scrollbar-width: none;
 			-ms-overflow-style: none;
+		}
+
+		.desktop-rail-settings {
+			position: relative;
+			display: grid;
+			gap: 6px;
+			padding-top: 12px;
+			border-top: 1px solid rgba(201, 210, 255, 0.08);
+		}
+
+		.desktop-rail-settings-trigger {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			width: 100%;
+			height: 34px;
+			padding: 0 10px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 4px;
+			background: rgba(14, 19, 31, 0.84);
+			color: rgba(228, 235, 255, 0.76);
+			font: inherit;
+			font-size: 11px;
+			cursor: pointer;
+		}
+
+		.desktop-rail-settings-menu {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: calc(100% - 6px);
+			z-index: 125;
+			display: grid;
+			gap: 5px;
+			padding: 6px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 4px;
+			background:
+				linear-gradient(180deg, rgba(12, 17, 28, 0.96), rgba(7, 10, 18, 0.96)),
+				#080b12;
+			box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
+			opacity: 0;
+			pointer-events: none;
+			transform: translateY(4px);
+			transition: opacity 120ms ease, transform 120ms ease;
+		}
+
+		.desktop-rail-settings:hover .desktop-rail-settings-menu,
+		.desktop-rail-settings:focus-within .desktop-rail-settings-menu {
+			opacity: 1;
+			pointer-events: auto;
+			transform: translateY(0);
+		}
+
+		.desktop-rail-settings-menu .telemetry-action {
+			justify-content: flex-start;
+			width: 100%;
+			min-height: 34px;
 		}
 
 		.desktop-conversation-list::-webkit-scrollbar {
@@ -3267,6 +3401,8 @@ export function getPlaygroundStyles(): string {
 			}
 
 			.topbar {
+				grid-column: 1;
+				grid-row: 1;
 				grid-template-columns: 1fr;
 				width: 100%;
 				padding: max(8px, env(safe-area-inset-top)) 12px 6px;
@@ -3360,7 +3496,8 @@ export function getPlaygroundStyles(): string {
 				display: contents;
 			}
 
-			.landing-side-right > .telemetry-action {
+			.landing-side-right > .telemetry-action,
+			.landing-side-right > .desktop-file-menu {
 				display: none;
 			}
 

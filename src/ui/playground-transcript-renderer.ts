@@ -383,13 +383,26 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				.replace(/url\((?!['"]?#)[^)]+\)/g, "none");
 		}
 
-		function collectExportStyles() {
-			return Array.from(document.querySelectorAll("style"))
+		async function collectExportStyles() {
+			const inlineStyles = Array.from(document.querySelectorAll("style"))
 				.map((style) => style.textContent || "")
 				.join("\\n")
 				.split("\\n")
 				.filter((line) => !line.includes("src: url("))
 				.join("\\n");
+			const linkedStyles = await Promise.all(
+				Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+					.filter((link) => link.href.includes("/playground/"))
+					.map(async (link) => {
+						try {
+							const response = await fetch(link.href);
+							return response.ok ? await response.text() : "";
+						} catch {
+							return "";
+						}
+					}),
+			);
+			return [inlineStyles, ...linkedStyles].filter(Boolean).join("\\n");
 		}
 
 		function prepareExportCloneForCanvas(clone) {
@@ -477,7 +490,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 					'<foreignObject width="100%" height="100%">' +
 					'<div xmlns="http://www.w3.org/1999/xhtml">' +
 					"<style>" +
-					sanitizeExportStyles(collectExportStyles()) +
+					sanitizeExportStyles(await collectExportStyles()) +
 					"</style>" +
 					serialized +
 					"</div>" +

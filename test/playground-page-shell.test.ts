@@ -18,3 +18,27 @@ test("renderPlaygroundHtml assembles the playground shell from injected fragment
 	assert.match(html, /<dialog id="asset-sentinel"><\/dialog>/);
 	assert.match(html, /window\.__markedLoaded = true;\s*window\.__playgroundLoaded = true;/);
 });
+
+test("renderPlaygroundHtml keeps desktop settings in the sidebar and primary tools in the topbar", () => {
+	const html = renderPlaygroundHtml({
+		styles: ".sentinel-style{}",
+		markedBrowserScript: "",
+		playgroundScript: "",
+		taskInboxView: "",
+		connActivityDialogs: "",
+		assetDialogs: "",
+	});
+
+	const topbarStart = html.indexOf('<header class="topbar">');
+	const railStart = html.indexOf('id="desktop-conversation-rail"');
+	const settingsStart = html.indexOf('class="desktop-rail-settings"');
+	assert.ok(topbarStart >= 0);
+	assert.ok(railStart > topbarStart);
+	assert.ok(settingsStart > railStart);
+	assert.ok(html.indexOf('id="open-model-config-button"') > settingsStart);
+	assert.ok(html.indexOf('id="open-feishu-settings-button"') > settingsStart);
+	assert.ok(html.indexOf('id="theme-toggle-button"') > settingsStart);
+	assert.ok(html.indexOf('id="view-skills-button"') > topbarStart);
+	assert.ok(html.indexOf('id="view-skills-button"') < railStart);
+	assert.match(html, /class="desktop-file-menu"[\s\S]*id="file-picker-action"[\s\S]*id="open-asset-library-button"/);
+});
