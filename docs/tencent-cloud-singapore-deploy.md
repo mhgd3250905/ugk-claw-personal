@@ -8,6 +8,26 @@
 
 后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 GitHub 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；不要把阿里云 archive 上传流程反套到这台机器上。
 
+## 2026-04-29 后台任务日志膨胀与 OOM 清理记录
+
+本次腾讯云访问异常重启后确认不是 sidecar 页面过多，而是 `ugk-pi` app 多次触发 Node heap OOM。现场证据：
+
+- `ugk-pi` 日志出现多次 `FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory`
+- `/home/ubuntu/ugk-claw-shared/.data/agent/conn/conn.sqlite` 膨胀到约 `4.2G`
+- 两个 session jsonl 各约 `442M`
+- `conn_run_events` 共 `230774` 条，单个 run 的 `event_json` 合计最高约 `901MB`
+
+处理方式：
+
+1. 本地提交并推送 `553e6cc Stabilize cloud ops and conn run logs`，其中 `src/agent/conn-run-store.ts` 新增写入侧保护：单条事件递归截断超长字符串 / 深层结构，单个 run 只保留最近 `2000` 条事件。
+2. 腾讯云 Git 工作树存在历史增量更新留下的脏文件，`git pull --ff-only origin main` 被阻止；本次没有强行 reset，而是使用小包 `tencent-conn-log-bound-553e6cc.tar.gz` 覆盖本轮相关文件。
+3. 生产维护时先停止 `ugk-pi` 与 `ugk-pi-conn-worker`，备份目录为 `/home/ubuntu/ugk-claw-shared/backups/conn-oom-20260429-114104`。
+4. 备份内容包括 `conn.sqlite.before`、`conn.sqlite-wal.before`、`conn.sqlite-shm.before`，以及两个超大 session 的 `large-sessions.tar.gz` 和 `sessions-archived/`。
+5. 清理 `conn_run_events`：删除每个 run 超过最近 `2000` 条之外的旧事件，共删除 `194856` 条；将 `2909` 条超大事件改为摘要 stub；执行 `VACUUM`。
+6. 清理后 `conn.sqlite` 从约 `4.45GB` 降至约 `245MB`，公网 `http://43.134.167.179:3000/healthz` 与 `/playground` 均恢复 `200`，`check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`。
+
+后续接手时注意：腾讯云 `~/ugk-claw-repo` 当前工作树仍有历史脏状态，不能再假设 `git pull` 一定可用；在彻底整理远端 Git 状态前，生产小包增量覆盖比 `reset --hard` 更安全。
+
 ## 当前部署快照
 
 - 日期：`2026-04-20`
