@@ -20,6 +20,18 @@
 
 注意：如果后续继续用本地脚本给阿里云注入 key，不能再用宽泛 `*api.txt` glob；本地同时存在阿里、DeepSeek、小米多个 key 文件，必须按文件名或内容精确选中小米 key，否则就是把生产 env 写坏，没什么技术含量但很烦。
 
+## 2026-04-30 阿里云 apt mirror 构建修复记录
+
+本次发布 `3ac0d12 fix(playground): isolate desktop UI from mobile layout` 后，服务器 Git 已快进到新提交，但生产镜像重建卡在 Dockerfile 第一层 `apt-get update`，进程树显示 buildkit 内部仍在执行默认 Debian 源访问。旧 `ugk-pi` 容器保持 healthy，因此线上入口没有中断，但新 UI 未进入镜像，不能把“健康”误判成“已上线”。
+
+修复口径：`Dockerfile` 新增 `APT_MIRROR_HOST` build arg，传入后会把 `deb.debian.org` / `security.debian.org` 替换为指定 mirror；`docker-compose.prod.yml` 三个 `ugk-pi:prod` 构建目标统一透传 `${APT_MIRROR_HOST:-}`。阿里云 `/root/ugk-claw-shared/compose.env` 应设置：
+
+```bash
+APT_MIRROR_HOST=mirrors.aliyun.com
+```
+
+后续阿里云生产构建仍走 Git 增量和 `docker compose ... up --build -d`，但不要再让 apt 访问默认 Debian 官方源。这个坑已经在 2026-04-27 首次部署记录里预告过，现在正式源码化收口，别再靠“多等会儿”解决网络问题。
+
 ## 2026-04-29 阿里云 Git 工作目录迁移记录
 
 本次将阿里云 `/root/ugk-claw-repo` 从 archive 解包目录迁移为 Git 工作目录，目标提交为 `e446ec2 chore: consolidate aliyun deployed updates`。迁移前已把本地提交同时推送到 GitHub 和 Gitee，服务器优先从 GitHub 克隆，Gitee 作为备用 remote 保留。

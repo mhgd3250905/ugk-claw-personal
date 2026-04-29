@@ -32,6 +32,9 @@ test("container runtime files exist with the expected base configuration", () =>
 
 	const dockerfile = readFileSync(dockerfilePath, "utf8");
 	assert.match(dockerfile, /FROM node:22-bookworm-slim/i);
+	assert.match(dockerfile, /ARG APT_MIRROR_HOST=""/);
+	assert.match(dockerfile, /deb\.debian\.org/);
+	assert.match(dockerfile, /security\.debian\.org/);
 	assert.match(dockerfile, /apt-get install -y --no-install-recommends git curl ca-certificates python3/i);
 	assert.match(dockerfile, /ENV HOST=0\.0\.0\.0/);
 	assert.match(dockerfile, /ENV PORT=3000/);
@@ -86,6 +89,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	const prodWorkerComposeBlock = extractComposeServiceBlock(prodCompose, "ugk-pi-conn-worker");
 	assert.match(prodCompose, /services:/);
 	assert.match(prodCompose, /ugk-pi:/);
+	assert.match(prodCompose, /args:\s*\n\s*APT_MIRROR_HOST:\s*\$\{APT_MIRROR_HOST:-\}/);
 	assert.match(prodCompose, /ugk-pi-conn-worker:/);
 	assert.match(prodCompose, /ugk-pi-browser:/);
 	assert.match(prodCompose, /ugk-pi-browser-cdp:/);
@@ -144,6 +148,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /CONN_WORKER_MAX_CONCURRENCY=3/);
 	assert.match(envExample, /UGK_AGENT_DATA_DIR=\.\/\.data\/agent/);
 	assert.match(envExample, /UGK_BROWSER_UPLOAD_DIR=\.\/\.data\/chrome-sidecar\/upload/);
+	assert.match(envExample, /APT_MIRROR_HOST=/);
 
 	const dockerignore = readFileSync(dockerignorePath, "utf8");
 	assert.match(dockerignore, /node_modules/);

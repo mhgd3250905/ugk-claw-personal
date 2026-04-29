@@ -198,6 +198,8 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 
 适用目标：`root@101.37.209.54`，目录：`/root/ugk-claw-repo`。这里已经是 Git 工作目录，后续不要再默认打包上传；archive 小包只作为 GitHub/Gitee 都不可用时的兜底。
 
+阿里云构建必须在 `/root/ugk-claw-shared/compose.env` 中保留 `APT_MIRROR_HOST=mirrors.aliyun.com`。`Dockerfile` 会把 Debian apt 源切到该 mirror；不要再让生产 build 卡在默认 `deb.debian.org` 上干等，等它恢复不叫运维，叫许愿。
+
 ```bash
 ssh root@101.37.209.54
 cd /root/ugk-claw-repo

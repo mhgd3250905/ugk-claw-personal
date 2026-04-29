@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### 阿里云 Docker apt mirror 构建修复
+- 日期：2026-04-30
+- 主题：阿里云生产 `docker compose ... up --build -d` 卡在 Dockerfile 的 `apt-get update`，根因是默认 Debian 官方源在阿里云 ECS 上访问不稳定。`Dockerfile` 新增 `APT_MIRROR_HOST` build arg，`docker-compose.prod.yml` 透传该参数，阿里云 shared `compose.env` 设置 `APT_MIRROR_HOST=mirrors.aliyun.com` 后可切换到阿里云可达 apt 源。
+- 影响范围：影响生产镜像构建阶段的 apt 源选择；默认不设置该变量时继续使用 Debian 官方源，不改变运行时 API、会话、资产、conn、飞书或 playground 业务逻辑。
+- 对应入口：`Dockerfile`、`docker-compose.prod.yml`、`.env.example`、`test/containerization.test.ts`、`docs/server-ops-quick-reference.md`、`docs/aliyun-ecs-deploy.md`
+
 ### Playground 桌面布局合回与手机端隔离
 - 日期：2026-04-29
 - 主题：评估并合回 `C:\Users\29485\Downloads\0429-ui-fix.md` 中的桌面布局重构诉求：左侧会话 rail 改为贯穿全高并承载设置菜单，右侧 topbar 只保留新会话、文件、后台任务、任务消息、技能和上下文电池；文件入口收口为桌面子菜单，按钮 tooltip 使用 CSS 承载。移动端继续保留独立 `mobile-topbar`，仅隐藏桌面操作按钮和文件菜单，不隐藏上下文电池，避免桌面 grid 改动误伤 phone 端。
