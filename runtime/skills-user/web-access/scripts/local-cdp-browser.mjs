@@ -65,6 +65,19 @@ function normalizeBaseUrl(options = {}) {
   return `http://${options.host || DEFAULT_HOST}:${options.port || DEFAULT_PORT}`;
 }
 
+function resolveAgentScopeFromEnv(env = process.env) {
+  const candidates = [
+    env.CLAUDE_AGENT_ID,
+    env.CLAUDE_HOOK_AGENT_ID,
+    env.agent_id,
+  ];
+  for (const value of candidates) {
+    const trimmed = typeof value === 'string' ? value.trim() : '';
+    if (trimmed) return trimmed;
+  }
+  return undefined;
+}
+
 async function fetchJson(url, options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
   const response = await fetchImpl(url, {
@@ -377,6 +390,7 @@ export class LocalCdpBrowser {
     this.baseUrl = normalizeBaseUrl(options);
     this.fetchImpl = options.fetchImpl || fetch;
     this.defaultTargets = new Map();
+    this.scopedTargets = new Map();
   }
 
   async handleCommand(command, context = {}) {
@@ -386,7 +400,7 @@ export class LocalCdpBrowser {
       case 'list_targets':
         return { ok: true, targets: await this.listTargets() };
       case 'new_target':
-        return { ok: true, target: await this.newTarget(command.url) };
+        return { ok: true, target: await this.newTarget(command.url, this.readScope(context.meta)) };
       case 'close_target':
         return await this.closeTarget(command.targetId);
       case 'get_target_info':
@@ -430,7 +444,15 @@ export class LocalCdpBrowser {
   }
 
   readScope(meta) {
-    return meta?.agentScope || 'default';
+    return meta?.agentScope || resolveAgentScopeFromEnv() || 'default';
+  }
+
+  registerScopedTarget(scope, targetId) {
+    const normalizedScope = scope || 'default';
+    if (!targetId) return;
+    const targets = this.scopedTargets.get(normalizedScope) || new Set();
+    targets.add(targetId);
+    this.scopedTargets.set(normalizedScope, targets);
   }
 
   async status() {
@@ -539,14 +561,16 @@ export class LocalCdpBrowser {
     return target;
   }
 
-  async newTarget(url = 'about:blank') {
+  async newTarget(url = 'about:blank', scope = resolveAgentScopeFromEnv()) {
     await this.ensureBrowser();
     const resolvedUrl = resolveBrowserInputUrl(url, this.options);
     const target = await fetchJson(`${this.baseUrl}/json/new?${encodeURIComponent(resolvedUrl)}`, {
       method: 'PUT',
       fetchImpl: this.fetchImpl,
     });
-    return rewriteCdpTargetForBaseUrl(target, this.baseUrl);
+    const normalizedTarget = rewriteCdpTargetForBaseUrl(target, this.baseUrl);
+    this.registerScopedTarget(scope, normalizedTarget.id);
+    return normalizedTarget;
   }
 
   async closeTarget(targetId) {
@@ -560,15 +584,27 @@ export class LocalCdpBrowser {
         this.defaultTargets.delete(scope);
       }
     }
+    for (const [scope, targets] of this.scopedTargets.entries()) {
+      targets.delete(targetId);
+      if (targets.size === 0) {
+        this.scopedTargets.delete(scope);
+      }
+    }
 
     return { ok: true };
   }
 
   async closeScopeTargets(scope) {
-    const targetId = this.defaultTargets.get(scope);
-    if (targetId) {
+    const targetIds = new Set(this.scopedTargets.get(scope) || []);
+    const defaultTargetId = this.defaultTargets.get(scope);
+    if (defaultTargetId) {
+      targetIds.add(defaultTargetId);
+    }
+
+    for (const targetId of targetIds) {
       await this.closeTarget(targetId);
     }
+    this.scopedTargets.delete(scope);
     this.defaultTargets.delete(scope);
     return { ok: true };
   }

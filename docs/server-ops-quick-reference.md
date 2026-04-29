@@ -357,6 +357,7 @@ https://127.0.0.1:13902/
 - app env：`~/ugk-claw-shared/app.env`
 - compose env：`~/ugk-claw-shared/compose.env`
 - agent 会话 / 资产 / conn 数据：`~/ugk-claw-shared/.data/agent`
+- agent 运行中沉淀的本地长期规则：`~/ugk-claw-shared/.data/agent/AGENTS.local.md`，容器内路径是 `/app/.data/agent/AGENTS.local.md`
 - browser 登录态：`~/ugk-claw-shared/.data/chrome-sidecar`
 - app 日志：`~/ugk-claw-shared/logs/app`
 - nginx 日志：`~/ugk-claw-shared/logs/nginx`

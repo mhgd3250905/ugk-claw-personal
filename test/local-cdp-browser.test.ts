@@ -127,3 +127,45 @@ test("LocalCdpBrowser type action inserts text through CDP Input.insertText", as
 		{ method: "Input.insertText", params: { text: "你好 Draft" } },
 	]);
 });
+
+test("LocalCdpBrowser registers new scoped targets so scope cleanup closes them", async () => {
+	const closedTargets: string[] = [];
+	class TestBrowser extends LocalCdpBrowser {
+		async ensureBrowser() {
+			return { Browser: "Chrome/Test" };
+		}
+
+		async newTarget(url = "about:blank", scope?: string) {
+			const target = { id: `target-${url}`, type: "page", url };
+			this.registerScopedTarget(scope, target.id);
+			return target;
+		}
+
+		async closeTarget(targetId: string) {
+			closedTargets.push(targetId);
+			return { ok: true };
+		}
+	}
+
+	const browser = new TestBrowser();
+
+	await browser.handleCommand(
+		{
+			action: "new_target",
+			url: "https://example.com",
+		},
+		{
+			meta: { agentScope: "conn-1" },
+		},
+	);
+	await browser.handleCommand(
+		{
+			action: "close_scope_targets",
+		},
+		{
+			meta: { agentScope: "conn-1" },
+		},
+	);
+
+	assert.deepEqual(closedTargets, ["target-https://example.com"]);
+});

@@ -6,6 +6,20 @@
 
 如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md) 的“固定增量发布流程（先选目标云）”；阿里云当前固定口径是 archive 增量覆盖 `/root/ugk-claw-repo`，保留 `/root/ugk-claw-shared`，不要执行腾讯云的 `git pull` 流程。
 
+## 2026-04-29 小米 MiMo 模型源增量发布记录
+
+本次发布继续使用 archive 小包 `xiaomi-model-providers-20260429-incremental.tar.gz` 增量覆盖 `/root/ugk-claw-repo`；没有执行整目录替换，没有触碰 `/root/ugk-claw-shared/.data/agent`、sidecar 登录态、资产、conn 或生产日志。阿里云当前目录仍不是 Git 工作目录，不要照抄腾讯云 `git pull`。
+
+实际结果：
+1. 本地增量包只包含模型源相关配置、代码、测试与文档，不包含 `.pi/settings.json`、`小米api.txt` 或无关 bug / runtime 报告。
+2. 通过 Paramiko/SFTP 上传小包到 `/root/xiaomi-model-providers-20260429-incremental.tar.gz`，服务器先备份目标文件到 `/root/ugk-claw-shared/backups/xiaomi-model-providers-pre-20260429-191844.tar.gz`，再解包覆盖 `/root/ugk-claw-repo`。
+3. 小包解包后把小米 key 写入 `/root/ugk-claw-shared/app.env` 的 `XIAOMI_MIMO_API_KEY`，临时上传文件已删除，key 未写进仓库或部署包。
+4. 执行 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+5. 执行 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建并启动应用相关容器；因第一次绕中文文件名时误选本地通用 `api.txt`，随后已重新按内容精确选择 `小米api.txt`，修正 `/root/ugk-claw-shared/app.env` 并强制重建 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`。
+6. 最终验收通过：内网 `/healthz`、公网 `http://101.37.209.54:3000/healthz` 均返回 `{"ok":true}`；`/v1/model-config` 显示 `xiaomi-mimo-cn`、`xiaomi-mimo-sgp`、`xiaomi-mimo-ams` 均为 `configured=true`，上下文窗口均为 `1048576`；`POST /v1/model-config/validate` 验证 `xiaomi-mimo-cn / mimo-v2.5-pro` 返回 `ok=true`。
+
+注意：如果后续继续用本地脚本给阿里云注入 key，不能再用宽泛 `*api.txt` glob；本地同时存在阿里、DeepSeek、小米多个 key 文件，必须按文件名或内容精确选中小米 key，否则就是把生产 env 写坏，没什么技术含量但很烦。
+
 ## 当前部署快照
 
 - 日期：`2026-04-27`
@@ -362,6 +376,28 @@ COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose
    - `.pi/skills/playground-runtime-ui/SKILL.md` 包含 `Do not claim \`src/ui/\` edits are zero-restart changes`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
 
+## 2026-04-29 UI 与后台浏览器清理增量发布记录
+
+本次发布继续使用 archive 小包增量覆盖 `/root/ugk-claw-repo`，没有执行整目录替换，也没有触碰 `/root/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。阿里云当前目录仍不是 Git 工作目录，不要照抄腾讯云 `git pull`。
+
+实际结果：
+1. 本地生成增量包 `runtime/aliyun-ui-browser-cleanup-20260429-incremental.tar.gz`，包含后台 conn browser cleanup scope、web-access scoped target、知乎工具 target 兜底关闭、playground UI 源码化修复、SVG logo、测试与文档。
+2. 通过本地 `*config.txt` 中的 root 密码用 `paramiko` SFTP 上传到 `/root/aliyun-ui-browser-cleanup-20260429-incremental.tar.gz`，密码没有写入命令行参数或输出日志。
+3. 服务器在 `/root/ugk-claw-repo` 内备份本次目标文件到 `/root/ugk-claw-shared/backups/aliyun-ui-browser-cleanup-pre-20260429-180503.tar.gz`，再执行 `tar -xzf /root/aliyun-ui-browser-cleanup-20260429-incremental.tar.gz -C /root/ugk-claw-repo` 增量覆盖对应文件。
+4. 执行 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+5. 执行 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建并启动 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`。
+6. 首次验收 `127.0.0.1:3000/healthz` 返回 nginx `502`；应用容器自身为 healthy。随后按既有 runbook 执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx` 强制重建 nginx。
+7. 最终验收通过：
+   - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://101.37.209.54:3000/healthz` 返回 `{"ok":true}`
+   - `/playground` HTML 包含 `ugk-svg-logo`、`ugk-claw-logo.svg`、`ugk-claw-logo-light.svg`
+   - `public/ugk-claw-logo.svg` 返回 HTTP `200`
+   - `src/agent/background-agent-runner.ts` 包含 `runWithScopedAgentEnvironment` 与前后 `closeBrowserTargets`
+   - `runtime/skills-user/web-access/scripts/local-cdp-browser.mjs` 包含 `scopedTargets` / `registerScopedTarget` / `closeScopeTargets`
+   - `runtime/skills-user/zhihu-tools/scripts/zhihu-api.mjs` 的目标页创建路径均有 `finally closeTarget`
+   - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
+   - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，CDP relay、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker` 正常运行
+
 ## 2026-04-29 Web-access /type 增量发布记录
 
 本次发布继续使用 archive 小包增量覆盖 `/root/ugk-claw-repo`，没有执行整目录替换，也没有触碰 `/root/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。
@@ -395,3 +431,17 @@ COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose
    - `/playground` HTML 包含 `feishu-settings-dialog`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，CDP relay、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker` 正常运行
    - `ugk-pi-feishu-worker` 日志显示 `[feishu-worker] disabled by settings`，表示当前生产配置未启用飞书，而不是 worker 启动失败
+
+## 2026-04-29 运行态 AGENTS 规则持久化增量发布记录
+
+本次发布继续使用 archive 小包 `agent-rules-persistence-20260429-incremental.tar.gz` 增量覆盖 `/root/ugk-claw-repo`；没有触碰 `/root/ugk-claw-shared/.data/agent`、sidecar 登录态、资产、conn 或生产日志。阿里云当时仍不是 Git 工作目录，不要照抄腾讯云 `git pull`。
+
+实际结果：
+1. 本地小包只包含 `AGENTS.md`、`docs/change-log.md`、`docs/server-ops-quick-reference.md`、`src/agent/agent-session-factory.ts` 和对应测试，不包含 `.data`、密钥或无关 dirty 文件。
+2. 通过 Paramiko/SFTP 上传到 `/root/agent-rules-persistence-20260429-incremental.tar.gz`，服务器先把目标文件备份到 `/root/ugk-claw-shared/backups/agent-rules-persistence-pre-*.tar.gz`，再解包覆盖 `/root/ugk-claw-repo`。
+3. 执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+4. 执行 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`。
+5. 首次验收遇到 nginx `502`，随后按 runbook 执行 `docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx` 恢复入口。
+6. 最终验收通过：内网 `http://127.0.0.1:3000/healthz` 与公网 `http://101.37.209.54:3000/healthz` 均返回 `{"ok":true}`，`docker compose ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` 为 healthy，容器内 `/app/src/agent/agent-session-factory.ts` 与 `/app/AGENTS.md` 均包含 `AGENTS.local.md` 相关逻辑。
+
+后续沉淀本机或服务器长期规则时，应写入 `/app/.data/agent/AGENTS.local.md`，宿主机对应路径是 `/root/ugk-claw-shared/.data/agent/AGENTS.local.md`。该文件位于 shared 运行态目录，不随代码发布被覆盖，会被 agent session 作为额外 AGENTS 上下文注入。

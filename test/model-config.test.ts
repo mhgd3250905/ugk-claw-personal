@@ -30,14 +30,73 @@ async function createProjectRoot(): Promise<string> {
 		JSON.stringify({
 			providers: {
 				"dashscope-coding": {
+					name: "Ali DashScope Coding",
+					vendor: "ali",
+					region: "cn",
+					priority: 10,
 					apiKey: "DASHSCOPE_CODING_API_KEY",
 					models: [{ id: "glm-5", name: "GLM-5" }],
 				},
 				"deepseek-anthropic": {
+					name: "DeepSeek Anthropic",
+					vendor: "deepseek",
+					region: "global",
+					priority: 20,
 					apiKey: "DEEPSEEK_API_KEY",
 					models: [
 						{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
 						{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1048576, maxTokens: 262144 },
+					],
+				},
+				"xiaomi-mimo-cn": {
+					name: "Xiaomi MiMo China",
+					vendor: "xiaomi",
+					region: "cn",
+					priority: 31,
+					baseUrl: "https://token-plan-cn.xiaomimimo.com/anthropic",
+					api: "anthropic-messages",
+					apiKey: "XIAOMI_MIMO_API_KEY",
+					models: [
+						{
+							id: "mimo-v2.5-pro",
+							name: "MiMo V2.5 Pro (Xiaomi CN)",
+							contextWindow: 1048576,
+							maxTokens: 16384,
+						},
+					],
+				},
+				"xiaomi-mimo-sgp": {
+					name: "Xiaomi MiMo Singapore",
+					vendor: "xiaomi",
+					region: "sgp",
+					priority: 32,
+					baseUrl: "https://token-plan-sgp.xiaomimimo.com/anthropic",
+					api: "anthropic-messages",
+					apiKey: "XIAOMI_MIMO_API_KEY",
+					models: [
+						{
+							id: "mimo-v2.5-pro",
+							name: "MiMo V2.5 Pro (Xiaomi Singapore)",
+							contextWindow: 1048576,
+							maxTokens: 16384,
+						},
+					],
+				},
+				"xiaomi-mimo-ams": {
+					name: "Xiaomi MiMo Europe",
+					vendor: "xiaomi",
+					region: "ams",
+					priority: 33,
+					baseUrl: "https://token-plan-ams.xiaomimimo.com/anthropic",
+					api: "anthropic-messages",
+					apiKey: "XIAOMI_MIMO_API_KEY",
+					models: [
+						{
+							id: "mimo-v2.5-pro",
+							name: "MiMo V2.5 Pro (Xiaomi Europe)",
+							contextWindow: 1048576,
+							maxTokens: 16384,
+						},
 					],
 				},
 			},
@@ -60,8 +119,15 @@ test("model config store lists providers and current default selection", async (
 	});
 	assert.deepEqual(
 		config.providers.map((provider) => provider.id),
-		["dashscope-coding", "deepseek-anthropic"],
+		["dashscope-coding", "deepseek-anthropic", "xiaomi-mimo-cn", "xiaomi-mimo-sgp", "xiaomi-mimo-ams"],
 	);
+	assert.deepEqual(config.providers.map((provider) => [provider.id, provider.name, provider.vendor, provider.region, provider.priority]), [
+		["dashscope-coding", "Ali DashScope Coding", "ali", "cn", 10],
+		["deepseek-anthropic", "DeepSeek Anthropic", "deepseek", "global", 20],
+		["xiaomi-mimo-cn", "Xiaomi MiMo China", "xiaomi", "cn", 31],
+		["xiaomi-mimo-sgp", "Xiaomi MiMo Singapore", "xiaomi", "sgp", 32],
+		["xiaomi-mimo-ams", "Xiaomi MiMo Europe", "xiaomi", "ams", 33],
+	]);
 	assert.deepEqual(
 		config.providers.find((provider) => provider.id === "deepseek-anthropic")?.models.map((model) => model.id),
 		["deepseek-v4-pro", "deepseek-v4-flash"],
@@ -73,6 +139,15 @@ test("model config store lists providers and current default selection", async (
 		maxTokens: 262144,
 	});
 	assert.equal(config.providers.find((provider) => provider.id === "deepseek-anthropic")?.auth.envVar, "DEEPSEEK_API_KEY");
+	assert.deepEqual(config.providers.find((provider) => provider.id === "xiaomi-mimo-cn")?.models, [
+		{
+			id: "mimo-v2.5-pro",
+			name: "MiMo V2.5 Pro (Xiaomi CN)",
+			contextWindow: 1048576,
+			maxTokens: 16384,
+		},
+	]);
+	assert.equal(config.providers.find((provider) => provider.id === "xiaomi-mimo-cn")?.auth.envVar, "XIAOMI_MIMO_API_KEY");
 });
 
 test("saveDefaultModelConfig validates before writing settings", async () => {

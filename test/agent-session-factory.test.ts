@@ -8,6 +8,7 @@ import {
 	createDefaultAgentSessionFactory,
 	createSkillRestrictedResourceLoader,
 	getDefaultAllowedSkillPaths,
+	getDefaultRuntimeAgentRulesPath,
 	getDefaultSystemSkillPath,
 	getDefaultUserSkillPath,
 	getProjectModelsPath,
@@ -109,6 +110,25 @@ test("skill whitelist can load both system and user-installed skill directories"
 	);
 });
 
+test("resource loader appends runtime AGENTS rules from the persistent agent data directory", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-runtime-agents-"));
+	const runtimeRulesPath = getDefaultRuntimeAgentRulesPath(projectRoot);
+	await mkdir(join(projectRoot, ".data", "agent"), { recursive: true });
+	await writeFile(runtimeRulesPath, "# Runtime Rules\n\n- Prefer persisted local rules.\n", "utf8");
+
+	const loader = createSkillRestrictedResourceLoader({
+		projectRoot,
+		allowedSkillPaths: [join(projectRoot, ".pi", "skills")],
+		runtimeAgentRulesPath: runtimeRulesPath,
+	});
+
+	await loader.reload();
+
+	const files = loader.getAgentsFiles().agentsFiles;
+	const runtimeRules = files.find((file) => file.path === runtimeRulesPath);
+	assert.equal(runtimeRules?.content, "# Runtime Rules\n\n- Prefer persisted local rules.\n");
+});
+
 test("default session factory caches available skills between unchanged fingerprints", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-skill-cache-"));
 	const sessionDir = join(projectRoot, ".data", "sessions");
@@ -197,6 +217,17 @@ test("project models.json exposes the checked-in DeepSeek Anthropic provider", (
 	assert.notEqual(flashModel, undefined);
 	assert.equal(flashModel?.provider, "deepseek-anthropic");
 	assert.equal(flashModel?.id, "deepseek-v4-flash");
+});
+
+test("project models.json exposes the checked-in Xiaomi MiMo Anthropic-compatible providers", () => {
+	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(process.cwd()));
+
+	for (const provider of ["xiaomi-mimo-cn", "xiaomi-mimo-sgp", "xiaomi-mimo-ams"]) {
+		const model = registry.find(provider, "mimo-v2.5-pro");
+		assert.notEqual(model, undefined);
+		assert.equal(model?.provider, provider);
+		assert.equal(model?.id, "mimo-v2.5-pro");
+	}
 });
 
 test("resolveProjectDefaultModelContext uses project defaults and reserve budget", async () => {

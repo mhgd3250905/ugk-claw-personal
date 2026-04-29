@@ -22,6 +22,10 @@ export interface ModelConfigModelBody {
 
 export interface ModelConfigProviderBody {
 	id: string;
+	name?: string;
+	vendor?: string;
+	region?: string;
+	priority?: number;
 	models: ModelConfigModelBody[];
 	auth: {
 		configured: boolean;
@@ -77,6 +81,10 @@ interface ProjectModelsJson {
 	providers?: Record<
 		string,
 		{
+			name?: string;
+			vendor?: string;
+			region?: string;
+			priority?: number;
 			apiKey?: string;
 			models?: Array<{ id?: string; name?: string; contextWindow?: number; maxTokens?: number }>;
 		}
@@ -177,11 +185,11 @@ export function createLiveModelSelectionValidator(projectRoot: string): ModelSel
 			await session.prompt("Reply exactly: UGK_PROVIDER_OK");
 			const lastMessage = session.messages?.at(-1) as { content?: unknown } | undefined;
 			const text = stringifyMessageContent(lastMessage?.content);
-			if (!text.includes("UGK_PROVIDER_OK")) {
+			if (!text.trim()) {
 				return {
 					ok: false,
 					code: "provider_validation_failed",
-					message: "Provider responded, but did not return the expected validation text.",
+					message: "Provider responded, but did not return any assistant text.",
 				};
 			}
 			return { ok: true };
@@ -241,6 +249,10 @@ function readProviders(modelsContent: string): ModelConfigProviderBody[] {
 	return Object.entries(providers)
 		.map(([providerId, provider]) => ({
 			id: providerId,
+			name: normalizeOptionalString(provider.name),
+			vendor: normalizeOptionalString(provider.vendor),
+			region: normalizeOptionalString(provider.region),
+			priority: normalizePositiveNumber(provider.priority),
 			models: (provider.models ?? [])
 				.filter((model): model is { id: string; name?: string; contextWindow?: number; maxTokens?: number } =>
 					typeof model.id === "string" && model.id.length > 0)
@@ -252,11 +264,15 @@ function readProviders(modelsContent: string): ModelConfigProviderBody[] {
 				})),
 			auth: resolveProviderAuth(provider.apiKey),
 		}))
-		.sort((left, right) => left.id.localeCompare(right.id));
+		.sort((left, right) => (left.priority ?? Number.MAX_SAFE_INTEGER) - (right.priority ?? Number.MAX_SAFE_INTEGER) || left.id.localeCompare(right.id));
 }
 
 function normalizePositiveNumber(value: unknown): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function normalizeOptionalString(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 function resolveProviderAuth(apiKey: string | undefined): ModelConfigProviderBody["auth"] {

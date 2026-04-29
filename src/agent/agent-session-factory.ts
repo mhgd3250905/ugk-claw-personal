@@ -137,6 +137,7 @@ export interface DefaultAgentSessionFactoryOptions {
 	sessionDir: string;
 	agentDir?: string;
 	allowedSkillPaths?: string[];
+	runtimeAgentRulesPath?: string;
 }
 
 export interface ProjectDefaultModelContext {
@@ -175,13 +176,45 @@ export function createSkillRestrictedResourceLoader(options: {
 	projectRoot: string;
 	agentDir?: string;
 	allowedSkillPaths: string[];
+	runtimeAgentRulesPath?: string;
 }): DefaultResourceLoader {
+	const runtimeAgentRulesPath = options.runtimeAgentRulesPath;
 	return new DefaultResourceLoader({
 		cwd: options.projectRoot,
 		agentDir: options.agentDir,
 		noSkills: true,
 		additionalSkillPaths: options.allowedSkillPaths,
+		agentsFilesOverride: runtimeAgentRulesPath
+			? (current) => {
+					const content = readOptionalRuntimeAgentRules(runtimeAgentRulesPath);
+					if (!content) {
+						return current;
+					}
+					return {
+						agentsFiles: [
+							...current.agentsFiles,
+							{
+								path: runtimeAgentRulesPath,
+								content,
+							},
+						],
+					};
+				}
+			: undefined,
 	});
+}
+
+export function getDefaultRuntimeAgentRulesPath(projectRoot: string): string {
+	return join(projectRoot, ".data", "agent", "AGENTS.local.md");
+}
+
+function readOptionalRuntimeAgentRules(filePath: string): string | undefined {
+	try {
+		const content = readFileSyncUtf8(filePath);
+		return content.trim().length > 0 ? content : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 async function collectSkillFiles(rootPath: string): Promise<string[]> {
@@ -473,6 +506,7 @@ export function createDefaultAgentSessionFactory(
 	options: DefaultAgentSessionFactoryOptions,
 ): AgentSessionFactory {
 	const allowedSkillPaths = options.allowedSkillPaths ?? getDefaultAllowedSkillPaths(options.projectRoot);
+	const runtimeAgentRulesPath = options.runtimeAgentRulesPath ?? getDefaultRuntimeAgentRulesPath(options.projectRoot);
 	let cachedSkillList: { fingerprint: string; skills: RuntimeSkillInfo[]; cachedAt: string; checkedAtMs: number } | null = null;
 	let lastSkillCacheTimestampMs = 0;
 
@@ -487,6 +521,7 @@ export function createDefaultAgentSessionFactory(
 			projectRoot: options.projectRoot,
 			agentDir: options.agentDir,
 			allowedSkillPaths,
+			runtimeAgentRulesPath,
 		});
 		await resourceLoader.reload();
 		const result = await resourceLoader.getSkills();
@@ -536,6 +571,7 @@ export function createDefaultAgentSessionFactory(
 				projectRoot: options.projectRoot,
 				agentDir: options.agentDir,
 				allowedSkillPaths,
+				runtimeAgentRulesPath,
 			});
 
 			await resourceLoader.reload();

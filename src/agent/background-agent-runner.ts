@@ -5,6 +5,11 @@ import type { ResolvedBackgroundAgentSnapshot, BackgroundAgentProfileResolver } 
 import type { BackgroundWorkspaceManager, RunWorkspace } from "./background-workspace.js";
 import type { ConnRunRecord, ConnRunStore } from "./conn-run-store.js";
 import type { ConnDefinition } from "./conn-store.js";
+import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
+import {
+	createBrowserCleanupScope,
+	runWithScopedAgentEnvironment,
+} from "./agent-run-scope.js";
 import { prependCurrentTimeContext } from "./file-artifacts.js";
 
 export interface BackgroundAgentSessionFactory {
@@ -22,6 +27,7 @@ export interface BackgroundAgentRunnerOptions {
 	profileResolver: BackgroundAgentProfileResolver;
 	workspaceManager: BackgroundWorkspaceManager;
 	sessionFactory: BackgroundAgentSessionFactory;
+	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
 }
 
 export class BackgroundAgentRunner {
@@ -33,8 +39,11 @@ export class BackgroundAgentRunner {
 		now: Date = new Date(),
 		signal?: AbortSignal,
 	): Promise<ConnRunRecord | undefined> {
+		const browserCleanupScope = createBrowserCleanupScope(conn.connId);
+		const closeBrowserTargets = this.options.closeBrowserTargetsForScope ?? closeBrowserTargetsForScope;
 		let unsubscribe: (() => void) | undefined;
 		try {
+			await closeBrowserTargets(browserCleanupScope);
 			const workspace = await this.options.workspaceManager.createRunWorkspace({
 				runId: run.runId,
 				connId: conn.connId,
@@ -94,7 +103,9 @@ export class BackgroundAgentRunner {
 			});
 
 			const prompt = buildBackgroundPrompt(conn, workspace);
-			await promptWithAbort(session, prompt, signal);
+			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
+				await promptWithAbort(session, prompt, signal);
+			});
 			unsubscribe?.();
 			unsubscribe = undefined;
 
@@ -138,6 +149,8 @@ export class BackgroundAgentRunner {
 				errorText: message,
 				finishedAt: now,
 			});
+		} finally {
+			await closeBrowserTargets(browserCleanupScope);
 		}
 	}
 

@@ -169,6 +169,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 - [`docs/handoff-current.md`](./docs/handoff-current.md)：当前交接快照和下一步建议。
 - [`docs/traceability-map.md`](./docs/traceability-map.md)：按场景定位代码入口。
 - [`docs/playground-current.md`](./docs/playground-current.md)：当前 playground 的 UI、交互和手机端约束。
+- [`docs/model-providers.md`](./docs/model-providers.md)：阿里、DeepSeek、小米三类模型源的 provider、region、key 和展示顺序。
 - [`docs/runtime-assets-conn-feishu.md`](./docs/runtime-assets-conn-feishu.md)：资产、附件、`send_file`、`conn` 和 Feishu 运行说明。
 - [`docs/web-access-browser-bridge.md`](./docs/web-access-browser-bridge.md)：Chrome sidecar、CDP bridge、持久 profile 和排障口径。
 - [`docs/server-ops-quick-reference.md`](./docs/server-ops-quick-reference.md)：生产环境高频运维动作。

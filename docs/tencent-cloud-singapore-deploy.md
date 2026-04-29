@@ -8,6 +8,20 @@
 
 后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 GitHub 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；不要把阿里云 archive 上传流程反套到这台机器上。
 
+## 2026-04-29 小米 MiMo 模型源增量发布记录
+
+本次发布使用小包 `xiaomi-model-providers-20260429-incremental.tar.gz` 覆盖 `~/ugk-claw-repo` 中的小米模型源相关文件；没有执行整目录替换，没有触碰 `~/ugk-claw-shared/.data/agent`、sidecar 登录态、资产、conn 或生产日志。由于腾讯云远端 Git 工作树仍有历史脏状态，本次继续使用增量包覆盖而不是强行 `git pull` / `reset`。
+
+实际结果：
+1. 本地增量包只包含模型源相关配置、代码、测试与文档，不包含 `.pi/settings.json`、`小米api.txt` 或无关 bug / runtime 报告。
+2. 服务器先备份目标文件到 `/home/ubuntu/ugk-claw-shared/backups/xiaomi-model-providers-pre-20260429-191527.tar.gz`，再解包覆盖 `~/ugk-claw-repo`。
+3. 通过加密上传临时文件把小米 key 写入 `/home/ubuntu/ugk-claw-shared/app.env` 的 `XIAOMI_MIMO_API_KEY`，写入后删除临时文件，未把 key 写进仓库或部署包。
+4. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
+5. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建并启动应用相关容器。
+6. 验收通过：内网 `/healthz`、公网 `http://43.134.167.179:3000/healthz` 均返回 `{"ok":true}`；`/v1/model-config` 显示 `xiaomi-mimo-cn`、`xiaomi-mimo-sgp`、`xiaomi-mimo-ams` 均为 `configured=true`，上下文窗口均为 `1048576`；`POST /v1/model-config/validate` 验证 `xiaomi-mimo-cn / mimo-v2.5-pro` 返回 `ok=true`。
+
+注意：前置直连验证已确认 SGP / AMS endpoint 在腾讯云新加坡网络可达，但当前小米 key 对 SGP / AMS 返回 `401 Invalid API Key`。如果要在腾讯云新加坡优先使用 `xiaomi-mimo-sgp`，需要小米侧提供具备 SGP 集群权限的 key，而不是删掉 SGP provider。
+
 ## 2026-04-29 后台任务日志膨胀与 OOM 清理记录
 
 本次腾讯云访问异常重启后确认不是 sidecar 页面过多，而是 `ugk-pi` app 多次触发 Node heap OOM。现场证据：

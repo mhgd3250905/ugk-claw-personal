@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { loadApiKeyFromApiTxt } from "../src/config.js";
+import { getAppConfig, loadApiKeyFromApiTxt } from "../src/config.js";
 
 test("loads DASHSCOPE_CODING_API_KEY from api.txt when environment variable is absent", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
@@ -27,6 +27,18 @@ test("loads DEEPSEEK_API_KEY from deepseek-api.txt when environment variable is 
 	assert.equal(loaded, "sk-deepseek-test-123");
 	assert.equal(process.env.TEST_DEEPSEEK_KEY, "sk-deepseek-test-123");
 	delete process.env.TEST_DEEPSEEK_KEY;
+});
+
+test("loads XIAOMI_MIMO_API_KEY from 小米api.txt with apikey spelling", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
+	const apiTxtPath = join(dir, "小米api.txt");
+	await writeFile(apiTxtPath, "model_name:mimo-v2.5-pro\napikey:tp-xiaomi-test-123\n", "utf8");
+	delete process.env.XIAOMI_MIMO_API_KEY;
+
+	getAppConfig(dir);
+
+	assert.equal(process.env.XIAOMI_MIMO_API_KEY, "tp-xiaomi-test-123");
+	delete process.env.XIAOMI_MIMO_API_KEY;
 });
 
 test("keeps existing environment variable and does not override it from api.txt", async () => {

@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 258 48" width="258" height="48">
+  <defs>
+    <linearGradient id="blockGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#65d1ff"/>
+      <stop offset="50%" style="stop-color:#c9d2ff"/>
+      <stop offset="100%" style="stop-color:#8dffb2"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#blockGrad)">
+    <!-- U -->
+    <rect x="0" y="0" width="6" height="6"/>
+    <rect x="0" y="8" width="6" height="6"/>
+    <rect x="0" y="16" width="6" height="6"/>
+    <rect x="0" y="24" width="6" height="6"/>
+    <rect x="0" y="32" width="6" height="6"/>
+    <rect x="8" y="32" width="6" height="6"/>
+    <rect x="16" y="32" width="6" height="6"/>
+    <rect x="24" y="32" width="6" height="6"/>
+    <rect x="24" y="0" width="6" height="6"/>
+    <rect x="24" y="8" width="6" height="6"/>
+    <rect x="24" y="16" width="6" height="6"/>
+    <rect x="24" y="24" width="6" height="6"/>
+
+    <!-- G - C形状 + 右侧中间短竖线 + 中横线 -->
+    <rect x="36" y="0" width="6" height="6"/>
+    <rect x="36" y="8" width="6" height="6"/>
+    <rect x="36" y="16" width="6" height="6"/>
+    <rect x="36" y="24" width="6" height="6"/>
+    <rect x="36" y="32" width="6" height="6"/>
+    <rect x="44" y="0" width="6" height="6"/>
+    <rect x="52" y="0" width="6" height="6"/>
+    <rect x="44" y="32" width="6" height="6"/>
+    <rect x="52" y="32" width="6" height="6"/>
+    <rect x="60" y="32" width="6" height="6"/>
+    <rect x="60" y="24" width="6" height="6"/>
+    <rect x="60" y="16" width="6" height="6"/>
+    <rect x="52" y="16" width="6" height="6"/>
+
+    <!-- K -->
+    <rect x="72" y="0" width="6" height="6"/>
+    <rect x="72" y="8" width="6" height="6"/>
+    <rect x="72" y="16" width="6" height="6"/>
+    <rect x="72" y="24" width="6" height="6"/>
+    <rect x="72" y="32" width="6" height="6"/>
+    <rect x="80" y="16" width="6" height="6"/>
+    <rect x="88" y="8" width="6" height="6"/>
+    <rect x="88" y="0" width="6" height="6"/>
+    <rect x="88" y="24" width="6" height="6"/>
+    <rect x="88" y="32" width="6" height="6"/>
+
+    <!-- C -->
+    <rect x="120" y="0" width="6" height="6"/>
+    <rect x="128" y="0" width="6" height="6"/>
+    <rect x="136" y="0" width="6" height="6"/>
+    <rect x="144" y="0" width="6" height="6"/>
+    <rect x="120" y="8" width="6" height="6"/>
+    <rect x="120" y="16" width="6" height="6"/>
+    <rect x="120" y="24" width="6" height="6"/>
+    <rect x="120" y="32" width="6" height="6"/>
+    <rect x="128" y="32" width="6" height="6"/>
+    <rect x="136" y="32" width="6" height="6"/>
+    <rect x="144" y="32" width="6" height="6"/>
+
+    <!-- L -->
+    <rect x="156" y="0" width="6" height="6"/>
+    <rect x="156" y="8" width="6" height="6"/>
+    <rect x="156" y="16" width="6" height="6"/>
+    <rect x="156" y="24" width="6" height="6"/>
+    <rect x="156" y="32" width="6" height="6"/>
+    <rect x="164" y="32" width="6" height="6"/>
+    <rect x="172" y="32" width="6" height="6"/>
+    <rect x="180" y="32" width="6" height="6"/>
+
+    <!-- A -->
+    <rect x="192" y="8" width="6" height="6"/>
+    <rect x="192" y="16" width="6" height="6"/>
+    <rect x="192" y="24" width="6" height="6"/>
+    <rect x="192" y="32" width="6" height="6"/>
+    <rect x="200" y="0" width="6" height="6"/>
+    <rect x="208" y="8" width="6" height="6"/>
+    <rect x="208" y="16" width="6" height="6"/>
+    <rect x="208" y="24" width="6" height="6"/>
+    <rect x="208" y="32" width="6" height="6"/>
+    <rect x="200" y="16" width="6" height="6"/>
+
+    <!-- W -->
+    <rect x="220" y="0" width="6" height="6"/>
+    <rect x="220" y="8" width="6" height="6"/>
+    <rect x="220" y="16" width="6" height="6"/>
+    <rect x="220" y="24" width="6" height="6"/>
+    <rect x="220" y="32" width="6" height="6"/>
+    <rect x="228" y="24" width="6" height="6"/>
+    <rect x="236" y="16" width="6" height="6"/>
+    <rect x="244" y="24" width="6" height="6"/>
+    <rect x="252" y="0" width="6" height="6"/>
+    <rect x="252" y="8" width="6" height="6"/>
+    <rect x="252" y="16" width="6" height="6"/>
+    <rect x="252" y="24" width="6" height="6"/>
+    <rect x="252" y="32" width="6" height="6"/>
+  </g>
+</svg>

@@ -280,6 +280,10 @@ function createModelConfigStoreStub(): ModelConfigStore {
 		providers: [
 			{
 				id: "dashscope-coding",
+				name: "Ali DashScope Coding",
+				vendor: "ali",
+				region: "cn",
+				priority: 10,
 				models: [{ id: "glm-5", name: "GLM-5" }],
 				auth: {
 					configured: true,
@@ -289,6 +293,10 @@ function createModelConfigStoreStub(): ModelConfigStore {
 			},
 			{
 				id: "deepseek-anthropic",
+				name: "DeepSeek Anthropic",
+				vendor: "deepseek",
+				region: "global",
+				priority: 20,
 				models: [
 					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
 					{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1048576, maxTokens: 262144 },
@@ -296,6 +304,21 @@ function createModelConfigStoreStub(): ModelConfigStore {
 				auth: {
 					configured: true,
 					envVar: "DEEPSEEK_API_KEY",
+					source: "environment",
+				},
+			},
+			{
+				id: "xiaomi-mimo-cn",
+				models: [
+					{ id: "mimo-v2.5-pro", name: "MiMo V2.5 Pro (Xiaomi CN)", contextWindow: 1048576, maxTokens: 16384 },
+				],
+				name: "Xiaomi MiMo China",
+				vendor: "xiaomi",
+				region: "cn",
+				priority: 31,
+				auth: {
+					configured: true,
+					envVar: "XIAOMI_MIMO_API_KEY",
 					source: "environment",
 				},
 			},
@@ -597,10 +620,9 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*box-shadow: none;/);
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*backdrop-filter: none;/);
-	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*border:\s*1px solid rgba\(8, 120, 75, 0\.28\);/);
-	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*background:[\s\S]*rgba\(239, 245, 255, 0\.96\)[\s\S]*#ffffff;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*border:\s*0;[\s\S]*background:\s*#95ec69;/);
 	assert.doesNotMatch(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body::after/);
-	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-content\s*\{[\s\S]*color:\s*#172033;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-content\s*\{[\s\S]*color:\s*#1a1a1a;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*position:\s*relative;/);
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*position:\s*absolute;/);
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*display:\s*none;/);
@@ -1746,7 +1768,13 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /syncRenderedMessageActions\(historyEntry\);/);
 	assert.doesNotMatch(response.body, /card\.appendChild\(messageActions\.actions\);/);
 	assert.match(response.body, /\.message-body > \.message-actions\s*\{[\s\S]*margin-top:\s*0;/);
-	assert.match(response.body, /\.message\.assistant \.message-body\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*10px;/);
+	assert.match(response.body, /\.message\.assistant \.message-body\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;/);
+	assert.match(response.body, /\.message\.user \.message-body\s*\{[\s\S]*background:\s*#95ec69;[\s\S]*color:\s*#1a1a1a;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*border:\s*0;[\s\S]*background:\s*#95ec69;[\s\S]*color:\s*#1a1a1a;/);
+	assert.match(response.body, /function attachMobileMessageLongPressMenu\(entry, rendered\)\s*\{/);
+	assert.match(response.body, /window\.setTimeout\(\(\) => \{[\s\S]*openMessageContextMenu\(entry, rendered\);[\s\S]*\}, 500\);/);
+	assert.match(response.body, /\.message-context-menu/);
+	assert.match(response.body, /\.message-body > \.message-actions\s*\{[\s\S]*display:\s*none;/);
 	const messageActionButtonBlock = response.body.match(
 		/\.message-copy-button,\s*\n\s*\.message-image-export-button\s*\{([\s\S]*?)\n\s*\}/,
 	);
@@ -1949,6 +1977,8 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.equal(response.statusCode, 200);
 	assert.match(response.body, /class="mobile-topbar"/);
 	assert.match(response.body, /class="mobile-brand-logo desktop-brand"[^>]*aria-label="UGK CLAW"/);
+	assert.match(response.body, /class="ugk-svg-logo ugk-svg-logo-dark ugk-svg-logo-topbar" src="\/ugk-claw-logo\.svg"/);
+	assert.match(response.body, /class="ugk-svg-logo ugk-svg-logo-light ugk-svg-logo-topbar" src="\/ugk-claw-logo-light\.svg"/);
 	assert.match(response.body, /class="ugk-ascii-logo ugk-ascii-logo-topbar"/);
 	assert.doesNotMatch(response.body, /class="ugk-ascii-logo ugk-ascii-logo-mobile"/);
 	assert.doesNotMatch(response.body, /class="mobile-brand-wordmark">UGK Claw</);
@@ -2063,7 +2093,8 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /--bg:\s*#e8edf6;/);
 	assert.match(response.body, /--fg:\s*#142033;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+body\s*\{/);
-	assert.match(response.body, /:root\[data-theme="light"\]\s+body::after\s*\{[\s\S]*rgba\(221, 229, 240, 0\.36\)[\s\S]*opacity:\s*1;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+body::after\s*\{[\s\S]*radial-gradient\(circle at 78% 6%, rgba\(8, 120, 75, 0\.05\), transparent 0 18%\);[\s\S]*opacity:\s*1;/);
+	assert.doesNotMatch(response.body, /rgba\(221, 229, 240, 0\.36\) 0%, transparent 12%, transparent 88%, rgba\(221, 229, 240, 0\.32\) 100%/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+#composer-drop-target\.composer\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*rgba\(255, 255, 255, 0\.86\);[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.file-strip\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
@@ -2076,6 +2107,7 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /:root\[data-theme="light"\]\s+#send-button::before/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+#interrupt-button:disabled::before/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.asset-modal/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+:is\(\.file-download\)/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.asset-pill span/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-manager-panel/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-manager-status\.completed/);
@@ -2397,6 +2429,8 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.doesNotMatch(response.body, /\.topbar::before\s*\{[\s\S]*content:\s*"UGK CLAW";/);
 	assert.doesNotMatch(response.body, /\.topbar::before\s*\{[\s\S]*background-image:\s*url\("\/ugk-claw-mobile-logo\.png"\);/);
 	assert.match(response.body, /class="chat-stage-watermark" aria-hidden="true"/);
+	assert.match(response.body, /class="ugk-svg-logo ugk-svg-logo-dark ugk-svg-logo-watermark" src="\/ugk-claw-logo\.svg"/);
+	assert.match(response.body, /class="ugk-svg-logo ugk-svg-logo-light ugk-svg-logo-watermark" src="\/ugk-claw-logo-light\.svg"/);
 	assert.match(response.body, /class="ugk-ascii-logo ugk-ascii-logo-watermark"/);
 	assert.match(response.body, /\.ugk-ascii-logo\s*\{[\s\S]*font-family:\s*"Courier New", Consolas, "Cascadia Mono", monospace;/);
 	assert.match(response.body, /\.chat-stage-watermark\s*\{[\s\S]*width:\s*max-content;/);
@@ -2510,6 +2544,7 @@ test("GET /playground does not force-scroll when the user is reading history", a
 	assert.equal(response.statusCode, 200);
 	assert.match(response.body, /id="scroll-to-bottom-button"/);
 	assert.match(response.body, /\.scroll-to-bottom-button\s*\{[\s\S]*position:\s*absolute;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.scroll-to-bottom-button\s*\{[\s\S]*position:\s*fixed;[\s\S]*bottom:\s*calc\(80px \+ env\(safe-area-inset-bottom\)\);/);
 	assert.match(response.body, /\.scroll-to-bottom-button\s*\{[\s\S]*border:\s*2px solid rgba\(101, 209, 255, 0\.5\);/);
 	assert.match(response.body, /\.scroll-to-bottom-button\s*\{[\s\S]*0 0 8px rgba\(101, 209, 255, 0\.2\);/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.scroll-to-bottom-button\s*\{[\s\S]*border-color:\s*rgba\(8, 120, 75, 0\.4\);/);
@@ -4640,6 +4675,10 @@ test("GET /v1/model-config returns current provider and selectable models", asyn
 		providers: [
 			{
 				id: "dashscope-coding",
+				name: "Ali DashScope Coding",
+				vendor: "ali",
+				region: "cn",
+				priority: 10,
 				models: [{ id: "glm-5", name: "GLM-5" }],
 				auth: {
 					configured: true,
@@ -4649,6 +4688,10 @@ test("GET /v1/model-config returns current provider and selectable models", asyn
 			},
 			{
 				id: "deepseek-anthropic",
+				name: "DeepSeek Anthropic",
+				vendor: "deepseek",
+				region: "global",
+				priority: 20,
 				models: [
 					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
 					{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1048576, maxTokens: 262144 },
@@ -4656,6 +4699,21 @@ test("GET /v1/model-config returns current provider and selectable models", asyn
 				auth: {
 					configured: true,
 					envVar: "DEEPSEEK_API_KEY",
+					source: "environment",
+				},
+			},
+			{
+				id: "xiaomi-mimo-cn",
+				models: [
+					{ id: "mimo-v2.5-pro", name: "MiMo V2.5 Pro (Xiaomi CN)", contextWindow: 1048576, maxTokens: 16384 },
+				],
+				name: "Xiaomi MiMo China",
+				vendor: "xiaomi",
+				region: "cn",
+				priority: 31,
+				auth: {
+					configured: true,
+					envVar: "XIAOMI_MIMO_API_KEY",
 					source: "environment",
 				},
 			},

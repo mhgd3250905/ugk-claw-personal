@@ -1,6 +1,6 @@
 # Playground 当前状态
 
-更新时间：`2026-04-28`
+更新时间：`2026-04-29`
 
 ## 运行时外部化模式
 
@@ -12,6 +12,14 @@
 - 运行时 agent 通过项目级 skill `.pi/skills/playground-runtime-ui/SKILL.md` 获得这套用法；用户要求修改 playground UI、浅色主题、消息气泡、composer、logo、移动端布局或零重启前端调试时，应先触发该 skill，再决定是临时改 `runtime/playground/extensions/custom-styles.css`，还是把正式修复落回 `src/ui/`。
 
 这份文档只记录当前 `playground` 的真实前端约束，避免下一个人又拿旧截图和过时口径瞎猜。
+
+## 2026-04-29 UI 收口补充
+
+- `bugs/ui-fixes-2026-04-29.tar.gz` 已按当前源码结构源码化落地；压缩包内生成后的 `index.html` / `custom-styles.css` 只作为对照，不是长期真源。
+- 深色主题 `body::after` 与浅色主题 `:root[data-theme="light"] body::after` 只保留顶部装饰光晕，不再叠加左右侧 `linear-gradient` 遮罩，避免页面两侧被压暗或染灰。
+- 移动端顶部品牌和 `chat-stage-watermark` 使用 `public/ugk-claw-logo.svg` / `public/ugk-claw-logo-light.svg`，桌面端继续使用 ASCII 品牌；移动端隐藏 ASCII，避免 box drawing 字符在窄屏字体栈下变形。
+- 浅色主题下 `file-download` 与 `asset-pill` 使用白色轻量承载面；深色主题保留冷色边框。
+- “回到底部”按钮桌面端仍贴近 transcript 右下，移动端改为 fixed 并按 `env(safe-area-inset-bottom)` 避让底部 composer。
 
 核心实现文件：
 
@@ -104,7 +112,9 @@
 - 当前 active run 在 transcript 里只保留一个助手气泡：正文上方是一条会持续改写的人话状态摘要，下面是一枚可点击的动态 loading 气泡；旧的独立“过程展开区”已经下线，不再额外制造第二层消息结构
 - 手机端 active run 的状态摘要不再塞进助手气泡内部，而是作为气泡上方的浅灰色单行状态文本展示；运行日志 loading 按钮移动到 `助手` 标签右侧，只保留动态点，减少空正文气泡里的视觉噪音。
 - active run 刚开始、助手正文还没吐出任何文字时，空 `.message-body` 不应显示成一块空白气泡；等真正有正文、文件或附件内容后再展示气泡主体。
-- 空助手占位阶段也不能提前渲染 `.message-actions`；复制 / 导图按钮只有在该条消息已经有正文、附件、引用资产或文件结果时才挂到 `.message-body` 底部。否则操作栏本身会把空 body 撑开，老问题又回来，属于自找麻烦。操作栏不再叠加自己的上边距，助手气泡内部只保留紧凑 grid 间距，避免浅色气泡底部出现一截无意义空白。
+- 空助手占位阶段也不能提前渲染 `.message-actions`；复制 / 导图按钮只有在该条消息已经有正文、附件、引用资产或文件结果时才挂到 `.message-body` 底部。否则操作栏本身会把空 body 撑开，老问题又回来，属于自找麻烦。操作栏不再叠加自己的上边距，助手气泡内部不再保留额外 `gap`，避免浅色气泡底部出现一截无意义空白。
+- 用户消息气泡统一使用微信式绿色 `#95ec69` 与深色正文，深色 / 浅色主题都保持一致；导出图片走源码样式收集，所以这类气泡颜色必须固化在 `src/ui/playground-styles.ts` / `src/ui/playground-theme-controller.ts`，不能只靠 `runtime/playground/extensions/custom-styles.css` 覆盖。
+- 手机端消息操作不再显示底部 `.message-actions` 图标行；长按有内容的消息气泡 500ms 会弹出菜单，提供“复制正文”和“导出图片”。桌面端仍保留气泡底部的轻量图标操作。
 - 新一轮助手状态从无到有第一次出现时，会强制把 transcript 拉到底部，让用户看到 agent 已经开始响应；后续流式过程更新仍遵守“用户上滑阅读历史时不抢滚动”的规则。
 - 状态摘要 `assistant-status-summary` 现在固定为单行省略；它负责给人一个稳定的人话进度感，不再允许换行把整条消息高度顶来顶去
 - 浅色主题下 `assistant-status-summary` 和承载它的状态壳层保持透明，只承担文字进度提示；终态 `assistant-run-log-trigger.ok` 的“查看运行日志”文案必须使用可读的绿色文字，不能继承深色主题的低透明白字。

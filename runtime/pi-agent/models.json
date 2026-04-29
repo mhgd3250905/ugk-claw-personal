@@ -1,6 +1,10 @@
 {
   "providers": {
     "dashscope-coding": {
+      "name": "Ali DashScope Coding",
+      "vendor": "ali",
+      "region": "cn",
+      "priority": 10,
       "baseUrl": "https://coding.dashscope.aliyuncs.com/v1",
       "api": "openai-completions",
       "apiKey": "DASHSCOPE_CODING_API_KEY",
@@ -12,6 +16,10 @@
       ]
     },
     "deepseek-anthropic": {
+      "name": "DeepSeek Anthropic",
+      "vendor": "deepseek",
+      "region": "global",
+      "priority": 20,
       "baseUrl": "https://api.deepseek.com/anthropic",
       "api": "anthropic-messages",
       "apiKey": "DEEPSEEK_API_KEY",
@@ -31,6 +39,63 @@
           "input": ["text"],
           "contextWindow": 1048576,
           "maxTokens": 262144
+        }
+      ]
+    },
+    "xiaomi-mimo-cn": {
+      "name": "Xiaomi MiMo China",
+      "vendor": "xiaomi",
+      "region": "cn",
+      "priority": 31,
+      "baseUrl": "https://token-plan-cn.xiaomimimo.com/anthropic",
+      "api": "anthropic-messages",
+      "apiKey": "XIAOMI_MIMO_API_KEY",
+      "models": [
+        {
+          "id": "mimo-v2.5-pro",
+          "name": "MiMo V2.5 Pro (Xiaomi CN)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 1048576,
+          "maxTokens": 16384
+        }
+      ]
+    },
+    "xiaomi-mimo-sgp": {
+      "name": "Xiaomi MiMo Singapore",
+      "vendor": "xiaomi",
+      "region": "sgp",
+      "priority": 32,
+      "baseUrl": "https://token-plan-sgp.xiaomimimo.com/anthropic",
+      "api": "anthropic-messages",
+      "apiKey": "XIAOMI_MIMO_API_KEY",
+      "models": [
+        {
+          "id": "mimo-v2.5-pro",
+          "name": "MiMo V2.5 Pro (Xiaomi Singapore)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 1048576,
+          "maxTokens": 16384
+        }
+      ]
+    },
+    "xiaomi-mimo-ams": {
+      "name": "Xiaomi MiMo Europe",
+      "vendor": "xiaomi",
+      "region": "ams",
+      "priority": 33,
+      "baseUrl": "https://token-plan-ams.xiaomimimo.com/anthropic",
+      "api": "anthropic-messages",
+      "apiKey": "XIAOMI_MIMO_API_KEY",
+      "models": [
+        {
+          "id": "mimo-v2.5-pro",
+          "name": "MiMo V2.5 Pro (Xiaomi Europe)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 1048576,
+          "maxTokens": 16384
         }
       ]
     }

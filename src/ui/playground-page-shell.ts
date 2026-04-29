@@ -25,6 +25,14 @@ function renderAsciiLogo(className: string): string {
 	return `<pre class="ugk-ascii-logo ${className}" aria-hidden="true">${UGK_ASCII_LOGO}</pre>`;
 }
 
+function renderMobileSvgLogo(className: string, width: number, height: number, alt = "UGK Claw"): string {
+	const escapedAlt = escapeHtmlAttribute(alt);
+	return [
+		`<img class="ugk-svg-logo ugk-svg-logo-dark ${className}" src="/ugk-claw-logo.svg" alt="${escapedAlt}" width="${width}" height="${height}" />`,
+		`<img class="ugk-svg-logo ugk-svg-logo-light ${className}" src="/ugk-claw-logo-light.svg" alt="${escapedAlt}" width="${width}" height="${height}" />`,
+	].join("\n\t\t\t\t\t\t\t");
+}
+
 export function renderPlaygroundHtml(input: PlaygroundPageHtmlInput): string {
 	const stylesMarkup = input.stylesHref
 		? `<link rel="stylesheet" href="${escapeHtmlAttribute(input.stylesHref)}" />`
@@ -138,6 +146,7 @@ ${input.playgroundScript ?? ""}</script>`;
 						title="历史会话"
 					>
 						<span class="mobile-brand-logo desktop-brand" aria-label="UGK CLAW">
+							${renderMobileSvgLogo("ugk-svg-logo-topbar", 120, 32)}
 							${renderAsciiLogo("ugk-ascii-logo-topbar")}
 						</span>
 					</button>
@@ -292,6 +301,7 @@ ${input.playgroundScript ?? ""}</script>`;
 
 			<main id="chat-stage" class="chat-stage">
 				<div class="chat-stage-watermark" aria-hidden="true">
+					${renderMobileSvgLogo("ugk-svg-logo-watermark", 240, 60, "")}
 					${renderAsciiLogo("ugk-ascii-logo-watermark")}
 				</div>
 				<div hidden>

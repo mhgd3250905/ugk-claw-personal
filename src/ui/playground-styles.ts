@@ -141,6 +141,11 @@ export function getPlaygroundStyles(): string {
 			user-select: none;
 		}
 
+		.ugk-svg-logo {
+			display: none;
+			flex: 0 0 auto;
+		}
+
 		.desktop-brand {
 			display: inline-flex;
 			align-items: center;
@@ -617,12 +622,63 @@ export function getPlaygroundStyles(): string {
 			cursor: wait;
 		}
 
-		#send-button {
-			border-color: rgba(201, 210, 255, 0.28);
-			color: #f3fbff;
-			background:
-				linear-gradient(135deg, rgba(201, 210, 255, 0.14), rgba(145, 125, 214, 0.08)),
-				rgba(255, 255, 255, 0.05);
+		#send-button,
+		#interrupt-button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 52px;
+			padding: 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			color: transparent;
+			font-size: 0;
+			line-height: 0;
+			letter-spacing: 0;
+			text-indent: -9999px;
+			overflow: hidden;
+			box-shadow: none;
+			appearance: none;
+			-webkit-appearance: none;
+		}
+
+		#send-button:hover:not(:disabled),
+		#send-button:focus-visible,
+		#interrupt-button:hover:not(:disabled),
+		#interrupt-button:focus-visible {
+			border: 0;
+			background: transparent;
+			color: transparent;
+			box-shadow: none;
+			transform: none;
+		}
+
+		#send-button::before,
+		#interrupt-button::before {
+			content: "";
+			display: block;
+			width: 28px;
+			height: 28px;
+			background-repeat: no-repeat;
+			background-position: center;
+			background-size: 28px 28px;
+		}
+
+		#send-button::before {
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 13V4' stroke='rgba(242,246,255,0.9)' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M4.75 7.25L8 4L11.25 7.25' stroke='rgba(242,246,255,0.9)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+		}
+
+		#interrupt-button::before {
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.2' fill='rgba(255,255,255,0.96)'/%3E%3C/svg%3E");
+		}
+
+		#interrupt-button:disabled {
+			display: inline-flex;
+			opacity: 0.38;
+			background: transparent;
+			box-shadow: none;
+			cursor: default;
 		}
 
 		.banner-row {
@@ -868,7 +924,7 @@ export function getPlaygroundStyles(): string {
 			display: none;
 			position: absolute;
 			right: 14px;
-			bottom: 16px;
+			bottom: 20px;
 			z-index: 5;
 			align-items: center;
 			justify-content: center;
@@ -1242,8 +1298,8 @@ export function getPlaygroundStyles(): string {
 			width: fit-content;
 			max-width: min(100%, 75%);
 			justify-self: end;
-			background: rgba(34, 38, 46, 0.72);
-			color: #eef6ff;
+			background: #95ec69;
+			color: #1a1a1a;
 		}
 
 		.message.user .message-content {
@@ -1733,6 +1789,58 @@ export function getPlaygroundStyles(): string {
 			stroke: currentColor;
 		}
 
+		.message-context-menu {
+			position: fixed;
+			z-index: 40;
+			display: grid;
+			gap: 4px;
+			min-width: 128px;
+			padding: 5px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 4px;
+			background: rgba(9, 12, 22, 0.96);
+			box-shadow: none;
+		}
+
+		.message-context-menu button {
+			width: 100%;
+			min-height: 34px;
+			padding: 0 10px;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			color: rgba(242, 246, 255, 0.92);
+			font-size: 12px;
+			font-weight: 700;
+			text-align: left;
+			text-transform: none;
+			letter-spacing: 0;
+			box-shadow: none;
+		}
+
+		.message-context-menu button:hover,
+		.message-context-menu button:focus-visible {
+			background: rgba(201, 210, 255, 0.1);
+			color: #ffffff;
+			transform: none;
+		}
+
+		.message-context-toast {
+			position: fixed;
+			left: 50%;
+			bottom: calc(88px + env(safe-area-inset-bottom));
+			z-index: 41;
+			transform: translateX(-50%);
+			padding: 8px 12px;
+			border-radius: 4px;
+			background: rgba(10, 14, 24, 0.92);
+			color: #f3fbff;
+			font-size: 12px;
+			font-weight: 800;
+			box-shadow: none;
+			pointer-events: none;
+		}
+
 		.message-export-scratch {
 			position: fixed;
 			left: -10000px;
@@ -1790,7 +1898,7 @@ export function getPlaygroundStyles(): string {
 
 		.message.assistant .message-body {
 			display: grid;
-			gap: 10px;
+			gap: 0;
 		}
 
 
@@ -2763,8 +2871,7 @@ export function getPlaygroundStyles(): string {
 			inset: 0;
 			background:
 				radial-gradient(circle at 18% 12%, rgba(101, 209, 255, 0.1), transparent 0 24%),
-				radial-gradient(circle at 78% 6%, rgba(141, 255, 178, 0.06), transparent 0 18%),
-				linear-gradient(90deg, rgba(1, 3, 10, 0.82) 0%, transparent 18%, transparent 82%, rgba(1, 3, 10, 0.78) 100%);
+				radial-gradient(circle at 78% 6%, rgba(141, 255, 178, 0.06), transparent 0 18%);
 			opacity: 0.92;
 			pointer-events: none;
 		}
@@ -3213,12 +3320,36 @@ export function getPlaygroundStyles(): string {
 			}
 
 			.mobile-brand-logo {
-				width: min(164px, 48vw);
-				height: 26px;
+				width: min(120px, 42vw);
+				height: 32px;
+			}
+
+			.ugk-svg-logo {
+				display: block;
+			}
+
+			.ugk-svg-logo-topbar {
+				width: 120px;
+				height: 32px;
+			}
+
+			.ugk-svg-logo-watermark {
+				width: min(240px, 72vw);
+				height: auto;
+				opacity: 0.15;
+			}
+
+			:root[data-theme="dark"] .ugk-svg-logo-light,
+			:root[data-theme="light"] .ugk-svg-logo-dark {
+				display: none;
+			}
+
+			:root[data-theme="light"] .ugk-svg-logo-watermark {
+				opacity: 0.25;
 			}
 
 			.mobile-brand-logo .ugk-ascii-logo-topbar {
-				font-size: clamp(2.55px, 1.05vw, 3.7px);
+				display: none;
 			}
 
 			.landing-screen {
@@ -3245,6 +3376,22 @@ export function getPlaygroundStyles(): string {
 				gap: 8px;
 				padding: 0 8px calc(8px + env(safe-area-inset-bottom));
 				overflow: hidden;
+			}
+
+			.chat-stage-watermark {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.chat-stage-watermark .ugk-ascii-logo-watermark {
+				display: none;
+			}
+
+			.scroll-to-bottom-button {
+				position: fixed;
+				right: 12px;
+				bottom: calc(80px + env(safe-area-inset-bottom));
 			}
 
 			.error-banner {
@@ -3590,7 +3737,7 @@ export function getPlaygroundStyles(): string {
 			}
 
 			.message-body > .message-actions {
-				padding: 0 2px 0 0;
+				display: none;
 			}
 
 			.message-copy-button,

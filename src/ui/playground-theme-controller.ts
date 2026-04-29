@@ -40,8 +40,7 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] body::after {
 			background:
 				radial-gradient(circle at 18% 12%, rgba(31, 95, 200, 0.08), transparent 0 24%),
-				radial-gradient(circle at 78% 6%, rgba(8, 120, 75, 0.05), transparent 0 18%),
-				linear-gradient(90deg, rgba(221, 229, 240, 0.36) 0%, transparent 12%, transparent 88%, rgba(221, 229, 240, 0.32) 100%);
+				radial-gradient(circle at 78% 6%, rgba(8, 120, 75, 0.05), transparent 0 18%);
 			opacity: 1;
 		}
 
@@ -233,26 +232,24 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] #send-button {
-			border-color: rgba(36, 84, 214, 0.26);
-			background:
-				linear-gradient(135deg, rgba(36, 84, 214, 0.14), rgba(255, 255, 255, 0.9)),
-				#ffffff;
-			color: #173fa6;
+			border-color: transparent;
+			background: #22c55e;
+			color: transparent;
 			box-shadow: none;
 		}
 
 		:root[data-theme="light"] #interrupt-button {
-			border-color: rgba(197, 41, 69, 0.22);
-			background: rgba(255, 255, 255, 0.8);
-			color: #9d2439;
+			border-color: transparent;
+			background: #ef4444;
+			color: transparent;
 		}
 
 		:root[data-theme="light"] #send-button::before {
-			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 13V4' stroke='%231d4f9a' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M4.75 7.25L8 4L11.25 7.25' stroke='%231d4f9a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 13V4' stroke='rgba(255,255,255,0.96)' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M4.75 7.25L8 4L11.25 7.25' stroke='rgba(255,255,255,0.96)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 		}
 
 		:root[data-theme="light"] #interrupt-button::before {
-			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.2' fill='%239d2439'/%3E%3C/svg%3E");
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.2' fill='rgba(255,255,255,0.96)'/%3E%3C/svg%3E");
 		}
 
 		:root[data-theme="light"] #send-button:disabled,
@@ -266,11 +263,11 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] #send-button:disabled::before {
-			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 13V4' stroke='%238d9ab0' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M4.75 7.25L8 4L11.25 7.25' stroke='%238d9ab0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 13V4' stroke='rgba(255,255,255,0.72)' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M4.75 7.25L8 4L11.25 7.25' stroke='rgba(255,255,255,0.72)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 		}
 
 		:root[data-theme="light"] #interrupt-button:disabled::before {
-			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.2' fill='%238d9ab0'/%3E%3C/svg%3E");
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.2' fill='rgba(255,255,255,0.72)'/%3E%3C/svg%3E");
 		}
 
 		:root[data-theme="light"] input,
@@ -311,16 +308,37 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .message.user .message-body {
 			position: relative;
 			overflow: hidden;
-			border: 1px solid rgba(8, 120, 75, 0.28);
-			background:
-				linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(239, 245, 255, 0.96) 100%),
-				#ffffff;
-			color: #172033;
+			border: 0;
+			background: #95ec69;
+			color: #1a1a1a;
 			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .message.user .message-content {
-			color: #172033;
+			color: #1a1a1a;
+		}
+
+		:root[data-theme="light"] #send-button {
+			background: #22c55e;
+		}
+
+		:root[data-theme="light"] #interrupt-button {
+			background: #ef4444;
+		}
+
+		:root[data-theme="light"] #send-button:hover:not(:disabled),
+		:root[data-theme="light"] #send-button:focus-visible {
+			background: #16a34a;
+		}
+
+		:root[data-theme="light"] #interrupt-button:hover:not(:disabled),
+		:root[data-theme="light"] #interrupt-button:focus-visible {
+			background: #dc2626;
+		}
+
+		:root[data-theme="light"] #interrupt-button:disabled {
+			opacity: 0.5;
+			background: #ef4444;
 		}
 
 		:root[data-theme="light"] .message.assistant .message-content,
@@ -443,6 +461,28 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .message-image-export-button:focus-visible {
 			background: transparent;
 			color: rgba(23, 32, 51, 0.9);
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .message-context-menu {
+			border-color: rgba(15, 23, 42, 0.1);
+			background: rgba(255, 255, 255, 0.98);
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .message-context-menu button {
+			color: #172033;
+		}
+
+		:root[data-theme="light"] .message-context-menu button:hover,
+		:root[data-theme="light"] .message-context-menu button:focus-visible {
+			background: rgba(34, 197, 94, 0.12);
+			color: #0f172a;
+		}
+
+		:root[data-theme="light"] .message-context-toast {
+			background: rgba(255, 255, 255, 0.96);
+			color: #172033;
 			box-shadow: none;
 		}
 
@@ -729,6 +769,7 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] :is(.asset-pill),
+		:root[data-theme="light"] :is(.file-download),
 		:root[data-theme="light"] :is(.asset-empty),
 		:root[data-theme="light"] :is(.file-chip),
 		:root[data-theme="light"] :is(.conn-manager-item),

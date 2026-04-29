@@ -67,6 +67,19 @@ class FakeSession implements AgentSessionLike {
 	}
 }
 
+class ScopeObservingSession extends FakeSession {
+	observedScope: string | undefined;
+
+	constructor() {
+		super({ resultText: "scoped result" });
+	}
+
+	override async prompt(message: string): Promise<void> {
+		this.observedScope = process.env.CLAUDE_AGENT_ID;
+		await super.prompt(message);
+	}
+}
+
 class AbortableSession implements AgentSessionLike {
 	sessionFile = "background-session.json";
 	messages: Array<{ role: string; content?: unknown }> = [];
@@ -207,7 +220,10 @@ function extractPromptPath(message: string, prefix: string): string {
 	return line.slice(prefix.length).trim();
 }
 
-async function createRunner(options?: { session?: AgentSessionLike }) {
+async function createRunner(options?: {
+	session?: AgentSessionLike;
+	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
+}) {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-runner-"));
 	const database = new ConnDatabase({ dbPath: join(root, "conn.sqlite") });
 	await database.initialize();
@@ -224,6 +240,7 @@ async function createRunner(options?: { session?: AgentSessionLike }) {
 			assetStore,
 		}),
 		sessionFactory,
+		closeBrowserTargetsForScope: options?.closeBrowserTargetsForScope ?? (async () => undefined),
 	});
 	return { root, database, connStore, runStore, sessionFactory, runner, session };
 }
@@ -274,6 +291,44 @@ test("BackgroundAgentRunner executes a conn run in an isolated workspace and rec
 	);
 
 	database.close();
+});
+
+test("BackgroundAgentRunner scopes browser cleanup around background conn runs", async () => {
+	const cleanupScopes: string[] = [];
+	const session = new ScopeObservingSession();
+	const { database, connStore, runStore, runner } = await createRunner({
+		session,
+		closeBrowserTargetsForScope: async (scope) => {
+			cleanupScopes.push(scope);
+		},
+	});
+	const conn = await connStore.create({
+		title: "Browser Task",
+		prompt: "Use a browser",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-browser-scope",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+	database.close();
+
+	assert.equal(session.observedScope, conn.connId);
+	assert.equal(process.env.CLAUDE_AGENT_ID, undefined);
+	assert.deepEqual(cleanupScopes, [conn.connId, conn.connId]);
 });
 
 test("BackgroundAgentRunner records failed runs without throwing into the foreground service", async () => {

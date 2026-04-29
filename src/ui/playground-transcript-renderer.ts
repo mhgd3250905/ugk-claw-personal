@@ -518,6 +518,154 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			}
 		}
 
+		let activeMessageContextMenu = null;
+		let activeMessageToast = null;
+
+		function isMobileMessageMenuEnabled() {
+			return window.matchMedia?.("(max-width: 640px)")?.matches === true;
+		}
+
+		function closeMessageContextMenu() {
+			if (!activeMessageContextMenu) {
+				return;
+			}
+			activeMessageContextMenu.remove();
+			activeMessageContextMenu = null;
+		}
+
+		function showMessageContextToast(message) {
+			if (activeMessageToast) {
+				activeMessageToast.remove();
+			}
+			const toast = document.createElement("div");
+			toast.className = "message-context-toast";
+			toast.textContent = message;
+			document.body.appendChild(toast);
+			activeMessageToast = toast;
+			window.setTimeout(() => {
+				if (activeMessageToast === toast) {
+					activeMessageToast = null;
+				}
+				toast.remove();
+			}, 1400);
+		}
+
+		function positionMessageContextMenu(menu, body) {
+			const rect = body.getBoundingClientRect();
+			const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+			const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+			const menuWidth = menu.offsetWidth || 128;
+			const menuHeight = menu.offsetHeight || 76;
+			const left = Math.max(8, Math.min(rect.right - menuWidth, viewportWidth - menuWidth - 8));
+			const belowTop = rect.bottom + 6;
+			const top = belowTop + menuHeight <= viewportHeight - 8 ? belowTop : Math.max(8, rect.top - menuHeight - 6);
+			menu.style.left = left + "px";
+			menu.style.top = top + "px";
+		}
+
+		function openMessageContextMenu(entry, rendered) {
+			if (!rendered?.body) {
+				return;
+			}
+			closeMessageContextMenu();
+			const menu = document.createElement("div");
+			menu.className = "message-context-menu";
+			menu.setAttribute("role", "menu");
+
+			const copyButton = document.createElement("button");
+			copyButton.type = "button";
+			copyButton.setAttribute("role", "menuitem");
+			copyButton.textContent = "复制正文";
+			copyButton.addEventListener("click", async () => {
+				try {
+					await copyTextToClipboard(entry.text || "");
+					showMessageContextToast("已复制");
+				} catch {
+					showMessageContextToast("复制失败");
+				} finally {
+					closeMessageContextMenu();
+				}
+			});
+
+			const exportButton = document.createElement("button");
+			exportButton.type = "button";
+			exportButton.setAttribute("role", "menuitem");
+			exportButton.textContent = "导出图片";
+			exportButton.addEventListener("click", () => {
+				closeMessageContextMenu();
+				const imageButton = rendered.actions?.querySelector?.(".message-image-export-button");
+				if (imageButton) {
+					imageButton.click();
+				}
+			});
+
+			menu.appendChild(copyButton);
+			menu.appendChild(exportButton);
+			document.body.appendChild(menu);
+			activeMessageContextMenu = menu;
+			positionMessageContextMenu(menu, rendered.body);
+
+			window.setTimeout(() => {
+				const closeOnOutsidePointer = (event) => {
+					if (!menu.contains(event.target)) {
+						closeMessageContextMenu();
+						document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+					}
+				};
+				document.addEventListener("pointerdown", closeOnOutsidePointer, true);
+			}, 0);
+		}
+
+		function attachMobileMessageLongPressMenu(entry, rendered) {
+			if (!rendered?.body || !shouldRenderMessageActions(entry)) {
+				return;
+			}
+			let timer = null;
+			let startX = 0;
+			let startY = 0;
+
+			function clearTimer() {
+				if (timer !== null) {
+					window.clearTimeout(timer);
+					timer = null;
+				}
+			}
+
+			rendered.body.addEventListener("pointerdown", (event) => {
+				if (!isMobileMessageMenuEnabled() || event.button > 0 || event.target?.closest?.("button, a, input, textarea, select")) {
+					return;
+				}
+				startX = event.clientX;
+				startY = event.clientY;
+				clearTimer();
+				timer = window.setTimeout(() => {
+					timer = null;
+					openMessageContextMenu(entry, rendered);
+				}, 500);
+			});
+
+			rendered.body.addEventListener("pointermove", (event) => {
+				if (timer === null) {
+					return;
+				}
+				if (Math.abs(event.clientX - startX) > 10 || Math.abs(event.clientY - startY) > 10) {
+					clearTimer();
+				}
+			});
+
+			["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
+				rendered.body.addEventListener(eventName, clearTimer);
+			});
+
+			rendered.body.addEventListener("contextmenu", (event) => {
+				if (!isMobileMessageMenuEnabled()) {
+					return;
+				}
+				event.preventDefault();
+				openMessageContextMenu(entry, rendered);
+			});
+		}
+
 		function createMessageImageExportButton(entry, body) {
 			const imageButton = document.createElement("button");
 			imageButton.type = "button";
@@ -698,6 +846,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 				card.dataset.runId = entry.runId;
 			}
 			syncMessageCopyButton(entry);
+			attachMobileMessageLongPressMenu(entry, rendered);
 			return rendered;
 		}
 

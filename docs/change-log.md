@@ -12,6 +12,49 @@
 
 ## 2026-04-29
 
+### 持久化运行态 AGENTS 规则注入
+- 日期：2026-04-29
+- 主题：修复 agent 在服务器上临时写入仓库版 `AGENTS.md` 后，后续 `git pull` 或 archive 发布覆盖导致规则丢失的问题。新增运行态规则入口 `/app/.data/agent/AGENTS.local.md`，该文件位于生产 shared agent data 目录内，并通过 agent session resource loader 作为额外 AGENTS 上下文注入。
+- 影响范围：影响 agent session 上下文加载和生产规则沉淀边界；不改变仓库版 `AGENTS.md` 的项目准则职责，不把运行态规则塞回 Git 仓库，也不改变 skill 触发机制。
+- 对应入口：`src/agent/agent-session-factory.ts`、`test/agent-session-factory.test.ts`、`AGENTS.md`、`docs/server-ops-quick-reference.md`
+
+### Playground 消息与 composer UI 固化
+- 日期：2026-04-29
+- 主题：将 `bugs/4029开发日志.md` 中已经在运行时验证过的 playground UI 覆盖固化回源码：桌面端发送 / 打断按钮改为 icon-only，用户气泡统一改为微信绿，助手气泡去掉额外纵向间隔，手机端长按消息气泡弹出复制 / 导出图片菜单，并隐藏手机端底部消息操作行。
+- 影响范围：影响 playground 消息气泡、导出图片样式、composer 动作按钮和手机端消息操作方式；不改变聊天、SSE、会话、文件资产、后台任务或模型源接口语义。
+- 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-transcript-renderer.ts`、`docs/playground-current.md`、`test/server.test.ts`
+
+### Web-access 搜索引擎默认规则
+- 日期：2026-04-29
+- 主题：评估 `bugs/4029开发日志.md` 中“默认 Google 搜索导致国内服务器失败”的问题，结论为问题成立；在项目最高规则和 `web-access` skill 中明确普通网页搜索优先使用当前环境可达的 Bing、百度、搜狗等搜索引擎，不默认先撞 Google。
+- 影响范围：影响 agent 执行网页搜索任务时的默认路线选择；不改变 `x-search-latest` 等显式平台检索 skill 的触发条件和脚本行为，也不禁止用户明确要求访问 Google / X 等境外站点。
+- 对应入口：`AGENTS.md`、`runtime/skills-user/web-access/SKILL.md`
+
+### SSL Checker 任务依赖预装评估与落地
+- 日期：2026-04-29
+- 主题：评估 `bugs/ssl-checker-optimization-report.md`，报告中“依赖每次安装导致 SSL 检查与邮件发送耗时过长”的问题成立；将 Python SSL 检查依赖和 Node 邮件发送依赖固化到镜像 / 根依赖，避免生产后台任务每次运行临时安装。
+- 影响范围：影响 Docker 镜像构建层和根 `node_modules`；不直接把 `.data/agent/background/` 运行态任务文件纳入仓库，不改变现有后台任务调度协议。生产服务器需要重建镜像后才会获得依赖预装效果。
+- 对应入口：`Dockerfile`、`package.json`、`package-lock.json`、`bugs/ssl-checker-optimization-report.md`
+
+### 小米 MiMo 模型源接入
+- 日期：2026-04-29
+- 主题：接入小米 MiMo 的 Anthropic 兼容 API，把 `mimo-v2.5-pro` 按 `1048576` context window 登记为可选模型源，并按中国、新加坡、欧洲三套集群分别暴露 provider：`xiaomi-mimo-cn`、`xiaomi-mimo-sgp`、`xiaomi-mimo-ams`。同时为模型源补齐 `name / vendor / region / priority` 元数据，把阿里、DeepSeek、小米三类来源的展示顺序和归属管理收口到同一套结构。
+- 影响范围：影响模型源列表、Web 模型配置接口、模型源展示文案和新部署的环境变量模板；不改变当前默认模型，现有 `deepseek-anthropic / deepseek-v4-flash` 默认选择保持不变。API Key 不写入仓库，统一通过 `XIAOMI_MIMO_API_KEY` 环境变量读取；本地可从 ignored 的 `小米api.txt` 兜底加载。模型源 live validator 不再要求 provider 原样复读固定口令，改为上游成功返回非空助手文本即通过，避免小米这类不严格复读指令的兼容源被误判失败。生产服务器如需使用小米模型，需要在 shared env 中补入 `XIAOMI_MIMO_API_KEY` 后重启/重建应用容器。
+- 验证记录：`2026-04-29` 在腾讯云新加坡 `ugk-pi` 容器内用当前小米 key 真实 POST 三套 endpoint：CN 返回 `200`，SGP / AMS 均返回 `401 Invalid API Key`。这说明 SGP / AMS endpoint 在腾讯云新加坡网络可达，但当前 key 没有对应集群权限；如腾讯云要走 `xiaomi-mimo-sgp`，需要小米侧提供或开通 SGP 有效 key。同日已用增量包同步到腾讯云新加坡与阿里云 ECS：两端 `/v1/model-config` 均显示三套小米 provider `configured=true`，上下文窗口 `1048576`；两端 `POST /v1/model-config/validate` 验证 `xiaomi-mimo-cn / mimo-v2.5-pro` 均返回 `ok=true`，公网 `/healthz` 均正常。
+- 对应入口：`runtime/pi-agent/models.json`、`src/config.ts`、`src/agent/model-config.ts`、`src/ui/playground.ts`、`.env.example`、`.gitignore`、`docs/model-providers.md`、`test/config.test.ts`、`test/model-config.test.ts`、`test/agent-session-factory.test.ts`、`test/server.test.ts`
+
+### Playground UI 热修复包源码化
+- 日期：2026-04-29
+- 主题：审阅并落地 `bugs/ui-fixes-2026-04-29.tar.gz` 中仍适用于当前源码的 UI 修复：移除深色 / 浅色主题左右侧渐变遮罩，补齐浅色 `file-download` 承载面，调整“回到底部”按钮在移动端避让 composer，并将移动端顶部品牌和聊天水印从 ASCII 切换为 SVG 静态资产。
+- 影响范围：只影响 playground 视觉层、移动端品牌显示和文件下载 / 资产 pill 的主题样式；不改变聊天、SSE、会话、文件资产 API、conn worker 或 browser sidecar 行为。压缩包内生成后的 `index.html` / `custom-styles.css` 未直接覆盖源码，只作为对照参考。
+- 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-page-shell.ts`、`public/ugk-claw-logo.svg`、`public/ugk-claw-logo-light.svg`、`docs/playground-current.md`
+
+### 后台 conn 浏览器 scope 清理
+- 日期：2026-04-29
+- 主题：修复后台 conn run 使用 web-access 后浏览器页面残留的问题。`BackgroundAgentRunner` 现在按 `connId` 创建 browser cleanup scope，运行前清理同 scope 旧页面，执行 prompt 时通过 `runWithScopedAgentEnvironment()` 注入 `CLAUDE_AGENT_ID / CLAUDE_HOOK_AGENT_ID / agent_id`，并在 `finally` 中再次 best-effort 清理。`LocalCdpBrowser` 同步登记 `new_target` 创建的 scoped target，`close_scope_targets` 不再只清默认 target。`zhihu-tools` 的 API helper 改为 `try/finally` 关闭目标页，避免知乎 API / JSON 解析异常时漏关页面。
+- 影响范围：后台 conn worker 的浏览器自动化清理语义、web-access CDP scoped target 管理、知乎查询 skill 的异常路径；不改变前台聊天 SSE、playground 会话模型、conn 调度接口或 sidecar 登录态目录。
+- 对应入口：`src/agent/background-agent-runner.ts`、`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`、`runtime/skills-user/zhihu-tools/scripts/zhihu-api.mjs`、`test/background-agent-runner.test.ts`、`test/local-cdp-browser.test.ts`
+
 ### 飞书动态接入双云增量发布
 - 日期：2026-04-29
 - 主题：将飞书 WebSocket 接入、Web 动态设置入口、后台通知读取最新飞书配置，以及 worker 启动失败重试修复增量发布到腾讯云新加坡和阿里云 ECS 两套生产环境。两边均保留 shared 运行态目录，不替换 `.data/agent`、sidecar 登录态、资产、conn 或生产日志。

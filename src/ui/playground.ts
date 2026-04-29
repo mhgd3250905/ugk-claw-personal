@@ -398,6 +398,18 @@ function getPlaygroundScript(): string {
 			modelConfigStatus.dataset.tone = tone;
 		}
 
+		function getModelConfigProviderLabel(provider) {
+			const baseLabel = provider.name ? provider.name + " / " + provider.id : provider.id;
+			const meta = [];
+			if (provider.vendor) {
+				meta.push(provider.vendor);
+			}
+			if (provider.region) {
+				meta.push(provider.region);
+			}
+			return meta.length > 0 ? baseLabel + " · " + meta.join(" · ") : baseLabel;
+		}
+
 		function setModelConfigBusy() {
 			const busy = state.modelConfigLoading || state.modelConfigSaving || state.modelConfigTesting;
 			modelConfigProvider.disabled = busy;
@@ -448,7 +460,7 @@ function getPlaygroundScript(): string {
 			for (const provider of providers) {
 				const option = document.createElement("option");
 				option.value = provider.id;
-				option.textContent = provider.id;
+				option.textContent = getModelConfigProviderLabel(provider);
 				modelConfigProvider.appendChild(option);
 			}
 			const current = config?.current || { provider: "", model: "" };

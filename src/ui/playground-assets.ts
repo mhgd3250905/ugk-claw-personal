@@ -76,6 +76,11 @@ export function getPlaygroundAssetBaseStyles(): string {
 			font-size: 11px;
 		}
 
+		:root[data-theme="dark"] .file-download,
+		:root[data-theme="dark"] .asset-pill {
+			border-color: rgba(201, 210, 255, 0.15);
+		}
+
 		.file-list {
 			display: flex;
 			flex-wrap: wrap;
