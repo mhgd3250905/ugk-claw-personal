@@ -1,6 +1,6 @@
 # Runtime / Assets / Conn / Feishu
 
-更新时间：`2026-04-29`
+更新时间：`2026-04-30`
 
 这份文档只讲四类运行能力：
 
@@ -258,9 +258,10 @@ Run 查询接口：
 
 - `im.message.receive_v1`
 - WebSocket 长连接只负责收事件；出站文本、文件上传和附件下载继续复用现有 `FeishuClient` / `FeishuDeliveryService`，不重造轮子。
-- worker 通过 `FEISHU_AGENT_BASE_URL` 调用主服务 `/v1/chat/conversations`、`/v1/chat/status`、`/v1/chat` 和 `/v1/chat/queue`，主服务仍是唯一 `AgentService` 真源。不要在飞书 worker 里直接创建第二个前台 agent，否则 Web 和飞书会变成两套运行锁。
+- worker 通过 `FEISHU_AGENT_BASE_URL` 调用主服务 `/v1/chat/conversations`、`/v1/chat/status`、`/v1/chat/interrupt`、`/v1/chat` 和 `/v1/chat/queue`，主服务仍是唯一 `AgentService` 真源。不要在飞书 worker 里直接创建第二个前台 agent，否则 Web 和飞书会变成两套运行锁。
 - 飞书侧控制命令不会进入普通 agent prompt：
   - `/status`：读取 Web 当前会话状态，返回是否运行中、上下文占用、当前输入和当前输出摘要。
+  - `/stop`：调用主服务 `POST /v1/chat/interrupt`，语义等同 Web playground 点击打断按钮；命令不会进入队列，也不会交给 agent prompt。
   - `/new`：调用主服务 `POST /v1/chat/conversations`，真正新建并切换 Web 当前会话；如果当前有 active run，会明确提示不能新建，而不是让 agent 嘴上假装新建。
   - `/whoami`：返回当前飞书会话 `chat_id` 和发送者 `open_id`，用于配置后台通知发到群聊或机器人私聊。
 - 后台任务全局通知可以镜像到飞书：

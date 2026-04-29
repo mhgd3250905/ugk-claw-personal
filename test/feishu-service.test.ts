@@ -416,6 +416,68 @@ test("FeishuService answers /status with the current active run summary", async 
 	assert.match(deliveries[0]?.text ?? "", /当前输出：已经完成构建/);
 });
 
+test("FeishuService handles /stop by interrupting the current web run", async () => {
+	const chatCalls: Array<Record<string, unknown>> = [];
+	const queueCalls: Array<Record<string, unknown>> = [];
+	const interruptCalls: Array<Record<string, unknown>> = [];
+	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];
+	const mapStore = await createConversationMapStore();
+
+	const service = new FeishuService({
+		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
+			async interruptChat(input) {
+				interruptCalls.push(input as unknown as Record<string, unknown>);
+				return {
+					conversationId: input.conversationId,
+					interrupted: true,
+				};
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: true,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async queueMessage(input) {
+				queueCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, mode: input.mode, queued: true };
+			},
+			async chat(input) {
+				chatCalls.push(input as Record<string, unknown>);
+				return { conversationId: input.conversationId, text: "should not chat" };
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for stop command");
+			},
+		},
+		deliveryService: {
+			async deliverText(target, text) {
+				deliveries.push({ target, text });
+			},
+		},
+	});
+
+	await service.handleWebhook(makeFeishuTextWebhook("chat-stop", "msg-stop", "/stop"));
+	await waitForAsyncWebhookSideEffects(() => interruptCalls.length === 1 && deliveries.length === 1);
+
+	assert.equal(chatCalls.length, 0);
+	assert.equal(queueCalls.length, 0);
+	assert.equal(interruptCalls[0]?.conversationId, "web-current-conversation");
+	assert.match(deliveries[0]?.text ?? "", /已打断当前 Web 任务：web-current-conversation/);
+});
+
 test("FeishuService handles /new as a real current web conversation switch", async () => {
 	const chatCalls: Array<Record<string, unknown>> = [];
 	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];

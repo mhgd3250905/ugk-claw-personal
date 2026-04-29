@@ -91,6 +91,12 @@ test("FeishuHttpAgentGateway forwards chat, status, and queue calls to the main 
 					created: true,
 				});
 			}
+			if (String(url).endsWith("/v1/chat/interrupt")) {
+				return jsonResponse({
+					conversationId: "manual:current",
+					interrupted: true,
+				});
+			}
 			return jsonResponse({
 				conversationId: "manual:current",
 				text: "ok",
@@ -112,21 +118,27 @@ test("FeishuHttpAgentGateway forwards chat, status, and queue calls to the main 
 	});
 	const state = await gateway.getConversationState("manual:current", { viewLimit: 8 });
 	const created = await gateway.createConversation();
+	const interrupted = await gateway.interruptChat({ conversationId: "manual:current" });
 
 	assert.equal(status.running, true);
 	assert.equal(queued.queued, true);
 	assert.equal(result.text, "ok");
 	assert.equal(state.conversationId, "manual:current");
 	assert.equal(created.currentConversationId, "manual:new");
+	assert.equal(interrupted.interrupted, true);
 	assert.equal(requests[0]?.url, "http://ugk-pi:3000/v1/chat/status?conversationId=manual%3Acurrent");
 	assert.equal(requests[1]?.url, "http://ugk-pi:3000/v1/chat/queue");
 	assert.equal(requests[2]?.url, "http://ugk-pi:3000/v1/chat");
 	assert.equal(requests[3]?.url, "http://ugk-pi:3000/v1/chat/state?conversationId=manual%3Acurrent&viewLimit=8");
 	assert.equal(requests[4]?.url, "http://ugk-pi:3000/v1/chat/conversations");
+	assert.equal(requests[5]?.url, "http://ugk-pi:3000/v1/chat/interrupt");
 	assert.deepEqual(JSON.parse(String(requests[2]?.init?.body)), {
 		conversationId: "manual:current",
 		message: "hello",
 		attachments: [{ fileName: "note.txt", text: "note" }],
+	});
+	assert.deepEqual(JSON.parse(String(requests[5]?.init?.body)), {
+		conversationId: "manual:current",
 	});
 });
 

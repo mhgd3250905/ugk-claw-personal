@@ -28,6 +28,7 @@ export interface TextDeliveryLike {
 export interface FeishuAgentGateway {
 	getCurrentConversationId?(): Promise<string>;
 	createConversation?(): ReturnType<AgentService["createConversation"]>;
+	interruptChat?: AgentService["interruptChat"];
 	getConversationState?: AgentService["getConversationState"];
 	chat(input: { conversationId: string; message: string; attachments?: ChatAttachment[] }): ReturnType<AgentService["chat"]>;
 	queueMessage(input: {
@@ -137,6 +138,10 @@ export class FeishuService implements TextDeliveryLike {
 		const conversationId = await this.conversationResolver.resolve(incoming);
 		if (incoming.text?.trim() === "/status") {
 			await this.handleStatusCommand(incoming.chatId, conversationId);
+			return;
+		}
+		if (incoming.text?.trim() === "/stop") {
+			await this.handleStopCommand(incoming.chatId, conversationId);
 			return;
 		}
 		if (incoming.text?.trim() === "/new") {
@@ -311,6 +316,31 @@ export class FeishuService implements TextDeliveryLike {
 		);
 	}
 
+	private async handleStopCommand(chatId: string, conversationId: string): Promise<void> {
+		if (!this.options.agentService.interruptChat) {
+			await this.deliverText(
+				{
+					type: "feishu_chat",
+					chatId,
+				},
+				"当前运行环境不支持从飞书打断 Web 任务。",
+			);
+			return;
+		}
+
+		const result = await this.options.agentService.interruptChat({ conversationId });
+		const text = result.interrupted
+			? `已打断当前 Web 任务：${conversationId}`
+			: formatFeishuInterruptFailure(result.reason, conversationId);
+		await this.deliverText(
+			{
+				type: "feishu_chat",
+				chatId,
+			},
+			text,
+		);
+	}
+
 	private async handleNewConversationCommand(chatId: string): Promise<void> {
 		if (!this.options.agentService.createConversation) {
 			await this.deliverText(
@@ -368,6 +398,16 @@ function truncateStatusText(text: string, maxLength: number = 180): string {
 		return normalized;
 	}
 	return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
+function formatFeishuInterruptFailure(reason: "not_running" | "abort_not_supported" | undefined, conversationId: string): string {
+	if (reason === "not_running") {
+		return `当前 Web 会话没有正在运行的任务：${conversationId}`;
+	}
+	if (reason === "abort_not_supported") {
+		return `当前任务暂不支持打断：${conversationId}`;
+	}
+	return `打断请求未生效：${conversationId}`;
 }
 
 function formatFeishuProgressText(activeRun: ChatActiveRunBody | null | undefined): string {

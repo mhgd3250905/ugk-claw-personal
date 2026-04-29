@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### 飞书 /stop 打断指令
+- 日期：2026-04-30
+- 主题：飞书入站新增 `/stop` 控制命令，语义对齐 Web playground 的打断按钮，直接调用主服务 `POST /v1/chat/interrupt` 中断当前 Web 会话 active run。
+- 影响范围：影响飞书 worker 对控制命令的处理和 HTTP gateway 调用范围；`/stop` 不进入普通 agent prompt、不参与运行中消息队列，也不改变 Web 端打断 API、会话、资产或 conn 语义。
+- 对应入口：`src/integrations/feishu/service.ts`、`src/integrations/feishu/http-agent-gateway.ts`、`test/feishu-service.test.ts`、`test/feishu-http-agent-gateway.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### 阿里云 Docker apt mirror 构建修复
 - 日期：2026-04-30
 - 主题：阿里云生产 `docker compose ... up --build -d` 卡在 Dockerfile 的 `apt-get update`，根因是默认 Debian 官方源在阿里云 ECS 上访问不稳定。`Dockerfile` 新增 `APT_MIRROR_HOST` build arg，`docker-compose.prod.yml` 透传该参数，阿里云 shared `compose.env` 设置 `APT_MIRROR_HOST=mirrors.aliyun.com` 后可切换到阿里云可达 apt 源；`cryptography` / `pyyaml` 同步改用 Debian 包安装，避免修完 apt 又卡在 PyPI。

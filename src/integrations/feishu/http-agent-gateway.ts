@@ -5,6 +5,8 @@ import type {
 	ConversationCatalogResponseBody,
 	ConversationStateResponseBody,
 	CreateConversationResponseBody,
+	InterruptChatRequestBody,
+	InterruptChatResponseBody,
 	QueueMessageRequestBody,
 	QueueMessageResponseBody,
 } from "../../types/api.js";
@@ -45,6 +47,10 @@ export class FeishuHttpAgentGateway implements FeishuAgentGateway {
 
 	async createConversation(): Promise<CreateConversationResponseBody> {
 		return await this.requestJson<CreateConversationResponseBody>("POST", "/v1/chat/conversations");
+	}
+
+	async interruptChat(input: InterruptChatRequestBody): Promise<InterruptChatResponseBody> {
+		return await this.requestJson<InterruptChatResponseBody>("POST", "/v1/chat/interrupt", input);
 	}
 
 	async chat(input: ChatRequestBody): Promise<ChatResponseBody> {
