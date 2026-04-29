@@ -2553,7 +2553,9 @@ export function getPlaygroundStyles(): string {
 			text-transform: uppercase;
 		}
 
-		.model-config-field select {
+		.model-config-field select,
+		.model-config-field input,
+		.model-config-field textarea {
 			width: 100%;
 			min-height: 38px;
 			border: 1px solid rgba(201, 210, 255, 0.14);
@@ -2563,6 +2565,13 @@ export function getPlaygroundStyles(): string {
 			padding: 0 10px;
 			font: inherit;
 			font-size: 12px;
+		}
+
+		.model-config-field textarea {
+			min-height: 58px;
+			padding: 9px 10px;
+			resize: vertical;
+			line-height: 1.45;
 		}
 
 		.model-config-auth,

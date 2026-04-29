@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { NotificationHub } from "../src/agent/notification-hub.js";
 import { buildServer } from "../src/server.js";
+import { FeishuSettingsStore } from "../src/integrations/feishu/settings-store.js";
 import type { AgentService } from "../src/agent/agent-service.js";
 import { renderPlaygroundMarkdown } from "../src/ui/playground.js";
 import type {
@@ -4351,6 +4355,43 @@ test("POST /v1/integrations/feishu/events is not registered on the main server",
 	});
 
 	assert.equal(response.statusCode, 404);
+	await app.close();
+});
+
+test("PUT /v1/integrations/feishu/settings stores dynamic app credentials without echoing the secret", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-feishu-route-"));
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		feishuSettingsStore: new FeishuSettingsStore({
+			settingsPath: join(root, "settings.json"),
+			env: {},
+		}),
+	});
+
+	const putResponse = await app.inject({
+		method: "PUT",
+		url: "/v1/integrations/feishu/settings",
+		payload: {
+			enabled: true,
+			appId: "cli_dynamic",
+			appSecret: "secret",
+			allowedChatIds: ["oc_chat"],
+			activityTargets: [{ type: "feishu_user", openId: "ou_user" }],
+		},
+	});
+	assert.equal(putResponse.statusCode, 200);
+	const putBody = putResponse.json();
+	assert.equal(putBody.enabled, true);
+	assert.equal(putBody.appId, "cli_dynamic");
+	assert.equal(putBody.hasAppSecret, true);
+	assert.equal("appSecret" in putBody, false);
+
+	const getResponse = await app.inject({
+		method: "GET",
+		url: "/v1/integrations/feishu/settings",
+	});
+	assert.equal(getResponse.statusCode, 200);
+	assert.deepEqual(getResponse.json().activityTargets, [{ type: "feishu_user", openId: "ou_user" }]);
 	await app.close();
 });
 

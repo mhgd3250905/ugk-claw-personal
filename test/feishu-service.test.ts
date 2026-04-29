@@ -117,6 +117,101 @@ test("FeishuService routes incoming messages to the current web conversation in 
 	assert.equal(deliveries[0]?.text, "ok");
 });
 
+test("FeishuService sends throttled progress updates while a new chat run is active", async () => {
+	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];
+	const mapStore = await createConversationMapStore();
+	let resolveChat: ((value: { conversationId: string; text: string }) => void) | undefined;
+	let stateCalls = 0;
+
+	const service = new FeishuService({
+		progressUpdates: {
+			enabled: true,
+			intervalMs: 1,
+		},
+		agentService: {
+			async getCurrentConversationId() {
+				return "web-current-conversation";
+			},
+			async getRunStatus(conversationId) {
+				return {
+					conversationId,
+					running: false,
+					contextUsage: makeContextUsage(),
+				};
+			},
+			async getConversationState(conversationId) {
+				stateCalls += 1;
+				return {
+					conversationId,
+					running: true,
+					contextUsage: makeContextUsage(),
+					messages: [],
+					viewMessages: [],
+					activeRun: {
+						runId: "run-1",
+						status: "running",
+						assistantMessageId: "assistant-1",
+						input: {
+							message: "hello",
+							inputAssets: [],
+						},
+						text: stateCalls === 1 ? "" : "已经整理出初步结论",
+						process: {
+							title: "处理飞书消息",
+							narration: [],
+							entries: [],
+							currentAction: stateCalls === 1 ? "读取项目文件" : "生成回答",
+							isComplete: false,
+						},
+						queue: null,
+						loading: false,
+						startedAt: "2026-04-29T00:00:00.000Z",
+						updatedAt: "2026-04-29T00:00:00.000Z",
+					},
+					historyPage: {
+						hasMore: false,
+						limit: 8,
+					},
+					updatedAt: "2026-04-29T00:00:00.000Z",
+				};
+			},
+			async queueMessage() {
+				throw new Error("queueMessage should not run while idle");
+			},
+			async chat(input) {
+				return await new Promise((resolve) => {
+					resolveChat = () => resolve({ conversationId: input.conversationId, text: "final answer" });
+				});
+			},
+		},
+		conversationMapStore: mapStore,
+		client: {
+			isConfigured() {
+				return true;
+			},
+			async sendTextMessage() {},
+			async sendFileMessage() {},
+			async downloadMessageResource() {
+				throw new Error("download should not run for pure text");
+			},
+		},
+		deliveryService: {
+			async deliverText(target, text) {
+				deliveries.push({ target, text });
+			},
+		},
+	});
+
+	await service.handleWebhook(makeFeishuTextWebhook("chat-1", "msg-progress-1", "hello"));
+	await waitForAsyncWebhookSideEffects(() => deliveries.some((delivery) => delivery.text.includes("读取项目文件")));
+	resolveChat?.({ conversationId: "web-current-conversation", text: "final answer" });
+	await waitForAsyncWebhookSideEffects(() => deliveries.some((delivery) => delivery.text === "final answer"));
+
+	assert.equal(deliveries[0]?.text, "收到，正在处理...");
+	assert.ok(deliveries.some((delivery) => delivery.text === "正在处理：读取项目文件"));
+	assert.equal(deliveries.at(-1)?.text, "final answer");
+});
+
 test("FeishuService queues incoming text onto the active run with steer mode", async () => {
 	const queueCalls: Array<Record<string, unknown>> = [];
 	const deliveries: Array<{ target: FeishuDeliveryTarget; text: string }> = [];

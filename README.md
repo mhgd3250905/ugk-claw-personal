@@ -40,7 +40,7 @@ UGK CLAW 是一个面向真实使用场景的 Agent Server 原型：你可以在
 - **持久会话机制**：一个全局当前会话、多条历史会话、服务端 canonical state、旧历史分页，以及刷新后的 active run 恢复。
 - **文件与 artifact 交付**：支持上传资产、本地 artifact 链接改写、inline 预览、下载，以及 `send_file` 真实文件交付。
 - **Docker Chrome 真实浏览器链路**：默认走 Linux 友好的 Chrome sidecar + CDP，浏览器 profile 可持久化，适合需要登录态的网站自动化。
-- **后台任务基础设施**：内置 `conn` runtime、SQLite run 存储、通知投递、任务消息页，并为 Feishu / IM 集成预留形态。
+- **后台任务与飞书外挂窗口**：内置 `conn` runtime、SQLite run 存储、通知投递、任务消息页；飞书通过 WebSocket worker 作为 Web 当前会话的外挂收发窗口，并支持在 playground 动态配置 App 凭据和接收人。
 - **部署与交接有记录**：生产 runbook、回滚锚点、共享运行态边界和 change log 都在仓库里，避免靠聊天记录考古。
 
 ## 系统结构
@@ -144,7 +144,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 - `GET /v1/conns/:connId/runs/:runId`
 - `GET /v1/conns/:connId/runs/:runId/events`
 - `POST /v1/conns/:connId/run`
-- 飞书入站不再暴露 HTTP webhook；通过 `npm run worker:feishu` 启动 WebSocket 订阅 worker。
+- 飞书入站不再暴露 HTTP webhook；通过 `npm run worker:feishu` 启动 WebSocket 订阅 worker。`FEISHU_APP_ID` / `FEISHU_APP_SECRET` 只作为首次启动兜底，部署后可在 playground 的“飞书设置”里动态保存并触发 worker 自动重连。
 
 ## 项目地图
 

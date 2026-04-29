@@ -1,11 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { getAppConfig } from "../src/config.js";
+import { FeishuSettingsStore } from "../src/integrations/feishu/settings-store.js";
 import {
 	FeishuWebSocketSubscription,
 	createFeishuEventDispatcher,
 	type FeishuWsClientLike,
 } from "../src/integrations/feishu/ws-subscription.js";
-import { createFeishuWorkerFromEnv } from "../src/workers/feishu-worker.js";
+import { FeishuWorkerManager } from "../src/workers/feishu-worker.js";
 
 test("FeishuWebSocketSubscription starts the SDK client with the event dispatcher", async () => {
 	const calls: unknown[] = [];
@@ -65,19 +70,36 @@ test("createFeishuEventDispatcher registers im.message.receive_v1 and hands it t
 	]);
 });
 
-test("createFeishuWorkerFromEnv stays disabled unless FEISHU_ENABLED is true", () => {
-	assert.equal(createFeishuWorkerFromEnv({ FEISHU_ENABLED: "false" }), undefined);
+test("FeishuWorkerManager stays idle when settings are disabled or missing credentials", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-feishu-worker-"));
+	const manager = new FeishuWorkerManager({
+		settingsStore: new FeishuSettingsStore({
+			settingsPath: join(root, "settings.json"),
+			env: { FEISHU_ENABLED: "false" },
+		}),
+		config: getAppConfig(),
+		env: { FEISHU_ENABLED: "false" },
+	});
+
+	await manager.reload();
+	manager.close();
 });
 
-test("createFeishuWorkerFromEnv rejects legacy webhook subscription mode", () => {
-	assert.throws(
-		() =>
-			createFeishuWorkerFromEnv({
-				FEISHU_ENABLED: "true",
-				FEISHU_SUBSCRIPTION_MODE: "webhook",
-				FEISHU_APP_ID: "app-id",
-				FEISHU_APP_SECRET: "secret",
-			}),
+test("FeishuWorkerManager rejects legacy webhook subscription mode on reload", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-feishu-worker-webhook-"));
+	const manager = new FeishuWorkerManager({
+		settingsStore: new FeishuSettingsStore({
+			settingsPath: join(root, "settings.json"),
+			env: {},
+		}),
+		config: getAppConfig(),
+		env: {
+			FEISHU_SUBSCRIPTION_MODE: "webhook",
+		},
+	});
+	await assert.rejects(
+		() => manager.reload(),
 		/Only FEISHU_SUBSCRIPTION_MODE=ws is supported/,
 	);
+	manager.close();
 });

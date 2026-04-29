@@ -4,55 +4,119 @@ import { FeishuClient } from "../integrations/feishu/client.js";
 import { FeishuConversationMapStore } from "../integrations/feishu/conversation-map-store.js";
 import { FeishuHttpAgentGateway } from "../integrations/feishu/http-agent-gateway.js";
 import { FeishuService } from "../integrations/feishu/service.js";
+import { FeishuSettingsStore, type FeishuRuntimeSettings } from "../integrations/feishu/settings-store.js";
 import {
 	FeishuWebSocketSubscription,
 	createFeishuEventDispatcher,
 	createFeishuWsClient,
 } from "../integrations/feishu/ws-subscription.js";
 
-export function parseCommaSeparatedEnv(value: string | undefined): string[] | undefined {
-	const values = value
-		?.split(",")
-		.map((item) => item.trim())
-		.filter(Boolean);
-	return values?.length ? values : undefined;
+export class FeishuWorkerManager {
+	private active: FeishuWebSocketSubscription | undefined;
+	private activeSignature = "";
+	private pollTimer: ReturnType<typeof setInterval> | undefined;
+	private closed = false;
+
+	constructor(private readonly options: {
+		settingsStore: FeishuSettingsStore;
+		config: ReturnType<typeof getAppConfig>;
+		env?: NodeJS.ProcessEnv;
+		pollIntervalMs?: number;
+	}) {}
+
+	async start(): Promise<void> {
+		await this.reload();
+		this.pollTimer = setInterval(() => {
+			void this.reload().catch((error) => {
+				console.error("[feishu-worker] reload failed:", error);
+			});
+		}, Math.max(1_000, this.options.pollIntervalMs ?? 3_000));
+	}
+
+	close(): void {
+		this.closed = true;
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer);
+		}
+		this.active?.close();
+		this.active = undefined;
+	}
+
+	async reload(): Promise<void> {
+		if (this.closed) {
+			return;
+		}
+		const env = this.options.env ?? process.env;
+		const mode = env.FEISHU_SUBSCRIPTION_MODE?.trim() || "ws";
+		if (mode !== "ws") {
+			throw new Error("Only FEISHU_SUBSCRIPTION_MODE=ws is supported; HTTP webhook is not registered by ugk-pi");
+		}
+		const settings = await this.options.settingsStore.getRuntimeSettings();
+		const signature = buildWorkerSignature(settings);
+		if (signature === this.activeSignature) {
+			return;
+		}
+		this.activeSignature = signature;
+		this.active?.close();
+		this.active = undefined;
+
+		if (!settings.enabled) {
+			console.log("[feishu-worker] disabled by settings");
+			return;
+		}
+		if (!settings.appId || !settings.appSecret) {
+			console.warn("[feishu-worker] enabled but appId/appSecret is not configured");
+			return;
+		}
+
+		this.active = createFeishuWorkerSubscription({
+			settings,
+			config: this.options.config,
+			env,
+		});
+		await this.active.start();
+		console.log("[feishu-worker] started");
+	}
 }
 
-export function createFeishuWorkerFromEnv(env: NodeJS.ProcessEnv = process.env): FeishuWebSocketSubscription | undefined {
-	if (env.FEISHU_ENABLED !== "true") {
-		return undefined;
-	}
-	const subscriptionMode = env.FEISHU_SUBSCRIPTION_MODE?.trim() || "ws";
-	if (subscriptionMode !== "ws") {
-		throw new Error("Only FEISHU_SUBSCRIPTION_MODE=ws is supported; HTTP webhook is not registered by ugk-pi");
-	}
-	const appId = env.FEISHU_APP_ID?.trim();
-	const appSecret = env.FEISHU_APP_SECRET?.trim();
-	if (!appId || !appSecret) {
-		throw new Error("FEISHU_APP_ID and FEISHU_APP_SECRET are required when FEISHU_ENABLED=true");
-	}
-
+export function createFeishuWorkerFromEnv(env: NodeJS.ProcessEnv = process.env): FeishuWorkerManager | undefined {
 	const config = getAppConfig();
+	const settingsStore = new FeishuSettingsStore({
+		settingsPath: config.feishuSettingsPath,
+		env,
+	});
+	return new FeishuWorkerManager({
+		settingsStore,
+		config,
+		env,
+	});
+}
+
+function createFeishuWorkerSubscription(input: {
+	settings: FeishuRuntimeSettings;
+	config: ReturnType<typeof getAppConfig>;
+	env: NodeJS.ProcessEnv;
+}): FeishuWebSocketSubscription {
 	const client = new FeishuClient({
-		appId,
-		appSecret,
-		apiBase: env.FEISHU_API_BASE,
+		appId: input.settings.appId,
+		appSecret: input.settings.appSecret,
+		apiBase: input.settings.apiBase,
 	});
 	const service = new FeishuService({
 		agentService: new FeishuHttpAgentGateway({
-			baseUrl: env.FEISHU_AGENT_BASE_URL?.trim() || `http://127.0.0.1:${config.port}`,
+			baseUrl: input.env.FEISHU_AGENT_BASE_URL?.trim() || `http://127.0.0.1:${input.config.port}`,
 		}),
 		conversationMapStore: new FeishuConversationMapStore({
-			indexPath: config.feishuConversationMapPath,
+			indexPath: input.config.feishuConversationMapPath,
 		}),
 		client,
-		publicBaseUrl: config.publicBaseUrl,
-		allowedChatIds: parseCommaSeparatedEnv(env.FEISHU_ALLOWED_CHAT_IDS),
+		publicBaseUrl: input.config.publicBaseUrl,
+		allowedChatIds: input.settings.allowedChatIds,
 	});
 	return new FeishuWebSocketSubscription({
 		wsClient: createFeishuWsClient({
-			appId,
-			appSecret,
+			appId: input.settings.appId!,
+			appSecret: input.settings.appSecret!,
 			onReady: () => {
 				console.log("[feishu-worker] websocket ready");
 			},
@@ -68,9 +132,19 @@ export function createFeishuWorkerFromEnv(env: NodeJS.ProcessEnv = process.env):
 		}),
 		eventDispatcher: createFeishuEventDispatcher({
 			service,
-			verificationToken: env.FEISHU_VERIFICATION_TOKEN,
-			encryptKey: env.FEISHU_ENCRYPT_KEY,
+			verificationToken: input.env.FEISHU_VERIFICATION_TOKEN,
+			encryptKey: input.env.FEISHU_ENCRYPT_KEY,
 		}),
+	});
+}
+
+function buildWorkerSignature(settings: FeishuRuntimeSettings): string {
+	return JSON.stringify({
+		enabled: settings.enabled,
+		appId: settings.appId,
+		appSecret: settings.appSecret,
+		apiBase: settings.apiBase,
+		allowedChatIds: settings.allowedChatIds,
 	});
 }
 
@@ -84,13 +158,12 @@ async function waitUntilShutdown(): Promise<void> {
 async function main(): Promise<void> {
 	const worker = createFeishuWorkerFromEnv();
 	if (!worker) {
-		console.log("[feishu-worker] disabled because FEISHU_ENABLED is not true");
+		console.log("[feishu-worker] disabled");
 		await waitUntilShutdown();
 		return;
 	}
 
 	await worker.start();
-	console.log("[feishu-worker] started");
 	await waitUntilShutdown();
 	worker.close();
 }

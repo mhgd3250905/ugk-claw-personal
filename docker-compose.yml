@@ -8,6 +8,8 @@ services:
         condition: service_healthy
       ugk-pi-browser-cdp:
         condition: service_started
+    env_file:
+      - .env
     environment:
       HOST: 0.0.0.0
       PORT: 3000

@@ -12,6 +12,18 @@
 
 ## 2026-04-29
 
+### 飞书 App 凭据与绑定 Web 动态配置
+- 日期：2026-04-29
+- 主题：把飞书 App ID / App Secret / 白名单 / 后台通知接收人从纯 `.env` 启动配置升级为 Web 可配置运行态。playground 新增“飞书设置”入口，后端新增脱敏读取、保存和测试消息 API；动态配置持久化到 `UGK_AGENT_DATA_DIR/feishu/settings.json`，`App Secret` 不通过 API 回显。飞书 worker 轮询配置变化并自动关闭旧 WebSocket 后用新凭据重连，`conn-worker` 发送后台任务飞书通知时按次读取最新配置。
+- 影响范围：新服务器部署后只需保留 `.env` bootstrap fallback，真正绑定飞书 App 与接收人可在 Web 完成；不恢复 HTTP webhook，不创建第二套 agent runtime，不影响 Web 当前会话、任务消息页或已有后台任务记录。
+- 对应入口：`src/routes/feishu-settings.ts`、`src/integrations/feishu/settings-store.ts`、`src/workers/feishu-worker.ts`、`src/workers/conn-worker.ts`、`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`.env.example`、`test/feishu-settings-store.test.ts`、`test/feishu-ws-subscription.test.ts`、`test/server.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
+### 飞书轻量进度反馈
+- 日期：2026-04-29
+- 主题：为飞书 current conversation mode 增加轻量 loading / progress 反馈。飞书发起新的空闲 chat 后会先收到 `收到，正在处理...`，worker 随后节流读取主服务 `GET /v1/chat/state` 的 active run 摘要，内容变化时发送 `正在处理：...`，最终仍发送完整 agent 结果和文件。该机制只观察同一个 Web active run，不创建第二个 agent，不影响 Web SSE 和运行中消息排队逻辑。
+- 影响范围：飞书入站空闲 chat 的用户体验、`FeishuService` 进度观察逻辑、飞书服务单测和 Feishu 运行文档；运行中追加消息仍走 `queueMessage()`，`/status`、`/new`、`/whoami` 控制命令不进入进度反馈。
+- 对应入口：`src/integrations/feishu/service.ts`、`test/feishu-service.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### 飞书当前会话中转模式
 - 日期：2026-04-29
 - 主题：将飞书接入收口为 Web 当前会话的外挂收发窗口：默认 `current conversation mode` 下，飞书入站消息投递到服务端当前 `conversationId`，运行中消息继续复用 `queueMessage()`，纯文本走 `steer`，带附件走 `followUp`。保留 `mapped` 兼容模式，但不再作为默认主链路；新增飞书 `message_id` 进程内幂等与 `FEISHU_ALLOWED_CHAT_IDS` 白名单，避免 webhook 重试或非授权群聊重复 / 混入当前会话。

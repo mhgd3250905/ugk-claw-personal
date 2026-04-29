@@ -18,6 +18,7 @@ export interface AppConfig {
 	backgroundDataDir: string;
 	feishuDataDir: string;
 	feishuConversationMapPath: string;
+	feishuSettingsPath: string;
 }
 
 export function loadApiKeyFromApiTxt(
@@ -61,6 +62,7 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 	const backgroundDataDir = join(agentDataDir, "background");
 	const feishuDataDir = join(agentDataDir, "feishu");
 	const feishuConversationMapPath = join(feishuDataDir, "conversation-map.json");
+	const feishuSettingsPath = join(feishuDataDir, "settings.json");
 
 	return {
 		host: process.env.HOST ?? "127.0.0.1",
@@ -79,5 +81,6 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 		backgroundDataDir,
 		feishuDataDir,
 		feishuConversationMapPath,
+		feishuSettingsPath,
 	};
 }

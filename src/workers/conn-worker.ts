@@ -34,7 +34,7 @@ import type { NotificationBroadcastEvent } from "../agent/notification-hub.js";
 import type { ResolvedBackgroundAgentSnapshot } from "../agent/background-agent-profile.js";
 import { FeishuClient } from "../integrations/feishu/client.js";
 import { FeishuDeliveryService } from "../integrations/feishu/delivery.js";
-import type { FeishuDeliveryTarget } from "../integrations/feishu/types.js";
+import { FeishuSettingsStore } from "../integrations/feishu/settings-store.js";
 
 export interface ConnWorkerRunner {
 	run(conn: ConnDefinition, run: ConnRunRecord, now: Date, signal?: AbortSignal): Promise<ConnRunRecord | undefined>;
@@ -336,15 +336,27 @@ class HttpNotificationBroadcaster implements NotificationBroadcaster {
 
 class FeishuActivityNotifier implements ActivityNotifier {
 	constructor(private readonly options: {
-		targets: FeishuDeliveryTarget[];
-		deliveryService: FeishuDeliveryService;
+		settingsStore: FeishuSettingsStore;
+		publicBaseUrl?: string;
 	}) {}
 
 	async notify(activity: AgentActivityItem): Promise<void> {
+		const settings = await this.options.settingsStore.getRuntimeSettings();
+		if (!settings.enabled || settings.activityTargets.length === 0) {
+			return;
+		}
 		const text = formatFeishuActivityNotification(activity);
+		const deliveryService = new FeishuDeliveryService({
+			client: new FeishuClient({
+				appId: settings.appId,
+				appSecret: settings.appSecret,
+				apiBase: settings.apiBase,
+			}),
+			publicBaseUrl: this.options.publicBaseUrl,
+		});
 		await Promise.all(
-			this.options.targets.map((target) =>
-				this.options.deliveryService.deliverText(
+			settings.activityTargets.map((target) =>
+				deliveryService.deliverText(
 					target,
 					text,
 				),
@@ -419,8 +431,7 @@ async function main(): Promise<void> {
 			`http://127.0.0.1:${config.port}/v1/internal/notifications/broadcast`,
 	);
 	const activityNotifier = createFeishuActivityNotifier({
-		chatIds: parseCommaSeparatedEnv(process.env.FEISHU_ACTIVITY_CHAT_IDS),
-		openIds: parseCommaSeparatedEnv(process.env.FEISHU_ACTIVITY_OPEN_IDS),
+		settingsPath: config.feishuSettingsPath,
 		publicBaseUrl: config.publicBaseUrl,
 	});
 	const runner = new BackgroundAgentRunner({
@@ -493,42 +504,15 @@ function toNotificationBroadcastEvent(activity: Awaited<ReturnType<AgentActivity
 }
 
 function createFeishuActivityNotifier(input: {
-	chatIds?: string[];
-	openIds?: string[];
+	settingsPath: string;
 	publicBaseUrl?: string;
 }): ActivityNotifier | undefined {
-	const targets = [
-		...(input.chatIds?.map((chatId): FeishuDeliveryTarget => ({
-			type: "feishu_chat",
-			chatId,
-		})) ?? []),
-		...(input.openIds?.map((openId): FeishuDeliveryTarget => ({
-			type: "feishu_user",
-			openId,
-		})) ?? []),
-	];
-	if (targets.length === 0) {
-		return undefined;
-	}
 	return new FeishuActivityNotifier({
-		targets,
-		deliveryService: new FeishuDeliveryService({
-			client: new FeishuClient({
-				appId: process.env.FEISHU_APP_ID,
-				appSecret: process.env.FEISHU_APP_SECRET,
-				apiBase: process.env.FEISHU_API_BASE,
-			}),
-			publicBaseUrl: input.publicBaseUrl,
+		settingsStore: new FeishuSettingsStore({
+			settingsPath: input.settingsPath,
 		}),
+		publicBaseUrl: input.publicBaseUrl,
 	});
-}
-
-function parseCommaSeparatedEnv(value: string | undefined): string[] | undefined {
-	const values = value
-		?.split(",")
-		.map((item) => item.trim())
-		.filter(Boolean);
-	return values?.length ? values : undefined;
 }
 
 function formatFeishuActivityNotification(activity: AgentActivityItem): string {

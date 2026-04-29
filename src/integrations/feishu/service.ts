@@ -1,5 +1,6 @@
 import type { ChatAttachment } from "../../agent/asset-store.js";
 import type { AgentService } from "../../agent/agent-service.js";
+import type { ChatActiveRunBody } from "../../types/api.js";
 import { FeishuAttachmentBridge } from "./attachment-bridge.js";
 import { FeishuClient } from "./client.js";
 import {
@@ -45,6 +46,11 @@ interface FeishuServiceOptions {
 	publicBaseUrl?: string;
 	conversationMode?: FeishuConversationMode;
 	allowedChatIds?: string[];
+	progressUpdates?: {
+		enabled?: boolean;
+		intervalMs?: number;
+		maxUpdates?: number;
+	};
 	attachmentBridge?: FeishuAttachmentBridgeLike;
 	deliveryService?: TextDeliveryLike;
 	messageDeduper?: FeishuMessageDeduperLike;
@@ -166,7 +172,11 @@ export class FeishuService implements TextDeliveryLike {
 			}
 		}
 
-		const result = await this.options.agentService.chat({
+		const result = await this.runChatWithProgress({
+			target: {
+				type: "feishu_chat",
+				chatId: incoming.chatId,
+			},
 			conversationId,
 			message: outboundMessage,
 			attachments,
@@ -187,6 +197,88 @@ export class FeishuService implements TextDeliveryLike {
 					})) ?? [],
 			},
 		);
+	}
+
+	private async runChatWithProgress(input: {
+		target: FeishuDeliveryTarget;
+		conversationId: string;
+		message: string;
+		attachments?: ChatAttachment[];
+	}): ReturnType<FeishuAgentGateway["chat"]> {
+		const progressOptions = this.options.progressUpdates ?? {};
+		if (progressOptions.enabled === false || !this.options.agentService.getConversationState) {
+			return await this.options.agentService.chat({
+				conversationId: input.conversationId,
+				message: input.message,
+				attachments: input.attachments,
+			});
+		}
+
+		await this.deliverText(input.target, "收到，正在处理...");
+		const progress = this.startProgressUpdates({
+			target: input.target,
+			conversationId: input.conversationId,
+			intervalMs: progressOptions.intervalMs ?? 4_000,
+			maxUpdates: progressOptions.maxUpdates ?? 8,
+		});
+		try {
+			return await this.options.agentService.chat({
+				conversationId: input.conversationId,
+				message: input.message,
+				attachments: input.attachments,
+			});
+		} finally {
+			progress.stop();
+		}
+	}
+
+	private startProgressUpdates(input: {
+		target: FeishuDeliveryTarget;
+		conversationId: string;
+		intervalMs: number;
+		maxUpdates: number;
+	}): { stop(): void } {
+		let stopped = false;
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		let lastText = "";
+		let sent = 0;
+		const intervalMs = Math.max(1, input.intervalMs);
+		const maxUpdates = Math.max(0, input.maxUpdates);
+
+		const tick = async (): Promise<void> => {
+			if (stopped || sent >= maxUpdates) {
+				return;
+			}
+			try {
+				const state = await this.options.agentService.getConversationState?.(input.conversationId, { viewLimit: 4 });
+				const text = formatFeishuProgressText(state?.activeRun);
+				if (text && text !== lastText) {
+					lastText = text;
+					sent += 1;
+					await this.deliverText(input.target, text);
+				}
+			} catch (error) {
+				console.warn("[feishu] progress update failed:", error);
+			}
+			if (!stopped && sent < maxUpdates) {
+				timer = setTimeout(() => {
+					void tick();
+				}, intervalMs);
+			}
+		};
+
+		timer = setTimeout(() => {
+			void tick();
+		}, intervalMs);
+
+		return {
+			stop() {
+				stopped = true;
+				if (timer) {
+					clearTimeout(timer);
+				}
+			},
+		};
 	}
 
 	private async handleStatusCommand(chatId: string, conversationId: string): Promise<void> {
@@ -276,6 +368,15 @@ function truncateStatusText(text: string, maxLength: number = 180): string {
 		return normalized;
 	}
 	return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
+function formatFeishuProgressText(activeRun: ChatActiveRunBody | null | undefined): string {
+	if (!activeRun || activeRun.status !== "running") {
+		return "";
+	}
+	const currentText = activeRun.process?.currentAction || activeRun.text;
+	const summary = truncateStatusText(currentText, 120);
+	return summary ? `正在处理：${summary}` : "";
 }
 
 export function createFeishuService(input: {

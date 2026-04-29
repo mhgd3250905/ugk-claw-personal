@@ -17,10 +17,12 @@ import { registerActivityRoutes } from "./routes/activity.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerConnRoutes } from "./routes/conns.js";
 import { registerFileRoutes } from "./routes/files.js";
+import { registerFeishuSettingsRoutes } from "./routes/feishu-settings.js";
 import { registerModelConfigRoutes } from "./routes/model-config.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerPlaygroundRoute } from "./routes/playground.js";
 import { registerStaticRoutes } from "./routes/static.js";
+import { FeishuSettingsStore } from "./integrations/feishu/settings-store.js";
 
 export interface BuildServerOptions {
 	agentService?: AgentService;
@@ -32,6 +34,7 @@ export interface BuildServerOptions {
 	backgroundDataDir?: string;
 	modelConfigStore?: ModelConfigStore;
 	modelSelectionValidator?: ModelSelectionValidator;
+	feishuSettingsStore?: FeishuSettingsStore;
 }
 
 function createDefaultAssetStore(): AssetStore {
@@ -109,6 +112,9 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		validator: options.modelSelectionValidator,
 	});
 	registerNotificationRoutes(app, { notificationHub });
+	registerFeishuSettingsRoutes(app, {
+		settingsStore: options.feishuSettingsStore ?? new FeishuSettingsStore({ settingsPath: config.feishuSettingsPath }),
+	});
 	registerConnRoutes(app, {
 		connStore,
 		connRunStore,

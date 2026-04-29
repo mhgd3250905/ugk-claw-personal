@@ -1,6 +1,6 @@
 # Runtime / Assets / Conn / Feishu
 
-更新时间：`2026-04-24`
+更新时间：`2026-04-29`
 
 这份文档只讲四类运行能力：
 
@@ -247,6 +247,10 @@ Run 查询接口：
 
 - `src/workers/feishu-worker.ts` 通过飞书官方 `@larksuiteoapi/node-sdk` 的 `WSClient` + `EventDispatcher` 建立长连接订阅。
 - `ugk-pi` 主服务不再注册 `POST /v1/integrations/feishu/events`；HTTP webhook 已退出主链路，避免公网回调、验签和主服务路由耦合。
+- `playground` 桌面侧栏和手机端更多菜单提供“飞书设置”入口；`GET /v1/integrations/feishu/settings` 只返回脱敏配置，`PUT /v1/integrations/feishu/settings` 保存启用状态、`App ID`、`App Secret`、白名单和后台通知接收人，`POST /v1/integrations/feishu/test-message` 用当前配置发送测试消息。
+- 动态配置持久化到 `UGK_AGENT_DATA_DIR/feishu/settings.json`，也就是容器内默认 `.data/agent/feishu/settings.json`；写入采用同目录临时文件 + `rename` 原子替换。`App Secret` 保存后不会通过 API 回显，前端只显示 `hasAppSecret` 状态。
+- `.env` 里的 `FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`FEISHU_API_BASE`、`FEISHU_ALLOWED_CHAT_IDS`、`FEISHU_ACTIVITY_CHAT_IDS` 和 `FEISHU_ACTIVITY_OPEN_IDS` 现在都是 bootstrap fallback；Web 保存过动态配置后，以 `settings.json` 为准。新服务器只需要先让服务跑起来，再在 Web 里填飞书 App 凭据和接收人，不要为了改机器人凭据 SSH 进服务器翻 env，太原始了。
+- `ugk-pi-feishu-worker` 会轮询配置版本，配置变化后关闭旧 WebSocket 连接并用新 App 凭据重连；`conn-worker` 发送后台任务全局飞书通知时也会按次读取动态配置，不再依赖启动时快照。
 
 已接通：
 
@@ -262,6 +266,7 @@ Run 查询接口：
   - `FEISHU_ACTIVITY_OPEN_IDS`：发到用户私聊，适合直接投递给机器人私聊用户。
   - 两个配置都为空时不启用飞书全局通知镜像；飞书发送失败只记录 warning，不影响后台任务完成、任务消息页写入或 Web toast。
 - 当前默认采用 `current conversation mode`：飞书是 Web 当前会话的外挂收发窗口，入站消息永远投递到服务端当前 `conversationId`，不再默认按飞书群聊派生独立本地会话。Web playground 和飞书观察 / 输入的是同一个 agent 当前上下文。
+- 飞书新发起一轮空闲 chat 时会发送轻量进度反馈：先立即回 `收到，正在处理...`，再按节流间隔读取主服务 `GET /v1/chat/state` 的 `activeRun.process.currentAction` 或当前输出摘要，内容变化时发送 `正在处理：...`。这不是第二套流式 runtime，只是飞书 worker 旁路观察同一条 Web active run；最终结果仍由 `/v1/chat` 完成后统一发送，带文件时继续复用 `FeishuDeliveryService`。
 - 兼容层仍保留 `mapped` 模式；该模式才会使用 `FeishuConversationMapStore` 把飞书 `chat_id` 映射到 `feishu:chat:<chatId>`。映射文件由 `FeishuConversationMapStore` 串行 mutation，并通过同目录临时文件 + `rename` 原子替换写入，避免多个飞书群聊/用户同时触发 webhook 时把彼此的映射覆盖掉。不要把这个兼容模式重新当默认主链路。
 - 当前会话解析在 `FeishuConversationResolver` 内完成，`AgentService` 只暴露只读 `getCurrentConversationId()`；飞书适配逻辑不能散进主 agent 编排层，飞书只是外挂组件，不是第二套 runtime。
 - 可通过 `FEISHU_ALLOWED_CHAT_IDS` 配置允许写入当前会话的飞书 chat id，多个 id 用逗号分隔；配置为空表示不限制。current mode 下建议生产配置白名单，否则多个飞书群聊都能把消息混入当前 Web 会话。
@@ -287,6 +292,8 @@ Run 查询接口：
 关键入口：
 
 - [src/workers/feishu-worker.ts](/E:/AII/ugk-pi/src/workers/feishu-worker.ts)
+- [src/routes/feishu-settings.ts](/E:/AII/ugk-pi/src/routes/feishu-settings.ts)
+- [src/integrations/feishu/settings-store.ts](/E:/AII/ugk-pi/src/integrations/feishu/settings-store.ts)
 - [src/integrations/feishu/ws-subscription.ts](/E:/AII/ugk-pi/src/integrations/feishu/ws-subscription.ts)
 - [src/integrations/feishu/http-agent-gateway.ts](/E:/AII/ugk-pi/src/integrations/feishu/http-agent-gateway.ts)
 - [src/integrations/feishu/message-parser.ts](/E:/AII/ugk-pi/src/integrations/feishu/message-parser.ts)
