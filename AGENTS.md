@@ -37,7 +37,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 ## 2.1 当前阶段快照
 
 - 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
-- 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器当前主部署目录已经迁到 GitHub 工作目录 `~/ugk-claw-repo`，不要再把 Gitee / tar 包搬运当成腾讯云长期主流程理解。阿里云 ECS 首次部署因 GitHub 连接超时，当前 `/root/ugk-claw-repo` 是本地 archive 解包目录，不是 Git 工作目录。
+- 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器主部署目录为 `~/ugk-claw-repo`，阿里云 ECS 主部署目录为 `/root/ugk-claw-repo`，两边现在都是 Git 工作目录。阿里云已配置 `origin` GitHub 和 `gitee` 备用 remote，不要再把 tar 包搬运当成长期主流程。
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - agent 任务结束时，`AgentService` 会通过 `src/agent/browser-cleanup.ts` 按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 清理本轮 `web-access` scope 下保留的浏览器页面；不要只在运行容器 `/app` 里热改，否则重建镜像会直接丢修复。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
@@ -160,7 +160,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 - 腾讯云正式入口是 `http://43.134.167.179:3000/playground`；阿里云正式入口是 `http://101.37.209.54:3000/playground`。这两条只用于云服务器接手和双云排障；普通运行回复、文件预览链接和 playground 链接必须优先使用当前环境的 `PUBLIC_BASE_URL`，不要默认把两边公网入口一起甩给用户。
 - 腾讯云当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
-- 阿里云当前主部署目录是 `/root/ugk-claw-repo`，是 archive 解包目录，不是 Git 工作目录；后续更新先看 `docs/aliyun-ecs-deploy.md`，不要直接照抄腾讯云 `git pull`。
+- 阿里云当前主部署目录是 `/root/ugk-claw-repo`，已迁移为 Git 工作目录；旧的 archive 目录 `/root/ugk-claw-repo-pre-git-*` 只用于回滚和比对，不是默认更新入口。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
 
 如果这次 `/init` 还要接手 `playground` 前端，再记住两件事：
@@ -279,7 +279,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `docs/tencent-cloud-singapore-deploy.md`
   - 腾讯云新加坡 CVM 的部署事实、`.env` 口径、更新发布流程、SSH tunnel、验证命令和踩坑记录
 - `docs/aliyun-ecs-deploy.md`
-  - 阿里云 ECS 的部署事实、archive 更新流程、`.env` 口径、安全组、验证命令和踩坑记录
+  - 阿里云 ECS 的部署事实、Git 更新流程、Gitee 备用拉取、`.env` 口径、安全组、验证命令和踩坑记录
 
 ## 8. 当前稳定事实
 

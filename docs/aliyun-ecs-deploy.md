@@ -4,7 +4,7 @@
 
 这台机器目前是第二套公网部署环境，不是腾讯云新加坡环境的替代品。后续接手时先分清服务器，别把两台机器的目录、账号和公网 IP 混在一起，那种混法很快就会把运维变成猜谜。
 
-如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md) 的“固定增量发布流程（先选目标云）”；阿里云当前固定口径是 archive 增量覆盖 `/root/ugk-claw-repo`，保留 `/root/ugk-claw-shared`，不要执行腾讯云的 `git pull` 流程。
+如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md) 的“固定增量发布流程（先选目标云）”；阿里云当前固定口径已经切换为 Git 工作目录更新，优先 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。archive 小包只作为双远端都不可用时的兜底。
 
 ## 2026-04-29 小米 MiMo 模型源增量发布记录
 
@@ -20,6 +20,19 @@
 
 注意：如果后续继续用本地脚本给阿里云注入 key，不能再用宽泛 `*api.txt` glob；本地同时存在阿里、DeepSeek、小米多个 key 文件，必须按文件名或内容精确选中小米 key，否则就是把生产 env 写坏，没什么技术含量但很烦。
 
+## 2026-04-29 阿里云 Git 工作目录迁移记录
+
+本次将阿里云 `/root/ugk-claw-repo` 从 archive 解包目录迁移为 Git 工作目录，目标提交为 `e446ec2 chore: consolidate aliyun deployed updates`。迁移前已把本地提交同时推送到 GitHub 和 Gitee，服务器优先从 GitHub 克隆，Gitee 作为备用 remote 保留。
+
+实际结果：
+1. 迁移前备份当前代码目录到 `/root/ugk-claw-shared/backups/git-migration-20260429-221609/repo-before-git.tar.gz`。
+2. 迁移前备份 `app.env`、`compose.env`、`.data/agent` 和 `.data/chrome-sidecar` 到同一个备份目录；其中 agent 数据和 Chrome 登录态仍位于 `/root/ugk-claw-shared`，没有并入 Git 仓库。
+3. 原 archive 目录移动到 `/root/ugk-claw-repo-pre-git-20260429-221609`，并通过 `/root/ugk-claw-repo-pre-git-latest` 保留最近一次迁移前目录指针。
+4. 新 `/root/ugk-claw-repo` 是 Git 工作目录，`origin` 指向 `https://github.com/mhgd3250905/ugk-claw-personal.git`，`gitee` 指向 `https://gitee.com/ksheng3250905/ugk-pi-claw.git`。
+5. 迁移后执行生产 compose config、`up --build -d` 和 nginx 强制重建；内网与公网 `/healthz` 均返回 `{"ok":true}`，核心容器保持 healthy。
+
+后续阿里云更新主流程：本地提交并推送 GitHub/Gitee，服务器执行 `git pull --ff-only origin main`；GitHub 不通时执行 `git pull --ff-only gitee main`。只有 GitHub/Gitee 都不可用时才考虑 archive 小包兜底。
+
 ## 当前部署快照
 
 - 日期：`2026-04-27`
@@ -34,10 +47,10 @@
 - 生产 compose 文件：`docker-compose.prod.yml`
 - 主部署目录：`/root/ugk-claw-repo`
 - shared 运行态目录：`/root/ugk-claw-shared`
-- 当前部署来源：本地 `git archive HEAD` 上传解包
-- 当前部署基线：`4aeb01e Fix playground light theme runtime polish`
+- 当前部署来源：Git 工作目录，`origin` 为 GitHub，`gitee` 为备用 remote
+- 当前部署基线：`e446ec2 chore: consolidate aliyun deployed updates`
 
-注意：阿里云首次部署时，服务器访问 GitHub 超时，`git clone` 未成功。因此 `/root/ugk-claw-repo` 当前是 archive 解包目录，不是 Git 工作目录。后续如果阿里云到 GitHub 网络恢复，可以迁回 git clone / pull；迁移前不要在这台机器上硬跑 `git pull`，它没有 `.git`，跑了也只是在跟空气较劲。
+注意：阿里云首次部署时，服务器访问 GitHub 超时，`git clone` 未成功，因此曾经使用 archive 解包目录。截至 `2026-04-29`，`/root/ugk-claw-repo` 已迁移为 Git 工作目录。后续不要再默认打包上传，也不要把 `/root/ugk-claw-shared` 塞回代码目录。
 
 ## 部署拓扑
 
@@ -285,40 +298,42 @@ https://127.0.0.1:13902/
 
 ## 后续更新方式
 
-因为当前 `/root/ugk-claw-repo` 不是 Git 工作目录，阿里云后续更新暂时使用 archive 上传：
+当前 `/root/ugk-claw-repo` 已是 Git 工作目录，阿里云后续更新优先使用 Git 拉取。
 
-本地：
-
-```powershell
-git archive --format=tar.gz -o $env:TEMP\ugk-claw-aliyun-deploy.tar.gz HEAD
-```
-
-上传并解包时要保留 shared 运行态，不要删除 `/root/ugk-claw-shared`。
-如果后续在阿里云机器上安装过 `runtime/skills-user` 或 `runtime/agents-user` 这类运行时扩展，也要在替换代码目录前单独备份并合回。当前首次部署是干净环境，但以后别把“现在没有”当成“永远没有”。
-
-服务器：
+本地先提交并推送两个远端：
 
 ```bash
-cd /root
-mkdir -p ugk-claw-repo-next
-tar -xzf /root/ugk-claw-deploy.tar.gz -C /root/ugk-claw-repo-next
-if [ -d /root/ugk-claw-repo/runtime/skills-user ]; then mkdir -p /root/ugk-claw-repo-next/runtime && cp -a /root/ugk-claw-repo/runtime/skills-user /root/ugk-claw-repo-next/runtime/; fi
-if [ -d /root/ugk-claw-repo/runtime/agents-user ]; then mkdir -p /root/ugk-claw-repo-next/runtime && cp -a /root/ugk-claw-repo/runtime/agents-user /root/ugk-claw-repo-next/runtime/; fi
-mv /root/ugk-claw-repo /root/ugk-claw-repo-prev-$(date +%Y%m%d-%H%M%S)
-mv /root/ugk-claw-repo-next /root/ugk-claw-repo
-cd /root/ugk-claw-repo
-COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+git push origin main
+git push gitee main
 ```
 
-这看起来像整目录替换，但替换的是代码解包目录，不是 shared 运行态目录。真正不能碰的是 `/root/ugk-claw-shared`，以及后续可能由用户安装在 `runtime/` 下的扩展。后续如果迁移成 Git 工作目录，再把更新流程改为 `git pull --ff-only origin main`。
+服务器主流程：
 
+```bash
+cd /root/ugk-claw-repo
+git fetch origin main
+git status --short
+git pull --ff-only origin main
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
+COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+```
+
+如果 GitHub 不通，改走 Gitee：
+
+```bash
+cd /root/ugk-claw-repo
+git fetch gitee main
+git pull --ff-only gitee main
+```
+
+`/root/ugk-claw-shared` 仍然是运行态目录，不参与 Git 更新，不要删除、覆盖或移动。archive 小包只作为 GitHub/Gitee 都不可用时的紧急兜底。
 ## 不要做的事
 
 - 不要提交 `阿里-config.txt`。
 - 不要把 `app.env` 里的真实 key 写进文档或聊天。
 - 不要删除 `/root/ugk-claw-shared`。
 - 不要开放公网 `3901` 或 `9223`。
-- 不要在当前阿里云目录里直接跑 `git pull`，除非已经确认 `.git` 存在。
+- 不要在阿里云上把 `/root/ugk-claw-shared` 并入 Git 仓库；代码用 Git 更新，运行态留在 shared 目录。
 - 不要把腾讯云的 `ubuntu@43.134.167.179` 命令原样粘到阿里云机器上；阿里云是 `root@101.37.209.54`。
 ## 2026-04-27 Playground ASCII 品牌增量发布记录
 

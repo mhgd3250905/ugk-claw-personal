@@ -16,7 +16,7 @@
 - 公网入口：`http://43.134.167.179:3000/playground`
 - 健康检查：`http://43.134.167.179:3000/healthz`
 - 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`4aeb01e`
+- 当前线上应用提交：`e446ec2`
 - 不要再用：`snapshot-20260422-v4.1.1-stable`；那个 tag 打出来后才发现生产 compose YAML 缩进有病
 
 ### 阿里云 ECS
@@ -27,8 +27,8 @@
 - 生产 compose：`docker-compose.prod.yml`
 - 公网入口：`http://101.37.209.54:3000/playground`
 - 健康检查：`http://101.37.209.54:3000/healthz`
-- 当前线上应用提交：`4aeb01e`
-- 注意：当前阿里云目录是本地 archive 解包目录，不是 Git 工作目录；后续更新先看 `docs/aliyun-ecs-deploy.md`，不要直接照抄腾讯云的 `git pull` 流程。
+- 当前线上应用提交：`e446ec2`
+- 注意：当前阿里云目录已经迁移为 Git 工作目录，`origin` 指向 GitHub，`gitee` 作为备用 remote；后续更新优先 `git pull --ff-only origin main`，GitHub 不通时再从 Gitee 拉取。
 
 ## 登录
 
@@ -50,7 +50,7 @@ ssh root@101.37.209.54
 
 ## 固定增量发布流程（先选目标云）
 
-先判断目标云，别上来复制上一轮命令。腾讯云是 Git 工作目录，阿里云当前是 archive 解包目录；把这两套混用，就是自己给自己挖坑。
+先判断目标云，别上来复制上一轮命令。腾讯云和阿里云当前都是 Git 工作目录，但账号、路径、shared 目录和公网入口不同；把两套命令混用，还是自己给自己挖坑。
 
 ### 发布前本地固定检查
 
@@ -87,9 +87,38 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx
 ```
 
-### 阿里云：archive 增量发布
+### 阿里云：Git 增量发布（当前主流程）
 
-适用目标：`root@101.37.209.54`，目录：`/root/ugk-claw-repo`。这里当前不是 Git 工作目录，不要跑 `git pull`，别跟一个解包目录谈恋爱，它不会回应你的。
+适用目标：`root@101.37.209.54`，目录：`/root/ugk-claw-repo`。这里已经是 Git 工作目录，后续不要再默认打包上传；archive 小包只作为 GitHub/Gitee 都不可用时的兜底。
+
+```bash
+ssh root@101.37.209.54
+cd /root/ugk-claw-repo
+git fetch origin main
+git status --short
+git pull --ff-only origin main
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
+COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
+```
+
+如果 GitHub 不通，确认本地提交已经推到 Gitee 后在服务器上改走备用 remote：
+
+```bash
+cd /root/ugk-claw-repo
+git fetch gitee main
+git pull --ff-only gitee main
+```
+
+如果阿里云 app 容器内部健康但公网 / nginx 返回 `502`，固定重建 nginx：
+
+```bash
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx
+```
+
+### 阿里云：archive 增量发布（仅兜底）
+
+适用场景：GitHub 和 Gitee 都不可用、但必须紧急发布时的兜底方案。正常情况不要走这条路；它能救火，但不该当正餐。
 
 本地只打本次需要发布的文件，包放 `runtime/`，不要提交 tar 包：
 
@@ -157,7 +186,7 @@ git pull --ff-only origin main
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
-阿里云当前不是 Git 工作目录，暂时使用 archive 上传，详见 [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)。启动 / 重建时使用：
+阿里云旧版是 archive 上传流程，现在已迁移为 Git 工作目录。下面仅作历史备查，平时看上面的“阿里云：Git 增量发布（当前主流程）”。
 
 ```bash
 cd /root/ugk-claw-repo

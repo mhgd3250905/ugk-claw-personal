@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### 阿里云 Git 更新主流程迁移
+- 日期：2026-04-29
+- 主题：将阿里云 `/root/ugk-claw-repo` 从 archive 解包目录迁移为 Git 工作目录，`origin` 指向 GitHub，`gitee` 作为备用 remote；后续发布主流程改为 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。
+- 影响范围：影响阿里云生产发布流程和接手口径；保留 `/root/ugk-claw-shared` 作为运行态目录，不把 agent 数据、Chrome 登录态、env 或日志并入 Git 仓库。
+- 对应入口：`docs/aliyun-ecs-deploy.md`、`docs/server-ops-quick-reference.md`、`AGENTS.md`
+
 ### 持久化运行态 AGENTS 规则注入
 - 日期：2026-04-29
 - 主题：修复 agent 在服务器上临时写入仓库版 `AGENTS.md` 后，后续 `git pull` 或 archive 发布覆盖导致规则丢失的问题。新增运行态规则入口 `/app/.data/agent/AGENTS.local.md`，该文件位于生产 shared agent data 目录内，并通过 agent session resource loader 作为额外 AGENTS 上下文注入。
