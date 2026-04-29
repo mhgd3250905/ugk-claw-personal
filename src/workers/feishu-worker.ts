@@ -11,8 +11,10 @@ import {
 	createFeishuWsClient,
 } from "../integrations/feishu/ws-subscription.js";
 
+type FeishuWorkerSubscription = Pick<FeishuWebSocketSubscription, "start" | "close">;
+
 export class FeishuWorkerManager {
-	private active: FeishuWebSocketSubscription | undefined;
+	private active: FeishuWorkerSubscription | undefined;
 	private activeSignature = "";
 	private pollTimer: ReturnType<typeof setInterval> | undefined;
 	private closed = false;
@@ -22,6 +24,11 @@ export class FeishuWorkerManager {
 		config: ReturnType<typeof getAppConfig>;
 		env?: NodeJS.ProcessEnv;
 		pollIntervalMs?: number;
+		createSubscription?: (input: {
+			settings: FeishuRuntimeSettings;
+			config: ReturnType<typeof getAppConfig>;
+			env: NodeJS.ProcessEnv;
+		}) => FeishuWorkerSubscription;
 	}) {}
 
 	async start(): Promise<void> {
@@ -56,25 +63,33 @@ export class FeishuWorkerManager {
 		if (signature === this.activeSignature) {
 			return;
 		}
-		this.activeSignature = signature;
 		this.active?.close();
 		this.active = undefined;
 
 		if (!settings.enabled) {
+			this.activeSignature = signature;
 			console.log("[feishu-worker] disabled by settings");
 			return;
 		}
 		if (!settings.appId || !settings.appSecret) {
+			this.activeSignature = signature;
 			console.warn("[feishu-worker] enabled but appId/appSecret is not configured");
 			return;
 		}
 
-		this.active = createFeishuWorkerSubscription({
+		const next = (this.options.createSubscription ?? createFeishuWorkerSubscription)({
 			settings,
 			config: this.options.config,
 			env,
 		});
-		await this.active.start();
+		try {
+			await next.start();
+		} catch (error) {
+			next.close();
+			throw error;
+		}
+		this.active = next;
+		this.activeSignature = signature;
 		console.log("[feishu-worker] started");
 	}
 }

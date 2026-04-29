@@ -234,12 +234,13 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 - `src/routes/conns.ts`
 - `src/routes/conn-route-presenters.ts`
-- `src/routes/feishu.ts`
+- `src/routes/feishu-settings.ts`
 - `src/agent/conn-store.ts`
 - `src/agent/conn-db.ts`
 - `src/agent/conn-sqlite-store.ts`
 - `src/agent/conn-run-store.ts`
 - `src/workers/conn-worker.ts`
+- `src/workers/feishu-worker.ts`
 - `src/integrations/feishu/`
 - `docs/runtime-assets-conn-feishu.md`
 

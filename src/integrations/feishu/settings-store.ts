@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { FeishuDeliveryTarget } from "./types.js";
@@ -65,15 +65,6 @@ export class FeishuSettingsStore {
 		});
 		await this.writeQueue;
 		return publicSettings!;
-	}
-
-	async getVersion(): Promise<string> {
-		try {
-			const info = await stat(this.options.settingsPath);
-			return `${info.mtimeMs}:${info.size}`;
-		} catch {
-			return "missing";
-		}
 	}
 
 	private async readStoredSettings(): Promise<Partial<FeishuRuntimeSettings>> {

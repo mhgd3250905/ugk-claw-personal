@@ -103,3 +103,44 @@ test("FeishuWorkerManager rejects legacy webhook subscription mode on reload", a
 	);
 	manager.close();
 });
+
+test("FeishuWorkerManager retries the same settings after a subscription start failure", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-feishu-worker-retry-"));
+	const settingsStore = new FeishuSettingsStore({
+		settingsPath: join(root, "settings.json"),
+		env: {
+			FEISHU_ENABLED: "true",
+			FEISHU_APP_ID: "cli_retry",
+			FEISHU_APP_SECRET: "secret_retry",
+		},
+	});
+	const calls: string[] = [];
+	const manager = new FeishuWorkerManager({
+		settingsStore,
+		config: getAppConfig(),
+		env: {
+			FEISHU_ENABLED: "true",
+			FEISHU_APP_ID: "cli_retry",
+			FEISHU_APP_SECRET: "secret_retry",
+		},
+		createSubscription() {
+			return {
+				async start() {
+					calls.push("start");
+					if (calls.length === 1) {
+						throw new Error("temporary ws failure");
+					}
+				},
+				close() {
+					calls.push("close");
+				},
+			};
+		},
+	});
+
+	await assert.rejects(() => manager.reload(), /temporary ws failure/);
+	await manager.reload();
+	manager.close();
+
+	assert.deepEqual(calls, ["start", "close", "start", "close"]);
+});

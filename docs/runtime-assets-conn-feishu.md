@@ -251,6 +251,8 @@ Run 查询接口：
 - 动态配置持久化到 `UGK_AGENT_DATA_DIR/feishu/settings.json`，也就是容器内默认 `.data/agent/feishu/settings.json`；写入采用同目录临时文件 + `rename` 原子替换。`App Secret` 保存后不会通过 API 回显，前端只显示 `hasAppSecret` 状态。
 - `.env` 里的 `FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`FEISHU_API_BASE`、`FEISHU_ALLOWED_CHAT_IDS`、`FEISHU_ACTIVITY_CHAT_IDS` 和 `FEISHU_ACTIVITY_OPEN_IDS` 现在都是 bootstrap fallback；Web 保存过动态配置后，以 `settings.json` 为准。新服务器只需要先让服务跑起来，再在 Web 里填飞书 App 凭据和接收人，不要为了改机器人凭据 SSH 进服务器翻 env，太原始了。
 - `ugk-pi-feishu-worker` 会轮询配置版本，配置变化后关闭旧 WebSocket 连接并用新 App 凭据重连；`conn-worker` 发送后台任务全局飞书通知时也会按次读取动态配置，不再依赖启动时快照。
+- worker 只在 WebSocket `start()` 成功后确认当前配置签名；如果飞书侧临时返回 `system busy`、网络抖动或 SDK 启动失败，同一份配置会在下一轮继续重试，不会因为失败配置被提前记住而卡死。
+- `PUT /v1/integrations/feishu/settings` 会拒绝包含空格、换行或制表符的 `App ID` / `App Secret`；保存成功后的用户实测验收记录为飞书测试消息通过，代码侧验收为 `npm test` 全量 `447 pass`。
 
 已接通：
 

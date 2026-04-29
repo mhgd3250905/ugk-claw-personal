@@ -12,6 +12,13 @@
 
 ## 2026-04-29
 
+### 飞书接入测试通过与代码整理
+- 日期：2026-04-29
+- 主题：完成飞书动态绑定用户验收留存：Web 动态保存 App ID / App Secret、worker 自动重连和测试消息已通过实测。代码整理时清理未使用的 `FeishuSettingsStore.getVersion()`，并修复 worker 启动失败后的重试语义：WebSocket subscription 只有 `start()` 成功后才确认配置签名，临时失败不会让同一份配置被跳过。
+- 影响范围：只影响飞书 worker 的失败重试韧性、飞书动态配置文档和接手索引；不改变 current conversation mode、不恢复 HTTP webhook、不增加第二套 agent runtime。同步更新 `AGENTS.md` 与 `docs/traceability-map.md`，移除已不存在的 `src/routes/feishu.ts` 路标。
+- 验证记录：用户飞书测试通过；本地 `npx tsc --noEmit`、`npm test` 全量通过，结果为 `447 pass`。
+- 对应入口：`src/workers/feishu-worker.ts`、`src/integrations/feishu/settings-store.ts`、`test/feishu-ws-subscription.test.ts`、`docs/runtime-assets-conn-feishu.md`、`docs/traceability-map.md`、`AGENTS.md`
+
 ### 飞书动态凭据空白字符校验
 - 日期：2026-04-29
 - 主题：定位飞书 App ID / App Secret 修改“没生效”的真实原因：动态配置已经写入并触发 worker 重连，但保存的 App ID 中混入空白字符，导致飞书 WebSocket 连接失败。后端保存接口新增凭据空白字符校验，拒绝包含空格、换行或制表符的 `appId` / `appSecret`，避免把明显无效的飞书凭据写入运行态配置。
