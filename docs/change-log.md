@@ -12,6 +12,60 @@
 
 ## 2026-04-30
 
+### Playground UI 细节修复
+- 日期：2026-04-30
+- 主题：修复 composer textarea 与外框背景色差、桌面端 markdown 表格长文本不换行、浅色主题代码块 toolbar / language 背景不一致，以及桌面 chat stage 上下文用量按钮位置漂移。
+- 影响范围：影响 playground 桌面端消息渲染、代码块浅色主题展示、composer 输入区和 topbar 上下文用量入口；手机端既有 topbar 与 composer 覆盖规则保持独立，不改后台任务、聊天接口或会话状态逻辑。补充页面输出断言锁住这些 CSS 约束。
+- 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`
+
+### 项目级 subagent 使用技能
+- 日期：2026-04-30
+- 主题：新增项目级 `subagent-usage` skill，明确 `worker`、`scout`、`planner`、`reviewer` 四类子代理的用途、single / parallel / chain 调用场景，以及禁止使用不存在的 `default` 子代理。
+- 影响范围：影响前台 chat agent 与后台 conn agent 在触发 subagent、并行分派、多平台检索、链式实现 / 评审时的默认指引；不改变 `subagent` 扩展参数、子代理定义或执行实现。补充测试确保该 skill 会被项目白名单加载。
+- 对应入口：`.pi/skills/subagent-usage/SKILL.md`、`test/agent-session-factory.test.ts`
+
+### 后台任务恢复项目级扩展加载
+- 日期：2026-04-30
+- 主题：修复后台 conn 任务创建 agent session 时用运行 workspace 作为 ResourceLoader 项目根的问题。后台任务现在仍在隔离 workspace 中执行命令，但扩展、项目 settings 和项目级工具加载回到真实项目根，避免 `subagent`、`conn`、`send_file`、`asset_store` 和 `project_guard` 在后台任务中缺失。
+- 影响范围：影响 `conn-worker` 创建的后台 agent session 可用工具清单；不改变后台任务执行目录、workspace 隔离、模型选择、skill 白名单或 run 存储结构。新增回归测试覆盖“workspace 没有 `.pi/settings.json` 时仍加载项目扩展”的场景。
+- 对应入口：`src/workers/conn-worker.ts`、`test/conn-worker.test.ts`
+
+### 双云 SSH alias 接手口径固化
+- 日期：2026-04-30
+- 主题：补齐阿里云无密码 SSH key alias，并把双云标准登录入口写入运维文档；后续腾讯云统一使用 `ugk-claw-prod`，阿里云统一使用 `ugk-claw-aliyun`，`server:ops` 脚本不再裸连 IP 触发密码交互。
+- 影响范围：影响生产服务器接手、`npm run server:ops -- <tencent|aliyun> <preflight|deploy|verify>` 的 SSH 连接方式，以及阿里云密码文件的长期使用口径；`ssh-key.txt`、`*-config.txt` 这类本地密码文件不应提交，也不应作为默认运维入口。
+- 对应入口：`scripts/server-ops.mjs`、`docs/server-ops.md`、`docs/server-ops-quick-reference.md`、`docs/aliyun-ecs-deploy.md`
+
+### 模型默认配置读取忽略注释残留
+- 日期：2026-04-30
+- 主题：修复 `.pi/settings.json` 中已注释或删除的 `defaultProvider` / `defaultModel` 文本仍被正则读取的问题，避免下架后的 `deepseek-v4-flash` 这类残留字符串在模型设置弹窗、subagent 默认模型或后台任务默认模型链路中被误当成有效配置。
+- 影响范围：`/v1/model-config`、`resolveProjectDefaultModelContext()`、subagent 默认 provider/model 继承、后台 conn 未显式指定任务级模型时的项目默认模型解析；保存默认模型时只替换真实 JSON 属性，不再改写注释里的旧字段。后台 worker 对历史 `deepseek-v4-flash` 快照迁移到 `deepseek-v4-pro` 的兼容 alias 保持不变。
+- 对应入口：`src/agent/settings-json.ts`、`src/agent/model-config.ts`、`src/agent/agent-session-factory.ts`、`test/model-config.test.ts`、`test/agent-session-factory.test.ts`
+
+### 文档决策树补齐 runtime debug 入口
+- 日期：2026-04-30
+- 主题：把 `GET /v1/debug/runtime` 补入最高规则、README、追溯地图和 server ops 文档，让运行态挂载与公开配置排查有统一入口。
+- 影响范围：文档层面明确 `/healthz` 只证明进程存活，运行态边界看 `/v1/debug/runtime`；云端发布仍以 `server:ops` 为默认入口，单云长手册继续作为深度排障材料。
+- 对应入口：`AGENTS.md`、`README.md`、`docs/server-ops.md`、`docs/server-ops-quick-reference.md`、`docs/traceability-map.md`
+
+### Playground 恢复链路回归测试补强
+- 日期：2026-04-30
+- 主题：补强 playground 刷新恢复、历史分页和 active run 续订相关回归断言，锁住同会话同 state signature 不重绘、用户离底阅读不强制滚动、历史 prepend 不清空现有消息，以及 active run 文案继续使用“当前正在运行”。
+- 影响范围：本次只补测试，不改变 playground 运行逻辑；后续如果有人把恢复链路改回全量重绘、强制滚底或旧“上一轮仍在运行”文案，测试会直接拦住。
+- 对应入口：`test/playground-conversation-state-controller.test.ts`、`test/playground-history-pagination-controller.test.ts`、`test/playground-conversation-sync-controller.test.ts`、`test/server.test.ts`
+
+### 运行时诊断接口与发布验收接入
+- 日期：2026-04-30
+- 主题：新增只读 `GET /v1/debug/runtime`，并把它接入 `npm run server:ops -- <tencent|aliyun> <preflight|deploy|verify>` 的固定验收链路。
+- 影响范围：接口会检查 agent data、session、skills、conn SQLite 等运行态目录，并只返回 `PUBLIC_BASE_URL`、`WEB_ACCESS_BROWSER_PROVIDER`、`WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 这类非敏感公开配置；`server:ops` 会打印 runtime debug 的 `ok` 与 failed check 名称，任一检查失败就中止验收。
+- 对应入口：`src/routes/runtime-debug.ts`、`src/server.ts`、`src/types/api.ts`、`scripts/server-ops.mjs`、`test/runtime-debug.test.ts`、`test/server-ops-script.test.ts`、`README.md`、`docs/server-ops.md`、`docs/server-ops-quick-reference.md`、`docs/traceability-map.md`
+
+### 服务器运维脚本硬闸门加固
+- 日期：2026-04-30
+- 主题：强化 `npm run server:ops -- <tencent|aliyun> <preflight|deploy|verify>` 的生产发布检查，把 shared agent data、容器内 agent data 挂载、direct CDP provider 和 sidecar CDP 探针纳入固定闸门。
+- 影响范围：`server:ops` 现在除原有 Git clean、compose config、内外网 `/healthz`、skills 清单和 `/v1/debug/skills` 外，还会检查 `UGK_AGENT_DATA_DIR` 是否指向 shared `.data/agent`、`/app/.data/agent` 是否可写、`WEB_ACCESS_BROWSER_PROVIDER` 是否为 `direct_cdp`，以及 `ugk-pi-browser` 本机 `9222` 和 app 容器到 `172.31.250.10:9223` 的 CDP 连通性；deploy 后仍固定重启 nginx。
+- 对应入口：`scripts/server-ops.mjs`、`test/server-ops-script.test.ts`、`docs/server-ops.md`、`docs/server-ops-quick-reference.md`
+
 ### 文档入口去噪与历史快照降级
 - 日期：2026-04-30
 - 主题：整理项目文档入口，把当前运维入口收口到 `docs/server-ops.md`，将 `docs/handoff-current.md` 和 `docs/playground-runtime-refactor-summary-2026-04-22.md` 明确标记为历史快照，避免后续 agent 把过期交接事实、archive 发布记录或旧 playground runtime 总结当作当前指令。
