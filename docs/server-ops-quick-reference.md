@@ -24,6 +24,7 @@
 ### 阿里云 ECS
 
 - 服务器：`root@101.37.209.54`
+- SSH 别名：`ssh ugk-claw-aliyun`
 - 代码目录：`/root/ugk-claw-repo`
 - shared 运行态目录：`/root/ugk-claw-shared`
 - 生产 compose：`docker-compose.prod.yml`
@@ -86,7 +87,7 @@ git pull --ff-only gitee main
 ### 阿里云增量更新规范
 
 - 目标：`root@101.37.209.54`
-- 登录：`ssh root@101.37.209.54`
+- 登录：`ssh ugk-claw-aliyun`
 - 代码目录：`/root/ugk-claw-repo`
 - shared 目录：`/root/ugk-claw-shared`
 - 公网健康检查：`http://101.37.209.54:3000/healthz`
@@ -129,10 +130,33 @@ git pull --ff-only gitee main
 - 本地没提交、没推送，就不要让服务器 pull。服务器不是你的草稿箱。
 - `.env`、API key、`.data/agent`、`.data/chrome-sidecar`、日志、tar 包和临时报告都不属于 Git 仓库。
 - 生产用户技能不要再依赖 clean Git 工作目录里的 `runtime/skills-user`。`docker-compose.prod.yml` 支持 `UGK_RUNTIME_SKILLS_USER_DIR`，腾讯云固定指向 `~/ugk-claw-shared/runtime/skills-user`，阿里云固定指向 `/root/ugk-claw-shared/runtime/skills-user`；把用户态技能继续放 repo 目录里，就是等下一次 clean checkout 把它们请走。
+- agent 会话、session、资产和 conn 数据必须通过 `UGK_AGENT_DATA_DIR` 指到 shared agent data：腾讯云固定是 `~/ugk-claw-shared/.data/agent`，阿里云固定是 `/root/ugk-claw-shared/.data/agent`。少了这条，重建容器就等于把用户历史押在容器可写层上，听起来就已经够离谱。
 - 改到 `Dockerfile`、`package*.json`、`docker-compose.prod.yml`、`deploy/nginx/default.conf`、`src/`、`runtime/skills-user/` 这类运行路径，默认重建容器；纯文档改动可以只 pull，不必重建。
 - `up --build -d` 重建 `ugk-pi` 后固定 `restart nginx`。nginx 会在启动时解析 `proxy_pass http://ugk-pi:3000`，app 容器重建后 IP 可能变化；如果 nginx 不重启，公网会 502，但 nginx 容器里直接访问 `http://ugk-pi:3000/healthz` 仍然是好的，这个现象非常会骗人。
 - 改过 nginx 配置或公网 `502` 但 app 容器内部健康时，优先 `restart nginx`；如果配置文件也改了，再 `up -d --force-recreate nginx`，别绕一圈怀疑模型、网络和玄学。
-- 发布后至少确认：`git log -1 --oneline`、`git status --short` 为空、内网 `/healthz`、公网 `/healthz`、`docker compose ps`。
+- 发布后至少确认：`git log -1 --oneline`、`git status --short` 为空、内网 `/healthz`、公网 `/healthz`、`docker compose ps`、`UGK_AGENT_DATA_DIR`、`UGK_RUNTIME_SKILLS_USER_DIR`、`/app/.data/agent` 可写、`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`、sidecar `9222/9223` CDP 探针。
+
+## server:ops 当前硬闸门
+
+日常不要手工拼这些检查，优先跑：
+
+```bash
+npm run server:ops -- tencent preflight
+npm run server:ops -- aliyun preflight
+```
+
+脚本现在会检查：
+
+- 远端 Git 工作树必须干净，dirty 直接停止。
+- `UGK_RUNTIME_SKILLS_USER_DIR` 必须指向 shared skills。
+- `UGK_AGENT_DATA_DIR` 必须指向 shared agent data。
+- `/app/.data/agent` 在 app 容器内必须存在且可写。
+- `WEB_ACCESS_BROWSER_PROVIDER` 必须是 `direct_cdp`。
+- `ugk-pi-browser` 内部 `127.0.0.1:9222/json/version` 必须可达。
+- `ugk-pi` 到 `172.31.250.10:9223/json/version` 必须可达。
+- 内网 / 公网 `/healthz`、`/v1/debug/skills`、`/v1/debug/runtime` 和容器内 skills 清单必须通过。
+
+如果这里失败，先按失败 section 排查，不要绕回旧手工命令。脚本都告诉你哪根线断了，还去历史聊天里翻命令，属于自找麻烦。
 
 ## 登录
 
@@ -149,7 +173,7 @@ ssh ubuntu@43.134.167.179
 阿里云：
 
 ```bash
-ssh root@101.37.209.54
+ssh ugk-claw-aliyun
 ```
 
 ## 固定增量发布流程（先选目标云）
@@ -206,7 +230,7 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 阿里云构建必须在 `/root/ugk-claw-shared/compose.env` 中保留 `APT_MIRROR_HOST=mirrors.aliyun.com`。`Dockerfile` 会把 Debian apt 源切到该 mirror；不要再让生产 build 卡在默认 `deb.debian.org` 上干等，等它恢复不叫运维，叫许愿。
 
 ```bash
-ssh root@101.37.209.54
+ssh ugk-claw-aliyun
 cd /root/ugk-claw-repo
 git fetch origin main
 git status --short
@@ -486,7 +510,7 @@ https://127.0.0.1:13901/
 阿里云 sidecar GUI：
 
 ```bash
-ssh -L 13902:127.0.0.1:3901 root@101.37.209.54
+ssh -L 13902:127.0.0.1:3901 ugk-claw-aliyun
 ```
 
 本机打开：

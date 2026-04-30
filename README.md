@@ -114,6 +114,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 - `GET /healthz`
 - `GET /playground`
 - `GET /v1/debug/skills`
+- `GET /v1/debug/runtime`
 
 聊天与会话：
 

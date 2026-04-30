@@ -6,6 +6,18 @@
 
 如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops.md](./server-ops.md)；阿里云当前固定口径已经切换为 Git 工作目录更新，优先 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。archive 小包只作为双远端都不可用时的兜底。
 
+## 2026-04-30 阿里云 SSH key alias 配置记录
+
+阿里云已经补齐本机无密码 SSH 入口：`C:\Users\29485\.ssh\config` 中新增 `Host ugk-claw-aliyun`，指向 `root@101.37.209.54`，使用本机私钥 `C:\Users\29485\.ssh\id_ed25519_ugk_claw_aliyun`。对应公钥已追加到服务器 `/root/.ssh/authorized_keys`。
+
+后续接手和自动化脚本统一使用：
+
+```bash
+ssh ugk-claw-aliyun
+```
+
+`scripts/server-ops.mjs` 也已改为使用 `ugk-claw-aliyun`，因此 `npm run server:ops -- aliyun preflight/deploy/verify` 不应再依赖密码文件或交互式密码提示。项目根目录里的 `ssh-key.txt`、`*-config.txt` 这类本地密码文件不要提交，也不要当成长期运维入口；它们只能算临时拐杖，长期靠它就是给自己找麻烦。
+
 ## 2026-04-29 小米 MiMo 模型源增量发布记录
 
 这是 Git 工作目录迁移前的历史发布记录，保留用于追溯当时为什么用了 archive。不要把本节当成现在的默认发布流程。
@@ -53,6 +65,7 @@ APT_MIRROR_HOST=mirrors.aliyun.com
 - 云厂商：阿里云 ECS
 - 公网 IP：`101.37.209.54`
 - SSH 用户：`root`
+- SSH 别名：`ugk-claw-aliyun`
 - 系统镜像：Ubuntu `22.04.5 LTS`
 - 磁盘：系统盘约 `40G`
 - 内存：约 `7.2Gi`
@@ -211,7 +224,7 @@ TZ=Asia/Shanghai
 登录：
 
 ```bash
-ssh root@101.37.209.54
+ssh ugk-claw-aliyun
 ```
 
 查看状态：
@@ -299,7 +312,7 @@ docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f do
 通过 SSH tunnel 打开：
 
 ```bash
-ssh -L 13902:127.0.0.1:3901 root@101.37.209.54
+ssh -L 13902:127.0.0.1:3901 ugk-claw-aliyun
 ```
 
 本机浏览器打开：

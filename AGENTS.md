@@ -21,6 +21,7 @@ This file provides the highest-level working rules for AI coding agents in this 
   - `references/pi-mono/packages/coding-agent/docs/settings.md`
   - `references/pi-mono/AGENTS.md`
   - `GET /v1/debug/skills`
+  - `GET /v1/debug/runtime`
 - `references/pi-mono/` 是官方参考镜像，不是业务源码目录；除非用户明确要求，不要改它。
 
 ## 2. 项目边界
@@ -163,6 +164,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
 - 阿里云当前主部署目录是 `/root/ugk-claw-repo`，已迁移为 Git 工作目录；旧的 archive 目录 `/root/ugk-claw-repo-pre-git-*` 只用于回滚和比对，不是默认更新入口。
 - 两台服务器都已经配置 `origin` GitHub 和 `gitee` 备用 remote；常规发布默认走 Git fast-forward，不要再默认打包上传。服务器增量更新优先使用 `npm run server:ops -- <tencent|aliyun> <preflight|deploy|verify>`；读文档按 `docs/server-ops.md` -> `docs/server-ops-quick-reference.md` -> 单云长手册的顺序渐进披露。
+- 发布验收不要只看 `/healthz`。需要确认运行态挂载、session、skills、conn SQLite 和公开 URL / browser provider 时查 `GET /v1/debug/runtime`；服务器脚本已经把它纳入硬闸门。
 - 腾讯云增量更新锚点：`ssh ugk-claw-prod` / `~/ugk-claw-repo` / `~/ugk-claw-shared` / `http://43.134.167.179:3000/healthz`。阿里云增量更新锚点：`root@101.37.209.54` / `/root/ugk-claw-repo` / `/root/ugk-claw-shared` / `http://101.37.209.54:3000/healthz`。
 - 增量更新禁区：不要 `git reset --hard`，不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、key、tar 包、runtime 报告或服务器 `.data`，不要在服务器 `git status --short` 非空时继续 pull；先备份/保全现场，再决定怎么收口。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
@@ -220,7 +222,9 @@ This file provides the highest-level working rules for AI coding agents in this 
 ### E 场景：查技能加载、查看技能、运行时真实技能清单
 
 - `GET /v1/debug/skills`
+- `GET /v1/debug/runtime`
 - `src/routes/chat.ts`
+- `src/routes/runtime-debug.ts`
 - `.pi/skills/`
 - `runtime/skills-user/`
 - `docs/web-access-browser-bridge.md`（查 web-access / x-search-latest / 浏览器登录态时先看这里）

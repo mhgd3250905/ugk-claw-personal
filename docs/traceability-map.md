@@ -52,7 +52,7 @@
 
 - 腾讯云当前主目录是 `~/ugk-claw-repo`，shared 运行态目录是 `~/ugk-claw-shared`；旧的 `~/ugk-pi-claw` 只用于回滚和比对，别在错误目录里更新完了还以为自己部署成功。
 - 阿里云 ECS 当前公网入口是 `http://101.37.209.54:3000/playground`，主目录是 `/root/ugk-claw-repo`，shared 目录是 `/root/ugk-claw-shared`；截至 `2026-04-29` 已迁移为 Git 工作目录，后续默认走 `git pull --ff-only`，不要再默认 archive 上传。
-- 两台服务器的用户 skills 都属于 shared 运行态：腾讯云 `~/ugk-claw-shared/runtime/skills-user`，阿里云 `/root/ugk-claw-shared/runtime/skills-user`；排查技能丢失先看 `UGK_RUNTIME_SKILLS_USER_DIR` 和 `GET /v1/debug/skills`。
+- 两台服务器的用户 skills 都属于 shared 运行态：腾讯云 `~/ugk-claw-shared/runtime/skills-user`，阿里云 `/root/ugk-claw-shared/runtime/skills-user`；排查技能丢失先看 `UGK_RUNTIME_SKILLS_USER_DIR` 和 `GET /v1/debug/skills`。排查运行态挂载、session、conn SQLite 和公开配置时看 `GET /v1/debug/runtime`。
 - 如果这次 `/init` 还要接手 `playground` 前端，先读 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)；当前手机端是单独重写的移动展示层，不要按桌面端缩略版理解
 - 如果这次还要接着改 `playground` runtime，而不是只看当前 UI 口径，再补读 [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)；这轮 controller / renderer / sync ownership / stream lifecycle 是怎么收口的，都在那里，别重复考古
 - 如果这次目标是直接发布或接线上盘，优先读 [docs/server-ops.md](/E:/AII/ugk-pi/docs/server-ops.md) 和 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)；[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md) 只是历史交接快照，别再拿旧 tag 当新基线。
@@ -198,11 +198,13 @@
 先看：
 
 1. `GET /v1/debug/skills`
-2. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-3. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
-4. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
-5. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
-6. [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
+2. `GET /v1/debug/runtime`
+3. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+4. [src/routes/runtime-debug.ts](/E:/AII/ugk-pi/src/routes/runtime-debug.ts)
+5. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
+6. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
+7. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+8. [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
 
 如果问题跟以下内容有关，直接进 web-access 专题文档，不要在别的地方绕：
 
@@ -275,10 +277,11 @@
 6. [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)
 7. [docs/server-ops.md](/E:/AII/ugk-pi/docs/server-ops.md)
 8. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
-9. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
-10. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
-11. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
-12. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
+9. [src/routes/runtime-debug.ts](/E:/AII/ugk-pi/src/routes/runtime-debug.ts)
+10. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
+11. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
+12. [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+13. [runtime/screenshot-mobile.mjs](/E:/AII/ugk-pi/runtime/screenshot-mobile.mjs)
 
 适用问题：
 
@@ -290,6 +293,7 @@
 - `PUBLIC_BASE_URL` 不对
 - sidecar Chrome 打开本地 HTML 时访问到 `127.0.0.1:3000` 造成 404
 - `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 没有指向 `http://ugk-pi:3000`
+- `/v1/debug/runtime` 返回 `ok=false` 或列出 failed check
 
 ## I. Realtime Notification Broadcast
 

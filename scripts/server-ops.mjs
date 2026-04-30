@@ -3,18 +3,20 @@ import { spawnSync } from "node:child_process";
 
 const TARGETS = {
   tencent: {
-    ssh: "ubuntu@43.134.167.179",
+    ssh: "ugk-claw-prod",
     repoDir: "~/ugk-claw-repo",
     sharedDir: "~/ugk-claw-shared",
     publicHealthz: "http://43.134.167.179:3000/healthz",
+    agentDataDir: "/home/ubuntu/ugk-claw-shared/.data/agent",
     skillsDir: "/home/ubuntu/ugk-claw-shared/runtime/skills-user",
     ansi: "",
   },
   aliyun: {
-    ssh: "root@101.37.209.54",
+    ssh: "ugk-claw-aliyun",
     repoDir: "/root/ugk-claw-repo",
     sharedDir: "/root/ugk-claw-shared",
     publicHealthz: "http://101.37.209.54:3000/healthz",
+    agentDataDir: "/root/ugk-claw-shared/.data/agent",
     skillsDir: "/root/ugk-claw-shared/runtime/skills-user",
     ansi: "COMPOSE_ANSI=never ",
   },
@@ -48,13 +50,25 @@ const target = TARGETS[targetName];
 
 function remoteScriptFor(selectedAction) {
   const compose = `docker compose --env-file ${target.sharedDir}/compose.env -p ugk-pi-claw -f docker-compose.prod.yml`;
-  const envVarCheck = `grep -qx 'UGK_RUNTIME_SKILLS_USER_DIR=${target.skillsDir}' ${target.sharedDir}/compose.env`;
+  const composeExec = (service, command) => `${compose} exec -T ${service} sh -lc "${command}"`;
+  const guardEnvEquals = (name, value) => `grep -qx '${name}=${value}' ${target.sharedDir}/compose.env`;
+  const skillsEnvCheck = guardEnvEquals("UGK_RUNTIME_SKILLS_USER_DIR", target.skillsDir);
+  const agentDataEnvCheck = guardEnvEquals("UGK_AGENT_DATA_DIR", target.agentDataDir);
   const listSkills = `find /app/runtime/skills-user -maxdepth 2 -name SKILL.md -printf '%h\\\\n' | sort`;
   const verify = [
     "printf '== compose env guard ==\\n'",
-    `${envVarCheck} || { echo 'UGK_RUNTIME_SKILLS_USER_DIR is missing or wrong' >&2; exit 12; }`,
+    `${skillsEnvCheck} || { echo 'UGK_RUNTIME_SKILLS_USER_DIR is missing or wrong' >&2; exit 12; }`,
+    `${agentDataEnvCheck} || { echo 'UGK_AGENT_DATA_DIR is missing or wrong' >&2; exit 13; }`,
     "printf '== compose ps ==\\n'",
     `${compose} ps`,
+    "printf '== app data mount ==\\n'",
+    `${composeExec("ugk-pi", "test -d /app/.data/agent && test -w /app/.data/agent")}`,
+    "printf '== browser provider ==\\n'",
+    `${composeExec("ugk-pi", "printenv WEB_ACCESS_BROWSER_PROVIDER | grep -qx direct_cdp")}`,
+    "printf '== sidecar cdp local ==\\n'",
+    `${composeExec("ugk-pi-browser", "curl -fsS http://127.0.0.1:9222/json/version >/dev/null")}`,
+    "printf '== sidecar cdp from app ==\\n'",
+    `${composeExec("ugk-pi", "curl -fsS http://172.31.250.10:9223/json/version >/dev/null")}`,
     "printf '== local health ==\\n'",
     "curl -fsS http://127.0.0.1:3000/healthz",
     "printf '\\n== public health ==\\n'",
@@ -63,6 +77,18 @@ function remoteScriptFor(selectedAction) {
     `${compose} exec -T ugk-pi sh -lc "${listSkills}"`,
     "printf '== debug skills source ==\\n'",
     "curl -fsS http://127.0.0.1:3000/v1/debug/skills | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get(\"source\", \"unknown\")); print(\"skills=\" + str(len(d.get(\"skills\", []))))'",
+    "printf '== runtime debug ==\\n'",
+    "curl -fsS http://127.0.0.1:3000/v1/debug/runtime >/tmp/ugk-runtime-debug.json",
+    "python3 - /tmp/ugk-runtime-debug.json <<'PY'",
+    "import json",
+    "import sys",
+    "with open(sys.argv[1], encoding='utf-8') as handle:",
+    "    data = json.load(handle)",
+    "failed = [check.get('name', 'unknown') for check in data.get('checks', []) if not check.get('ok')]",
+    "print('ok=' + str(bool(data.get('ok'))).lower())",
+    "print('failed=' + ','.join(failed))",
+    "sys.exit(1 if failed or not data.get('ok') else 0)",
+    "PY",
   ];
 
   const preflight = [
@@ -81,6 +107,7 @@ function remoteScriptFor(selectedAction) {
     `test -d ${target.sharedDir}/.data/agent`,
     `test -d ${target.sharedDir}/.data/chrome-sidecar`,
     `test -d ${target.skillsDir}`,
+    `test -d ${target.agentDataDir}`,
     "printf '== compose config ==\\n'",
     `${compose} config --quiet`,
     ...verify,

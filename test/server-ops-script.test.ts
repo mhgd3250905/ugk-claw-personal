@@ -27,5 +27,5 @@ test("server ops script protects shared runtime state during deploys", () => {
 	assert.match(script, /\/v1\/debug\/runtime/);
 	assert.match(script, /runtime debug/);
 	assert.match(script, /failed=/);
-	assert.match(script, /sys\.exit\(1 if failed or not d\.get/);
+	assert.match(script, /sys\.exit\(1 if failed or not data\.get/);
 });
