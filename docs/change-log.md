@@ -12,6 +12,12 @@
 
 ## 2026-04-30
 
+### 双云生产环境增量更新到 `4dad21c`
+- 日期：2026-04-30
+- 主题：把腾讯云新加坡与阿里云 ECS 生产环境增量更新到 `4dad21c fix: migrate deprecated deepseek flash background model`，上线后台任务 DeepSeek Flash 历史快照定向迁移。
+- 影响范围：腾讯云从 `9420e24` fast-forward 到 `4dad21c` 并重建 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`；阿里云从 `921df49` fast-forward 到 `4dad21c`，保全服务器本地 `runtime/skills-user/web-access/scripts/local-cdp-browser.mjs` 热改 diff 到 `/root/ugk-claw-shared/backups/local-cdp-browser-pre-4dad21c-20260430-110018.patch` 后重建应用容器，遇到 nginx `502` 后按 runbook 强制重建 nginx 恢复。两边公网 `/healthz` 最终均返回 `{"ok":true}`。
+- 对应入口：`src/workers/conn-worker.ts`、`docs/server-ops-quick-reference.md`、`docs/aliyun-ecs-deploy.md`、`docs/tencent-cloud-singapore-deploy.md`
+
 ### 后台任务 DeepSeek Flash 历史快照兼容
 - 日期：2026-04-30
 - 主题：修复下架 `deepseek-v4-flash` 后，旧 conn / 后台任务快照仍引用 `deepseek-anthropic/deepseek-v4-flash` 导致 worker 报 `Background agent model not found` 的问题。
