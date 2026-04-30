@@ -474,6 +474,9 @@ export function getPlaygroundAssetControllerScript(): string {
 			assetModal.classList.add("open");
 			assetModal.setAttribute("aria-hidden", "false");
 			renderAssetPickerList();
+			openWorkspacePanel("assets", assetModal, {
+				forceOverlay: options?.target === "connEditor" || options?.mode !== "workspace",
+			});
 		}
 
 		function closeAssetLibrary() {
@@ -484,6 +487,7 @@ export function getPlaygroundAssetControllerScript(): string {
 			assetModal.classList.remove("open");
 			assetModal.hidden = true;
 			assetModal.setAttribute("aria-hidden", "true");
+			closeWorkspacePanel("assets", assetModal);
 		}
 
 		function selectAssetForReuse(assetId) {
@@ -829,6 +833,7 @@ export function getPlaygroundAssetEventHandlersScript(): string {
 		bindDropTarget(dropZone);
 
 		filePickerAction.addEventListener("click", () => {
+			setDesktopFileMenuOpen(false);
 			fileInput.click();
 		});
 
@@ -842,7 +847,12 @@ export function getPlaygroundAssetEventHandlersScript(): string {
 		});
 
 		openAssetLibraryButton.addEventListener("click", () => {
-			openAssetLibrary(openAssetLibraryButton);
+			setDesktopFileMenuOpen(false);
+			toggleWorkspacePanel(
+				"assets",
+				() => openAssetLibrary(openAssetLibraryButton, { mode: "workspace" }),
+				closeAssetLibrary,
+			);
 		});
 
 		closeAssetModalButton.addEventListener("click", () => {

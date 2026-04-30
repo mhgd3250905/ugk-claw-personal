@@ -86,9 +86,7 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] .landing-side-right {
 			border-color: rgba(31, 95, 200, 0.12);
-			background:
-				linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(232, 240, 255, 0.78)),
-				#ffffff;
+			background: #ffffff;
 			box-shadow: none;
 		}
 

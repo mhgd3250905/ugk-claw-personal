@@ -1,6 +1,6 @@
 # Playground 当前状态
 
-更新时间：`2026-04-29`
+更新时间：`2026-04-30`
 
 ## 运行时外部化模式
 
@@ -12,6 +12,19 @@
 - 运行时 agent 通过项目级 skill `.pi/skills/playground-runtime-ui/SKILL.md` 获得这套用法；用户要求修改 playground UI、浅色主题、消息气泡、composer、logo、移动端布局或零重启前端调试时，应先触发该 skill，再决定是临时改 `runtime/playground/extensions/custom-styles.css`，还是把正式修复落回 `src/ui/`。
 
 这份文档只记录当前 `playground` 的真实前端约束，避免下一个人又拿旧截图和过时口径瞎猜。
+
+## 2026-04-30 主工作区切换补充
+
+- 桌面端页面外层 padding 只由 `.shell` 统一提供，当前为 `22px 28px 26px`；左侧 `desktop-conversation-rail` 仍占满上下，左栏和右侧工作区之间保留 `16px` 间距。右侧 `topbar` 贴住右侧工作列顶部且不再自带外边距；右侧 `chat-stage` 不再叠加内部 padding，底部 `command-deck` / composer 宽度贴满右侧工作列并贴住可用底边。
+- 深色主题下桌面端 `chat-stage` 不再使用边框或深色渐变背景；它只是负责布局裁切，保持 `border: 0`、`border-radius: 4px`、`background: transparent` 和 `overflow: hidden`。贴底的 `command-deck` / composer 同样用 `4px` 圆角和 `overflow: hidden` 收口，避免输入区背景把 `chat-stage` 底部圆角盖成直角。
+- 桌面端 active 对话态的 `.stream-layout` 顶部 inset 为 `0`，对话消息列必须从 `chat-stage` 顶部开始占满背景框；`#transcript` 自身底部保留 `4px` 圆角，消息正文内部的 `message-body` padding 只作为内容排版留白，不再承担外层布局留白。
+- 桌面端 `topbar` 内的 `landing-side-right` 工具条使用和会话栏一致的扁平承载面：深色主题纯 `#080c14`，浅色主题纯 `#ffffff`，不要再叠 `linear-gradient` 做浮层效果。
+- 桌面端 `topbar` 的文件菜单不再靠纯 CSS `:hover` / `:focus-within` 控制；`desktop-file-menu` 使用 `data-open`、`aria-expanded`、外部点击和 `Escape` 统一管理打开状态，避免鼠标移向菜单时穿过空隙就关闭，或点击按钮后菜单被焦点状态锁死。
+- 桌面端 `chat-stage` 现在有统一 `data-workspace-mode="chat|assets|conn|task"`，由 `src/ui/playground-workspace-controller.ts` 负责切换、按钮激活态、桌面 / 移动断点分流和面板 DOM 放置；不要在资产库、后台任务或任务消息控制器里散写 `chatStage.dataset.workspaceMode`。
+- 桌面端点击 `项目文件`、`后台任务`、`任务消息` 时，主工作画布会切到对应 workspace，并临时把既有面板作为 `.workspace-contained` 放进 `chat-stage`；返回或再次点击当前入口会回到对话。对话流式运行不会因为 workspace 切换暂停。
+- 移动端继续沿用原来的全屏工作页：文件库、后台任务和任务消息仍按 `.asset-modal-shell.open`、`.conn-manager-dialog.open`、`.task-inbox-view.open` 的 `100dvh` 移动布局展示，不走桌面 workspace 内嵌布局。
+- `workspaceMode` 只是视图壳层；业务状态仍由 `state.assetModalOpen`、`state.connManagerOpen`、`state.taskInboxOpen` 管。资产加载继续走 `loadAssets()` / `renderAssetPickerList()`，任务消息继续走 `loadTaskInbox()`，后台任务继续走 `loadConnManager()`；不要新增绕过这些控制器的简化列表。
+- `conn-editor-dialog`、`conn-run-details-dialog`、确认弹窗、上下文详情和模型 / 飞书设置仍是二级 modal，不塞进主 workspace。后台任务编辑或查看 run 过程时，应保持原有焦点恢复、Escape 顺序和遮罩点击关闭逻辑。
 
 ## 2026-04-29 UI 收口补充
 
@@ -28,6 +41,7 @@
 - [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts)
 - [src/ui/playground-page-shell.ts](/E:/AII/ugk-pi/src/ui/playground-page-shell.ts)
 - [src/ui/playground-styles.ts](/E:/AII/ugk-pi/src/ui/playground-styles.ts)
+- [src/ui/playground-workspace-controller.ts](/E:/AII/ugk-pi/src/ui/playground-workspace-controller.ts)
 - [src/ui/playground-assets.ts](/E:/AII/ugk-pi/src/ui/playground-assets.ts)
 - [src/ui/playground-assets-controller.ts](/E:/AII/ugk-pi/src/ui/playground-assets-controller.ts)
 - [src/ui/playground-context-usage-controller.ts](/E:/AII/ugk-pi/src/ui/playground-context-usage-controller.ts)

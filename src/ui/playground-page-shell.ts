@@ -80,12 +80,12 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span>全新的记忆</span>
 						<strong id="command-status">新会话</strong>
 					</button>
-					<div class="desktop-file-menu">
-						<button class="telemetry-card telemetry-action desktop-file-menu-trigger" type="button">
+					<div id="desktop-file-menu" class="desktop-file-menu">
+						<button id="desktop-file-menu-trigger" class="telemetry-card telemetry-action desktop-file-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="desktop-file-menu-panel">
 							<span>文件或许更稳定</span>
 							<strong>文件</strong>
 						</button>
-						<div class="desktop-file-menu-panel" role="menu" aria-label="文件操作">
+						<div id="desktop-file-menu-panel" class="desktop-file-menu-panel" role="menu" aria-label="文件操作" hidden>
 							<button id="file-picker-action" class="telemetry-card telemetry-action" type="button" role="menuitem">
 								<span>文件或许更稳定</span>
 								<strong>上传文件</strong>
@@ -314,7 +314,7 @@ ${input.playgroundScript ?? ""}</script>`;
 				</div>
 			</aside>
 
-			<main id="chat-stage" class="chat-stage">
+			<main id="chat-stage" class="chat-stage" data-workspace-mode="chat">
 				<div class="chat-stage-watermark" aria-hidden="true">
 					${renderMobileSvgLogo("ugk-svg-logo-watermark", 240, 60, "")}
 					${renderAsciiLogo("ugk-ascii-logo-watermark")}

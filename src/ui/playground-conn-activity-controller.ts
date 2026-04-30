@@ -93,7 +93,7 @@ export function getConnActivityEditorScript(): string {
 			connRunDetailsBody.innerHTML = "";
 		}
 
-		function openConnManager(restoreFocusElement) {
+		function openConnManager(restoreFocusElement, options) {
 			state.connManagerOpen = true;
 			state.connManagerRestoreFocusElement = rememberPanelReturnFocus(
 				restoreFocusElement || openConnManagerButton,
@@ -102,6 +102,9 @@ export function getConnActivityEditorScript(): string {
 			connManagerDialog.classList.add("open");
 			connManagerDialog.setAttribute("aria-hidden", "false");
 			renderConnManager();
+			openWorkspacePanel("conn", connManagerDialog, {
+				forceOverlay: options?.mode !== "workspace",
+			});
 			void loadConnManager({ silent: false });
 		}
 
@@ -111,6 +114,7 @@ export function getConnActivityEditorScript(): string {
 			connManagerDialog.classList.remove("open");
 			connManagerDialog.hidden = true;
 			connManagerDialog.setAttribute("aria-hidden", "true");
+			closeWorkspacePanel("conn", connManagerDialog);
 		}
 
 		function openConnEditor(mode, conn, restoreFocusElement) {
@@ -1841,7 +1845,11 @@ export function getConnActivityEventHandlersScript(): string {
 		});
 
 		openConnManagerButton.addEventListener("click", () => {
-			openConnManager(openConnManagerButton);
+			toggleWorkspacePanel(
+				"conn",
+				() => openConnManager(openConnManagerButton, { mode: "workspace" }),
+				closeConnManager,
+			);
 		});
 
 		openConnEditorButton.addEventListener("click", () => {

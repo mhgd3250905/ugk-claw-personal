@@ -38,6 +38,7 @@ import {
 	getPlaygroundTaskInboxView,
 } from "./playground-task-inbox.js";
 import { getPlaygroundThemeControllerScript } from "./playground-theme-controller.js";
+import { getPlaygroundWorkspaceControllerScript } from "./playground-workspace-controller.js";
 import {
 	getBrowserMarkdownRendererScript,
 	getPlaygroundTranscriptRendererScript,
@@ -114,6 +115,7 @@ function getPlaygroundScript(): string {
 			loading: false,
 			theme: "dark",
 			stageMode: "landing",
+			workspaceMode: "chat",
 			conversationId: "",
 			streamingText: "",
 			activeAssistantContent: null,
@@ -137,6 +139,7 @@ function getPlaygroundScript(): string {
 			contextUsage: null,
 			contextUsageExpanded: false,
 			contextUsageSyncToken: 0,
+			desktopFileMenuOpen: false,
 			dragDepth: 0,
 			assetModalOpen: false,
 			taskInboxItems: [],
@@ -278,6 +281,9 @@ function getPlaygroundScript(): string {
 		const interruptButton = document.getElementById("interrupt-button");
 		const viewSkillsButton = document.getElementById("view-skills-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
+		const desktopFileMenu = document.getElementById("desktop-file-menu");
+		const desktopFileMenuTrigger = document.getElementById("desktop-file-menu-trigger");
+		const desktopFileMenuPanel = document.getElementById("desktop-file-menu-panel");
 		const openModelConfigButton = document.getElementById("open-model-config-button");
 		const modelConfigDialog = document.getElementById("model-config-dialog");
 		const modelConfigClose = document.getElementById("model-config-close");
@@ -347,6 +353,7 @@ function getPlaygroundScript(): string {
 		});
 
 		${getPlaygroundContextUsageControllerScript()}
+		${getPlaygroundWorkspaceControllerScript()}
 
 		${getConnActivityEditorScript()}
 
@@ -773,6 +780,42 @@ function getPlaygroundScript(): string {
 
 		${getPlaygroundProcessControllerScript()}
 
+		function setDesktopFileMenuOpen(open) {
+			const nextOpen = Boolean(open);
+			state.desktopFileMenuOpen = nextOpen;
+			desktopFileMenu.dataset.open = nextOpen ? "true" : "false";
+			desktopFileMenuTrigger.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+			desktopFileMenuPanel.hidden = !nextOpen;
+		}
+
+		function bindDesktopFileMenuController() {
+			setDesktopFileMenuOpen(false);
+			desktopFileMenu.addEventListener("mouseenter", () => {
+				setDesktopFileMenuOpen(true);
+			});
+			desktopFileMenu.addEventListener("mouseleave", () => {
+				setDesktopFileMenuOpen(false);
+			});
+			desktopFileMenuTrigger.addEventListener("click", (event) => {
+				event.stopPropagation();
+				setDesktopFileMenuOpen(!state.desktopFileMenuOpen);
+			});
+			document.addEventListener("pointerdown", (event) => {
+				if (!state.desktopFileMenuOpen) {
+					return;
+				}
+				if (!desktopFileMenu.contains(event.target)) {
+					setDesktopFileMenuOpen(false);
+				}
+			});
+			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape" && state.desktopFileMenuOpen) {
+					setDesktopFileMenuOpen(false);
+					desktopFileMenuTrigger.focus();
+				}
+			});
+		}
+
 		function bindPlaygroundAssemblerEvents() {
 			window.addEventListener("beforeunload", () => {
 				state.pageUnloading = true;
@@ -941,6 +984,8 @@ function getPlaygroundScript(): string {
 			bindPlaygroundLayoutController();
 			bindPlaygroundTranscriptRenderer();
 			bindPlaygroundStreamController();
+			bindPlaygroundWorkspaceController();
+			bindDesktopFileMenuController();
 			bindPlaygroundAssemblerEvents();
 		}
 

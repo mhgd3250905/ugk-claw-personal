@@ -536,6 +536,9 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			taskInboxView.setAttribute("aria-hidden", "false");
 			renderTaskInboxToggleState();
 			renderTaskInbox();
+			openWorkspacePanel("task", taskInboxView, {
+				forceOverlay: options?.mode !== "workspace",
+			});
 			if (!options?.skipRefresh) {
 				void loadTaskInbox({ silent: true });
 			}
@@ -553,6 +556,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			taskInboxView.classList.remove("open");
 			taskInboxView.hidden = true;
 			taskInboxView.setAttribute("aria-hidden", "true");
+			closeWorkspacePanel("task", taskInboxView);
 			renderTaskInboxToggleState();
 		}
 
@@ -1027,11 +1031,11 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 export function getPlaygroundTaskInboxEventHandlersScript(): string {
 	return `
 		openTaskInboxButton.addEventListener("click", () => {
-			if (state.taskInboxOpen) {
-				closeTaskInbox();
-				return;
-			}
-			openTaskInbox(openTaskInboxButton);
+			toggleWorkspacePanel(
+				"task",
+				() => openTaskInbox(openTaskInboxButton, { mode: "workspace" }),
+				closeTaskInbox,
+			);
 		});
 		mobileMenuTaskInboxButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();

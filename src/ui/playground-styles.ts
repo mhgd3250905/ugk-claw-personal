@@ -534,6 +534,75 @@ export function getPlaygroundStyles(): string {
 			z-index: 1;
 		}
 
+		.chat-stage[data-workspace-mode="assets"] .landing-screen,
+		.chat-stage[data-workspace-mode="assets"] .stream-layout,
+		.chat-stage[data-workspace-mode="assets"] .command-deck,
+		.chat-stage[data-workspace-mode="assets"] .chat-stage-watermark,
+		.chat-stage[data-workspace-mode="conn"] .landing-screen,
+		.chat-stage[data-workspace-mode="conn"] .stream-layout,
+		.chat-stage[data-workspace-mode="conn"] .command-deck,
+		.chat-stage[data-workspace-mode="conn"] .chat-stage-watermark,
+		.chat-stage[data-workspace-mode="task"] .landing-screen,
+		.chat-stage[data-workspace-mode="task"] .stream-layout,
+		.chat-stage[data-workspace-mode="task"] .command-deck,
+		.chat-stage[data-workspace-mode="task"] .chat-stage-watermark {
+			display: none !important;
+		}
+
+		.chat-stage > .workspace-contained {
+			position: absolute;
+			inset: 0;
+			z-index: 8;
+			width: 100%;
+			height: 100%;
+			padding: 0;
+			background: transparent;
+			backdrop-filter: none;
+		}
+
+		.chat-stage > .workspace-contained.open {
+			display: flex;
+			align-items: stretch;
+			justify-content: stretch;
+		}
+
+		.chat-stage[data-workspace-mode="assets"] > #asset-modal.workspace-contained,
+		.chat-stage[data-workspace-mode="conn"] > #conn-manager-dialog.workspace-contained,
+		.chat-stage[data-workspace-mode="task"] > #task-inbox-view.workspace-contained {
+			display: flex;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal,
+		.chat-stage > .workspace-contained .conn-manager-panel,
+		.chat-stage > .workspace-contained .task-inbox-pane {
+			position: relative;
+			inset: auto;
+			width: 100%;
+			height: 100%;
+			max-height: none;
+			margin: 0;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
+			box-shadow: none;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal::before {
+			display: none;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal-head,
+		.chat-stage > .workspace-contained .task-inbox-head {
+			position: sticky;
+			top: 0;
+			z-index: 2;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal-body,
+		.chat-stage > .workspace-contained .task-inbox-list {
+			min-height: 0;
+		}
+
 		.chat-meta {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
@@ -2806,6 +2875,13 @@ export function getPlaygroundStyles(): string {
 				padding: 0;
 			}
 
+			.workspace-contained {
+				position: fixed;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+			}
+
 			.shell {
 				height: 100vh;
 				border-left: 0;
@@ -2889,7 +2965,7 @@ export function getPlaygroundStyles(): string {
 			width: 100vw;
 			height: 100vh;
 			margin: 0;
-			padding: 14px 18px 18px;
+			padding: 22px 28px 26px;
 			border: 0;
 			border-radius: 4px;
 			background: transparent;
@@ -2897,7 +2973,7 @@ export function getPlaygroundStyles(): string {
 			backdrop-filter: none;
 			grid-template-rows: 64px minmax(0, 1fr);
 			grid-template-columns: 260px minmax(0, 1fr);
-			column-gap: 0;
+			column-gap: 16px;
 			row-gap: 0;
 			isolation: isolate;
 			--conversation-width: 760px;
@@ -2911,7 +2987,7 @@ export function getPlaygroundStyles(): string {
 			width: 100%;
 			min-height: 64px;
 			margin: 0;
-			padding: 12px 120px 12px 16px;
+			padding: 0 0 10px 0;
 			grid-template-columns: minmax(0, 1fr);
 			gap: 0;
 			align-items: center;
@@ -2928,16 +3004,16 @@ export function getPlaygroundStyles(): string {
 
 		.chat-stage {
 			position: relative;
+			display: grid;
+			grid-template-rows: minmax(0, 1fr) auto;
 			width: 100%;
 			min-width: 0;
 			min-height: 0;
 			margin: 0;
-			padding: 18px 22px 20px;
-			border: 1px solid rgba(201, 210, 255, 0.08);
-			border-radius: 6px;
-			background:
-				linear-gradient(180deg, rgba(11, 15, 25, 0.72), rgba(5, 8, 15, 0.86)),
-				rgba(5, 8, 15, 0.86);
+			padding: 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
 			box-shadow: none;
 			overflow: hidden;
 		}
@@ -2981,9 +3057,7 @@ export function getPlaygroundStyles(): string {
 			padding: 6px 96px 6px 8px;
 			border: 1px solid rgba(201, 210, 255, 0.1);
 			border-radius: 4px;
-			background:
-				linear-gradient(180deg, rgba(12, 17, 28, 0.92), rgba(7, 10, 18, 0.92)),
-				#080b12;
+			background: #080c14;
 			box-shadow: none;
 			transform: none;
 		}
@@ -3116,8 +3190,16 @@ export function getPlaygroundStyles(): string {
 			transition: opacity 120ms ease, transform 120ms ease;
 		}
 
-		.desktop-file-menu:hover .desktop-file-menu-panel,
-		.desktop-file-menu:focus-within .desktop-file-menu-panel {
+		.desktop-file-menu-panel::before {
+			content: "";
+			position: absolute;
+			left: 0;
+			right: 0;
+			top: -10px;
+			height: 10px;
+		}
+
+		.desktop-file-menu[data-open="true"] .desktop-file-menu-panel {
 			opacity: 1;
 			pointer-events: auto;
 			transform: translateY(0);
@@ -3133,11 +3215,12 @@ export function getPlaygroundStyles(): string {
 			position: relative;
 			z-index: 2;
 			flex-shrink: 0;
-			width: min(760px, 100%);
-			margin: 0 auto;
-			border-radius: 6px;
+			width: 100%;
+			margin: 0;
+			border-radius: 4px;
 			background: transparent;
 			box-shadow: none;
+			overflow: hidden;
 		}
 
 		.topbar-context-slot {
@@ -3270,7 +3353,7 @@ export function getPlaygroundStyles(): string {
 
 		.shell[data-stage-mode="landing"] .stream-layout {
 			position: absolute;
-			inset: 78px 34px var(--command-deck-offset, 166px) 34px;
+			inset: 78px 0 var(--command-deck-offset, 166px) 0;
 			display: flex;
 			align-items: center;
 			overflow: hidden;
@@ -3283,7 +3366,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"][data-transcript-state="active"] .stream-layout {
-			inset: 18px 34px var(--command-deck-offset, 166px) 34px;
+			inset: 0 0 var(--command-deck-offset, 166px) 0;
 			justify-content: flex-end;
 		}
 
@@ -3302,6 +3385,8 @@ export function getPlaygroundStyles(): string {
 
 		.shell[data-stage-mode="landing"] .transcript {
 			padding: 0 0 12px;
+			border-bottom-right-radius: 4px;
+			border-bottom-left-radius: 4px;
 		}
 
 		.shell[data-stage-mode="landing"] .command-deck {
@@ -3310,8 +3395,10 @@ export function getPlaygroundStyles(): string {
 			align-self: end;
 			align-content: end;
 			gap: 4px;
-			width: min(760px, 100%);
-			margin: 0 auto;
+			width: 100%;
+			margin: 0;
+			border-radius: 4px;
+			overflow: hidden;
 			z-index: 4;
 		}
 
@@ -3334,6 +3421,7 @@ export function getPlaygroundStyles(): string {
 				linear-gradient(90deg, rgba(101, 209, 255, 0.08), transparent 24%),
 				rgba(9, 12, 22, 0.96);
 			box-shadow: none;
+			overflow: hidden;
 			backdrop-filter: none;
 		}
 

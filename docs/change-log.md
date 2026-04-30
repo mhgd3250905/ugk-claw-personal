@@ -12,6 +12,24 @@
 
 ## 2026-04-30
 
+### Playground 桌面右侧布局贴边收口
+- 日期：2026-04-30
+- 主题：按“页面只保留外层统一 padding”的口径收口桌面布局，移除右侧 `topbar`、`chat-stage` 和底部 `command-deck` 的二次内缩，并增加页面外边距与左右栏间距。
+- 影响范围：左侧会话栏继续上下占满外层 padding 内可用高度；右侧 topbar 贴住工作列顶部和右边界，chat stage 不再叠加内部 padding，active 对话消息列从背景框顶部开始占满，底部 composer 通过 `command-deck` 贴住右侧工作列底边；topbar 工具条改为扁平纯色承载面，深浅主题都不再使用渐变浮层；深色 `chat-stage` 去掉边框和渐变背景，仅保留 `4px` 裁切圆角，`#transcript` 和贴底 `command-deck` / composer 同步裁切底部圆角。移动端全屏布局不变。
+- 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
+### Playground 桌面文件菜单状态修复
+- 日期：2026-04-30
+- 主题：修复桌面端 `topbar` 文件菜单 hover 穿过间隙即关闭、点击打开后因焦点状态无法自动消失的问题。
+- 影响范围：文件菜单改为 `data-open` / `aria-expanded` 驱动，由前端脚本统一处理 hover 打开、点击切换、外部点击关闭和 `Escape` 关闭；上传文件和项目文件入口点击后会主动收起菜单。移动端更多菜单不受影响。
+- 对应入口：`src/ui/playground-page-shell.ts`、`src/ui/playground.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-assets-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
+### Playground 桌面主工作区切换
+- 日期：2026-04-30
+- 主题：将桌面端 `项目文件`、`后台任务`、`任务消息` 收口为 `chat-stage` 内的 workspace mode，由专用 workspace controller 统一处理视图模式、按钮激活态、桌面 / 移动分流和面板放置。
+- 影响范围：桌面端点击三个入口时主工作画布切换为对应工作页，再次点击或返回按钮回到对话；移动端继续保留既有全屏工作页，资产、任务消息和后台任务仍复用原控制器与加载函数，不新增简化列表。`conn-editor`、run detail、确认框和设置弹窗仍作为二级 modal。
+- 对应入口：`src/ui/playground-workspace-controller.ts`、`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-assets-controller.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-conn-activity-controller.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ### Playground UI 细节修复
 - 日期：2026-04-30
 - 主题：修复 composer textarea 与外框背景色差、桌面端 markdown 表格长文本不换行、浅色主题代码块 toolbar / language 背景不一致，以及桌面 chat stage 上下文用量按钮位置漂移。
