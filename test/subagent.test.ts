@@ -153,6 +153,61 @@ test("buildSubagentCliArgs inherits default provider and model from the project 
 	assert.equal(args[modelIndex + 1], "glm-5");
 });
 
+test("buildSubagentCliArgs reads project model defaults from JSONC-style settings", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-subagent-jsonc-settings-"));
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		[
+			"{",
+			'  // "shellPath": "cmd.exe",',
+			'  "defaultProvider": "xiaomi-mimo-cn",',
+			'  "defaultModel": "mimo-v2.5-pro"',
+			"}",
+		].join("\n"),
+		"utf8",
+	);
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: {
+				"xiaomi-mimo-cn": {
+					apiKey: "XIAOMI_MIMO_API_KEY",
+					models: [{ id: "mimo-v2.5-pro", contextWindow: 1048576, maxTokens: 16384 }],
+				},
+			},
+		}),
+		"utf8",
+	);
+
+	const args = buildSubagentCliArgs({
+		projectRoot,
+		task: "Reply with exactly SUBAGENT_OK",
+	});
+
+	const providerIndex = args.indexOf("--provider");
+	const modelIndex = args.indexOf("--model");
+
+	assert.notEqual(providerIndex, -1);
+	assert.notEqual(modelIndex, -1);
+	assert.equal(args[providerIndex + 1], "xiaomi-mimo-cn");
+	assert.equal(args[modelIndex + 1], "mimo-v2.5-pro");
+});
+
+test("buildSubagentCliArgs omits unknown fallback model values", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-subagent-no-settings-"));
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+
+	const args = buildSubagentCliArgs({
+		projectRoot,
+		task: "Reply with exactly SUBAGENT_OK",
+	});
+
+	assert.equal(args.includes("--provider"), false);
+	assert.equal(args.includes("--model"), false);
+});
+
 test("buildSubagentSpawnOptions hides console windows on Windows", () => {
 	const options = buildSubagentSpawnOptions("E:/AII/ugk-pi", "win32");
 

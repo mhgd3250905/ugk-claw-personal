@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### Subagent 模型源继承修复
+- 日期：2026-04-30
+- 主题：修复 subagent 子进程默认模型源没有跟随 Web 模型设置的问题。subagent 参数生成不再直接用 pi 原生 `SettingsManager.create(projectRoot)` 读取带注释的 `.pi/settings.json`，改为复用项目已有的默认模型解析入口，并显式传递 `--provider` / `--model` 给子进程。
+- 影响范围：影响 `.pi/extensions/subagent` 启动子 agent 时的 provider/model 选择；不改变 subagent 工具白名单、skill 加载、并发策略、Web 主 agent 会话或后台 conn 模型策略。
+- 对应入口：`.pi/extensions/subagent/index.ts`、`test/subagent.test.ts`
+
 ### 飞书 /stop 打断指令
 - 日期：2026-04-30
 - 主题：飞书入站新增 `/stop` 控制命令，语义对齐 Web playground 的打断按钮，直接调用主服务 `POST /v1/chat/interrupt` 中断当前 Web 会话 active run。

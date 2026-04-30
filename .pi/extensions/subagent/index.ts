@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SettingsManager, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import {
 	discoverSubagents,
@@ -16,6 +16,7 @@ import {
 	getDefaultSystemSkillPath,
 	getDefaultUserSkillPath,
 	getProjectAgentDirPath as getProjectAgentDirPathFromSessionFactory,
+	resolveProjectDefaultModelContext,
 } from "../../../src/agent/agent-session-factory.js";
 
 const MAX_PARALLEL_TASKS = 8;
@@ -85,9 +86,9 @@ function resolveSubagentModelSelection(projectRoot: string, explicitModel?: stri
 	provider?: string;
 	model?: string;
 } {
-	const settings = SettingsManager.create(projectRoot);
-	const defaultProvider = settings.getDefaultProvider();
-	const defaultModel = settings.getDefaultModel();
+	const defaultModelContext = resolveProjectDefaultModelContext(projectRoot);
+	const defaultProvider = defaultModelContext.provider !== "unknown" ? defaultModelContext.provider : undefined;
+	const defaultModel = defaultModelContext.model !== "unknown" ? defaultModelContext.model : undefined;
 
 	if (!explicitModel) {
 		return {
