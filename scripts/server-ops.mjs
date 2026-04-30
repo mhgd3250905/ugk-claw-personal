@@ -51,7 +51,7 @@ const target = TARGETS[targetName];
 function remoteScriptFor(selectedAction) {
   const compose = `docker compose --env-file ${target.sharedDir}/compose.env -p ugk-pi-claw -f docker-compose.prod.yml`;
   const shellQuote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
-  const composeExec = (service, command) => `${compose} exec -T ${service} sh -lc ${shellQuote(command)}`;
+  const composeExec = (service, command) => `${compose} exec -T ${service} sh -lc ${shellQuote(command)} < /dev/null`;
   const guardEnvEquals = (name, value) => `grep -qx '${name}=${value}' ${target.sharedDir}/compose.env`;
   const skillsEnvCheck = guardEnvEquals("UGK_RUNTIME_SKILLS_USER_DIR", target.skillsDir);
   const agentDataEnvCheck = guardEnvEquals("UGK_AGENT_DATA_DIR", target.agentDataDir);
@@ -75,7 +75,7 @@ function remoteScriptFor(selectedAction) {
     "printf '\\n== public health ==\\n'",
     `curl -fsS ${target.publicHealthz}`,
     "printf '\\n== runtime skills ==\\n'",
-    `${compose} exec -T ugk-pi sh -lc "${listSkills}"`,
+    `${composeExec("ugk-pi", listSkills)}`,
     "printf '== debug skills source ==\\n'",
     "curl -fsS http://127.0.0.1:3000/v1/debug/skills | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get(\"source\", \"unknown\")); print(\"skills=\" + str(len(d.get(\"skills\", []))))'",
     "printf '== runtime debug ==\\n'",
