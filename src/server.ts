@@ -21,6 +21,7 @@ import { registerFeishuSettingsRoutes } from "./routes/feishu-settings.js";
 import { registerModelConfigRoutes } from "./routes/model-config.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerPlaygroundRoute } from "./routes/playground.js";
+import { registerRuntimeDebugRoutes } from "./routes/runtime-debug.js";
 import { registerStaticRoutes } from "./routes/static.js";
 import { FeishuSettingsStore } from "./integrations/feishu/settings-store.js";
 
@@ -106,6 +107,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	registerStaticRoutes(app, { projectRoot: config.projectRoot });
 	registerActivityRoutes(app, { activityStore });
 	registerChatRoutes(app, { agentService });
+	registerRuntimeDebugRoutes(app, { projectRoot: config.projectRoot });
 	registerModelConfigRoutes(app, {
 		projectRoot: config.projectRoot,
 		store: options.modelConfigStore,

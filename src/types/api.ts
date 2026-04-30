@@ -256,6 +256,22 @@ export interface DebugSkillsResponseBody {
 	cachedAt: string;
 }
 
+export interface RuntimeDebugCheckBody {
+	name: string;
+	ok: boolean;
+	message?: string;
+}
+
+export interface RuntimeDebugResponseBody {
+	ok: boolean;
+	checks: RuntimeDebugCheckBody[];
+	config: {
+		publicBaseUrl?: string;
+		browserProvider?: string;
+		webAccessBrowserPublicBaseUrl?: string;
+	};
+}
+
 export interface ChatContextUsageBody {
 	provider: string;
 	model: string;
