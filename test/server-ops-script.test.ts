@@ -7,6 +7,9 @@ test("server ops script protects shared runtime state during deploys", () => {
 
 	assert.match(script, /tencent/);
 	assert.match(script, /aliyun/);
+	assert.match(script, /shellQuote/);
+	assert.match(script, /replaceAll\("'", "'\\\\''"\)/);
+	assert.match(script, /sh -lc \$\{shellQuote\(command\)\}/);
 	assert.match(script, /UGK_RUNTIME_SKILLS_USER_DIR/);
 	assert.match(script, /UGK_AGENT_DATA_DIR/);
 	assert.match(script, /\/home\/ubuntu\/ugk-claw-shared\/runtime\/skills-user/);
