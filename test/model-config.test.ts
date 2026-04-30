@@ -45,7 +45,6 @@ async function createProjectRoot(): Promise<string> {
 					apiKey: "DEEPSEEK_API_KEY",
 					models: [
 						{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
-						{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1048576, maxTokens: 262144 },
 					],
 				},
 				"xiaomi-mimo-cn": {
@@ -130,7 +129,7 @@ test("model config store lists providers and current default selection", async (
 	]);
 	assert.deepEqual(
 		config.providers.find((provider) => provider.id === "deepseek-anthropic")?.models.map((model) => model.id),
-		["deepseek-v4-pro", "deepseek-v4-flash"],
+		["deepseek-v4-pro"],
 	);
 	assert.deepEqual(config.providers.find((provider) => provider.id === "deepseek-anthropic")?.models[0], {
 		id: "deepseek-v4-pro",

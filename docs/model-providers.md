@@ -1,6 +1,6 @@
 # 模型源管理
 
-更新时间：`2026-04-29`
+更新时间：`2026-04-30`
 
 模型源只在 `runtime/pi-agent/models.json` 登记，默认选择只在 `.pi/settings.json` 保存。不要把 provider、model、API key 和运行时策略混在一个地方，否则后面加模型会变成猜谜。
 
@@ -9,7 +9,7 @@
 | 来源 | provider | 模型 | 集群 | Key |
 | --- | --- | --- | --- | --- |
 | 阿里 | `dashscope-coding` | `glm-5` | `cn` | `DASHSCOPE_CODING_API_KEY` |
-| DeepSeek | `deepseek-anthropic` | `deepseek-v4-pro` / `deepseek-v4-flash` | `global` | `DEEPSEEK_API_KEY` |
+| DeepSeek | `deepseek-anthropic` | `deepseek-v4-pro` | `global` | `DEEPSEEK_API_KEY` |
 | 小米 | `xiaomi-mimo-cn` | `mimo-v2.5-pro` | `cn` | `XIAOMI_MIMO_API_KEY` |
 | 小米 | `xiaomi-mimo-sgp` | `mimo-v2.5-pro` | `sgp` | `XIAOMI_MIMO_API_KEY` |
 | 小米 | `xiaomi-mimo-ams` | `mimo-v2.5-pro` | `ams` | `XIAOMI_MIMO_API_KEY` |

@@ -12,6 +12,12 @@
 
 ## 2026-04-29
 
+### DeepSeek Flash 模型选项下架
+- 日期：2026-04-30
+- 主题：从 API 源模型注册表移除 `deepseek-v4-flash`，Web 模型源设置中 DeepSeek 只保留 `deepseek-v4-pro` 可选项。
+- 影响范围：影响 `GET /v1/model-config` 返回的 DeepSeek 模型列表，以及新会话 / subagent 可选择的模型范围；不改变 DeepSeek provider、API key 环境变量、其他 provider 或当前用户本地未提交的 `.pi/settings.json` 选择现场。
+- 对应入口：`runtime/pi-agent/models.json`、`test/model-config.test.ts`、`docs/model-providers.md`
+
 ### Subagent 模型源继承修复
 - 日期：2026-04-30
 - 主题：修复 subagent 子进程默认模型源没有跟随 Web 模型设置的问题。subagent 参数生成不再直接用 pi 原生 `SettingsManager.create(projectRoot)` 读取带注释的 `.pi/settings.json`，改为复用项目已有的默认模型解析入口，并显式传递 `--provider` / `--model` 给子进程。
