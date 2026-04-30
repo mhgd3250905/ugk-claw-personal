@@ -8,6 +8,22 @@
 
 后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 Git 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；GitHub 不通时走 `git pull --ff-only gitee main`，不要再把小包覆盖当长期主流程。
 
+## 2026-04-30 飞书 /stop、subagent 模型继承与 DeepSeek Flash 下架发布记录
+
+本次发布走腾讯云 clean Git 主流程，没有整目录替换，没有触碰 `~/ugk-claw-shared/.data/agent`、sidecar 登录态、资产、conn 或生产日志。服务器工作区发布前 `git status --short` 为空，从 `fe4cca6 docs: add dual-cloud incremental deploy guide` fast-forward 到 `921df49 chore: remove deepseek flash model option`。
+
+实际结果：
+1. 本地 `origin/main` 已推到 `921df49c15aacc167a08241bbfa8004d06800e70`，本地未提交的 `.pi/settings.json`、`bugs/` 和 `runtime/` 调试 / 报告文件没有纳入发布。
+2. 服务器执行 `git fetch origin main`、`git pull --ff-only origin main`，随后执行生产 compose config 校验和 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`。
+3. 本次改动涉及 `src/`、`.pi/extensions/subagent` 和 `runtime/pi-agent/models.json`，因此重建 `ugk-pi`、`ugk-pi-conn-worker` 与 `ugk-pi-feishu-worker`，而不是只 restart。
+4. 发布后服务器 `git status --short` 为空；`docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker` 正常运行。
+5. 验收通过：内网 `http://127.0.0.1:3000/healthz` 和公网 `http://43.134.167.179:3000/healthz` 均返回 `{"ok":true}`；内网与公网 `/v1/model-config` 均确认不包含 `deepseek-v4-flash`，且仍包含 `deepseek-v4-pro`。
+
+上线内容：
+- 飞书 `/stop` 控制命令，语义对齐 Web playground 打断按钮。
+- subagent 启动时显式继承 Web 当前默认 provider / model，避免回落到旧的 DeepSeek Flash。
+- Web API 源列表下架 `deepseek-v4-flash`，DeepSeek 只保留 `deepseek-v4-pro`。
+
 ## 2026-04-29 小米 MiMo 模型源增量发布记录
 
 本次发布使用小包 `xiaomi-model-providers-20260429-incremental.tar.gz` 覆盖 `~/ugk-claw-repo` 中的小米模型源相关文件；没有执行整目录替换，没有触碰 `~/ugk-claw-shared/.data/agent`、sidecar 登录态、资产、conn 或生产日志。由于腾讯云远端 Git 工作树仍有历史脏状态，本次继续使用增量包覆盖而不是强行 `git pull` / `reset`。
@@ -57,7 +73,7 @@
 
 ## 当前部署快照
 
-- 日期：`2026-04-20`
+- 日期：`2026-04-30`
 - 云厂商：腾讯云 CVM
 - 地域：新加坡二区
 - 实例 ID：`ins-0voci0xy`
@@ -75,7 +91,7 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`b2b862c docs: switch aliyun deploy flow to git`
+- 当前线上应用提交：`921df49 chore: remove deepseek flash model option`
 - 当前服务器本地回滚 tag：`server-pre-deploy-20260426-234533`
 - 当前 clean Git 迁移备份：`/home/ubuntu/ugk-claw-shared/backups/tencent-git-clean-20260429-225108`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线

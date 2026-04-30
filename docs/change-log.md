@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-04-30
+
+### 腾讯云生产环境增量更新到 `921df49`
+- 日期：2026-04-30
+- 主题：按腾讯云 clean Git 主流程把生产环境从 `fe4cca6 docs: add dual-cloud incremental deploy guide` fast-forward 到 `921df49 chore: remove deepseek flash model option`，上线飞书 `/stop`、subagent 模型源继承修复，以及 DeepSeek Flash 模型选项下架。
+- 影响范围：腾讯云继续使用 `~/ugk-claw-repo` Git 工作目录和 `~/ugk-claw-shared` 运行态目录；本次执行 `git pull --ff-only origin main` 与 `docker compose ... up --build -d`，重建 `ugk-pi`、`ugk-pi-conn-worker` 和 `ugk-pi-feishu-worker`，没有整目录替换，也没有触碰 `.data/agent`、sidecar 登录态、资产、conn 或生产日志。发布后服务器 `git status --short` 为空，内网 / 公网 `/healthz` 均返回 `{"ok":true}`，`/v1/model-config` 确认不包含 `deepseek-v4-flash` 且仍包含 `deepseek-v4-pro`。
+- 对应入口：`docs/tencent-cloud-singapore-deploy.md`、`docs/server-ops-quick-reference.md`、`src/integrations/feishu/service.ts`、`.pi/extensions/subagent/index.ts`、`runtime/pi-agent/models.json`
+
 ## 2026-04-29
 
 ### DeepSeek Flash 模型选项下架
