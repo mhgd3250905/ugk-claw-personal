@@ -403,15 +403,49 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 	}
 }
 
+interface DeprecatedBackgroundModelAlias {
+	provider: string;
+	model: string;
+	replacementProvider: string;
+	replacementModel: string;
+}
+
+const DEPRECATED_BACKGROUND_MODEL_ALIASES: DeprecatedBackgroundModelAlias[] = [
+	{
+		provider: "deepseek-anthropic",
+		model: "deepseek-v4-flash",
+		replacementProvider: "deepseek-anthropic",
+		replacementModel: "deepseek-v4-pro",
+	},
+];
+
+function findDeprecatedBackgroundModelAlias(
+	snapshot: Pick<ResolvedBackgroundAgentSnapshot, "provider" | "model">,
+): DeprecatedBackgroundModelAlias | undefined {
+	return DEPRECATED_BACKGROUND_MODEL_ALIASES.find(
+		(alias) => alias.provider === snapshot.provider && alias.model === snapshot.model,
+	);
+}
+
 export function resolveBackgroundSessionModel(
 	modelRegistry: Pick<ModelRegistry, "find">,
 	snapshot: Pick<ResolvedBackgroundAgentSnapshot, "provider" | "model">,
 ): NonNullable<ReturnType<ModelRegistry["find"]>> {
 	const model = modelRegistry.find(snapshot.provider, snapshot.model);
-	if (!model) {
-		throw new Error(`Background agent model not found: ${snapshot.provider}/${snapshot.model}`);
+	if (model) {
+		return model;
 	}
-	return model;
+	const alias = findDeprecatedBackgroundModelAlias(snapshot);
+	if (alias) {
+		const replacement = modelRegistry.find(alias.replacementProvider, alias.replacementModel);
+		if (replacement) {
+			return replacement;
+		}
+		throw new Error(
+			`Background agent model not found: ${snapshot.provider}/${snapshot.model}; deprecated alias replacement missing: ${alias.replacementProvider}/${alias.replacementModel}`,
+		);
+	}
+	throw new Error(`Background agent model not found: ${snapshot.provider}/${snapshot.model}`);
 }
 
 async function main(): Promise<void> {

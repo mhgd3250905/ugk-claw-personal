@@ -299,7 +299,6 @@ function createModelConfigStoreStub(): ModelConfigStore {
 				priority: 20,
 				models: [
 					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
-					{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1048576, maxTokens: 262144 },
 				],
 				auth: {
 					configured: true,
@@ -4714,7 +4713,6 @@ test("GET /v1/model-config returns current provider and selectable models", asyn
 				priority: 20,
 				models: [
 					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
-					{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1048576, maxTokens: 262144 },
 				],
 				auth: {
 					configured: true,

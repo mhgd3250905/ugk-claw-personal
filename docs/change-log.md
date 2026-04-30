@@ -12,6 +12,12 @@
 
 ## 2026-04-30
 
+### 后台任务 DeepSeek Flash 历史快照兼容
+- 日期：2026-04-30
+- 主题：修复下架 `deepseek-v4-flash` 后，旧 conn / 后台任务快照仍引用 `deepseek-anthropic/deepseek-v4-flash` 导致 worker 报 `Background agent model not found` 的问题。
+- 影响范围：后台 worker 解析模型时仅对历史 `deepseek-anthropic/deepseek-v4-flash` 快照做显式迁移，改用 `deepseek-anthropic/deepseek-v4-pro`；其他 provider / model 缺失仍明确失败，不恢复任意 fallback，也不改变前台 Web 模型源选项。
+- 对应入口：`src/workers/conn-worker.ts`、`test/conn-worker.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### 腾讯云生产环境增量更新到 `921df49`
 - 日期：2026-04-30
 - 主题：按腾讯云 clean Git 主流程把生产环境从 `fe4cca6 docs: add dual-cloud incremental deploy guide` fast-forward 到 `921df49 chore: remove deepseek flash model option`，上线飞书 `/stop`、subagent 模型源继承修复，以及 DeepSeek Flash 模型选项下架。

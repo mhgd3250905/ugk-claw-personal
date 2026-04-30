@@ -89,6 +89,56 @@ test("resolveBackgroundSessionModel rejects missing background snapshot models i
 	);
 });
 
+test("resolveBackgroundSessionModel migrates deprecated DeepSeek Flash snapshots to DeepSeek Pro", () => {
+	const replacementModel = {
+		provider: "deepseek-anthropic",
+		id: "deepseek-v4-pro",
+		name: "DeepSeek V4 Pro",
+		api: "anthropic",
+		baseUrl: "https://example.test",
+		reasoning: true,
+		contextWindow: 1048576,
+		maxTokens: 262144,
+		input: ["text"],
+		output: ["text"],
+	} as const;
+	const calls: Array<{ provider: string; model: string }> = [];
+	const modelRegistry = {
+		find(provider: string, model: string) {
+			calls.push({ provider, model });
+			return provider === replacementModel.provider && model === replacementModel.id ? replacementModel : undefined;
+		},
+	};
+
+	const resolved = resolveBackgroundSessionModel(modelRegistry as never, {
+		provider: "deepseek-anthropic",
+		model: "deepseek-v4-flash",
+	});
+
+	assert.equal(resolved, replacementModel);
+	assert.deepEqual(calls, [
+		{ provider: "deepseek-anthropic", model: "deepseek-v4-flash" },
+		{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" },
+	]);
+});
+
+test("resolveBackgroundSessionModel rejects deprecated aliases when the replacement is missing", () => {
+	const modelRegistry = {
+		find() {
+			return undefined;
+		},
+	};
+
+	assert.throws(
+		() =>
+			resolveBackgroundSessionModel(modelRegistry as never, {
+				provider: "deepseek-anthropic",
+				model: "deepseek-v4-flash",
+			}),
+		/Background agent model not found: deepseek-anthropic\/deepseek-v4-flash; deprecated alias replacement missing: deepseek-anthropic\/deepseek-v4-pro/,
+	);
+});
+
 async function createWorker(runner: FakeRunner | FailingRunner): Promise<{
 	database: ConnDatabase;
 	connStore: ConnSqliteStore;

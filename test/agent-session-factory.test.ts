@@ -214,9 +214,7 @@ test("project models.json exposes the checked-in DeepSeek Anthropic provider", (
 	assert.notEqual(proModel, undefined);
 	assert.equal(proModel?.provider, "deepseek-anthropic");
 	assert.equal(proModel?.id, "deepseek-v4-pro");
-	assert.notEqual(flashModel, undefined);
-	assert.equal(flashModel?.provider, "deepseek-anthropic");
-	assert.equal(flashModel?.id, "deepseek-v4-flash");
+	assert.equal(flashModel, undefined);
 });
 
 test("project models.json exposes the checked-in Xiaomi MiMo Anthropic-compatible providers", () => {
