@@ -12,6 +12,12 @@
 
 ## 2026-04-30
 
+### web-access scope cache 正式入库
+- 日期：2026-04-30
+- 主题：将阿里云生产环境里的 `web-access` scope target cache 热修正式收回仓库，避免后续增量发布时因为服务器工作区脏改被阻断，也避免重建镜像后丢失浏览器 scope 清理能力。
+- 影响范围：`LocalCdpBrowser` 会把 scoped targets 与 default targets best-effort 持久化到 `WEB_ACCESS_SCOPE_CACHE_PATH`，默认 `/app/.data/browser-scope-cache.json`；兼容代理或 app 容器短暂重启后，`close_scope_targets` 仍可按 agent scope 清理上一实例登记过的页面。缓存损坏或写入失败只降级为内存态，不影响当前浏览器操作。
+- 对应入口：`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`、`test/local-cdp-browser.test.ts`、`docs/web-access-browser-bridge.md`
+
 ### pi-coding-agent 升级到 0.70.6
 - 日期：2026-04-30
 - 主题：将 `@mariozechner/pi-coding-agent` 从 `0.67.6` 升级到 `0.70.6`，获取上游 DeepSeek V4 provider 与 session replay 兼容修复，包括 DeepSeek thinking 控制参数和工具调用后 assistant `reasoning_content` 回放。

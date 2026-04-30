@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -168,4 +171,56 @@ test("LocalCdpBrowser registers new scoped targets so scope cleanup closes them"
 	);
 
 	assert.deepEqual(closedTargets, ["target-https://example.com"]);
+});
+
+test("LocalCdpBrowser persists scoped targets so a restarted bridge can clean them up", async () => {
+	const tempDir = await mkdtemp(path.join(tmpdir(), "ugk-cdp-scope-"));
+	const scopeCachePath = path.join(tempDir, "browser-scope-cache.json");
+	const closedTargets: string[] = [];
+
+	class TestBrowser extends LocalCdpBrowser {
+		constructor(options: ConstructorParameters<typeof LocalCdpBrowser>[0]) {
+			super(options);
+		}
+
+		async closeTarget(targetId: string) {
+			closedTargets.push(targetId);
+			return { ok: true };
+		}
+	}
+
+	try {
+		const firstBrowser = new TestBrowser({ scopeCachePath });
+		firstBrowser.registerScopedTarget("conn-1", "target-1");
+		await firstBrowser.handleCommand(
+			{
+				action: "set_default_target",
+				targetId: "target-default",
+			},
+			{
+				meta: { agentScope: "conn-1" },
+			},
+		);
+
+		const cache = JSON.parse(await readFile(scopeCachePath, "utf-8"));
+		assert.deepEqual(cache.scopedTargets["conn-1"], ["target-1"]);
+		assert.equal(cache.defaultTargets["conn-1"], "target-default");
+
+		const restartedBrowser = new TestBrowser({ scopeCachePath });
+		await restartedBrowser.handleCommand(
+			{
+				action: "close_scope_targets",
+			},
+			{
+				meta: { agentScope: "conn-1" },
+			},
+		);
+
+		assert.deepEqual(closedTargets.sort(), ["target-1", "target-default"].sort());
+		const clearedCache = JSON.parse(await readFile(scopeCachePath, "utf-8"));
+		assert.equal(clearedCache.scopedTargets["conn-1"], undefined);
+		assert.equal(clearedCache.defaultTargets["conn-1"], undefined);
+	} finally {
+		await rm(tempDir, { recursive: true, force: true });
+	}
 });

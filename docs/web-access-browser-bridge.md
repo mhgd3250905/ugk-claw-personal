@@ -194,6 +194,8 @@ POST http://127.0.0.1:3456/session/close-all?metaAgentScope=<scope>
 
 这个清理是 best-effort：代理不可用、超时或返回错误时只写 `console.warn`，不覆盖原任务的成功、错误或中断结果。后续排障不要只看运行容器 `/app` 里有没有热改，必须确认 `src/agent/browser-cleanup.ts` 和 `AgentService` 调用已经进入 Git 仓库；否则生产重建镜像后修复会消失。
 
+`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs` 会把 scoped targets 和 default targets 以 best-effort 方式持久化到 `WEB_ACCESS_SCOPE_CACHE_PATH`，默认 `/app/.data/browser-scope-cache.json`。这让 `web-access` 兼容代理或 app 容器短暂重启后，仍能按 agent scope 清理上一实例登记过的浏览器页面；缓存损坏时只忽略缓存，不影响当前轮浏览器操作。
+
 命令含义：
 
 - `docker:chrome:check`: 标准 readiness check，验证 Chrome CDP、app 到 sidecar CDP、以及 `web-access` proxy。

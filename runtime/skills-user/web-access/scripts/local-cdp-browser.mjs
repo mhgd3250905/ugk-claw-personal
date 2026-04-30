@@ -11,6 +11,8 @@ const DEFAULT_PORT = Number(process.env.WEB_ACCESS_CDP_PORT || 9222);
 const DEFAULT_HOST = process.env.WEB_ACCESS_CDP_HOST || '127.0.0.1';
 const DEFAULT_LISTEN_ADDRESS =
   process.env.WEB_ACCESS_CDP_LISTEN_ADDRESS || DEFAULT_HOST;
+const DEFAULT_SCOPE_CACHE_PATH =
+  process.env.WEB_ACCESS_SCOPE_CACHE_PATH || '/app/.data/browser-scope-cache.json';
 
 function normalizePublicBaseUrl(options = {}) {
   return String(
@@ -391,6 +393,8 @@ export class LocalCdpBrowser {
     this.fetchImpl = options.fetchImpl || fetch;
     this.defaultTargets = new Map();
     this.scopedTargets = new Map();
+    this.scopeCachePath = options.scopeCachePath || DEFAULT_SCOPE_CACHE_PATH;
+    this.loadScopeCache();
   }
 
   async handleCommand(command, context = {}) {
@@ -432,9 +436,11 @@ export class LocalCdpBrowser {
         };
       case 'set_default_target':
         this.defaultTargets.set(this.readScope(context.meta), command.targetId);
+        this.saveScopeCache();
         return { ok: true };
       case 'clear_default_target':
         this.defaultTargets.delete(this.readScope(context.meta));
+        this.saveScopeCache();
         return { ok: true };
       case 'close_scope_targets':
         return await this.closeScopeTargets(this.readScope(context.meta));
@@ -447,12 +453,62 @@ export class LocalCdpBrowser {
     return meta?.agentScope || resolveAgentScopeFromEnv() || 'default';
   }
 
+  loadScopeCache() {
+    try {
+      if (!fs.existsSync(this.scopeCachePath)) {
+        return;
+      }
+      const cache = JSON.parse(fs.readFileSync(this.scopeCachePath, 'utf-8'));
+      if (!cache || typeof cache !== 'object') {
+        return;
+      }
+      if (cache.scopedTargets && typeof cache.scopedTargets === 'object') {
+        for (const [scope, targetIds] of Object.entries(cache.scopedTargets)) {
+          if (Array.isArray(targetIds)) {
+            this.scopedTargets.set(scope, new Set(targetIds.filter((id) => typeof id === 'string')));
+          }
+        }
+      }
+      if (cache.defaultTargets && typeof cache.defaultTargets === 'object') {
+        for (const [scope, targetId] of Object.entries(cache.defaultTargets)) {
+          if (typeof targetId === 'string') {
+            this.defaultTargets.set(scope, targetId);
+          }
+        }
+      }
+    } catch {
+      // Scope cache is best-effort only; a corrupt cache must not break browser access.
+    }
+  }
+
+  saveScopeCache() {
+    try {
+      const cache = {
+        scopedTargets: Object.fromEntries(
+          Array.from(this.scopedTargets.entries()).map(([scope, targetIds]) => [
+            scope,
+            Array.from(targetIds),
+          ]),
+        ),
+        defaultTargets: Object.fromEntries(this.defaultTargets.entries()),
+        savedAt: new Date().toISOString(),
+      };
+      fs.mkdirSync(path.dirname(this.scopeCachePath), { recursive: true });
+      const tempPath = `${this.scopeCachePath}.tmp`;
+      fs.writeFileSync(tempPath, JSON.stringify(cache, null, 2));
+      fs.renameSync(tempPath, this.scopeCachePath);
+    } catch {
+      // Scope cache is best-effort only; cleanup still works for in-memory targets.
+    }
+  }
+
   registerScopedTarget(scope, targetId) {
     const normalizedScope = scope || 'default';
     if (!targetId) return;
     const targets = this.scopedTargets.get(normalizedScope) || new Set();
     targets.add(targetId);
     this.scopedTargets.set(normalizedScope, targets);
+    this.saveScopeCache();
   }
 
   async status() {
@@ -590,6 +646,7 @@ export class LocalCdpBrowser {
         this.scopedTargets.delete(scope);
       }
     }
+    this.saveScopeCache();
 
     return { ok: true };
   }
@@ -606,6 +663,7 @@ export class LocalCdpBrowser {
     }
     this.scopedTargets.delete(scope);
     this.defaultTargets.delete(scope);
+    this.saveScopeCache();
     return { ok: true };
   }
 
