@@ -48,6 +48,8 @@ export interface ConnDefinition {
 	agentSpecId?: string;
 	skillSetId?: string;
 	modelPolicyId?: string;
+	modelProvider?: string;
+	modelId?: string;
 	upgradePolicy?: ConnUpgradePolicy;
 	status: ConnStatus;
 	createdAt: string;

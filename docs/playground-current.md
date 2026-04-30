@@ -447,21 +447,22 @@
 - 管理弹层使用 `conn-manager-dialog` / `conn-manager-list`，打开时只读取一次 `GET /v1/conns`；该列表响应已经带每个 conn 的 `latestRun` 摘要，不再为每个 conn 立即补一发 `GET /v1/conns/:connId/runs`。
 - conn 的 run 历史默认折叠，只用 `latestRun` 展示最新状态摘要；用户展开某个 conn 时，前端才按需请求 `GET /v1/conns/:connId/runs` 补完整 run 列表。旧后端没有 `latestRun` 字段时，前端最多 4 路并发 fallback 拉取 runs，不能再退回无限制 N+1。
 - 手机端后台任务管理器不再是贴底抽屉，而是全屏独立工作页：`conn-manager-dialog.open` 与 `conn-manager-panel` 占满 `100dvh`，顶部统一使用 `topbar asset-modal-head mobile-work-topbar`；左侧是返回箭头和 `后台任务` 标题，右侧直接放 `新建任务 / 刷新列表`，状态筛选和批量操作保留在内容区。conn 条目改成 `#0b0c18` 单列卡片，`立即执行 / 编辑 / 暂停 / 恢复 / 删除 / 查看` 这类操作以整宽网格按钮呈现，避免横向挤成一排小字按钮。
-- 手机端后台任务创建 / 编辑同样不再是弹窗，而是全屏编辑页：`conn-editor-dialog.open` 与 `conn-editor-panel` 占满 `100dvh`，顶部统一状态栏左侧是返回箭头和页面标题，右侧直接放 `保存 / 取消`；表单按 `标题 / 让它做什么 / 投递目标 / 调度 / 高级设置` 分块滚动，深色主题常用字段使用 `#0b0c18` 实心输入卡片；浅色主题下字段容器保持透明，输入框和目标预览使用白色 / 冷蓝承载面，label 与 hint 必须是深蓝灰文字。
+- 手机端后台任务创建 / 编辑同样不再是弹窗，而是全屏编辑页：`conn-editor-dialog.open` 与 `conn-editor-panel` 占满 `100dvh`，顶部统一状态栏左侧是返回箭头和页面标题，右侧直接放 `保存 / 取消`；表单按 `标题 / 让它做什么 / 投递目标 / 调度 / 模型选择 / 高级设置` 分块滚动，深色主题常用字段使用 `#0b0c18` 实心输入卡片；浅色主题下字段容器保持透明，输入框和目标预览使用白色 / 冷蓝承载面，label 与 hint 必须是深蓝灰文字。
 - 管理弹层提供 `新建` 入口，每条 conn 提供 `编辑` 入口；编辑器使用 `conn-editor-dialog` / `conn-editor-form`，调用 `POST /v1/conns` 或 `PATCH /v1/conns/:connId`。
 - conn 创建 / 编辑器默认只露出常用字段：标题、`让它做什么`、`结果发到哪里`、调度和保存。编号输入只在选择“指定会话 / 飞书”时出现。
 - 调度入口只保留三种：`定时执行`、`间隔执行`、`每日执行`。前端负责把这三种映射回后端 `once / interval / cron` payload，创建时不再让用户接触 cron 细节。
-- conn 编辑器覆盖标题、prompt、投递目标、调度策略和高级运行字段：
+- conn 编辑器覆盖标题、prompt、投递目标、调度策略、任务级 API 源 / 模型选择和高级运行字段：
+  - `API 源 / 模型` 使用和前台模型源设置同源的 `/v1/model-config` 下拉列表，保存为 conn 自身的 `modelProvider / modelId`；不要退回手写 provider/model，也不要再靠同步前台 `.pi/settings.json` 控制后台 worker。
   - 目标支持当前会话、指定 conversation、`feishu_chat`、`feishu_user`。
 - 调度区只保留三种模式：`定时执行`、`间隔执行`、`每日执行`。前端仍然映射回后端 `once / interval / cron`，但不再把 cron、工作日、每周这些复杂概念直接甩给用户。
 - 三种模式对应的输入也固定下来：`定时执行` 只点选 `执行时间`；`间隔执行` 只点选 `首次执行时间` 并填写 `间隔（分钟）`；`每日执行` 只点选 `每日执行时间`。时间选择统一使用本地打包的 `flatpickr`，配置 `enableTime / time_24hr / disableMobile`，不再依赖系统原生 `datetime-local` / `time` 控件；浅色主题必须覆盖日历的月份、星期、日期、禁用日期、hover、today、selected 和前后月箭头，不能让深色主题白字漏在白色日历上。
 - `每日执行时间` 解析现在兼容 `07:00`、`7:00` 与 `HH:mm:ss`，保存时不会再因为用户输入或浏览器差异误报“请填写每日执行时间”。
 - “附加资料”区域现在提供显式文件入口：可从文件库复用已有资产，也可直接上传新文件；用户看到的是文件名与选中状态，内部才映射成 `assetRefs`
-  - 高级字段默认收进 `高级设置`，用户可见名称分别是 `任务身份`、`执行模板`、`能力包`、`模型策略`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `profileId`、`agentSpecId`、`skillSetId`、`modelPolicyId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。
+  - 高级字段默认收进 `高级设置`，用户可见名称分别是 `任务身份`、`执行模板`、`能力包`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `profileId`、`agentSpecId`、`skillSetId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。模型不再靠手写 `modelPolicyId`，而是在常用区通过 `API 源` 和 `模型` 下拉框保存到 `modelProvider / modelId`。
 - 目标选择区现在会显示 `conn-editor-target-preview`：把将要投递到 `任务消息` 还是飞书目标、目标编号和实际投递口径用中文展示出来；这里不能出现 `????` 这类乱码占位。
 - 保存成功后，管理器会显示 `conn-manager-notice`，说明已创建 / 已更新的 conn 会投递到哪里，并高亮对应条目。
 - conn 列表里的最近 run 默认折叠为一行 `conn-manager-run-summary`；需要查证据时再展开最近 3 条 run，避免管理面变成一堵日志墙。
-- 后台任务列表现在按三行人话信息展示：`结果发到`、`执行方式`、`运行节奏`。不再直接向用户暴露 `target / schedule / next / last / maxRunMs` 这类后台字段名。
+- 后台任务列表现在按人话信息展示：`结果发到`、`执行方式`、`运行节奏`、`模型`。不再直接向用户暴露 `target / schedule / next / last / maxRunMs` 这类后台字段名。
 - 列表状态与最近 run 结果统一显示为中文口径：`运行中 / 已暂停 / 已完成`、`待执行 / 执行中 / 成功 / 失败 / 已取消`，避免用户自己翻译状态码。
 - 目标归属不要再脑补成“当前打开哪个会话就往哪个会话冒泡”。后台结果的主落点已经是任务消息页；飞书目标按各自 adapter 投递，聊天 transcript 不再承担这层异步收件箱职责。
 - 管理器顶部提供状态筛选和批量工具：`conn-manager-filter` 按全部 / 运行中 / 已暂停 / 已完成过滤；`选择当前` 会选择当前筛选结果；`删除所选` 调用 `POST /v1/conns/bulk-delete`，用于一次清理多条测试 conn。

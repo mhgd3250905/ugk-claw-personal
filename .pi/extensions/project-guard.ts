@@ -51,7 +51,7 @@ function findWindowsBashOnPath(): string | null {
 }
 
 export function resolveProjectShellConfig(platform: NodeJS.Platform = process.platform): ShellConfig {
-	const settings = SettingsManager.create();
+	const settings = SettingsManager.create(process.cwd());
 	const customShellPath = settings.getShellPath();
 
 	if (customShellPath) {

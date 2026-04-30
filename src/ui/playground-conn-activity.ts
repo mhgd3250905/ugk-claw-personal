@@ -918,6 +918,18 @@ export function getConnActivityDialogs(): string {
 								/>
 							</label>
 						</div>
+						<div class="conn-editor-grid conn-editor-model-grid">
+							<label class="conn-editor-field">
+								<span>API 源</span>
+								<select id="conn-editor-model-provider" name="modelProvider"></select>
+								<small class="conn-editor-field-hint">后台任务会按这里保存的模型运行，不跟随前台聊天临时切换。</small>
+							</label>
+							<label class="conn-editor-field">
+								<span>模型</span>
+								<select id="conn-editor-model-id" name="modelId"></select>
+								<small id="conn-editor-model-auth" class="conn-editor-field-hint">正在读取可用模型</small>
+							</label>
+						</div>
 						<details class="conn-editor-advanced">
 							<summary>高级设置</summary>
 							<p class="conn-editor-section-hint">下面这些主要给进阶场景用。不填就走默认，不会影响普通创建。</p>
@@ -936,11 +948,6 @@ export function getConnActivityDialogs(): string {
 									<span>能力包</span>
 									<input id="conn-editor-skill-set-id" autocomplete="off" placeholder="skills.default" />
 									<small class="conn-editor-field-hint">限制它能调用哪些 skills。</small>
-								</label>
-								<label class="conn-editor-field">
-									<span>模型策略</span>
-									<input id="conn-editor-model-policy-id" autocomplete="off" placeholder="model.default" />
-									<small class="conn-editor-field-hint">决定优先使用哪类模型。</small>
 								</label>
 								<label class="conn-editor-field">
 									<span>版本跟随方式</span>

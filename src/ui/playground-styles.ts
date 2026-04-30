@@ -3067,7 +3067,7 @@ export function getPlaygroundStyles(): string {
 			line-height: 1.45;
 			text-align: left;
 			white-space: pre-line;
-			box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
+			box-shadow: none;
 			opacity: 0;
 			pointer-events: none;
 			transform: translate(-50%, -4px);
@@ -3100,7 +3100,7 @@ export function getPlaygroundStyles(): string {
 			background:
 				linear-gradient(180deg, rgba(12, 17, 28, 0.96), rgba(7, 10, 18, 0.96)),
 				#080b12;
-			box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
+			box-shadow: none;
 			opacity: 0;
 			pointer-events: none;
 			transform: translateY(-4px);
@@ -3222,7 +3222,7 @@ export function getPlaygroundStyles(): string {
 			background:
 				linear-gradient(180deg, rgba(12, 17, 28, 0.96), rgba(7, 10, 18, 0.96)),
 				#080b12;
-			box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
+			box-shadow: none;
 			opacity: 0;
 			pointer-events: none;
 			transform: translateY(4px);

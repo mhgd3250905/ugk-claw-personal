@@ -12,6 +12,30 @@
 
 ## 2026-04-30
 
+### pi-coding-agent 升级到 0.70.6
+- 日期：2026-04-30
+- 主题：将 `@mariozechner/pi-coding-agent` 从 `0.67.6` 升级到 `0.70.6`，获取上游 DeepSeek V4 provider 与 session replay 兼容修复，包括 DeepSeek thinking 控制参数和工具调用后 assistant `reasoning_content` 回放。
+- 影响范围：影响前台 Web agent、飞书转发到 Web agent 的会话、subagent CLI 入口以及后台 conn worker 创建的 agent session；升级适配了新版本 `SettingsManager.create(cwd)` 签名和 `DefaultResourceLoader` 必填 `agentDir`。本次不再自行仿写 DeepSeek 请求补丁，避免和上游协议适配打架。
+- 对应入口：`package.json`、`package-lock.json`、`.pi/extensions/project-guard.ts`、`src/agent/agent-session-factory.ts`、`docs/runtime-assets-conn-feishu.md`
+
+### 后台任务模型选择旧入口清理
+- 日期：2026-04-30
+- 主题：清理任务级模型选择上线后的旧入口残留：后台任务创建 / 编辑弹窗不再显示 `modelPolicyId` 手写框，`.pi/extensions/conn` 工具补齐 `modelProvider / modelId` 参数与摘要展示，避免 agent 工具创建任务时绕过新的模型选择机制。
+- 影响范围：影响 playground 后台任务编辑器、conn 扩展工具创建 / 更新任务时可传递的模型字段，以及相关文档说明；底层 `modelPolicyId`、`model.default` 和 DeepSeek Flash 历史 alias 仍保留为旧任务兼容链路，不作为用户可见主路径。同步清理桌面浮层残留 `box-shadow`，让“无显性阴影”测试口径和当前 UI 约束重新对齐。
+- 对应入口：`src/ui/playground-conn-activity.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`.pi/extensions/conn/index.ts`、`test/server.test.ts`、`docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md`
+
+### 任务消息显示后台任务实际执行模型
+- 日期：2026-04-30
+- 主题：后台任务完成、失败或取消后，任务消息页的 activity 正文开头显示 `执行模型：provider / model`，便于直接确认该 run 实际使用的模型。
+- 影响范围：影响 conn-worker 写入 `agent_activity_items.text` 的内容，以及飞书任务通知中引用同一 activity 正文的展示；模型信息来自 run 的 `resolvedSnapshot.provider/model`，没有 snapshot 的异常 run 不臆造模型。
+- 对应入口：`src/workers/conn-worker.ts`、`test/conn-worker.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
+### 后台任务支持任务级模型选择
+- 日期：2026-04-30
+- 主题：后台任务创建 / 编辑界面新增 API 源与模型下拉选择，复用前台 `/v1/model-config` 的 provider / model 列表，不再让用户手写模型策略 ID，也不再依赖前台 app 容器与 conn-worker 容器同步 `.pi/settings.json`。
+- 影响范围：`conns` 表新增 `model_provider / model_id` 字段；`POST /v1/conns`、`PATCH /v1/conns/:connId` 和 `GET /v1/conns` 会透传任务级 `modelProvider / modelId`；后台 run 解析 snapshot 时优先使用任务级模型，其次才使用 `modelPolicyId` 策略和项目默认模型。已存在旧任务未编辑前继续走原有回退链路，新建和编辑保存后的任务会固定使用界面选择的模型。
+- 对应入口：`src/agent/conn-db.ts`、`src/agent/conn-sqlite-store.ts`、`src/agent/background-agent-profile.ts`、`src/agent/background-agent-runner.ts`、`src/routes/conns.ts`、`src/ui/playground-conn-activity.ts`、`src/ui/playground-conn-activity-controller.ts`
+
 ### 双云生产环境增量更新到 `4dad21c`
 - 日期：2026-04-30
 - 主题：把腾讯云新加坡与阿里云 ECS 生产环境增量更新到 `4dad21c fix: migrate deprecated deepseek flash background model`，上线后台任务 DeepSeek Flash 历史快照定向迁移。

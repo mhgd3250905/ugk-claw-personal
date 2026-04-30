@@ -107,6 +107,8 @@ export interface ConnBody {
 	agentSpecId?: string;
 	skillSetId?: string;
 	modelPolicyId?: string;
+	modelProvider?: string;
+	modelId?: string;
 	upgradePolicy?: "latest" | "pinned" | "manual";
 	status: "active" | "paused" | "completed";
 	createdAt: string;

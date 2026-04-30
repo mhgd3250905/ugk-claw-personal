@@ -725,7 +725,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /conn-editor-profile-id/);
 	assert.match(response.body, /conn-editor-agent-spec-id/);
 	assert.match(response.body, /conn-editor-skill-set-id/);
-	assert.match(response.body, /conn-editor-model-policy-id/);
+	assert.doesNotMatch(response.body, /conn-editor-model-policy-id/);
 	assert.match(response.body, /conn-editor-upgrade-policy/);
 	assert.match(response.body, /conn-editor-max-run-seconds/);
 	assert.match(response.body, /conn-editor-asset-refs/);
@@ -1279,6 +1279,8 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 				agentSpecId?: string;
 				skillSetId?: string;
 				modelPolicyId?: string;
+				modelProvider?: string;
+				modelId?: string;
 				upgradePolicy?: "latest" | "pinned" | "manual";
 				maxRunMs?: number;
 			}) => {
@@ -1294,6 +1296,8 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 					agentSpecId: input.agentSpecId,
 					skillSetId: input.skillSetId,
 					modelPolicyId: input.modelPolicyId,
+					modelProvider: input.modelProvider,
+					modelId: input.modelId,
 					upgradePolicy: input.upgradePolicy,
 					maxRunMs: input.maxRunMs,
 					status: "active",
@@ -1330,6 +1334,8 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 			agentSpecId: "agent.daily",
 			skillSetId: "skills.research",
 			modelPolicyId: "model.stable",
+			modelProvider: "xiaomi-mimo-cn",
+			modelId: "mimo-v2.5-pro",
 			upgradePolicy: "pinned",
 			maxRunMs: 120000,
 		},
@@ -1347,6 +1353,8 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 			agentSpecId: "agent.daily",
 			skillSetId: "skills.research",
 			modelPolicyId: "model.stable",
+			modelProvider: "xiaomi-mimo-cn",
+			modelId: "mimo-v2.5-pro",
 			upgradePolicy: "pinned",
 			maxRunMs: 120000,
 		},
@@ -1363,6 +1371,8 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 			agentSpecId: "agent.daily",
 			skillSetId: "skills.research",
 			modelPolicyId: "model.stable",
+			modelProvider: "xiaomi-mimo-cn",
+			modelId: "mimo-v2.5-pro",
 			upgradePolicy: "pinned",
 			maxRunMs: 120000,
 			status: "active",
@@ -1463,6 +1473,8 @@ test("POST /v1/conns defaults target to the task inbox when target is omitted", 
 			agentSpecId: undefined,
 			skillSetId: undefined,
 			modelPolicyId: undefined,
+			modelProvider: undefined,
+			modelId: undefined,
 			upgradePolicy: undefined,
 		},
 	]);
@@ -2284,6 +2296,24 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(response.body, /function closeAssetLibrary\(\)\s*\{[\s\S]*restoreFocusAfterPanelClose\(assetModal, state\.assetModalRestoreFocusElement\);/);
 	assert.match(response.body, /function closeConnManager\(\)\s*\{[\s\S]*restoreFocusAfterPanelClose\(connManagerDialog, state\.connManagerRestoreFocusElement\);/);
 	assert.match(response.body, /mobileMenuLibraryButton\.addEventListener\("click", \(\) => \{[\s\S]*openAssetLibrary\(mobileOverflowMenuButton\);/);
+	await app.close();
+});
+
+test("GET /playground lets conn editor choose a model without hand-written ids", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /conn-editor-model-provider/);
+	assert.match(response.body, /conn-editor-model-id/);
+	assert.doesNotMatch(response.body, /id="conn-editor-model-provider"[^>]*<input/);
+	assert.doesNotMatch(response.body, /id="conn-editor-model-id"[^>]*<input/);
 	await app.close();
 });
 

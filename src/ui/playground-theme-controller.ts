@@ -112,7 +112,7 @@ export function getPlaygroundThemeStyles(): string {
 				linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 244, 252, 0.96)),
 				#ffffff;
 			color: var(--fg);
-			box-shadow: 0 18px 34px rgba(31, 95, 200, 0.1);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .desktop-rail-settings {
@@ -197,7 +197,7 @@ export function getPlaygroundThemeStyles(): string {
 				linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 244, 252, 0.96)),
 				#ffffff;
 			color: #34435f;
-			box-shadow: 0 18px 34px rgba(31, 95, 200, 0.12);
+			box-shadow: none;
 		}
 
 		:root[data-theme="light"] #composer-drop-target.composer {

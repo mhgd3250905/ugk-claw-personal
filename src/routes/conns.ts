@@ -41,6 +41,8 @@ interface ConnStoreLike {
 		agentSpecId?: string;
 		skillSetId?: string;
 		modelPolicyId?: string;
+		modelProvider?: string;
+		modelId?: string;
 		upgradePolicy?: "latest" | "pinned" | "manual";
 	}): Promise<ConnDefinition>;
 	update(
@@ -58,6 +60,8 @@ interface ConnStoreLike {
 				| "agentSpecId"
 				| "skillSetId"
 				| "modelPolicyId"
+				| "modelProvider"
+				| "modelId"
 				| "upgradePolicy"
 			>
 		>,
@@ -238,6 +242,8 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				agentSpecId: parsed.value!.agentSpecId,
 				skillSetId: parsed.value!.skillSetId,
 				modelPolicyId: parsed.value!.modelPolicyId,
+				modelProvider: parsed.value!.modelProvider,
+				modelId: parsed.value!.modelId,
 				upgradePolicy: parsed.value!.upgradePolicy,
 			});
 			return reply.status(201).send({ conn } satisfies ConnDetailResponseBody);
@@ -292,6 +298,8 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				...(body.agentSpecId !== undefined ? { agentSpecId: parsed.value!.agentSpecId } : {}),
 				...(body.skillSetId !== undefined ? { skillSetId: parsed.value!.skillSetId } : {}),
 				...(body.modelPolicyId !== undefined ? { modelPolicyId: parsed.value!.modelPolicyId } : {}),
+				...(body.modelProvider !== undefined ? { modelProvider: parsed.value!.modelProvider } : {}),
+				...(body.modelId !== undefined ? { modelId: parsed.value!.modelId } : {}),
 				...(body.upgradePolicy !== undefined ? { upgradePolicy: parsed.value!.upgradePolicy } : {}),
 				...(body.maxRunMs !== undefined ? { maxRunMs: parsed.value!.maxRunMs } : {}),
 			});

@@ -53,6 +53,42 @@ test("ConnSqliteStore creates, gets, and lists conn definitions with runtime pro
 	database.close();
 });
 
+test("ConnSqliteStore persists task-level model selection", async () => {
+	const { store, database } = await createConnSqliteStore();
+
+	const created = await store.create({
+		title: "model scoped task",
+		prompt: "run with selected model",
+		target: {
+			type: "conversation",
+			conversationId: "manual:model",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		modelProvider: "xiaomi-mimo-cn",
+		modelId: "mimo-v2.5-pro",
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	assert.equal(created.modelProvider, "xiaomi-mimo-cn");
+	assert.equal(created.modelId, "mimo-v2.5-pro");
+	assert.equal((await store.get(created.connId))?.modelProvider, "xiaomi-mimo-cn");
+	assert.equal((await store.get(created.connId))?.modelId, "mimo-v2.5-pro");
+
+	const updated = await store.update(created.connId, {
+		modelProvider: "dashscope-coding",
+		modelId: "glm-5",
+		now: new Date("2026-04-21T10:01:00.000Z"),
+	});
+
+	assert.equal(updated?.modelProvider, "dashscope-coding");
+	assert.equal(updated?.modelId, "glm-5");
+
+	database.close();
+});
+
 test("ConnSqliteStore skips malformed JSON conn rows instead of breaking list and detail reads", async () => {
 	const { store, database } = await createConnSqliteStore();
 	const healthy = await store.create({

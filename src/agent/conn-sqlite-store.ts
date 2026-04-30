@@ -26,6 +26,8 @@ export interface CreateConnInput {
 	agentSpecId?: string;
 	skillSetId?: string;
 	modelPolicyId?: string;
+	modelProvider?: string;
+	modelId?: string;
 	upgradePolicy?: ConnUpgradePolicy;
 	now?: Date;
 }
@@ -43,6 +45,8 @@ export type UpdateConnInput = Partial<
 		| "agentSpecId"
 		| "skillSetId"
 		| "modelPolicyId"
+		| "modelProvider"
+		| "modelId"
 		| "upgradePolicy"
 		| "status"
 	>
@@ -65,6 +69,8 @@ interface ConnRow {
 	agent_spec_id: string;
 	skill_set_id: string;
 	model_policy_id: string;
+	model_provider?: string | null;
+	model_id?: string | null;
 	upgrade_policy: ConnUpgradePolicy;
 	status: ConnStatus;
 	created_at: string;
@@ -117,6 +123,8 @@ export class ConnSqliteStore {
 			agentSpecId: normalizeOptionalId(input.agentSpecId) ?? DEFAULT_AGENT_SPEC_ID,
 			skillSetId: normalizeOptionalId(input.skillSetId) ?? DEFAULT_SKILL_SET_ID,
 			modelPolicyId: normalizeOptionalId(input.modelPolicyId) ?? DEFAULT_MODEL_POLICY_ID,
+			...(input.modelProvider !== undefined ? { modelProvider: normalizeRequiredId(input.modelProvider, "modelProvider") } : {}),
+			...(input.modelId !== undefined ? { modelId: normalizeRequiredId(input.modelId, "modelId") } : {}),
 			upgradePolicy: input.upgradePolicy ?? DEFAULT_UPGRADE_POLICY,
 			status: "active",
 			createdAt,
@@ -128,9 +136,9 @@ export class ConnSqliteStore {
 			[
 				"INSERT INTO conns (",
 				"conn_id, title, prompt, target_json, schedule_json, asset_refs_json, max_run_ms,",
-				"profile_id, agent_spec_id, skill_set_id, model_policy_id, upgrade_policy,",
+				"profile_id, agent_spec_id, skill_set_id, model_policy_id, model_provider, model_id, upgrade_policy,",
 				"status, created_at, updated_at, next_run_at",
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			].join(" "),
 			conn.connId,
 			conn.title,
@@ -143,6 +151,8 @@ export class ConnSqliteStore {
 			conn.agentSpecId,
 			conn.skillSetId,
 			conn.modelPolicyId,
+			conn.modelProvider,
+			conn.modelId,
 			conn.upgradePolicy,
 			conn.status,
 			conn.createdAt,
@@ -174,6 +184,8 @@ export class ConnSqliteStore {
 			...(patch.agentSpecId !== undefined ? { agentSpecId: normalizeRequiredId(patch.agentSpecId, "agentSpecId") } : {}),
 			...(patch.skillSetId !== undefined ? { skillSetId: normalizeRequiredId(patch.skillSetId, "skillSetId") } : {}),
 			...(patch.modelPolicyId !== undefined ? { modelPolicyId: normalizeRequiredId(patch.modelPolicyId, "modelPolicyId") } : {}),
+			...(patch.modelProvider !== undefined ? { modelProvider: normalizeRequiredId(patch.modelProvider, "modelProvider") } : {}),
+			...(patch.modelId !== undefined ? { modelId: normalizeRequiredId(patch.modelId, "modelId") } : {}),
 			...(patch.upgradePolicy !== undefined ? { upgradePolicy: patch.upgradePolicy } : {}),
 			status,
 			updatedAt: now.toISOString(),
@@ -187,7 +199,7 @@ export class ConnSqliteStore {
 			[
 				"UPDATE conns SET",
 				"title = ?, prompt = ?, target_json = ?, schedule_json = ?, asset_refs_json = ?, max_run_ms = ?,",
-				"profile_id = ?, agent_spec_id = ?, skill_set_id = ?, model_policy_id = ?, upgrade_policy = ?,",
+				"profile_id = ?, agent_spec_id = ?, skill_set_id = ?, model_policy_id = ?, model_provider = ?, model_id = ?, upgrade_policy = ?,",
 				"status = ?, updated_at = ?, next_run_at = ?",
 				"WHERE conn_id = ?",
 			].join(" "),
@@ -201,6 +213,8 @@ export class ConnSqliteStore {
 			updated.agentSpecId,
 			updated.skillSetId,
 			updated.modelPolicyId,
+			updated.modelProvider,
+			updated.modelId,
 			updated.upgradePolicy,
 			updated.status,
 			updated.updatedAt,
@@ -286,6 +300,8 @@ function rowToConnDefinition(row: ConnRow): ConnDefinition {
 		agentSpecId: row.agent_spec_id,
 		skillSetId: row.skill_set_id,
 		modelPolicyId: row.model_policy_id,
+		...(row.model_provider ? { modelProvider: row.model_provider } : {}),
+		...(row.model_id ? { modelId: row.model_id } : {}),
 		upgradePolicy: row.upgrade_policy,
 		status: row.status,
 		createdAt: row.created_at,

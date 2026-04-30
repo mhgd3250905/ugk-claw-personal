@@ -54,6 +54,7 @@ function summarizeConn(conn: ConnDefinition): string {
 		`status: ${conn.status}`,
 		`target: ${JSON.stringify(conn.target)}`,
 		`schedule: ${JSON.stringify(conn.schedule)}`,
+		`model: ${conn.modelProvider && conn.modelId ? `${conn.modelProvider} / ${conn.modelId}` : "(default)"}`,
 		`assetRefs: ${conn.assetRefs.join(", ") || "(none)"}`,
 		`nextRunAt: ${conn.nextRunAt ?? "(none)"}`,
 		`lastRunAt: ${conn.lastRunAt ?? "(none)"}`,
@@ -141,6 +142,8 @@ const ConnToolParams = Type.Object({
 	agentSpecId: Type.Optional(Type.String()),
 	skillSetId: Type.Optional(Type.String()),
 	modelPolicyId: Type.Optional(Type.String()),
+	modelProvider: Type.Optional(Type.String()),
+	modelId: Type.Optional(Type.String()),
 	upgradePolicy: Type.Optional(Type.Union([Type.Literal("latest"), Type.Literal("pinned"), Type.Literal("manual")])),
 });
 
@@ -190,6 +193,8 @@ export default function connExtension(pi: ExtensionAPI) {
 						agentSpecId: params.agentSpecId,
 						skillSetId: params.skillSetId,
 						modelPolicyId: params.modelPolicyId,
+						modelProvider: params.modelProvider,
+						modelId: params.modelId,
 						upgradePolicy: params.upgradePolicy,
 					});
 					return {
@@ -291,6 +296,8 @@ export default function connExtension(pi: ExtensionAPI) {
 						...(params.agentSpecId !== undefined ? { agentSpecId: params.agentSpecId } : {}),
 						...(params.skillSetId !== undefined ? { skillSetId: params.skillSetId } : {}),
 						...(params.modelPolicyId !== undefined ? { modelPolicyId: params.modelPolicyId } : {}),
+						...(params.modelProvider !== undefined ? { modelProvider: params.modelProvider } : {}),
+						...(params.modelId !== undefined ? { modelId: params.modelId } : {}),
 						...(params.upgradePolicy !== undefined ? { upgradePolicy: params.upgradePolicy } : {}),
 					});
 					if (!conn) {

@@ -22,6 +22,10 @@ class FakeRunner {
 			status: "succeeded",
 			resultSummary: `summary for ${conn.title}`,
 			resultText: `result for ${conn.title}`,
+			resolvedSnapshot: {
+				provider: conn.modelProvider ?? "xiaomi-mimo-cn",
+				model: conn.modelId ?? "mimo-v2.5-pro",
+			},
 			finishedAt: now.toISOString(),
 		};
 	}
@@ -37,6 +41,10 @@ class FailingRunner {
 			status: "failed",
 			resultSummary: "boom",
 			errorText: "boom",
+			resolvedSnapshot: {
+				provider: "xiaomi-mimo-cn",
+				model: "mimo-v2.5-pro",
+			},
 			finishedAt: now.toISOString(),
 		};
 	}
@@ -257,7 +265,7 @@ test("ConnWorker enqueues due conn runs, executes one claim, and creates a task 
 				runId: runs[0].runId,
 				conversationId: undefined,
 				title: "Daily Digest completed",
-				text: "result for Daily Digest",
+				text: "执行模型：xiaomi-mimo-cn / mimo-v2.5-pro\n\nresult for Daily Digest",
 			},
 		],
 	);
@@ -288,7 +296,9 @@ test("ConnWorker mirrors global activity notifications to the optional activity 
 
 	const activities = await activityStore.list();
 	assert.equal(activities.length, 1);
-	assert.deepEqual(activityNotifications, ["Feishu Mirror completed\nresult for Feishu Mirror"]);
+	assert.deepEqual(activityNotifications, [
+		"Feishu Mirror completed\n执行模型：xiaomi-mimo-cn / mimo-v2.5-pro\n\nresult for Feishu Mirror",
+	]);
 
 	database.close();
 });
@@ -343,7 +353,7 @@ test("ConnWorker creates global activity for feishu targets too", async () => {
 				runId: runs[0].runId,
 				conversationId: undefined,
 				title: "Feishu Digest completed",
-				text: "result for Feishu Digest",
+				text: "执行模型：xiaomi-mimo-cn / mimo-v2.5-pro\n\nresult for Feishu Digest",
 			},
 		],
 	);
@@ -385,7 +395,7 @@ test("ConnWorker failure does not abort the tick loop and creates a failure acti
 				sourceId: conn.connId,
 				runId: activities[0]?.runId,
 				title: "Daily Digest failed",
-				text: "boom",
+				text: "执行模型：xiaomi-mimo-cn / mimo-v2.5-pro\n\nboom",
 			},
 		],
 	);
@@ -416,7 +426,7 @@ test("ConnWorker failure does not abort the tick loop and creates a failure acti
 				runId: activities[0]?.runId,
 				conversationId: undefined,
 				title: "Daily Digest failed",
-				text: "boom",
+				text: "执行模型：xiaomi-mimo-cn / mimo-v2.5-pro\n\nboom",
 			},
 		],
 	);

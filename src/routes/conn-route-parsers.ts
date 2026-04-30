@@ -10,6 +10,8 @@ export interface ParsedConnMutationBody {
 	agentSpecId?: string;
 	skillSetId?: string;
 	modelPolicyId?: string;
+	modelProvider?: string;
+	modelId?: string;
 	upgradePolicy?: "latest" | "pinned" | "manual";
 	maxRunMs?: number;
 }
@@ -77,6 +79,22 @@ export function parseConnMutationBody(
 		if (body[fieldName] !== undefined) {
 			parsed[fieldName] = parsedOptionalId.value;
 		}
+	}
+
+	const parsedModelProvider = parseOptionalId(body.modelProvider, "modelProvider");
+	if (parsedModelProvider.error) {
+		return { error: parsedModelProvider.error };
+	}
+	const parsedModelId = parseOptionalId(body.modelId, "modelId");
+	if (parsedModelId.error) {
+		return { error: parsedModelId.error };
+	}
+	if ((body.modelProvider === undefined) !== (body.modelId === undefined)) {
+		return { error: 'Fields "modelProvider" and "modelId" must be provided together' };
+	}
+	if (body.modelProvider !== undefined) {
+		parsed.modelProvider = parsedModelProvider.value;
+		parsed.modelId = parsedModelId.value;
 	}
 
 	const parsedUpgradePolicy = parseUpgradePolicy(body.upgradePolicy);

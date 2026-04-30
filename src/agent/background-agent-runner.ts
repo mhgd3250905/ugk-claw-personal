@@ -66,6 +66,8 @@ export class BackgroundAgentRunner {
 				agentSpecId: conn.agentSpecId ?? "agent.default",
 				skillSetId: conn.skillSetId ?? "skills.default",
 				modelPolicyId: conn.modelPolicyId ?? "model.default",
+				modelProvider: conn.modelProvider,
+				modelId: conn.modelId,
 				upgradePolicy: conn.upgradePolicy ?? "latest",
 				now,
 			});

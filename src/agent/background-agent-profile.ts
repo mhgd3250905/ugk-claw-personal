@@ -12,6 +12,8 @@ export interface BackgroundAgentProfileRef {
 	agentSpecId: string;
 	skillSetId: string;
 	modelPolicyId: string;
+	modelProvider?: string;
+	modelId?: string;
 	upgradePolicy: ConnUpgradePolicy;
 	now?: Date;
 }
@@ -140,6 +142,8 @@ export class BackgroundAgentProfileResolver {
 		);
 
 		const defaultModel = resolveProjectDefaultModelContext(this.options.projectRoot);
+		const provider = ref.modelProvider ?? modelPolicy.provider ?? defaultModel.provider;
+		const model = ref.modelId ?? modelPolicy.model ?? defaultModel.model;
 		const skillPaths = skillSet.skillPaths?.length ? skillSet.skillPaths : getDefaultAllowedSkillPaths(this.options.projectRoot);
 		const skills = await collectSkills(skillPaths);
 		const computedSkillSetVersion = hashStrings([
@@ -157,8 +161,8 @@ export class BackgroundAgentProfileResolver {
 			skills,
 			modelPolicyId: ref.modelPolicyId,
 			modelPolicyVersion: modelPolicy.version ?? BUILTIN_VERSION,
-			provider: modelPolicy.provider ?? defaultModel.provider,
-			model: modelPolicy.model ?? defaultModel.model,
+			provider,
+			model,
 			upgradePolicy: ref.upgradePolicy,
 			resolvedAt: (ref.now ?? new Date()).toISOString(),
 		};

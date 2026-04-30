@@ -254,6 +254,12 @@ function resolveNotificationTitleSuffix(status: ConnRunRecord["status"]): string
 }
 
 function resolveNotificationText(run: ConnRunRecord): string {
+	const modelLine = resolveRunModelLine(run);
+	const body = resolveNotificationBodyText(run);
+	return modelLine ? `${modelLine}\n\n${body}` : body;
+}
+
+function resolveNotificationBodyText(run: ConnRunRecord): string {
 	if (run.status === "failed") {
 		return run.errorText ?? run.resultText ?? run.resultSummary ?? "Conn run failed";
 	}
@@ -261,6 +267,19 @@ function resolveNotificationText(run: ConnRunRecord): string {
 		return run.resultText ?? run.resultSummary ?? "Conn run cancelled";
 	}
 	return run.resultText ?? run.resultSummary ?? "Conn run completed";
+}
+
+function resolveRunModelLine(run: ConnRunRecord): string | undefined {
+	const snapshot = run.resolvedSnapshot;
+	if (!snapshot || typeof snapshot !== "object") {
+		return undefined;
+	}
+	const provider = typeof snapshot.provider === "string" ? snapshot.provider.trim() : "";
+	const model = typeof snapshot.model === "string" ? snapshot.model.trim() : "";
+	if (!provider || !model) {
+		return undefined;
+	}
+	return `执行模型：${provider} / ${model}`;
 }
 
 function resolveHeartbeatMs(heartbeatMs: number | undefined, leaseMs: number | undefined): number {

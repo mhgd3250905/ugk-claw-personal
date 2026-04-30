@@ -179,13 +179,14 @@ export function createSkillRestrictedResourceLoader(options: {
 	runtimeAgentRulesPath?: string;
 }): DefaultResourceLoader {
 	const runtimeAgentRulesPath = options.runtimeAgentRulesPath;
+	const agentDir = options.agentDir ?? getProjectAgentDirPath(options.projectRoot);
 	return new DefaultResourceLoader({
 		cwd: options.projectRoot,
-		agentDir: options.agentDir,
+		agentDir,
 		noSkills: true,
 		additionalSkillPaths: options.allowedSkillPaths,
 		agentsFilesOverride: runtimeAgentRulesPath
-			? (current) => {
+			? (current: { agentsFiles: Array<{ path: string; content: string }> }) => {
 					const content = readOptionalRuntimeAgentRules(runtimeAgentRulesPath);
 					if (!content) {
 						return current;

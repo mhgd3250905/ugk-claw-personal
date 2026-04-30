@@ -150,6 +150,25 @@ test("BackgroundAgentProfileResolver resolves file registry ids when present", a
 	);
 });
 
+test("BackgroundAgentProfileResolver lets a conn override the default or policy model", async () => {
+	const projectRoot = await createProjectRoot();
+	const resolver = new BackgroundAgentProfileResolver({ projectRoot });
+
+	const snapshot = await resolver.resolve({
+		profileId: "background.default",
+		agentSpecId: "agent.default",
+		skillSetId: "skills.default",
+		modelPolicyId: "model.default",
+		modelProvider: "xiaomi-mimo-cn",
+		modelId: "mimo-v2.5-pro",
+		upgradePolicy: "latest",
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	assert.equal(snapshot.provider, "xiaomi-mimo-cn");
+	assert.equal(snapshot.model, "mimo-v2.5-pro");
+});
+
 test("BackgroundAgentProfileResolver rejects unknown non-default ids clearly", async () => {
 	const projectRoot = await createProjectRoot();
 	const resolver = new BackgroundAgentProfileResolver({ projectRoot });

@@ -81,7 +81,7 @@ export class ConnDatabase {
 		const db = this.open();
 		db.exec(SCHEMA_SQL);
 		this.applyMigrations(db);
-		db.exec("PRAGMA user_version = 3");
+		db.exec("PRAGMA user_version = 4");
 	}
 
 	private async prepareDatabasePath(): Promise<void> {
@@ -134,6 +134,14 @@ export class ConnDatabase {
 		const userVersion = this.getUserVersion();
 		if (userVersion < 2 && !this.hasColumn("conns", "max_run_ms")) {
 			db.exec("ALTER TABLE conns ADD COLUMN max_run_ms INTEGER");
+		}
+		if (userVersion < 4) {
+			if (!this.hasColumn("conns", "model_provider")) {
+				db.exec("ALTER TABLE conns ADD COLUMN model_provider TEXT");
+			}
+			if (!this.hasColumn("conns", "model_id")) {
+				db.exec("ALTER TABLE conns ADD COLUMN model_id TEXT");
+			}
 		}
 		if (userVersion < 3) {
 			db.exec(
@@ -188,6 +196,8 @@ CREATE TABLE IF NOT EXISTS conns (
 	agent_spec_id TEXT NOT NULL,
 	skill_set_id TEXT NOT NULL,
 	model_policy_id TEXT NOT NULL,
+	model_provider TEXT,
+	model_id TEXT,
 	upgrade_policy TEXT NOT NULL DEFAULT 'latest',
 	status TEXT NOT NULL DEFAULT 'active',
 	created_at TEXT NOT NULL,

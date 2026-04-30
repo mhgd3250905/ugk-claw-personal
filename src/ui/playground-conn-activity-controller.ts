@@ -65,7 +65,9 @@ export function getConnActivityElementRefsScript(): string {
 		const connEditorProfileId = document.getElementById("conn-editor-profile-id");
 		const connEditorAgentSpecId = document.getElementById("conn-editor-agent-spec-id");
 		const connEditorSkillSetId = document.getElementById("conn-editor-skill-set-id");
-		const connEditorModelPolicyId = document.getElementById("conn-editor-model-policy-id");
+		const connEditorModelProvider = document.getElementById("conn-editor-model-provider");
+		const connEditorModelId = document.getElementById("conn-editor-model-id");
+		const connEditorModelAuth = document.getElementById("conn-editor-model-auth");
 		const connEditorUpgradePolicy = document.getElementById("conn-editor-upgrade-policy");
 		const connEditorMaxRunSeconds = document.getElementById("conn-editor-max-run-seconds");
 		const connEditorPickAssetsButton = document.getElementById("conn-editor-pick-assets-button");
@@ -123,6 +125,7 @@ export function getConnActivityEditorScript(): string {
 			state.connEditorError = "";
 			fillConnEditor(buildConnEditorDraft(editing ? conn : null));
 			renderConnEditor();
+			void ensureConnEditorModelConfig();
 			void loadAssets(true);
 			connEditorDialog.hidden = false;
 			connEditorDialog.classList.add("open");
@@ -220,7 +223,8 @@ export function getConnActivityEditorScript(): string {
 				profileId: conn?.profileId || "",
 				agentSpecId: conn?.agentSpecId || "",
 				skillSetId: conn?.skillSetId || "",
-				modelPolicyId: conn?.modelPolicyId || "",
+				modelProvider: conn?.modelProvider || "",
+				modelId: conn?.modelId || "",
 				upgradePolicy: conn?.upgradePolicy || "latest",
 				maxRunSeconds: conn?.maxRunMs ? String(Math.round(Number(conn.maxRunMs) / 1000)) : "",
 				assetRefs: Array.isArray(conn?.assetRefs) ? conn.assetRefs.join("\\n") : "",
@@ -240,7 +244,9 @@ export function getConnActivityEditorScript(): string {
 			connEditorProfileId.value = draft.profileId;
 			connEditorAgentSpecId.value = draft.agentSpecId;
 			connEditorSkillSetId.value = draft.skillSetId;
-			connEditorModelPolicyId.value = draft.modelPolicyId;
+			connEditorModelProvider.dataset.pendingValue = draft.modelProvider;
+			connEditorModelId.dataset.pendingValue = draft.modelId;
+			renderConnEditorModelOptions();
 			connEditorUpgradePolicy.value = draft.upgradePolicy;
 			connEditorMaxRunSeconds.value = draft.maxRunSeconds;
 			state.connEditorSelectedAssetRefs = normalizeConnAssetRefsText(draft.assetRefs);
@@ -482,6 +488,77 @@ export function getConnActivityEditorScript(): string {
 			connEditorError.hidden = !state.connEditorError;
 		}
 
+		async function ensureConnEditorModelConfig() {
+			if (!state.modelConfig) {
+				await loadModelConfig();
+			}
+			renderConnEditorModelOptions();
+		}
+
+		function findConnEditorProvider(providerId) {
+			return state.modelConfig?.providers?.find((provider) => provider.id === providerId) || null;
+		}
+
+		function renderConnEditorModelOptions() {
+			if (!connEditorModelProvider || !connEditorModelId) {
+				return;
+			}
+			const providers = state.modelConfig?.providers || [];
+			const pendingProvider = connEditorModelProvider.dataset.pendingValue || connEditorModelProvider.value || state.modelConfig?.current?.provider || "";
+			const pendingModel = connEditorModelId.dataset.pendingValue || connEditorModelId.value || state.modelConfig?.current?.model || "";
+			connEditorModelProvider.innerHTML = "";
+			if (providers.length === 0) {
+				const option = document.createElement("option");
+				option.value = "";
+				option.textContent = state.modelConfigLoading ? "模型源读取中" : "暂无可用模型源";
+				connEditorModelProvider.appendChild(option);
+				connEditorModelProvider.disabled = true;
+				connEditorModelId.disabled = true;
+				connEditorModelId.innerHTML = "";
+				connEditorModelAuth.textContent = state.modelConfigLoading ? "正在读取可用 API 源" : "模型源不可用";
+				connEditorModelAuth.dataset.state = "missing";
+				return;
+			}
+			connEditorModelProvider.disabled = state.connEditorSaving || state.modelConfigLoading;
+			for (const provider of providers) {
+				const option = document.createElement("option");
+				option.value = provider.id;
+				option.textContent = getModelConfigProviderLabel(provider);
+				connEditorModelProvider.appendChild(option);
+			}
+			if (providers.some((provider) => provider.id === pendingProvider)) {
+				connEditorModelProvider.value = pendingProvider;
+			}
+			if (!connEditorModelProvider.value) {
+				connEditorModelProvider.value = providers[0].id;
+			}
+
+			const provider = findConnEditorProvider(connEditorModelProvider.value);
+			const models = provider?.models || [];
+			connEditorModelId.innerHTML = "";
+			for (const model of models) {
+				const option = document.createElement("option");
+				option.value = model.id;
+				option.textContent = getModelConfigOptionLabel(model);
+				connEditorModelId.appendChild(option);
+			}
+			if (models.some((model) => model.id === pendingModel)) {
+				connEditorModelId.value = pendingModel;
+			}
+			if (!connEditorModelId.value && models[0]) {
+				connEditorModelId.value = models[0].id;
+			}
+			connEditorModelId.disabled = state.connEditorSaving || state.modelConfigLoading || models.length === 0;
+			const auth = provider?.auth || {};
+			const envText = auth.envVar ? " · " + auth.envVar : "";
+			connEditorModelAuth.textContent = provider
+				? (auth.configured ? "密钥已配置" : "密钥未配置") + envText
+				: "未选择 API 源";
+			connEditorModelAuth.dataset.state = provider && auth.configured ? "ready" : "missing";
+			delete connEditorModelProvider.dataset.pendingValue;
+			delete connEditorModelId.dataset.pendingValue;
+		}
+
 		function renderConnEditorSelectedAssets() {
 			if (!connEditorSelectedAssets) {
 				return;
@@ -522,6 +599,7 @@ export function getConnActivityEditorScript(): string {
 			saveConnEditorButton.textContent = state.connEditorSaving ? "保存中" : "保存";
 			connEditorUploadAssetsButton.disabled = state.connEditorSaving || state.connEditorUploadingAssets;
 			connEditorUploadAssetsButton.textContent = state.connEditorUploadingAssets ? "上传中" : "上传新文件";
+			renderConnEditorModelOptions();
 			renderConnEditorError(state.connEditorError);
 			renderConnEditorSelectedAssets();
 			setConnEditorSectionVisibility();
@@ -617,6 +695,13 @@ export function getConnActivityEditorScript(): string {
 				target: buildConnTargetPayload(),
 				schedule: buildConnSchedulePayload(),
 			};
+			const modelProvider = String(connEditorModelProvider?.value || "").trim();
+			const modelId = String(connEditorModelId?.value || "").trim();
+			if (!modelProvider || !modelId) {
+				throw new Error("请选择后台任务使用的模型");
+			}
+			payload.modelProvider = modelProvider;
+			payload.modelId = modelId;
 			const assetRefs = Array.isArray(state.connEditorSelectedAssetRefs)
 				? state.connEditorSelectedAssetRefs.map((assetId) => String(assetId || "").trim()).filter(Boolean)
 				: [];
@@ -635,7 +720,6 @@ export function getConnActivityEditorScript(): string {
 				["profileId", connEditorProfileId],
 				["agentSpecId", connEditorAgentSpecId],
 				["skillSetId", connEditorSkillSetId],
-				["modelPolicyId", connEditorModelPolicyId],
 			]) {
 				const value = String(node.value || "").trim();
 				if (value) {
@@ -1353,9 +1437,18 @@ export function getConnActivityRendererScript(): string {
 				scheduleLine.appendChild(scheduleCode);
 				const timeLine = document.createElement("span");
 				timeLine.textContent = "运行节奏：" + describeConnTimingSummary(conn);
+				const modelLine = document.createElement("span");
+				modelLine.textContent = "模型：";
+				const modelCode = document.createElement("code");
+				modelCode.textContent =
+					conn.modelProvider && conn.modelId
+						? conn.modelProvider + " / " + conn.modelId
+						: "跟随默认";
+				modelLine.appendChild(modelCode);
 				meta.appendChild(targetLine);
 				meta.appendChild(scheduleLine);
 				meta.appendChild(timeLine);
+				meta.appendChild(modelLine);
 				main.appendChild(titleRow);
 				main.appendChild(meta);
 				renderConnManagerRunList(conn, main);
@@ -1768,6 +1861,11 @@ export function getConnActivityEventHandlersScript(): string {
 		connEditorTargetType.addEventListener("change", renderConnEditor);
 		connEditorTargetId.addEventListener("input", renderConnEditorTargetPreview);
 		connEditorScheduleKind.addEventListener("change", renderConnEditor);
+		connEditorModelProvider.addEventListener("change", () => {
+			connEditorModelId.dataset.pendingValue = "";
+			renderConnEditorModelOptions();
+		});
+		connEditorModelId.addEventListener("change", renderConnEditorModelOptions);
 		connEditorForm.addEventListener("submit", (event) => {
 			event.preventDefault();
 			void submitConnEditor();
