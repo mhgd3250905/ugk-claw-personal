@@ -68,6 +68,7 @@ test("project whitelist exposes the vendored superpowers meta skill and workflow
 	assert.equal(skillNames.has("brainstorming"), true);
 	assert.equal(skillNames.has("test-driven-development"), true);
 	assert.equal(skillNames.has("systematic-debugging"), true);
+	assert.equal(skillNames.has("subagent-usage"), true);
 });
 
 test("default allowed skill paths include both system and user skill directories", () => {

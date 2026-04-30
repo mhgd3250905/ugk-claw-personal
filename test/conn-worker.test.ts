@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AgentActivityStore } from "../src/agent/agent-activity-store.js";
@@ -10,7 +10,7 @@ import { ConnRunStore } from "../src/agent/conn-run-store.js";
 import { ConnSqliteStore } from "../src/agent/conn-sqlite-store.js";
 import type { ConnDefinition } from "../src/agent/conn-store.js";
 import type { NotificationBroadcastEvent } from "../src/agent/notification-hub.js";
-import { ConnWorker, resolveBackgroundSessionModel } from "../src/workers/conn-worker.js";
+import { ConnWorker, createBackgroundResourceLoader, resolveBackgroundSessionModel } from "../src/workers/conn-worker.js";
 
 class FakeRunner {
 	calls: Array<{ conn: ConnDefinition; run: ConnRunRecord }> = [];
@@ -78,6 +78,61 @@ test("resolveBackgroundSessionModel returns the model selected by the background
 
 	assert.equal(resolved, expectedModel);
 	assert.deepEqual(calls, [{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" }]);
+});
+
+test("createBackgroundResourceLoader loads project extensions while sessions run in isolated workspaces", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-background-loader-"));
+	const workspaceRoot = join(projectRoot, ".data", "agent", "background", "runs", "run-1");
+	const extensionPath = join(projectRoot, ".pi", "extensions", "background-probe.ts");
+	const skillPath = join(projectRoot, ".pi", "skills", "background-skill", "SKILL.md");
+
+	await mkdir(join(projectRoot, ".pi", "extensions"), { recursive: true });
+	await mkdir(join(projectRoot, ".pi", "skills", "background-skill"), { recursive: true });
+	await mkdir(workspaceRoot, { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		JSON.stringify({
+			extensions: ["extensions"],
+			skills: ["skills"],
+		}),
+		"utf8",
+	);
+	await writeFile(
+		extensionPath,
+		[
+			'import { Type } from "@sinclair/typebox";',
+			"export default function backgroundProbeExtension(pi) {",
+			"  pi.registerTool({",
+			'    name: "background_probe",',
+			'    label: "Background Probe",',
+			'    description: "Verifies background runs load project extensions.",',
+			"    parameters: Type.Object({}),",
+			"    async execute() { return { ok: true }; },",
+			"  });",
+			"}",
+		].join("\n"),
+		"utf8",
+	);
+	await writeFile(
+		skillPath,
+		"---\nname: background-skill\ndescription: allowed background skill\n---\n",
+		"utf8",
+	);
+
+	const loader = createBackgroundResourceLoader({
+		projectRoot,
+		workspaceRoot,
+		skillPaths: [join(projectRoot, ".pi", "skills")],
+	});
+
+	await loader.reload();
+
+	assert.deepEqual(loader.getExtensions().errors, []);
+	assert.deepEqual(loader.getExtensions().extensions.map((extension) => extension.path), [extensionPath]);
+	assert.deepEqual(
+		loader.getSkills().skills.map((skill) => skill.name),
+		["background-skill"],
+	);
 });
 
 test("resolveBackgroundSessionModel rejects missing background snapshot models instead of falling back", () => {

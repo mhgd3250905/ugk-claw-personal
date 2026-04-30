@@ -401,10 +401,10 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 		const modelRegistry = ModelRegistry.create(authStorage, getProjectModelsPath(this.projectRoot));
 		const model = resolveBackgroundSessionModel(modelRegistry, input.snapshot);
 		const skillPaths = Array.from(new Set(input.snapshot.skills.map((skill) => dirname(skill.path))));
-		const resourceLoader = createSkillRestrictedResourceLoader({
-			projectRoot: input.workspace.rootPath,
-			agentDir: getProjectAgentDirPath(this.projectRoot),
-			allowedSkillPaths: skillPaths,
+		const resourceLoader = createBackgroundResourceLoader({
+			projectRoot: this.projectRoot,
+			workspaceRoot: input.workspace.rootPath,
+			skillPaths,
 		});
 		await resourceLoader.reload();
 
@@ -420,6 +420,18 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 
 		return session;
 	}
+}
+
+export function createBackgroundResourceLoader(input: {
+	projectRoot: string;
+	workspaceRoot: string;
+	skillPaths: string[];
+}) {
+	return createSkillRestrictedResourceLoader({
+		projectRoot: input.projectRoot,
+		agentDir: getProjectAgentDirPath(input.projectRoot),
+		allowedSkillPaths: input.skillPaths,
+	});
 }
 
 interface DeprecatedBackgroundModelAlias {
