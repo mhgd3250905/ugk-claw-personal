@@ -264,6 +264,115 @@ test("resolveProjectDefaultModelContext uses project defaults and reserve budget
 	});
 });
 
+test("resolveProjectDefaultModelContext ignores commented default model settings", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-default-context-comments-"));
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		[
+			"{",
+			'  // "defaultProvider": "deepseek-anthropic",',
+			'  // "defaultModel": "deepseek-v4-flash",',
+			'  "defaultModel": "glm-5"',
+			"}",
+		].join("\n"),
+		"utf8",
+	);
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: {
+				"dashscope-coding": {
+					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
+				},
+				"deepseek-anthropic": {
+					models: [{ id: "deepseek-v4-pro", contextWindow: 1048576, maxTokens: 262144 }],
+				},
+			},
+		}),
+		"utf8",
+	);
+
+	const context = resolveProjectDefaultModelContext(projectRoot);
+
+	assert.equal(context.provider, "unknown");
+	assert.equal(context.model, "glm-5");
+});
+
+test("resolveProjectDefaultModelContext ignores nested default model settings", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-default-context-nested-"));
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		JSON.stringify({
+			defaultProvider: "dashscope-coding",
+			defaultModel: "glm-5",
+			nested: {
+				defaultProvider: "deepseek-anthropic",
+				defaultModel: "deepseek-v4-pro",
+			},
+			compaction: { reserveTokens: 20000 },
+		}),
+		"utf8",
+	);
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: {
+				"dashscope-coding": {
+					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
+				},
+				"deepseek-anthropic": {
+					models: [{ id: "deepseek-v4-pro", contextWindow: 1048576, maxTokens: 262144 }],
+				},
+			},
+		}),
+		"utf8",
+	);
+
+	const context = resolveProjectDefaultModelContext(projectRoot);
+
+	assert.equal(context.provider, "dashscope-coding");
+	assert.equal(context.model, "glm-5");
+	assert.equal(context.reserveTokens, 20000);
+});
+
+test("resolveProjectDefaultModelContext does not use nested defaults when top-level settings are missing", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-default-context-nested-only-"));
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		JSON.stringify({
+			nested: {
+				defaultProvider: "deepseek-anthropic",
+				defaultModel: "deepseek-v4-pro",
+			},
+			compaction: { reserveTokens: 20000 },
+		}),
+		"utf8",
+	);
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: {
+				"deepseek-anthropic": {
+					models: [{ id: "deepseek-v4-pro", contextWindow: 1048576, maxTokens: 262144 }],
+				},
+			},
+		}),
+		"utf8",
+	);
+
+	const context = resolveProjectDefaultModelContext(projectRoot);
+
+	assert.equal(context.provider, "unknown");
+	assert.equal(context.model, "unknown");
+	assert.equal(context.reserveTokens, 20000);
+});
+
 test("default session factory reflects model context changes after default model switches", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-model-context-refresh-"));
 	const sessionDir = join(projectRoot, ".data", "agent", "sessions");

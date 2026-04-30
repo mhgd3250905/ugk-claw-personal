@@ -1,7 +1,7 @@
 {
   // "shellPath": "C:\\Windows\\System32\\cmd.exe",  // Windows 下临时启用
   "defaultProvider": "deepseek-anthropic",
-  "defaultModel": "deepseek-v4-flash",
+  "defaultModel": "deepseek-v4-pro",
   "defaultThinkingLevel": "medium",
   "sessionDir": ".pi/sessions",
   "enableSkillCommands": true,

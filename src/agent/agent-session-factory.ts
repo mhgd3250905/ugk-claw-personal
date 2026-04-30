@@ -9,6 +9,10 @@ import {
 	ModelRegistry,
 	SessionManager,
 } from "@mariozechner/pi-coding-agent";
+import {
+	readJsonScalarSetting,
+	readNestedJsonScalarSetting,
+} from "./settings-json.js";
 
 export interface TextDeltaAssistantEventLike {
 	type: "text_delta";
@@ -255,11 +259,6 @@ async function buildSkillFingerprint(allowedSkillPaths: string[]): Promise<strin
 	return hash.digest("hex");
 }
 
-function readProjectSettingValue(fileContent: string, key: string): string | undefined {
-	const match = fileContent.match(new RegExp(`"${key}"\\s*:\\s*("([^"]+)"|(\\d+))`, "i"));
-	return match?.[2] ?? match?.[3];
-}
-
 export function resolveProjectDefaultModelContext(projectRoot: string): ProjectDefaultModelContext {
 	const fallback: ProjectDefaultModelContext = {
 		provider: "unknown",
@@ -276,9 +275,9 @@ export function resolveProjectDefaultModelContext(projectRoot: string): ProjectD
 		return fallback;
 	}
 
-	const provider = readProjectSettingValue(settingsContent, "defaultProvider") ?? fallback.provider;
-	const model = readProjectSettingValue(settingsContent, "defaultModel") ?? fallback.model;
-	const reserveTokens = Number(readProjectSettingValue(settingsContent, "reserveTokens") ?? fallback.reserveTokens);
+	const provider = readJsonScalarSetting(settingsContent, "defaultProvider") ?? fallback.provider;
+	const model = readJsonScalarSetting(settingsContent, "defaultModel") ?? fallback.model;
+	const reserveTokens = Number(readNestedJsonScalarSetting(settingsContent, "reserveTokens") ?? fallback.reserveTokens);
 
 	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(projectRoot));
 	const resolvedModel = registry.find(provider, model);

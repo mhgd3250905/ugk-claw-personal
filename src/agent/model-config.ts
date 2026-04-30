@@ -12,6 +12,10 @@ import {
 	getProjectModelsPath,
 	getProjectSettingsPath,
 } from "./agent-session-factory.js";
+import {
+	readJsonScalarSetting,
+	replaceOrInsertJsonStringSetting,
+} from "./settings-json.js";
 
 export interface ModelConfigModelBody {
 	id: string;
@@ -205,38 +209,16 @@ export function createLiveModelSelectionValidator(projectRoot: string): ModelSel
 
 function readDefaultSelection(settingsContent: string): ModelConfigSelection {
 	return {
-		provider: readSettingsValue(settingsContent, "defaultProvider") ?? FALLBACK_CURRENT_MODEL.provider,
-		model: readSettingsValue(settingsContent, "defaultModel") ?? FALLBACK_CURRENT_MODEL.model,
+		provider: readJsonScalarSetting(settingsContent, "defaultProvider") ?? FALLBACK_CURRENT_MODEL.provider,
+		model: readJsonScalarSetting(settingsContent, "defaultModel") ?? FALLBACK_CURRENT_MODEL.model,
 	};
-}
-
-function readSettingsValue(content: string, key: string): string | undefined {
-	const match = content.match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`));
-	return match?.[1];
 }
 
 function replaceDefaultSelection(content: string, selection: ModelConfigSelection): string {
 	let nextContent = content;
-	nextContent = replaceOrInsertJsonStringProperty(nextContent, "defaultProvider", selection.provider);
-	nextContent = replaceOrInsertJsonStringProperty(nextContent, "defaultModel", selection.model);
+	nextContent = replaceOrInsertJsonStringSetting(nextContent, "defaultProvider", selection.provider);
+	nextContent = replaceOrInsertJsonStringSetting(nextContent, "defaultModel", selection.model);
 	return nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`;
-}
-
-function replaceOrInsertJsonStringProperty(content: string, key: string, value: string): string {
-	const escapedValue = JSON.stringify(value);
-	const propertyPattern = new RegExp(`("${key}"\\s*:\\s*)"[^"]*"`);
-	if (propertyPattern.test(content)) {
-		return content.replace(propertyPattern, `$1${escapedValue}`);
-	}
-	const closingBraceIndex = content.lastIndexOf("}");
-	const propertyLine = `  "${key}": ${escapedValue}`;
-	if (closingBraceIndex < 0) {
-		return `{\n${propertyLine}\n}`;
-	}
-	const before = content.slice(0, closingBraceIndex).trimEnd();
-	const after = content.slice(closingBraceIndex);
-	const separator = before.endsWith("{") ? "\n" : ",\n";
-	return `${before}${separator}${propertyLine}\n${after}`;
 }
 
 function readProviders(modelsContent: string): ModelConfigProviderBody[] {
