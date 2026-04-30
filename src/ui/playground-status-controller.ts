@@ -16,7 +16,6 @@ export function getPlaygroundStatusControllerScript(): string {
 			sendButton.disabled = false;
 			sendButton.textContent = "发送";
 			interruptButton.disabled = !next;
-			viewSkillsButton.disabled = next;
 			filePickerAction.disabled = false;
 			messageInput.disabled = false;
 			fileInput.disabled = false;
@@ -24,7 +23,6 @@ export function getPlaygroundStatusControllerScript(): string {
 			newConversationButton.disabled = next || state.conversationCreatePending;
 			mobileNewConversationButton.disabled = next || state.conversationCreatePending;
 			mobileOverflowMenuButton.disabled = false;
-			mobileMenuSkillsButton.disabled = next;
 			mobileMenuFileButton.disabled = false;
 			mobileMenuLibraryButton.disabled = next;
 			mobileMenuTaskInboxButton.disabled = false;

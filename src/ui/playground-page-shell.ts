@@ -80,34 +80,18 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span>全新的记忆</span>
 						<strong id="command-status">新会话</strong>
 					</button>
-					<div id="desktop-file-menu" class="desktop-file-menu">
-						<button id="desktop-file-menu-trigger" class="telemetry-card telemetry-action desktop-file-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="desktop-file-menu-panel">
-							<span>文件或许更稳定</span>
-							<strong>文件</strong>
-						</button>
-						<div id="desktop-file-menu-panel" class="desktop-file-menu-panel" role="menu" aria-label="文件操作" hidden>
-							<button id="file-picker-action" class="telemetry-card telemetry-action" type="button" role="menuitem">
-								<span>文件或许更稳定</span>
-								<strong>上传文件</strong>
-							</button>
-							<button id="open-asset-library-button" class="telemetry-card telemetry-action" type="button" role="menuitem">
-								<span>这里不是垃圾堆</span>
-								<strong>项目文件</strong>
-							</button>
-						</div>
-					</div>
+					<button id="open-asset-library-button" class="telemetry-card telemetry-action" type="button" data-tooltip-title="文件库" data-tooltip-desc="查看当前会话可复用的项目文件。">
+						<span>这里不是垃圾堆</span>
+						<strong>文件库</strong>
+					</button>
 					<button id="open-conn-manager-button" class="telemetry-card telemetry-action" type="button" data-tooltip-title="任务管理" data-tooltip-desc="管理定时和后台运行的 conn 任务。">
 						<span>后台自己干，前台别被绑架</span>
 						<strong>后台任务</strong>
 					</button>
-					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false" data-tooltip-title="任务消息" data-tooltip-desc="查看后台任务投递的结果。">
+					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false" data-tooltip-title="消息" data-tooltip-desc="查看后台任务投递的结果。">
 						<span>&#21518;&#21488;&#20219;&#21153;&#32467;&#26524;&#32479;&#19968;&#25910;&#20214;&#31665;</span>
-						<strong>&#20219;&#21153;&#28040;&#24687;</strong>
+						<strong>消息</strong>
 						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
-					</button>
-					<button id="view-skills-button" class="telemetry-card telemetry-action" type="button" data-tooltip-title="技能" data-tooltip-desc="查看当前 agent 真实加载的技能清单。">
-						<span>技能越多，能力越强？</span>
-						<strong>技能</strong>
 					</button>
 					<div class="topbar-context-slot">
 						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
@@ -177,14 +161,6 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span id="mobile-overflow-task-inbox-badge" class="mobile-topbar-notification-badge" hidden>0</span>
 					</button>
 					<div id="mobile-overflow-menu" class="mobile-overflow-menu" role="menu" hidden>
-						<button id="mobile-menu-skills-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
-							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
-								<svg viewBox="0 0 24 24" fill="none">
-									<path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" stroke-width="1.8" stroke-linejoin="round" />
-								</svg>
-							</span>
-							<span>技能</span>
-						</button>
 						<button id="mobile-menu-file-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
 							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
 								<svg viewBox="0 0 24 24" fill="none">
@@ -375,6 +351,9 @@ ${input.playgroundScript ?? ""}</script>`;
 						</section>
 					</div>
 					<section id="composer-drop-target" class="composer">
+						<button id="file-picker-action" class="composer-file-action" type="button" aria-label="上传文件" title="上传文件">
+							<span aria-hidden="true">+</span>
+						</button>
 						<div class="composer-main">
 							<div class="composer-header">
 								<span>消息</span>

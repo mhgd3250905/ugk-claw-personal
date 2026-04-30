@@ -833,7 +833,6 @@ export function getPlaygroundAssetEventHandlersScript(): string {
 		bindDropTarget(dropZone);
 
 		filePickerAction.addEventListener("click", () => {
-			setDesktopFileMenuOpen(false);
 			fileInput.click();
 		});
 
@@ -847,7 +846,6 @@ export function getPlaygroundAssetEventHandlersScript(): string {
 		});
 
 		openAssetLibraryButton.addEventListener("click", () => {
-			setDesktopFileMenuOpen(false);
 			toggleWorkspacePanel(
 				"assets",
 				() => openAssetLibrary(openAssetLibraryButton, { mode: "workspace" }),

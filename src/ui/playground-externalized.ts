@@ -158,6 +158,14 @@ function buildPlaygroundFactoryFiles(): Record<string, string> {
 }
 
 async function initializeRuntimeFromFactory(paths: PlaygroundExternalizedPaths): Promise<void> {
+	const factoryManifest = await readJsonFile<{ sourceHash?: string }>(join(paths.factoryDir, "manifest.json"));
+	const runtimeManifest = await readJsonFile<{ sourceHash?: string }>(join(paths.runtimeDir, "manifest.json"));
+	if (factoryManifest?.sourceHash && runtimeManifest?.sourceHash !== factoryManifest.sourceHash) {
+		await copyFactoryRequiredFilesToRuntime(paths);
+		await ensureRuntimeExtensionFiles(paths);
+		return;
+	}
+
 	for (const relativePath of REQUIRED_RUNTIME_FILES) {
 		try {
 			const fileStat = await stat(join(paths.runtimeDir, relativePath));
@@ -187,7 +195,33 @@ async function factoryFilesComplete(factoryDir: string, files: Record<string, st
 }
 
 async function copyFactoryToRuntime(paths: PlaygroundExternalizedPaths): Promise<void> {
-	for (const relativePath of [...REQUIRED_RUNTIME_FILES, "extensions/custom-styles.css", "extensions/custom-scripts.js"]) {
+	await copyFactoryPathsToRuntime(paths, [
+		...REQUIRED_RUNTIME_FILES,
+		"extensions/custom-styles.css",
+		"extensions/custom-scripts.js",
+	]);
+}
+
+async function copyFactoryRequiredFilesToRuntime(paths: PlaygroundExternalizedPaths): Promise<void> {
+	await copyFactoryPathsToRuntime(paths, [...REQUIRED_RUNTIME_FILES]);
+}
+
+async function ensureRuntimeExtensionFiles(paths: PlaygroundExternalizedPaths): Promise<void> {
+	for (const relativePath of ["extensions/custom-styles.css", "extensions/custom-scripts.js"]) {
+		try {
+			const fileStat = await stat(join(paths.runtimeDir, relativePath));
+			if (fileStat.isFile()) {
+				continue;
+			}
+		} catch {
+			// Missing extension files are restored from the factory, but existing runtime overrides are preserved.
+		}
+		await copyFactoryPathsToRuntime(paths, [relativePath]);
+	}
+}
+
+async function copyFactoryPathsToRuntime(paths: PlaygroundExternalizedPaths, relativePaths: readonly string[]): Promise<void> {
+	for (const relativePath of relativePaths) {
 		const sourcePath = join(paths.factoryDir, relativePath);
 		const targetPath = join(paths.runtimeDir, relativePath);
 		await mkdir(dirname(targetPath), { recursive: true });

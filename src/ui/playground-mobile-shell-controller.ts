@@ -5,7 +5,6 @@ export function getPlaygroundMobileShellElementRefsScript(): string {
 		const mobileNewConversationButton = document.getElementById("mobile-new-conversation-button");
 		const mobileOverflowMenuButton = document.getElementById("mobile-overflow-menu-button");
 		const mobileOverflowMenu = document.getElementById("mobile-overflow-menu");
-		const mobileMenuSkillsButton = document.getElementById("mobile-menu-skills-button");
 		const mobileMenuFileButton = document.getElementById("mobile-menu-file-button");
 		const mobileMenuLibraryButton = document.getElementById("mobile-menu-library-button");
 		const mobileMenuTaskInboxButton = document.getElementById("mobile-menu-task-inbox-button");
@@ -73,10 +72,6 @@ export function getPlaygroundMobileShellEventHandlersScript(): string {
 		mobileOverflowMenuButton.addEventListener("click", (event) => {
 			event.stopPropagation();
 			setMobileOverflowMenuOpen(!state.mobileOverflowMenuOpen);
-		});
-		mobileMenuSkillsButton.addEventListener("click", () => {
-			closeMobileOverflowMenu();
-			void loadSkills();
 		});
 		mobileMenuFileButton.addEventListener("click", () => {
 			closeMobileOverflowMenu();

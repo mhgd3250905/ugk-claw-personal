@@ -103,7 +103,6 @@ export function getPlaygroundThemeStyles(): string {
 			border-bottom-color: rgba(31, 95, 200, 0.1);
 		}
 
-		:root[data-theme="light"] .desktop-file-menu-panel,
 		:root[data-theme="light"] .desktop-rail-settings-menu {
 			border-color: rgba(31, 95, 200, 0.12);
 			background:
@@ -205,6 +204,11 @@ export function getPlaygroundThemeStyles(): string {
 			box-shadow: none;
 		}
 
+		:root[data-theme="light"] #composer-drop-target.composer:focus-within {
+			border-color: rgba(31, 95, 200, 0.28);
+			box-shadow: inset 0 0 0 1px rgba(31, 95, 200, 0.38);
+		}
+
 		:root[data-theme="light"] .file-strip {
 			border-color: transparent;
 			background: transparent;
@@ -277,6 +281,17 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] #interrupt-button::before {
 			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.2' fill='rgba(255,255,255,0.96)'/%3E%3C/svg%3E");
+		}
+
+		:root[data-theme="light"] .composer-file-action {
+			color: #5d6b82;
+		}
+
+		:root[data-theme="light"] .composer-file-action:hover:not(:disabled),
+		:root[data-theme="light"] .composer-file-action:focus-visible {
+			background: rgba(31, 95, 200, 0.08);
+			color: #1f5fc8;
+			outline-color: rgba(31, 95, 200, 0.28);
 		}
 
 		:root[data-theme="light"] #send-button:disabled,

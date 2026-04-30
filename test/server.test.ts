@@ -517,7 +517,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.doesNotMatch(response.body, />message</);
 	assert.doesNotMatch(response.body, />send</);
 	assert.doesNotMatch(response.body, />interrupt</);
-	assert.match(response.body, /view-skills-button/);
+	assert.doesNotMatch(response.body, /id="view-skills-button"/);
 	assert.match(response.body, /chat-stage/);
 	assert.match(response.body, /process-note/);
 	assert.match(response.body, /appendProcessEvent/);
@@ -795,21 +795,14 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /mobile-menu-task-inbox-button/);
 	assert.match(response.body, /task-inbox-view/);
 	assert.match(response.body, /task-inbox-list/);
-	assert.match(response.body, /id="desktop-file-menu"/);
-	assert.match(response.body, /id="desktop-file-menu-trigger"[\s\S]*aria-haspopup="menu"[\s\S]*aria-expanded="false"[\s\S]*aria-controls="desktop-file-menu-panel"/);
-	assert.match(response.body, /id="desktop-file-menu-panel"[\s\S]*hidden/);
-	assert.match(response.body, /function setDesktopFileMenuOpen\(open\)/);
-	assert.match(response.body, /desktopFileMenuTrigger\.setAttribute\("aria-expanded", nextOpen \? "true" : "false"\)/);
-	assert.match(response.body, /desktopFileMenu\.addEventListener\("mouseenter"/);
-	assert.match(response.body, /document\.addEventListener\("pointerdown"/);
-	assert.match(response.body, /if \(!desktopFileMenu\.contains\(event\.target\)\)/);
-	assert.match(response.body, /event\.key === "Escape" && state\.desktopFileMenuOpen/);
-	assert.match(response.body, /filePickerAction\.addEventListener\("click", \(\) => \{[\s\S]*setDesktopFileMenuOpen\(false\);[\s\S]*fileInput\.click\(\);/);
-	assert.match(response.body, /openAssetLibraryButton\.addEventListener\("click", \(\) => \{[\s\S]*setDesktopFileMenuOpen\(false\);[\s\S]*toggleWorkspacePanel/);
+	assert.doesNotMatch(response.body, /id="desktop-file-menu"/);
+	assert.doesNotMatch(response.body, /function setDesktopFileMenuOpen\(open\)/);
+	assert.match(response.body, /id="file-picker-action" class="composer-file-action"/);
+	assert.match(response.body, /filePickerAction\.addEventListener\("click", \(\) => \{[\s\S]*fileInput\.click\(\);/);
+	assert.match(response.body, /openAssetLibraryButton\.addEventListener\("click", \(\) => \{[\s\S]*toggleWorkspacePanel/);
 	assert.doesNotMatch(response.body, /\.desktop-file-menu:hover \.desktop-file-menu-panel/);
 	assert.doesNotMatch(response.body, /\.desktop-file-menu:focus-within \.desktop-file-menu-panel/);
-	assert.match(response.body, /\.desktop-file-menu\[data-open="true"\] \.desktop-file-menu-panel/);
-	assert.match(response.body, /\.desktop-file-menu-panel::before\s*\{[\s\S]*top:\s*-10px;[\s\S]*height:\s*10px;/);
+	assert.doesNotMatch(response.body, /\.desktop-file-menu\[data-open="true"\] \.desktop-file-menu-panel/);
 	assert.match(response.body, /<main id="chat-stage" class="chat-stage" data-workspace-mode="chat">/);
 	assert.match(response.body, /function setWorkspaceMode\(mode, options\)/);
 	assert.match(response.body, /function openWorkspacePanel\(mode, panel, options\)/);
@@ -1113,7 +1106,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /<aside id="desktop-conversation-rail"[\s\S]*<div class="desktop-conversation-rail-head">[\s\S]*class="desktop-brand" aria-label="UGK CLAW"/);
 	assert.doesNotMatch(response.body, /class="topbar-signal" aria-hidden="true">UGK CLAW</);
 	assert.match(response.body, /new-conversation-button/);
-	assert.match(response.body, /view-skills-button/);
+	assert.doesNotMatch(response.body, /id="view-skills-button"/);
 	assert.doesNotMatch(response.body, /id="hero-version"/);
 	assert.match(response.body, /id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle"/);
 	assert.match(response.body, /id="command-deck"/);
@@ -1127,9 +1120,14 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\) auto;[\s\S]*padding:\s*0;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width:\s*100%;[\s\S]*margin:\s*0;[\s\S]*border-radius:\s*4px;[\s\S]*overflow:\s*hidden;/);
 	assert.match(response.body, /id="new-conversation-button"/);
-	assert.match(response.body, /id="view-skills-button"/);
+	assert.doesNotMatch(response.body, /id="view-skills-button"/);
 	assert.match(response.body, /id="file-picker-action"/);
 	assert.match(response.body, /id="open-asset-library-button" class="telemetry-card telemetry-action"/);
+	assert.match(response.body, /<strong>文件库<\/strong>/);
+	assert.match(response.body, /<strong>消息<\/strong>/);
+	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto;/);
+	assert.match(response.body, /\.composer-file-action\s*\{[\s\S]*place-items:\s*center;[\s\S]*width:\s*36px;[\s\S]*min-width:\s*36px;[\s\S]*height:\s*36px;[\s\S]*padding:\s*0;/);
+	assert.match(response.body, /\.composer-file-action span::before\s*\{[\s\S]*mask:[\s\S]*center \/ 16px 16px no-repeat;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.stream-layout\s*\{[\s\S]*align-items: center;/);
 	assert.match(
 		response.body,
@@ -1203,7 +1201,9 @@ test("GET /playground renders immersive landing home shell", async () => {
 	const mobileTopbarIndex = response.body.indexOf('<section id="mobile-topbar" class="mobile-topbar"');
 	const contextUsageIndex = response.body.indexOf('id="context-usage-shell"');
 	const filePickerActionIndex = response.body.indexOf('id="file-picker-action"');
+	const newConversationActionIndex = response.body.indexOf('id="new-conversation-button"');
 	const assetActionIndex = response.body.indexOf('id="open-asset-library-button"');
+	const connActionIndex = response.body.indexOf('id="open-conn-manager-button"');
 	const taskInboxActionIndex = response.body.indexOf('id="open-task-inbox-button"');
 	const fileStripIndex = response.body.indexOf('<div class="file-strip">');
 	const selectedAssetsIndex = response.body.indexOf('id="selected-assets"');
@@ -1212,20 +1212,26 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.ok(headerIndex >= 0);
 	assert.ok(asideIndex >= 0);
 	assert.ok(contextUsageIndex >= 0);
+	assert.ok(newConversationActionIndex >= 0);
 	assert.ok(asideIndex > headerIndex);
 	assert.ok(mobileTopbarIndex > asideIndex);
-	assert.ok(filePickerActionIndex > asideIndex);
+	assert.ok(newConversationActionIndex > asideIndex);
 	assert.ok(assetActionIndex > asideIndex);
+	assert.ok(connActionIndex > asideIndex);
 	assert.ok(taskInboxActionIndex > asideIndex);
+	assert.ok(newConversationActionIndex < assetActionIndex);
+	assert.ok(assetActionIndex < connActionIndex);
+	assert.ok(connActionIndex < taskInboxActionIndex);
 	assert.ok(contextUsageIndex > taskInboxActionIndex);
 	assert.ok(contextUsageIndex < mobileTopbarIndex);
 	assert.ok(fileStripIndex >= 0);
 	assert.ok(selectedAssetsIndex >= 0);
 	assert.ok(composerIndex >= 0);
 	assert.ok(messageInputIndex >= 0);
-	assert.ok(filePickerActionIndex < fileStripIndex);
 	assert.ok(assetActionIndex < fileStripIndex);
 	assert.ok(fileStripIndex < composerIndex);
+	assert.ok(filePickerActionIndex > composerIndex);
+	assert.ok(filePickerActionIndex < messageInputIndex);
 	assert.ok(selectedAssetsIndex < composerIndex);
 	assert.ok(composerIndex < messageInputIndex);
 	assert.match(response.body, /function createFileChip\(\{ tone, fileName, meta, onRemove \}\)\s*\{/);
@@ -2049,7 +2055,7 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /id="mobile-overflow-menu"/);
 	assert.match(response.body, /class="mobile-overflow-menu"/);
 	assert.match(response.body, /id="mobile-overflow-menu"[^>]*hidden|hidden[^>]*id="mobile-overflow-menu"/);
-	assert.match(response.body, /id="mobile-menu-skills-button"/);
+	assert.doesNotMatch(response.body, /id="mobile-menu-skills-button"/);
 	assert.match(response.body, /id="mobile-menu-file-button"/);
 	assert.match(response.body, /id="mobile-menu-library-button"/);
 	assert.match(response.body, /id="mobile-menu-task-inbox-button"/);
@@ -2058,7 +2064,7 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action,[\s\S]*\.landing-side-right > \.desktop-file-menu\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action,[\s\S]*\.landing-side-right > \.topbar-context-slot\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*min-height:\s*48px;/);
@@ -2550,9 +2556,7 @@ test("GET /playground highlights the composer shell instead of the textarea on f
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.match(response.body, /\.composer:focus-within\s*\{[\s\S]*outline:\s*1px solid var\(--accent\);/);
-	assert.match(response.body, /\.composer:focus-within\s*\{[\s\S]*outline-offset:\s*2px;/);
-	assert.match(response.body, /\.composer:focus-within\s*\{[\s\S]*box-shadow:\s*none;/);
+	assert.match(response.body, /\.composer:focus-within\s*\{[\s\S]*outline:\s*none;[\s\S]*box-shadow:\s*inset 0 0 0 1px var\(--accent\);/);
 	const composerFieldFocusBlock = response.body.match(
 		/\.composer textarea:focus,\s*\n\s*\.composer input:focus,\s*\n\s*\.composer select:focus\s*\{([\s\S]*?)\n\s*\}/,
 	);

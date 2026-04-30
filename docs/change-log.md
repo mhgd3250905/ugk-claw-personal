@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-05-01
+
+### Playground topbar 与上传入口收口
+- 日期：2026-05-01
+- 主题：将桌面 topbar 收口为纯页面切换导航，上传文件入口移动到 composer 左侧，移除可见技能按钮。
+- 影响范围：桌面 topbar 顺序固定为 `新会话`、`文件库`、`后台任务`、`消息`；原 `项目文件` 文案改为 `文件库`，原 `任务消息` 顶栏文案改为 `消息`；原文件 hover 菜单、桌面技能按钮和移动端技能菜单项下线；`file-picker-action` 保留真实上传行为但改为 composer 左侧 `+` 按钮，不再占用 topbar。上传按钮图标使用居中 CSS mask，composer 聚焦高亮改为内部 ring，避免被贴底输入框的裁切吃掉。外部化 playground runtime 会在 factory `sourceHash` 变化时自动同步 `index.html`、`styles.css`、`app.js` 和 manifest，避免只重启容器仍吃旧 runtime 文件；已存在的 runtime 扩展覆盖文件不被自动覆盖。
+- 对应入口：`src/ui/playground-page-shell.ts`、`src/ui/playground.ts`、`src/ui/playground-mobile-shell-controller.ts`、`src/ui/playground-assets-controller.ts`、`src/ui/playground-status-controller.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-externalized.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ## 2026-04-30
 
 ### Playground 桌面右侧布局贴边收口

@@ -1,6 +1,6 @@
 # Playground 当前状态
 
-更新时间：`2026-04-30`
+更新时间：`2026-05-01`
 
 ## 运行时外部化模式
 
@@ -16,6 +16,8 @@
 ## 2026-04-30 主工作区切换补充
 
 - 桌面端页面外层 padding 只由 `.shell` 统一提供，当前为 `22px 28px 26px`；左侧 `desktop-conversation-rail` 仍占满上下，左栏和右侧工作区之间保留 `16px` 间距。右侧 `topbar` 贴住右侧工作列顶部且不再自带外边距；右侧 `chat-stage` 不再叠加内部 padding，底部 `command-deck` / composer 宽度贴满右侧工作列并贴住可用底边。
+- 桌面端 `topbar` 只保留页面切换入口，顺序固定为 `新会话`、`文件库`、`后台任务`、`消息`；上传文件不再放在 topbar 文件菜单里，而是作为 composer 左侧的 `+` 按钮触发真实 `file-input`。技能入口不再作为桌面或移动端可见按钮展示。
+- 外部化 playground 会按 factory manifest 的 `sourceHash` 自动同步 runtime 的核心文件；样式或脚本源码变化后，不应该再出现只重启容器但 `/playground/styles.css` 仍是旧内容的情况。runtime 的 `extensions/custom-styles.css` / `custom-scripts.js` 只在缺失时补回，避免覆盖本地运行态扩展。
 - 深色主题下桌面端 `chat-stage` 不再使用边框或深色渐变背景；它只是负责布局裁切，保持 `border: 0`、`border-radius: 4px`、`background: transparent` 和 `overflow: hidden`。贴底的 `command-deck` / composer 同样用 `4px` 圆角和 `overflow: hidden` 收口，避免输入区背景把 `chat-stage` 底部圆角盖成直角。
 - 桌面端 active 对话态的 `.stream-layout` 顶部 inset 为 `0`，对话消息列必须从 `chat-stage` 顶部开始占满背景框；`#transcript` 自身底部保留 `4px` 圆角，消息正文内部的 `message-body` padding 只作为内容排版留白，不再承担外层布局留白。
 - 桌面端 `topbar` 内的 `landing-side-right` 工具条使用和会话栏一致的扁平承载面：深色主题纯 `#080c14`，浅色主题纯 `#ffffff`，不要再叠 `linear-gradient` 做浮层效果。

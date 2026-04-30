@@ -1976,7 +1976,7 @@ export function getPlaygroundStyles(): string {
 
 		.composer {
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) 168px;
+			grid-template-columns: auto minmax(0, 1fr) 168px;
 			gap: 10px;
 			padding: 12px 0 14px;
 			border: 0;
@@ -1990,15 +1990,14 @@ export function getPlaygroundStyles(): string {
 			transition:
 				background 120ms ease,
 				border-color 120ms ease,
-				outline-color 120ms ease;
+				box-shadow 120ms ease;
 		}
 
 		.composer:focus-within {
 			border-color: rgba(201, 210, 255, 0.34);
 			background: rgba(102, 93, 138, 0.2);
-			outline: 1px solid var(--accent);
-			outline-offset: 2px;
-			box-shadow: none;
+			outline: none;
+			box-shadow: inset 0 0 0 1px var(--accent);
 		}
 
 		.composer-main {
@@ -2014,6 +2013,54 @@ export function getPlaygroundStyles(): string {
 			text-transform: uppercase;
 			letter-spacing: 0.12em;
 			color: var(--muted);
+		}
+
+		.composer-file-action {
+			display: inline-grid;
+			place-items: center;
+			align-self: center;
+			width: 36px;
+			min-width: 36px;
+			height: 36px;
+			padding: 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			color: rgba(238, 244, 255, 0.72);
+			font: inherit;
+			cursor: pointer;
+			box-shadow: none;
+		}
+
+		.composer-file-action span {
+			display: block;
+			width: 16px;
+			height: 16px;
+			font-size: 0;
+			line-height: 0;
+		}
+
+		.composer-file-action span::before {
+			content: "";
+			display: block;
+			width: 16px;
+			height: 16px;
+			background: currentColor;
+			-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 2.75v10.5M2.75 8h10.5' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+			mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 2.75v10.5M2.75 8h10.5' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+		}
+
+		.composer-file-action:hover:not(:disabled),
+		.composer-file-action:focus-visible {
+			background: rgba(201, 210, 255, 0.08);
+			color: rgba(246, 249, 255, 0.96);
+			outline: 1px solid rgba(101, 209, 255, 0.42);
+			outline-offset: 2px;
+		}
+
+		.composer-file-action:disabled {
+			cursor: wait;
+			opacity: 0.48;
 		}
 
 		.composer textarea,
@@ -3164,53 +3211,6 @@ export function getPlaygroundStyles(): string {
 			transform: translate(-50%, 0);
 		}
 
-		.desktop-file-menu {
-			position: relative;
-			display: inline-flex;
-		}
-
-		.desktop-file-menu-panel {
-			position: absolute;
-			top: calc(100% + 8px);
-			left: 0;
-			z-index: 130;
-			display: grid;
-			gap: 4px;
-			min-width: 132px;
-			padding: 6px;
-			border: 1px solid rgba(201, 210, 255, 0.14);
-			border-radius: 4px;
-			background:
-				linear-gradient(180deg, rgba(12, 17, 28, 0.96), rgba(7, 10, 18, 0.96)),
-				#080b12;
-			box-shadow: none;
-			opacity: 0;
-			pointer-events: none;
-			transform: translateY(-4px);
-			transition: opacity 120ms ease, transform 120ms ease;
-		}
-
-		.desktop-file-menu-panel::before {
-			content: "";
-			position: absolute;
-			left: 0;
-			right: 0;
-			top: -10px;
-			height: 10px;
-		}
-
-		.desktop-file-menu[data-open="true"] .desktop-file-menu-panel {
-			opacity: 1;
-			pointer-events: auto;
-			transform: translateY(0);
-		}
-
-		.desktop-file-menu-panel .telemetry-action {
-			justify-content: flex-start;
-			width: 100%;
-			min-height: 34px;
-		}
-
 		.command-deck {
 			position: relative;
 			z-index: 2;
@@ -3228,7 +3228,7 @@ export function getPlaygroundStyles(): string {
 			top: 50%;
 			right: 16px;
 			z-index: 5;
-			display: flex;
+			display: none;
 			align-items: center;
 			justify-content: flex-end;
 			flex: 0 0 auto;
@@ -3407,7 +3407,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"] .composer {
-			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-columns: auto minmax(0, 1fr) auto;
 			align-self: end;
 			align-items: center;
 			height: fit-content;
@@ -3594,7 +3594,7 @@ export function getPlaygroundStyles(): string {
 			}
 
 			.landing-side-right > .telemetry-action,
-			.landing-side-right > .desktop-file-menu {
+			.landing-side-right > .topbar-context-slot {
 				display: none;
 			}
 
@@ -3767,7 +3767,7 @@ export function getPlaygroundStyles(): string {
 			${getPlaygroundAssetMobileStyles()}
 
 			.composer {
-				grid-template-columns: minmax(0, 1fr) auto;
+				grid-template-columns: auto minmax(0, 1fr) auto;
 				gap: 8px;
 				padding: 8px 8px 8px 10px;
 				border: 1px solid rgba(201, 210, 255, 0.08);
@@ -3815,7 +3815,7 @@ export function getPlaygroundStyles(): string {
 			}
 
 			.shell[data-stage-mode="landing"] .composer {
-				grid-template-columns: minmax(0, 1fr) auto;
+				grid-template-columns: auto minmax(0, 1fr) auto;
 				align-self: end;
 				align-items: center;
 				height: fit-content;
