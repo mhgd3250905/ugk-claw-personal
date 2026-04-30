@@ -580,20 +580,22 @@ test("GET /playground returns the test UI html", async () => {
 	assert.doesNotMatch(response.body, /CODEBLOCK/);
 	assert.match(
 		response.body,
-		/\.message-content \.markdown-table-scroll\s*\{\s*display:\s*block;\s*width:\s*fit-content;\s*max-width:\s*100%;\s*overflow-x:\s*auto;/,
+		/\.message-content \.markdown-table-scroll\s*\{\s*display:\s*block;\s*width:\s*100%;\s*max-width:\s*100%;\s*overflow-x:\s*hidden;/,
 	);
 	assert.match(
 		response.body,
-		/\.message-content table\s*\{\s*width:\s*max-content;\s*max-width:\s*100%;\s*border-collapse:\s*collapse;/,
+		/\.message-content table\s*\{\s*width:\s*100%;\s*max-width:\s*100%;\s*border-collapse:\s*collapse;/,
 	);
 	assert.match(
 		response.body,
-		/\.message-content th,[\s\S]*\.message-content td\s*\{[\s\S]*min-width:\s*60px;[\s\S]*white-space:\s*normal;[\s\S]*word-break:\s*break-word;/,
+		/\.message-content th,[\s\S]*\.message-content td\s*\{[\s\S]*min-width:\s*60px;[\s\S]*max-width:\s*320px;[\s\S]*white-space:\s*normal;[\s\S]*overflow-wrap:\s*break-word;[\s\S]*word-break:\s*break-word;/,
 	);
 	assert.match(response.body, /wrapper\.className = "markdown-table-scroll";/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.message-content \.markdown-table-scroll,[\s\S]*background:\s*#f8fbff;/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.message-content th,[\s\S]*border-right-color:\s*#c8d6ea;[\s\S]*background:\s*#dce8f8;/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.message-content td,[\s\S]*border-right-color:\s*#d7e1ee;[\s\S]*color:\s*#26344f;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.message-content \.code-block-toolbar,[\s\S]*background:\s*#e1eaf6;/);
+	assert.match(response.body, /:root\[data-theme="light"\] \.task-inbox-result-bubble \.message-content \.code-block-toolbar,[\s\S]*background:\s*#e1eaf6;/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.assistant-run-log-trigger\.ok \.assistant-run-log-hint,[\s\S]*color:\s*#08784b;/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.assistant-status-shell\s*\{[\s\S]*background:\s*transparent;/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.assistant-status-summary\s*\{[\s\S]*background:\s*transparent;/);
@@ -1143,9 +1145,12 @@ test("GET /playground renders immersive landing home shell", async () => {
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.topbar\s*\{[\s\S]*justify-items:\s*stretch;/);
 	assert.match(
 		response.body,
-		/\.shell\[data-stage-mode="landing"\] \.landing-side-right\s*\{[\s\S]*justify-content:\s*flex-start;[\s\S]*justify-self:\s*stretch;[\s\S]*padding:\s*6px 96px 6px 8px;/,
+		/\.shell\[data-stage-mode="landing"\] \.landing-side-right\s*\{[\s\S]*position:\s*relative;[\s\S]*justify-content:\s*flex-start;[\s\S]*justify-self:\s*stretch;[\s\S]*padding:\s*6px 96px 6px 8px;/,
 	);
-	assert.match(response.body, /\.topbar-context-slot\s*\{[\s\S]*position:\s*static;[\s\S]*right:\s*auto;/);
+	assert.match(
+		response.body,
+		/\.topbar-context-slot\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*50%;[\s\S]*right:\s*16px;[\s\S]*transform:\s*translateY\(-50%\);/,
+	);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*2;/);
 	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*grid-column:\s*1;[\s\S]*grid-row:\s*1 \/ -1;/);
 	assert.match(response.body, /function renderConversationListInto\(container\)/);
@@ -2431,6 +2436,7 @@ test("GET /playground keeps the default active composer compact before mobile ov
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*max-height:\s*calc\(var\(--composer-line-height\) \* var\(--composer-textarea-max-lines\) \+ 30px\);/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*padding-top:\s*14px;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*padding-bottom:\s*14px;/);
+	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*background:\s*transparent;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*resize:\s*none;/);
 	assert.match(response.body, /\.composer textarea\s*\{[\s\S]*overflow-y:\s*auto;/);
 	assert.match(response.body, /@media \(max-width: 960px\) \{[\s\S]*\.composer-side\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
@@ -2453,6 +2459,7 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.match(response.body, /\.shell\s*\{[\s\S]*column-gap:\s*0;/);
 	assert.match(response.body, /\.topbar\s*\{[\s\S]*z-index:\s*80;/);
 	assert.match(response.body, /\.topbar\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*1;/);
+	assert.match(response.body, /\.topbar\s*\{[\s\S]*padding:\s*12px 120px 12px 16px;/);
 	assert.match(response.body, /\.topbar\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\);/);
 	assert.match(response.body, /class="desktop-brand" aria-label="UGK CLAW"/);
 	assert.match(response.body, /class="ugk-ascii-logo ugk-ascii-logo-topbar"/);
@@ -2467,6 +2474,7 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.match(response.body, /\.ugk-ascii-logo-watermark\s*\{[\s\S]*color:\s*rgba\(138, 170, 218, 0\.2\);/);
 	assert.match(response.body, /\.chat-stage > :not\(\.chat-stage-watermark\)\s*\{[\s\S]*z-index:\s*1;/);
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*justify-self:\s*end;/);
+	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*position:\s*static;/);
 	assert.match(response.body, /\.landing-side-right\s*\{[\s\S]*width:\s*auto;/);
 	assert.match(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*background:[\s\S]*#080c14;/);
 	assert.match(response.body, /\.desktop-rail-settings\s*\{[\s\S]*border-top:\s*1px solid rgba\(201, 210, 255, 0\.08\);/);
@@ -2505,6 +2513,7 @@ test("GET /playground highlights the composer shell instead of the textarea on f
 	assert.match(composerFieldFocusBlock[1], /outline:\s*none;/);
 	assert.doesNotMatch(composerFieldFocusBlock[1], /outline:\s*1px solid var\(--accent\);/);
 	assert.doesNotMatch(composerFieldFocusBlock[1], /border-color:\s*var\(--accent\);/);
+	assert.match(response.body, /\.composer textarea:focus\s*\{[\s\S]*background:\s*transparent;/);
 	await app.close();
 });
 

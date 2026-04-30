@@ -1143,15 +1143,15 @@ export function getPlaygroundStyles(): string {
 
 		.message-content .markdown-table-scroll {
 			display: block;
-			width: fit-content;
+			width: 100%;
 			max-width: 100%;
-			overflow-x: auto;
+			overflow-x: hidden;
 			border: 1px solid rgba(201, 210, 255, 0.16);
 			background: rgba(6, 7, 17, 0.42);
 		}
 
 		.message-content table {
-			width: max-content;
+			width: 100%;
 			max-width: 100%;
 			border-collapse: collapse;
 		}
@@ -1164,7 +1164,9 @@ export function getPlaygroundStyles(): string {
 			text-align: left;
 			vertical-align: top;
 			min-width: 60px;
+			max-width: 320px;
 			white-space: normal;
+			overflow-wrap: break-word;
 			word-break: break-word;
 		}
 
@@ -1221,6 +1223,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.message-content .code-block-language {
+			background: rgba(13, 20, 37, 0.86);
 			color: var(--muted);
 			font-size: 10px;
 			letter-spacing: 0.12em;
@@ -1961,6 +1964,7 @@ export function getPlaygroundStyles(): string {
 		.composer textarea {
 			--composer-line-height: 22px;
 			--composer-textarea-max-lines: 10;
+			background: transparent;
 			min-height: 52px;
 			max-height: calc(var(--composer-line-height) * var(--composer-textarea-max-lines) + 30px);
 			resize: none;
@@ -1982,6 +1986,10 @@ export function getPlaygroundStyles(): string {
 			border-color: rgba(255, 255, 255, 0.12);
 			background: rgba(255, 255, 255, 0.045);
 			box-shadow: none;
+		}
+
+		.composer textarea:focus {
+			background: transparent;
 		}
 
 		.composer-side {
@@ -2903,7 +2911,7 @@ export function getPlaygroundStyles(): string {
 			width: 100%;
 			min-height: 64px;
 			margin: 0;
-			padding: 12px 16px;
+			padding: 12px 120px 12px 16px;
 			grid-template-columns: minmax(0, 1fr);
 			gap: 0;
 			align-items: center;
@@ -2956,7 +2964,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.landing-side-right {
-			position: relative;
+			position: static;
 			right: auto;
 			top: auto;
 			z-index: 1;
@@ -2985,6 +2993,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.shell[data-stage-mode="landing"] .landing-side-right {
+			position: relative;
 			justify-content: flex-start;
 			justify-self: stretch;
 			padding: 6px 96px 6px 8px;
@@ -3132,16 +3141,16 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.topbar-context-slot {
-			position: static;
-			top: auto;
-			right: auto;
+			position: absolute;
+			top: 50%;
+			right: 16px;
 			z-index: 5;
 			display: flex;
 			align-items: center;
 			justify-content: flex-end;
 			flex: 0 0 auto;
 			margin-left: 4px;
-			transform: none;
+			transform: translateY(-50%);
 			background: transparent;
 			box-shadow: none;
 		}

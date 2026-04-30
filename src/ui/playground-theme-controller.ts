@@ -463,8 +463,11 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .message-content .code-block-header,
+		:root[data-theme="light"] .message-content .code-block-toolbar,
 		:root[data-theme="light"] .message-content .code-block-language,
+		:root[data-theme="light"] .task-inbox-result-bubble .message-content .code-block-toolbar,
 		:root[data-theme="light"] .task-inbox-result-bubble .message-content .code-block-language,
+		:root[data-theme="light"] .conn-run-result-bubble .message-content .code-block-toolbar,
 		:root[data-theme="light"] .conn-run-result-bubble .message-content .code-block-language {
 			background: #e1eaf6;
 			color: #4d5a70;
