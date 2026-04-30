@@ -10,11 +10,11 @@
 
 1. [AGENTS.md](/E:/AII/ugk-pi/AGENTS.md)
 2. [README.md](/E:/AII/ugk-pi/README.md)
-3. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
-4. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
-5. [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)
-6. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
-7. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
+3. [docs/server-ops.md](/E:/AII/ugk-pi/docs/server-ops.md)
+4. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
+5. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+6. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
+7. [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)
 8. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
 9. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
 10. [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
@@ -50,12 +50,12 @@
 
 如果是云端 `/init`，再记一句：
 
-- 服务器当前默认工作目录是 `~/ugk-claw-repo`，已经能直接 `git pull`；但旧的 `~/ugk-pi-claw` 还在，别在错误目录里更新完了还以为自己部署成功。
-- 服务器当前 shared 运行态目录是 `~/ugk-claw-shared`；如果你在仓库目录里找 `.env`、`.data/chrome-sidecar` 或生产日志，先想想自己是不是又走回头路了。
-- 阿里云 ECS 当前公网入口是 `http://101.37.209.54:3000/playground`，主目录是 `/root/ugk-claw-repo`，shared 目录是 `/root/ugk-claw-shared`；首次部署因为 GitHub 超时采用 archive 上传，当前目录不是 Git 工作目录。
+- 腾讯云当前主目录是 `~/ugk-claw-repo`，shared 运行态目录是 `~/ugk-claw-shared`；旧的 `~/ugk-pi-claw` 只用于回滚和比对，别在错误目录里更新完了还以为自己部署成功。
+- 阿里云 ECS 当前公网入口是 `http://101.37.209.54:3000/playground`，主目录是 `/root/ugk-claw-repo`，shared 目录是 `/root/ugk-claw-shared`；截至 `2026-04-29` 已迁移为 Git 工作目录，后续默认走 `git pull --ff-only`，不要再默认 archive 上传。
+- 两台服务器的用户 skills 都属于 shared 运行态：腾讯云 `~/ugk-claw-shared/runtime/skills-user`，阿里云 `/root/ugk-claw-shared/runtime/skills-user`；排查技能丢失先看 `UGK_RUNTIME_SKILLS_USER_DIR` 和 `GET /v1/debug/skills`。
 - 如果这次 `/init` 还要接手 `playground` 前端，先读 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)；当前手机端是单独重写的移动展示层，不要按桌面端缩略版理解
 - 如果这次还要接着改 `playground` runtime，而不是只看当前 UI 口径，再补读 [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)；这轮 controller / renderer / sync ownership / stream lifecycle 是怎么收口的，都在那里，别重复考古
-- 如果这次目标是直接交接、发布或接线上盘，优先读 [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)；当前稳定 tag、线上已部署提交、回滚点和推荐阅读顺序都在那里，别再拿旧 tag 当新基线
+- 如果这次目标是直接发布或接线上盘，优先读 [docs/server-ops.md](/E:/AII/ugk-pi/docs/server-ops.md) 和 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)；[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md) 只是历史交接快照，别再拿旧 tag 当新基线。
 
 ## B. 聊天、流式、追加消息、打断
 
@@ -273,7 +273,7 @@
 4. [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 5. [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)
 6. [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)
-7. [docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md)
+7. [docs/server-ops.md](/E:/AII/ugk-pi/docs/server-ops.md)
 8. [src/server.ts](/E:/AII/ugk-pi/src/server.ts)
 9. [src/routes/static.ts](/E:/AII/ugk-pi/src/routes/static.ts)
 10. [src/routes/files.ts](/E:/AII/ugk-pi/src/routes/files.ts)
@@ -284,7 +284,7 @@
 
 - `healthz` 不通
 - 腾讯云新加坡服务器更新部署、回滚或 SSH tunnel 不通
-- 阿里云 ECS 首次部署、archive 更新、Docker 镜像拉取慢或 3000 安全组不通
+- 阿里云 ECS Git 增量更新、Docker 镜像拉取慢或 3000 安全组不通；archive 只作为双远端不可用时的兜底历史方案
 - 静态 HTML / PNG 路由不通
 - 截图脚本又回退到 `file://`
 - `PUBLIC_BASE_URL` 不对

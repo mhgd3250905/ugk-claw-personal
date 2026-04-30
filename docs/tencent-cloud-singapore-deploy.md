@@ -4,7 +4,7 @@
 
 这不是泛泛而谈的“云服务器教程”，而是本仓库当前这台服务器的可追溯 runbook。后续更新部署时，先看这里，别靠记忆硬莽。
 
-如果你现在只想要高频命令速查，不想先读长文，直接看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)。
+如果你现在只想要高频命令速查，不想先读长文，直接看 [docs/server-ops.md](./server-ops.md)。这里的长篇历史记录只用于追溯和异常排障，不是日常发布入口。
 
 后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 Git 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；GitHub 不通时走 `git pull --ff-only gitee main`，不要再把小包覆盖当长期主流程。
 
@@ -25,6 +25,8 @@
 - Web API 源列表下架 `deepseek-v4-flash`，DeepSeek 只保留 `deepseek-v4-pro`。
 
 ## 2026-04-29 小米 MiMo 模型源增量发布记录
+
+这是腾讯云 clean Git 工作目录收口前的历史发布记录，保留用于追溯当时为什么用了小包覆盖。不要把本节当成现在的默认发布流程。
 
 本次发布使用小包 `xiaomi-model-providers-20260429-incremental.tar.gz` 覆盖 `~/ugk-claw-repo` 中的小米模型源相关文件；没有执行整目录替换，没有触碰 `~/ugk-claw-shared/.data/agent`、sidecar 登录态、资产、conn 或生产日志。由于腾讯云远端 Git 工作树仍有历史脏状态，本次继续使用增量包覆盖而不是强行 `git pull` / `reset`。
 
@@ -88,6 +90,7 @@
 - 生产 compose 文件：`docker-compose.prod.yml`
 - 当前主部署目录：`/home/ubuntu/ugk-claw-repo`
 - 当前 shared 运行态目录：`/home/ubuntu/ugk-claw-shared`
+- 当前用户 skills 持久目录：`/home/ubuntu/ugk-claw-shared/runtime/skills-user`，通过 `UGK_RUNTIME_SKILLS_USER_DIR` 挂载到容器 `/app/runtime/skills-user`；不要再把用户安装技能长期放在 clean Git 工作目录的 `runtime/skills-user` 里。
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`

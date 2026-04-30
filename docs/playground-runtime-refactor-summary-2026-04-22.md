@@ -1,5 +1,7 @@
 # Playground Runtime Refactor Summary
 
+这份文档是 `2026-04-22` 的历史阶段总结，不是当前 playground 的唯一事实入口。现在要判断 UI / 交互 / 手机端约束，先看 [playground-current.md](./playground-current.md)；只有继续排查 runtime 拆分背景或旧 bug 来源时，再回来看这份总结。
+
 这份文档记录 `2026-04-22` 这轮 `playground` runtime 拆分与稳定性收口的阶段成果。
 
 目标不是吹牛，而是给下一次 `/init` 或后续接手的人一个靠谱入口，避免又把已经拆开的边界揉回 [src/ui/playground.ts](/E:/AII/ugk-pi/src/ui/playground.ts) 里。

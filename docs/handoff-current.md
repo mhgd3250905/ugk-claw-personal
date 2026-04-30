@@ -1,10 +1,14 @@
-# 当前交接总览
+# 历史交接快照
 
 更新时间：`2026-04-27`
 
+这份文档保留为 `2026-04-27` 的交接快照，不再作为当前部署事实入口。当前服务器更新、双云目录、shared 运行态和 user skills 规则以 [server-ops.md](./server-ops.md)、[server-ops-quick-reference.md](./server-ops-quick-reference.md)、[tencent-cloud-singapore-deploy.md](./tencent-cloud-singapore-deploy.md) 和 [aliyun-ecs-deploy.md](./aliyun-ecs-deploy.md) 顶部“当前部署快照”为准。
+
+别被文件名里的 `current` 骗了，这名字现在已经有点欠揍。它有历史价值，但不能再拿来指挥生产更新。
+
 这份文档给下一位接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
-## 当前结论
+## 当时结论
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
@@ -24,7 +28,7 @@
 - 阿里云健康检查：`http://101.37.209.54:3000/healthz`
 - 阿里云主部署目录：`/root/ugk-claw-repo`
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
-- 服务器更新方式：默认倾向“增量更新”，不要洗 shared 运行态；阿里云当前不是 Git 工作目录，后续更新先看 `docs/aliyun-ecs-deploy.md`
+- 当时服务器更新方式：默认倾向“增量更新”，不要洗 shared 运行态；阿里云在这份快照写成时还不是 Git 工作目录，后来已迁移，当前流程看 `docs/server-ops.md`
 - 当前未跟踪 runtime / 本地密钥文件不要顺手提交：`runtime/commit-playground-asset-detail-hydration.ps1`、`runtime/pudong-weather.md`、`runtime/zhihu-collection-ai-agent-summary.md`、`阿里-config.txt`
 
 ## 最近已完成
@@ -63,7 +67,7 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 - 内网 / 公网 `/playground` 返回 `200 OK`
 - `check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`
 - DeepSeek provider 真实验证通过，模型源切换入口可用
-- 阿里云 ECS 首次部署已完成，`101.37.209.54:3000` 公网 playground 已由用户确认可访问；当前阿里云代码目录是 archive 解包目录，不是 Git 工作目录
+- 阿里云 ECS 首次部署已完成，`101.37.209.54:3000` 公网 playground 当时已由用户确认可访问；这份快照写成时阿里云代码目录还是 archive 解包目录，后来已迁移为 Git 工作目录
 
 ## 下一步建议
 
@@ -71,7 +75,7 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 
 1. `git status --short` 里只有上面列出的 runtime 临时文件，或者先处理它们。
 2. 不要把腾讯云和阿里云当成一台机器。腾讯云是 `ubuntu@43.134.167.179` 且目录是 `/home/ubuntu/...`；阿里云是 `root@101.37.209.54` 且目录是 `/root/...`。
-3. 不要在阿里云 `/root/ugk-claw-repo` 里直接 `git pull`，除非已经迁移成 Git 工作目录。现在它是 archive 解包目录。
+3. 这条是历史提醒：当时不要在阿里云 `/root/ugk-claw-repo` 里直接 `git pull`，因为那时它还是 archive 解包目录；当前阿里云已经迁移为 Git 工作目录，发布看 `docs/server-ops.md`。
 4. SQLite / JSON 字段边界本轮已扫完，`AgentService.queueMessage()` 已经抽到 `src/agent/agent-queue-message.ts`，新建 / 删除 / 切换 / 重置会话命令也已经抽到 `src/agent/agent-conversation-commands.ts`；下一步如果继续做架构整理，优先从 `AgentService.runChat()` 周边找真正可测的窄边界，别继续堆“为了拆而拆”的文件。
 
 ### 1. 已完成的 SQLite / JSON 字段边界

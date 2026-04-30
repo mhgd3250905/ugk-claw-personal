@@ -16,11 +16,11 @@
 </p>
 
 <p align="center">
-  <a href="./docs/handoff-current.md">当前交接</a>
+  <a href="#文档导航">文档导航</a>
   |
   <a href="./docs/playground-current.md">Playground 说明</a>
   |
-  <a href="./docs/server-ops-quick-reference.md">运维速查</a>
+  <a href="./docs/server-ops.md">服务器运维</a>
   |
   <a href="./docs/change-log.md">更新记录</a>
 </p>
@@ -99,6 +99,8 @@ npm run dev
 npm test
 npm run design:lint
 npm run docker:chrome:check
+npm run server:ops -- tencent preflight
+npm run server:ops -- aliyun preflight
 docker compose restart ugk-pi
 docker compose -f docker-compose.prod.yml up --build -d
 ```
@@ -166,15 +168,17 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 - [`AGENTS.md`](./AGENTS.md)：agent 工作规则、当前事实和关键路径索引。
 - [`README.en.md`](./README.en.md)：英文版 README。
-- [`docs/handoff-current.md`](./docs/handoff-current.md)：当前交接快照和下一步建议。
+- [`docs/handoff-current.md`](./docs/handoff-current.md)：历史交接快照，保留用于理解 `2026-04-27` 当时状态；不要当作当前部署事实入口。
 - [`docs/traceability-map.md`](./docs/traceability-map.md)：按场景定位代码入口。
 - [`docs/playground-current.md`](./docs/playground-current.md)：当前 playground 的 UI、交互和手机端约束。
 - [`docs/model-providers.md`](./docs/model-providers.md)：阿里、DeepSeek、小米三类模型源的 provider、region、key 和展示顺序。
 - [`docs/runtime-assets-conn-feishu.md`](./docs/runtime-assets-conn-feishu.md)：资产、附件、`send_file`、`conn` 和 Feishu 运行说明。
 - [`docs/web-access-browser-bridge.md`](./docs/web-access-browser-bridge.md)：Chrome sidecar、CDP bridge、持久 profile 和排障口径。
+- [`docs/server-ops.md`](./docs/server-ops.md)：生产服务器更新、检查和验收的唯一入口。
 - [`docs/server-ops-quick-reference.md`](./docs/server-ops-quick-reference.md)：生产环境高频运维动作。
 - [`docs/tencent-cloud-singapore-deploy.md`](./docs/tencent-cloud-singapore-deploy.md)：腾讯云部署、更新、验收和回滚手册。
 - [`docs/aliyun-ecs-deploy.md`](./docs/aliyun-ecs-deploy.md)：阿里云 ECS 部署、验证和接手手册。
+- [`docs/playground-runtime-refactor-summary-2026-04-22.md`](./docs/playground-runtime-refactor-summary-2026-04-22.md)：历史阶段总结，仅在继续排查 playground runtime 拆分背景时阅读。
 - [`docs/change-log.md`](./docs/change-log.md)：行为、文档和部署更新记录。
 
 ## 当前状态
@@ -183,7 +187,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 - 主分支：`main`
 - 当前阶段：架构整理已阶段性完成；后续工作应该由真实产品需求或线上问题驱动，不要为了拆文件而拆文件。
 - 标准验证：`npm test`、`npx tsc --noEmit`，涉及部署时再加 Docker compose config 校验。
-- 生产更新默认走增量发布。腾讯云当前走 Git 增量；阿里云首次部署因 GitHub 连接超时，暂时走本地 archive 上传。两边都不要洗掉 shared runtime state。
+- 生产更新默认走 `npm run server:ops -- <tencent|aliyun> preflight/deploy/verify`。两边都不要洗掉 shared runtime state，尤其是 `.data`、Chrome profile 和 `runtime/skills-user`。
 
 ## 仓库边界
 

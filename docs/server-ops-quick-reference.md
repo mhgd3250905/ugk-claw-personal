@@ -1,6 +1,7 @@
 # 服务器运维速查
 
 这份文档只做一件事：把生产服务器上最常用、最容易手滑的操作压成一页速查。
+日常更新优先走 [docs/server-ops.md](./server-ops.md) 里的 `npm run server:ops -- <target> <action>`，不要再从这里手工复制整段命令当默认流程。
 
 长背景、历史迁移、踩坑记录看 [docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md) 和 [docs/aliyun-ecs-deploy.md](/E:/AII/ugk-pi/docs/aliyun-ecs-deploy.md)。
 
@@ -127,6 +128,7 @@ git pull --ff-only gitee main
 
 - 本地没提交、没推送，就不要让服务器 pull。服务器不是你的草稿箱。
 - `.env`、API key、`.data/agent`、`.data/chrome-sidecar`、日志、tar 包和临时报告都不属于 Git 仓库。
+- 生产用户技能不要再依赖 clean Git 工作目录里的 `runtime/skills-user`。`docker-compose.prod.yml` 支持 `UGK_RUNTIME_SKILLS_USER_DIR`，腾讯云固定指向 `~/ugk-claw-shared/runtime/skills-user`，阿里云固定指向 `/root/ugk-claw-shared/runtime/skills-user`；把用户态技能继续放 repo 目录里，就是等下一次 clean checkout 把它们请走。
 - 改到 `Dockerfile`、`package*.json`、`docker-compose.prod.yml`、`deploy/nginx/default.conf`、`src/`、`runtime/skills-user/` 这类运行路径，默认重建容器；纯文档改动可以只 pull，不必重建。
 - `up --build -d` 重建 `ugk-pi` 后固定 `restart nginx`。nginx 会在启动时解析 `proxy_pass http://ugk-pi:3000`，app 容器重建后 IP 可能变化；如果 nginx 不重启，公网会 502，但 nginx 容器里直接访问 `http://ugk-pi:3000/healthz` 仍然是好的，这个现象非常会骗人。
 - 改过 nginx 配置或公网 `502` 但 app 容器内部健康时，优先 `restart nginx`；如果配置文件也改了，再 `up -d --force-recreate nginx`，别绕一圈怀疑模型、网络和玄学。
@@ -274,6 +276,7 @@ docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f do
 curl -fsS http://127.0.0.1:3000/healthz
 curl -fsS http://43.134.167.179:3000/healthz
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi sh -lc "find /app/runtime/skills-user -maxdepth 2 -name SKILL.md -printf '%h\n' | sort"
 ```
 
 阿里云：
@@ -282,6 +285,7 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 curl -fsS http://127.0.0.1:3000/healthz
 curl -fsS http://101.37.209.54:3000/healthz
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi sh -lc "find /app/runtime/skills-user -maxdepth 2 -name SKILL.md -printf '%h\n' | sort"
 ```
 
 验收失败时先看 `ps` 和对应服务日志；不要删除 shared 目录，不要替换 `.data`，不要把整目录覆盖当“增量更新”。
@@ -499,6 +503,7 @@ https://127.0.0.1:13902/
 - compose env：`~/ugk-claw-shared/compose.env`
 - agent 会话 / 资产 / conn 数据：`~/ugk-claw-shared/.data/agent`
 - agent 运行中沉淀的本地长期规则：`~/ugk-claw-shared/.data/agent/AGENTS.local.md`，容器内路径是 `/app/.data/agent/AGENTS.local.md`
+- 用户 skills：腾讯云 `~/ugk-claw-shared/runtime/skills-user`，阿里云 `/root/ugk-claw-shared/runtime/skills-user`，通过 `UGK_RUNTIME_SKILLS_USER_DIR` 挂到容器 `/app/runtime/skills-user`
 - browser 登录态：`~/ugk-claw-shared/.data/chrome-sidecar`
 - app 日志：`~/ugk-claw-shared/logs/app`
 - nginx 日志：`~/ugk-claw-shared/logs/nginx`

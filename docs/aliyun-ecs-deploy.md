@@ -4,9 +4,11 @@
 
 这台机器目前是第二套公网部署环境，不是腾讯云新加坡环境的替代品。后续接手时先分清服务器，别把两台机器的目录、账号和公网 IP 混在一起，那种混法很快就会把运维变成猜谜。
 
-如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md) 的“固定增量发布流程（先选目标云）”；阿里云当前固定口径已经切换为 Git 工作目录更新，优先 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。archive 小包只作为双远端都不可用时的兜底。
+如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops.md](./server-ops.md)；阿里云当前固定口径已经切换为 Git 工作目录更新，优先 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。archive 小包只作为双远端都不可用时的兜底。
 
 ## 2026-04-29 小米 MiMo 模型源增量发布记录
+
+这是 Git 工作目录迁移前的历史发布记录，保留用于追溯当时为什么用了 archive。不要把本节当成现在的默认发布流程。
 
 本次发布继续使用 archive 小包 `xiaomi-model-providers-20260429-incremental.tar.gz` 增量覆盖 `/root/ugk-claw-repo`；没有执行整目录替换，没有触碰 `/root/ugk-claw-shared/.data/agent`、sidecar 登录态、资产、conn 或生产日志。阿里云当前目录仍不是 Git 工作目录，不要照抄腾讯云 `git pull`。
 

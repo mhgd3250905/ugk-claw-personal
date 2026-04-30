@@ -23,7 +23,8 @@
     "docker:chrome:restart": "node scripts/sidecar-chrome.mjs restart",
     "docker:chrome:check": "node scripts/sidecar-chrome.mjs check",
     "docker:chrome:status": "node scripts/sidecar-chrome.mjs status",
-    "docker:chrome:open": "node scripts/sidecar-chrome.mjs open"
+    "docker:chrome:open": "node scripts/sidecar-chrome.mjs open",
+    "server:ops": "node scripts/server-ops.mjs"
   },
   "dependencies": {
     "@fastify/multipart": "^10.0.0",

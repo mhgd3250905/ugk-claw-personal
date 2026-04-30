@@ -130,7 +130,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /\$\{UGK_AGENT_DATA_DIR:-\.\/\.data\/agent\}:\/app\/\.data\/agent/);
 	assert.match(prodCompose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/app\/\.data\/browser-upload/);
 	assert.match(prodCompose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/config\/upload/);
-	assert.match(prodCompose, /runtime\/skills-user/);
+	assert.match(prodCompose, /\$\{UGK_RUNTIME_SKILLS_USER_DIR:-\.\/runtime\/skills-user\}:\/app\/runtime\/skills-user/);
 	assert.match(prodWorkerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
 	assert.doesNotMatch(prodWorkerComposeBlock, /ports:/);
 	assert.match(prodCompose, /default\.conf/);
@@ -149,6 +149,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /CONN_WORKER_MAX_CONCURRENCY=3/);
 	assert.match(envExample, /UGK_AGENT_DATA_DIR=\.\/\.data\/agent/);
 	assert.match(envExample, /UGK_BROWSER_UPLOAD_DIR=\.\/\.data\/chrome-sidecar\/upload/);
+	assert.match(envExample, /UGK_RUNTIME_SKILLS_USER_DIR=\.\/runtime\/skills-user/);
 	assert.match(envExample, /APT_MIRROR_HOST=/);
 
 	const dockerignore = readFileSync(dockerignorePath, "utf8");

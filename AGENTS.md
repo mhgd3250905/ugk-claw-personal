@@ -119,10 +119,11 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 项目级配置：`.pi/settings.json`
 - 项目级 prompts：`.pi/prompts/`
 - 项目级 skills：`.pi/skills/`
-- 用户 skills：`runtime/skills-user/`
+- 用户 skills：本地开发为 `runtime/skills-user/`；生产通过 `UGK_RUNTIME_SKILLS_USER_DIR` 外置到 shared 持久目录后再挂到容器 `/app/runtime/skills-user/`
 - 报告截图脚本：`runtime/screenshot.mjs`
 - 移动报告截图脚本：`runtime/screenshot-mobile.mjs`
 - web-access 浏览器桥接：`docs/web-access-browser-bridge.md`
+- 服务器运维唯一入口：`docs/server-ops.md`
 - 腾讯云新加坡部署运行手册：`docs/tencent-cloud-singapore-deploy.md`
 - 阿里云 ECS 部署运行手册：`docs/aliyun-ecs-deploy.md`
 - 项目级 subagent：`.pi/agents/`
@@ -161,7 +162,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云正式入口是 `http://43.134.167.179:3000/playground`；阿里云正式入口是 `http://101.37.209.54:3000/playground`。这两条只用于云服务器接手和双云排障；普通运行回复、文件预览链接和 playground 链接必须优先使用当前环境的 `PUBLIC_BASE_URL`，不要默认把两边公网入口一起甩给用户。
 - 腾讯云当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
 - 阿里云当前主部署目录是 `/root/ugk-claw-repo`，已迁移为 Git 工作目录；旧的 archive 目录 `/root/ugk-claw-repo-pre-git-*` 只用于回滚和比对，不是默认更新入口。
-- 两台服务器都已经配置 `origin` GitHub 和 `gitee` 备用 remote；常规发布默认走 Git fast-forward，不要再默认打包上传。服务器增量更新按渐进式披露读文档：先看本段确认目标和禁区，再看 `docs/server-ops-quick-reference.md` 的双云发布规范；只有迁移、回滚、异常或备份时再展开 `docs/tencent-cloud-singapore-deploy.md` 或 `docs/aliyun-ecs-deploy.md`。
+- 两台服务器都已经配置 `origin` GitHub 和 `gitee` 备用 remote；常规发布默认走 Git fast-forward，不要再默认打包上传。服务器增量更新优先使用 `npm run server:ops -- <tencent|aliyun> <preflight|deploy|verify>`；读文档按 `docs/server-ops.md` -> `docs/server-ops-quick-reference.md` -> 单云长手册的顺序渐进披露。
 - 腾讯云增量更新锚点：`ssh ugk-claw-prod` / `~/ugk-claw-repo` / `~/ugk-claw-shared` / `http://43.134.167.179:3000/healthz`。阿里云增量更新锚点：`root@101.37.209.54` / `/root/ugk-claw-repo` / `/root/ugk-claw-shared` / `http://101.37.209.54:3000/healthz`。
 - 增量更新禁区：不要 `git reset --hard`，不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、key、tar 包、runtime 报告或服务器 `.data`，不要在服务器 `git status --short` 非空时继续 pull；先备份/保全现场，再决定怎么收口。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
@@ -252,7 +253,9 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `Dockerfile`
 - `docker-compose.yml`
 - `docker-compose.prod.yml`
+- `scripts/server-ops.mjs`
 - `deploy/nginx/default.conf`
+- `docs/server-ops.md`
 - `docs/tencent-cloud-singapore-deploy.md`
 - `scripts/docker-health.mjs`
 - `src/routes/static.ts`
@@ -292,6 +295,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 当前品牌文案为 `UGK CLAW`；桌面端顶部与首页继续使用纯文字字标，手机端顶部状态栏显示品牌 logo + `UGK Claw` 字标。
 - 根目录 `DESIGN.md` 是当前 playground 视觉 identity 的机器可读入口；涉及颜色、字号、圆角、组件视觉语义的前端改动，先参考它，必要时同步更新并运行 `npm run design:lint`。
 - 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
+- 生产用户 skills 也属于运行态，不要再长期依赖 clean Git 工作目录里的 `runtime/skills-user/`；`docker-compose.prod.yml` 通过 `UGK_RUNTIME_SKILLS_USER_DIR` 挂载 shared skills 目录，腾讯云为 `~/ugk-claw-shared/runtime/skills-user`，阿里云为 `/root/ugk-claw-shared/runtime/skills-user`。
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；阿里云 ECS 对应外置目录是 `/root/ugk-claw-shared/`。后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
 - agent 运行中沉淀的本机/服务器长期规则不要直接写进仓库版 `AGENTS.md`；需要跨会话且不随代码发布丢失的规则写入 `/app/.data/agent/AGENTS.local.md`，该文件会作为额外 AGENTS 上下文随每轮 session 注入，生产上由 shared agent data 目录持久化。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。

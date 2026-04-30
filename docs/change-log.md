@@ -12,6 +12,24 @@
 
 ## 2026-04-30
 
+### 文档入口去噪与历史快照降级
+- 日期：2026-04-30
+- 主题：整理项目文档入口，把当前运维入口收口到 `docs/server-ops.md`，将 `docs/handoff-current.md` 和 `docs/playground-runtime-refactor-summary-2026-04-22.md` 明确标记为历史快照，避免后续 agent 把过期交接事实、archive 发布记录或旧 playground runtime 总结当作当前指令。
+- 影响范围：README 文档导航、追溯地图、腾讯云 / 阿里云长部署手册顶部说明与历史发布记录提示；不删除历史记录，只把“当前入口”和“历史备查”分开。
+- 对应入口：`README.md`、`docs/handoff-current.md`、`docs/playground-runtime-refactor-summary-2026-04-22.md`、`docs/traceability-map.md`、`docs/tencent-cloud-singapore-deploy.md`、`docs/aliyun-ecs-deploy.md`
+
+### 双云服务器运维入口与脚本收口
+- 日期：2026-04-30
+- 主题：新增服务器更新唯一入口文档与双云运维脚本，把 preflight / deploy / verify 固化为可重复命令，避免每次从历史聊天或部署手册里复制命令导致漏检 shared skills、nginx 重启或远端脏工作树。
+- 影响范围：新增 `npm run server:ops -- <tencent|aliyun> <preflight|deploy|verify>`；脚本会检查远端 Git 状态、`UGK_RUNTIME_SKILLS_USER_DIR`、compose config、内外网健康检查、容器技能清单和 `/v1/debug/skills`，deploy 时只允许 clean Git fast-forward 后重建并重启 nginx。
+- 对应入口：`scripts/server-ops.mjs`、`docs/server-ops.md`、`package.json`、`test/server-ops-script.test.ts`
+
+### 生产用户技能目录外置到 shared
+- 日期：2026-04-30
+- 主题：修复腾讯云 clean Git 工作目录下用户技能丢失的部署隐患。`runtime/skills-user/*` 在主仓库中大多被 `.gitignore` 忽略，只有少数技能被跟踪；如果生产继续把 repo 内目录直接 bind 到 `/app/runtime/skills-user`，clean checkout 或目录替换会把本地安装的 user skills 清掉。
+- 影响范围：`docker-compose.prod.yml` 新增 `UGK_RUNTIME_SKILLS_USER_DIR` 挂载源配置，生产可将用户技能放到 `~/ugk-claw-shared/runtime/skills-user` 或 `/root/ugk-claw-shared/runtime/skills-user`；`.env.example`、`AGENTS.md` 与服务器运维速查同步说明恢复和验收口径。
+- 对应入口：`docker-compose.prod.yml`、`.env.example`、`AGENTS.md`、`docs/server-ops-quick-reference.md`
+
 ### 双云生产环境增量更新到 `61ab0e9`
 - 日期：2026-04-30
 - 主题：将 GitHub / Gitee `main` 与腾讯云、阿里云生产环境增量更新到 `61ab0e9`，包含 `pi-coding-agent@0.70.6`、后台任务模型选择、任务消息执行模型展示，以及 `web-access` scope cache 正式入库。
