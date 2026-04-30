@@ -12,6 +12,12 @@
 
 ## 2026-04-30
 
+### 双云生产环境增量更新到 `61ab0e9`
+- 日期：2026-04-30
+- 主题：将 GitHub / Gitee `main` 与腾讯云、阿里云生产环境增量更新到 `61ab0e9`，包含 `pi-coding-agent@0.70.6`、后台任务模型选择、任务消息执行模型展示，以及 `web-access` scope cache 正式入库。
+- 影响范围：两台服务器均通过 Git fast-forward 和 `docker compose ... up --build -d` 重建 `ugk-pi`、`conn-worker`、`feishu-worker`；阿里云先把生产现场的 `web-access` scope cache 热修保存为 `stash@{0}: pre-61ab0e9-web-access-scope-cache-hotfix` 后再拉取正式提交。发布后因 app 容器重建导致 nginx upstream 旧 IP，已通过重启 nginx 恢复公网 `/healthz`。
+- 对应入口：`docs/server-ops-quick-reference.md`、`docs/runtime-assets-conn-feishu.md`、`docs/web-access-browser-bridge.md`
+
 ### web-access scope cache 正式入库
 - 日期：2026-04-30
 - 主题：将阿里云生产环境里的 `web-access` scope target cache 热修正式收回仓库，避免后续增量发布时因为服务器工作区脏改被阻断，也避免重建镜像后丢失浏览器 scope 清理能力。

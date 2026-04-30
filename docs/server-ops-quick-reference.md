@@ -70,6 +70,7 @@ git fetch origin main
 git pull --ff-only origin main
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
 COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml restart nginx
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
 ```
 
@@ -110,6 +111,7 @@ git fetch origin main
 git pull --ff-only origin main
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
 COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
+docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml restart nginx
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
 ```
 
@@ -126,7 +128,8 @@ git pull --ff-only gitee main
 - 本地没提交、没推送，就不要让服务器 pull。服务器不是你的草稿箱。
 - `.env`、API key、`.data/agent`、`.data/chrome-sidecar`、日志、tar 包和临时报告都不属于 Git 仓库。
 - 改到 `Dockerfile`、`package*.json`、`docker-compose.prod.yml`、`deploy/nginx/default.conf`、`src/`、`runtime/skills-user/` 这类运行路径，默认重建容器；纯文档改动可以只 pull，不必重建。
-- 改过 nginx 配置或公网 `502` 但 app 容器内部健康时，优先 `up -d --force-recreate nginx`，别绕一圈怀疑模型、网络和玄学。
+- `up --build -d` 重建 `ugk-pi` 后固定 `restart nginx`。nginx 会在启动时解析 `proxy_pass http://ugk-pi:3000`，app 容器重建后 IP 可能变化；如果 nginx 不重启，公网会 502，但 nginx 容器里直接访问 `http://ugk-pi:3000/healthz` 仍然是好的，这个现象非常会骗人。
+- 改过 nginx 配置或公网 `502` 但 app 容器内部健康时，优先 `restart nginx`；如果配置文件也改了，再 `up -d --force-recreate nginx`，别绕一圈怀疑模型、网络和玄学。
 - 发布后至少确认：`git log -1 --oneline`、`git status --short` 为空、内网 `/healthz`、公网 `/healthz`、`docker compose ps`。
 
 ## 登录
