@@ -15,4 +15,9 @@ test("conversation sync controller exposes ownership token helpers", () => {
 	assert.match(script, /function reconcileSyncedConversationState\(payload, conversationId, options\)/);
 	assert.match(script, /attachActiveRunEventStream\(nextConversationId\)/);
 	assert.match(script, /state\.conversationSyncGeneration/);
+	assert.match(script, /payload\?\.running/);
+	assert.match(script, /options\?\.attachIfRunning !== false && !state\.primaryStreamActive/);
+	assert.match(script, /options\?\.clearIfIdle/);
+	assert.match(script, /stopActiveRunEventStream\(\)/);
+	assert.match(script, /setLoading\(false\)/);
 });

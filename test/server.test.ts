@@ -2855,6 +2855,8 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.match(response.body, /function isTransientNetworkHistoryEntry\(entry\)\s*\{/);
 	assert.match(response.body, /filter\(\(entry\) => !isTransientNetworkHistoryEntry\(entry\)\)/);
 	assert.match(response.body, /setAssistantLoadingState\("[^"]+", "system"\)/);
+	assert.match(response.body, /setAssistantLoadingState\("\\\\u5f53\\\\u524d\\\\u6b63\\\\u5728\\\\u8fd0\\\\u884c", "system"\)/);
+	assert.doesNotMatch(response.body, /上一轮仍在运行/);
 	assert.match(response.body, /void attachActiveRunEventStream\(nextConversationId\)/);
 	assert.match(response.body, /return reconcileSyncedConversationState\(payload, nextConversationId, options\);/);
 	assert.match(
