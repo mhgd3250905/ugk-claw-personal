@@ -8,8 +8,10 @@ import {
 	DefaultResourceLoader,
 	ModelRegistry,
 	SessionManager,
+	SettingsManager,
 } from "@mariozechner/pi-coding-agent";
 import {
+	parseJsonSettingsObject,
 	readJsonScalarSetting,
 	readNestedJsonScalarSetting,
 } from "./settings-json.js";
@@ -299,6 +301,17 @@ export function resolveProjectDefaultModelContext(projectRoot: string): ProjectD
 	};
 }
 
+export function createProjectSettingsManager(projectRoot: string): SettingsManager {
+	let settingsContent = "";
+	try {
+		settingsContent = readFileSyncUtf8(getProjectSettingsPath(projectRoot));
+	} catch {
+		return SettingsManager.inMemory({});
+	}
+
+	return SettingsManager.inMemory(parseJsonSettingsObject(settingsContent));
+}
+
 function readFileSyncUtf8(filePath: string): string {
 	return readFileSync(filePath, "utf8");
 }
@@ -581,6 +594,7 @@ export function createDefaultAgentSessionFactory(
 				agentDir: options.agentDir,
 				authStorage,
 				modelRegistry,
+				settingsManager: createProjectSettingsManager(options.projectRoot),
 				sessionManager,
 				resourceLoader,
 			});

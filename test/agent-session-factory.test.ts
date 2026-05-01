@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { AuthStorage, ModelRegistry } from "@mariozechner/pi-coding-agent";
 import {
 	createDefaultAgentSessionFactory,
+	createProjectSettingsManager,
 	createSkillRestrictedResourceLoader,
 	getDefaultAllowedSkillPaths,
 	getDefaultRuntimeAgentRulesPath,
@@ -305,6 +306,29 @@ test("resolveProjectDefaultModelContext ignores commented default model settings
 
 	assert.equal(context.provider, "unknown");
 	assert.equal(context.model, "glm-5");
+});
+
+test("createProjectSettingsManager reads project defaults from commented JSON settings", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-session-factory-"));
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		[
+			"{",
+			'  // "defaultProvider": "deepseek",',
+			'  "defaultProvider": "dashscope-coding",',
+			'  "defaultModel": "glm-5",',
+			'  "defaultThinkingLevel": "medium"',
+			"}",
+		].join("\n"),
+		"utf8",
+	);
+
+	const manager = createProjectSettingsManager(projectRoot);
+
+	assert.equal(manager.getDefaultProvider(), "dashscope-coding");
+	assert.equal(manager.getDefaultModel(), "glm-5");
+	assert.equal(manager.getDefaultThinkingLevel(), "medium");
 });
 
 test("resolveProjectDefaultModelContext ignores nested default model settings", async () => {

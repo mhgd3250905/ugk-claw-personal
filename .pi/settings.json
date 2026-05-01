@@ -1,5 +1,4 @@
 {
-  // "shellPath": "C:\\Windows\\System32\\cmd.exe",  // Windows 下临时启用
   "defaultProvider": "deepseek",
   "defaultModel": "deepseek-v4-flash",
   "defaultThinkingLevel": "medium",

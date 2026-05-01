@@ -10,6 +10,13 @@ export function readNestedJsonScalarSetting(content: string, key: string): strin
 	return stringifyJsonScalarValue(value);
 }
 
+export function parseJsonSettingsObject(content: string): Record<string, unknown> {
+	const parsed = parseJsonObject(stripJsonComments(content));
+	return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+		? (parsed as Record<string, unknown>)
+		: {};
+}
+
 function stringifyJsonScalarValue(value: unknown): string | undefined {
 	if (typeof value === "string") {
 		return value;
