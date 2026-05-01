@@ -14,6 +14,7 @@ import {
 	getDefaultUserSkillPath,
 	getProjectModelsPath,
 	resolveProjectDefaultModelContext,
+	resolveProjectDefaultSessionModel,
 } from "../src/agent/agent-session-factory.js";
 
 test("createSkillRestrictedResourceLoader only loads skills from the allowed paths", async () => {
@@ -270,6 +271,40 @@ test("resolveProjectDefaultModelContext uses project defaults and reserve budget
 		maxResponseTokens: 16384,
 		reserveTokens: 16384,
 	});
+});
+
+test("resolveProjectDefaultSessionModel returns the current project default model", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-default-session-model-"));
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		JSON.stringify({
+			defaultProvider: "deepseek",
+			defaultModel: "deepseek-v4-flash",
+		}),
+		"utf8",
+	);
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: {
+				deepseek: {
+					models: [
+						{ id: "deepseek-v4-pro" },
+						{ id: "deepseek-v4-flash" },
+					],
+				},
+			},
+		}),
+		"utf8",
+	);
+
+	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(projectRoot));
+	const model = resolveProjectDefaultSessionModel(projectRoot, registry);
+
+	assert.equal(model?.provider, "deepseek");
+	assert.equal(model?.id, "deepseek-v4-flash");
 });
 
 test("resolveProjectDefaultModelContext ignores commented default model settings", async () => {

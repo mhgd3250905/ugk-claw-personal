@@ -15,7 +15,7 @@
 ### Pi session 默认模型读取与 DeepSeek Pro 误用修复
 - 日期：2026-05-01
 - 主题：修复 `.pi/settings.json` 含注释时 `/v1/model-config` 显示 Flash 但真实 Pi session 退回 `deepseek-v4-pro` 的运行态分裂问题。
-- 影响范围：前台 chat session 创建时现在显式使用项目侧 JSONC 兼容设置解析生成 `SettingsManager`，避免上游严格 `JSON.parse` 因注释忽略整份设置后选择高价 Pro 兜底；仓库版 `.pi/settings.json` 同步改回严格 JSON，减少生产配置踩雷面。后台 conn / subagent 仍按既有项目默认模型解析链路工作。
+- 影响范围：前台 chat session 创建时现在显式使用项目侧 JSONC 兼容设置解析生成 `SettingsManager`，并把当前项目默认模型作为显式 session model 传入，避免上游严格 `JSON.parse` 因注释忽略整份设置后选择高价 Pro 兜底，也避免旧会话继续恢复历史 Pro 快照；仓库版 `.pi/settings.json` 同步改回严格 JSON，减少生产配置踩雷面。后台 conn / subagent 仍按既有项目默认模型解析链路工作。
 - 对应入口：`.pi/settings.json`、`src/agent/agent-session-factory.ts`、`src/agent/settings-json.ts`、`test/agent-session-factory.test.ts`
 
 ### DeepSeek provider 恢复 Flash

@@ -312,6 +312,14 @@ export function createProjectSettingsManager(projectRoot: string): SettingsManag
 	return SettingsManager.inMemory(parseJsonSettingsObject(settingsContent));
 }
 
+export function resolveProjectDefaultSessionModel(projectRoot: string, modelRegistry: ModelRegistry) {
+	const defaultModel = resolveProjectDefaultModelContext(projectRoot);
+	if (defaultModel.provider === "unknown" || defaultModel.model === "unknown") {
+		return undefined;
+	}
+	return modelRegistry.find(defaultModel.provider, defaultModel.model);
+}
+
 function readFileSyncUtf8(filePath: string): string {
 	return readFileSync(filePath, "utf8");
 }
@@ -594,6 +602,7 @@ export function createDefaultAgentSessionFactory(
 				agentDir: options.agentDir,
 				authStorage,
 				modelRegistry,
+				model: resolveProjectDefaultSessionModel(options.projectRoot, modelRegistry),
 				settingsManager: createProjectSettingsManager(options.projectRoot),
 				sessionManager,
 				resourceLoader,
