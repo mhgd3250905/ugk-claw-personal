@@ -207,15 +207,21 @@ test("project models.json exposes the checked-in dashscope-coding glm-5 provider
 	assert.equal(model?.id, "glm-5");
 });
 
-test("project models.json exposes the checked-in DeepSeek Anthropic provider", () => {
+test("project models.json exposes the checked-in DeepSeek provider", () => {
 	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(process.cwd()));
-	const proModel = registry.find("deepseek-anthropic", "deepseek-v4-pro");
-	const flashModel = registry.find("deepseek-anthropic", "deepseek-v4-flash");
+	const proModel = registry.find("deepseek", "deepseek-v4-pro");
+	const flashModel = registry.find("deepseek", "deepseek-v4-flash");
 
 	assert.notEqual(proModel, undefined);
-	assert.equal(proModel?.provider, "deepseek-anthropic");
+	assert.equal(proModel?.provider, "deepseek");
 	assert.equal(proModel?.id, "deepseek-v4-pro");
-	assert.equal(flashModel, undefined);
+	assert.equal(proModel?.contextWindow, 1000000);
+	assert.equal(proModel?.maxTokens, 384000);
+	assert.notEqual(flashModel, undefined);
+	assert.equal(flashModel?.provider, "deepseek");
+	assert.equal(flashModel?.id, "deepseek-v4-flash");
+	assert.equal(flashModel?.contextWindow, 1000000);
+	assert.equal(flashModel?.maxTokens, 384000);
 });
 
 test("project models.json exposes the checked-in Xiaomi MiMo Anthropic-compatible providers", () => {
@@ -287,8 +293,8 @@ test("resolveProjectDefaultModelContext ignores commented default model settings
 				"dashscope-coding": {
 					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
 				},
-				"deepseek-anthropic": {
-					models: [{ id: "deepseek-v4-pro", contextWindow: 1048576, maxTokens: 262144 }],
+				deepseek: {
+					models: [{ id: "deepseek-v4-pro", contextWindow: 1000000, maxTokens: 384000 }],
 				},
 			},
 		}),
@@ -311,7 +317,7 @@ test("resolveProjectDefaultModelContext ignores nested default model settings", 
 			defaultProvider: "dashscope-coding",
 			defaultModel: "glm-5",
 			nested: {
-				defaultProvider: "deepseek-anthropic",
+				defaultProvider: "deepseek",
 				defaultModel: "deepseek-v4-pro",
 			},
 			compaction: { reserveTokens: 20000 },
@@ -325,8 +331,8 @@ test("resolveProjectDefaultModelContext ignores nested default model settings", 
 				"dashscope-coding": {
 					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
 				},
-				"deepseek-anthropic": {
-					models: [{ id: "deepseek-v4-pro", contextWindow: 1048576, maxTokens: 262144 }],
+				deepseek: {
+					models: [{ id: "deepseek-v4-pro", contextWindow: 1000000, maxTokens: 384000 }],
 				},
 			},
 		}),
@@ -348,7 +354,7 @@ test("resolveProjectDefaultModelContext does not use nested defaults when top-le
 		join(projectRoot, ".pi", "settings.json"),
 		JSON.stringify({
 			nested: {
-				defaultProvider: "deepseek-anthropic",
+				defaultProvider: "deepseek",
 				defaultModel: "deepseek-v4-pro",
 			},
 			compaction: { reserveTokens: 20000 },
@@ -359,8 +365,8 @@ test("resolveProjectDefaultModelContext does not use nested defaults when top-le
 		join(projectRoot, "runtime", "pi-agent", "models.json"),
 		JSON.stringify({
 			providers: {
-				"deepseek-anthropic": {
-					models: [{ id: "deepseek-v4-pro", contextWindow: 1048576, maxTokens: 262144 }],
+				deepseek: {
+					models: [{ id: "deepseek-v4-pro", contextWindow: 1000000, maxTokens: 384000 }],
 				},
 			},
 		}),
@@ -408,9 +414,9 @@ test("default session factory reflects model context changes after default model
 						},
 					],
 				},
-				"deepseek-anthropic": {
-					baseUrl: "https://api.deepseek.com/anthropic",
-					api: "anthropic-messages",
+				deepseek: {
+					baseUrl: "https://api.deepseek.com",
+					api: "openai-completions",
 					apiKey: "DEEPSEEK_API_KEY",
 					models: [
 						{
@@ -418,8 +424,8 @@ test("default session factory reflects model context changes after default model
 							name: "DeepSeek V4 Pro",
 							reasoning: true,
 							input: ["text"],
-							contextWindow: 1048576,
-							maxTokens: 262144,
+							contextWindow: 1000000,
+							maxTokens: 384000,
 						},
 					],
 				},
@@ -434,7 +440,7 @@ test("default session factory reflects model context changes after default model
 	await writeFile(
 		join(projectRoot, ".pi", "settings.json"),
 		JSON.stringify({
-			defaultProvider: "deepseek-anthropic",
+			defaultProvider: "deepseek",
 			defaultModel: "deepseek-v4-pro",
 			compaction: { reserveTokens: 16384 },
 		}),
@@ -442,10 +448,10 @@ test("default session factory reflects model context changes after default model
 	);
 
 	const updatedContext = factory.getDefaultModelContext?.();
-	assert.equal(updatedContext?.provider, "deepseek-anthropic");
+	assert.equal(updatedContext?.provider, "deepseek");
 	assert.equal(updatedContext?.model, "deepseek-v4-pro");
-	assert.equal(updatedContext?.contextWindow, 1048576);
-	assert.equal(updatedContext?.maxResponseTokens, 262144);
+	assert.equal(updatedContext?.contextWindow, 1000000);
+	assert.equal(updatedContext?.maxResponseTokens, 384000);
 });
 
 test("default session factory reads persisted messages from session jsonl without loading a runtime session", async () => {

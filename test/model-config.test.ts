@@ -37,14 +37,15 @@ async function createProjectRoot(): Promise<string> {
 					apiKey: "DASHSCOPE_CODING_API_KEY",
 					models: [{ id: "glm-5", name: "GLM-5" }],
 				},
-				"deepseek-anthropic": {
-					name: "DeepSeek Anthropic",
+				deepseek: {
+					name: "DeepSeek",
 					vendor: "deepseek",
 					region: "global",
 					priority: 20,
 					apiKey: "DEEPSEEK_API_KEY",
 					models: [
-						{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
+						{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1000000, maxTokens: 384000 },
+						{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1000000, maxTokens: 384000 },
 					],
 				},
 				"xiaomi-mimo-cn": {
@@ -118,26 +119,32 @@ test("model config store lists providers and current default selection", async (
 	});
 	assert.deepEqual(
 		config.providers.map((provider) => provider.id),
-		["dashscope-coding", "deepseek-anthropic", "xiaomi-mimo-cn", "xiaomi-mimo-sgp", "xiaomi-mimo-ams"],
+		["dashscope-coding", "deepseek", "xiaomi-mimo-cn", "xiaomi-mimo-sgp", "xiaomi-mimo-ams"],
 	);
 	assert.deepEqual(config.providers.map((provider) => [provider.id, provider.name, provider.vendor, provider.region, provider.priority]), [
 		["dashscope-coding", "Ali DashScope Coding", "ali", "cn", 10],
-		["deepseek-anthropic", "DeepSeek Anthropic", "deepseek", "global", 20],
+		["deepseek", "DeepSeek", "deepseek", "global", 20],
 		["xiaomi-mimo-cn", "Xiaomi MiMo China", "xiaomi", "cn", 31],
 		["xiaomi-mimo-sgp", "Xiaomi MiMo Singapore", "xiaomi", "sgp", 32],
 		["xiaomi-mimo-ams", "Xiaomi MiMo Europe", "xiaomi", "ams", 33],
 	]);
 	assert.deepEqual(
-		config.providers.find((provider) => provider.id === "deepseek-anthropic")?.models.map((model) => model.id),
-		["deepseek-v4-pro"],
+		config.providers.find((provider) => provider.id === "deepseek")?.models.map((model) => model.id),
+		["deepseek-v4-pro", "deepseek-v4-flash"],
 	);
-	assert.deepEqual(config.providers.find((provider) => provider.id === "deepseek-anthropic")?.models[0], {
+	assert.deepEqual(config.providers.find((provider) => provider.id === "deepseek")?.models[0], {
 		id: "deepseek-v4-pro",
 		name: "DeepSeek V4 Pro",
-		contextWindow: 1048576,
-		maxTokens: 262144,
+		contextWindow: 1000000,
+		maxTokens: 384000,
 	});
-	assert.equal(config.providers.find((provider) => provider.id === "deepseek-anthropic")?.auth.envVar, "DEEPSEEK_API_KEY");
+	assert.deepEqual(config.providers.find((provider) => provider.id === "deepseek")?.models[1], {
+		id: "deepseek-v4-flash",
+		name: "DeepSeek V4 Flash",
+		contextWindow: 1000000,
+		maxTokens: 384000,
+	});
+	assert.equal(config.providers.find((provider) => provider.id === "deepseek")?.auth.envVar, "DEEPSEEK_API_KEY");
 	assert.deepEqual(config.providers.find((provider) => provider.id === "xiaomi-mimo-cn")?.models, [
 		{
 			id: "mimo-v2.5-pro",
@@ -181,7 +188,7 @@ test("model config store reads default selection only from top-level settings", 
 			'  "defaultProvider": "dashscope-coding",',
 			'  "defaultModel": "glm-5",',
 			'  "nested": {',
-			'    "defaultProvider": "deepseek-anthropic",',
+			'    "defaultProvider": "deepseek",',
 			'    "defaultModel": "deepseek-v4-pro"',
 			"  }",
 			"}",
@@ -205,7 +212,7 @@ test("model config store does not use nested defaults when top-level settings ar
 		[
 			"{",
 			'  "nested": {',
-			'    "defaultProvider": "deepseek-anthropic",',
+			'    "defaultProvider": "deepseek",',
 			'    "defaultModel": "deepseek-v4-pro"',
 			"  }",
 			"}",
@@ -228,7 +235,7 @@ test("model config store preserves comment-like markers inside strings", async (
 		join(projectRoot, ".pi", "settings.json"),
 		[
 			"{",
-			'  "defaultProvider": "deepseek-anthropic",',
+			'  "defaultProvider": "deepseek",',
 			'  "defaultModel": "deepseek-v4-pro",',
 			'  "note": "https://example.test/path//still-string"',
 			"}",
@@ -240,7 +247,7 @@ test("model config store preserves comment-like markers inside strings", async (
 	const config = await store.getConfig();
 
 	assert.deepEqual(config.current, {
-		provider: "deepseek-anthropic",
+		provider: "deepseek",
 		model: "deepseek-v4-pro",
 	});
 });
@@ -255,14 +262,14 @@ test("saveDefaultModelConfig validates before writing settings", async () => {
 	};
 
 	const result = await saveDefaultModelConfig(store, validator, {
-		provider: "deepseek-anthropic",
+		provider: "deepseek",
 		model: "deepseek-v4-pro",
 	});
 
 	const settings = await readFile(join(projectRoot, ".pi", "settings.json"), "utf8");
 	assert.equal(result.ok, true);
-	assert.deepEqual(calls, [{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" }]);
-	assert.match(settings, /"defaultProvider": "deepseek-anthropic"/);
+	assert.deepEqual(calls, [{ provider: "deepseek", model: "deepseek-v4-pro" }]);
+	assert.match(settings, /"defaultProvider": "deepseek"/);
 	assert.match(settings, /"defaultModel": "deepseek-v4-pro"/);
 	assert.match(settings, /\/\/ keep this comment/);
 });
@@ -306,7 +313,7 @@ test("saveDefaultModelConfig does not write settings when validation fails", asy
 	});
 
 	const result = await saveDefaultModelConfig(store, validator, {
-		provider: "deepseek-anthropic",
+		provider: "deepseek",
 		model: "deepseek-v4-pro",
 	});
 

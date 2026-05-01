@@ -120,18 +120,6 @@ ${input.playgroundScript ?? ""}</script>`;
 						</span>
 					</button>
 					<div></div>
-					<template hidden>
-					<div class="topbar-context-slot">
-						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="涓婁笅鏂囦娇鐢?0%" aria-describedby="context-usage-meta">
-							<span class="context-usage-battery" aria-hidden="true">
-								<span id="context-usage-progress" class="context-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
-							</span>
-							<span id="context-usage-summary" class="context-usage-summary">0%</span>
-							<span id="context-usage-toggle" class="context-usage-toggle">涓婁笅鏂囪鎯?/span>
-							<span id="context-usage-meta" class="context-usage-meta" role="tooltip">褰撳墠涓婁笅鏂?0 / 128,000 tokens (0%)</span>
-						</button>
-					</div>
-					</template>
 					<button
 						id="mobile-new-conversation-button"
 						class="mobile-topbar-button"

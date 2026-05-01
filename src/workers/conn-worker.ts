@@ -444,9 +444,15 @@ interface DeprecatedBackgroundModelAlias {
 const DEPRECATED_BACKGROUND_MODEL_ALIASES: DeprecatedBackgroundModelAlias[] = [
 	{
 		provider: "deepseek-anthropic",
-		model: "deepseek-v4-flash",
-		replacementProvider: "deepseek-anthropic",
+		model: "deepseek-v4-pro",
+		replacementProvider: "deepseek",
 		replacementModel: "deepseek-v4-pro",
+	},
+	{
+		provider: "deepseek-anthropic",
+		model: "deepseek-v4-flash",
+		replacementProvider: "deepseek",
+		replacementModel: "deepseek-v4-flash",
 	},
 ];
 

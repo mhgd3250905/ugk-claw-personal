@@ -292,13 +292,14 @@ function createModelConfigStoreStub(): ModelConfigStore {
 				},
 			},
 			{
-				id: "deepseek-anthropic",
-				name: "DeepSeek Anthropic",
+				id: "deepseek",
+				name: "DeepSeek",
 				vendor: "deepseek",
 				region: "global",
 				priority: 20,
 				models: [
-					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
+					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1000000, maxTokens: 384000 },
+					{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1000000, maxTokens: 384000 },
 				],
 				auth: {
 					configured: true,
@@ -2064,7 +2065,8 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action,[\s\S]*\.landing-side-right > \.topbar-context-slot\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action\s*\{[\s\S]*display:\s*none;/);
+	assert.doesNotMatch(response.body, /\.landing-side-right > \.topbar-context-slot\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*min-height:\s*48px;/);
@@ -4818,13 +4820,14 @@ test("GET /v1/model-config returns current provider and selectable models", asyn
 				},
 			},
 			{
-				id: "deepseek-anthropic",
-				name: "DeepSeek Anthropic",
+				id: "deepseek",
+				name: "DeepSeek",
 				vendor: "deepseek",
 				region: "global",
 				priority: 20,
 				models: [
-					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1048576, maxTokens: 262144 },
+					{ id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", contextWindow: 1000000, maxTokens: 384000 },
+					{ id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", contextWindow: 1000000, maxTokens: 384000 },
 				],
 				auth: {
 					configured: true,
@@ -4868,17 +4871,17 @@ test("PUT /v1/model-config/default validates before switching default model", as
 		method: "PUT",
 		url: "/v1/model-config/default",
 		payload: {
-			provider: "deepseek-anthropic",
+			provider: "deepseek",
 			model: "deepseek-v4-pro",
 		},
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.deepEqual(calls, [{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" }]);
+	assert.deepEqual(calls, [{ provider: "deepseek", model: "deepseek-v4-pro" }]);
 	assert.deepEqual(response.json(), {
 		ok: true,
 		current: {
-			provider: "deepseek-anthropic",
+			provider: "deepseek",
 			model: "deepseek-v4-pro",
 		},
 		effective: "new_sessions",
@@ -4901,7 +4904,7 @@ test("PUT /v1/model-config/default does not switch when validation fails", async
 		method: "PUT",
 		url: "/v1/model-config/default",
 		payload: {
-			provider: "deepseek-anthropic",
+			provider: "deepseek",
 			model: "deepseek-v4-pro",
 		},
 	});

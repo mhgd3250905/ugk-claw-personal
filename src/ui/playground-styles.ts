@@ -3228,7 +3228,7 @@ export function getPlaygroundStyles(): string {
 			top: 50%;
 			right: 16px;
 			z-index: 5;
-			display: none;
+			display: flex;
 			align-items: center;
 			justify-content: flex-end;
 			flex: 0 0 auto;
@@ -3593,8 +3593,7 @@ export function getPlaygroundStyles(): string {
 				display: contents;
 			}
 
-			.landing-side-right > .telemetry-action,
-			.landing-side-right > .topbar-context-slot {
+			.landing-side-right > .telemetry-action {
 				display: none;
 			}
 

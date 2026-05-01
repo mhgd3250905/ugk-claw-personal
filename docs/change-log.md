@@ -12,6 +12,18 @@
 
 ## 2026-05-01
 
+### DeepSeek provider 恢复 Flash
+- 日期：2026-05-01
+- 主题：按已调通的 pi 配置把 DeepSeek provider 从历史 `deepseek-anthropic` 迁移为 `deepseek`，恢复 `deepseek-v4-flash`，并同步校正 `deepseek-v4-pro` 参数。
+- 影响范围：`runtime/pi-agent/models.json` 中 DeepSeek 现在走 `https://api.deepseek.com` + `openai-completions`，Pro / Flash 均登记 `contextWindow=1000000`、`maxTokens=384000`，并带 DeepSeek reasoning `compat` 配置；`.pi/settings.json` 当前默认选择更新为 `deepseek/deepseek-v4-flash`。后台 worker 保留旧 `deepseek-anthropic` 快照迁移，旧 Pro 指向新 Pro，旧 Flash 指向恢复后的新 Flash。
+- 对应入口：`runtime/pi-agent/models.json`、`.pi/settings.json`、`src/workers/conn-worker.ts`、`test/model-config.test.ts`、`test/agent-session-factory.test.ts`、`test/conn-worker.test.ts`、`test/server.test.ts`、`docs/model-providers.md`、`docs/runtime-assets-conn-feishu.md`
+
+### Playground 上下文入口恢复
+- 日期：2026-05-01
+- 主题：修复桌面 topbar 收口后 `.topbar-context-slot` 被基础样式隐藏，导致上下文用量按钮不可见的问题。
+- 影响范围：桌面端恢复 topbar 右侧上下文电池入口；手机端复用同一个上下文入口并在移动断点定位到状态栏右侧，不再把 `.landing-side-right > .topbar-context-slot` 隐藏，也移除隐藏模板里的重复按钮壳，避免同功能入口“看似有两份、实际一份都不能用”的抽象事故。
+- 对应入口：`src/ui/playground-page-shell.ts`、`src/ui/playground-styles.ts`、`test/playground-styles.test.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ### Playground topbar 与上传入口收口
 - 日期：2026-05-01
 - 主题：将桌面 topbar 收口为纯页面切换导航，上传文件入口移动到 composer 左侧，移除可见技能按钮。

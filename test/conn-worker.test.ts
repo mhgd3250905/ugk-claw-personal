@@ -52,14 +52,14 @@ class FailingRunner {
 
 test("resolveBackgroundSessionModel returns the model selected by the background snapshot", () => {
 	const expectedModel = {
-		provider: "deepseek-anthropic",
+		provider: "deepseek",
 		id: "deepseek-v4-pro",
 		name: "DeepSeek V4 Pro",
-		api: "anthropic",
+		api: "openai-completions",
 		baseUrl: "https://example.test",
 		reasoning: true,
-		contextWindow: 1048576,
-		maxTokens: 262144,
+		contextWindow: 1000000,
+		maxTokens: 384000,
 		input: ["text"],
 		output: ["text"],
 	} as const;
@@ -72,12 +72,12 @@ test("resolveBackgroundSessionModel returns the model selected by the background
 	};
 
 	const resolved = resolveBackgroundSessionModel(modelRegistry as never, {
-		provider: "deepseek-anthropic",
+		provider: "deepseek",
 		model: "deepseek-v4-pro",
 	});
 
 	assert.equal(resolved, expectedModel);
-	assert.deepEqual(calls, [{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" }]);
+	assert.deepEqual(calls, [{ provider: "deepseek", model: "deepseek-v4-pro" }]);
 });
 
 test("createBackgroundResourceLoader loads project extensions while sessions run in isolated workspaces", async () => {
@@ -152,16 +152,49 @@ test("resolveBackgroundSessionModel rejects missing background snapshot models i
 	);
 });
 
-test("resolveBackgroundSessionModel migrates deprecated DeepSeek Flash snapshots to DeepSeek Pro", () => {
+test("resolveBackgroundSessionModel migrates deprecated DeepSeek Anthropic Pro snapshots to DeepSeek", () => {
 	const replacementModel = {
-		provider: "deepseek-anthropic",
+		provider: "deepseek",
 		id: "deepseek-v4-pro",
 		name: "DeepSeek V4 Pro",
-		api: "anthropic",
+		api: "openai-completions",
 		baseUrl: "https://example.test",
 		reasoning: true,
-		contextWindow: 1048576,
-		maxTokens: 262144,
+		contextWindow: 1000000,
+		maxTokens: 384000,
+		input: ["text"],
+		output: ["text"],
+	} as const;
+	const calls: Array<{ provider: string; model: string }> = [];
+	const modelRegistry = {
+		find(provider: string, model: string) {
+			calls.push({ provider, model });
+			return provider === replacementModel.provider && model === replacementModel.id ? replacementModel : undefined;
+		},
+	};
+
+	const resolved = resolveBackgroundSessionModel(modelRegistry as never, {
+		provider: "deepseek-anthropic",
+		model: "deepseek-v4-pro",
+	});
+
+	assert.equal(resolved, replacementModel);
+	assert.deepEqual(calls, [
+		{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" },
+		{ provider: "deepseek", model: "deepseek-v4-pro" },
+	]);
+});
+
+test("resolveBackgroundSessionModel migrates deprecated DeepSeek Anthropic Flash snapshots to restored DeepSeek Flash", () => {
+	const replacementModel = {
+		provider: "deepseek",
+		id: "deepseek-v4-flash",
+		name: "DeepSeek V4 Flash",
+		api: "openai-completions",
+		baseUrl: "https://example.test",
+		reasoning: true,
+		contextWindow: 1000000,
+		maxTokens: 384000,
 		input: ["text"],
 		output: ["text"],
 	} as const;
@@ -181,7 +214,7 @@ test("resolveBackgroundSessionModel migrates deprecated DeepSeek Flash snapshots
 	assert.equal(resolved, replacementModel);
 	assert.deepEqual(calls, [
 		{ provider: "deepseek-anthropic", model: "deepseek-v4-flash" },
-		{ provider: "deepseek-anthropic", model: "deepseek-v4-pro" },
+		{ provider: "deepseek", model: "deepseek-v4-flash" },
 	]);
 });
 
@@ -198,7 +231,7 @@ test("resolveBackgroundSessionModel rejects deprecated aliases when the replacem
 				provider: "deepseek-anthropic",
 				model: "deepseek-v4-flash",
 			}),
-		/Background agent model not found: deepseek-anthropic\/deepseek-v4-flash; deprecated alias replacement missing: deepseek-anthropic\/deepseek-v4-pro/,
+		/Background agent model not found: deepseek-anthropic\/deepseek-v4-flash; deprecated alias replacement missing: deepseek\/deepseek-v4-flash/,
 	);
 });
 

@@ -17,6 +17,7 @@ test("playground styles keep desktop rail full height and reset it on phones", (
 	assert.match(styles, /\.shell\s*\{[\s\S]*grid-template-columns:\s*260px minmax\(0, 1fr\);/);
 	assert.match(styles, /\.shell\s*\{[\s\S]*column-gap:\s*0;/);
 	assert.match(styles, /\.topbar\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*1;/);
+	assert.match(styles, /\.topbar-context-slot\s*\{[\s\S]*display:\s*flex;/);
 	assert.match(styles, /\.desktop-conversation-rail\s*\{[\s\S]*grid-row:\s*1 \/ -1;/);
 	assert.match(
 		styles,
@@ -28,6 +29,7 @@ test("playground styles keep desktop rail full height and reset it on phones", (
 	);
 	assert.match(
 		styles,
-		/@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action,[\s\S]*\.landing-side-right > \.desktop-file-menu\s*\{[\s\S]*display:\s*none;/,
+		/@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action\s*\{[\s\S]*display:\s*none;/,
 	);
+	assert.doesNotMatch(styles, /\.landing-side-right > \.topbar-context-slot\s*\{[\s\S]*display:\s*none;/);
 });

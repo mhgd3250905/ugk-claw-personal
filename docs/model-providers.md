@@ -1,6 +1,6 @@
 # 模型源管理
 
-更新时间：`2026-04-30`
+更新时间：`2026-05-01`
 
 模型源只在 `runtime/pi-agent/models.json` 登记，默认选择只在 `.pi/settings.json` 保存。不要把 provider、model、API key 和运行时策略混在一个地方，否则后面加模型会变成猜谜。
 
@@ -9,7 +9,7 @@
 | 来源 | provider | 模型 | 集群 | Key |
 | --- | --- | --- | --- | --- |
 | 阿里 | `dashscope-coding` | `glm-5` | `cn` | `DASHSCOPE_CODING_API_KEY` |
-| DeepSeek | `deepseek-anthropic` | `deepseek-v4-pro` | `global` | `DEEPSEEK_API_KEY` |
+| DeepSeek | `deepseek` | `deepseek-v4-pro` / `deepseek-v4-flash` | `global` | `DEEPSEEK_API_KEY` |
 | 小米 | `xiaomi-mimo-cn` | `mimo-v2.5-pro` | `cn` | `XIAOMI_MIMO_API_KEY` |
 | 小米 | `xiaomi-mimo-sgp` | `mimo-v2.5-pro` | `sgp` | `XIAOMI_MIMO_API_KEY` |
 | 小米 | `xiaomi-mimo-ams` | `mimo-v2.5-pro` | `ams` | `XIAOMI_MIMO_API_KEY` |
@@ -29,7 +29,8 @@
 - `provider.region` 表示集群或区域。
 - `provider.priority` 控制 Web 模型源下拉展示顺序。
 - `provider.name` 是给用户看的名称，前端优先展示它，再附带 provider id。
-- `model.contextWindow` 用真实上下文窗口。小米 `mimo-v2.5-pro` 当前登记为 `1048576`。
+- `model.contextWindow` 用真实上下文窗口。DeepSeek V4 Pro / Flash 当前登记为 `1000000`，小米 `mimo-v2.5-pro` 当前登记为 `1048576`。
+- DeepSeek 当前走 `openai-completions` 链路和 `https://api.deepseek.com`，并通过 `compat.thinkingFormat = "deepseek"`、`requiresReasoningContentOnAssistantMessages = true` 与 `reasoningEffortMap` 对齐 pi 的 DeepSeek reasoning 行为。
 - API key 只通过环境变量读取；本地兜底可以使用 `api.txt`、`deepseek-api.txt`、`小米api.txt`，这些文件必须保持 ignored。
 
 ## 修改入口
