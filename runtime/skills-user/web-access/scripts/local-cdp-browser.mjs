@@ -60,6 +60,46 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const SPECIAL_KEY_PARAMS = new Map([
+  ['Backspace', { key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }],
+  ['Tab', { key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 }],
+  ['Enter', { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }],
+  ['Escape', { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }],
+  ['Delete', { key: 'Delete', code: 'Delete', windowsVirtualKeyCode: 46 }],
+]);
+
+function normalizeKeyboardKey(key) {
+  const trimmed = String(key || '').trim();
+  if (!trimmed) return 'Enter';
+  const aliases = {
+    esc: 'Escape',
+    return: 'Enter',
+    del: 'Delete',
+    bksp: 'Backspace',
+  };
+  const lower = trimmed.toLowerCase();
+  return aliases[lower] || trimmed;
+}
+
+function buildKeyEventParams(key) {
+  const special = SPECIAL_KEY_PARAMS.get(key);
+  if (special) return special;
+  if (key.length === 1) {
+    const code = /^[a-z]$/i.test(key)
+      ? `Key${key.toUpperCase()}`
+      : /^[0-9]$/.test(key)
+        ? `Digit${key}`
+        : key;
+    return {
+      key,
+      code,
+      text: key,
+      windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0),
+    };
+  }
+  return { key, code: key };
+}
+
 function normalizeBaseUrl(options = {}) {
   if (options.endpoint) {
     return String(options.endpoint).replace(/\/$/, '');
@@ -417,6 +457,10 @@ export class LocalCdpBrowser {
         return { ok: true, value: await this.evaluate(command.targetId, command.expression) };
       case 'type':
         return await this.typeText(command.targetId, command.text);
+      case 'press_key':
+        return await this.pressKey(command.targetId, command.key);
+      case 'press_enter':
+        return await this.pressKey(command.targetId, 'Enter');
       case 'click':
       case 'click_at':
         return { ok: true, value: await this.click(command.targetId, command.selector) };
@@ -742,6 +786,27 @@ export class LocalCdpBrowser {
       }
       await cdp.send('Input.insertText', { text: inputText });
       return { ok: true, textLength: inputText.length };
+    });
+  }
+
+  async pressKey(targetId, key) {
+    const normalizedKey = normalizeKeyboardKey(key);
+    return await this.withTarget(targetId, async (cdp) => {
+      try {
+        await cdp.send('Page.bringToFront');
+      } catch {
+        // The key event itself is the critical operation.
+      }
+      const params = buildKeyEventParams(normalizedKey);
+      await cdp.send('Input.dispatchKeyEvent', {
+        ...params,
+        type: 'keyDown',
+      });
+      await cdp.send('Input.dispatchKeyEvent', {
+        ...params,
+        type: 'keyUp',
+      });
+      return { ok: true, key: normalizedKey };
     });
   }
 

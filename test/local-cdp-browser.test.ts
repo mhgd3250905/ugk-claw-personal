@@ -131,6 +131,77 @@ test("LocalCdpBrowser type action inserts text through CDP Input.insertText", as
 	]);
 });
 
+test("LocalCdpBrowser press_key action dispatches keyDown and keyUp events", async () => {
+	const calls: Array<{ method: string; params: unknown }> = [];
+	class TestBrowser extends LocalCdpBrowser {
+		async withTarget(
+			targetId: string,
+			callback: (cdp: { send: (method: string, params?: unknown) => Promise<unknown> }) => Promise<unknown>,
+		) {
+			assert.equal(targetId, "target-1");
+			return await callback({
+				send: async (method: string, params?: unknown) => {
+					calls.push({ method, params });
+					return {};
+				},
+			});
+		}
+	}
+
+	const browser = new TestBrowser();
+	const result = await browser.handleCommand({
+		action: "press_key",
+		targetId: "target-1",
+		key: "Enter",
+	});
+
+	assert.deepEqual(result, { ok: true, key: "Enter" });
+	assert.deepEqual(calls, [
+		{ method: "Page.bringToFront", params: undefined },
+		{
+			method: "Input.dispatchKeyEvent",
+			params: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, type: "keyDown" },
+		},
+		{
+			method: "Input.dispatchKeyEvent",
+			params: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, type: "keyUp" },
+		},
+	]);
+});
+
+test("LocalCdpBrowser press_enter action is kept as an Enter shortcut", async () => {
+	const calls: Array<{ method: string; params: unknown }> = [];
+	class TestBrowser extends LocalCdpBrowser {
+		async withTarget(
+			targetId: string,
+			callback: (cdp: { send: (method: string, params?: unknown) => Promise<unknown> }) => Promise<unknown>,
+		) {
+			assert.equal(targetId, "target-1");
+			return await callback({
+				send: async (method: string, params?: unknown) => {
+					calls.push({ method, params });
+					return {};
+				},
+			});
+		}
+	}
+
+	const browser = new TestBrowser();
+	const result = await browser.handleCommand({
+		action: "press_enter",
+		targetId: "target-1",
+	});
+
+	assert.deepEqual(result, { ok: true, key: "Enter" });
+	assert.equal(calls[1]?.method, "Input.dispatchKeyEvent");
+	assert.deepEqual(calls[1]?.params, {
+		key: "Enter",
+		code: "Enter",
+		windowsVirtualKeyCode: 13,
+		type: "keyDown",
+	});
+});
+
 test("LocalCdpBrowser registers new scoped targets so scope cleanup closes them", async () => {
 	const closedTargets: string[] = [];
 	class TestBrowser extends LocalCdpBrowser {

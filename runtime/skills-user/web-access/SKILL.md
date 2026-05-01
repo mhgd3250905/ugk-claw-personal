@@ -160,6 +160,8 @@ curl -s -X POST "http://127.0.0.1:3456/session/close-all?metaAgentScope=${AGENT_
 curl -s "http://127.0.0.1:3456/info?target=ID"
 curl -s -X POST "http://127.0.0.1:3456/eval?target=ID" -d 'document.title'
 curl -s -X POST "http://127.0.0.1:3456/type?target=ID" -H "Content-Type: text/plain; charset=utf-8" -d 'text to insert'
+curl -s -X POST "http://127.0.0.1:3456/key?target=ID&key=Enter"
+curl -s -X POST "http://127.0.0.1:3456/enter?target=ID"
 curl -s "http://127.0.0.1:3456/navigate?target=ID&url=https%3A%2F%2Fexample.com"
 curl -s -X POST "http://127.0.0.1:3456/click?target=ID" -d 'button.submit'
 curl -s "http://127.0.0.1:3456/scroll?target=ID&direction=bottom"
@@ -169,7 +171,9 @@ curl -s "http://127.0.0.1:3456/close?target=ID"
 
 When passing a nested URL into `/new` or `/navigate`, URL-encode it first. Otherwise query params inside the target URL can be mistaken for proxy params.
 
-For React, Draft.js, and other rich text editors, prefer `/type` after focusing the editor with `/eval`, for example `editor.focus()`. The `/type` endpoint uses CDP `Input.insertText`, which follows the browser text input path more closely than `document.execCommand('insertText')`. It inserts at the current cursor position and does not clear existing content.
+For React, Draft.js, ProseMirror, and other rich text editors, prefer `/type` after focusing the editor with `/eval`, for example `editor.focus()`. The `/type` endpoint uses CDP `Input.insertText`, which follows the browser text input path more closely than `document.execCommand('insertText')`. It inserts at the current cursor position and does not clear existing content.
+
+For rich editors that must create real paragraph nodes, use `/key?key=Enter` or `/enter` between `/type` calls instead of inserting HTML paragraph tags. This follows the browser keyboard event path and lets the editor update its internal state.
 
 ## Working Style
 

@@ -162,12 +162,15 @@ compose 会把同一个 `UGK_BROWSER_UPLOAD_DIR` 同时挂到 app / worker 的 `
 
 ## 5.2 Rich Editor Text Input
 
-`POST http://127.0.0.1:3456/type?target=<targetId>&metaAgentScope=<scope>` 用 CDP `Input.insertText` 向当前焦点插入文本，主要用于 Draft.js、React rich editor 这类不会可靠响应 `document.execCommand('insertText')` 的编辑器。
+`POST http://127.0.0.1:3456/type?target=<targetId>&metaAgentScope=<scope>` 用 CDP `Input.insertText` 向当前焦点插入文本，主要用于 Draft.js、ProseMirror、React rich editor 这类不会可靠响应 `document.execCommand('insertText')` / `insertHTML` 的编辑器。
+
+`POST http://127.0.0.1:3456/key?target=<targetId>&key=Enter&metaAgentScope=<scope>` 用 CDP `Input.dispatchKeyEvent` 向当前焦点发送键盘事件；`/enter` 是 `key=Enter` 的快捷端点。多页 ProseMirror / Draft.js 这类需要真实段落事务的编辑器，应在多行内容之间使用 `/type` + `/enter`，不要把 `<p>` 拼进 `insertHTML`。
 
 调用顺序必须是：
 1. 先用 `/eval` 或点击操作让目标编辑器获得焦点，例如 `editor.focus()`。
 2. 再用 `/type` 发送 `text/plain` 正文。
-3. `/type` 只在当前光标处插入文本，不负责清空旧内容，也不负责选择目标元素。
+3. 多行内容按行发送：非空行用 `/type`，行间用 `/enter` 或 `/key?key=Enter`。
+4. `/type` 和 `/key` 只作用于当前焦点，不负责清空旧内容，也不负责选择目标元素。
 
 这个端点属于 `web-access` 兼容代理，不是页面脚本 API。不要在第三方页面里 `fetch('/type')`；agent 应从 app 容器内调用 `127.0.0.1:3456`。
 

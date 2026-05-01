@@ -12,6 +12,12 @@
 
 ## 2026-05-01
 
+### web-access 富文本键盘输入端点
+- 日期：2026-05-01
+- 主题：为 web-access 兼容代理新增通用键盘输入能力，支撑 ProseMirror / Draft.js 多行富文本按真实键盘事件创建段落。
+- 影响范围：新增 `POST /key?target=<id>&key=<key>` 与 `POST /enter?target=<id>`，底层通过 CDP `Input.dispatchKeyEvent` 发送 `keyDown/keyUp`，并保留 `press_enter` 兼容 action；`/type` 继续只负责 `Input.insertText`。小红书多页文字配图这类调用方应按“聚焦编辑器 -> 清空 -> 分行 `/type` -> 行间 `/enter`”接入，不再依赖 `execCommand('insertHTML')` 拼 `<p>`。
+- 对应入口：`runtime/skills-user/web-access/scripts/cdp-proxy.mjs`、`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`、`runtime/skills-user/web-access/SKILL.md`、`docs/web-access-browser-bridge.md`、`test/web-access-proxy.test.ts`、`test/local-cdp-browser.test.ts`
+
 ### Pi session 默认模型读取与 DeepSeek Pro 误用修复
 - 日期：2026-05-01
 - 主题：修复 `.pi/settings.json` 含注释时 `/v1/model-config` 显示 Flash 但真实 Pi session 退回 `deepseek-v4-pro` 的运行态分裂问题。

@@ -30,6 +30,11 @@ function requireTargetId(targetId) {
   return targetId;
 }
 
+function normalizeKeyName(value) {
+  const trimmed = String(value || '').trim();
+  return trimmed || 'Enter';
+}
+
 function trimMetaValue(value, maxLength = 200) {
   const trimmed = typeof value === 'string' ? value.trim() : '';
   if (!trimmed) return undefined;
@@ -362,6 +367,36 @@ export function createProxyServer(options = {}) {
                 typeof result.textLength === 'number'
                   ? result.textLength
                   : text.length,
+            }
+          : result,
+      );
+      return;
+    }
+
+    if (pathname === '/key' || pathname === '/enter') {
+      const key =
+        pathname === '/enter'
+          ? 'Enter'
+          : normalizeKeyName(parsed.searchParams.get('key') || (await readBody(req)));
+      const result = await requestBrowser(
+        {
+          action: 'press_key',
+          targetId: requireTargetId(targetId),
+          key,
+        },
+        {
+          meta: buildRequestMeta(parsed, req, {
+            operation: pathname === '/enter' ? 'enter' : 'key',
+          }),
+        },
+      );
+      sendJson(
+        res,
+        result.ok ? 200 : 500,
+        result.ok
+          ? {
+              ok: true,
+              key: result.key || key,
             }
           : result,
       );
