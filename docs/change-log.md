@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-05-02
+
+### 站点专项搜索技能设计元技能
+- 日期：2026-05-02
+- 主题：新增 `site-search-skill-designer` 元技能，用于在用户明确要求“为某个网站设计专项搜索 / 查询技能”时，指导 agent 产出窄触发的站点技能设计，而不是直接执行搜索。
+- 影响范围：新增技能只覆盖技能设计场景，不接管普通网页搜索、GitHub 查询、知乎热榜、Reddit / X 等实际检索任务；技能内明确 API / 静态请求 / Jina / 页面内 fetch / CDP 的访问策略选择、证据门槛、fallback 条件和 GitHub / 知乎 / Reddit / 小红书示例。补充回归测试锁住“元技能、窄触发、非实际搜索”的边界。
+- 对应入口：`.pi/skills/site-search-skill-designer/SKILL.md`、`test/site-search-skill-designer.test.ts`
+
 ## 2026-05-01
 
 ### web-access 富文本键盘输入端点
