@@ -27,6 +27,8 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 | 创建 agent | `POST /v1/agents` |
 | 归档 agent | `POST /v1/agents/:agentId/archive` |
 | 查看技能 | `GET /v1/agents/:agentId/debug/skills` |
+| 复制安装技能 | `POST /v1/agents/:agentId/skills` |
+| 删除技能 | `DELETE /v1/agents/:agentId/skills/:skillName` |
 | 会话接口 | `/v1/agents/:agentId/chat/*` |
 
 创建请求示例：
@@ -48,7 +50,7 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 2. 创建 agent：如果用户只是讨论或询问方案，先解释影响并询问是否创建；只有用户明确要求创建时，才调用 `POST /v1/agents`。
 3. 验证目录和技能：调用 `GET /v1/agents/:agentId/debug/skills`，确认只看到该 agent 自己的系统技能和用户技能。
 4. 切换 agent：不要声称能替用户切换；提示用户在 Playground 左侧会话 rail 底部“设置”菜单切换，除非后续已有明确的 UI 激活接口和用户要求自动切换。
-5. 配置技能：创建时的 `initialSystemSkillNames` 会把主 Agent 当前已有且来源明确的技能复制到该 agent 的 `.data/agents/:agentId/pi/skills`；创建后追加安装仍只允许把主 Agent 当前已有且来源明确的技能复制到该 agent 自己的技能目录。元技能或系统级基础技能才写入 `.data/agents/:agentId/pi/skills`。如果主 Agent 没有目标技能，停止、说明原因，并询问用户是否要切换到目标 agent 自己处理。
+5. 配置技能：创建时的 `initialSystemSkillNames` 会把主 Agent 当前已有且来源明确的技能复制到该 agent 的 `.data/agents/:agentId/pi/skills`；创建后追加安装调用 `POST /v1/agents/:agentId/skills`，只允许把主 Agent 当前已有且来源明确的技能复制到该 agent 自己的 `user-skills` 目录。如果主 Agent 没有目标技能，停止、说明原因，并询问用户是否要切换到目标 agent 自己处理。
 6. 归档 agent：先说明影响范围并询问确认；确认不是 `main`、确认没有 running conversation 后，才调用 `POST /v1/agents/:agentId/archive`。
 
 ## 其他 Agent 技能安装边界
@@ -60,6 +62,8 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 3. 如果用户请求不够明确，先列出将复制的技能和目标目录，询问是否继续。
 4. 用户确认后，复制到目标 agent 自己的 `user-skills` 目录，除非这是项目定义的系统级元技能。
 5. 调 `GET /v1/agents/:agentId/debug/skills` 验证目标 agent 只从自己的目录看到该技能。
+
+删除其他 agent profile 的技能时，必须先确认影响，再调用 `DELETE /v1/agents/:agentId/skills/:skillName`。`main` 不能通过这组接口管理技能，`agent-skill-ops`、`agent-runtime-ops`、`agent-filesystem-ops` 三件套不能删除。
 
 禁止主 Agent 为其他 agent profile 执行这些事：
 

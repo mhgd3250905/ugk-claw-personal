@@ -214,6 +214,8 @@ function getPlaygroundScript(): string {
 			agentManagerMode: "detail",
 			agentManagerAvailableInitialSkills: [],
 			agentManagerAvailableInitialSkillsLoading: false,
+			agentManagerSelectedInstallSkillName: "",
+			agentManagerSkillActionKey: "",
 			agentCreateName: "",
 			agentCreateDescription: "",
 			agentCreateSelectedSkillNames: [],

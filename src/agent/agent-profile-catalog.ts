@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { cp, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import {
 	DEFAULT_AGENT_ID,
@@ -35,6 +35,13 @@ export interface UpdateAgentProfileInput {
 	description?: string;
 }
 
+export interface AgentProfileSkillChangeResult {
+	agentId: string;
+	skillName: string;
+	targetRoot: string;
+	targetDir: string;
+}
+
 export function getAgentProfilesCatalogPath(projectRoot: string): string {
 	return join(projectRoot, ".data", "agents", "profiles.json");
 }
@@ -59,6 +66,14 @@ function normalizeInitialSystemSkillNames(skillNames: unknown): string[] {
 		.filter((skillName) => /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(skillName))
 		.filter((skillName) => !reserved.has(skillName));
 	return Array.from(new Set(normalized));
+}
+
+function normalizeSkillName(skillName: unknown): string {
+	const normalized = String(skillName || "").trim();
+	if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(normalized)) {
+		throw new Error("skillName must start with a letter or digit and contain only letters, digits, underscores, or hyphens");
+	}
+	return normalized;
 }
 
 function parseStoredCatalog(raw: string): Required<StoredAgentProfiles> {
@@ -196,6 +211,28 @@ async function assertMainAgentHasInitialSystemSkills(projectRoot: string, skillN
 	}
 }
 
+function assertMutableAgentProfile(agentId: string): void {
+	if (agentId === DEFAULT_AGENT_ID) {
+		throw new Error("main agent skills cannot be managed through agent profile ops");
+	}
+}
+
+async function resolveMutableAgentProfile(projectRoot: string, agentId: string): Promise<AgentProfile> {
+	if (!isValidAgentId(agentId)) {
+		throw new Error("agentId must start with a lowercase letter and contain only lowercase letters, digits, or hyphens");
+	}
+	assertMutableAgentProfile(agentId);
+	const catalog = await readStoredAgentProfileCatalog(projectRoot);
+	if (catalog.archivedAgentIds.includes(agentId)) {
+		throw new Error(`agent ${agentId} is archived`);
+	}
+	const profile = createDefaultAgentProfiles(projectRoot, catalog.agents).find((entry) => entry.agentId === agentId);
+	if (!profile) {
+		throw new Error(`agent ${agentId} does not exist`);
+	}
+	return profile;
+}
+
 export async function readStoredAgentProfileSummaries(projectRoot: string): Promise<AgentProfileSummaryInput[]> {
 	const catalogPath = getAgentProfilesCatalogPath(projectRoot);
 	try {
@@ -310,6 +347,57 @@ export async function updateStoredAgentProfile(
 	];
 	await writeStoredAgentProfileSummaries(projectRoot, nextStored, catalog.archivedAgentIds);
 	return createAgentProfileFromSummary(projectRoot, updatedSummary);
+}
+
+export async function installStoredAgentProfileSkill(
+	projectRoot: string,
+	agentId: string,
+	inputSkillName: unknown,
+): Promise<AgentProfileSkillChangeResult> {
+	const skillName = normalizeSkillName(inputSkillName);
+	const profile = await resolveMutableAgentProfile(projectRoot, agentId);
+	const sourceDir = await findMainAgentSkillDir(projectRoot, skillName);
+	if (!sourceDir) {
+		throw new Error(`main agent does not have skill ${skillName}`);
+	}
+	const targetRoot = profile.allowedSkillPaths[1] ?? profile.allowedSkillPaths[0];
+	if (!targetRoot) {
+		throw new Error(`agent ${agentId} does not have a skill target root`);
+	}
+	const targetDir = join(targetRoot, skillName);
+	if (!isPathWithin(targetRoot, targetDir)) {
+		throw new Error(`invalid skill target: ${skillName}`);
+	}
+	await mkdir(targetRoot, { recursive: true });
+	await cp(sourceDir, targetDir, {
+		recursive: true,
+		force: true,
+		errorOnExist: false,
+	});
+	return { agentId, skillName, targetRoot, targetDir };
+}
+
+export async function removeStoredAgentProfileSkill(
+	projectRoot: string,
+	agentId: string,
+	inputSkillName: unknown,
+): Promise<AgentProfileSkillChangeResult> {
+	const skillName = normalizeSkillName(inputSkillName);
+	if (DEFAULT_AGENT_SYSTEM_SKILLS.some((skill) => skill.name === skillName)) {
+		throw new Error("required agent skill cannot be removed");
+	}
+	const profile = await resolveMutableAgentProfile(projectRoot, agentId);
+	for (const targetRoot of profile.allowedSkillPaths) {
+		const targetDir = join(targetRoot, skillName);
+		if (!isPathWithin(targetRoot, targetDir)) {
+			throw new Error(`invalid skill target: ${skillName}`);
+		}
+		if (existsSync(targetDir)) {
+			await rm(targetDir, { recursive: true, force: true });
+			return { agentId, skillName, targetRoot, targetDir };
+		}
+	}
+	throw new Error(`agent ${agentId} does not have skill ${skillName}`);
 }
 
 export async function archiveStoredAgentProfile(

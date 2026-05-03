@@ -6,6 +6,8 @@ import type { AgentServiceRegistry } from "../agent/agent-service-registry.js";
 import {
 	archiveStoredAgentProfile,
 	createStoredAgentProfile,
+	installStoredAgentProfileSkill,
+	removeStoredAgentProfileSkill,
 	updateStoredAgentProfile,
 } from "../agent/agent-profile-catalog.js";
 import {
@@ -249,6 +251,75 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return sendUnknownAgent(reply, request.params?.agentId);
 			}
 			return await service.getAvailableSkills();
+		},
+	);
+
+	app.post(
+		"/v1/agents/:agentId/skills",
+		async (
+			request: FastifyRequest<{
+				Params: { agentId?: string };
+				Body: { skillName?: string };
+			}>,
+			reply,
+		): Promise<
+			| {
+					agentId: string;
+					skillName: string;
+					targetRoot: string;
+					targetDir: string;
+			  }
+			| FastifyReply
+		> => {
+			const { agentId } = request.params ?? {};
+			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			if (!resolveScopedAgentService(agentId)) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			try {
+				return await installStoredAgentProfileSkill(deps.projectRoot, agentId, request.body?.skillName);
+			} catch (error) {
+				return reply.status(400).send({
+					error: "BAD_REQUEST",
+					message: error instanceof Error ? error.message : "Unable to install agent skill.",
+				});
+			}
+		},
+	);
+
+	app.delete(
+		"/v1/agents/:agentId/skills/:skillName",
+		async (
+			request: FastifyRequest<{ Params: { agentId?: string; skillName?: string } }>,
+			reply,
+		): Promise<
+			| {
+					removed: true;
+					agentId: string;
+					skillName: string;
+					targetRoot: string;
+					targetDir: string;
+			  }
+			| FastifyReply
+		> => {
+			const { agentId, skillName } = request.params ?? {};
+			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			if (!resolveScopedAgentService(agentId)) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			try {
+				const removed = await removeStoredAgentProfileSkill(deps.projectRoot, agentId, skillName);
+				return { removed: true, ...removed };
+			} catch (error) {
+				return reply.status(400).send({
+					error: "BAD_REQUEST",
+					message: error instanceof Error ? error.message : "Unable to remove agent skill.",
+				});
+			}
 		},
 	);
 

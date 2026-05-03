@@ -220,7 +220,9 @@ export function getPlaygroundAgentManagerStyles(): string {
 
 		.agent-manager-actions button,
 		.agent-manager-skill-head button,
-		.agent-manager-rules-head button {
+		.agent-manager-rules-head button,
+		.agent-manager-skill-install button,
+		.agent-manager-skill-item button {
 			padding: 6px 10px;
 			font-size: 10px;
 		}
@@ -350,12 +352,46 @@ export function getPlaygroundAgentManagerStyles(): string {
 			overflow: auto;
 		}
 
+		.agent-manager-skill-install {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			flex-wrap: wrap;
+			padding: 8px 10px;
+			border: 1px solid rgba(201, 210, 255, 0.08);
+			background: rgba(255, 255, 255, 0.025);
+		}
+
+		.agent-manager-skill-install select {
+			min-width: min(280px, 100%);
+			min-height: 32px;
+			padding: 6px 9px;
+			border: 1px solid rgba(201, 210, 255, 0.14);
+			border-radius: 4px;
+			background: rgba(5, 7, 13, 0.92);
+			color: rgba(244, 248, 255, 0.92);
+			font-size: 11px;
+		}
+
 		.agent-manager-skill-item {
 			display: grid;
 			gap: 4px;
 			padding: 8px 10px;
 			border: 1px solid rgba(201, 210, 255, 0.08);
 			background: rgba(255, 255, 255, 0.025);
+		}
+
+		.agent-manager-skill-item-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			min-width: 0;
+		}
+
+		.agent-manager-skill-item button {
+			border-color: rgba(255, 113, 136, 0.16);
+			color: rgba(255, 190, 202, 0.88);
 		}
 
 		.agent-manager-skill-item strong {
@@ -485,6 +521,7 @@ export function getPlaygroundAgentManagerStyles(): string {
 		:root[data-theme="light"] .agent-manager-detail-field,
 		:root[data-theme="light"] .agent-manager-create-section,
 		:root[data-theme="light"] .agent-manager-rules-card,
+		:root[data-theme="light"] .agent-manager-skill-install,
 		:root[data-theme="light"] .agent-manager-skill-choice,
 		:root[data-theme="light"] .agent-manager-skill-item,
 		:root[data-theme="light"] .agent-manager-rules-content {
@@ -516,6 +553,7 @@ export function getPlaygroundAgentManagerStyles(): string {
 
 		:root[data-theme="light"] .agent-editor-field input,
 		:root[data-theme="light"] .agent-editor-field textarea,
+		:root[data-theme="light"] .agent-manager-skill-install select,
 		:root[data-theme="light"] .agent-manager-create input,
 		:root[data-theme="light"] .agent-manager-create textarea {
 			background: #ffffff;
@@ -979,6 +1017,9 @@ export function getPlaygroundAgentManagerScript(): string {
 					state.agentManagerSelectedAgentId = agent.agentId;
 					renderAgentManager();
 					void ensureAgentManagerSkills(agent);
+					if (!isMainAgent(agent)) {
+						void loadAgentManagerAvailableInitialSkills();
+					}
 				});
 				const row = document.createElement("div");
 				row.className = "agent-manager-list-title";
@@ -1231,6 +1272,8 @@ export function getPlaygroundAgentManagerScript(): string {
 			meta.textContent = "只展示该 Agent scoped debug skills，不读取主 Agent 技能。";
 			copy.appendChild(title);
 			copy.appendChild(meta);
+			const actions = document.createElement("div");
+			actions.className = "agent-manager-actions";
 			const refresh = document.createElement("button");
 			refresh.type = "button";
 			refresh.textContent = state.agentManagerSkillsLoadingByAgentId?.[agent.agentId] ? "读取中" : "刷新技能";
@@ -1238,12 +1281,16 @@ export function getPlaygroundAgentManagerScript(): string {
 			refresh.addEventListener("click", () => {
 				void loadAgentManagerSkills(agent);
 			});
+			actions.appendChild(refresh);
 			head.appendChild(copy);
-			head.appendChild(refresh);
+			head.appendChild(actions);
 			const list = document.createElement("div");
 			list.id = "agent-manager-skill-list";
 			list.className = "agent-manager-skill-list";
 			const skills = state.agentManagerSkillsByAgentId?.[agent.agentId];
+			if (!isMainAgent(agent)) {
+				list.appendChild(renderAgentSkillInstallRow(agent, Array.isArray(skills) ? skills : []));
+			}
 			if (!Array.isArray(skills)) {
 				const empty = document.createElement("div");
 				empty.className = "agent-manager-skill-empty";
@@ -1258,12 +1305,26 @@ export function getPlaygroundAgentManagerScript(): string {
 				for (const skill of skills) {
 					const item = document.createElement("article");
 					item.className = "agent-manager-skill-item";
+					const row = document.createElement("div");
+					row.className = "agent-manager-skill-item-head";
 					const name = document.createElement("strong");
 					name.textContent = skill?.name || "unknown";
+					row.appendChild(name);
+					if (!isMainAgent(agent) && !getRequiredAgentSkillNames().includes(skill?.name || "")) {
+						const removeButton = document.createElement("button");
+						removeButton.type = "button";
+						const actionKey = agent.agentId + ":" + (skill?.name || "");
+						removeButton.textContent = state.agentManagerSkillActionKey === actionKey ? "删除中" : "删除";
+						removeButton.disabled = state.agentManagerSkillActionKey === actionKey;
+						removeButton.addEventListener("click", () => {
+							void removeAgentSkillFromManager(agent, skill?.name || "");
+						});
+						row.appendChild(removeButton);
+					}
 					const description = document.createElement("span");
 					description.className = "agent-manager-skill-meta";
 					description.textContent = skill?.description || "暂无说明";
-					item.appendChild(name);
+					item.appendChild(row);
 					item.appendChild(description);
 					list.appendChild(item);
 				}
@@ -1271,6 +1332,45 @@ export function getPlaygroundAgentManagerScript(): string {
 			panel.appendChild(head);
 			panel.appendChild(list);
 			return panel;
+		}
+
+		function renderAgentSkillInstallRow(agent, skills) {
+			const row = document.createElement("div");
+			row.className = "agent-manager-skill-install";
+			const current = new Set((Array.isArray(skills) ? skills : []).map((skill) => String(skill?.name || "").trim()).filter(Boolean));
+			const available = (state.agentManagerAvailableInitialSkills || [])
+				.filter((skill) => skill?.name && !current.has(skill.name))
+				.sort((left, right) => left.name.localeCompare(right.name));
+			const select = document.createElement("select");
+			select.disabled = Boolean(state.agentManagerAvailableInitialSkillsLoading || state.agentManagerSkillActionKey);
+			const placeholder = document.createElement("option");
+			placeholder.value = "";
+			placeholder.textContent = state.agentManagerAvailableInitialSkillsLoading ? "正在读取主 Agent 技能" : "选择要复制安装的技能";
+			select.appendChild(placeholder);
+			for (const skill of available) {
+				const option = document.createElement("option");
+				option.value = skill.name;
+				option.textContent = skill.name;
+				select.appendChild(option);
+			}
+			if (state.agentManagerSelectedInstallSkillName && available.some((skill) => skill.name === state.agentManagerSelectedInstallSkillName)) {
+				select.value = state.agentManagerSelectedInstallSkillName;
+			}
+			select.addEventListener("change", () => {
+				state.agentManagerSelectedInstallSkillName = select.value;
+				installButton.disabled = acting || !available.length || !select.value;
+			});
+			const installButton = document.createElement("button");
+			installButton.type = "button";
+			const acting = state.agentManagerSkillActionKey === agent.agentId + ":install";
+			installButton.textContent = acting ? "安装中" : "复制安装";
+			installButton.disabled = acting || !available.length || !select.value;
+			installButton.addEventListener("click", () => {
+				void installAgentSkillFromManager(agent, select.value);
+			});
+			row.appendChild(select);
+			row.appendChild(installButton);
+			return row;
 		}
 
 		function renderAgentManagerRulesCard(agent) {
@@ -1310,6 +1410,9 @@ export function getPlaygroundAgentManagerScript(): string {
 				if (selected) {
 					state.agentManagerSelectedAgentId = selected.agentId;
 					void ensureAgentManagerSkills(selected);
+					if (!isMainAgent(selected)) {
+						void loadAgentManagerAvailableInitialSkills();
+					}
 				}
 				renderAgentManager();
 			} catch (error) {
@@ -1495,6 +1598,99 @@ export function getPlaygroundAgentManagerScript(): string {
 				const nextLoading = { ...(state.agentManagerSkillsLoadingByAgentId || {}) };
 				delete nextLoading[agent.agentId];
 				state.agentManagerSkillsLoadingByAgentId = nextLoading;
+				renderAgentManager();
+			}
+		}
+
+		async function installAgentSkillFromManager(agent, skillName) {
+			const normalizedSkillName = String(skillName || "").trim();
+			if (!agent?.agentId || !normalizedSkillName || state.agentManagerSkillActionKey) {
+				return;
+			}
+			const confirmed = await openConfirmDialog({
+				title: "复制安装技能？",
+				description:
+					"将从主 Agent 当前已有技能中复制 " +
+					normalizedSkillName +
+					" 到 " +
+					(agent.name || agent.agentId) +
+					" 的独立用户技能目录。不会共享主 Agent 技能目录。",
+				confirmText: "安装",
+				cancelText: "取消",
+			});
+			if (!confirmed) {
+				return;
+			}
+			state.agentManagerSkillActionKey = agent.agentId + ":install";
+			renderAgentManager();
+			try {
+				const response = await fetch("/v1/agents/" + encodeURIComponent(agent.agentId) + "/skills", {
+					method: "POST",
+					headers: {
+						accept: "application/json",
+						"content-type": "application/json",
+					},
+					body: JSON.stringify({ skillName: normalizedSkillName }),
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.message || "无法安装技能");
+				}
+				state.agentManagerSelectedInstallSkillName = "";
+				delete state.agentManagerSkillsByAgentId?.[agent.agentId];
+				await loadAgentManagerSkills(agent);
+				setAgentManagerNotice("已安装 " + normalizedSkillName + " 到 " + (agent.name || agent.agentId) + "。");
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法安装技能";
+				showError(messageText);
+			} finally {
+				state.agentManagerSkillActionKey = "";
+				renderAgentManager();
+			}
+		}
+
+		async function removeAgentSkillFromManager(agent, skillName) {
+			const normalizedSkillName = String(skillName || "").trim();
+			if (!agent?.agentId || !normalizedSkillName || state.agentManagerSkillActionKey) {
+				return;
+			}
+			const confirmed = await openConfirmDialog({
+				title: "删除技能？",
+				description:
+					"将从 " +
+					(agent.name || agent.agentId) +
+					" 的独立技能目录删除 " +
+					normalizedSkillName +
+					"。主 Agent 和其他 Agent 不受影响。",
+				confirmText: "删除",
+				cancelText: "取消",
+				tone: "danger",
+			});
+			if (!confirmed) {
+				return;
+			}
+			state.agentManagerSkillActionKey = agent.agentId + ":" + normalizedSkillName;
+			renderAgentManager();
+			try {
+				const response = await fetch(
+					"/v1/agents/" + encodeURIComponent(agent.agentId) + "/skills/" + encodeURIComponent(normalizedSkillName),
+					{
+						method: "DELETE",
+						headers: { accept: "application/json" },
+					},
+				);
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.message || "无法删除技能");
+				}
+				delete state.agentManagerSkillsByAgentId?.[agent.agentId];
+				await loadAgentManagerSkills(agent);
+				setAgentManagerNotice("已删除 " + normalizedSkillName + "。");
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "无法删除技能";
+				showError(messageText);
+			} finally {
+				state.agentManagerSkillActionKey = "";
 				renderAgentManager();
 			}
 		}

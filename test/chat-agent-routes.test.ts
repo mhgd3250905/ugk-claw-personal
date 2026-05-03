@@ -291,6 +291,89 @@ test("PATCH /v1/agents/:agentId updates a custom agent profile summary", async (
 	);
 });
 
+test("POST and DELETE /v1/agents/:agentId/skills manage custom agent skill copies", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });
+	await writeFile(join(projectRoot, ".pi", "skills", "web-access", "SKILL.md"), "# web-access\n", "utf8");
+	const registry = createTestRegistryForRoot(projectRoot);
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: registry,
+		agentProfileProjectRoot: projectRoot,
+	});
+	await app.inject({
+		method: "POST",
+		url: "/v1/agents",
+		payload: {
+			agentId: "research",
+			name: "研究 Agent",
+			description: "用于资料研究。",
+		},
+	});
+
+	const installed = await app.inject({
+		method: "POST",
+		url: "/v1/agents/research/skills",
+		payload: {
+			skillName: "web-access",
+		},
+	});
+	const copied = await readFile(
+		join(projectRoot, ".data", "agents", "research", "user-skills", "web-access", "SKILL.md"),
+		"utf8",
+	);
+	const removed = await app.inject({
+		method: "DELETE",
+		url: "/v1/agents/research/skills/web-access",
+	});
+
+	assert.equal(installed.statusCode, 200);
+	assert.equal(installed.json().agentId, "research");
+	assert.equal(installed.json().skillName, "web-access");
+	assert.equal(copied, "# web-access\n");
+	assert.equal(removed.statusCode, 200);
+	assert.equal(removed.json().removed, true);
+});
+
+test("agent skill management rejects main and missing main skills", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	const registry = createTestRegistryForRoot(projectRoot);
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: registry,
+		agentProfileProjectRoot: projectRoot,
+	});
+	await app.inject({
+		method: "POST",
+		url: "/v1/agents",
+		payload: {
+			agentId: "research",
+			name: "研究 Agent",
+			description: "用于资料研究。",
+		},
+	});
+
+	const missing = await app.inject({
+		method: "POST",
+		url: "/v1/agents/research/skills",
+		payload: {
+			skillName: "missing-skill",
+		},
+	});
+	const main = await app.inject({
+		method: "POST",
+		url: "/v1/agents/main/skills",
+		payload: {
+			skillName: "missing-skill",
+		},
+	});
+
+	assert.equal(missing.statusCode, 400);
+	assert.match(missing.json().message, /main agent does not have skill missing-skill/);
+	assert.equal(main.statusCode, 400);
+	assert.match(main.json().message, /main agent skills cannot be managed/);
+});
+
 test("POST /v1/agents/:agentId/archive rejects main and running agents", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
 	const runningRegistry = createTestRegistryForRoot(projectRoot, new Set(["search"]));

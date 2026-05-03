@@ -288,6 +288,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 用户问“我有哪些 agent / 有哪些 agent / 当前有哪些 agent”时，默认先理解为当前 Playground 的独立 agent profile / 操作视窗，必须查：
 
 - `GET /v1/agents`
+- `POST /v1/agents/:agentId/skills`
+- `DELETE /v1/agents/:agentId/skills/:skillName`
 - `.pi/skills/agent-profile-ops/SKILL.md`
 - `src/agent/agent-profile.ts`
 - `src/agent/agent-profile-catalog.ts`

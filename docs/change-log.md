@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### Agent 操作台技能管理
+- 日期：2026-05-04
+- 主题：把其他 agent profile 的技能复制安装 / 删除补进后端接口和 Playground 操作台。
+- 影响范围：新增 `POST /v1/agents/:agentId/skills`，只允许把主 Agent 当前已有且来源明确的技能复制到目标 agent 的 `.data/agents/<agentId>/user-skills`；新增 `DELETE /v1/agents/:agentId/skills/:skillName`，只删除目标 agent 自己目录里的非基础技能，拒绝通过该接口管理 `main`，并保护 `agent-skill-ops`、`agent-runtime-ops`、`agent-filesystem-ops` 三件套。Agent 操作台的技能透明视图现在对非主 Agent 展示可复制安装下拉和技能删除按钮，所有修改动作继续走确认弹窗；主 Agent 在该页只展示技能，不提供修改入口。
+- 对应入口：`src/agent/agent-profile-catalog.ts`、`src/routes/chat.ts`、`src/ui/playground-agent-manager.ts`、`src/ui/playground.ts`、`.pi/skills/agent-profile-ops/SKILL.md`、`test/agent-profile-catalog.test.ts`、`test/chat-agent-routes.test.ts`、`docs/playground-current.md`
+
 ### Agent 创建失败收口
 - 日期：2026-05-04
 - 主题：修复 Agent 创建时初始技能校验和归档 ID 复用的边界问题。

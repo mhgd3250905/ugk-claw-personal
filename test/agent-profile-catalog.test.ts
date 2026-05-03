@@ -6,7 +6,9 @@ import { join } from "node:path";
 import {
 	archiveStoredAgentProfile,
 	createStoredAgentProfile,
+	installStoredAgentProfileSkill,
 	loadAgentProfilesSync,
+	removeStoredAgentProfileSkill,
 } from "../src/agent/agent-profile-catalog.js";
 import { resolveAgentProfile } from "../src/agent/agent-profile.js";
 
@@ -109,6 +111,54 @@ test("createStoredAgentProfile can recreate an archived agent id as visible", as
 
 	assert.ok(draft);
 	assert.equal(draft.name, "新草稿 Agent");
+});
+
+test("installStoredAgentProfileSkill copies a main agent skill into an existing agent user skill root", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });
+	await writeFile(join(projectRoot, ".pi", "skills", "web-access", "SKILL.md"), "# web-access\n", "utf8");
+	await createStoredAgentProfile(projectRoot, {
+		agentId: "research",
+		name: "研究 Agent",
+		description: "用于资料研究。",
+	});
+
+	const result = await installStoredAgentProfileSkill(projectRoot, "research", "web-access");
+	const copied = await readFile(join(projectRoot, ".data", "agents", "research", "user-skills", "web-access", "SKILL.md"), "utf8");
+
+	assert.equal(result.agentId, "research");
+	assert.equal(result.skillName, "web-access");
+	assert.equal(result.targetRoot, join(projectRoot, ".data", "agents", "research", "user-skills"));
+	assert.equal(copied, "# web-access\n");
+});
+
+test("removeStoredAgentProfileSkill removes only mutable skills from custom agent roots", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+	await createStoredAgentProfile(projectRoot, {
+		agentId: "research",
+		name: "研究 Agent",
+		description: "用于资料研究。",
+	});
+	await mkdir(join(projectRoot, ".data", "agents", "research", "user-skills", "web-access"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".data", "agents", "research", "user-skills", "web-access", "SKILL.md"),
+		"# web-access\n",
+		"utf8",
+	);
+
+	const removed = await removeStoredAgentProfileSkill(projectRoot, "research", "web-access");
+
+	assert.equal(removed.agentId, "research");
+	assert.equal(removed.skillName, "web-access");
+	await assert.rejects(access(join(projectRoot, ".data", "agents", "research", "user-skills", "web-access")));
+	await assert.rejects(
+		removeStoredAgentProfileSkill(projectRoot, "research", "agent-skill-ops"),
+		/required agent skill cannot be removed/,
+	);
+	await assert.rejects(
+		installStoredAgentProfileSkill(projectRoot, "main", "web-access"),
+		/main agent skills cannot be managed through agent profile ops/,
+	);
 });
 
 test("archiveStoredAgentProfile removes custom profiles and preserves files", async () => {
