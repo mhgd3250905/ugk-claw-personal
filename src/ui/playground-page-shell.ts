@@ -9,6 +9,7 @@ export interface PlaygroundPageHtmlInput {
 	extensionScriptSrc?: string;
 	taskInboxView: string;
 	connActivityDialogs: string;
+	agentManagerDialogs?: string;
 	assetDialogs: string;
 }
 
@@ -94,7 +95,7 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
 					</button>
 					<div class="topbar-context-slot">
-						<span id="agent-selector-status" class="topbar-agent-label">主 Agent</span>
+						<button id="agent-selector-status" class="topbar-agent-label" type="button" aria-label="打开 Agent 管理" title="Agent 管理">主 Agent</button>
 						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
 							<span class="context-usage-battery" aria-hidden="true">
 								<span id="context-usage-progress" class="context-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
@@ -366,6 +367,7 @@ ${input.playgroundScript ?? ""}</script>`;
 			</main>
 		</div>
 		${input.taskInboxView}
+		${input.agentManagerDialogs ?? ""}
 		<div id="context-usage-dialog" class="context-usage-dialog" aria-hidden="true" inert hidden>
 			<section class="context-usage-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="context-usage-dialog-title">
 				<div class="context-usage-dialog-head">

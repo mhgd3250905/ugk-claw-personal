@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { buildServer } from "../src/server.js";
 import { AgentServiceRegistry } from "../src/agent/agent-service-registry.js";
 import { createDefaultAgentProfiles } from "../src/agent/agent-profile.js";
@@ -72,6 +72,82 @@ test("agent-scoped debug skills use the requested agent service", async () => {
 	assert.deepEqual(searchResponse.json().skills, [{ name: "search-skill" }]);
 });
 
+test("GET /v1/agents/:agentId/rules reads the main runtime AGENTS.md", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	const mainProfile = createDefaultAgentProfiles(projectRoot).find((profile) => profile.agentId === "main");
+	assert.ok(mainProfile);
+	await mkdir(dirname(mainProfile.runtimeAgentRulesPath), { recursive: true });
+	await writeFile(join(projectRoot, "AGENTS.md"), "# Project rules\n\nDo not expose through main agent rules.\n", "utf8");
+	await writeFile(mainProfile.runtimeAgentRulesPath, "# Main runtime rules\n\nAlways verify.\n", "utf8");
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
+		agentProfileProjectRoot: projectRoot,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/agents/main/rules",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.equal(response.json().agentId, "main");
+	assert.equal(response.json().fileName, "AGENTS.md");
+	assert.equal(response.json().exists, true);
+	assert.equal(response.json().path, mainProfile.runtimeAgentRulesPath);
+	assert.match(response.json().content, /Always verify/);
+	assert.doesNotMatch(response.json().content, /Project rules/);
+});
+
+test("GET /v1/agents/:agentId/rules reads a custom agent AGENTS.md", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	const searchProfile = createDefaultAgentProfiles(projectRoot).find((profile) => profile.agentId === "search");
+	assert.ok(searchProfile);
+	await mkdir(dirname(searchProfile.runtimeAgentRulesPath), { recursive: true });
+	await writeFile(searchProfile.runtimeAgentRulesPath, "# Search rules\n\nUse scoped skills only.\n", "utf8");
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
+		agentProfileProjectRoot: projectRoot,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/agents/search/rules",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.equal(response.json().agentId, "search");
+	assert.equal(response.json().exists, true);
+	assert.match(response.json().content, /Use scoped skills only/);
+});
+
+test("PATCH /v1/agents/:agentId/rules saves a custom agent AGENTS.md", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	const searchProfile = createDefaultAgentProfiles(projectRoot).find((profile) => profile.agentId === "search");
+	assert.ok(searchProfile);
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
+		agentProfileProjectRoot: projectRoot,
+	});
+
+	const response = await app.inject({
+		method: "PATCH",
+		url: "/v1/agents/search/rules",
+		payload: {
+			content: "# Updated search rules\n\nOnly use scoped skills.\n",
+		},
+	});
+	const written = await readFile(searchProfile.runtimeAgentRulesPath, "utf8");
+
+	assert.equal(response.statusCode, 200);
+	assert.equal(response.json().agentId, "search");
+	assert.equal(response.json().exists, true);
+	assert.equal(response.json().content, "# Updated search rules\n\nOnly use scoped skills.\n");
+	assert.equal(written, "# Updated search rules\n\nOnly use scoped skills.\n");
+});
+
 test("unknown agent-scoped routes do not fall back to main", async () => {
 	const app = buildServer({
 		agentService: createScopedAgentService("main"),
@@ -134,6 +210,85 @@ test("POST /v1/agents creates a persisted custom agent profile", async () => {
 	assert.equal(created.statusCode, 200);
 	assert.equal(created.json().agent.agentId, "research");
 	assert.ok(listed.json().agents.some((agent: { agentId: string }) => agent.agentId === "research"));
+});
+
+test("POST /v1/agents copies requested initial system skills from main agent", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });
+	await writeFile(join(projectRoot, ".pi", "skills", "web-access", "SKILL.md"), "# web-access\n", "utf8");
+	const registry = createTestRegistryForRoot(projectRoot);
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: registry,
+		agentProfileProjectRoot: projectRoot,
+	});
+
+	const created = await app.inject({
+		method: "POST",
+		url: "/v1/agents",
+		payload: {
+			agentId: "research",
+			name: "研究 Agent",
+			description: "用于资料研究。",
+			initialSystemSkillNames: ["web-access"],
+		},
+	});
+	const copied = await readFile(
+		join(projectRoot, ".data", "agents", "research", "pi", "skills", "web-access", "SKILL.md"),
+		"utf8",
+	);
+
+	assert.equal(created.statusCode, 200);
+	assert.equal(copied, "# web-access\n");
+});
+
+test("PATCH /v1/agents/:agentId updates a custom agent profile summary", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	const registry = createTestRegistryForRoot(projectRoot);
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: registry,
+		agentProfileProjectRoot: projectRoot,
+	});
+	await app.inject({
+		method: "POST",
+		url: "/v1/agents",
+		payload: {
+			agentId: "research",
+			name: "研究 Agent",
+			description: "用于资料研究。",
+		},
+	});
+
+	const updated = await app.inject({
+		method: "PATCH",
+		url: "/v1/agents/research",
+		payload: {
+			name: "资料 Agent",
+			description: "用于资料查证和整理。",
+		},
+	});
+	const listed = await app.inject({
+		method: "GET",
+		url: "/v1/agents",
+	});
+
+	assert.equal(updated.statusCode, 200);
+	assert.deepEqual(updated.json().agent, {
+		agentId: "research",
+		name: "资料 Agent",
+		description: "用于资料查证和整理。",
+	});
+	assert.ok(
+		listed
+			.json()
+			.agents.some(
+				(agent: { agentId: string; name: string; description: string }) =>
+					agent.agentId === "research" &&
+					agent.name === "资料 Agent" &&
+					agent.description === "用于资料查证和整理。",
+			),
+	);
 });
 
 test("POST /v1/agents/:agentId/archive rejects main and running agents", async () => {

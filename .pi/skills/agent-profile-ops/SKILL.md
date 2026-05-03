@@ -35,9 +35,12 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 {
   "agentId": "research",
   "name": "研究 Agent",
-  "description": "用于资料研究、查证和整理。"
+  "description": "用于资料研究、查证和整理。",
+  "initialSystemSkillNames": ["web-access"]
 }
 ```
+
+`initialSystemSkillNames` 只能填写主 Agent 当前已有且可确认来源的技能名；创建时会复制到目标 agent 的 `.data/agents/:agentId/pi/skills`。`agent-skill-ops`、`agent-runtime-ops`、`agent-filesystem-ops` 三件套默认内置，不需要也不应该重复指定。
 
 ## 工作流
 
@@ -45,7 +48,7 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 2. 创建 agent：如果用户只是讨论或询问方案，先解释影响并询问是否创建；只有用户明确要求创建时，才调用 `POST /v1/agents`。
 3. 验证目录和技能：调用 `GET /v1/agents/:agentId/debug/skills`，确认只看到该 agent 自己的系统技能和用户技能。
 4. 切换 agent：不要声称能替用户切换；提示用户在 Playground 左侧会话 rail 底部“设置”菜单切换，除非后续已有明确的 UI 激活接口和用户要求自动切换。
-5. 配置技能：只允许把主 Agent 当前已有且来源明确的技能复制到该 agent 的 `.data/agents/:agentId/user-skills`；元技能或系统级基础技能才写入 `.data/agents/:agentId/pi/skills`。如果主 Agent 没有目标技能，停止、说明原因，并询问用户是否要切换到目标 agent 自己处理。
+5. 配置技能：创建时的 `initialSystemSkillNames` 会把主 Agent 当前已有且来源明确的技能复制到该 agent 的 `.data/agents/:agentId/pi/skills`；创建后追加安装仍只允许把主 Agent 当前已有且来源明确的技能复制到该 agent 自己的技能目录。元技能或系统级基础技能才写入 `.data/agents/:agentId/pi/skills`。如果主 Agent 没有目标技能，停止、说明原因，并询问用户是否要切换到目标 agent 自己处理。
 6. 归档 agent：先说明影响范围并询问确认；确认不是 `main`、确认没有 running conversation 后，才调用 `POST /v1/agents/:agentId/archive`。
 
 ## 其他 Agent 技能安装边界

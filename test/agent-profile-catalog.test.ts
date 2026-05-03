@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -33,6 +33,82 @@ test("createStoredAgentProfile persists an isolated agent profile", async () => 
 	assert.match(rules, /# 研究 Agent/);
 	assert.match(rules, /GET \/v1\/agents\/research\/debug\/skills/);
 	assert.doesNotMatch(rules, /GET \/v1\/agents\/search\/debug\/skills/);
+});
+
+test("createStoredAgentProfile copies selected main agent skills into the new system skill root", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });
+	await writeFile(join(projectRoot, ".pi", "skills", "web-access", "SKILL.md"), "# web-access\n", "utf8");
+
+	const profile = await createStoredAgentProfile(projectRoot, {
+		agentId: "research",
+		name: "研究 Agent",
+		description: "用于资料研究。",
+		initialSystemSkillNames: ["web-access", "agent-skill-ops", "web-access"],
+	});
+
+	const copied = await readFile(join(profile.allowedSkillPaths[0], "web-access", "SKILL.md"), "utf8");
+	const required = await readFile(join(profile.allowedSkillPaths[0], "agent-skill-ops", "SKILL.md"), "utf8");
+
+	assert.equal(copied, "# web-access\n");
+	assert.match(required, /name: agent-skill-ops/);
+});
+
+test("createStoredAgentProfile copies nested main agent skills by metadata name", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+	await mkdir(join(projectRoot, ".pi", "skills", "superpowers", "brainstorming"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "skills", "superpowers", "brainstorming", "SKILL.md"),
+		"---\nname: brainstorming\ndescription: nested skill\n---\n\n# brainstorming\n",
+		"utf8",
+	);
+
+	const profile = await createStoredAgentProfile(projectRoot, {
+		agentId: "research",
+		name: "研究 Agent",
+		description: "用于资料研究。",
+		initialSystemSkillNames: ["brainstorming"],
+	});
+
+	const copied = await readFile(join(profile.allowedSkillPaths[0], "brainstorming", "SKILL.md"), "utf8");
+
+	assert.match(copied, /name: brainstorming/);
+});
+
+test("createStoredAgentProfile rejects initial skills that main agent does not have", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+
+	await assert.rejects(
+		createStoredAgentProfile(projectRoot, {
+			agentId: "research",
+			name: "研究 Agent",
+			description: "用于资料研究。",
+			initialSystemSkillNames: ["missing-skill"],
+		}),
+		/main agent does not have skill missing-skill/,
+	);
+	await assert.rejects(access(join(projectRoot, ".data", "agents", "research")));
+});
+
+test("createStoredAgentProfile can recreate an archived agent id as visible", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+	await createStoredAgentProfile(projectRoot, {
+		agentId: "draft",
+		name: "草稿 Agent",
+		description: "用于草稿。",
+	});
+	await archiveStoredAgentProfile(projectRoot, "draft");
+
+	await createStoredAgentProfile(projectRoot, {
+		agentId: "draft",
+		name: "新草稿 Agent",
+		description: "重新启用。",
+	});
+	const loaded = loadAgentProfilesSync(projectRoot);
+	const draft = resolveAgentProfile(loaded, "draft");
+
+	assert.ok(draft);
+	assert.equal(draft.name, "新草稿 Agent");
 });
 
 test("archiveStoredAgentProfile removes custom profiles and preserves files", async () => {

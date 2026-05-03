@@ -2,6 +2,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getPlaygroundActiveRunNormalizerScript } from "./playground-active-run-normalizer.js";
 import { getConnActivityDialogs } from "./playground-conn-activity.js";
+import {
+	getPlaygroundAgentManagerDialogs,
+	getPlaygroundAgentManagerScript,
+	getPlaygroundAgentManagerStyles,
+} from "./playground-agent-manager.js";
 import { getPlaygroundAssetDialogs } from "./playground-assets.js";
 import {
 	getPlaygroundAssetControllerScript,
@@ -64,6 +69,7 @@ export interface PlaygroundRenderBundle {
 	playgroundScript: string;
 	taskInboxView: string;
 	connActivityDialogs: string;
+	agentManagerDialogs: string;
 	assetDialogs: string;
 }
 
@@ -196,6 +202,32 @@ function getPlaygroundScript(): string {
 			connManagerHighlightedConnId: "",
 			connManagerFilter: "all",
 			connManagerSelectedConnIds: [],
+			agentManagerOpen: false,
+			agentManagerLoading: false,
+			agentManagerActionAgentId: "",
+			agentManagerNotice: "",
+			agentManagerSelectedAgentId: "",
+			agentManagerSkillsByAgentId: {},
+			agentManagerSkillsLoadingByAgentId: {},
+			agentManagerRulesByAgentId: {},
+			agentManagerRulesLoadingByAgentId: {},
+			agentManagerMode: "detail",
+			agentManagerAvailableInitialSkills: [],
+			agentManagerAvailableInitialSkillsLoading: false,
+			agentCreateName: "",
+			agentCreateDescription: "",
+			agentCreateSelectedSkillNames: [],
+			agentEditorOpen: false,
+			agentEditorMode: "create",
+			agentEditorAgentId: "",
+			agentEditorSaving: false,
+			agentEditorError: "",
+			agentRulesEditorOpen: false,
+			agentRulesEditorAgentId: "",
+			agentRulesEditorContent: "",
+			agentRulesEditorSaving: false,
+			agentRulesEditorError: "",
+			agentRulesEditorRestoreFocusElement: null,
 			connEditorOpen: false,
 			connEditorMode: "create",
 			connEditorConnId: "",
@@ -206,6 +238,8 @@ function getPlaygroundScript(): string {
 			chatRunLogRestoreFocusElement: null,
 			chatRunLogPagination: null,
 			connManagerRestoreFocusElement: null,
+			agentManagerRestoreFocusElement: null,
+			agentEditorRestoreFocusElement: null,
 			connEditorRestoreFocusElement: null,
 			connRunDetailsRestoreFocusElement: null,
 			connRunDetailsPagination: null,
@@ -474,6 +508,8 @@ function getPlaygroundScript(): string {
 
 		${getPlaygroundContextUsageControllerScript()}
 		${getPlaygroundWorkspaceControllerScript()}
+
+		${getPlaygroundAgentManagerScript()}
 
 		${getConnActivityEditorScript()}
 
@@ -967,6 +1003,7 @@ function getPlaygroundScript(): string {
 			});
 
 			${getPlaygroundTaskInboxEventHandlersScript()}
+			bindAgentManagerEvents();
 			${getConnActivityEventHandlersScript()}
 
 
@@ -1028,6 +1065,18 @@ function getPlaygroundScript(): string {
 				if (event.key === "Escape" && state.feishuSettingsOpen) {
 					closeFeishuSettingsDialog();
 				}
+				if (event.key === "Escape" && state.agentRulesEditorOpen) {
+					closeAgentRulesEditor();
+					return;
+				}
+				if (event.key === "Escape" && state.agentEditorOpen) {
+					closeAgentEditor();
+					return;
+				}
+				if (event.key === "Escape" && state.agentManagerOpen) {
+					closeAgentManager();
+					return;
+				}
 				if (handleConnActivityPanelEscapeKey(event)) {
 					return;
 				}
@@ -1078,11 +1127,12 @@ function getPlaygroundScript(): string {
 
 export function getPlaygroundRenderBundle(): PlaygroundRenderBundle {
 	return {
-		styles: getPlaygroundStyles(),
+		styles: getPlaygroundStyles() + getPlaygroundAgentManagerStyles(),
 		markedBrowserScript: getMarkedBrowserScript(),
 		playgroundScript: getPlaygroundScript(),
 		taskInboxView: getPlaygroundTaskInboxView(),
 		connActivityDialogs: getConnActivityDialogs(),
+		agentManagerDialogs: getPlaygroundAgentManagerDialogs(),
 		assetDialogs: getPlaygroundAssetDialogs(),
 	};
 }

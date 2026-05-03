@@ -5,13 +5,16 @@
 ## 2026-05-02 多 Agent 操作视窗补充
 
 - Playground 桌面端新增 agent 选择器，第一版只内置 `main` 和 `search` 两个操作视窗。`main` 是既有主 Agent，继续兼容旧 `/v1/chat/*` 和 `/v1/debug/skills`；`search` 是第一个独立 agent profile 样板。
-- 桌面端 agent 切换入口位于左侧历史会话 rail 底部的“设置”菜单中；topbar 右侧上下文按钮左边只显示当前激活 agent 的紧凑标签，不再直接铺开切换控件。当前激活 agent 会写入浏览器 `localStorage` 的 `ugk-pi:active-agent-id`，刷新后继续保持；如果保存的 agent 已不存在，则回退到 `main`。
+- 桌面端 agent 切换入口位于左侧历史会话 rail 底部的“设置”菜单中；topbar 右侧上下文按钮左边显示当前激活 agent 的紧凑标签，该标签同时是 Agent 操作台入口。当前激活 agent 会写入浏览器 `localStorage` 的 `ugk-pi:active-agent-id`，刷新后继续保持；如果保存的 agent 已不存在，则回退到 `main`。
 - 切换 agent 后，会话目录、当前会话、`GET /v1/chat/state` 对应的新 scoped 请求、发送消息、追加队列、打断、运行日志和查看技能都走 `/v1/agents/:agentId/...`。文件库、任务消息和后台任务当前仍作为共享运行能力，不在第一版拆成 agent 私有库。
 - 主 Agent 的 agent 元操作技能是 `.pi/skills/agent-profile-ops`。第一版后端接口支持 `GET /v1/agents`、`POST /v1/agents` 创建运行态 agent profile，以及 `POST /v1/agents/:agentId/archive` 归档 agent；创建出的 profile 记录在 `.data/agents/profiles.json`，归档目录为 `.data/agents-archive/`。主 Agent 给其他 agent profile 安装技能时只能复制主 Agent 当前已有且来源明确的技能；主 Agent 没有的技能不能代装，用户应切换到目标 agent 自己安装或创建。
-- 涉及 agent profile 创建、配置、技能复制安装、归档、删除或可能改变当前操作视窗的动作时，主 Agent 必须先说明影响并取得用户明确确认；不能把“要不要继续”替用户决定。当前没有自动切换 UI 激活 agent 的口径，主 Agent 只能提示用户在左侧设置菜单手动切换。
+- Playground 新增 Agent 操作台：入口统一为 topbar / 手机状态栏里的当前 Agent 标签，不再额外放 `Agent 管理` 按钮或手机更多菜单项。桌面端操作台占据 `chat-stage` 工作区，移动端作为全屏工作页打开；页面展示包括主 Agent 在内的全部操作视窗。主 Agent 可查看、可切换但不可编辑 / 删除；其他 agent profile 支持新建、编辑名称 / 描述、查看 scoped 技能、查看并编辑 `AGENTS.md`、切换和删除。右侧详情先展示一行 `AGENTS.md` 规则文件卡片，点击后在弹窗中完整阅读、编辑并保存；下半部分固定作为技能透明视图，避免规则文件和技能列表互相压缩。新建 Agent 在右侧完整创建页完成：`agentId` 由名称自动生成，用户填写名称和用途描述，页面实时预览将写入的 `AGENTS.md`，三件套基础技能默认内置，额外初始系统技能只能从主 Agent 当前已有技能中勾选并通过 `initialSystemSkillNames` 复制。编辑调用 `PATCH /v1/agents/:agentId`，删除仍调用归档接口 `POST /v1/agents/:agentId/archive`，规则文件读取调用 `GET /v1/agents/:agentId/rules`，保存调用 `PATCH /v1/agents/:agentId/rules`。
+- Playground agent session 的 `AGENTS.md` 采用运行态隔离：主 Agent 读取 `.data/agent/AGENTS.md`，其他 agent 读取 `.data/agents/<agentId>/AGENTS.md`，并在 resource loader 中替换仓库根 `AGENTS.md`。仓库根 `AGENTS.md` 只给维护 `ugk-pi` 代码的 coding agent 使用，不再进入 Playground 日常 agent 的默认上下文；旧 `.data/agent/AGENTS.local.md` 仅作为主 Agent 运行规则迁移来源。
+- 每个 agent 的默认 `AGENTS.md` 都包含 Karpathy Guidelines，作为通用工作纪律：先想再写、简洁优先、外科手术式修改和目标驱动验证。主 Agent 与后续新建 agent 都应默认带上这段规则。
+- 涉及 agent profile 创建、配置、技能复制安装、归档、删除或可能改变当前操作视窗的动作时，主 Agent 必须先说明影响并取得用户明确确认；不能把“要不要继续”替用户决定。UI 操作台可以由用户手动切换当前激活 agent；主 Agent 在对话里不能替用户擅自完成这类切换决策。
 - `search` 的技能清单必须只来自 `.data/agents/search/pi/skills` 和 `.data/agents/search/user-skills` 对应的 `allowedSkillPaths`，不能因为项目存在 `.pi/skills` 或 `runtime/skills-user` 就看到主 Agent 技能。用户问“你有哪些技能”时，Playground 的查看技能入口也必须查询当前 agent 的 scoped debug skills。
 - 浏览器本地历史缓存按 `agentId + conversationId` 分区；不能让两个 agent 的同名或相似会话在 localStorage 里串场。
-- 当前这只是“单进程多 agent profile”底座，不是强隔离容器，也不是主 Agent 动态创建 agent。后续创建接口和主 Agent 创建技能要等 `search` 样板验证稳定后再抽象。
+- 当前这只是“单进程多 agent profile”底座，不是强隔离容器；创建、编辑和归档接口已经存在，但仍只负责运行态 profile 管理，不等于把其他 agent 变成主 Agent 的下属子进程。
 
 ## 运行时外部化模式
 
@@ -27,16 +30,16 @@
 ## 2026-04-30 主工作区切换补充
 
 - 桌面端页面外层 padding 只由 `.shell` 统一提供，当前为 `22px 28px 26px`；左侧 `desktop-conversation-rail` 仍占满上下，左栏和右侧工作区之间保留 `16px` 间距。右侧 `topbar` 贴住右侧工作列顶部且不再自带外边距；右侧 `chat-stage` 不再叠加内部 padding，底部 `command-deck` / composer 宽度贴满右侧工作列并贴住可用底边。
-- 桌面端 `topbar` 只保留页面切换入口，顺序固定为 `新会话`、`文件库`、`后台任务`、`消息`；上传文件不再放在 topbar 文件菜单里，而是作为 composer 左侧的 `+` 按钮触发真实 `file-input`。技能入口不再作为桌面或移动端可见按钮展示。
+- 桌面端 `topbar` 主工具条只保留页面切换入口，顺序固定为 `新会话`、`文件库`、`后台任务`、`消息`；当前 Agent 标签位于右侧上下文按钮左边，点击后进入 Agent 操作台。上传文件不再放在 topbar 文件菜单里，而是作为 composer 左侧的 `+` 按钮触发真实 `file-input`。技能入口不再作为桌面或移动端可见按钮展示。
 - 外部化 playground 会按 factory manifest 的 `sourceHash` 自动同步 runtime 的核心文件；样式或脚本源码变化后，不应该再出现只重启容器但 `/playground/styles.css` 仍是旧内容的情况。runtime 的 `extensions/custom-styles.css` / `custom-scripts.js` 只在缺失时补回，避免覆盖本地运行态扩展。
 - 深色主题下桌面端 `chat-stage` 不再使用边框或深色渐变背景；它只是负责布局裁切，保持 `border: 0`、`border-radius: 4px`、`background: transparent` 和 `overflow: hidden`。贴底的 `command-deck` / composer 同样用 `4px` 圆角和 `overflow: hidden` 收口，避免输入区背景把 `chat-stage` 底部圆角盖成直角。
 - 桌面端 active 对话态的 `.stream-layout` 顶部 inset 为 `0`，对话消息列必须从 `chat-stage` 顶部开始占满背景框；`#transcript` 自身底部保留 `4px` 圆角，消息正文内部的 `message-body` padding 只作为内容排版留白，不再承担外层布局留白。
 - 桌面端 `topbar` 内的 `landing-side-right` 工具条使用和会话栏一致的扁平承载面：深色主题纯 `#080c14`，浅色主题纯 `#ffffff`，不要再叠 `linear-gradient` 做浮层效果。
 - 桌面端 `topbar` 的文件菜单不再靠纯 CSS `:hover` / `:focus-within` 控制；`desktop-file-menu` 使用 `data-open`、`aria-expanded`、外部点击和 `Escape` 统一管理打开状态，避免鼠标移向菜单时穿过空隙就关闭，或点击按钮后菜单被焦点状态锁死。
-- 桌面端 `chat-stage` 现在有统一 `data-workspace-mode="chat|assets|conn|task"`，由 `src/ui/playground-workspace-controller.ts` 负责切换、按钮激活态、桌面 / 移动断点分流和面板 DOM 放置；不要在资产库、后台任务或任务消息控制器里散写 `chatStage.dataset.workspaceMode`。
-- 桌面端点击 `项目文件`、`后台任务`、`任务消息` 时，主工作画布会切到对应 workspace，并临时把既有面板作为 `.workspace-contained` 放进 `chat-stage`；返回或再次点击当前入口会回到对话。对话流式运行不会因为 workspace 切换暂停。
-- 移动端继续沿用原来的全屏工作页：文件库、后台任务和任务消息仍按 `.asset-modal-shell.open`、`.conn-manager-dialog.open`、`.task-inbox-view.open` 的 `100dvh` 移动布局展示，不走桌面 workspace 内嵌布局。
-- `workspaceMode` 只是视图壳层；业务状态仍由 `state.assetModalOpen`、`state.connManagerOpen`、`state.taskInboxOpen` 管。资产加载继续走 `loadAssets()` / `renderAssetPickerList()`，任务消息继续走 `loadTaskInbox()`，后台任务继续走 `loadConnManager()`；不要新增绕过这些控制器的简化列表。
+- 桌面端 `chat-stage` 现在有统一 `data-workspace-mode="chat|assets|conn|agents|task"`，由 `src/ui/playground-workspace-controller.ts` 负责切换、按钮激活态、桌面 / 移动断点分流和面板 DOM 放置；不要在资产库、后台任务、Agent 管理或任务消息控制器里散写 `chatStage.dataset.workspaceMode`。
+- 桌面端点击 `项目文件`、`后台任务`、当前 Agent 标签或 `任务消息` 时，主工作画布会切到对应 workspace，并临时把既有面板作为 `.workspace-contained` 放进 `chat-stage`；返回或再次点击当前入口会回到对话。对话流式运行不会因为 workspace 切换暂停。
+- 移动端继续沿用原来的全屏工作页：文件库、后台任务、Agent 管理和任务消息仍按 `.asset-modal-shell.open`、`.conn-manager-dialog.open`、`.agent-manager-dialog.open`、`.task-inbox-view.open` 的 `100dvh` 移动布局展示，不走桌面 workspace 内嵌布局。
+- `workspaceMode` 只是视图壳层；业务状态仍由 `state.assetModalOpen`、`state.connManagerOpen`、`state.agentManagerOpen`、`state.taskInboxOpen` 管。资产加载继续走 `loadAssets()` / `renderAssetPickerList()`，任务消息继续走 `loadTaskInbox()`，后台任务继续走 `loadConnManager()`，Agent 管理继续走 `loadAgentCatalog()` / `renderAgentManager()`；不要新增绕过这些控制器的简化列表。
 - `conn-editor-dialog`、`conn-run-details-dialog`、确认弹窗、上下文详情和模型 / 飞书设置仍是二级 modal，不塞进主 workspace。后台任务编辑或查看 run 过程时，应保持原有焦点恢复、Escape 顺序和遮罩点击关闭逻辑。
 
 ## 2026-04-29 UI 收口补充

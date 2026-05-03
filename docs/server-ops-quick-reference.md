@@ -526,7 +526,7 @@ https://127.0.0.1:13902/
 - app env：`~/ugk-claw-shared/app.env`
 - compose env：`~/ugk-claw-shared/compose.env`
 - agent 会话 / 资产 / conn 数据：`~/ugk-claw-shared/.data/agent`
-- agent 运行中沉淀的本地长期规则：`~/ugk-claw-shared/.data/agent/AGENTS.local.md`，容器内路径是 `/app/.data/agent/AGENTS.local.md`
+- Playground 主 Agent 运行规则：`~/ugk-claw-shared/.data/agent/AGENTS.md`，容器内路径是 `/app/.data/agent/AGENTS.md`；旧 `AGENTS.local.md` 只作为迁移来源兼容，不再作为当前写入口。
 - 用户 skills：腾讯云 `~/ugk-claw-shared/runtime/skills-user`，阿里云 `/root/ugk-claw-shared/runtime/skills-user`，通过 `UGK_RUNTIME_SKILLS_USER_DIR` 挂到容器 `/app/runtime/skills-user`
 - browser 登录态：`~/ugk-claw-shared/.data/chrome-sidecar`
 - app 日志：`~/ugk-claw-shared/logs/app`

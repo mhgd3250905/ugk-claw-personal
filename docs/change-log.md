@@ -10,7 +10,33 @@
 
 ---
 
+## 2026-05-04
+
+### Agent 创建失败收口
+- 日期：2026-05-04
+- 主题：修复 Agent 创建时初始技能校验和归档 ID 复用的边界问题。
+- 影响范围：`POST /v1/agents` 现在会先确认所有 `initialSystemSkillNames` 都能从主 Agent 当前技能目录复制，再创建目标 agent 运行目录；技能查找同时支持直接目录和嵌套 `SKILL.md` 的 `name` 元数据，避免 `brainstorming` 这类嵌套系统技能在 UI 可见但创建时复制失败。如果技能缺失，返回 400 且不会留下半截 `.data/agents/<agentId>` 目录。复用曾经归档过的 `agentId` 时，会从 `archivedAgentIds` 中移除该 id，避免接口返回成功但 `/v1/agents` 列表过滤掉新 agent。
+- 对应入口：`src/agent/agent-profile-catalog.ts`、`test/agent-profile-catalog.test.ts`
+
+### Playground Agent 默认 Karpathy 规则
+- 日期：2026-05-04
+- 主题：让每个 agent 的默认 `AGENTS.md` 都携带 Karpathy Guidelines。
+- 影响范围：主 Agent 默认运行态规则模板新增 Karpathy Guidelines；非主 Agent 模板保持已有 Karpathy Guidelines。当前本地 `.data/agent/AGENTS.md` 已同步补齐，后续新建 agent 和首次生成主 Agent 运行规则时都会默认包含这段行为纪律。
+- 对应入口：`src/agent/agent-profile-bootstrap.ts`、`.data/agent/AGENTS.md`、`test/agent-profile-bootstrap.test.ts`、`docs/playground-current.md`
+
+### Playground Agent 运行规则隔离
+- 日期：2026-05-04
+- 主题：将 Playground agent session 的 `AGENTS.md` 从仓库根项目接手文档中拆出，改为每个 agent profile 使用自己的运行态规则文件。
+- 影响范围：`DefaultResourceLoader` 的 `agentsFilesOverride` 不再追加仓库根 `AGENTS.md`，而是只注入当前 agent 的运行态规则文件；主 Agent 默认规则文件改为 `.data/agent/AGENTS.md`，其他 agent 继续使用 `.data/agents/<agentId>/AGENTS.md`。旧 `.data/agent/AGENTS.local.md` 仅作为主 Agent 首次生成运行态规则时的迁移来源。Agent 管理页读取 / 保存主 Agent 规则时也指向运行态文件，不再读写仓库根 `AGENTS.md`。
+- 对应入口：`src/agent/agent-session-factory.ts`、`src/agent/agent-profile.ts`、`src/agent/agent-profile-bootstrap.ts`、`src/routes/chat.ts`、`test/agent-session-factory.test.ts`、`test/agent-profile.test.ts`、`test/agent-profile-bootstrap.test.ts`、`test/chat-agent-routes.test.ts`、`docs/playground-current.md`
+
 ## 2026-05-03
+
+### Playground Agent 管理界面
+- 日期：2026-05-03
+- 主题：新增 Playground 内的 Agent 操作台，并补齐 agent profile summary 更新接口。
+- 影响范围：当前 Agent 标签升级为 Agent 操作台入口，独立 `Agent 管理` 按钮和手机更多菜单项不再展示；操作台在桌面端占据对话区工作画布，移动端保持全屏工作页。页面展示包括主 Agent 在内的全部操作视窗：主 Agent 可查看、可切换但不可编辑 / 删除，其他 agent profile 支持新建、编辑名称 / 描述、查看 scoped 技能、查看 `AGENTS.md`、切换和删除。右侧详情改为上方一行 `AGENTS.md` 规则文件卡片，点击后用独立弹窗完整阅读、编辑和保存；下半部分固定展示技能透明视图，避免规则文件和技能列表被压成过小窗口。新建 Agent 改为右侧完整创建页，自动生成 `agentId`，由用户填写名称和用途描述，实时预览将生成的 `AGENTS.md`，三件套基础技能天然内置，额外初始系统技能只能从主 Agent 当前已有技能中勾选并随 `POST /v1/agents` 的 `initialSystemSkillNames` 复制到目标 agent 系统技能目录。后端新增 `PATCH /v1/agents/:agentId`，允许更新非主 Agent 的显示名称和描述；新增 `GET /v1/agents/:agentId/rules` / `PATCH /v1/agents/:agentId/rules` 用于读取和保存对应规则文件；删除仍复用 `POST /v1/agents/:agentId/archive` 归档运行目录。桌面 workspace 新增 `agents` 模式。
+- 对应入口：`src/agent/agent-profile.ts`、`src/agent/agent-profile-catalog.ts`、`src/agent/agent-service-registry.ts`、`src/routes/chat.ts`、`src/ui/playground-agent-manager.ts`、`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-workspace-controller.ts`、`src/ui/playground-styles.ts`、`test/chat-agent-routes.test.ts`、`test/playground-agent-switch.test.ts`、`docs/playground-current.md`
 
 ### Agent Profile 元操作接口
 - 日期：2026-05-03

@@ -32,9 +32,17 @@ export class AgentServiceRegistry<TService> {
 		}));
 	}
 
+	getProfile(agentId: string | undefined): AgentProfile | undefined {
+		return resolveAgentProfile(Array.from(this.profiles.values()), agentId);
+	}
+
 	add(profile: AgentProfile): void {
 		this.profiles.set(profile.agentId, profile);
 		this.services.delete(profile.agentId);
+	}
+
+	updateProfile(profile: AgentProfile): void {
+		this.profiles.set(profile.agentId, profile);
 	}
 
 	remove(agentId: string): void {

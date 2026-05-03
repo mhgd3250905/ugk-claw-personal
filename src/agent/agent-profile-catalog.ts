@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { cp, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import {
 	DEFAULT_AGENT_ID,
 	SEARCH_AGENT_ID,
@@ -10,7 +10,8 @@ import {
 	type AgentProfile,
 	type AgentProfileSummaryInput,
 } from "./agent-profile.js";
-import { ensureAgentProfileRuntime } from "./agent-profile-bootstrap.js";
+import { DEFAULT_AGENT_SYSTEM_SKILLS, ensureAgentProfileRuntime } from "./agent-profile-bootstrap.js";
+import { getDefaultAllowedSkillPaths } from "./agent-session-factory.js";
 
 interface StoredAgentProfiles {
 	agents?: AgentProfileSummaryInput[];
@@ -21,11 +22,17 @@ export interface CreateAgentProfileInput {
 	agentId: string;
 	name?: string;
 	description?: string;
+	initialSystemSkillNames?: string[];
 }
 
 export interface ArchiveAgentProfileResult {
 	agentId: string;
 	archivedPath: string;
+}
+
+export interface UpdateAgentProfileInput {
+	name?: string;
+	description?: string;
 }
 
 export function getAgentProfilesCatalogPath(projectRoot: string): string {
@@ -40,6 +47,18 @@ function normalizeAgentName(agentId: string, name: string | undefined): string {
 function normalizeAgentDescription(description: string | undefined): string {
 	const normalized = String(description || "").trim();
 	return normalized || "独立 agent profile。";
+}
+
+function normalizeInitialSystemSkillNames(skillNames: unknown): string[] {
+	if (!Array.isArray(skillNames)) {
+		return [];
+	}
+	const reserved = new Set(DEFAULT_AGENT_SYSTEM_SKILLS.map((skill) => skill.name));
+	const normalized = skillNames
+		.map((skillName) => String(skillName || "").trim())
+		.filter((skillName) => /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(skillName))
+		.filter((skillName) => !reserved.has(skillName));
+	return Array.from(new Set(normalized));
 }
 
 function parseStoredCatalog(raw: string): Required<StoredAgentProfiles> {
@@ -63,6 +82,118 @@ export function normalizeAgentProfileInput(input: CreateAgentProfileInput): Agen
 		name: normalizeAgentName(agentId, input.name),
 		description: normalizeAgentDescription(input.description),
 	};
+}
+
+function isPathWithin(parentPath: string, childPath: string): boolean {
+	const parent = resolve(parentPath);
+	const child = resolve(childPath);
+	return child === parent || child.startsWith(parent + "\\") || child.startsWith(parent + "/");
+}
+
+async function findMainAgentSkillDir(projectRoot: string, skillName: string): Promise<string | undefined> {
+	for (const rootPath of getDefaultAllowedSkillPaths(projectRoot)) {
+		const skillDir = join(rootPath, skillName);
+		if (!isPathWithin(rootPath, skillDir)) {
+			continue;
+		}
+		try {
+			await readFile(join(skillDir, "SKILL.md"), "utf8");
+			return skillDir;
+		} catch (error) {
+			if (!(error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT")) {
+				throw error;
+			}
+		}
+		const nestedSkillDir = await findNestedMainAgentSkillDir(rootPath, skillName);
+		if (nestedSkillDir) {
+			return nestedSkillDir;
+		}
+	}
+	return undefined;
+}
+
+async function findNestedMainAgentSkillDir(rootPath: string, skillName: string): Promise<string | undefined> {
+	const skillFiles = await collectSkillMetadataFiles(rootPath);
+	for (const skillFile of skillFiles) {
+		if (!isPathWithin(rootPath, skillFile)) {
+			continue;
+		}
+		const content = await readFile(skillFile, "utf8");
+		if (parseSkillMetadataName(content) === skillName) {
+			return dirname(skillFile);
+		}
+	}
+	return undefined;
+}
+
+async function collectSkillMetadataFiles(rootPath: string): Promise<string[]> {
+	let entries;
+	try {
+		entries = await readdir(rootPath, { encoding: "utf8", withFileTypes: true });
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			return [];
+		}
+		throw error;
+	}
+	const skillFiles: string[] = [];
+	for (const entry of entries) {
+		const entryPath = join(rootPath, entry.name);
+		if (!isPathWithin(rootPath, entryPath)) {
+			continue;
+		}
+		if (entry.isFile() && entry.name === "SKILL.md") {
+			skillFiles.push(entryPath);
+		}
+		if (entry.isDirectory()) {
+			skillFiles.push(...(await collectSkillMetadataFiles(entryPath)));
+		}
+	}
+	return skillFiles;
+}
+
+function parseSkillMetadataName(content: string): string | undefined {
+	const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(content);
+	if (!frontmatter) {
+		return undefined;
+	}
+	const match = /^name:\s*["']?([^"'\r\n]+)["']?\s*$/m.exec(frontmatter[1]);
+	return match?.[1]?.trim();
+}
+
+async function copyInitialSystemSkills(
+	projectRoot: string,
+	profile: AgentProfile,
+	skillNames: string[],
+): Promise<void> {
+	const targetRoot = profile.allowedSkillPaths[0];
+	if (!targetRoot || skillNames.length === 0) {
+		return;
+	}
+	for (const skillName of skillNames) {
+		const sourceDir = await findMainAgentSkillDir(projectRoot, skillName);
+		if (!sourceDir) {
+			throw new Error(`main agent does not have skill ${skillName}`);
+		}
+		const targetDir = join(targetRoot, skillName);
+		if (!isPathWithin(targetRoot, targetDir)) {
+			throw new Error(`invalid skill target: ${skillName}`);
+		}
+		await cp(sourceDir, targetDir, {
+			recursive: true,
+			force: false,
+			errorOnExist: false,
+		});
+	}
+}
+
+async function assertMainAgentHasInitialSystemSkills(projectRoot: string, skillNames: string[]): Promise<void> {
+	for (const skillName of skillNames) {
+		const sourceDir = await findMainAgentSkillDir(projectRoot, skillName);
+		if (!sourceDir) {
+			throw new Error(`main agent does not have skill ${skillName}`);
+		}
+	}
 }
 
 export async function readStoredAgentProfileSummaries(projectRoot: string): Promise<AgentProfileSummaryInput[]> {
@@ -134,10 +265,51 @@ export async function createStoredAgentProfile(
 	if (existing.some((profile) => profile.agentId === normalized.agentId)) {
 		throw new Error(`agent ${normalized.agentId} already exists`);
 	}
+	const initialSystemSkillNames = normalizeInitialSystemSkillNames(input.initialSystemSkillNames);
+	await assertMainAgentHasInitialSystemSkills(projectRoot, initialSystemSkillNames);
 	const profile = createAgentProfileFromSummary(projectRoot, normalized);
 	await ensureAgentProfileRuntime(profile);
-	await writeStoredAgentProfileSummaries(projectRoot, [...catalog.agents, normalized], catalog.archivedAgentIds);
+	await copyInitialSystemSkills(projectRoot, profile, initialSystemSkillNames);
+	await writeStoredAgentProfileSummaries(
+		projectRoot,
+		[...catalog.agents, normalized],
+		catalog.archivedAgentIds.filter((agentId) => agentId !== normalized.agentId),
+	);
 	return profile;
+}
+
+export async function updateStoredAgentProfile(
+	projectRoot: string,
+	agentId: string,
+	input: UpdateAgentProfileInput,
+): Promise<AgentProfile> {
+	if (!isValidAgentId(agentId)) {
+		throw new Error("agentId must start with a lowercase letter and contain only lowercase letters, digits, or hyphens");
+	}
+	if (agentId === DEFAULT_AGENT_ID) {
+		throw new Error("main agent cannot be edited");
+	}
+	const catalog = await readStoredAgentProfileCatalog(projectRoot);
+	if (catalog.archivedAgentIds.includes(agentId)) {
+		throw new Error(`agent ${agentId} is archived`);
+	}
+	const currentProfile = createDefaultAgentProfiles(projectRoot, catalog.agents).find(
+		(profile) => profile.agentId === agentId,
+	);
+	if (!currentProfile) {
+		throw new Error(`agent ${agentId} does not exist`);
+	}
+	const updatedSummary: AgentProfileSummaryInput = {
+		agentId,
+		name: normalizeAgentName(agentId, input.name ?? currentProfile.name),
+		description: normalizeAgentDescription(input.description ?? currentProfile.description),
+	};
+	const nextStored = [
+		...catalog.agents.filter((entry) => entry.agentId !== agentId),
+		updatedSummary,
+	];
+	await writeStoredAgentProfileSummaries(projectRoot, nextStored, catalog.archivedAgentIds);
+	return createAgentProfileFromSummary(projectRoot, updatedSummary);
 }
 
 export async function archiveStoredAgentProfile(

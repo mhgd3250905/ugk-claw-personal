@@ -16,7 +16,44 @@ test("playground renders an agent selector for switching operation windows", () 
 	assert.ok(html.indexOf('id="agent-selector"') > settingsStart);
 	assert.ok(html.indexOf('id="agent-selector-status"') > contextSlotStart);
 	assert.match(html, /class="topbar-agent-label"/);
+	assert.match(html, /aria-label="打开 Agent 管理"/);
 	assert.match(html, /const AGENT_SELECTION_STORAGE_KEY = "ugk-pi:active-agent-id"/);
 	assert.match(html, /agentId:\s*readStoredAgentId\(\)/);
 	assert.match(html, /localStorage\.setItem\(AGENT_SELECTION_STORAGE_KEY, normalized\)/);
+});
+
+test("playground renders agent management entry points and workspace", () => {
+	const html = renderPlaygroundPage();
+
+	assert.doesNotMatch(html, /id="open-agent-manager-button"/);
+	assert.doesNotMatch(html, /id="mobile-menu-agent-manager-button"/);
+	assert.match(html, /id="agent-manager-dialog"/);
+	assert.match(html, /id="agent-manager-list"/);
+	assert.match(html, /id="agent-manager-detail"/);
+	assert.match(html, /agent-manager-skill-list/);
+	assert.match(html, /agent-manager-rules-card/);
+	assert.match(html, /id="agent-rules-editor-dialog"/);
+	assert.match(html, /id="agent-rules-editor-input"/);
+	assert.match(html, /function openAgentRulesEditor/);
+	assert.match(html, /function saveAgentRulesEditor/);
+	assert.match(html, /method: "PATCH"/);
+	assert.doesNotMatch(html, /agentManagerExpandedPanel:\s*""/);
+	assert.doesNotMatch(html, /is-rules-expanded/);
+	assert.doesNotMatch(html, /textContent = expanded \? "收起" : "展开"/);
+	assert.match(html, /主 Agent 可查看不可删除/);
+	assert.match(html, /id="agent-editor-dialog"/);
+	assert.match(html, /id="agent-editor-form"/);
+	assert.match(html, /agentManagerMode:\s*"detail"/);
+	assert.match(html, /agent-manager-create/);
+	assert.match(html, /Agent ID（自动生成）/);
+	assert.match(html, /AGENTS\.md 预览/);
+	assert.match(html, /initialSystemSkillNames/);
+	assert.match(html, /\/v1\/agents\/main\/debug\/skills/);
+	assert.match(html, /agent-skill-ops/);
+	assert.match(html, /function openAgentManager/);
+	assert.match(html, /openWorkspacePanel\("agents", agentManagerDialog/);
+	assert.match(html, /fetch\("\/v1\/agents"/);
+	assert.match(html, /fetch\("\/v1\/agents\/" \+ encodeURIComponent\(agent\.agentId\)/);
+	assert.match(html, /encodeURIComponent\(agent\.agentId\) \+ "\/rules"/);
+	assert.doesNotMatch(html, /agent\.agentId !== "main"/);
 });

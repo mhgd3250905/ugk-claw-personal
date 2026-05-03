@@ -419,7 +419,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
 - 生产用户 skills 也属于运行态，不要再长期依赖 clean Git 工作目录里的 `runtime/skills-user/`；`docker-compose.prod.yml` 通过 `UGK_RUNTIME_SKILLS_USER_DIR` 挂载 shared skills 目录，腾讯云为 `~/ugk-claw-shared/runtime/skills-user`，阿里云为 `/root/ugk-claw-shared/runtime/skills-user`。
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；阿里云 ECS 对应外置目录是 `/root/ugk-claw-shared/`。后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
-- agent 运行中沉淀的本机/服务器长期规则不要直接写进仓库版 `AGENTS.md`；需要跨会话且不随代码发布丢失的规则写入 `/app/.data/agent/AGENTS.local.md`，该文件会作为额外 AGENTS 上下文随每轮 session 注入，生产上由 shared agent data 目录持久化。
+- Playground 主 Agent 的运行规则文件是 `/app/.data/agent/AGENTS.md`，其他 agent profile 的运行规则文件是 `/app/.data/agents/<agentId>/AGENTS.md`；这些运行态规则会替换仓库根 `AGENTS.md` 进入对应 agent session。仓库根 `AGENTS.md` 只作为维护本项目代码的接手说明，不应被当作 Playground 日常 agent 的默认人格或长期记忆。旧 `/app/.data/agent/AGENTS.local.md` 仅作为主 Agent 规则迁移来源保留兼容。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是"当前正在运行"，不要再写"上一轮仍在运行"。
 - playground 的 `GET /v1/chat/state` 默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 暴露分页状态；旧消息补页走 `GET /v1/chat/history?before=...&limit=...`，不要再让 state 扛完整历史，也不要把本地 `localStorage` 当完整历史真源。

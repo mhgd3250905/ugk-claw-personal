@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import {
 	getDefaultAllowedSkillPaths,
+	getDefaultRuntimeAgentRulesPath,
 	getProjectAgentDirPath,
 } from "./agent-session-factory.js";
 
@@ -58,6 +59,11 @@ export function createDefaultAgentProfiles(
 ): AgentProfile[] {
 	const mainDataDir = join(projectRoot, ".data", "agent");
 	const seen = new Set([DEFAULT_AGENT_ID, SEARCH_AGENT_ID]);
+	const searchProfileSummary = customProfiles.find((profile) => profile.agentId === SEARCH_AGENT_ID) ?? {
+		agentId: SEARCH_AGENT_ID,
+		name: "搜索 Agent",
+		description: "用于搜索、查证和资料整理的独立 agent。",
+	};
 	const custom = customProfiles
 		.filter((profile) => isValidAgentId(profile.agentId) && !seen.has(profile.agentId))
 		.map((profile) => {
@@ -74,15 +80,11 @@ export function createDefaultAgentProfiles(
 			sessionsDir: join(mainDataDir, "sessions"),
 			conversationIndexPath: join(mainDataDir, "conversation-index.json"),
 			agentDir: getProjectAgentDirPath(projectRoot),
-			runtimeAgentRulesPath: join(mainDataDir, "AGENTS.local.md"),
+			runtimeAgentRulesPath: getDefaultRuntimeAgentRulesPath(projectRoot),
 			workspaceDir: join(mainDataDir, "workspace"),
 			allowedSkillPaths: getDefaultAllowedSkillPaths(projectRoot),
 		},
-		createAgentProfileFromSummary(projectRoot, {
-			agentId: SEARCH_AGENT_ID,
-			name: "搜索 Agent",
-			description: "用于搜索、查证和资料整理的独立 agent。",
-		}),
+		createAgentProfileFromSummary(projectRoot, searchProfileSummary),
 		...custom,
 	];
 }

@@ -191,15 +191,16 @@ export function createSkillRestrictedResourceLoader(options: {
 		agentDir,
 		noSkills: true,
 		additionalSkillPaths: options.allowedSkillPaths,
-		agentsFilesOverride: runtimeAgentRulesPath
-			? (current: { agentsFiles: Array<{ path: string; content: string }> }) => {
+				agentsFilesOverride: runtimeAgentRulesPath
+			? (_current: { agentsFiles: Array<{ path: string; content: string }> }) => {
 					const content = readOptionalRuntimeAgentRules(runtimeAgentRulesPath);
 					if (!content) {
-						return current;
+						return {
+							agentsFiles: [],
+						};
 					}
 					return {
 						agentsFiles: [
-							...current.agentsFiles,
 							{
 								path: runtimeAgentRulesPath,
 								content,
@@ -212,6 +213,10 @@ export function createSkillRestrictedResourceLoader(options: {
 }
 
 export function getDefaultRuntimeAgentRulesPath(projectRoot: string): string {
+	return join(projectRoot, ".data", "agent", "AGENTS.md");
+}
+
+export function getLegacyDefaultRuntimeAgentRulesPath(projectRoot: string): string {
 	return join(projectRoot, ".data", "agent", "AGENTS.local.md");
 }
 

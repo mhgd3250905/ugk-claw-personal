@@ -18,6 +18,7 @@ test("default agent profiles keep main on legacy paths and isolate search paths"
 	assert.equal(main.dataDir, join(projectRoot, ".data", "agent"));
 	assert.equal(main.sessionsDir, join(projectRoot, ".data", "agent", "sessions"));
 	assert.equal(main.conversationIndexPath, join(projectRoot, ".data", "agent", "conversation-index.json"));
+	assert.equal(main.runtimeAgentRulesPath, join(projectRoot, ".data", "agent", "AGENTS.md"));
 	assert.deepEqual(main.allowedSkillPaths, [
 		join(projectRoot, ".pi", "skills"),
 		join(projectRoot, "runtime", "skills-user"),

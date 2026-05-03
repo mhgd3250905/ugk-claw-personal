@@ -113,10 +113,11 @@ test("skill whitelist can load both system and user-installed skill directories"
 	);
 });
 
-test("resource loader appends runtime AGENTS rules from the persistent agent data directory", async () => {
+test("resource loader uses runtime AGENTS rules instead of project root AGENTS.md", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-runtime-agents-"));
 	const runtimeRulesPath = getDefaultRuntimeAgentRulesPath(projectRoot);
 	await mkdir(join(projectRoot, ".data", "agent"), { recursive: true });
+	await writeFile(join(projectRoot, "AGENTS.md"), "# Project rules\n\nDo not leak into runtime agents.\n", "utf8");
 	await writeFile(runtimeRulesPath, "# Runtime Rules\n\n- Prefer persisted local rules.\n", "utf8");
 
 	const loader = createSkillRestrictedResourceLoader({
@@ -129,6 +130,8 @@ test("resource loader appends runtime AGENTS rules from the persistent agent dat
 
 	const files = loader.getAgentsFiles().agentsFiles;
 	const runtimeRules = files.find((file) => file.path === runtimeRulesPath);
+	assert.equal(files.some((file) => file.path === join(projectRoot, "AGENTS.md")), false);
+	assert.equal(files.length, 1);
 	assert.equal(runtimeRules?.content, "# Runtime Rules\n\n- Prefer persisted local rules.\n");
 });
 

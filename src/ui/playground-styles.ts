@@ -542,6 +542,10 @@ export function getPlaygroundStyles(): string {
 		.chat-stage[data-workspace-mode="conn"] .stream-layout,
 		.chat-stage[data-workspace-mode="conn"] .command-deck,
 		.chat-stage[data-workspace-mode="conn"] .chat-stage-watermark,
+		.chat-stage[data-workspace-mode="agents"] .landing-screen,
+		.chat-stage[data-workspace-mode="agents"] .stream-layout,
+		.chat-stage[data-workspace-mode="agents"] .command-deck,
+		.chat-stage[data-workspace-mode="agents"] .chat-stage-watermark,
 		.chat-stage[data-workspace-mode="task"] .landing-screen,
 		.chat-stage[data-workspace-mode="task"] .stream-layout,
 		.chat-stage[data-workspace-mode="task"] .command-deck,
@@ -568,12 +572,14 @@ export function getPlaygroundStyles(): string {
 
 		.chat-stage[data-workspace-mode="assets"] > #asset-modal.workspace-contained,
 		.chat-stage[data-workspace-mode="conn"] > #conn-manager-dialog.workspace-contained,
+		.chat-stage[data-workspace-mode="agents"] > #agent-manager-dialog.workspace-contained,
 		.chat-stage[data-workspace-mode="task"] > #task-inbox-view.workspace-contained {
 			display: flex;
 		}
 
 		.chat-stage > .workspace-contained .asset-modal,
 		.chat-stage > .workspace-contained .conn-manager-panel,
+		.chat-stage > .workspace-contained .agent-manager-panel,
 		.chat-stage > .workspace-contained .task-inbox-pane {
 			position: relative;
 			inset: auto;
@@ -592,6 +598,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.chat-stage > .workspace-contained .asset-modal-head,
+		.chat-stage > .workspace-contained .agent-manager-panel .asset-modal-head,
 		.chat-stage > .workspace-contained .task-inbox-head {
 			position: sticky;
 			top: 0;
@@ -599,6 +606,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.chat-stage > .workspace-contained .asset-modal-body,
+		.chat-stage > .workspace-contained .agent-manager-body,
 		.chat-stage > .workspace-contained .task-inbox-list {
 			min-height: 0;
 		}
@@ -3190,6 +3198,15 @@ export function getPlaygroundStyles(): string {
 			font-weight: 600;
 			white-space: nowrap;
 			box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+			cursor: pointer;
+		}
+
+		.topbar-agent-label:hover:not(:disabled),
+		.topbar-agent-label:focus-visible {
+			border-color: rgba(104, 213, 255, 0.36);
+			background: rgba(104, 213, 255, 0.12);
+			box-shadow: none;
+			transform: none;
 		}
 
 		.telemetry-action {
@@ -3575,13 +3592,21 @@ export function getPlaygroundStyles(): string {
 			.topbar-context-slot {
 				position: absolute;
 				top: max(15px, calc(env(safe-area-inset-top) + 15px));
-				right: 100px;
+				right: 92px;
+				gap: 4px;
 				margin-left: 0;
 				transform: none;
 			}
 
 			.topbar-agent-label {
-				display: none;
+				display: inline-flex;
+				min-width: 0;
+				max-width: 70px;
+				height: 28px;
+				padding: 0 6px;
+				overflow: hidden;
+				font-size: 10px;
+				text-overflow: ellipsis;
 			}
 
 			.topbar-context-slot .context-usage-shell,

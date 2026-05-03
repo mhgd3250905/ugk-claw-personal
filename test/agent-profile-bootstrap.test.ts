@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createDefaultAgentProfiles, resolveAgentProfile } from "../src/agent/agent-profile.js";
 import { ensureAgentProfileRuntime } from "../src/agent/agent-profile-bootstrap.js";
-import { access } from "node:fs/promises";
 
 test("ensureAgentProfileRuntime creates private directories and default rules", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-agent-profile-"));
@@ -66,12 +65,19 @@ test("ensureAgentProfileRuntime does not overwrite an existing rules file", asyn
 	assert.equal(await readFile(profile.runtimeAgentRulesPath, "utf8"), "custom rules");
 });
 
-test("ensureAgentProfileRuntime does not write search rules into main profile", async () => {
+test("ensureAgentProfileRuntime creates main runtime rules without using project AGENTS.md", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-agent-profile-"));
 	const profile = resolveAgentProfile(createDefaultAgentProfiles(projectRoot), "main");
 	assert.ok(profile);
+	await writeFile(join(projectRoot, "AGENTS.md"), "# Project Rules\n\nRepository maintenance only.\n", "utf8");
 
 	await ensureAgentProfileRuntime(profile);
 
-	await assert.rejects(access(profile.runtimeAgentRulesPath));
+	const content = await readFile(profile.runtimeAgentRulesPath, "utf8");
+	assert.match(content, /# Main Agent/);
+	assert.match(content, /仓库根目录的项目维护 AGENTS\.md/);
+	assert.match(content, /Karpathy Guidelines/);
+	assert.match(content, /Don't assume\. Don't hide confusion\. Surface tradeoffs\./);
+	assert.match(content, /Every changed line should trace directly to the user's request/);
+	assert.doesNotMatch(content, /Repository maintenance only/);
 });

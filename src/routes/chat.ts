@@ -1,9 +1,12 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AgentService } from "../agent/agent-service.js";
 import type { AgentServiceRegistry } from "../agent/agent-service-registry.js";
 import {
 	archiveStoredAgentProfile,
 	createStoredAgentProfile,
+	updateStoredAgentProfile,
 } from "../agent/agent-profile-catalog.js";
 import {
 	configureSseResponse,
@@ -43,7 +46,6 @@ import type {
 
 const RUN_EVENT_PAGE_SIZE = 2;
 const RUN_EVENT_MAX_PAGE_SIZE = 20;
-
 function isChatRunLogNoiseEvent(event: ChatStreamEvent): boolean {
 	return event.type === "text_delta";
 }
@@ -94,6 +96,13 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		return deps.agentServiceRegistry?.get(agentId);
 	}
 
+	function resolveAgentRulesPath(agentId: string | undefined): string | undefined {
+		if (!agentId || !deps.projectRoot) {
+			return undefined;
+		}
+		return deps.agentServiceRegistry?.getProfile(agentId)?.runtimeAgentRulesPath;
+	}
+
 	function sendUnknownAgent(reply: FastifyReply, agentId: string | undefined): FastifyReply {
 		return reply.status(404).send({
 			error: "NOT_FOUND",
@@ -117,7 +126,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		"/v1/agents",
 		async (
 			request: FastifyRequest<{
-				Body: { agentId?: string; name?: string; description?: string };
+				Body: { agentId?: string; name?: string; description?: string; initialSystemSkillNames?: string[] };
 			}>,
 			reply,
 		): Promise<{ agent: { agentId: string; name: string; description: string } } | FastifyReply> => {
@@ -133,6 +142,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					agentId: body.agentId ?? "",
 					name: body.name,
 					description: body.description,
+					initialSystemSkillNames: body.initialSystemSkillNames,
 				});
 				deps.agentServiceRegistry.add(profile);
 				return {
@@ -146,6 +156,45 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return reply.status(400).send({
 					error: "BAD_REQUEST",
 					message: error instanceof Error ? error.message : "Unable to create agent profile.",
+				});
+			}
+		},
+	);
+
+	app.patch(
+		"/v1/agents/:agentId",
+		async (
+			request: FastifyRequest<{
+				Params: { agentId?: string };
+				Body: { name?: string; description?: string };
+			}>,
+			reply,
+		): Promise<{ agent: { agentId: string; name: string; description: string } } | FastifyReply> => {
+			const { agentId } = request.params ?? {};
+			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			if (!resolveScopedAgentService(agentId)) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			try {
+				const body = request.body ?? {};
+				const profile = await updateStoredAgentProfile(deps.projectRoot, agentId, {
+					name: body.name,
+					description: body.description,
+				});
+				deps.agentServiceRegistry.updateProfile(profile);
+				return {
+					agent: {
+						agentId: profile.agentId,
+						name: profile.name,
+						description: profile.description,
+					},
+				};
+			} catch (error) {
+				return reply.status(400).send({
+					error: "BAD_REQUEST",
+					message: error instanceof Error ? error.message : "Unable to update agent profile.",
 				});
 			}
 		},
@@ -200,6 +249,101 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return sendUnknownAgent(reply, request.params?.agentId);
 			}
 			return await service.getAvailableSkills();
+		},
+	);
+
+	app.get(
+		"/v1/agents/:agentId/rules",
+		async (
+			request: FastifyRequest<{ Params: { agentId?: string } }>,
+			reply,
+		): Promise<
+			| {
+					agentId: string;
+					fileName: string;
+					path: string;
+					exists: boolean;
+					content: string;
+			  }
+			| FastifyReply
+		> => {
+			const agentId = request.params?.agentId;
+			if (!agentId || !resolveScopedAgentService(agentId)) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			const rulesPath = resolveAgentRulesPath(agentId);
+			if (!rulesPath) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			try {
+				return {
+					agentId,
+					fileName: "AGENTS.md",
+					path: rulesPath,
+					exists: true,
+					content: await readFile(rulesPath, "utf8"),
+				};
+			} catch (error) {
+				if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+					return {
+						agentId,
+						fileName: "AGENTS.md",
+						path: rulesPath,
+						exists: false,
+						content: "",
+					};
+				}
+				return sendInternalError(reply, error);
+			}
+		},
+	);
+
+	app.patch(
+		"/v1/agents/:agentId/rules",
+		async (
+			request: FastifyRequest<{
+				Params: { agentId?: string };
+				Body: { content?: string };
+			}>,
+			reply,
+		): Promise<
+			| {
+					agentId: string;
+					fileName: string;
+					path: string;
+					exists: boolean;
+					content: string;
+			  }
+			| FastifyReply
+		> => {
+			const agentId = request.params?.agentId;
+			if (!agentId || !resolveScopedAgentService(agentId)) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			const rulesPath = resolveAgentRulesPath(agentId);
+			if (!rulesPath) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			const content = request.body?.content;
+			if (typeof content !== "string") {
+				return sendBadRequest(reply, "content must be a string");
+			}
+			if (content.length > 200_000) {
+				return sendBadRequest(reply, "content is too large");
+			}
+			try {
+				await mkdir(dirname(rulesPath), { recursive: true });
+				await writeFile(rulesPath, content, "utf8");
+				return {
+					agentId,
+					fileName: "AGENTS.md",
+					path: rulesPath,
+					exists: true,
+					content,
+				};
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
 		},
 	);
 
