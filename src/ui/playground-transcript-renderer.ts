@@ -1303,7 +1303,7 @@ export function getPlaygroundTranscriptRendererScript(): string {
 			if (before) {
 				params.set("before", String(before));
 			}
-			const response = await fetch("/v1/chat/runs/" + encodeURIComponent(runId) + "/events?" + params.toString(), {
+			const response = await fetch(getAgentApiPath("/chat/runs/" + encodeURIComponent(runId) + "/events") + "?" + params.toString(), {
 				method: "GET",
 				headers: { accept: "application/json" },
 			});

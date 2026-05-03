@@ -1,12 +1,16 @@
 export function getPlaygroundConversationHistoryStoreScript(): string {
 	return `
 		function getConversationHistoryStorageKey(conversationId) {
-			return "ugk-pi:conversation-history:" + conversationId;
+			return "ugk-pi:conversation-history:" + getCurrentAgentId() + ":" + conversationId;
+		}
+
+		function getConversationHistoryIndexKey() {
+			return CONVERSATION_HISTORY_INDEX_KEY + ":" + getCurrentAgentId();
 		}
 
 		function readConversationHistoryIndex() {
 			try {
-				const raw = localStorage.getItem(CONVERSATION_HISTORY_INDEX_KEY);
+				const raw = localStorage.getItem(getConversationHistoryIndexKey());
 				const parsed = JSON.parse(raw || "[]");
 				return Array.isArray(parsed) ? parsed : [];
 			} catch {
@@ -16,7 +20,7 @@ export function getPlaygroundConversationHistoryStoreScript(): string {
 
 		function writeConversationHistoryIndex(index) {
 			try {
-				localStorage.setItem(CONVERSATION_HISTORY_INDEX_KEY, JSON.stringify(index));
+				localStorage.setItem(getConversationHistoryIndexKey(), JSON.stringify(index));
 			} catch {}
 		}
 

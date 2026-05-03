@@ -524,10 +524,10 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /appendProcessEvent/);
 	assert.match(response.body, /updateStreamingProcess/);
 	assert.match(response.body, /transcript\.appendChild\(note\)/);
-	assert.match(response.body, /\/v1\/debug\/skills/);
-	assert.match(response.body, /\/v1\/chat\/stream/);
-	assert.match(response.body, /\/v1\/chat\/queue/);
-	assert.match(response.body, /\/v1\/chat\/interrupt/);
+	assert.match(response.body, /getAgentApiPath\("\/debug\/skills"\)/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/stream"\)/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/queue"\)/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/interrupt"\)/);
 	assert.match(response.body, /attachments/);
 	assert.match(response.body, /file-download/);
 	assert.match(response.body, /selected-assets/);
@@ -601,7 +601,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /:root\[data-theme="light"\] \.assistant-status-shell\s*\{[\s\S]*background:\s*transparent;/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.assistant-status-summary\s*\{[\s\S]*background:\s*transparent;/);
 	assert.match(response.body, /matchMedia\("\(max-width: 640px\)"\)/);
-	assert.match(response.body, /\/v1\/chat\/status\?conversationId=/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/status"\)/);
 	assert.match(response.body, /mode:\s*"steer"/);
 	assert.match(response.body, /height: calc\(100vh - 40px\)/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*display: flex;/);
@@ -1007,7 +1007,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function buildAssistantStatusShell\(\)/);
 	assert.match(response.body, /function formatProcessSummaryForStatus\(process\)/);
 	assert.match(response.body, /function openChatRunLog\(runId, restoreFocusElement\)/);
-	assert.match(response.body, /\/v1\/chat\/runs\//);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/runs\//);
 	assert.doesNotMatch(response.body, /stream\.summary\.textContent = process\.narration\.at\(-1\)/);
 	assert.match(response.body, /function setTranscriptState\(next\)\s*\{/);
 	assert.match(response.body, /function syncConversationWidth\(\)\s*\{/);
@@ -1037,7 +1037,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function formatSkillsReply\(skills\)\s*\{/);
 	assert.match(response.body, /\.\.\.skillList\.map\(\(skill, index\) => \{/);
 	assert.match(response.body, /appendNarrationToAssistantProcess\(skillReply, /);
-	assert.match(response.body, /setAssistantProcessAction\(skillReply, [\s\S]*GET \/v1\/debug\/skills", "tool"\)/);
+	assert.match(response.body, /setAssistantProcessAction\(skillReply, [\s\S]*GET " \+ getAgentApiPath\("\/debug\/skills"\), "tool"\)/);
 	assert.match(response.body, /setMessageContent\(skillReply\.content, formatSkillsReply\(payload\?\.skills\)\)/);
 	assert.match(response.body, /completeAssistantProcessShell\(skillReply, "ok"\)/);
 	assert.doesNotMatch(response.body, /appendProcessEvent\("system", [\s\S]*\/v1\/debug\/skills"\)/);
@@ -1785,7 +1785,7 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /conversationState\?\.viewMessages/);
 	assert.match(response.body, /viewLimit=" \+/);
 	assert.match(response.body, /conversationState\?\.historyPage\?\.hasMore/);
-	assert.match(response.body, /\/v1\/chat\/history\?" \+ params\.toString\(\)/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/history"\) \+ "\?" \+ params\.toString\(\)/);
 	assert.match(response.body, /state\.historyHasMore/);
 	assert.match(response.body, /state\.historyNextBefore/);
 	assert.match(response.body, /renderedMessages\.get\(activeRun\.assistantMessageId\)/);
@@ -1802,7 +1802,7 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /transcript\.scrollTop <= 24 && hasOlderConversationHistory\(\)/);
 	assert.doesNotMatch(response.body, /historyLoadMoreButton\.addEventListener\("click"/);
 	assert.match(response.body, /async function createConversationOnServer\(\)\s*\{/);
-	assert.match(response.body, /\/v1\/chat\/conversations/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/conversations"\)/);
 	assert.match(response.body, /function createMessageActions\(entry, content\)\s*\{/);
 	assert.match(response.body, /function clearAssistantStatusControls\(card\)\s*\{/);
 	assert.match(response.body, /card\.querySelectorAll\("\.assistant-status-shell, \.assistant-run-log-trigger"\)\.forEach/);
@@ -1943,12 +1943,12 @@ test("GET /playground syncs the current conversation from the server catalog", a
 
 	assert.equal(response.statusCode, 200);
 	assert.match(response.body, /async function fetchConversationCatalog\(options\)\s*\{/);
-	assert.match(response.body, /\/v1\/chat\/conversations/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/conversations"\)/);
 	assert.match(response.body, /async function createConversationOnServer\(\)\s*\{/);
-	assert.match(response.body, /POST",\s*headers:[\s\S]*\/v1\/chat\/conversations/);
+	assert.match(response.body, /POST",\s*headers:[\s\S]*getAgentApiPath\("\/chat\/conversations"\)/);
 	assert.match(response.body, /body: JSON\.stringify\(\{\}\),/);
 	assert.match(response.body, /async function switchConversationOnServer\(conversationId\)\s*\{/);
-	assert.match(response.body, /\/v1\/chat\/current/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/current"\)/);
 	assert.match(response.body, /conversationCatalogSyncPromise:\s*null,/);
 	assert.match(response.body, /conversationCatalogAbortController:\s*null,/);
 	assert.match(response.body, /conversationCatalogSyncedAt:\s*0,/);
@@ -2096,7 +2096,7 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /mobileOverflowMenuButton\.addEventListener\("click", \(event\) => \{/);
 	assert.match(response.body, /function setMobileOverflowMenuOpen\(next\)\s*\{/);
 	assert.match(response.body, /function closeMobileOverflowMenu\(\)\s*\{/);
-	assert.match(response.body, /mobileMenuSkillsButton\.addEventListener\("click", \(\) => \{/);
+	assert.doesNotMatch(response.body, /mobileMenuSkillsButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /mobileMenuFileButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /mobileMenuLibraryButton\.addEventListener\("click", \(\) => \{/);
 	assert.match(response.body, /mobileMenuTaskInboxButton\.addEventListener\("click", \(\) => \{/);
@@ -2117,7 +2117,7 @@ test("GET /playground does not ship visible shadow effects", async () => {
 	assert.equal(response.statusCode, 200);
 	const visibleBoxShadowValues = [...response.body.matchAll(/box-shadow\s*:\s*([\s\S]*?);/g)]
 		.map((match) => match[1]?.trim() ?? "")
-		.filter((value) => value !== "none");
+		.filter((value) => value !== "none" && !value.startsWith("inset "));
 	assert.equal(visibleBoxShadowValues.length, 3);
 	assert.ok(
 		visibleBoxShadowValues.every(
@@ -2534,9 +2534,9 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 	assert.doesNotMatch(response.body, /\.desktop-conversation-rail\s*\{[\s\S]*border-left:\s*2px solid rgba\(101, 209, 255, 0\.48\);/);
 	assert.match(response.body, /\.desktop-conversation-list\s*\{[\s\S]*scrollbar-width:\s*none;/);
 	assert.match(response.body, /\.desktop-conversation-list::-webkit-scrollbar\s*\{[\s\S]*display:\s*none;/);
-	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*border:\s*0;[\s\S]*border-radius:\s*4px;[\s\S]*background:\s*transparent;[\s\S]*overflow:\s*hidden;/);
-	assert.doesNotMatch(response.body, /\.chat-stage\s*\{[\s\S]*border:\s*1px solid rgba\(201, 210, 255, 0\.08\);/);
-	assert.doesNotMatch(response.body, /\.chat-stage\s*\{[\s\S]*linear-gradient\(180deg, rgba\(11, 15, 25, 0\.72\), rgba\(5, 8, 15, 0\.86\)\)/);
+	assert.match(response.body, /\.chat-stage\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*4px;[^}]*background:\s*transparent;[^}]*overflow:\s*hidden;/);
+	assert.doesNotMatch(response.body, /\.chat-stage\s*\{[^}]*border:\s*1px solid rgba\(201, 210, 255, 0\.08\);/);
+	assert.doesNotMatch(response.body, /\.chat-stage\s*\{[^}]*linear-gradient\(180deg, rgba\(11, 15, 25, 0\.72\), rgba\(5, 8, 15, 0\.86\)\)/);
 	assert.match(response.body, /\.command-deck\s*\{[\s\S]*width:\s*100%;[\s\S]*border-radius:\s*4px;[\s\S]*overflow:\s*hidden;/);
 	assert.match(response.body, /\.shell\[data-stage-mode="landing"\] \.command-deck\s*\{[\s\S]*width:\s*100%;[\s\S]*border-radius:\s*4px;[\s\S]*overflow:\s*hidden;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar::before\s*\{[\s\S]*display:\s*none;/);
@@ -2885,9 +2885,9 @@ test("GET /playground restores running conversations after refresh and avoids re
 	});
 
 	assert.equal(response.statusCode, 200);
-	assert.match(response.body, /\/v1\/chat\/status\?/);
-	assert.match(response.body, /\/v1\/chat\/state\?/);
-	assert.match(response.body, /\/v1\/chat\/events\?/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/status"\)/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/state"\)/);
+	assert.match(response.body, /getAgentApiPath\("\/chat\/events"\)/);
 	assert.match(response.body, /async function fetchConversationState\(conversationId, options\)\s*\{/);
 	assert.match(response.body, /function renderConversationState\(conversationState, syncToken\)\s*\{/);
 	assert.match(response.body, /async function fetchConversationRunStatus\(conversationId\)\s*\{/);

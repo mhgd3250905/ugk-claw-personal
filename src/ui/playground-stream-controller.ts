@@ -112,7 +112,7 @@ export function getPlaygroundStreamControllerScript(): string {
 
 			try {
 				const query = new URLSearchParams({ conversationId: nextConversationId });
-				const response = await fetch("/v1/chat/events?" + query.toString(), {
+				const response = await fetch(getAgentApiPath("/chat/events") + "?" + query.toString(), {
 					method: "GET",
 					headers: { accept: "text/event-stream" },
 					signal: controller.signal,
@@ -508,7 +508,7 @@ export function getPlaygroundStreamControllerScript(): string {
 				if (assetRefs.length > 0) {
 					payload.assetRefs = assetRefs;
 				}
-				const response = await fetch("/v1/chat/stream", {
+				const response = await fetch(getAgentApiPath("/chat/stream"), {
 					method: "POST",
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify(payload),
@@ -591,7 +591,7 @@ export function getPlaygroundStreamControllerScript(): string {
 				if (assetRefs.length > 0) {
 					payloadBody.assetRefs = assetRefs;
 				}
-				const response = await fetch("/v1/chat/queue", {
+				const response = await fetch(getAgentApiPath("/chat/queue"), {
 					method: "POST",
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify(payloadBody),
@@ -627,7 +627,7 @@ export function getPlaygroundStreamControllerScript(): string {
 			}
 
 			try {
-				const response = await fetch("/v1/chat/interrupt", {
+				const response = await fetch(getAgentApiPath("/chat/interrupt"), {
 					method: "POST",
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify({

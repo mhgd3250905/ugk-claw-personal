@@ -38,7 +38,11 @@ test("renderPlaygroundHtml keeps desktop settings in the sidebar and primary too
 	assert.ok(html.indexOf('id="open-model-config-button"') > settingsStart);
 	assert.ok(html.indexOf('id="open-feishu-settings-button"') > settingsStart);
 	assert.ok(html.indexOf('id="theme-toggle-button"') > settingsStart);
-	assert.ok(html.indexOf('id="view-skills-button"') > topbarStart);
-	assert.ok(html.indexOf('id="view-skills-button"') < railStart);
-	assert.match(html, /class="desktop-file-menu"[\s\S]*id="file-picker-action"[\s\S]*id="open-asset-library-button"/);
+	assert.ok(html.indexOf('id="agent-selector"') > settingsStart);
+	assert.ok(html.indexOf('id="agent-selector-status"') > topbarStart);
+	assert.ok(html.indexOf('id="agent-selector-status"') < railStart);
+	assert.equal(html.indexOf('id="view-skills-button"'), -1);
+	assert.ok(html.indexOf('id="open-asset-library-button"') > topbarStart);
+	assert.ok(html.indexOf('id="open-asset-library-button"') < railStart);
+	assert.ok(html.indexOf('id="file-picker-action"') > railStart);
 });

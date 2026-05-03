@@ -3146,6 +3146,52 @@ export function getPlaygroundStyles(): string {
 			font-weight: 600;
 		}
 
+		.agent-switcher {
+			display: grid;
+			grid-template-columns: 1fr;
+			align-items: center;
+			gap: 6px;
+			width: 100%;
+			min-height: 58px;
+			padding: 8px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 4px;
+			background: rgba(201, 210, 255, 0.04);
+			color: rgba(228, 235, 255, 0.78);
+			font-size: 11px;
+		}
+
+		.agent-switcher span {
+			color: rgba(139, 149, 178, 0.86);
+		}
+
+		.agent-switcher select {
+			width: 100%;
+			height: 28px;
+			border: 1px solid rgba(201, 210, 255, 0.18);
+			border-radius: 4px;
+			background: #0d1320;
+			color: rgba(245, 248, 255, 0.9);
+			font: inherit;
+		}
+
+		.topbar-agent-label {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 84px;
+			height: 28px;
+			padding: 0 10px;
+			border: 1px solid rgba(104, 213, 255, 0.2);
+			border-radius: 999px;
+			background: rgba(104, 213, 255, 0.08);
+			color: rgba(183, 235, 255, 0.92);
+			font-size: 11px;
+			font-weight: 600;
+			white-space: nowrap;
+			box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+		}
+
 		.telemetry-action {
 			position: relative;
 			font: inherit;
@@ -3332,6 +3378,10 @@ export function getPlaygroundStyles(): string {
 			justify-content: flex-start;
 			width: 100%;
 			min-height: 34px;
+		}
+
+		.desktop-rail-settings-menu .agent-switcher {
+			margin-bottom: 2px;
 		}
 
 		.desktop-conversation-list::-webkit-scrollbar {
@@ -3530,6 +3580,10 @@ export function getPlaygroundStyles(): string {
 				transform: none;
 			}
 
+			.topbar-agent-label {
+				display: none;
+			}
+
 			.topbar-context-slot .context-usage-shell,
 			.topbar-context-slot .context-usage-shell:hover,
 			.topbar-context-slot .context-usage-shell:focus-visible,
@@ -3594,6 +3648,10 @@ export function getPlaygroundStyles(): string {
 			}
 
 			.landing-side-right > .telemetry-action {
+				display: none;
+			}
+
+			.landing-side-right > .agent-switcher {
 				display: none;
 			}
 

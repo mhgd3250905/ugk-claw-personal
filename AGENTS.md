@@ -2,29 +2,109 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 # ugk-pi Agent Guide
 
-## 1. 最高准则
+## 1. 通信准则
 
 - 默认使用简体中文回复；只有用户明确要求英文时才切换。
 - 命令、代码、日志、报错保持原始语言；其余解释用中文。
-- 先读现有文件，再动手；优先编辑已有文件，不要无意义新建。
-- 文件编辑要先选对策略：精确替换只用于小范围、唯一、非重叠文本；`oldText` 必须尽量短但足够唯一，不要塞整段 HTML / Markdown / 模板做大块匹配。
-- 同一文件多处独立小改动应一次性提交多个非重叠替换；相邻或同块改动先合并成一个小块，不要连续多次赌同一片上下文。
-- 精确替换连续失败 2 次后必须停下来重新读取目标片段和行号，改用更小锚点、结构化解析 / 格式化脚本，或在完整读过且文件较小、结构简单时重写全文；禁止第三次继续靠猜 oldText 硬怼。
-- 小文件全文重写不是默认捷径。只有确认文件已完整读取、内容可控、改动范围密集且不会覆盖用户并发修改时才使用；否则优先精确小补丁。
-- 先判断任务性质：
-  - 文档 / 规划任务：优先改文档，不要顺手碰源码。
-  - 实现 / 修复任务：先看真实入口和调用链，再落代码。
-- 涉及云服务器更新部署时，必须先向用户确认本次是“增量更新”还是“整目录替换”；在用户明确确认前，不要默认执行整目录替换。默认倾向是增量更新，不要擅自把服务器本地状态、已安装 skills、`.data` 和运行目录一起洗掉。
-- 缺少上下文但需要规划时，先写 `.codex/plans/`，执行前等用户确认。
-- 不要臆造 `pi` 的配置、技能、provider、行为；涉及这类事实时必须查：
-  - `references/pi-mono/packages/coding-agent/README.md`
-  - `references/pi-mono/packages/coding-agent/docs/settings.md`
-  - `references/pi-mono/AGENTS.md`
-  - `GET /v1/debug/skills`
-  - `GET /v1/debug/runtime`
-- `references/pi-mono/` 是官方参考镜像，不是业务源码目录；除非用户明确要求，不要改它。
 
-## 2. 项目边界
+## 2. 行为准则
+
+以下四条准则源自 Andrej Karpathy 对 LLM 编码常见陷阱的观察。
+旨在减少 AI 编程 agent 的高频翻车行为。
+
+**权衡说明：** 这些准则偏向谨慎优先于速度。
+对于简单任务（修复 typo、显而易见的一行改动），用常识判断，不需要每次都全量执行。
+
+### 2.1 先想再写 — Think Before Coding
+
+**不要假设。不要隐藏困惑。展示权衡。**
+
+实现之前：
+
+- **明确说出你的假设。** 如果不确定，问。
+- **如果存在多种解读方向，列出来** — 不要自己悄悄选一个。
+- **如果有更简单的方案，说出来。** 该反对的时候要反对。
+- **如果某件事不清楚，停下来。** 指出困惑点，提问。
+
+> *"模型会替你做出错误假设，然后直接沿着它跑下去而不检查。它们不管理自己的困惑，不寻求澄清，不暴露不一致，不呈现权衡，在该反对的时候不反对。"* — Andrej Karpathy
+
+### 2.2 简洁优先 — Simplicity First
+
+**解决问题的代码量最少。不写投机性的扩展。**
+
+- **不做需求以外的功能。**
+- **不为只用一次的场景做抽象。**
+- **不加没人要的"灵活性"或"可配置性"。**
+- **不为不可能的路径写错误处理。**
+- **如果写了 200 行但 50 行能搞定，重写。**
+
+**自问：** 资深工程师会说这太复杂了吗？如果会，简化。
+
+> *"它们特别喜欢过度复杂化代码和 API，膨胀抽象层，不清理死代码……用 1000 行实现一个臃肿的结构，而 100 行就够了。"* — Andrej Karpathy
+
+### 2.3 外科手术式修改 — Surgical Changes
+
+**只动你必须动的。只清理你自己留下的烂摊子。**
+
+修改已有代码时：
+
+- **不要顺手"改进"旁边的代码、注释或格式。**
+- **不要重构没坏的东西。**
+- **匹配现有风格**，哪怕你更喜欢另一种写法。
+- **如果看到无关的死代码，提一句** — 不要删它。
+
+当你的改动制造了孤儿代码：
+
+- **删除你的改动导致不再使用的 import/变量/函数。**
+- **不要删除已有的死代码，除非被要求。**
+
+**检验标准：** 每一行改动都应能直接追溯到用户的请求。
+
+> *"它们仍然会不充分理解就顺手改掉/删掉旁边的注释和代码，即使跟当前任务正交。"* — Andrej Karpathy
+
+### 2.4 目标驱动执行 — Goal-Driven Execution
+
+**定义成功标准。循环验证直到达标。**
+
+把命令式任务转化为可验证的目标：
+
+| 以前这么写 | 改成这样 |
+|-----------|---------|
+| "加校验" | "写无效输入的测试用例，然后让它通过" |
+| "修 Bug" | "写一个能复现它的测试，然后让它通过" |
+| "重构 X" | "确保重构前后测试都通过" |
+
+多步骤任务给出简要计划：
+
+```
+1. [步骤] → 验证：[检查项]
+2. [步骤] → 验证：[检查项]
+3. [步骤] → 验证：[检查项]
+```
+
+**强有力的成功标准**让 LLM 能自主循环验证。
+**模糊的标准**（"让它能工作"）需要不断澄清。
+
+> *"LLM 在达到特定目标这件事上异常擅长……不要告诉它做什么，给它成功标准，看它自己跑。"
+> — Andrej Karpathy*
+
+### 2.5 效果验证
+
+如果以下现象出现，说明这些准则在生效：
+
+- **Diff 中的无关变更减少** — 只出现用户要求的改动
+- **因过度复杂化导致的重写减少** — 第一次就写出简洁代码
+- **澄清性问题出现在实现之前** — 而不是犯错之后
+- **干净、精简的 PR** — 没有顺手重构或"顺便改进"
+
+---
+
+原仓库：https://github.com/forrestchang/andrej-karpathy-skills
+原始出处：https://x.com/karpathy/status/2015883857489522876
+
+---
+
+## 3. 项目边界
 
 - 这是基于 `pi-coding-agent` 的自定义 HTTP agent 原型，不是完整业务平台。
 - 当前阶段优先目标：
@@ -35,7 +115,7 @@ This file provides the highest-level working rules for AI coding agents in this 
   - 为飞书 / Slack / 企业微信等 IM 接入预留形态
 - 在用户没有给出明确业务能力前，不要擅自初始化数据库、业务框架或大型前端工程体系。
 
-## 2.1 当前阶段快照
+### 3.1 当前阶段快照
 
 - 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
 - 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器主部署目录为 `~/ugk-claw-repo`，阿里云 ECS 主部署目录为 `/root/ugk-claw-repo`，两边现在都是 Git 工作目录。两台服务器均已配置 `origin` GitHub 和 `gitee` 备用 remote，不要再把 tar 包搬运当成长期主流程。
@@ -50,34 +130,6 @@ This file provides the highest-level working rules for AI coding agents in this 
 - Windows host IPC fallback 仍保留，但只用于 legacy 本机调试和紧急排障。
 - 本阶段标准验证命令是 `npm test` 与 `npm run docker:chrome:check`。
 - `playground` 手机端已经单独重写成移动聊天页；后续 `/init` 如果接手前端，不要把手机端继续按桌面端压缩版理解，先看 `docs/playground-current.md`。
-
-## 3. 全局验证规则
-
-- 不要把“代码里出现了某段字符串”当作修复完成；要验证真实入口、真实状态、真实行为。
-- 任何影响外部行为、运行方式、接口、文档结构或协作约定的改动，必须在同一轮同步更新文档系统，不能等“之后有空再补”。
-- 每次这类改动完成后，都要追加更新记录到 `docs/change-log.md`，至少写清：
-  - 日期
-  - 改动主题
-  - 影响范围
-  - 对应源码或文档入口
-- 前端任务统一遵守：
-  - 先锁定用户点名的真实 DOM / 组件 / 状态
-  - 先查约束链，再改样式或脚本
-  - 优先删除冲突旧逻辑，再新增修复
-  - 连续两次补丁没打中根因时，停止缝补，改做整体收口
-- 前端任务回报只说三件事：
-  - 我认定的真实需求
-  - 真正生效的约束源改在哪里
-  - 我如何验证这次改动不是假修复
-- 运行时 / API 改动至少验证：
-  - 代码真源
-  - 实际接口或页面入口
-  - 类型检查 / 测试
-  - 服务重启后的最终结果
-- 纯文档任务至少验证：
-  - 目录和链接不失真
-  - 描述与当前代码 / 运行事实一致
-  - 旧说法已从主文档移除
 
 ## 4. 固定运行口径
 
@@ -127,6 +179,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 服务器运维唯一入口：`docs/server-ops.md`
 - 腾讯云新加坡部署运行手册：`docs/tencent-cloud-singapore-deploy.md`
 - 阿里云 ECS 部署运行手册：`docs/aliyun-ecs-deploy.md`
+- agent profile 元操作技能：`.pi/skills/agent-profile-ops/SKILL.md`
+- agent profile catalog：`.data/agents/profiles.json`
 - 项目级 subagent：`.pi/agents/`
 - 用户 subagent：`runtime/agents-user/`
 - 项目级 `pi` agent：`runtime/pi-agent/`
@@ -229,7 +283,18 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `runtime/skills-user/`
 - `docs/web-access-browser-bridge.md`（查 web-access / x-search-latest / 浏览器登录态时先看这里）
 
-### F 场景：查 subagent、prompt 工作流、项目级防护
+### F 场景：查 agent profile、subagent、prompt 工作流、项目级防护
+
+用户问“我有哪些 agent / 有哪些 agent / 当前有哪些 agent”时，默认先理解为当前 Playground 的独立 agent profile / 操作视窗，必须查：
+
+- `GET /v1/agents`
+- `.pi/skills/agent-profile-ops/SKILL.md`
+- `src/agent/agent-profile.ts`
+- `src/agent/agent-profile-catalog.ts`
+- `src/agent/agent-service-registry.ts`
+- `src/routes/chat.ts`
+
+只有用户明确说 `subagent`、`.pi/agents`、`scout/planner/worker/reviewer` 或“派发子任务”时，才进入 legacy subagent 文件：
 
 - `.pi/extensions/subagent/index.ts`
 - `.pi/extensions/subagent/agents.ts`
@@ -269,7 +334,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 ## 7. 文档分层
 
 - `AGENTS.md`
-  - 只放最高准则、全局规则、固定口径、场景索引
+  - 只放行为准则、项目边界与阶段快照、固定运行口径、关键路径、场景索引、文档分层和项目运行规范
 - `README.md`
   - 对外入口、运行方式、能力概览、文档导航
 - `docs/traceability-map.md`
@@ -291,7 +356,60 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `docs/aliyun-ecs-deploy.md`
   - 阿里云 ECS 的部署事实、Git 更新流程、Gitee 备用拉取、`.env` 口径、安全组、验证命令和踩坑记录
 
-## 8. 当前稳定事实
+## 8. 项目运行规范
+
+### 8.1 编辑策略
+
+- 先读现有文件，再动手；优先编辑已有文件，不要无意义新建。
+- 文件编辑要先选对策略：精确替换只用于小范围、唯一、非重叠文本；`oldText` 必须尽量短但足够唯一，不要塞整段 HTML / Markdown / 模板做大块匹配。
+- 同一文件多处独立小改动应一次性提交多个非重叠替换；相邻或同块改动先合并成一个小块，不要连续多次赌同一片上下文。
+- 精确替换连续失败 2 次后必须停下来重新读取目标片段和行号，改用更小锚点、结构化解析 / 格式化脚本，或在完整读过且文件较小、结构简单时重写全文；禁止第三次继续靠猜 oldText 硬怼。
+- 小文件全文重写不是默认捷径。只有确认文件已完整读取、内容可控、改动范围密集且不会覆盖用户并发修改时才使用；否则优先精确小补丁。
+- 先判断任务性质：
+  - 文档 / 规划任务：优先改文档，不要顺手碰源码。
+  - 实现 / 修复任务：先看真实入口和调用链，再落代码。
+- 缺少上下文但需要规划时，先写 `.codex/plans/`，执行前等用户确认。
+
+### 8.2 部署策略
+
+- 涉及云服务器更新部署时，必须先向用户确认本次是"增量更新"还是"整目录替换"；在用户明确确认前，不要默认执行整目录替换。默认倾向是增量更新，不要擅自把服务器本地状态、已安装 skills、`.data` 和运行目录一起洗掉。
+- 不要臆造 `pi` 的配置、技能、provider、行为；涉及这类事实时必须查：
+  - `references/pi-mono/packages/coding-agent/README.md`
+  - `references/pi-mono/packages/coding-agent/docs/settings.md`
+  - `references/pi-mono/AGENTS.md`
+  - `GET /v1/debug/skills`
+  - `GET /v1/debug/runtime`
+- `references/pi-mono/` 是官方参考镜像，不是业务源码目录；除非用户明确要求，不要改它。
+
+### 8.3 验证义务
+
+- 不要把"代码里出现了某段字符串"当作修复完成；要验证真实入口、真实状态、真实行为。
+- 任何影响外部行为、运行方式、接口、文档结构或协作约定的改动，必须在同一轮同步更新文档系统，不能等"之后有空再补"。
+- 每次这类改动完成后，都要追加更新记录到 `docs/change-log.md`，至少写清：
+  - 日期
+  - 改动主题
+  - 影响范围
+  - 对应源码或文档入口
+- 前端任务统一遵守：
+  - 先锁定用户点名的真实 DOM / 组件 / 状态
+  - 先查约束链，再改样式或脚本
+  - 优先删除冲突旧逻辑，再新增修复
+  - 连续两次补丁没打中根因时，停止缝补，改做整体收口
+- 前端任务回报只说三件事：
+  - 我认定的真实需求
+  - 真正生效的约束源改在哪里
+  - 我如何验证这次改动不是假修复
+- 运行时 / API 改动至少验证：
+  - 代码真源
+  - 实际接口或页面入口
+  - 类型检查 / 测试
+  - 服务重启后的最终结果
+- 纯文档任务至少验证：
+  - 目录和链接不失真
+  - 描述与当前代码 / 运行事实一致
+  - 旧说法已从主文档移除
+
+### 8.4 运行事实
 
 - agent 每轮 prompt 都会通过 `src/agent/file-artifacts.ts` 注入文件交付协议：内部本地 artifact 路径允许直接用于工具与浏览器自动化；用户交付时浏览器预览走宿主可访问 HTTP，真实文件优先 `send_file`，`ugk-file` 只作小文本兜底
 - `AgentService` 会在用户可见的正文、流式增量和工具过程消息里，自动把支持的 `/app/public/...`、`/app/runtime/...`、`file:///app/...` 重写成宿主可访问的 `GET /v1/local-file?path=...`；不要再指望宿主浏览器直接打开容器 `file://`
@@ -303,14 +421,14 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；阿里云 ECS 对应外置目录是 `/root/ugk-claw-shared/`。后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
 - agent 运行中沉淀的本机/服务器长期规则不要直接写进仓库版 `AGENTS.md`；需要跨会话且不随代码发布丢失的规则写入 `/app/.data/agent/AGENTS.local.md`，该文件会作为额外 AGENTS 上下文随每轮 session 注入，生产上由 shared agent data 目录持久化。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
-- playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是“当前正在运行”，不要再写“上一轮仍在运行”。
+- playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是"当前正在运行"，不要再写"上一轮仍在运行"。
 - playground 的 `GET /v1/chat/state` 默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 暴露分页状态；旧消息补页走 `GET /v1/chat/history?before=...&limit=...`，不要再让 state 扛完整历史，也不要把本地 `localStorage` 当完整历史真源。
-- playground 从后端 session 恢复已完成任务时，连续 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并成一条助手回复；不要让刷新后的同一轮浏览器处理过程拆成多条“助手”气泡。
-- playground Web 入口当前采用“一个 agent、多条历史会话、一个全局当前会话”的模型；不同浏览器 / 设备打开后应先通过 `GET /v1/chat/conversations` 跟随服务端 `currentConversationId`，再通过 `GET /v1/chat/state` 看到当前会话的历史、当前输入、active assistant 正文和过程区。
+- playground 从后端 session 恢复已完成任务时，连续 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并成一条助手回复；不要让刷新后的同一轮浏览器处理过程拆成多条"助手"气泡。
+- playground Web 入口当前采用"一个 agent、多条历史会话、一个全局当前会话"的模型；不同浏览器 / 设备打开后应先通过 `GET /v1/chat/conversations` 跟随服务端 `currentConversationId`，再通过 `GET /v1/chat/state` 看到当前会话的历史、当前输入、active assistant 正文和过程区。
 - playground 会话目录由 `ConversationStore` 维护进程内 `mtime` cache 和串行写队列；不要把 `GET /v1/chat/conversations`、`POST /v1/chat/current`、`POST /v1/chat/conversations` 恢复成每次读写整份 JSON 且无队列保护的实现，写入应继续用同目录临时文件加 `rename` 原子替换。
-- playground 的“新会话”必须走 `POST /v1/chat/conversations` 创建并激活新的服务端会话；不要再 reset 旧会话，也不要只清当前浏览器 DOM 写一条本地假提示。
+- playground 的"新会话"必须走 `POST /v1/chat/conversations` 创建并激活新的服务端会话；不要再 reset 旧会话，也不要只清当前浏览器 DOM 写一条本地假提示。
 - playground 历史会话切换必须走 `POST /v1/chat/current` 更新全局当前会话；当前 agent 运行中禁止新建和切换，避免一个 agent 工人同时被拖到两条产线。
-- playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示“回到底部”按钮。
+- playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示"回到底部"按钮。
 - playground active 对话态的 `transcript-current` 底部保留 `--transcript-bottom-scroll-buffer` 余量；最后一条消息必须能继续上拖到 composer 上方，不要把这段 padding 当成多余空白删掉。
 - playground 的 canonical state hydrate 不应默认清空 transcript；同会话同 `buildConversationStateSignature()` 时跳过 DOM 重绘，消息窗口变化时优先 patch / append 已渲染节点，只有会话切换或消息序列无法对齐时才重建当前 transcript。
 - 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要 `GET /v1/chat/state` 仍显示 running，前端应切到 `/v1/chat/events` 续订事件流。
@@ -318,11 +436,11 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `playground` 页面恢复同步必须按触发原因分级：`pageshow` 才强制校准当前 state，`visibilitychange` 只在 active run 或 state 过期时回源，`online` 优先查 active run 并续订 `/v1/chat/events`；不要把 `visibilitychange/pageshow/online` 又改回无差别 `GET /v1/chat/conversations` + `GET /v1/chat/state`。
 - 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
 - playground 资产详情按 id hydrate 由 `assetDetailQueue` 控制最多 4 路并发，并通过 `assetDetailInFlightById` 复用同一 assetId 的进行中请求；不要把 `/v1/assets/:assetId` 恢复成无限制 `Promise.all`。
-- “查看技能”走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示；接口会返回 `source` / `cachedAt`，同一 skill fingerprint 在短 TTL 内应命中缓存，不要每次点击都 reload skills。
-- `playground` 消息气泡底部的复制正文操作是小型灰色裸 icon：无可见文字、无背景、无边框、无阴影；文字只保留在 `aria-label` / 隐藏文本里，不要再改回占高度的“复制正文”按钮。
-- `playground` 底部 composer textarea 当前按内容自适应，最多显示 10 行，超过后只在 textarea 内部纵向滚动；textarea 必须显式 `rows="1"`，空内容和单行内容保留 CSS `min-height` 来保证 placeholder / 正文纵向居中，placeholder 固定为“和我聊聊吧”。
+- "查看技能"走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示；接口会返回 `source` / `cachedAt`，同一 skill fingerprint 在短 TTL 内应命中缓存，不要每次点击都 reload skills。
+- `playground` 消息气泡底部的复制正文操作是小型灰色裸 icon：无可见文字、无背景、无边框、无阴影；文字只保留在 `aria-label` / 隐藏文本里，不要再改回占高度的"复制正文"按钮。
+- `playground` 底部 composer textarea 当前按内容自适应，最多显示 10 行，超过后只在 textarea 内部纵向滚动；textarea 必须显式 `rows="1"`，空内容和单行内容保留 CSS `min-height` 来保证 placeholder / 正文纵向居中，placeholder 固定为"和我聊聊吧"。
 - `playground` 助手气泡、任务消息结果气泡和后台 run detail `Result` 都走 markdown 渲染与 hydration；正文收口为 `12px`，标题按 `18px / 16px / 14px` 分级，链接、inline code、blockquote 和表格头用轻量颜色区分。用户气泡不要套这组助手输出规则。
-- `playground` 手机端当前采用“顶部紧凑品牌状态栏 / 左侧历史会话抽屉 / 中间 transcript / 底部 composer”结构；状态栏左侧是可点击的 logo + `UGK Claw` 历史入口，右侧只保留 `新会话` 和 `更多` 两个 icon 按钮，`技能 / 文件 / 文件库 / 后台任务 / 任务消息` 收进右上角溢出菜单；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
+- `playground` 手机端当前采用"顶部紧凑品牌状态栏 / 左侧历史会话抽屉 / 中间 transcript / 底部 composer"结构；状态栏左侧是可点击的 logo + `UGK Claw` 历史入口，右侧只保留 `新会话` 和 `更多` 两个 icon 按钮，`技能 / 文件 / 文件库 / 后台任务 / 任务消息` 收进右上角溢出菜单；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
 - `playground` 文件库、后台任务管理器和任务消息页的头部统一按透明单行工具栏收口：只保留标题和必要动作，不显示解释性说明句，不铺独立深色渐变背景；手机端允许横向滚动按钮行，但不要拆回筛选区 / 动作区两层。
 - 任务消息未读数随 `GET /v1/activity`、`POST /v1/activity/:activityId/read` 和 `POST /v1/activity/read-all` 主响应返回；`GET /v1/activity/summary` 只保留给初始化 / 轻量兜底，不要在打开任务消息或标记已读后固定补打一条 summary 请求。
 - 后台任务管理器打开时只应请求一次 `GET /v1/conns`；该接口会在 conn 条目上返回 `latestRun` 摘要，完整 runs 只在展开单个 conn 或打开详情时按需读取。不要再恢复成打开管理器就对所有 conn 做 `1 + N` runs 请求。

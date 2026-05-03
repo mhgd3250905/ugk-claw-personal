@@ -87,6 +87,7 @@ function getPlaygroundScript(): string {
 		const MAX_STORED_CONVERSATIONS = 12;
 		const MAX_STORED_MESSAGES_PER_CONVERSATION = 160;
 		const MAX_ARCHIVED_TRANSCRIPTS = 4;
+		const AGENT_SELECTION_STORAGE_KEY = "ugk-pi:active-agent-id";
 		${getPlaygroundContextUsageConstantsScript()}
 		${getPlaygroundLayoutConstantsScript()}
 		const CONTEXT_STATUS_LABELS = {
@@ -111,11 +112,44 @@ function getPlaygroundScript(): string {
 			};
 		}
 
+		function getCurrentAgentId() {
+			return String(state.agentId || "main").trim() || "main";
+		}
+
+		function getAgentApiPath(path) {
+			const normalizedPath = String(path || "");
+			const suffix = normalizedPath.startsWith("/") ? normalizedPath : "/" + normalizedPath;
+			return "/v1/agents/" + encodeURIComponent(getCurrentAgentId()) + suffix;
+		}
+
+		function normalizeStoredAgentId(agentId) {
+			const normalized = String(agentId || "").trim();
+			return /^[a-zA-Z0-9_-]+$/.test(normalized) ? normalized : "";
+		}
+
+		function readStoredAgentId() {
+			try {
+				return normalizeStoredAgentId(localStorage.getItem(AGENT_SELECTION_STORAGE_KEY)) || "main";
+			} catch {
+				return "main";
+			}
+		}
+
+		function writeStoredAgentId(agentId) {
+			const normalized = normalizeStoredAgentId(agentId) || "main";
+			try {
+				localStorage.setItem(AGENT_SELECTION_STORAGE_KEY, normalized);
+			} catch {}
+			return normalized;
+		}
+
 		const state = {
 			loading: false,
 			theme: "dark",
 			stageMode: "landing",
 			workspaceMode: "chat",
+			agentId: readStoredAgentId(),
+			agentCatalog: [],
 			conversationId: "",
 			streamingText: "",
 			activeAssistantContent: null,
@@ -279,6 +313,8 @@ function getPlaygroundScript(): string {
 		const sendButton = document.getElementById("send-button");
 		const interruptButton = document.getElementById("interrupt-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
+		const agentSelector = document.getElementById("agent-selector");
+		const agentSelectorStatus = document.getElementById("agent-selector-status");
 		const openModelConfigButton = document.getElementById("open-model-config-button");
 		const modelConfigDialog = document.getElementById("model-config-dialog");
 		const modelConfigClose = document.getElementById("model-config-close");
@@ -327,6 +363,95 @@ function getPlaygroundScript(): string {
 				return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 			}
 			return Date.now().toString(36) + Math.random().toString(36).slice(2);
+		}
+
+		function renderAgentSelector() {
+			if (!agentSelector) {
+				return;
+			}
+			const knownAgents = Array.isArray(state.agentCatalog) && state.agentCatalog.length > 0
+				? state.agentCatalog
+				: [
+					{ agentId: "main", name: "主 Agent" },
+					{ agentId: "search", name: "搜索 Agent" },
+				];
+			const currentAgentId = getCurrentAgentId();
+			agentSelector.innerHTML = "";
+			for (const agent of knownAgents) {
+				const agentId = String(agent?.agentId || "").trim();
+				if (!agentId) {
+					continue;
+				}
+				const option = document.createElement("option");
+				option.value = agentId;
+				option.textContent = String(agent?.name || agentId);
+				agentSelector.appendChild(option);
+			}
+			agentSelector.value = currentAgentId;
+			if (agentSelectorStatus) {
+				const current = knownAgents.find((agent) => agent?.agentId === currentAgentId);
+				agentSelectorStatus.textContent = String(current?.name || currentAgentId);
+			}
+		}
+
+		async function loadAgentCatalog() {
+			try {
+				const response = await fetch("/v1/agents", {
+					method: "GET",
+					headers: { accept: "application/json" },
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.message || "无法读取 agent 列表");
+				}
+				state.agentCatalog = Array.isArray(payload?.agents) ? payload.agents : [];
+			} catch {
+				state.agentCatalog = [
+					{ agentId: "main", name: "主 Agent" },
+					{ agentId: "search", name: "搜索 Agent" },
+				];
+			}
+			const knownAgentIds = new Set(state.agentCatalog.map((agent) => String(agent?.agentId || "").trim()).filter(Boolean));
+			if (!knownAgentIds.has(getCurrentAgentId())) {
+				state.agentId = writeStoredAgentId("main");
+			}
+			renderAgentSelector();
+		}
+
+		async function switchAgent(agentId) {
+			const nextAgentId = String(agentId || "").trim();
+			if (!nextAgentId || nextAgentId === getCurrentAgentId()) {
+				renderAgentSelector();
+				return;
+			}
+			if (state.loading) {
+				showError("当前 agent 仍在运行，先别切视窗。");
+				renderAgentSelector();
+				return;
+			}
+
+			stopActiveRunEventStream();
+			abortConversationStateSync();
+			state.agentId = writeStoredAgentId(nextAgentId);
+			state.conversationId = "";
+			state.conversationCatalog = [];
+			state.conversationCatalogSyncedAt = 0;
+			state.conversationCatalogSyncPromise = null;
+			state.conversationHistory = [];
+			state.conversationState = null;
+			state.renderedConversationId = "";
+			state.renderedConversationStateSignature = "";
+			state.historyHasMore = false;
+			state.historyNextBefore = "";
+			conversationInput.value = "";
+			clearRenderedTranscript();
+			resetStreamingState();
+			setTranscriptState("idle");
+			renderConversationDrawer();
+			renderContextUsageBar();
+			renderAgentSelector();
+			clearError();
+			await ensureCurrentConversation({ silent: true });
 		}
 
 		confirmDialogConfirm.addEventListener("click", () => {
@@ -795,6 +920,9 @@ function getPlaygroundScript(): string {
 			interruptButton.addEventListener("click", () => {
 				void interruptRun();
 			});
+			agentSelector?.addEventListener("change", () => {
+				void switchAgent(agentSelector.value);
+			});
 
 			openModelConfigButton.addEventListener("click", () => {
 				void openModelConfigDialog(openModelConfigButton);
@@ -932,6 +1060,7 @@ function getPlaygroundScript(): string {
 			renderConnManager();
 			void loadAssets(true);
 			void syncTaskInboxSummary({ silent: true });
+			void loadAgentCatalog();
 
 			resetStreamingState();
 			clearError();

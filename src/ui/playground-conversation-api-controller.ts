@@ -5,7 +5,7 @@ export function getPlaygroundConversationApiControllerScript(): string {
 				return { conversationId: "", running: false, contextUsage: createFallbackContextUsage() };
 			}
 
-			const response = await fetch("/v1/chat/status?conversationId=" + encodeURIComponent(conversationId), {
+			const response = await fetch(getAgentApiPath("/chat/status") + "?conversationId=" + encodeURIComponent(conversationId), {
 				method: "GET",
 				headers: { accept: "application/json" },
 			});
@@ -35,7 +35,7 @@ export function getPlaygroundConversationApiControllerScript(): string {
 			}
 
 			const stateUrl =
-				"/v1/chat/state?conversationId=" +
+				getAgentApiPath("/chat/state") + "?conversationId=" +
 				encodeURIComponent(nextConversationId) +
 				"&viewLimit=" +
 				encodeURIComponent(String(MAX_STORED_MESSAGES_PER_CONVERSATION));
@@ -98,7 +98,7 @@ export function getPlaygroundConversationApiControllerScript(): string {
 				params.set("before", before);
 			}
 
-			const response = await fetch("/v1/chat/history?" + params.toString(), {
+			const response = await fetch(getAgentApiPath("/chat/history") + "?" + params.toString(), {
 				method: "GET",
 				headers: { accept: "application/json" },
 			});

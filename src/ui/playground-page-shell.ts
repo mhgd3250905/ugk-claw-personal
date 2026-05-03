@@ -94,6 +94,7 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
 					</button>
 					<div class="topbar-context-slot">
+						<span id="agent-selector-status" class="topbar-agent-label">主 Agent</span>
 						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
 							<span class="context-usage-battery" aria-hidden="true">
 								<span id="context-usage-progress" class="context-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
@@ -251,6 +252,13 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span>设置</span>
 					</button>
 					<div class="desktop-rail-settings-menu" role="menu" aria-label="桌面设置">
+						<label class="agent-switcher" for="agent-selector">
+							<span>当前 Agent</span>
+							<select id="agent-selector" aria-label="切换 Agent">
+								<option value="main">主 Agent</option>
+								<option value="search">搜索 Agent</option>
+							</select>
+						</label>
 						<button id="open-model-config-button" class="telemetry-card telemetry-action" type="button" role="menuitem">
 							<span>换源前先验货</span>
 							<strong>模型源</strong>
@@ -295,7 +303,7 @@ ${input.playgroundScript ?? ""}</script>`;
 				</div>
 
 				<div hidden>
-					<span>接口：POST /v1/chat/stream</span>
+					<span>接口：POST /v1/agents/:agentId/chat/stream</span>
 					<div id="status-pill" class="state">就绪</div>
 				</div>
 

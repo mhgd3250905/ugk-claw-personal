@@ -10,7 +10,48 @@
 
 ---
 
+## 2026-05-03
+
+### Agent Profile 元操作接口
+- 日期：2026-05-03
+- 主题：补齐主 Agent 管理独立 agent profile 的第一版元操作能力，新增 `agent-profile-ops` 系统技能和创建 / 归档接口。
+- 影响范围：新增 `.pi/skills/agent-profile-ops`，用于指导主 Agent 查看、创建、配置、切换、验证和归档 agent profile；新增运行态 catalog `.data/agents/profiles.json`，自定义 agent 创建后写入独立 `.data/agents/:agentId` 目录；`POST /v1/agents` 创建 agent，`POST /v1/agents/:agentId/archive` 归档 agent，归档前拒绝运行中的 agent 且禁止归档 `main`；`AgentServiceRegistry` 支持运行时增删 profile。
+- 对应入口：`src/agent/agent-profile.ts`、`src/agent/agent-profile-bootstrap.ts`、`src/agent/agent-profile-catalog.ts`、`src/agent/agent-service-registry.ts`、`src/routes/chat.ts`、`src/server.ts`、`.pi/skills/agent-profile-ops/SKILL.md`、`test/agent-profile-catalog.test.ts`、`test/chat-agent-routes.test.ts`、`docs/playground-current.md`
+- 补充：`agent-profile-ops` 的技能安装边界收紧为“主 Agent 只能给其他 agent profile 复制安装主 Agent 当前已有且来源明确的技能”；主 Agent 没有的技能不能代装、不能外部下载、不能替其他 agent profile 新建业务技能，用户需要时应切换到目标 agent 自己操作。
+- 补充：术语上避免把 agent profile / 操作视窗叫“子 Agent”，以免和 `.pi/agents` legacy subagent 混淆；文档中统一使用“其他 agent profile / 目标 agent / 操作视窗”。
+- 补充：修正“我有哪些 agent”这类中文短句的默认语义：默认指 `/v1/agents` 的独立 agent profile / 操作视窗，不是 `.pi/agents` legacy subagent；只有用户明确说 subagent、`scout/planner/worker/reviewer` 或派发子任务时才进入 subagent 文件。
+- 补充：agent profile 生命周期动作统一加确认门槛；创建、配置、技能复制安装、归档、删除或可能改变当前操作视窗前，主 Agent 必须说明影响并询问用户确认，不能自作主张继续执行，也不能声称能替用户切换 UI 激活 agent。
+
+### Playground Agent 切换刷新保持
+- 日期：2026-05-03
+- 主题：修复桌面端切到搜索 Agent 后刷新页面又回到主 Agent 的问题。
+- 影响范围：当前激活 agent 写入浏览器 `localStorage` 的 `ugk-pi:active-agent-id`；页面初始化时优先读取该值，agent catalog 加载后如果保存的 agent 已不存在则回退 `main`。左侧设置菜单的切换控件和 topbar 当前 agent 标签保持同步。
+- 对应入口：`src/ui/playground.ts`、`test/playground-agent-switch.test.ts`、`docs/playground-current.md`
+
 ## 2026-05-02
+
+### Search Agent MVP 底座
+- 日期：2026-05-02
+- 主题：新增单进程多 agent profile 的第一版底座，内置 `main` 与 `search` 两个 agent，并提供 agent-scoped chat/debug API。
+- 影响范围：`main` 继续兼容旧 `/v1/chat/*` 与 `/v1/debug/skills`；新增 `/v1/agents`、`/v1/agents/:agentId/debug/skills` 和 `/v1/agents/:agentId/chat/*`。`search` 使用独立 `.data/agents/search`、独立 session / conversation index / workspace / `AGENTS.md` / skills 目录，技能可见性只来自自身 `allowedSkillPaths`。Playground 桌面端新增 agent 选择器，当前会话、历史、发送、运行日志和查看技能会随当前 agent 切换。
+- 对应入口：`src/agent/agent-profile.ts`、`src/agent/agent-profile-bootstrap.ts`、`src/agent/agent-service-registry.ts`、`src/server.ts`、`src/routes/chat.ts`、`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-conversation-api-controller.ts`、`src/ui/playground-conversations-controller.ts`、`src/ui/playground-stream-controller.ts`、`src/ui/playground-transcript-renderer.ts`、`src/ui/playground-process-controller.ts`、`test/agent-profile.test.ts`、`test/agent-profile-bootstrap.test.ts`、`test/agent-service-registry.test.ts`、`test/chat-agent-routes.test.ts`、`test/search-agent-skills.test.ts`、`test/playground-agent-switch.test.ts`
+- 补充：搜索 Agent 的默认 `AGENTS.md` 现在明确要求“你有哪些技能”只以 `GET /v1/agents/search/debug/skills` 为事实源；当 scoped 技能清单为空时必须回答未加载技能，禁止从主 Agent、项目文档或历史记忆中推断技能。
+- 补充：非主 agent profile 的技能目录改为仿照主 Agent 的两层结构：`.data/agents/{agentId}/pi/skills` 存放该 agent 的系统技能，`.data/agents/{agentId}/user-skills` 存放该 agent 的用户技能；`search` 默认系统技能中加入最小 `agent-skill-ops`，用于约束技能查询、来源解释和安装/创建技能时的目录边界。
+- 补充：搜索 Agent 的默认 `AGENTS.md` 直接嵌入 `forrestchang/andrej-karpathy-skills` 的 Karpathy Guidelines 原文结构与关键句，并保留来源 / MIT License 标记；作为后续新 agent 模板的最小行为底座。
+- 补充：默认非主 agent profile 系统技能扩展为三件套：`agent-skill-ops`、`agent-runtime-ops`、`agent-filesystem-ops`。三者分别负责技能事实源、运行时状态确认和文件操作边界，仍不默认携带搜索、邮件、浏览器等业务技能。
+- 补充：Playground 桌面端 agent 切换入口从 topbar 挪到左侧会话 rail 底部“设置”菜单；topbar 右侧上下文按钮左侧新增当前激活 agent 标签；当前激活 agent 写入浏览器 `localStorage` 的 `ugk-pi:active-agent-id`，刷新后继续保持，若保存的 agent 不在 catalog 中则回退 `main`。
+
+### AGENTS.md 合并 Karpathy 行为准则
+- 日期：2026-05-02
+- 主题：将 Karpathy 四条编码行为准则（Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution）合并到 AGENTS.md 作为第 2 节。保留原有通信准则、最高准则、项目边界、场景索引、关键路径、固定运行口径和当前稳定事实。
+- 影响范围：AGENTS.md 结构调整，编号重排。Karpathy 四条作为最高级别的编码行为规范优先呈现，项目运行规则紧随其后。
+- 对应入口：`/app/AGENTS.md`
+
+### github-search 检索技能
+- 日期：2026-05-02
+- 主题：新增 `github-search` 技能，通过 GitHub REST API 实现仓库搜索、仓库信息（README/Releases/License/Contributors）、Issues/PRs 搜索、代码搜索、Trending、用户/组织信息六大功能。支持自然语言触发和显式命令 `/github:...` 触发。
+- 影响范围：新增技能只负责 GitHub 数据检索，不接管其他网站搜索、登录交互或页面操作。代码搜索需要 GITHUB_TOKEN 认证，其他功能在无 Token 时也可正常工作。
+- 对应入口：`runtime/skills-user/github-search/SKILL.md`、`runtime/skills-user/github-search/scripts/github_search.py`、`runtime/skills-user/github-search/evals/evals.json`
 
 ### 站点专项搜索技能设计元技能
 - 日期：2026-05-02

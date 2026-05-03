@@ -1,6 +1,17 @@
 # Playground 当前状态
 
-更新时间：`2026-05-01`
+更新时间：`2026-05-03`
+
+## 2026-05-02 多 Agent 操作视窗补充
+
+- Playground 桌面端新增 agent 选择器，第一版只内置 `main` 和 `search` 两个操作视窗。`main` 是既有主 Agent，继续兼容旧 `/v1/chat/*` 和 `/v1/debug/skills`；`search` 是第一个独立 agent profile 样板。
+- 桌面端 agent 切换入口位于左侧历史会话 rail 底部的“设置”菜单中；topbar 右侧上下文按钮左边只显示当前激活 agent 的紧凑标签，不再直接铺开切换控件。当前激活 agent 会写入浏览器 `localStorage` 的 `ugk-pi:active-agent-id`，刷新后继续保持；如果保存的 agent 已不存在，则回退到 `main`。
+- 切换 agent 后，会话目录、当前会话、`GET /v1/chat/state` 对应的新 scoped 请求、发送消息、追加队列、打断、运行日志和查看技能都走 `/v1/agents/:agentId/...`。文件库、任务消息和后台任务当前仍作为共享运行能力，不在第一版拆成 agent 私有库。
+- 主 Agent 的 agent 元操作技能是 `.pi/skills/agent-profile-ops`。第一版后端接口支持 `GET /v1/agents`、`POST /v1/agents` 创建运行态 agent profile，以及 `POST /v1/agents/:agentId/archive` 归档 agent；创建出的 profile 记录在 `.data/agents/profiles.json`，归档目录为 `.data/agents-archive/`。主 Agent 给其他 agent profile 安装技能时只能复制主 Agent 当前已有且来源明确的技能；主 Agent 没有的技能不能代装，用户应切换到目标 agent 自己安装或创建。
+- 涉及 agent profile 创建、配置、技能复制安装、归档、删除或可能改变当前操作视窗的动作时，主 Agent 必须先说明影响并取得用户明确确认；不能把“要不要继续”替用户决定。当前没有自动切换 UI 激活 agent 的口径，主 Agent 只能提示用户在左侧设置菜单手动切换。
+- `search` 的技能清单必须只来自 `.data/agents/search/pi/skills` 和 `.data/agents/search/user-skills` 对应的 `allowedSkillPaths`，不能因为项目存在 `.pi/skills` 或 `runtime/skills-user` 就看到主 Agent 技能。用户问“你有哪些技能”时，Playground 的查看技能入口也必须查询当前 agent 的 scoped debug skills。
+- 浏览器本地历史缓存按 `agentId + conversationId` 分区；不能让两个 agent 的同名或相似会话在 localStorage 里串场。
+- 当前这只是“单进程多 agent profile”底座，不是强隔离容器，也不是主 Agent 动态创建 agent。后续创建接口和主 Agent 创建技能要等 `search` 样板验证稳定后再抽象。
 
 ## 运行时外部化模式
 

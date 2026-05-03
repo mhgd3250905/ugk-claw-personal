@@ -188,7 +188,7 @@ export function getPlaygroundConversationControllerScript(): string {
 		}
 
 		async function fetchConversationCatalog(options) {
-			const response = await fetch("/v1/chat/conversations", {
+			const response = await fetch(getAgentApiPath("/chat/conversations"), {
 				method: "GET",
 				headers: { accept: "application/json" },
 				signal: options?.signal,
@@ -216,7 +216,7 @@ export function getPlaygroundConversationControllerScript(): string {
 				},
 				body: JSON.stringify({}),
 			};
-			const response = await fetch("/v1/chat/conversations", requestOptions);
+			const response = await fetch(getAgentApiPath("/chat/conversations"), requestOptions);
 			const payload = await response.json().catch(() => ({}));
 			if (!response.ok) {
 				const errorMessage = payload?.error?.message || payload?.message || "无法开启新会话";
@@ -233,7 +233,7 @@ export function getPlaygroundConversationControllerScript(): string {
 
 		async function switchConversationOnServer(conversationId) {
 			const nextConversationId = String(conversationId || "").trim();
-			const response = await fetch("/v1/chat/current", {
+			const response = await fetch(getAgentApiPath("/chat/current"), {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
@@ -259,7 +259,7 @@ export function getPlaygroundConversationControllerScript(): string {
 
 		async function deleteConversationOnServer(conversationId) {
 			const targetConversationId = String(conversationId || "").trim();
-			const response = await fetch("/v1/chat/conversations/" + encodeURIComponent(targetConversationId), {
+			const response = await fetch(getAgentApiPath("/chat/conversations/" + encodeURIComponent(targetConversationId)), {
 				method: "DELETE",
 				headers: {
 					accept: "application/json",

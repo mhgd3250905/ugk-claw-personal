@@ -5,6 +5,13 @@ import { getAppConfig } from "./config.js";
 import { AgentService } from "./agent/agent-service.js";
 import { AgentActivityStore } from "./agent/agent-activity-store.js";
 import { AssetStore, type AssetStoreLike } from "./agent/asset-store.js";
+import {
+	DEFAULT_AGENT_ID,
+	type AgentProfile,
+} from "./agent/agent-profile.js";
+import { loadAgentProfilesSync } from "./agent/agent-profile-catalog.js";
+import { ensureAgentProfileRuntimeSync } from "./agent/agent-profile-bootstrap.js";
+import { AgentServiceRegistry } from "./agent/agent-service-registry.js";
 import { createDefaultAgentSessionFactory } from "./agent/agent-session-factory.js";
 import { ConversationStore } from "./agent/conversation-store.js";
 import { ConnDatabase } from "./agent/conn-db.js";
@@ -27,6 +34,8 @@ import { FeishuSettingsStore } from "./integrations/feishu/settings-store.js";
 
 export interface BuildServerOptions {
 	agentService?: AgentService;
+	agentServiceRegistry?: AgentServiceRegistry<AgentService>;
+	agentProfileProjectRoot?: string;
 	assetStore?: AssetStoreLike;
 	connStore?: ConnSqliteStore;
 	connRunStore?: ConnRunStore;
@@ -59,18 +68,32 @@ function createDefaultConnDatabase(dbPath: string): ConnDatabase {
 	return database;
 }
 
-function createDefaultAgentService(assetStore: AssetStoreLike): AgentService {
+function createDefaultAgentService(assetStore: AssetStoreLike, profile?: AgentProfile): AgentService {
 	const config = getAppConfig();
-	const conversationStore = new ConversationStore(config.conversationIndexPath);
+	const conversationStore = new ConversationStore(profile?.conversationIndexPath ?? config.conversationIndexPath);
 	const sessionFactory = createDefaultAgentSessionFactory({
 		projectRoot: config.projectRoot,
-		sessionDir: config.agentSessionsDir,
+		sessionDir: profile?.sessionsDir ?? config.agentSessionsDir,
+		...(profile?.agentDir ? { agentDir: profile.agentDir } : {}),
+		...(profile?.allowedSkillPaths ? { allowedSkillPaths: profile.allowedSkillPaths } : {}),
+		...(profile?.runtimeAgentRulesPath ? { runtimeAgentRulesPath: profile.runtimeAgentRulesPath } : {}),
 	});
 
 	return new AgentService({
 		conversationStore,
 		sessionFactory,
 		assetStore,
+	});
+}
+
+function createDefaultAgentServiceRegistry(assetStore: AssetStoreLike): AgentServiceRegistry<AgentService> {
+	const config = getAppConfig();
+	return new AgentServiceRegistry({
+		profiles: loadAgentProfilesSync(config.projectRoot),
+		createService: (profile) => {
+			ensureAgentProfileRuntimeSync(profile);
+			return createDefaultAgentService(assetStore, profile);
+		},
 	});
 }
 
@@ -85,7 +108,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 			? undefined
 			: createDefaultConnDatabase(config.connDatabasePath);
 	const notificationHub = options.notificationHub ?? new NotificationHub();
-	const agentService = options.agentService ?? createDefaultAgentService(assetStore);
+	const agentServiceRegistry = options.agentServiceRegistry ?? createDefaultAgentServiceRegistry(assetStore);
+	const agentService = options.agentService ?? agentServiceRegistry.get(DEFAULT_AGENT_ID) ?? createDefaultAgentService(assetStore);
 	const connStore = options.connStore ?? new ConnSqliteStore({ database: connDatabase! });
 	const connRunStore = options.connRunStore ?? new ConnRunStore({ database: connDatabase! });
 	const activityStore = options.activityStore ?? new AgentActivityStore({ database: connDatabase! });
@@ -106,7 +130,11 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	registerPlaygroundRoute(app, { projectRoot: config.projectRoot });
 	registerStaticRoutes(app, { projectRoot: config.projectRoot });
 	registerActivityRoutes(app, { activityStore });
-	registerChatRoutes(app, { agentService });
+	registerChatRoutes(app, {
+		agentService,
+		agentServiceRegistry,
+		projectRoot: options.agentProfileProjectRoot ?? config.projectRoot,
+	});
 	registerRuntimeDebugRoutes(app, { projectRoot: config.projectRoot });
 	registerModelConfigRoutes(app, {
 		projectRoot: config.projectRoot,

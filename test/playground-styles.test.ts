@@ -15,7 +15,7 @@ test("playground styles keep desktop rail full height and reset it on phones", (
 	const styles = getPlaygroundStyles();
 
 	assert.match(styles, /\.shell\s*\{[\s\S]*grid-template-columns:\s*260px minmax\(0, 1fr\);/);
-	assert.match(styles, /\.shell\s*\{[\s\S]*column-gap:\s*0;/);
+	assert.match(styles, /\.shell\s*\{[\s\S]*column-gap:\s*16px;/);
 	assert.match(styles, /\.topbar\s*\{[\s\S]*grid-column:\s*2;[\s\S]*grid-row:\s*1;/);
 	assert.match(styles, /\.topbar-context-slot\s*\{[\s\S]*display:\s*flex;/);
 	assert.match(styles, /\.desktop-conversation-rail\s*\{[\s\S]*grid-row:\s*1 \/ -1;/);

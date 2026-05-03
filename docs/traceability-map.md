@@ -46,6 +46,10 @@
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
+再记一句：当前已开始引入“单进程多 agent profile”底座，第一版内置 `main` 与 `search`，后续自定义 agent 记录在 `.data/agents/profiles.json`。`main` 继续走旧 `/v1/chat/*`，`search` 和后续 agent 走 `/v1/agents/:agentId/...`。排查技能串场、会话串场或创建 / 归档 agent 时先看 [src/agent/agent-profile.ts](/E:/AII/ugk-pi/src/agent/agent-profile.ts)、[src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)、[src/agent/agent-service-registry.ts](/E:/AII/ugk-pi/src/agent/agent-service-registry.ts)、[src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)、[.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md) 和 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
+
+用户问“我有哪些 agent / 有哪些 agent / 当前有哪些 agent”时，默认指 `/v1/agents` 的 agent profile / 操作视窗，不是 `.pi/agents` 里的 legacy subagent。只有明确说 `subagent`、`scout/planner/worker/reviewer` 或“派发子任务”时才看 `.pi/agents`。
+
 再记一句：当前代码主仓库已经切到 GitHub，服务器默认部署目录也已经迁到 `~/ugk-claw-repo`；旧的 `~/ugk-pi-claw` 只留给回滚和比对，别再把它当默认更新入口。
 
 如果是云端 `/init`，再记一句：
@@ -198,13 +202,28 @@
 先看：
 
 1. `GET /v1/debug/skills`
-2. `GET /v1/debug/runtime`
-3. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-4. [src/routes/runtime-debug.ts](/E:/AII/ugk-pi/src/routes/runtime-debug.ts)
-5. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
-6. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
-7. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
-8. [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
+2. `GET /v1/agents/:agentId/debug/skills`
+3. `GET /v1/debug/runtime`
+4. [src/agent/agent-profile.ts](/E:/AII/ugk-pi/src/agent/agent-profile.ts)
+5. [src/agent/agent-profile-bootstrap.ts](/E:/AII/ugk-pi/src/agent/agent-profile-bootstrap.ts)
+6. [src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)
+7. [src/agent/agent-service-registry.ts](/E:/AII/ugk-pi/src/agent/agent-service-registry.ts)
+8. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+9. [src/routes/runtime-debug.ts](/E:/AII/ugk-pi/src/routes/runtime-debug.ts)
+10. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
+11. [.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md)
+12. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
+13. [.data/agents/search/pi/skills](/E:/AII/ugk-pi/.data/agents/search/pi/skills)
+14. [.data/agents/search/user-skills](/E:/AII/ugk-pi/.data/agents/search/user-skills)
+15. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+16. [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
+
+多 agent 口径：
+
+- 旧 `GET /v1/debug/skills` 只代表 `main`。
+- `search` 必须查 `GET /v1/agents/search/debug/skills`。
+- 创建 agent 走 `POST /v1/agents`，归档 agent 走 `POST /v1/agents/:agentId/archive`；不要直接删除 `.data/agents/:agentId`。
+- `search` 的 `allowedSkillPaths` 包含 `.data/agents/search/pi/skills` 和 `.data/agents/search/user-skills`，不能回退到主 Agent 的 `.pi/skills` 或 `runtime/skills-user`。如果 search 能看到 main-only skill，说明隔离被打穿，别靠 prompt 自觉糊弄过去。
 
 如果问题跟以下内容有关，直接进 web-access 专题文档，不要在别的地方绕：
 
