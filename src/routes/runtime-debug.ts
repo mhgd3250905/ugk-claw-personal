@@ -28,6 +28,7 @@ export function registerRuntimeDebugRoutes(app: FastifyInstance, deps: RuntimeDe
 		const config = getAppConfig(deps.projectRoot);
 		const checks = await Promise.all([
 			checkPath("agent data dir", config.agentDataDir, constants.R_OK | constants.W_OK),
+			checkPath("agents data dir", config.agentsDataDir, constants.R_OK | constants.W_OK),
 			checkPath("agent sessions dir", config.agentSessionsDir, constants.R_OK | constants.W_OK),
 			checkPath("skills dir", runtimeSkillsDir(config.projectRoot), constants.R_OK),
 			checkPath("conn sqlite path", config.connDataDir, constants.R_OK | constants.W_OK),

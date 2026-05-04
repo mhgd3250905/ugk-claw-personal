@@ -59,7 +59,7 @@ npm run server:ops -- aliyun verify
 
 ## 异常处理
 
-`/healthz` 只回答“app 进程是否活着”。`/v1/debug/runtime` 回答“运行态是否像生产应该有的样子”：包括 agent data、session、skills、conn SQLite 目录和公开 URL / browser provider 这类非敏感配置。只看 `/healthz` 就宣布发布成功，基本等于只摸了下服务器还有脉搏，离体检还差得远。
+`/healthz` 只回答“app 进程是否活着”。`/v1/debug/runtime` 回答“运行态是否像生产应该有的样子”：包括主 Agent data、自定义 agents data、session、skills、conn SQLite 目录和公开 URL / browser provider 这类非敏感配置。只看 `/healthz` 就宣布发布成功，基本等于只摸了下服务器还有脉搏，离体检还差得远。
 
 如果脚本提示远端工作树是 dirty，先停，不要 `git reset --hard`。把远端 diff 或文件备份到 shared backups，再判断是生产热修、运行态误入仓库，还是应该正式回收入库的代码改动。
 

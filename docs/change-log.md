@@ -15,8 +15,8 @@
 ### 自定义 Agent 运行态挂载修复
 - 日期：2026-05-04
 - 主题：把自定义 agent profile 运行态目录 `/app/.data/agents` 外置到 shared，避免生产容器重建后自定义 Agent 消失。
-- 影响范围：生产 compose 现在通过 `UGK_AGENTS_DATA_DIR` 挂载 shared `.data/agents` 到 app / conn-worker / feishu-worker；服务器运维脚本新增 env guard 和容器内 `/app/.data/agents` 可写检查。文档同步区分主 Agent 数据 `/app/.data/agent` 和自定义 agent profile 数据 `/app/.data/agents`，别再把两类状态混成一个目录。
-- 对应入口：`docker-compose.prod.yml`、`.env.example`、`scripts/server-ops.mjs`、`docs/server-ops.md`、`AGENTS.md`、`test/containerization.test.ts`、`test/server-ops-script.test.ts`
+- 影响范围：生产 compose 现在通过 `UGK_AGENTS_DATA_DIR` 挂载 shared `.data/agents` 到 app / conn-worker / feishu-worker；服务器运维脚本新增 env guard 和容器内 `/app/.data/agents` 可写检查。`GET /v1/debug/runtime` 也新增 `agents data dir` 检查，避免绕过 server ops 时漏掉自定义 Agent 持久化目录。文档同步区分主 Agent 数据 `/app/.data/agent` 和自定义 agent profile 数据 `/app/.data/agents`，别再把两类状态混成一个目录。
+- 对应入口：`docker-compose.prod.yml`、`.env.example`、`scripts/server-ops.mjs`、`src/config.ts`、`src/routes/runtime-debug.ts`、`docs/server-ops.md`、`AGENTS.md`、`test/containerization.test.ts`、`test/server-ops-script.test.ts`、`test/runtime-debug.test.ts`、`test/server.test.ts`
 
 ### Agent 运行态治理计划口径收口
 - 日期：2026-05-04

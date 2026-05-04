@@ -35,6 +35,7 @@ test("GET /v1/debug/runtime reports runtime checks without exposing secrets", as
 		assert.equal(payload.config.webAccessBrowserPublicBaseUrl, "http://ugk-pi:3000");
 		assert.ok(Array.isArray(payload.checks));
 		assert.ok(payload.checks.some((check: { name?: string }) => check.name === "agent data dir"));
+		assert.ok(payload.checks.some((check: { name?: string }) => check.name === "agents data dir"));
 		assert.ok(payload.checks.some((check: { name?: string }) => check.name === "skills dir"));
 		assert.ok(payload.checks.some((check: { name?: string }) => check.name === "conn sqlite path"));
 		assert.ok(payload.checks.some((check: { ok?: boolean }) => check.ok === false));

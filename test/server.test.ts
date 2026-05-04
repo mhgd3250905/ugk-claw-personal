@@ -4785,6 +4785,7 @@ test("GET /v1/debug/runtime is registered on the main server", async () => {
 	assert.equal(typeof body.ok, "boolean");
 	assert.ok(Array.isArray(body.checks));
 	assert.ok(body.checks.some((check: { name?: string }) => check.name === "agent data dir"));
+	assert.ok(body.checks.some((check: { name?: string }) => check.name === "agents data dir"));
 	assert.equal(typeof body.config, "object");
 	assert.doesNotMatch(response.body, /API_KEY|SECRET|DASHSCOPE/i);
 	await app.close();

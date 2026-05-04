@@ -8,6 +8,7 @@ export interface AppConfig {
 	projectRoot: string;
 	dataDir: string;
 	agentDataDir: string;
+	agentsDataDir: string;
 	agentSessionsDir: string;
 	conversationIndexPath: string;
 	agentAssetsDir: string;
@@ -53,6 +54,7 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 	loadApiKeyFromApiTxt(projectRoot, "XIAOMI_MIMO_API_KEY", "小米api.txt");
 	const dataDir = join(projectRoot, ".data");
 	const agentDataDir = join(dataDir, "agent");
+	const agentsDataDir = join(dataDir, "agents");
 	const agentSessionsDir = join(agentDataDir, "sessions");
 	const conversationIndexPath = join(agentDataDir, "conversation-index.json");
 	const agentAssetsDir = join(agentDataDir, "assets");
@@ -72,6 +74,7 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 		projectRoot,
 		dataDir,
 		agentDataDir,
+		agentsDataDir,
 		agentSessionsDir,
 		conversationIndexPath,
 		agentAssetsDir,
