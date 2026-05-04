@@ -190,7 +190,7 @@ export class ConnWorker {
 			}
 			await timeoutEventPromise;
 			if (isDeliverableFinalStatus(result?.status)) {
-				await this.deliverRunResult(conn, result, now);
+				await this.deliverRunResult(conn, result, resolveRunResultDate(result, new Date()));
 			}
 		} catch (error) {
 			await heartbeat.stop();
@@ -198,10 +198,11 @@ export class ConnWorker {
 				clearTimeout(timeoutHandle);
 			}
 			await timeoutEventPromise;
+			const failedAt = new Date();
 			const message = error instanceof Error ? error.message : "Unknown conn worker error";
 			const latestRun = await this.options.runStore.getRun(run.runId);
 			if (latestRun && ["failed", "succeeded", "cancelled"].includes(latestRun.status)) {
-				await this.deliverRunResult(conn, latestRun, now);
+				await this.deliverRunResult(conn, latestRun, resolveRunResultDate(latestRun, failedAt));
 				return;
 			}
 			const failedRun = await this.options.runStore.failRun({
@@ -209,10 +210,10 @@ export class ConnWorker {
 				leaseOwner: this.options.workerId,
 				summary: message,
 				errorText: message,
-				finishedAt: now,
+				finishedAt: failedAt,
 			});
 			if (failedRun) {
-				await this.deliverRunResult(conn, failedRun, now);
+				await this.deliverRunResult(conn, failedRun, failedAt);
 			}
 		}
 	}
@@ -240,6 +241,14 @@ export class ConnWorker {
 
 function isDeliverableFinalStatus(status: ConnRunRecord["status"] | undefined): status is "succeeded" | "failed" | "cancelled" {
 	return status === "succeeded" || status === "failed" || status === "cancelled";
+}
+
+function resolveRunResultDate(run: ConnRunRecord, fallback: Date): Date {
+	if (!run.finishedAt) {
+		return fallback;
+	}
+	const date = new Date(run.finishedAt);
+	return Number.isNaN(date.getTime()) ? fallback : date;
 }
 
 function resolveNotificationTitleSuffix(status: ConnRunRecord["status"]): string {

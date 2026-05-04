@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### Conn 后台任务执行契约与时间戳修复
+- 日期：2026-05-04
+- 主题：修复 conn run 完成时间复用领取时间的问题，并加硬后台任务 workspace contract。
+- 影响范围：`BackgroundAgentRunner` 现在在 session 实际完成 / 失败时记录 `finishedAt`、终态事件和输出文件索引时间；`ConnWorker` 创建任务消息和通知时优先使用 run 的 `finishedAt`。后台 prompt 也明确要求脚本 / 文件 / 浏览器类任务必须调用工具，持久产物写入 `output/`，不得在未完成工具调用时汇报成功，减少 `task_inbox` / 定时任务“嘴上执行成功”的假阳性。
+- 对应入口：`src/agent/background-agent-runner.ts`、`src/workers/conn-worker.ts`、`test/background-agent-runner.test.ts`、`test/conn-worker.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### SearXNG 本机验收与运维口径补充
 - 日期：2026-05-04
 - 主题：补充 `/searx:` 显式搜索的本机验收结论、参数使用口径和阿里云出口网络限制。

@@ -481,6 +481,41 @@ test("ConnWorker enqueues due conn runs, executes one claim, and creates a task 
 	database.close();
 });
 
+test("ConnWorker uses the run finishedAt timestamp when creating result activity", async () => {
+	const runner = {
+		async run(conn: ConnDefinition, run: ConnRunRecord): Promise<ConnRunRecord | undefined> {
+			return {
+				...run,
+				status: "succeeded",
+				resultSummary: `summary for ${conn.title}`,
+				resultText: `result for ${conn.title}`,
+				finishedAt: "2026-04-21T10:03:30.000Z",
+			};
+		},
+	};
+	const { database, connStore, activityStore, broadcasts, worker } = await createWorkerWithOptions(runner, {});
+	const conn = await connStore.create({
+		title: "Slow Digest",
+		prompt: "Summarize",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	await worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+
+	const activities = await activityStore.list();
+	assert.equal(activities[0]?.createdAt, "2026-04-21T10:03:30.000Z");
+	assert.equal(broadcasts[0]?.createdAt, "2026-04-21T10:03:30.000Z");
+
+	database.close();
+});
+
 test("ConnWorker mirrors global activity notifications to the optional activity notifier", async () => {
 	const runner = new FakeRunner();
 	const activityNotifications: string[] = [];
@@ -906,7 +941,7 @@ test("ConnWorker fails runs that exceed conn maxRunMs and delivers a failure act
 			runId: runs[0].runId,
 			kind: "conn_result",
 			title: "Timed Run failed",
-			createdAt: "2026-04-21T10:01:05.000Z",
+			createdAt: runs[0].finishedAt,
 		},
 	]);
 	assert.deepEqual(

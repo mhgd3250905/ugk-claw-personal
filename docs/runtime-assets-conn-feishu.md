@@ -222,6 +222,8 @@ Run 查询接口：
 - 后台任务创建 / 编辑界面会从 `GET /v1/model-config` 读取和前台对话同源的 API 源与模型列表，并把选中的 `modelProvider / modelId` 保存到 conn 本身。后台 run 解析 snapshot 时优先使用任务级模型，其次才看 `modelPolicyId` 指向的策略，最后才回退项目默认模型；不要再指望通过同步前台 `.pi/settings.json` 来控制 worker。
 - 底层 `@mariozechner/pi-coding-agent` 已升级到 `0.70.6` 系列，带上游 DeepSeek V4 replay 修复；后台任务和前台会话复用同一个 session 工厂，因此工具调用后的多轮 DeepSeek 历史回放不应再因为缺少 assistant `reasoning_content` 被上游拒绝。
 - 后台 worker 创建 agent session 时必须使用 resolved snapshot 中的 `provider / model` 显式解析模型；如果 `runtime/pi-agent/models.json` 找不到对应模型，run 应明确失败，不允许静默 fallback 到 registry 第一个模型。唯一例外是旧 DeepSeek provider 的显式兼容 alias：历史 `deepseek-anthropic/deepseek-v4-pro` 会迁移到 `deepseek/deepseek-v4-pro`，历史 `deepseek-anthropic/deepseek-v4-flash` 会迁移到恢复后的 `deepseek/deepseek-v4-flash`；其他模型缺失仍然失败。否则后台定时任务会悄悄换模型，账单和效果都变成盲盒，别这么玩。
+- 后台 runner 注入给模型的 workspace contract 现在明确三件事：需要命令、文件或浏览器自动化时必须调用工具；只有写入 `output/` 的最终交付物会被索引为持久 conn 输出；没有完成必要工具调用时不得汇报执行成功。不要再写“运行某技能”这种玄学 prompt 后期待模型自动悟道，脚本型任务应给出明确命令或明确的工具执行步骤。
+- conn run 的 `finishedAt`、`run_succeeded` / `run_failed` 事件时间、输出文件索引时间和任务消息 `createdAt` 均以真实终止时刻为准，不再复用 worker 领取任务时的 `tick(now)`。如果 `startedAt == finishedAt`，现在更能代表任务确实瞬间结束，而不是后台跑了 100 秒但时钟被写瞎。
 - 后台任务完成 / 失败 / 取消后写入任务消息页的 activity 正文，会在开头追加 `执行 Agent：...` 和 `执行模型：provider / model`。Agent 行来自该 run 的 `resolvedSnapshot.agentName/agentId`；如果发生降级，要显示“原执行 Agent 不可用，已由主 Agent 完成”这类可见提示。模型行来自 `resolvedSnapshot.provider/model`，展示实际执行模型，不拿当前设置或 conn 表单字段猜。
 - 后台 runner 生成 `resultText` 时会优先保留用户真正要的可见答案；如果最后一条 assistant 文本只是“输出文件已写入”这类低信息量收尾，会回退到前面更有用的回答。别再让通知正文只剩一个文件路径，用户不是来猜谜的。
 - run 成功后会扫描该 workspace 的 `output/` 目录，并把真实输出文件写入 `conn_run_files`；因此 run 详情里的“输出文件索引”应与后台生成物对齐。

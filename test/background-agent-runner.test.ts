@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { writeFile, mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { setTimeout as delay } from "node:timers/promises";
 import { BackgroundAgentProfileResolver } from "../src/agent/background-agent-profile.js";
 import { BackgroundAgentRunner, type BackgroundAgentSessionFactory } from "../src/agent/background-agent-runner.js";
 import { BackgroundWorkspaceManager } from "../src/agent/background-workspace.js";
@@ -214,6 +215,17 @@ class OutputWritingSession extends FakeSession {
 	}
 }
 
+class DelayedSession extends FakeSession {
+	constructor() {
+		super({ resultText: "delayed result" });
+	}
+
+	override async prompt(message: string): Promise<void> {
+		await delay(20);
+		await super.prompt(message);
+	}
+}
+
 function extractPromptPath(message: string, prefix: string): string {
 	const line = message.split(/\r?\n/).find((entry) => entry.startsWith(prefix));
 	assert.ok(line, `expected prompt to include ${prefix}`);
@@ -291,6 +303,74 @@ test("BackgroundAgentRunner executes a conn run in an isolated workspace and rec
 		String((session.messages?.[0] as { content?: unknown } | undefined)?.content ?? ""),
 		/\[当前时间：[^\]]+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/,
 	);
+
+	database.close();
+});
+
+test("BackgroundAgentRunner records finishedAt when the session actually completes", async () => {
+	const { database, connStore, runStore, runner } = await createRunner({
+		session: new DelayedSession(),
+	});
+	const conn = await connStore.create({
+		title: "Delayed Task",
+		prompt: "Summarize slowly",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-delayed-finish",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	const startedAt = new Date("2026-04-21T10:01:05.000Z");
+
+	const completed = await runner.run(conn, run, startedAt);
+
+	assert.equal(completed?.status, "succeeded");
+	assert.ok(completed?.finishedAt, "expected finishedAt to be set");
+	assert.notEqual(completed?.finishedAt, startedAt.toISOString());
+	assert.ok(Date.parse(completed.finishedAt) > startedAt.getTime());
+
+	database.close();
+});
+
+test("BackgroundAgentRunner prompt tells background tasks to use tools and output for durable files", async () => {
+	const session = new FakeSession({ resultText: "done" });
+	const { database, connStore, runStore, runner } = await createRunner({ session });
+	const conn = await connStore.create({
+		title: "Script Task",
+		prompt: "Run the script",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-contract",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	const prompt = String(session.messages[0]?.content ?? "");
+	assert.match(prompt, /If this task requires commands, file operations, or browser automation, call the available tools/);
+	assert.match(prompt, /Only files written under the final deliverables directory are indexed and durable conn outputs/);
+	assert.match(prompt, /Do not report execution success unless the required tool calls actually completed/);
 
 	database.close();
 });

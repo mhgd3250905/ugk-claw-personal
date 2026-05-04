@@ -129,45 +129,47 @@ export class BackgroundAgentRunner {
 			unsubscribe?.();
 			unsubscribe = undefined;
 
-			await recordOutputFiles(this.options.runStore, run.runId, run.leaseOwner, workspace, now);
+			const finishedAt = new Date();
+			await recordOutputFiles(this.options.runStore, run.runId, run.leaseOwner, workspace, finishedAt);
 			const resultText = extractAssistantText(session);
 			const summary = resultText.slice(0, 200) || "Conn run completed";
 			await this.options.runStore.updateRuntimeInfo({
 				runId: run.runId,
 				leaseOwner: run.leaseOwner,
 				sessionFile: session.sessionFile,
-				now,
+				now: finishedAt,
 			});
 			await this.options.runStore.appendEvent({
 				runId: run.runId,
 				leaseOwner: run.leaseOwner,
 				eventType: "run_succeeded",
 				event: { summary },
-				createdAt: now,
+				createdAt: finishedAt,
 			});
 			return await this.options.runStore.completeRun({
 				runId: run.runId,
 				leaseOwner: run.leaseOwner,
 				summary,
 				text: resultText,
-				finishedAt: now,
+				finishedAt,
 			});
 		} catch (error) {
 			unsubscribe?.();
+			const failedAt = new Date();
 			const message = error instanceof Error ? error.message : "Unknown background conn run error";
 			await this.options.runStore.appendEvent({
 				runId: run.runId,
 				leaseOwner: run.leaseOwner,
 				eventType: "run_failed",
 				event: { error: message },
-				createdAt: now,
+				createdAt: failedAt,
 			});
 			return await this.options.runStore.failRun({
 				runId: run.runId,
 				leaseOwner: run.leaseOwner,
 				summary: message,
 				errorText: message,
-				finishedAt: now,
+				finishedAt: failedAt,
 			});
 		} finally {
 			await closeBrowserTargets(browserCleanupScope);
@@ -231,6 +233,9 @@ function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace): s
 		`- Write intermediate files to: ${workspace.workDir}`,
 		`- Write final deliverables to: ${workspace.outputDir}`,
 		`- Write logs to: ${workspace.logsDir}`,
+		"- If this task requires commands, file operations, or browser automation, call the available tools; do not answer from intention alone.",
+		"- Only files written under the final deliverables directory are indexed and durable conn outputs.",
+		"- Do not report execution success unless the required tool calls actually completed.",
 		"- Final response should summarize the result and mention output files.",
 	].join("\n");
 }
