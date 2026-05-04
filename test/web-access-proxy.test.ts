@@ -108,3 +108,35 @@ test("cdp proxy exposes /enter as an Enter key shortcut", async () => {
 		await once(server, "close");
 	}
 });
+
+test("cdp proxy exposes /session/navigate for scoped single-tab navigation", async () => {
+	const calls: Array<{ command: Record<string, unknown>; meta?: Record<string, unknown> }> = [];
+	const server = createProxyServer({
+		requestHostBrowser: async (command: Record<string, unknown>, options: { meta?: Record<string, unknown> }) => {
+			calls.push({ command, meta: options.meta });
+			return { ok: true, page: { id: "target-1", url: command.url } };
+		},
+	});
+
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as AddressInfo;
+
+	try {
+		const response = await fetch(
+			`http://127.0.0.1:${port}/session/navigate?url=https%3A%2F%2Fexample.com%2Fnext&metaAgentScope=scope-1`,
+			{ method: "POST" },
+		);
+
+		assert.equal(response.status, 200);
+		assert.deepEqual(await response.json(), { ok: true, page: { id: "target-1", url: "https://example.com/next" } });
+		assert.deepEqual(calls[0]?.command, {
+			action: "navigate_session",
+			url: "https://example.com/next",
+		});
+		assert.equal(calls[0]?.meta?.operation, "navigate_session");
+		assert.equal(calls[0]?.meta?.agentScope, "scope-1");
+	} finally {
+		server.close();
+		await once(server, "close");
+	}
+});

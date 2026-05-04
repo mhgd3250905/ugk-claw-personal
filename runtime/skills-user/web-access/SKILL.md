@@ -156,6 +156,7 @@ curl -s "http://127.0.0.1:3456/new?url=https%3A%2F%2Fexample.com"
 curl -s "http://127.0.0.1:3456/session/target?metaAgentScope=${AGENT_SCOPE}"
 curl -s -X POST "http://127.0.0.1:3456/session/target?target=ID&metaAgentScope=${AGENT_SCOPE}"
 curl -s -X DELETE "http://127.0.0.1:3456/session/target?metaAgentScope=${AGENT_SCOPE}"
+curl -s -X POST "http://127.0.0.1:3456/session/navigate?url=https%3A%2F%2Fexample.com&metaAgentScope=${AGENT_SCOPE}"
 curl -s -X POST "http://127.0.0.1:3456/session/close-all?metaAgentScope=${AGENT_SCOPE}"
 curl -s "http://127.0.0.1:3456/info?target=ID"
 curl -s -X POST "http://127.0.0.1:3456/eval?target=ID" -d 'document.title'
@@ -169,7 +170,7 @@ curl -s "http://127.0.0.1:3456/screenshot?target=ID&file=/tmp/page.png"
 curl -s "http://127.0.0.1:3456/close?target=ID"
 ```
 
-When passing a nested URL into `/new` or `/navigate`, URL-encode it first. Otherwise query params inside the target URL can be mistaken for proxy params.
+When passing a nested URL into `/new`, `/navigate`, or `/session/navigate`, URL-encode it first. Otherwise query params inside the target URL can be mistaken for proxy params.
 
 For React, Draft.js, ProseMirror, and other rich text editors, prefer `/type` after focusing the editor with `/eval`, for example `editor.focus()`. The `/type` endpoint uses CDP `Input.insertText`, which follows the browser text input path more closely than `document.execCommand('insertText')`. It inserts at the current cursor position and does not clear existing content.
 
@@ -183,7 +184,7 @@ Define the current agent scope once when browser work may span multiple commands
 AGENT_SCOPE="${CLAUDE_AGENT_ID:-${CLAUDE_HOOK_AGENT_ID:-${agent_id:-}}}"
 ```
 
-Use that scope on proxy requests with `metaAgentScope=${AGENT_SCOPE}` so the proxy can reuse the current agent-owned target instead of competing for a shared page.
+Use that scope on proxy requests with `metaAgentScope=${AGENT_SCOPE}` so the proxy can reuse the current agent-owned target instead of competing for a shared page. For manual page changes, prefer `POST /session/navigate?url=...&metaAgentScope=${AGENT_SCOPE}`. It reuses the scoped default target and creates one only when missing. `/new` is a lower-level escape hatch; within the same scope it replaces the old default target before registering the new one, so do not use it to accumulate scratch tabs.
 
 For a concrete URL, prefer the automatic runner:
 
@@ -193,4 +194,4 @@ node /app/runtime/skills-user/web-access/scripts/staged-route-cli.mjs run-url --
 
 Only use `recommend` or `report` for manual route debugging.
 
-Prefer `eval` for extraction. Open your own target with `/new`. Close targets you created unless you intentionally keep an agent-owned page alive for follow-up work.
+Prefer `eval` for extraction. Use `/session/navigate` for the current agent-owned page. Only use `/new` when you intentionally need to replace that page or create an explicitly managed target, and close explicit targets you created unless you intentionally keep an agent-owned page alive for follow-up work.

@@ -25,6 +25,7 @@ exec "$BROWSER_BIN" \\
   --user-data-dir="$PROFILE_DIR" \\
   --password-store=basic \\
   --hide-crash-restore-bubble \\
+  --js-flags=--max-old-space-size=1536 \\
   --ozone-platform=x11 \\
   "\$@"
 EOF
@@ -65,6 +66,7 @@ exec "$BROWSER_BIN" \\
   --no-sandbox \\
   --password-store=basic \\
   --hide-crash-restore-bubble \\
+  --js-flags=--max-old-space-size=1536 \\
   --simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' \\
   --start-maximized \\
   --test-type \\

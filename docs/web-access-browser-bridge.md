@@ -78,6 +78,21 @@ WEB_ACCESS_BROWSER_PROFILE_DIR=/config/chrome-profile-sidecar
 - sidecar profile 宿主目录：`.data/chrome-sidecar`
 - sidecar CDP app 侧地址：`http://172.31.250.10:9223`
 
+### 3.1 Chrome Memory Guardrails
+
+Chrome sidecar 当前有两层内存防护：
+
+- compose 层对 `ugk-pi-browser` 设置 `mem_limit: ${UGK_BROWSER_MEM_LIMIT:-2g}` 和 `mem_reservation: ${UGK_BROWSER_MEM_RESERVATION:-512m}`。这比只写 `deploy.resources` 更直接，因为普通 Docker Compose 不应靠 swarm-only 语义碰运气。
+- Chrome 启动参数统一带 `--js-flags=--max-old-space-size=1536`，通过 Chrome 官方的 `js-flags` 通道传给 V8。不要裸写 `--max-old-space-size=1536`；那是 Node 常见写法，不是 Chrome V8 flags 的可靠传参方式。
+
+这两个限制必须同时覆盖三条启动路径：
+
+1. `docker-compose.yml` / `docker-compose.prod.yml` 里的 `CHROME_CLI`，用于容器初始化自动启动。
+2. `scripts/ensure-sidecar-chrome.sh` 的 `start_browser()` 和 GUI launcher，用户点 sidecar 桌面 Chrome 或 healthcheck 自愈时会走这里。
+3. `scripts/sidecar-chrome.mjs`，`npm run docker:chrome:restart` 会走这里重启 Chrome。
+
+如果只改其中一条路径，重启或 GUI 启动后参数会蒸发，属于看起来修了、实际没修。
+
 ## 4. URL Semantics
 
 不要再把所有 URL 当成一个东西。这里有两个视角：
@@ -189,6 +204,12 @@ npm run docker:chrome:restart
 
 `web-access` 在检测到 agent scope 时会复用同一任务下的浏览器 target，避免同一轮任务里反复开新页。这个 scope 与脚本侧一致，按 `CLAUDE_AGENT_ID`、`CLAUDE_HOOK_AGENT_ID`、`agent_id` 的顺序解析。
 
+同一 scope 的默认页面现在按单 target 管理：
+
+- 推荐人工导航入口是 `POST http://127.0.0.1:3456/session/navigate?url=<encoded-url>&metaAgentScope=<scope>`；已有默认 target 时复用并导航，缺失时才新建。
+- `/new?url=...&metaAgentScope=<scope>` 仍保留为低层入口，但同一 scope 已有默认 target 时会先关闭旧默认 target，再登记新 target，避免长任务里每次打开 URL 都堆一个 Chrome tab。
+- 显式独立 target 仍可用 `/session/target` 管理；任务结束时的 `close-all` 仍是兜底清理，不是日常防止堆 tab 的唯一手段。
+
 任务结束时由 `src/agent/agent-service.ts` 的 `runChat` `finally` 调用 `src/agent/browser-cleanup.ts`，向兼容代理发送：
 
 ```bash
@@ -214,6 +235,13 @@ proxy: ready (127.0.0.1:3456)
 ```
 
 这里的 `host-browser` 是兼容旧脚本的输出标签。sidecar 模式下它实际代表 browser backend 可达。
+
+生产发布脚本还会检查：
+
+- `docker inspect` 中 `ugk-pi-browser` 的 `HostConfig.Memory` 必须大于 `0`。
+- Chrome 实际进程命令行必须包含 `max-old-space-size=1536`。
+
+不要只看 compose 文件里的字符串。上线验收看实际容器和实际进程，别让 YAML 陪你演戏。
 
 ## 7. Manual Login
 

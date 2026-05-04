@@ -8,6 +8,15 @@
 
 ---
 
+## 评审后调整结论（2026-05-04）
+
+本计划保留原方向，但执行顺序要收紧：
+
+1. **先只读诊断，后写入修复。** 第一批后端能力只加 diagnostics / explain，不加 repair。运行态 repair API 如果没有权限门槛、维护窗口和测试样例，很容易把“手改 JSON”升级成“HTTP 手改 JSON”，听起来文明一点，本质一样危险。
+2. **先修真实写入薄弱点。** `src/agent/agent-profile-catalog.ts` 当前写 `profiles.json` 仍是直接 `writeFile`；后续实现时应优先改成同目录临时文件 + `rename` 原子替换，再谈更大的治理。
+3. **diagnostics 不参与业务热路径。** `GET /v1/agents/diagnostics`、`GET /v1/conns/diagnostics` 这类接口只给排障和发布验收使用，不应被前端常规渲染依赖，避免把诊断接口变成新的状态真源。
+4. **repair 必须有更强前置条件。** 任何会写 `.data`、SQLite 或 index 的 repair/requeue/reload 入口，都必须在文档中声明适用场景、不可逆影响、验证命令和失败回滚路径；没有这些，宁可先让用户重启服务，也别造一个万能“修复”按钮。
+
 ## 核心原则
 
 - **API 是操作入口，底层文件是存储证据。** agent 可以读底层文件排障，但不能把它当创建 / 修复 / 删除入口。
@@ -181,40 +190,66 @@
 任务：
 1. 为每个高风险场景补对应 skill / 文档禁令。
 2. 在 `AGENTS.md` 和 `docs/traceability-map.md` 加统一规则：底层状态只能只读排障，变更必须走 API。
-3. 新增文档测试，检查关键禁令存在：
+3. 新增文档测试，检查关键禁令存在。测试不要只查一个模糊词，要锁住具体对象和正确入口：
    - agent profile 禁止改 `profiles.json`
    - conn 禁止直写 SQLite
    - asset 禁止直写 `asset-index.json`
    - conversation 禁止手写 session/index
    - model config 禁止手改默认模型绕 API
+   - Feishu 禁止手写 settings 绕过脱敏和 worker 重连
+   - activity 禁止直写未读数和追溯字段
 4. 更新 `docs/change-log.md`。
 
 验证：
 - `node --test --import tsx test/*skill*.test.ts` 或新增定向测试。
 - `npx tsc --noEmit`。
 
-### Phase 2: API / 工具入口补齐
+### Phase 2: 只读 diagnostics 补齐
+
+**目标：** 让 agent 遇到不一致时能准确报告“哪里分裂”，而不是继续手补底层状态。
+
+第一批只做只读接口：
+
+1. Agent Profile:
+   - `GET /v1/agents/diagnostics`
+   - 返回 catalog agents、archivedAgentIds、registry agents、runtimeDirExists、rulesFileExists、skillRootsExists。
+   - 标出 `catalogOnly`、`registryOnly`、`archivedButRuntimeDirExists` 这类问题。
+2. Conn:
+   - `GET /v1/conns/diagnostics`
+   - 返回 SQLite 可访问性、pending/running/stale run 计数、最近 worker lease 概况。
+3. Asset:
+   - `GET /v1/assets/diagnostics`
+   - 返回 index 可读性、blob 缺失计数、孤儿 blob 计数。第一版只报告，不删除。
+
+验证：
+- 为每个新增 API 写 route test。
+- 手动制造轻量不一致样例，确认 diagnostics 能暴露而不是默默吞掉。
+- 确认 diagnostics 响应不泄露 API key、App Secret、绝对敏感路径以外的凭据内容。
+
+### Phase 3: 官方写入口补齐
 
 **目标：** 避免 agent 找不到官方入口时又退回手改文件。
 
 候选补齐：
 1. Agent Profile:
-   - `POST /v1/agents/reload` 或内部 `agentServiceRegistry.reload()`
-   - `GET /v1/agents/diagnostics`，展示 registry 与 catalog 是否一致
+   - `POST /v1/agents/reload` 或内部 `agentServiceRegistry.reload()`。
+   - 仅重新加载 catalog -> registry，不创建新目录，不删除旧目录。
+   - 错误文案必须提示先查看 diagnostics。
 2. Conn:
-   - `GET /v1/conns/diagnostics`
-   - 必要时提供 “stale run recovery / requeue” 官方接口，而不是手改 DB
+   - 必要时提供 “stale run recovery / requeue” 官方接口，而不是手改 DB。
+   - 第一版只允许把明确 stale 的 running run 释放回 pending，不允许任意改状态。
 3. Asset:
-   - `GET /v1/assets/diagnostics`
-   - `POST /v1/assets/repair-index` 只在明确维护操作下使用
+   - `POST /v1/assets/repair-index` 只在明确维护操作下使用。
+   - repair 前必须 dry-run，默认不删除 blob。
 4. Model:
-   - 保持 `PUT /v1/model-config/default` 为唯一默认模型变更入口
+   - 保持 `PUT /v1/model-config/default` 为唯一默认模型变更入口。
 
 验证：
 - 为每个新增 API 写 route test。
-- 手动制造轻量不一致样例，确认 diagnostics 能暴露而不是默默吞掉。
+- route error message test。
+- 对写接口补并发 / 幂等测试，避免两个维护请求互相覆盖。
 
-### Phase 3: Runtime 防呆和只读建议
+### Phase 4: Runtime 防呆和只读建议
 
 **目标：** 降低 agent 误操作底层状态的机会。
 
@@ -229,7 +264,7 @@
 - route error message test。
 - 文档测试。
 
-### Phase 4: 集中回归与上线手册
+### Phase 5: 集中回归与上线手册
 
 **目标：** 保证治理不破坏现有运行态。
 

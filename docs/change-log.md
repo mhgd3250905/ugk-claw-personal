@@ -12,6 +12,18 @@
 
 ## 2026-05-04
 
+### Chrome Tab 累积治理
+- 日期：2026-05-04
+- 主题：收口 `web-access` 同一 agent scope 下的 Chrome tab 累积问题。
+- 影响范围：`LocalCdpBrowser` 的 `new_target` 现在会替换同一 scope 的旧默认 target；新增 `navigate_session` 行为和兼容代理 `POST /session/navigate`，人工导航优先复用 scoped default target，只有缺失时才新建。`web-access` skill 与浏览器桥文档同步改为推荐 `/session/navigate`，`close-all` 继续作为任务结束兜底。
+- 对应入口：`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`、`runtime/skills-user/web-access/scripts/cdp-proxy.mjs`、`runtime/skills-user/web-access/SKILL.md`、`docs/web-access-browser-bridge.md`、`test/local-cdp-browser.test.ts`、`test/web-access-proxy.test.ts`
+
+### Chrome Sidecar 内存防护
+- 日期：2026-05-04
+- 主题：为 Docker Chrome sidecar 增加容器内存上限、V8 old-space 软限制和发布验收。
+- 影响范围：开发与生产 compose 的 `ugk-pi-browser` 增加 `mem_limit` / `mem_reservation`，默认 2GB / 512MB；Chrome 自动启动、healthcheck 自愈启动、GUI launcher 和 `npm run docker:chrome:restart` 路径统一使用 `--js-flags=--max-old-space-size=1536`。服务器发布脚本现在验收实际容器 `HostConfig.Memory` 和 Chrome 进程命令行，避免 compose 配置写了但线上没生效。
+- 对应入口：`docker-compose.yml`、`docker-compose.prod.yml`、`.env.example`、`scripts/ensure-sidecar-chrome.sh`、`scripts/sidecar-chrome.mjs`、`scripts/server-ops.mjs`、`docs/web-access-browser-bridge.md`、`docs/server-ops.md`、`test/containerization.test.ts`、`test/server-ops-script.test.ts`
+
 ### Agent 阶段文档收口
 - 日期：2026-05-04
 - 主题：把后台任务执行 Agent、fallback 和能力快照边界整理成当前接手口径。

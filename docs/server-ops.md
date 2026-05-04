@@ -45,6 +45,8 @@ npm run server:ops -- aliyun verify
 - 容器状态
 - 容器内 `/app/.data/agent` 是否是可写挂载
 - `WEB_ACCESS_BROWSER_PROVIDER` 是否为 `direct_cdp`
+- Chrome sidecar 容器是否真的有 Docker memory limit
+- Chrome 实际进程命令行是否包含 `max-old-space-size=1536`
 - sidecar 本机 `127.0.0.1:9222/json/version` 是否可达
 - app 容器到 `172.31.250.10:9223/json/version` 是否可达
 - 内网 `/healthz`
@@ -78,6 +80,16 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 ```
 
 如果 web-access 或 sidecar 异常，优先跑脚本自带的 CDP 检查。`/healthz` 只能证明 app 进程活着，不能证明 Chrome sidecar、CDP 转发、shared data 和 skills 都在正确位置。把 `200` 当全身健康证明，这种偷懒很快会反噬。
+
+如果脚本提示 `browser memory limit` 或 `Chrome V8 old space limit` 失败，先查：
+
+```bash
+grep -n '^UGK_BROWSER_MEM_' ~/ugk-claw-shared/compose.env
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps -q ugk-pi-browser | xargs docker inspect --format '{{.HostConfig.Memory}}'
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi-browser sh -lc "CHROME_PID=\$(pgrep -n -x google-chrome || pgrep -n -x chrome); tr '\0' ' ' < /proc/\$CHROME_PID/cmdline"
+```
+
+阿里云把 shared 路径换成 `/root/ugk-claw-shared/...`。如果 `HostConfig.Memory` 是 `0`，说明 compose memory limit 没真正应用；如果命令行没有 `max-old-space-size=1536`，说明某条 Chrome 启动路径漏改或容器还没重建。
 
 ## 详细手册
 

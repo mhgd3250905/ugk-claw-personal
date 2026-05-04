@@ -488,6 +488,8 @@ export class LocalCdpBrowser {
         return { ok: true };
       case 'close_scope_targets':
         return await this.closeScopeTargets(this.readScope(context.meta));
+      case 'navigate_session':
+        return { ok: true, page: await this.navigateSession(command.url, this.readScope(context.meta)) };
       default:
         return { ok: false, error: `unsupported_local_browser_action:${command.action}` };
     }
@@ -663,13 +665,21 @@ export class LocalCdpBrowser {
 
   async newTarget(url = 'about:blank', scope = resolveAgentScopeFromEnv()) {
     await this.ensureBrowser();
+    const normalizedScope = scope || 'default';
+    const existingDefaultTargetId = this.defaultTargets.get(normalizedScope);
+    if (existingDefaultTargetId) {
+      await this.closeTarget(existingDefaultTargetId);
+    }
+
     const resolvedUrl = resolveBrowserInputUrl(url, this.options);
     const target = await fetchJson(`${this.baseUrl}/json/new?${encodeURIComponent(resolvedUrl)}`, {
       method: 'PUT',
       fetchImpl: this.fetchImpl,
     });
     const normalizedTarget = rewriteCdpTargetForBaseUrl(target, this.baseUrl);
-    this.registerScopedTarget(scope, normalizedTarget.id);
+    this.registerScopedTarget(normalizedScope, normalizedTarget.id);
+    this.defaultTargets.set(normalizedScope, normalizedTarget.id);
+    this.saveScopeCache();
     return normalizedTarget;
   }
 
@@ -753,6 +763,30 @@ export class LocalCdpBrowser {
       await this.waitForReady(cdp);
       return await this.getTargetInfo(targetId);
     });
+  }
+
+  async navigateSession(url = 'about:blank', scope = resolveAgentScopeFromEnv()) {
+    const normalizedScope = scope || 'default';
+    const targetId = this.defaultTargets.get(normalizedScope);
+    if (!targetId) {
+      return await this.newTarget(url, normalizedScope);
+    }
+
+    try {
+      return await this.navigate(targetId, url);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith(`target_not_found:${targetId}`)) {
+        this.defaultTargets.delete(normalizedScope);
+        const targets = this.scopedTargets.get(normalizedScope);
+        targets?.delete(targetId);
+        if (targets?.size === 0) {
+          this.scopedTargets.delete(normalizedScope);
+        }
+        this.saveScopeCache();
+        return await this.newTarget(url, normalizedScope);
+      }
+      throw error;
+    }
   }
 
   async back(targetId) {

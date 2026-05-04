@@ -223,6 +223,24 @@ export function createProxyServer(options = {}) {
         return;
       }
 
+      if (pathname === '/session/navigate' && req.method === 'POST') {
+        const url = readNestedUrlParam(parsed, 'url');
+        const result = await requestBrowser(
+          {
+            action: 'navigate_session',
+            url,
+          },
+          {
+            meta: buildRequestMeta(parsed, req, {
+              operation: 'navigate_session',
+              url,
+            }),
+          },
+        );
+        sendJson(res, result.ok ? 200 : 500, result);
+        return;
+      }
+
     if (pathname === '/targets') {
       const result = await requestHostBrowser(
         { action: 'list_targets' },

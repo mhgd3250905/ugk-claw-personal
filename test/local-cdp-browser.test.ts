@@ -244,6 +244,122 @@ test("LocalCdpBrowser registers new scoped targets so scope cleanup closes them"
 	assert.deepEqual(closedTargets, ["target-https://example.com"]);
 });
 
+test("LocalCdpBrowser replaces the existing scoped default target when opening a new target", async () => {
+	const tempDir = await mkdtemp(path.join(tmpdir(), "ugk-cdp-single-target-"));
+	const scopeCachePath = path.join(tempDir, "browser-scope-cache.json");
+	const requestedUrls: string[] = [];
+	const closedUrls: string[] = [];
+
+	try {
+		const browser = new LocalCdpBrowser({
+			endpoint: "http://chrome.test",
+			scopeCachePath,
+			fetchImpl: async (input: string | URL) => {
+				const url = String(input);
+				if (url === "http://chrome.test/json/version") {
+					return {
+						ok: true,
+						json: async () => ({ Browser: "Chrome/Test" }),
+					} as Response;
+				}
+				if (url.startsWith("http://chrome.test/json/new?")) {
+					const requestedUrl = decodeURIComponent(url.slice("http://chrome.test/json/new?".length));
+					requestedUrls.push(requestedUrl);
+					return {
+						ok: true,
+						json: async () => ({
+							id: `target-${requestedUrls.length}`,
+							type: "page",
+							url: requestedUrl,
+							webSocketDebuggerUrl: `ws://chrome.test/devtools/page/target-${requestedUrls.length}`,
+						}),
+					} as Response;
+				}
+				if (url.startsWith("http://chrome.test/json/close/")) {
+					closedUrls.push(decodeURIComponent(url.slice("http://chrome.test/json/close/".length)));
+					return {
+						ok: true,
+						json: async () => ({}),
+					} as Response;
+				}
+				throw new Error(`unexpected fetch: ${url}`);
+			},
+		});
+
+		const first = await browser.handleCommand(
+			{ action: "new_target", url: "https://example.com/a" },
+			{ meta: { agentScope: "scope-1" } },
+		);
+		const second = await browser.handleCommand(
+			{ action: "new_target", url: "https://example.com/b" },
+			{ meta: { agentScope: "scope-1" } },
+		);
+		const defaultTarget = await browser.handleCommand(
+			{ action: "get_default_target" },
+			{ meta: { agentScope: "scope-1" } },
+		);
+
+		assert.equal(first.target.id, "target-1");
+		assert.equal(second.target.id, "target-2");
+		assert.deepEqual(closedUrls, ["target-1"]);
+		assert.deepEqual(defaultTarget, { ok: true, targetId: "target-2" });
+
+		await browser.handleCommand(
+			{ action: "close_scope_targets" },
+			{ meta: { agentScope: "scope-1" } },
+		);
+		assert.deepEqual(closedUrls, ["target-1", "target-2"]);
+	} finally {
+		await rm(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("LocalCdpBrowser navigate_session reuses the scoped target and creates one when missing", async () => {
+	const tempDir = await mkdtemp(path.join(tmpdir(), "ugk-cdp-session-target-"));
+	const scopeCachePath = path.join(tempDir, "browser-scope-cache.json");
+	const calls: Array<{ kind: string; targetId?: string; url?: string }> = [];
+	class TestBrowser extends LocalCdpBrowser {
+		constructor(options: ConstructorParameters<typeof LocalCdpBrowser>[0]) {
+			super(options);
+		}
+
+		async newTarget(url = "about:blank", scope?: string) {
+			const target = { id: `created-${scope}`, type: "page", url };
+			this.registerScopedTarget(scope, target.id);
+			this.defaultTargets.set(scope || "default", target.id);
+			this.saveScopeCache();
+			calls.push({ kind: "new", targetId: target.id, url });
+			return target;
+		}
+
+		async navigate(targetId: string, url: string) {
+			calls.push({ kind: "navigate", targetId, url });
+			return { id: targetId, type: "page", url };
+		}
+	}
+
+	try {
+		const browser = new TestBrowser({ scopeCachePath });
+		const created = await browser.handleCommand(
+			{ action: "navigate_session", url: "https://example.com/first" },
+			{ meta: { agentScope: "scope-1" } },
+		);
+		const reused = await browser.handleCommand(
+			{ action: "navigate_session", url: "https://example.com/second" },
+			{ meta: { agentScope: "scope-1" } },
+		);
+
+		assert.equal(created.page.id, "created-scope-1");
+		assert.equal(reused.page.id, "created-scope-1");
+		assert.deepEqual(calls, [
+			{ kind: "new", targetId: "created-scope-1", url: "https://example.com/first" },
+			{ kind: "navigate", targetId: "created-scope-1", url: "https://example.com/second" },
+		]);
+	} finally {
+		await rm(tempDir, { recursive: true, force: true });
+	}
+});
+
 test("LocalCdpBrowser persists scoped targets so a restarted bridge can clean them up", async () => {
 	const tempDir = await mkdtemp(path.join(tmpdir(), "ugk-cdp-scope-"));
 	const scopeCachePath = path.join(tempDir, "browser-scope-cache.json");

@@ -69,7 +69,10 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /subnet:\s*172\.31\.250\.0\/24/);
 	assert.match(compose, /CHROME_CLI:\s*"--remote-debugging-address=0\.0\.0\.0 --remote-debugging-port=9222/);
 	assert.match(compose, /CHROME_CLI:.*--hide-crash-restore-bubble/);
+	assert.match(compose, /CHROME_CLI:.*--js-flags=--max-old-space-size=1536/);
 	assert.match(compose, /CHROME_CLI:.*--ozone-platform=x11/);
+	assert.match(compose, /mem_limit:\s*\$\{UGK_BROWSER_MEM_LIMIT:-2g\}/);
+	assert.match(compose, /mem_reservation:\s*\$\{UGK_BROWSER_MEM_RESERVATION:-512m\}/);
 	assert.doesNotMatch(compose, /--ozone-platform=wayland/);
 	assert.match(compose, /SELKIES_USE_BROWSER_CURSORS:\s*"true"/);
 	assert.match(compose, /DISPLAY:\s*":0"/);
@@ -114,7 +117,10 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /subnet:\s*172\.31\.250\.0\/24/);
 	assert.match(prodCompose, /CHROME_CLI:\s*"--remote-debugging-address=0\.0\.0\.0 --remote-debugging-port=9222/);
 	assert.match(prodCompose, /CHROME_CLI:.*--hide-crash-restore-bubble/);
+	assert.match(prodCompose, /CHROME_CLI:.*--js-flags=--max-old-space-size=1536/);
 	assert.match(prodCompose, /CHROME_CLI:.*--ozone-platform=x11/);
+	assert.match(prodCompose, /mem_limit:\s*\$\{UGK_BROWSER_MEM_LIMIT:-2g\}/);
+	assert.match(prodCompose, /mem_reservation:\s*\$\{UGK_BROWSER_MEM_RESERVATION:-512m\}/);
 	assert.doesNotMatch(prodCompose, /--ozone-platform=wayland/);
 	assert.match(prodCompose, /SELKIES_USE_BROWSER_CURSORS:\s*"true"/);
 	assert.match(prodCompose, /DISPLAY:\s*":0"/);
@@ -178,6 +184,7 @@ test("container runtime files exist with the expected base configuration", () =>
 
 	const sidecarChromeScript = readFileSync(sidecarChromeScriptPath, "utf8");
 	assert.match(sidecarChromeScript, /hide-crash-restore-bubble/);
+	assert.match(sidecarChromeScript, /--js-flags=--max-old-space-size=1536/);
 	assert.match(sidecarChromeScript, /--ozone-platform=x11/);
 	assert.match(sidecarChromeScript, /export DISPLAY=:0/);
 	assert.doesNotMatch(sidecarChromeScript, /command -v python3/);
@@ -195,6 +202,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	const sidecarEnsureScript = readFileSync(sidecarEnsureScriptPath, "utf8");
 	assert.match(sidecarEnsureScript, /remote-debugging-port=9222/);
 	assert.match(sidecarEnsureScript, /hide-crash-restore-bubble/);
+	assert.match(sidecarEnsureScript, /--js-flags=--max-old-space-size=1536/);
 	assert.match(sidecarEnsureScript, /ozone-platform=x11/);
 	assert.match(sidecarEnsureScript, /SingletonLock/);
 	assert.match(sidecarEnsureScript, /chrome-manual\.log/);
