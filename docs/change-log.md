@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-05-05
+
+### Conn 输出 URL 双云上线与 AGENTS 渐进式披露收口
+- 日期：2026-05-05
+- 主题：记录 `ba9d7a0 Expose conn output files over HTTP` 已完成双云增量上线，并优化 `AGENTS.md` 的阅读顺序。
+- 影响范围：腾讯云从 `origin/main`、阿里云从 `gitee/main` fast-forward 到 `ba9d7a0` 并重建 app / conn-worker / feishu-worker；发布后 `server:ops verify` 通过，阿里云 `/v1/agents` 确认 `main/search/zhihu` 仍可见。阿里云发布前已备份 shared 运行态到 `/root/ugk-claw-shared/backups/pre-deploy-ba9d7a0-20260505-000715`。`AGENTS.md` 增加渐进式披露阅读顺序，避免后续 agent 为简单任务全量翻部署长文或误把仓库根规则当 Playground agent 人格。
+- 对应入口：`AGENTS.md`、`docs/server-ops.md`、`docs/runtime-assets-conn-feishu.md`
+
 ## 2026-05-04
 
 ### Conn 输出产物 URL 入口

@@ -2,6 +2,16 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 # ugk-pi Agent Guide
 
+## 0. 渐进式披露阅读顺序
+
+`AGENTS.md` 是接手索引，不是让 agent 一口气背完的小说。先按任务类型读最小集合，再按场景索引展开：
+
+- 普通代码 / 文档修改：先读 `1-4`、`8.1`、`8.3`，再按第 `6` 节场景索引打开对应文件。
+- 云服务器增量更新：只读 `3.1` 的生产状态边界、`8.2`，然后进入 `docs/server-ops.md`；需要命令速查再看 `docs/server-ops-quick-reference.md`，只有迁移、回滚或异常排障才展开单云长手册。
+- Playground 前端修改：先读 `docs/playground-current.md` 和 `DESIGN.md`，再看第 `6.C` 场景文件；手机端不要按桌面压缩版推断。
+- conn / Feishu / 后台任务：先看第 `6.G` 场景文件和 `docs/runtime-assets-conn-feishu.md`，不要先翻部署手册。
+- Agent profile / 自定义 Agent：先看第 `6.F` 场景，运行态以 API 和 `/app/.data/agents` 挂载为准，不要手写 `profiles.json`。
+
 ## 1. 通信准则
 
 - 默认使用简体中文回复；只有用户明确要求英文时才切换。
@@ -119,6 +129,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 - 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
 - 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器主部署目录为 `~/ugk-claw-repo`，阿里云 ECS 主部署目录为 `/root/ugk-claw-repo`，两边现在都是 Git 工作目录。两台服务器均已配置 `origin` GitHub 和 `gitee` remote；腾讯云增量发布默认拉 `origin`，阿里云增量发布默认拉 `gitee`，不要再把 tar 包搬运当成长期主流程。
+- 截至 `2026-05-05`，双云生产已增量更新到 `ba9d7a0 Expose conn output files over HTTP`；阿里云发布前备份在 `/root/ugk-claw-shared/backups/pre-deploy-ba9d7a0-20260505-000715`，其中包含 `.data/agents`、`.data/agent` 和 `runtime/skills-user`。
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - agent 任务结束时，`AgentService` 会通过 `src/agent/browser-cleanup.ts` 按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 清理本轮 `web-access` scope 下保留的浏览器页面；不要只在运行容器 `/app` 里热改，否则重建镜像会直接丢修复。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
@@ -427,6 +438,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent`、`.data/agents` 和生产日志外置到 `~/ugk-claw-shared/`；阿里云 ECS 对应外置目录是 `/root/ugk-claw-shared/`。后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` / `UGK_AGENTS_DATA_DIR` 这两条挂载。
 - Playground 主 Agent 的运行规则文件是 `/app/.data/agent/AGENTS.md`，其他 agent profile 的运行规则文件是 `/app/.data/agents/<agentId>/AGENTS.md`；这些运行态规则会替换仓库根 `AGENTS.md` 进入对应 agent session。仓库根 `AGENTS.md` 只作为维护本项目代码的接手说明，不应被当作 Playground 日常 agent 的默认人格或长期记忆。旧 `/app/.data/agent/AGENTS.local.md` 仅作为主 Agent 规则迁移来源保留兼容。
 - 后台任务的“执行 Agent”使用 `conn.profileId` 选择 Playground agent profile；run 级能力快照只冻结该 Agent 的规则文件、技能目录、身份和模型解析结果，不是工具权限沙箱。底层 runtime 工具仍属于基础执行能力，不按 profile 做限制。如果原 Agent 已归档或不存在，worker 必须降级到主 Agent 继续执行，并通过 `resolvedSnapshot.fallbackUsed / fallbackReason` 和任务消息文案显式告诉用户。
+- conn run 成功后只把 `workspace/output/` 下的真实产物索引为持久输出；run detail 的 `files[]` 会为这些产物补充 `url/latestUrl`，对应 `GET /v1/conns/:connId/runs/:runId/output/<path>` 和 `GET /v1/conns/:connId/output/latest/<path>`。后台 session 会注入 `OUTPUT_DIR`、`CONN_OUTPUT_BASE_URL` 和兼容字段 `ZHIHU_REPORT_BASE_URL`；不要恢复 worker 对 `/app/public` 的直写。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
 - playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是"当前正在运行"，不要再写"上一轮仍在运行"。
 - playground 的 `GET /v1/chat/state` 默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 暴露分页状态；旧消息补页走 `GET /v1/chat/history?before=...&limit=...`，不要再让 state 扛完整历史，也不要把本地 `localStorage` 当完整历史真源。
