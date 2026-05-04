@@ -474,6 +474,47 @@ test("ConnRunStore rejects stale lease owner runtime metadata, events, and files
 	database.close();
 });
 
+test("ConnRunStore ignores unowned event writes after the owning conn has been deleted", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "deleted digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-deleted-conn",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-deleted-conn",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	await runStore.claimNextDue({
+		workerId: "worker-a",
+		now: new Date("2026-04-21T10:01:00.000Z"),
+		leaseMs: 30_000,
+	});
+	await connStore.delete(conn.connId);
+
+	const event = await runStore.appendEvent({
+		runId: run.runId,
+		eventType: "late_progress",
+		event: { message: "too late" },
+	});
+
+	assert.equal(event, undefined);
+	assert.deepEqual(await runStore.listEvents(run.runId), []);
+
+	database.close();
+});
+
 test("ConnRunStore appends ordered run events and output file records", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const conn = await connStore.create({

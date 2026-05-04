@@ -223,12 +223,14 @@ function extractPromptPath(message: string, prefix: string): string {
 async function createRunner(options?: {
 	session?: AgentSessionLike;
 	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
+	runStore?: ConnRunStore;
 }) {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-runner-"));
 	const database = new ConnDatabase({ dbPath: join(root, "conn.sqlite") });
 	await database.initialize();
 	const connStore = new ConnSqliteStore({ database });
-	const runStore = new ConnRunStore({ database });
+	const realRunStore = new ConnRunStore({ database });
+	const runStore = options?.runStore ?? realRunStore;
 	const assetStore = new FakeAssetStore();
 	const session = options?.session ?? new FakeSession({ resultText: "final answer" });
 	const sessionFactory = new FakeSessionFactory(session as FakeSession);
@@ -242,7 +244,7 @@ async function createRunner(options?: {
 		sessionFactory,
 		closeBrowserTargetsForScope: options?.closeBrowserTargetsForScope ?? (async () => undefined),
 	});
-	return { root, database, connStore, runStore, sessionFactory, runner, session };
+	return { root, database, connStore, runStore, realRunStore, sessionFactory, runner, session };
 }
 
 test("BackgroundAgentRunner executes a conn run in an isolated workspace and records events", async () => {
@@ -403,6 +405,62 @@ test("BackgroundAgentRunner records failed runs without throwing into the foregr
 	assert.deepEqual(
 		(await runStore.listEvents(run.runId)).map((event) => event.eventType),
 		["workspace_created", "snapshot_resolved", "message_update", "run_failed"],
+	);
+
+	database.close();
+});
+
+test("BackgroundAgentRunner tolerates failed session event persistence", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-runner-events-"));
+	const database = new ConnDatabase({ dbPath: join(root, "conn.sqlite") });
+	await database.initialize();
+	const connStore = new ConnSqliteStore({ database });
+	const realRunStore = new ConnRunStore({ database });
+	const runStore = Object.create(realRunStore) as ConnRunStore;
+	runStore.appendEvent = async (input: Parameters<ConnRunStore["appendEvent"]>[0]) => {
+			if (input.eventType === "message_update") {
+				throw new Error("event database disappeared");
+			}
+			return await realRunStore.appendEvent(input);
+	};
+	const assetStore = new FakeAssetStore();
+	const runner = new BackgroundAgentRunner({
+		runStore,
+		profileResolver: new BackgroundAgentProfileResolver({ projectRoot: root }),
+		workspaceManager: new BackgroundWorkspaceManager({
+			backgroundDataDir: join(root, "background"),
+			assetStore,
+		}),
+		sessionFactory: new FakeSessionFactory(new FakeSession({ resultText: "final answer" })),
+		closeBrowserTargetsForScope: async () => undefined,
+	});
+	const conn = await connStore.create({
+		title: "Daily Digest",
+		prompt: "Summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await realRunStore.createRun({
+		runId: "run-event-write-failed",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	const completed = await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	assert.equal(completed?.status, "succeeded");
+	assert.deepEqual(
+		(await realRunStore.listEvents(run.runId)).map((event) => event.eventType),
+		["workspace_created", "snapshot_resolved", "run_succeeded"],
 	);
 
 	database.close();

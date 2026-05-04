@@ -367,6 +367,7 @@ GET /v1/local-file?path=...
 - 默认 heartbeat 间隔会按 lease 自动推导；显式传入的 heartbeat 间隔会被原样尊重，便于测试和后续调参。
 - runner / worker 完成或失败 run 时会带上当前 `leaseOwner` 做条件更新；如果 run 已经因租约过期被其他 worker 接管，迟到的旧 worker 不能再把它标成成功或失败，也不能污染 owning conn 的 `lastRunId`。
 - runner 写入 runtime metadata、过程事件和输出文件索引时也会带上当前 `leaseOwner`；旧 worker 迟到的 sessionFile、run event 或 output file 不能混进新 owner 的 run 详情。
+- 过程事件和输出文件写入必须在 SQLite 事务内完成 run/lease 校验与插入；如果用户在后台任务运行中硬删除 conn，级联删除后的迟到 event/file 写入应直接跳过，不能再用外键错误把 `conn-worker` 打崩。session event 持久化失败只允许记 warning，不应覆盖后台任务本身的成功 / 失败收口。
 
 ## Stale Run Recovery
 

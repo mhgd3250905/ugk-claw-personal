@@ -117,7 +117,9 @@ export class BackgroundAgentRunner {
 				sessionFile: run.sessionFile,
 			});
 			unsubscribe = session.subscribe((event) => {
-				void this.recordSessionEvent(run.runId, run.leaseOwner, event);
+				void this.recordSessionEvent(run.runId, run.leaseOwner, event).catch((error) => {
+					console.warn(`[conn-worker] Failed to record session event for run ${run.runId}:`, error);
+				});
 			});
 
 			const prompt = buildBackgroundPrompt(conn, workspace);

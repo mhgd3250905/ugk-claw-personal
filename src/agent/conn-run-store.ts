@@ -394,40 +394,48 @@ export class ConnRunStore {
 	}
 
 	async appendEvent(input: AppendConnRunEventInput): Promise<ConnRunEventRecord | undefined> {
-		if (!this.isCurrentLeaseOwner(input.runId, input.leaseOwner)) {
-			return undefined;
-		}
 		const createdAt = (input.createdAt ?? new Date()).toISOString();
-		const row = this.options.database.get<{ next_seq: number | null }>(
-			"SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM conn_run_events WHERE run_id = ?",
-			input.runId,
-		);
-		const event: ConnRunEventRecord = {
-			eventId: randomUUID(),
-			runId: input.runId,
-			seq: row?.next_seq ?? 1,
-			eventType: input.eventType,
-			event: sanitizeRunEventForStorage(input.event),
-			createdAt,
-		};
-		const eventJson = serializeRunEvent(event.event);
+		try {
+			this.options.database.exec("BEGIN IMMEDIATE");
+			if (!this.isCurrentLeaseOwner(input.runId, input.leaseOwner)) {
+				this.options.database.exec("COMMIT");
+				return undefined;
+			}
+			const row = this.options.database.get<{ next_seq: number | null }>(
+				"SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM conn_run_events WHERE run_id = ?",
+				input.runId,
+			);
+			const event: ConnRunEventRecord = {
+				eventId: randomUUID(),
+				runId: input.runId,
+				seq: row?.next_seq ?? 1,
+				eventType: input.eventType,
+				event: sanitizeRunEventForStorage(input.event),
+				createdAt,
+			};
+			const eventJson = serializeRunEvent(event.event);
 
-		this.options.database.run(
-			[
-				"INSERT INTO conn_run_events (",
-				"event_id, run_id, seq, event_type, event_json, created_at",
-				") VALUES (?, ?, ?, ?, ?, ?)",
-			].join(" "),
-			event.eventId,
-			event.runId,
-			event.seq,
-			event.eventType,
-			eventJson,
-			event.createdAt,
-		);
-		this.pruneOldRunEvents(event.runId, event.seq);
+			this.options.database.run(
+				[
+					"INSERT INTO conn_run_events (",
+					"event_id, run_id, seq, event_type, event_json, created_at",
+					") VALUES (?, ?, ?, ?, ?, ?)",
+				].join(" "),
+				event.eventId,
+				event.runId,
+				event.seq,
+				event.eventType,
+				eventJson,
+				event.createdAt,
+			);
+			this.pruneOldRunEvents(event.runId, event.seq);
+			this.options.database.exec("COMMIT");
 
-		return event;
+			return event;
+		} catch (error) {
+			this.rollbackQuietly();
+			throw error;
+		}
 	}
 
 	async listEvents(runId: string, options: ListConnRunEventsOptions = {}): Promise<ConnRunEventRecord[]> {
@@ -461,9 +469,6 @@ export class ConnRunStore {
 	}
 
 	async recordFile(input: RecordConnRunFileInput): Promise<ConnRunFileRecord | undefined> {
-		if (!this.isCurrentLeaseOwner(input.runId, input.leaseOwner)) {
-			return undefined;
-		}
 		const file: ConnRunFileRecord = {
 			fileId: randomUUID(),
 			runId: input.runId,
@@ -475,21 +480,32 @@ export class ConnRunStore {
 			createdAt: (input.createdAt ?? new Date()).toISOString(),
 		};
 
-		this.options.database.run(
-			[
-				"INSERT INTO conn_run_files (",
-				"file_id, run_id, kind, relative_path, file_name, mime_type, size_bytes, created_at",
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			].join(" "),
-			file.fileId,
-			file.runId,
-			file.kind,
-			file.relativePath,
-			file.fileName,
-			file.mimeType,
-			file.sizeBytes,
-			file.createdAt,
-		);
+		try {
+			this.options.database.exec("BEGIN IMMEDIATE");
+			if (!this.isCurrentLeaseOwner(input.runId, input.leaseOwner)) {
+				this.options.database.exec("COMMIT");
+				return undefined;
+			}
+			this.options.database.run(
+				[
+					"INSERT INTO conn_run_files (",
+					"file_id, run_id, kind, relative_path, file_name, mime_type, size_bytes, created_at",
+					") VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+				].join(" "),
+				file.fileId,
+				file.runId,
+				file.kind,
+				file.relativePath,
+				file.fileName,
+				file.mimeType,
+				file.sizeBytes,
+				file.createdAt,
+			);
+			this.options.database.exec("COMMIT");
+		} catch (error) {
+			this.rollbackQuietly();
+			throw error;
+		}
 
 		return file;
 	}
@@ -609,13 +625,13 @@ export class ConnRunStore {
 	}
 
 	private isCurrentLeaseOwner(runId: string, leaseOwner: string | undefined): boolean {
-		if (!leaseOwner) {
-			return true;
-		}
 		const row = this.options.database.get<Pick<ConnRunRow, "status" | "lease_owner">>(
 			"SELECT status, lease_owner FROM conn_runs WHERE run_id = ?",
 			runId,
 		);
+		if (!leaseOwner) {
+			return !!row;
+		}
 		return row?.status === "running" && row.lease_owner === leaseOwner;
 	}
 }

@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### Conn Worker 事件写入崩溃防护
+- 日期：2026-05-04
+- 主题：修复后台 `conn-worker` 在运行中 conn/run 被删除或事件持久化失败时可能因 `FOREIGN KEY constraint failed` / 未处理 rejection 崩溃的问题。
+- 影响范围：`ConnRunStore.appendEvent()` 与 `recordFile()` 现在在事务内完成 run/lease 校验和插入，已删除 run 的迟到事件会返回 `undefined` 而不是撞 SQLite 外键；`BackgroundAgentRunner` 的 session event 记录失败降级为 warning，不再杀掉当前后台任务或 worker 进程。
+- 对应入口：`src/agent/conn-run-store.ts`、`src/agent/background-agent-runner.ts`、`test/conn-run-store.test.ts`、`test/background-agent-runner.test.ts`
+
 ### Playground 桌面错误提示关闭层级修复
 - 日期：2026-05-04
 - 主题：修复桌面端“当前 agent 仍在运行，先别切视窗。”错误提示关闭按钮无法点击的问题。
