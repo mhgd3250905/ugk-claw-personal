@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### Agent 阶段文档收口
+- 日期：2026-05-04
+- 主题：把后台任务执行 Agent、fallback 和能力快照边界整理成当前接手口径。
+- 影响范围：README 补充后台任务支持执行 Agent 选择和可见 fallback；运行文档和 playground 当前状态明确：run 级能力快照覆盖规则文件、技能目录、执行身份和模型解析结果，但不是工具权限沙箱，底层 runtime 工具不按 agent profile 限制；fallback 文案统一改成“主 Agent”，避免继续出现“默认 Agent”这种不贴 UI 的说法。
+- 对应入口：`README.md`、`AGENTS.md`、`docs/runtime-assets-conn-feishu.md`、`docs/playground-current.md`
+
 ### Agent Profile 操作接口规范
 - 日期：2026-05-04
 - 主题：禁止 agent 直接编辑 `.data/agents/profiles.json` 创建或修复 agent profile。

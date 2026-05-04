@@ -447,7 +447,7 @@
 ## Conn Run Detail Dialog
 
 - `conn` notification 右下角的过程入口除了结果、文件和事件，现在还要展示 run 生命周期关键信息：`claimed`、`started`、`updated`、`lease owner`、`lease until`。
-- 过程弹层还会展示 `Execution Agent`：包含 requested agent、actual agent、fallback reason 和实际 `provider / model`。如果原 `profileId` 指向的 Agent 不存在或已归档，run detail 必须把“原执行 Agent 不可用，已由默认 Agent 完成”展示出来，不能假装一切正常。
+- 过程弹层还会展示 `Execution Agent`：包含 requested agent、actual agent、fallback reason 和实际 `provider / model`。如果原 `profileId` 指向的 Agent 不存在或已归档，run detail 必须把“原执行 Agent 不可用，已由主 Agent 完成”展示出来，不能假装一切正常。
 - 对 `running` run，弹层会在前端直接计算一条 health 文案，优先告诉用户它是：
   - `running / lease active`
   - 还是 `running / stale suspected`
@@ -485,7 +485,7 @@
 - conn 创建 / 编辑器默认只露出常用字段：标题、`让它做什么`、`结果发到哪里`、调度、执行 Agent、模型和保存。编号输入只在选择“指定会话 / 飞书”时出现。
 - 调度入口只保留三种：`定时执行`、`间隔执行`、`每日执行`。前端负责把这三种映射回后端 `once / interval / cron` payload，创建时不再让用户接触 cron 细节。
 - conn 编辑器覆盖标题、prompt、投递目标、调度策略、任务级 API 源 / 模型选择和高级运行字段：
-  - `执行 Agent` 使用 `GET /v1/agents` 返回的 Playground agent catalog 渲染下拉，保存为 `profileId`。后台 run 借用该 Agent 的 `AGENTS.md` 和 scoped skills，但运行 session 属于后台 run 自己，不进入该 Agent 的前台 conversation。
+  - `执行 Agent` 使用 `GET /v1/agents` 返回的 Playground agent catalog 渲染下拉，保存为 `profileId`。后台 run 借用该 Agent 的 `AGENTS.md`、scoped skills、执行身份和模型解析结果，但运行 session 属于后台 run 自己，不进入该 Agent 的前台 conversation。这层能力快照不是工具权限沙箱；底层 runtime 工具仍保持可用。
   - `API 源 / 模型` 使用和前台模型源设置同源的 `/v1/model-config` 下拉列表，保存为 conn 自身的 `modelProvider / modelId`；不要退回手写 provider/model，也不要再靠同步前台 `.pi/settings.json` 控制后台 worker。
   - 目标支持当前会话、指定 conversation、`feishu_chat`、`feishu_user`。
 - 调度区只保留三种模式：`定时执行`、`间隔执行`、`每日执行`。前端仍然映射回后端 `once / interval / cron`，但不再把 cron、工作日、每周这些复杂概念直接甩给用户。
