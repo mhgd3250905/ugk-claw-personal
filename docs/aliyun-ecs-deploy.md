@@ -4,7 +4,7 @@
 
 这台机器目前是第二套公网部署环境，不是腾讯云新加坡环境的替代品。后续接手时先分清服务器，别把两台机器的目录、账号和公网 IP 混在一起，那种混法很快就会把运维变成猜谜。
 
-如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops.md](./server-ops.md)；阿里云当前固定口径已经切换为 Git 工作目录更新，优先 `git pull --ff-only origin main`，GitHub 不通时走 `git pull --ff-only gitee main`。archive 小包只作为双远端都不可用时的兜底。
+如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops.md](./server-ops.md)；阿里云当前固定口径已经切换为 Git 工作目录更新，默认 `git pull --ff-only gitee main`，只有 Gitee 不通且确认 GitHub 可用时才走 `git pull --ff-only origin main`。archive 小包只作为双远端都不可用时的兜底。
 
 ## 2026-04-30 阿里云 SSH key alias 配置记录
 
@@ -57,7 +57,7 @@ APT_MIRROR_HOST=mirrors.aliyun.com
 4. 新 `/root/ugk-claw-repo` 是 Git 工作目录，`origin` 指向 `https://github.com/mhgd3250905/ugk-claw-personal.git`，`gitee` 指向 `https://gitee.com/ksheng3250905/ugk-pi-claw.git`。
 5. 迁移后执行生产 compose config、`up --build -d` 和 nginx 强制重建；内网与公网 `/healthz` 均返回 `{"ok":true}`，核心容器保持 healthy。
 
-后续阿里云更新主流程：本地提交并推送 GitHub/Gitee，服务器执行 `git pull --ff-only origin main`；GitHub 不通时执行 `git pull --ff-only gitee main`。只有 GitHub/Gitee 都不可用时才考虑 archive 小包兜底。
+后续阿里云更新主流程：本地提交并推送 GitHub/Gitee，服务器执行 `git pull --ff-only gitee main`；只有 Gitee 不通且确认 GitHub 可用时才执行 `git pull --ff-only origin main`。只有 GitHub/Gitee 都不可用时才考虑 archive 小包兜底。
 
 ## 当前部署快照
 
@@ -74,7 +74,7 @@ APT_MIRROR_HOST=mirrors.aliyun.com
 - 生产 compose 文件：`docker-compose.prod.yml`
 - 主部署目录：`/root/ugk-claw-repo`
 - shared 运行态目录：`/root/ugk-claw-shared`
-- 当前部署来源：Git 工作目录，`origin` 为 GitHub，`gitee` 为备用 remote
+- 当前部署来源：Git 工作目录，`gitee` 为默认发布 remote，`origin` 为 GitHub 备用 remote
 - 当前部署基线：`e446ec2 chore: consolidate aliyun deployed updates`
 
 注意：阿里云首次部署时，服务器访问 GitHub 超时，`git clone` 未成功，因此曾经使用 archive 解包目录。截至 `2026-04-29`，`/root/ugk-claw-repo` 已迁移为 Git 工作目录。后续不要再默认打包上传，也不要把 `/root/ugk-claw-shared` 塞回代码目录。
@@ -338,19 +338,19 @@ git push gitee main
 
 ```bash
 cd /root/ugk-claw-repo
-git fetch origin main
+git fetch gitee main
 git status --short
-git pull --ff-only origin main
+git pull --ff-only gitee main
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
 COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 ```
 
-如果 GitHub 不通，改走 Gitee：
+如果 Gitee 不通，确认 GitHub 可用后再改走 origin：
 
 ```bash
 cd /root/ugk-claw-repo
-git fetch gitee main
-git pull --ff-only gitee main
+git fetch origin main
+git pull --ff-only origin main
 ```
 
 `/root/ugk-claw-shared` 仍然是运行态目录，不参与 Git 更新，不要删除、覆盖或移动。archive 小包只作为 GitHub/Gitee 都不可用时的紧急兜底。

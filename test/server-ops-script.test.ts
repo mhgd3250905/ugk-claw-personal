@@ -7,6 +7,10 @@ test("server ops script protects shared runtime state during deploys", () => {
 
 	assert.match(script, /tencent/);
 	assert.match(script, /aliyun/);
+	assert.match(script, /deployRemote: "origin"/);
+	assert.match(script, /deployRemote: "gitee"/);
+	assert.match(script, /git fetch \$\{target\.deployRemote\} main/);
+	assert.match(script, /git pull --ff-only \$\{target\.deployRemote\} main/);
 	assert.match(script, /shellQuote/);
 	assert.match(script, /replaceAll\("'", "'\\\\''"\)/);
 	assert.match(script, /sh -lc \$\{shellQuote\(command\)\}/);

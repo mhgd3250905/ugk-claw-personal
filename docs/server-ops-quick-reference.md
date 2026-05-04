@@ -31,7 +31,7 @@
 - 公网入口：`http://101.37.209.54:3000/playground`
 - 健康检查：`http://101.37.209.54:3000/healthz`
 - 当前线上应用提交：以服务器 `git log -1 --oneline` 为准，当前跟随远端 `main`
-- 注意：当前阿里云目录已经迁移为 Git 工作目录，`origin` 指向 GitHub，`gitee` 作为备用 remote；后续更新优先 `git pull --ff-only origin main`，GitHub 不通时再从 Gitee 拉取。
+- 注意：当前阿里云目录已经迁移为 Git 工作目录，`origin` 指向 GitHub，`gitee` 指向 Gitee；后续更新默认 `git pull --ff-only gitee main`，不要先连 GitHub 浪费时间。
 
 ## Agent 渐进式披露：双云增量更新
 
@@ -41,7 +41,7 @@
 2. 再读本节和下面的“固定增量发布流程”，按目标云执行对应命令。
 3. 只有遇到迁移、回滚、服务器脏工作区、GitHub/Gitee 都不通、shared 数据异常或 nginx/sidecar 深度排障时，才展开 `docs/tencent-cloud-singapore-deploy.md` 或 `docs/aliyun-ecs-deploy.md`。
 
-默认发布方式是 Git fast-forward：本地提交并推送 `origin main`，同时推送 `gitee main` 作为国内网络兜底；服务器优先 `origin`，GitHub 不通时再走 `gitee`。archive 小包只允许当 GitHub 和 Gitee 都不可用、且用户明确要紧急发布时使用。别拿 tar 包当日常流程，方便一时，后面排障就开始考古，太蠢。
+默认发布方式是 Git fast-forward：本地提交后同时推送 `origin main` 和 `gitee main`。`server:ops` 按目标云选择拉取远端：腾讯云默认 `origin`，阿里云默认 `gitee`。archive 小包只允许当 GitHub 和 Gitee 都不可用、且用户明确要紧急发布时使用。别拿 tar 包当日常流程，方便一时，后面排障就开始考古，太蠢。
 
 ### 腾讯云增量更新规范
 
@@ -91,8 +91,8 @@ git pull --ff-only gitee main
 - 代码目录：`/root/ugk-claw-repo`
 - shared 目录：`/root/ugk-claw-shared`
 - 公网健康检查：`http://101.37.209.54:3000/healthz`
-- 默认远端：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`
-- 备用远端：`gitee -> https://gitee.com/ksheng3250905/ugk-pi-claw.git`
+- 默认远端：`gitee -> https://gitee.com/ksheng3250905/ugk-pi-claw.git`
+- 备用远端：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`
 
 执行前先在服务器确认：
 
@@ -109,20 +109,20 @@ git log -1 --oneline
 
 ```bash
 cd /root/ugk-claw-repo
-git fetch origin main
-git pull --ff-only origin main
+git fetch gitee main
+git pull --ff-only gitee main
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
 COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml restart nginx
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
 ```
 
-GitHub 不通时：
+Gitee 不通且确认 GitHub 可用时：
 
 ```bash
 cd /root/ugk-claw-repo
-git fetch gitee main
-git pull --ff-only gitee main
+git fetch origin main
+git pull --ff-only origin main
 ```
 
 ### 双云共同避坑
@@ -188,10 +188,11 @@ npm test
 git diff --check
 ```
 
-如果本次要发布的是已提交版本，先确保本地提交已经推到 GitHub：
+如果本次要发布的是已提交版本，先确保本地提交已经推到对应服务器会拉取的远端。双云发布时两个远端都推：
 
 ```bash
 git push origin main
+git push gitee main
 ```
 
 ### 腾讯云：Git 增量发布
@@ -232,20 +233,20 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 ```bash
 ssh ugk-claw-aliyun
 cd /root/ugk-claw-repo
-git fetch origin main
+git fetch gitee main
 git status --short
-git pull --ff-only origin main
+git pull --ff-only gitee main
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet
 COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d
 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml ps
 ```
 
-如果 GitHub 不通，确认本地提交已经推到 Gitee 后在服务器上改走备用 remote：
+如果 Gitee 不通，确认本地提交已经推到 GitHub 后再改走备用 remote：
 
 ```bash
 cd /root/ugk-claw-repo
-git fetch gitee main
-git pull --ff-only gitee main
+git fetch origin main
+git pull --ff-only origin main
 ```
 
 如果阿里云 app 容器内部健康但公网 / nginx 返回 `502`，固定重建 nginx：

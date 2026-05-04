@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### 阿里云增量更新默认走 Gitee
+- 日期：2026-05-04
+- 主题：将阿里云生产增量更新的默认 Git 拉取远端从 GitHub `origin` 改为 Gitee `gitee`。
+- 影响范围：`scripts/server-ops.mjs` 现在按目标云选择 deploy remote：腾讯云继续 `origin`，阿里云默认 `gitee`。运维文档同步清理“阿里云优先 GitHub”的旧口径，避免发布脚本在阿里云网络上反复卡 GitHub TLS / HTTP2 问题。
+- 对应入口：`scripts/server-ops.mjs`、`docs/server-ops.md`、`docs/server-ops-quick-reference.md`、`docs/aliyun-ecs-deploy.md`、`AGENTS.md`、`test/server-ops-script.test.ts`
+
 ### 自定义 Agent 运行态挂载修复
 - 日期：2026-05-04
 - 主题：把自定义 agent profile 运行态目录 `/app/.data/agents` 外置到 shared，避免生产容器重建后自定义 Agent 消失。
