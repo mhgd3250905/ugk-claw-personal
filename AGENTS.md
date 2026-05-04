@@ -296,6 +296,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `src/agent/agent-service-registry.ts`
 - `src/routes/chat.ts`
 
+判断 agent 是否当前注册可用，以 `GET /v1/agents` 为准；`.data/agents/profiles.json` 只记录用户创建的自定义 agent，不是完整运行时注册表。`main` 和默认 `search` 可能来自代码内置 profile，不能因为 `profiles.json` 没有记录就说它未注册。
+
 只有用户明确说 `subagent`、`.pi/agents`、`scout/planner/worker/reviewer` 或“派发子任务”时，才进入 legacy subagent 文件：
 
 - `.pi/extensions/subagent/index.ts`

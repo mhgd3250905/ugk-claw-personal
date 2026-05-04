@@ -53,6 +53,14 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 5. 配置技能：创建时的 `initialSystemSkillNames` 会把主 Agent 当前已有且来源明确的技能复制到该 agent 的 `.data/agents/:agentId/pi/skills`；创建后追加安装调用 `POST /v1/agents/:agentId/skills`，只允许把主 Agent 当前已有且来源明确的技能复制到该 agent 自己的 `user-skills` 目录。如果主 Agent 没有目标技能，停止、说明原因，并询问用户是否要切换到目标 agent 自己处理。
 6. 归档 agent：先说明影响范围并询问确认；确认不是 `main`、确认没有 running conversation 后，才调用 `POST /v1/agents/:agentId/archive`。
 
+## 状态判断口径
+
+- 判断某个 agent 是否当前注册可用，唯一事实源是 `GET /v1/agents`。
+- `.data/agents/profiles.json` 只记录用户创建的自定义 agent profile；它不是完整运行时 agent 注册表。
+- `main` 和默认 `search` 可能来自代码内置 profile，不一定出现在 `profiles.json`。因此 `profiles.json` 没有 `search` 不能说 `search` 未注册。
+- 如果 `GET /v1/agents` 返回某个 `agentId`，它就是当前运行时已注册可用；如果目录存在但 `/v1/agents` 不返回，才说明它当前不在运行时列表中，常见原因是已归档或未被 catalog 加载。
+- 如果要区分来源，可说“内置 Agent / 自定义 Agent”；不要用“未注册”描述仅仅缺少 `profiles.json` 记录的内置 Agent。
+
 ## 其他 Agent 技能安装边界
 
 主 Agent 帮其他 agent profile 安装技能时只能做复制安装：
@@ -104,6 +112,7 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 
 - 不要把 `.pi/skills` 或 `runtime/skills-user` 说成其他 agent profile 的技能目录。
 - 不要从项目文档猜测某个 agent 已安装技能；查 scoped debug skills。
+- 不要用 `profiles.json` 缺少记录来判断 agent 未注册；先查 `GET /v1/agents`。
 - 不要说“我可以帮其他 agent 安装任何技能”；主 Agent 只能复制自己已有的技能。
 - 不要在主 Agent 没有技能时替其他 agent 外部安装；切换到目标 agent 后再处理。
 - 不要把“要不要继续”替用户决定；涉及创建、修改、安装、归档、删除时，先问清楚。

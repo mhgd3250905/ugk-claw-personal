@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### Agent 注册状态口径收口
+- 日期：2026-05-04
+- 主题：澄清 agent profile 的运行时注册状态与 `profiles.json` 自定义记录不是一回事。
+- 影响范围：文档和 `agent-profile-ops` 现在明确要求：判断 agent 是否当前注册可用只看 `GET /v1/agents`；`.data/agents/profiles.json` 只记录用户创建的自定义 agent profile，不是完整运行时注册表。`main` 和默认 `search` 可能来自代码内置 profile，不能因为 `profiles.json` 没有记录就标成未注册；只有目录存在但 `/v1/agents` 不返回时，才说明当前运行时不可用或已归档。
+- 对应入口：`AGENTS.md`、`.pi/skills/agent-profile-ops/SKILL.md`、`docs/playground-current.md`、`docs/traceability-map.md`
+
 ### Agent 操作台技能管理
 - 日期：2026-05-04
 - 主题：把其他 agent profile 的技能复制安装 / 删除补进后端接口和 Playground 操作台。

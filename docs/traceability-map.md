@@ -46,7 +46,7 @@
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
-再记一句：当前已开始引入“单进程多 agent profile”底座，第一版内置 `main` 与 `search`，后续自定义 agent 记录在 `.data/agents/profiles.json`。`main` 继续走旧 `/v1/chat/*`，`search` 和后续 agent 走 `/v1/agents/:agentId/...`。排查技能串场、会话串场或创建 / 归档 agent 时先看 [src/agent/agent-profile.ts](/E:/AII/ugk-pi/src/agent/agent-profile.ts)、[src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)、[src/agent/agent-service-registry.ts](/E:/AII/ugk-pi/src/agent/agent-service-registry.ts)、[src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)、[.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md) 和 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
+再记一句：当前已开始引入“单进程多 agent profile”底座，第一版内置 `main` 与 `search`，后续自定义 agent 记录在 `.data/agents/profiles.json`。`GET /v1/agents` 是当前运行时注册可用列表；`profiles.json` 只代表用户创建记录，不是完整注册表。`main` 继续走旧 `/v1/chat/*`，`search` 和后续 agent 走 `/v1/agents/:agentId/...`。排查技能串场、会话串场或创建 / 归档 agent 时先看 [src/agent/agent-profile.ts](/E:/AII/ugk-pi/src/agent/agent-profile.ts)、[src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)、[src/agent/agent-service-registry.ts](/E:/AII/ugk-pi/src/agent/agent-service-registry.ts)、[src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)、[.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md) 和 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
 
 用户问“我有哪些 agent / 有哪些 agent / 当前有哪些 agent”时，默认指 `/v1/agents` 的 agent profile / 操作视窗，不是 `.pi/agents` 里的 legacy subagent。只有明确说 `subagent`、`scout/planner/worker/reviewer` 或“派发子任务”时才看 `.pi/agents`。
 
