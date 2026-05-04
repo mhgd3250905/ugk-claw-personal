@@ -8,6 +8,7 @@ const TARGETS = {
     sharedDir: "~/ugk-claw-shared",
     publicHealthz: "http://43.134.167.179:3000/healthz",
     agentDataDir: "/home/ubuntu/ugk-claw-shared/.data/agent",
+    agentsDataDir: "/home/ubuntu/ugk-claw-shared/.data/agents",
     skillsDir: "/home/ubuntu/ugk-claw-shared/runtime/skills-user",
     ansi: "",
   },
@@ -17,6 +18,7 @@ const TARGETS = {
     sharedDir: "/root/ugk-claw-shared",
     publicHealthz: "http://101.37.209.54:3000/healthz",
     agentDataDir: "/root/ugk-claw-shared/.data/agent",
+    agentsDataDir: "/root/ugk-claw-shared/.data/agents",
     skillsDir: "/root/ugk-claw-shared/runtime/skills-user",
     ansi: "COMPOSE_ANSI=never ",
   },
@@ -55,15 +57,19 @@ function remoteScriptFor(selectedAction) {
   const guardEnvEquals = (name, value) => `grep -qx '${name}=${value}' ${target.sharedDir}/compose.env`;
   const skillsEnvCheck = guardEnvEquals("UGK_RUNTIME_SKILLS_USER_DIR", target.skillsDir);
   const agentDataEnvCheck = guardEnvEquals("UGK_AGENT_DATA_DIR", target.agentDataDir);
+  const agentsDataEnvCheck = guardEnvEquals("UGK_AGENTS_DATA_DIR", target.agentsDataDir);
   const listSkills = `find /app/runtime/skills-user -maxdepth 2 -name SKILL.md -printf '%h\\\\n' | sort`;
   const verify = [
     "printf '== compose env guard ==\\n'",
     `${skillsEnvCheck} || { echo 'UGK_RUNTIME_SKILLS_USER_DIR is missing or wrong' >&2; exit 12; }`,
     `${agentDataEnvCheck} || { echo 'UGK_AGENT_DATA_DIR is missing or wrong' >&2; exit 13; }`,
+    `${agentsDataEnvCheck} || { echo 'UGK_AGENTS_DATA_DIR is missing or wrong' >&2; exit 14; }`,
     "printf '== compose ps ==\\n'",
     `${compose} ps`,
     "printf '== app data mount ==\\n'",
     `${composeExec("ugk-pi", "test -d /app/.data/agent && test -w /app/.data/agent")}`,
+    "printf '== agents data mount ==\\n'",
+    `${composeExec("ugk-pi", "test -d /app/.data/agents && test -w /app/.data/agents")}`,
     "printf '== browser provider ==\\n'",
     `${composeExec("ugk-pi", "printenv WEB_ACCESS_BROWSER_PROVIDER | grep -qx direct_cdp")}`,
     "printf '== browser memory limit ==\\n'",
@@ -113,6 +119,7 @@ function remoteScriptFor(selectedAction) {
     `test -d ${target.sharedDir}/.data/chrome-sidecar`,
     `test -d ${target.skillsDir}`,
     `test -d ${target.agentDataDir}`,
+    `test -d ${target.agentsDataDir}`,
     "printf '== compose config ==\\n'",
     `${compose} config --quiet`,
     ...verify,

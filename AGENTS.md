@@ -123,7 +123,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - agent 任务结束时，`AgentService` 会通过 `src/agent/browser-cleanup.ts` 按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 清理本轮 `web-access` scope 下保留的浏览器页面；不要只在运行容器 `/app` 里热改，否则重建镜像会直接丢修复。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。
 - sidecar 文件选择 / CDP 上传使用独立共享 upload 桥：agent/app 侧写 `/app/.data/browser-upload/<file>`，sidecar Chrome 侧选择 `/config/upload/<file>`，宿主目录由 `UGK_BROWSER_UPLOAD_DIR` 指向；不要把整个 Chrome profile 当上传交换区。
-- 当前生产更新默认不能洗掉两类状态：sidecar 登录态挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，agent 会话 / session / 资产 / conn 数据挂在 `~/ugk-claw-shared/.data/agent` 并映射到容器 `/app/.data/agent`；如果更新后历史会话消失，先查 `docker inspect ugk-pi-claw-ugk-pi-1` 的 mounts 和 `UGK_AGENT_DATA_DIR`，别又让容器可写层背锅。
+- 当前生产更新默认不能洗掉三类状态：sidecar 登录态挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，主 Agent 会话 / session / 资产 / conn 数据挂在 `~/ugk-claw-shared/.data/agent` 并映射到容器 `/app/.data/agent`，自定义 agent profile 挂在 `~/ugk-claw-shared/.data/agents` 并映射到容器 `/app/.data/agents`；如果更新后历史会话或自定义 Agent 消失，先查 `docker inspect ugk-pi-claw-ugk-pi-1` 的 mounts、`UGK_AGENT_DATA_DIR` 和 `UGK_AGENTS_DATA_DIR`，别又让容器可写层背锅。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
 - 运行中的 agent 对用户输出服务入口、playground 或本地文件预览链接时，必须以当前容器 `PUBLIC_BASE_URL` 为准；只有用户明确询问双云部署事实时才同时列出腾讯云 / 阿里云公网入口。阿里云环境不要主动提腾讯云公网地址，腾讯云环境也不要主动提阿里云公网地址，别把部署手册里的备用事实当默认回复模板。
 - 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`，公网入口是 `http://43.134.167.179:3000/playground`；阿里云 ECS 的正式部署记录在 `docs/aliyun-ecs-deploy.md`，公网入口是 `http://101.37.209.54:3000/playground`。两边 sidecar GUI 都只能走 SSH tunnel，不要开放公网 `3901`。
@@ -424,7 +424,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 根目录 `DESIGN.md` 是当前 playground 视觉 identity 的机器可读入口；涉及颜色、字号、圆角、组件视觉语义的前端改动，先参考它，必要时同步更新并运行 `npm run design:lint`。
 - 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
 - 生产用户 skills 也属于运行态，不要再长期依赖 clean Git 工作目录里的 `runtime/skills-user/`；`docker-compose.prod.yml` 通过 `UGK_RUNTIME_SKILLS_USER_DIR` 挂载 shared skills 目录，腾讯云为 `~/ugk-claw-shared/runtime/skills-user`，阿里云为 `/root/ugk-claw-shared/runtime/skills-user`。
-- 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent` 和生产日志外置到 `~/ugk-claw-shared/`；阿里云 ECS 对应外置目录是 `/root/ugk-claw-shared/`。后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` 这条挂载。
+- 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent`、`.data/agents` 和生产日志外置到 `~/ugk-claw-shared/`；阿里云 ECS 对应外置目录是 `/root/ugk-claw-shared/`。后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` / `UGK_AGENTS_DATA_DIR` 这两条挂载。
 - Playground 主 Agent 的运行规则文件是 `/app/.data/agent/AGENTS.md`，其他 agent profile 的运行规则文件是 `/app/.data/agents/<agentId>/AGENTS.md`；这些运行态规则会替换仓库根 `AGENTS.md` 进入对应 agent session。仓库根 `AGENTS.md` 只作为维护本项目代码的接手说明，不应被当作 Playground 日常 agent 的默认人格或长期记忆。旧 `/app/.data/agent/AGENTS.local.md` 仅作为主 Agent 规则迁移来源保留兼容。
 - 后台任务的“执行 Agent”使用 `conn.profileId` 选择 Playground agent profile；run 级能力快照只冻结该 Agent 的规则文件、技能目录、身份和模型解析结果，不是工具权限沙箱。底层 runtime 工具仍属于基础执行能力，不按 profile 做限制。如果原 Agent 已归档或不存在，worker 必须降级到主 Agent 继续执行，并通过 `resolvedSnapshot.fallbackUsed / fallbackReason` 和任务消息文案显式告诉用户。
 - playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。

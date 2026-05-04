@@ -24,6 +24,8 @@ test("server ops script protects shared runtime state during deploys", () => {
 	assert.match(script, /up --build -d/);
 	assert.match(script, /restart nginx/);
 	assert.match(script, /WEB_ACCESS_BROWSER_PROVIDER[\s\S]*direct_cdp/);
+	assert.match(script, /UGK_AGENTS_DATA_DIR/);
+	assert.match(script, /\/app\/\.data\/agents/);
 	assert.match(script, /browser memory limit/);
 	assert.match(script, /HostConfig\.Memory/);
 	assert.match(script, /Chrome V8 old space limit/);

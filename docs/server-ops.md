@@ -41,9 +41,11 @@ npm run server:ops -- aliyun verify
 - 远端 Git 工作树是否干净
 - `UGK_RUNTIME_SKILLS_USER_DIR` 是否指向 shared skills
 - `UGK_AGENT_DATA_DIR` 是否指向 shared agent data
+- `UGK_AGENTS_DATA_DIR` 是否指向 shared agent profile data
 - `docker compose config --quiet`
 - 容器状态
 - 容器内 `/app/.data/agent` 是否是可写挂载
+- 容器内 `/app/.data/agents` 是否是可写挂载
 - `WEB_ACCESS_BROWSER_PROVIDER` 是否为 `direct_cdp`
 - Chrome sidecar 容器是否真的有 Docker memory limit
 - Chrome 实际进程命令行是否包含 `max-old-space-size=1536`
@@ -78,6 +80,15 @@ find ~/ugk-claw-shared/runtime/skills-user -maxdepth 2 -name SKILL.md -printf '%
 grep -n '^UGK_AGENT_DATA_DIR=' ~/ugk-claw-shared/compose.env
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi sh -lc "test -d /app/.data/agent && test -w /app/.data/agent"
 ```
+
+如果自定义 Agent 更新后消失，先查独立 agent profile 挂载：
+
+```bash
+grep -n '^UGK_AGENTS_DATA_DIR=' ~/ugk-claw-shared/compose.env
+docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi sh -lc "test -d /app/.data/agents && test -w /app/.data/agents"
+```
+
+阿里云同样把 shared 路径换成 `/root/ugk-claw-shared/...`。自定义 agent profile 不在 `/app/.data/agent`，而在 `/app/.data/agents`；只挂主 Agent 数据会让重建容器时自定义 Agent 落进容器可写层，这种坑非常阴险。
 
 如果 web-access 或 sidecar 异常，优先跑脚本自带的 CDP 检查。`/healthz` 只能证明 app 进程活着，不能证明 Chrome sidecar、CDP 转发、shared data 和 skills 都在正确位置。把 `200` 当全身健康证明，这种偷懒很快会反噬。
 

@@ -134,6 +134,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /logs\/app/);
 	assert.match(prodCompose, /logs\/nginx/);
 	assert.match(prodCompose, /\$\{UGK_AGENT_DATA_DIR:-\.\/\.data\/agent\}:\/app\/\.data\/agent/);
+	assert.match(prodCompose, /\$\{UGK_AGENTS_DATA_DIR:-\.\/\.data\/agents\}:\/app\/\.data\/agents/);
 	assert.match(prodCompose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/app\/\.data\/browser-upload/);
 	assert.match(prodCompose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/config\/upload/);
 	assert.match(prodCompose, /\$\{UGK_RUNTIME_SKILLS_USER_DIR:-\.\/runtime\/skills-user\}:\/app\/runtime\/skills-user/);
@@ -154,6 +155,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR=\/config\/upload/);
 	assert.match(envExample, /CONN_WORKER_MAX_CONCURRENCY=3/);
 	assert.match(envExample, /UGK_AGENT_DATA_DIR=\.\/\.data\/agent/);
+	assert.match(envExample, /UGK_AGENTS_DATA_DIR=\.\/\.data\/agents/);
 	assert.match(envExample, /UGK_BROWSER_UPLOAD_DIR=\.\/\.data\/chrome-sidecar\/upload/);
 	assert.match(envExample, /UGK_RUNTIME_SKILLS_USER_DIR=\.\/runtime\/skills-user/);
 	assert.match(envExample, /APT_MIRROR_HOST=/);

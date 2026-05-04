@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### 自定义 Agent 运行态挂载修复
+- 日期：2026-05-04
+- 主题：把自定义 agent profile 运行态目录 `/app/.data/agents` 外置到 shared，避免生产容器重建后自定义 Agent 消失。
+- 影响范围：生产 compose 现在通过 `UGK_AGENTS_DATA_DIR` 挂载 shared `.data/agents` 到 app / conn-worker / feishu-worker；服务器运维脚本新增 env guard 和容器内 `/app/.data/agents` 可写检查。文档同步区分主 Agent 数据 `/app/.data/agent` 和自定义 agent profile 数据 `/app/.data/agents`，别再把两类状态混成一个目录。
+- 对应入口：`docker-compose.prod.yml`、`.env.example`、`scripts/server-ops.mjs`、`docs/server-ops.md`、`AGENTS.md`、`test/containerization.test.ts`、`test/server-ops-script.test.ts`
+
 ### Agent 运行态治理计划口径收口
 - 日期：2026-05-04
 - 主题：把运行态状态 API 化治理计划明确收口为“规范引导优先”，不宣称当前阶段已实现工具层硬拦截。
