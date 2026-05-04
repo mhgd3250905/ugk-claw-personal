@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### Agent 运行态治理计划口径收口
+- 日期：2026-05-04
+- 主题：把运行态状态 API 化治理计划明确收口为“规范引导优先”，不宣称当前阶段已实现工具层硬拦截。
+- 影响范围：计划文档现在明确：基础文件写能力不做粗暴限制；当前阶段通过规则、技能、文档测试和后续只读 diagnostics 引导 agent 避免绕 API 手写运行态底层状态。写入型 reload / repair / reconcile 入口必须更晚、更审慎，不能把“手改 JSON”换皮成危险的“HTTP repair”。
+- 对应入口：`.codex/plans/2026-05-04-agent-runtime-state-api-guardrails.md`
+
 ### Chrome Tab 累积治理
 - 日期：2026-05-04
 - 主题：收口 `web-access` 同一 agent scope 下的 Chrome tab 累积问题。
