@@ -534,6 +534,14 @@ export function getPlaygroundStyles(): string {
 			z-index: 1;
 		}
 
+		.chat-stage > .error-banner {
+			z-index: 95;
+		}
+
+		.chat-stage > .notification-live-region {
+			z-index: 90;
+		}
+
 		.chat-stage[data-workspace-mode="assets"] .landing-screen,
 		.chat-stage[data-workspace-mode="assets"] .stream-layout,
 		.chat-stage[data-workspace-mode="assets"] .command-deck,

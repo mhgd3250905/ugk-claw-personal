@@ -636,6 +636,8 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*border-radius:\s*4px;/);
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*background:\s*#2f1119;/);
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*z-index:\s*6;/);
+	assert.match(response.body, /\.chat-stage > \.error-banner\s*\{[\s\S]*z-index:\s*95;/);
+	assert.match(response.body, /\.chat-stage > \.notification-live-region\s*\{[\s\S]*z-index:\s*90;/);
 	assert.match(response.body, /\.error-banner\s*\{[\s\S]*pointer-events:\s*auto;/);
 	assert.match(response.body, /\.error-banner\.visible\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /\.error-banner\[hidden\]\s*\{[\s\S]*display:\s*none !important;/);

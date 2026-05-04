@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### Playground 桌面错误提示关闭层级修复
+- 日期：2026-05-04
+- 主题：修复桌面端“当前 agent 仍在运行，先别切视窗。”错误提示关闭按钮无法点击的问题。
+- 影响范围：`chat-stage` 的通用子元素层级规则此前会覆盖 `.error-banner` 和 `.notification-live-region` 自身的 `z-index`，导致桌面端错误提示可能被更高层工具栏区域压住。现在补充更具体的 `.chat-stage > .error-banner` / `.chat-stage > .notification-live-region` 层级规则，保留手机端现有行为。
+- 对应入口：`src/ui/playground-styles.ts`、`test/server.test.ts`
+
 ### 阿里云增量更新默认走 Gitee
 - 日期：2026-05-04
 - 主题：将阿里云生产增量更新的默认 Git 拉取远端从 GitHub `origin` 改为 Gitee `gitee`。
