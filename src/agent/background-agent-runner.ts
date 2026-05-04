@@ -77,6 +77,9 @@ export class BackgroundAgentRunner {
 				eventType: "snapshot_resolved",
 				event: {
 					profileId: snapshot.profileId,
+					...(snapshot.requestedAgentId ? { requestedAgentId: snapshot.requestedAgentId } : {}),
+					...(snapshot.agentId ? { agentId: snapshot.agentId } : {}),
+					...(snapshot.agentName ? { agentName: snapshot.agentName } : {}),
 					agentSpecId: snapshot.agentSpecId,
 					skillSetId: snapshot.skillSetId,
 					modelPolicyId: snapshot.modelPolicyId,
@@ -84,6 +87,19 @@ export class BackgroundAgentRunner {
 				},
 				createdAt: now,
 			});
+			if (snapshot.fallbackUsed) {
+				await this.options.runStore.appendEvent({
+					runId: run.runId,
+					leaseOwner: run.leaseOwner,
+					eventType: "agent_profile_fallback",
+					event: {
+						requestedProfileId: snapshot.requestedAgentId ?? conn.profileId ?? snapshot.profileId,
+						fallbackProfileId: snapshot.agentId ?? snapshot.profileId,
+						reason: snapshot.fallbackReason ?? "profile_not_found",
+					},
+					createdAt: now,
+				});
+			}
 
 			await this.options.runStore.updateRuntimeInfo({
 				runId: run.runId,

@@ -920,6 +920,11 @@ export function getConnActivityDialogs(): string {
 						</div>
 						<div class="conn-editor-grid conn-editor-model-grid">
 							<label class="conn-editor-field">
+								<span>执行 Agent</span>
+								<select id="conn-editor-profile-id" name="profileId"></select>
+								<small class="conn-editor-field-hint">后台任务借用这个 Agent 的规则和技能，不写入它的聊天历史。</small>
+							</label>
+							<label class="conn-editor-field">
 								<span>API 源</span>
 								<select id="conn-editor-model-provider" name="modelProvider"></select>
 								<small class="conn-editor-field-hint">后台任务会按这里保存的模型运行，不跟随前台聊天临时切换。</small>
@@ -934,11 +939,6 @@ export function getConnActivityDialogs(): string {
 							<summary>高级设置</summary>
 							<p class="conn-editor-section-hint">下面这些主要给进阶场景用。不填就走默认，不会影响普通创建。</p>
 							<div class="conn-editor-grid">
-								<label class="conn-editor-field">
-									<span>任务身份</span>
-									<input id="conn-editor-profile-id" autocomplete="off" placeholder="background.default" />
-									<small class="conn-editor-field-hint">决定它以哪套后台身份运行。</small>
-								</label>
 								<label class="conn-editor-field">
 									<span>执行模板</span>
 									<input id="conn-editor-agent-spec-id" autocomplete="off" placeholder="agent.default" />

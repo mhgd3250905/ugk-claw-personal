@@ -6,9 +6,10 @@
 
 - Playground 桌面端新增 agent 选择器，第一版只内置 `main` 和 `search` 两个操作视窗。`main` 是既有主 Agent，继续兼容旧 `/v1/chat/*` 和 `/v1/debug/skills`；`search` 是第一个独立 agent profile 样板。
 - 桌面端 agent 切换入口位于左侧历史会话 rail 底部的“设置”菜单中；topbar 右侧上下文按钮左边显示当前激活 agent 的紧凑标签，该标签同时是 Agent 操作台入口。当前激活 agent 会写入浏览器 `localStorage` 的 `ugk-pi:active-agent-id`，刷新后继续保持；如果保存的 agent 已不存在，则回退到 `main`。
-- 切换 agent 后，会话目录、当前会话、`GET /v1/chat/state` 对应的新 scoped 请求、发送消息、追加队列、打断、运行日志和查看技能都走 `/v1/agents/:agentId/...`。文件库、任务消息和后台任务当前仍作为共享运行能力，不在第一版拆成 agent 私有库。
+- 切换 agent 后，会话目录、当前会话、`GET /v1/chat/state` 对应的新 scoped 请求、发送消息、追加队列、打断、运行日志和查看技能都走 `/v1/agents/:agentId/...`。文件库、任务消息和后台任务当前仍作为共享运行能力，不在第一版拆成 agent 私有库；但后台任务创建 / 编辑时可以选择“执行 Agent”，只借用目标 Agent 的运行规则和技能快照，不把后台 run 写进该 Agent 的前台聊天历史。
 - 主 Agent 的 agent 元操作技能是 `.pi/skills/agent-profile-ops`。第一版后端接口支持 `GET /v1/agents`、`POST /v1/agents` 创建运行态 agent profile，以及 `POST /v1/agents/:agentId/archive` 归档 agent；创建出的 profile 记录在 `.data/agents/profiles.json`，归档目录为 `.data/agents-archive/`。主 Agent 给其他 agent profile 安装技能时只能复制主 Agent 当前已有且来源明确的技能；主 Agent 没有的技能不能代装，用户应切换到目标 agent 自己安装或创建。
 - Agent 注册状态以 `GET /v1/agents` 为准；`.data/agents/profiles.json` 只记录用户创建的自定义 agent profile，不是完整运行时注册表。`main` 和默认 `search` 来自代码内置 profile，不一定写入 `profiles.json`；因此 `profiles.json` 没有 `search` 只能说明它不是用户创建记录，不能说明未注册。若 `search` 被归档，`/v1/agents` 不再返回它，才表示当前运行时不可用。
+- `.data/agents/profiles.json` 禁止作为 agent 创建、恢复、归档或修复入口。agent 元操作必须走 `/v1/agents` API，因为 API 会同时维护磁盘 catalog、运行目录和进程内 `AgentServiceRegistry`；手动改 JSON 只会改磁盘，容易造成 `POST /v1/agents` 报重复但 `GET /v1/agents` 看不到的运行时分裂。
 - Playground 新增 Agent 操作台：入口统一为 topbar / 手机状态栏里的当前 Agent 标签，不再额外放 `Agent 管理` 按钮或手机更多菜单项。桌面端操作台占据 `chat-stage` 工作区，移动端作为全屏工作页打开；页面展示包括主 Agent 在内的全部操作视窗。主 Agent 可查看、可切换但不可编辑 / 删除，且不在该页管理技能；其他 agent profile 支持新建、编辑名称 / 描述、查看 scoped 技能、复制安装主 Agent 已有技能、删除自身非基础技能、查看并编辑 `AGENTS.md`、切换和删除。右侧详情先展示一行 `AGENTS.md` 规则文件卡片，点击后在弹窗中完整阅读、编辑并保存；下半部分固定作为技能透明视图，避免规则文件和技能列表互相压缩。新建 Agent 在右侧完整创建页完成：`agentId` 由名称自动生成，用户填写名称和用途描述，页面实时预览将写入的 `AGENTS.md`，三件套基础技能默认内置，额外初始系统技能只能从主 Agent 当前已有技能中勾选并通过 `initialSystemSkillNames` 复制。编辑调用 `PATCH /v1/agents/:agentId`，删除仍调用归档接口 `POST /v1/agents/:agentId/archive`，规则文件读取调用 `GET /v1/agents/:agentId/rules`，保存调用 `PATCH /v1/agents/:agentId/rules`，创建后技能复制安装调用 `POST /v1/agents/:agentId/skills`，技能删除调用 `DELETE /v1/agents/:agentId/skills/:skillName`。
 - Playground agent session 的 `AGENTS.md` 采用运行态隔离：主 Agent 读取 `.data/agent/AGENTS.md`，其他 agent 读取 `.data/agents/<agentId>/AGENTS.md`，并在 resource loader 中替换仓库根 `AGENTS.md`。仓库根 `AGENTS.md` 只给维护 `ugk-pi` 代码的 coding agent 使用，不再进入 Playground 日常 agent 的默认上下文；旧 `.data/agent/AGENTS.local.md` 仅作为主 Agent 运行规则迁移来源。
 - 每个 agent 的默认 `AGENTS.md` 都包含 Karpathy Guidelines，作为通用工作纪律：先想再写、简洁优先、外科手术式修改和目标驱动验证。主 Agent 与后续新建 agent 都应默认带上这段规则。
@@ -446,6 +447,7 @@
 ## Conn Run Detail Dialog
 
 - `conn` notification 右下角的过程入口除了结果、文件和事件，现在还要展示 run 生命周期关键信息：`claimed`、`started`、`updated`、`lease owner`、`lease until`。
+- 过程弹层还会展示 `Execution Agent`：包含 requested agent、actual agent、fallback reason 和实际 `provider / model`。如果原 `profileId` 指向的 Agent 不存在或已归档，run detail 必须把“原执行 Agent 不可用，已由默认 Agent 完成”展示出来，不能假装一切正常。
 - 对 `running` run，弹层会在前端直接计算一条 health 文案，优先告诉用户它是：
   - `running / lease active`
   - 还是 `running / stale suspected`
@@ -480,20 +482,21 @@
 - 手机端后台任务管理器不再是贴底抽屉，而是全屏独立工作页：`conn-manager-dialog.open` 与 `conn-manager-panel` 占满 `100dvh`，顶部统一使用 `topbar asset-modal-head mobile-work-topbar`；左侧是返回箭头和 `后台任务` 标题，右侧直接放 `新建任务 / 刷新列表`，状态筛选和批量操作保留在内容区。conn 条目改成 `#0b0c18` 单列卡片，`立即执行 / 编辑 / 暂停 / 恢复 / 删除 / 查看` 这类操作以整宽网格按钮呈现，避免横向挤成一排小字按钮。
 - 手机端后台任务创建 / 编辑同样不再是弹窗，而是全屏编辑页：`conn-editor-dialog.open` 与 `conn-editor-panel` 占满 `100dvh`，顶部统一状态栏左侧是返回箭头和页面标题，右侧直接放 `保存 / 取消`；表单按 `标题 / 让它做什么 / 投递目标 / 调度 / 模型选择 / 高级设置` 分块滚动，深色主题常用字段使用 `#0b0c18` 实心输入卡片；浅色主题下字段容器保持透明，输入框和目标预览使用白色 / 冷蓝承载面，label 与 hint 必须是深蓝灰文字。
 - 管理弹层提供 `新建` 入口，每条 conn 提供 `编辑` 入口；编辑器使用 `conn-editor-dialog` / `conn-editor-form`，调用 `POST /v1/conns` 或 `PATCH /v1/conns/:connId`。
-- conn 创建 / 编辑器默认只露出常用字段：标题、`让它做什么`、`结果发到哪里`、调度和保存。编号输入只在选择“指定会话 / 飞书”时出现。
+- conn 创建 / 编辑器默认只露出常用字段：标题、`让它做什么`、`结果发到哪里`、调度、执行 Agent、模型和保存。编号输入只在选择“指定会话 / 飞书”时出现。
 - 调度入口只保留三种：`定时执行`、`间隔执行`、`每日执行`。前端负责把这三种映射回后端 `once / interval / cron` payload，创建时不再让用户接触 cron 细节。
 - conn 编辑器覆盖标题、prompt、投递目标、调度策略、任务级 API 源 / 模型选择和高级运行字段：
+  - `执行 Agent` 使用 `GET /v1/agents` 返回的 Playground agent catalog 渲染下拉，保存为 `profileId`。后台 run 借用该 Agent 的 `AGENTS.md` 和 scoped skills，但运行 session 属于后台 run 自己，不进入该 Agent 的前台 conversation。
   - `API 源 / 模型` 使用和前台模型源设置同源的 `/v1/model-config` 下拉列表，保存为 conn 自身的 `modelProvider / modelId`；不要退回手写 provider/model，也不要再靠同步前台 `.pi/settings.json` 控制后台 worker。
   - 目标支持当前会话、指定 conversation、`feishu_chat`、`feishu_user`。
 - 调度区只保留三种模式：`定时执行`、`间隔执行`、`每日执行`。前端仍然映射回后端 `once / interval / cron`，但不再把 cron、工作日、每周这些复杂概念直接甩给用户。
 - 三种模式对应的输入也固定下来：`定时执行` 只点选 `执行时间`；`间隔执行` 只点选 `首次执行时间` 并填写 `间隔（分钟）`；`每日执行` 只点选 `每日执行时间`。时间选择统一使用本地打包的 `flatpickr`，配置 `enableTime / time_24hr / disableMobile`，不再依赖系统原生 `datetime-local` / `time` 控件；浅色主题必须覆盖日历的月份、星期、日期、禁用日期、hover、today、selected 和前后月箭头，不能让深色主题白字漏在白色日历上。
 - `每日执行时间` 解析现在兼容 `07:00`、`7:00` 与 `HH:mm:ss`，保存时不会再因为用户输入或浏览器差异误报“请填写每日执行时间”。
 - “附加资料”区域现在提供显式文件入口：可从文件库复用已有资产，也可直接上传新文件；用户看到的是文件名与选中状态，内部才映射成 `assetRefs`
-  - 高级字段默认收进 `高级设置`，用户可见名称分别是 `任务身份`、`执行模板`、`能力包`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `profileId`、`agentSpecId`、`skillSetId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。模型不再靠手写 `modelPolicyId`，而是在常用区通过 `API 源` 和 `模型` 下拉框保存到 `modelProvider / modelId`。
+  - 高级字段默认收进 `高级设置`，用户可见名称分别是 `执行模板`、`能力包`、`版本跟随方式`、`最长等待时长（秒）` 和 `附加资料`；底层仍映射到 `agentSpecId`、`skillSetId`、`upgradePolicy`、`maxRunMs` 和 `assetRefs`。`profileId` 已经升级为常用区的 `执行 Agent` 下拉，模型不再靠手写 `modelPolicyId`，而是在常用区通过 `API 源` 和 `模型` 下拉框保存到 `modelProvider / modelId`。
 - 目标选择区现在会显示 `conn-editor-target-preview`：把将要投递到 `任务消息` 还是飞书目标、目标编号和实际投递口径用中文展示出来；这里不能出现 `????` 这类乱码占位。
 - 保存成功后，管理器会显示 `conn-manager-notice`，说明已创建 / 已更新的 conn 会投递到哪里，并高亮对应条目。
 - conn 列表里的最近 run 默认折叠为一行 `conn-manager-run-summary`；需要查证据时再展开最近 3 条 run，避免管理面变成一堵日志墙。
-- 后台任务列表现在按人话信息展示：`结果发到`、`执行方式`、`运行节奏`、`模型`。不再直接向用户暴露 `target / schedule / next / last / maxRunMs` 这类后台字段名。
+- 后台任务列表现在按人话信息展示：`结果发到`、`执行方式`、`运行节奏`、`执行 Agent`、`模型`。不再直接向用户暴露 `target / schedule / next / last / maxRunMs` 这类后台字段名。
 - 列表状态与最近 run 结果统一显示为中文口径：`运行中 / 已暂停 / 已完成`、`待执行 / 执行中 / 成功 / 失败 / 已取消`，避免用户自己翻译状态码。
 - 目标归属不要再脑补成“当前打开哪个会话就往哪个会话冒泡”。后台结果的主落点已经是任务消息页；飞书目标按各自 adapter 投递，聊天 transcript 不再承担这层异步收件箱职责。
 - 管理器顶部提供状态筛选和批量工具：`conn-manager-filter` 按全部 / 运行中 / 已暂停 / 已完成过滤；`选择当前` 会选择当前筛选结果；`删除所选` 调用 `POST /v1/conns/bulk-delete`，用于一次清理多条测试 conn。

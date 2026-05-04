@@ -129,6 +129,7 @@ export function getConnActivityEditorScript(): string {
 			state.connEditorError = "";
 			fillConnEditor(buildConnEditorDraft(editing ? conn : null));
 			renderConnEditor();
+			void loadAgentCatalog().then(() => renderConnEditorAgentOptions());
 			void ensureConnEditorModelConfig();
 			void loadAssets(true);
 			connEditorDialog.hidden = false;
@@ -224,7 +225,7 @@ export function getConnActivityEditorScript(): string {
 						: "60",
 				intervalStart: formatConnDateTimeLocal(schedule.kind === "interval" ? schedule.startAt : undefined),
 				timeOfDay: inferConnScheduleTimeOfDay(schedule),
-				profileId: conn?.profileId || "",
+				profileId: conn?.profileId || "main",
 				agentSpecId: conn?.agentSpecId || "",
 				skillSetId: conn?.skillSetId || "",
 				modelProvider: conn?.modelProvider || "",
@@ -246,6 +247,8 @@ export function getConnActivityEditorScript(): string {
 			connEditorIntervalStart.value = draft.intervalStart;
 			connEditorTimeOfDay.value = draft.timeOfDay;
 			connEditorProfileId.value = draft.profileId;
+			connEditorProfileId.dataset.pendingValue = draft.profileId;
+			renderConnEditorAgentOptions();
 			connEditorAgentSpecId.value = draft.agentSpecId;
 			connEditorSkillSetId.value = draft.skillSetId;
 			connEditorModelProvider.dataset.pendingValue = draft.modelProvider;
@@ -492,6 +495,49 @@ export function getConnActivityEditorScript(): string {
 			connEditorError.hidden = !state.connEditorError;
 		}
 
+		function getKnownAgentCatalog() {
+			return Array.isArray(state.agentCatalog) && state.agentCatalog.length > 0
+				? state.agentCatalog
+				: [
+					{ agentId: "main", name: "主 Agent" },
+					{ agentId: "search", name: "搜索 Agent" },
+				];
+		}
+
+		function getAgentDisplayName(agentId) {
+			const normalized = String(agentId || "").trim() || "main";
+			const agent = getKnownAgentCatalog().find((entry) => String(entry?.agentId || "").trim() === normalized);
+			return String(agent?.name || (normalized === "main" ? "主 Agent" : normalized));
+		}
+
+		function renderConnEditorAgentOptions() {
+			if (!connEditorProfileId) {
+				return;
+			}
+			const pendingValue = String(connEditorProfileId.dataset.pendingValue || connEditorProfileId.value || "main").trim() || "main";
+			const agents = getKnownAgentCatalog();
+			connEditorProfileId.innerHTML = "";
+			for (const agent of agents) {
+				const agentId = String(agent?.agentId || "").trim();
+				if (!agentId) {
+					continue;
+				}
+				const option = document.createElement("option");
+				option.value = agentId;
+				option.textContent = String(agent?.name || agentId);
+				connEditorProfileId.appendChild(option);
+			}
+			if (!agents.some((agent) => String(agent?.agentId || "").trim() === pendingValue)) {
+				const option = document.createElement("option");
+				option.value = pendingValue;
+				option.textContent = pendingValue + "（不可用，执行时会降级）";
+				connEditorProfileId.appendChild(option);
+			}
+			connEditorProfileId.value = pendingValue;
+			connEditorProfileId.disabled = state.connEditorSaving;
+			delete connEditorProfileId.dataset.pendingValue;
+		}
+
 		async function ensureConnEditorModelConfig() {
 			if (!state.modelConfig) {
 				await loadModelConfig();
@@ -603,6 +649,7 @@ export function getConnActivityEditorScript(): string {
 			saveConnEditorButton.textContent = state.connEditorSaving ? "保存中" : "保存";
 			connEditorUploadAssetsButton.disabled = state.connEditorSaving || state.connEditorUploadingAssets;
 			connEditorUploadAssetsButton.textContent = state.connEditorUploadingAssets ? "上传中" : "上传新文件";
+			renderConnEditorAgentOptions();
 			renderConnEditorModelOptions();
 			renderConnEditorError(state.connEditorError);
 			renderConnEditorSelectedAssets();
@@ -706,6 +753,7 @@ export function getConnActivityEditorScript(): string {
 			}
 			payload.modelProvider = modelProvider;
 			payload.modelId = modelId;
+			payload.profileId = String(connEditorProfileId?.value || "main").trim() || "main";
 			const assetRefs = Array.isArray(state.connEditorSelectedAssetRefs)
 				? state.connEditorSelectedAssetRefs.map((assetId) => String(assetId || "").trim()).filter(Boolean)
 				: [];
@@ -721,7 +769,6 @@ export function getConnActivityEditorScript(): string {
 				payload.maxRunMs = Math.round(seconds * 1000);
 			}
 			for (const [field, node] of [
-				["profileId", connEditorProfileId],
 				["agentSpecId", connEditorAgentSpecId],
 				["skillSetId", connEditorSkillSetId],
 			]) {
@@ -1441,6 +1488,11 @@ export function getConnActivityRendererScript(): string {
 				scheduleLine.appendChild(scheduleCode);
 				const timeLine = document.createElement("span");
 				timeLine.textContent = "运行节奏：" + describeConnTimingSummary(conn);
+				const agentLine = document.createElement("span");
+				agentLine.textContent = "执行 Agent：";
+				const agentCode = document.createElement("code");
+				agentCode.textContent = getAgentDisplayName(conn.profileId || "main");
+				agentLine.appendChild(agentCode);
 				const modelLine = document.createElement("span");
 				modelLine.textContent = "模型：";
 				const modelCode = document.createElement("code");
@@ -1452,6 +1504,7 @@ export function getConnActivityRendererScript(): string {
 				meta.appendChild(targetLine);
 				meta.appendChild(scheduleLine);
 				meta.appendChild(timeLine);
+				meta.appendChild(agentLine);
 				meta.appendChild(modelLine);
 				main.appendChild(titleRow);
 				main.appendChild(meta);
@@ -1708,6 +1761,36 @@ export function getConnActivityRendererScript(): string {
 			appendConnRunDetailRow(lifecycle, "lease until", formatConnRunTimestamp(run.leaseUntil));
 			if (lifecycle.childElementCount > 1) {
 				connRunDetailsBody.appendChild(lifecycle);
+			}
+
+			const snapshot = run.resolvedSnapshot && typeof run.resolvedSnapshot === "object" ? run.resolvedSnapshot : null;
+			if (snapshot) {
+				const execution = document.createElement("section");
+				execution.className = "conn-run-section";
+				const executionHeading = document.createElement("strong");
+				executionHeading.textContent = "Execution Agent";
+				execution.appendChild(executionHeading);
+				const requestedAgent = snapshot.requestedAgentId || snapshot.profileId || "";
+				const actualAgent = snapshot.agentName || snapshot.agentId || snapshot.profileId || "";
+				appendConnRunDetailRow(execution, "requested", requestedAgent ? String(requestedAgent) : "", { asCode: true });
+				appendConnRunDetailRow(execution, "actual", actualAgent ? String(actualAgent) : "", { asCode: true });
+				if (snapshot.fallbackUsed) {
+					appendConnRunDetailRow(
+						execution,
+						"fallback",
+						"原执行 Agent 不可用，已由 " + String(snapshot.agentName || snapshot.agentId || "默认 Agent") + " 完成",
+					);
+					appendConnRunDetailRow(execution, "reason", String(snapshot.fallbackReason || "profile_not_found"), { asCode: true });
+				}
+				appendConnRunDetailRow(
+					execution,
+					"model",
+					snapshot.provider && snapshot.model ? String(snapshot.provider) + " / " + String(snapshot.model) : "",
+					{ asCode: true },
+				);
+				if (execution.childElementCount > 1) {
+					connRunDetailsBody.appendChild(execution);
+				}
 			}
 
 			if (run.workspacePath || run.resultText || run.resultSummary || run.errorText) {

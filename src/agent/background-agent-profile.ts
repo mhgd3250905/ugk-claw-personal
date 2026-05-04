@@ -3,8 +3,12 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import {
 	getDefaultAllowedSkillPaths,
+	getDefaultRuntimeAgentRulesPath,
+	getProjectAgentDirPath,
 	resolveProjectDefaultModelContext,
 } from "./agent-session-factory.js";
+import { DEFAULT_AGENT_ID, type AgentProfile } from "./agent-profile.js";
+import { isAgentProfileArchivedSync, loadAgentProfilesSync } from "./agent-profile-catalog.js";
 import type { ConnUpgradePolicy } from "./conn-store.js";
 
 export interface BackgroundAgentProfileRef {
@@ -19,6 +23,14 @@ export interface BackgroundAgentProfileRef {
 }
 
 export interface ResolvedBackgroundAgentSnapshot {
+	requestedAgentId?: string;
+	agentId?: string;
+	agentName?: string;
+	agentDir?: string;
+	rulesPath?: string;
+	skillPaths?: string[];
+	fallbackUsed?: boolean;
+	fallbackReason?: "profile_not_found" | "profile_archived" | "legacy_profile";
 	profileId: string;
 	profileVersion: string;
 	agentSpecId: string;
@@ -102,16 +114,43 @@ export class BackgroundAgentProfileResolver {
 			this.readJson<SkillSetRegistry>("skill-sets.json", {}),
 			this.readJson<ModelPolicyRegistry>("model-policies.json", {}),
 		]);
+		const agentProfiles = loadAgentProfilesSync(this.options.projectRoot);
+		const requestedAgentProfile = agentProfiles.find((profile) => profile.agentId === ref.profileId);
+		if (requestedAgentProfile) {
+			return await this.resolvePlaygroundAgentProfile({
+				profile: requestedAgentProfile,
+				ref,
+				fallbackUsed: false,
+			});
+		}
 
-		const profile = resolveRegistryEntry(
-			profileRegistry.profiles,
-			ref.profileId,
-			DEFAULT_PROFILE_ID,
-			"Unknown background agent profile",
-		);
-		const profileAgentSpecId = profile.agentSpecId ?? DEFAULT_AGENT_SPEC_ID;
-		const profileSkillSetId = profile.skillSetId ?? DEFAULT_SKILL_SET_ID;
-		const profileModelPolicyId = profile.modelPolicyId ?? DEFAULT_MODEL_POLICY_ID;
+		const profile = findRegistryEntry(profileRegistry.profiles, ref.profileId);
+		if (!profile && ref.profileId !== DEFAULT_PROFILE_ID) {
+			const fallbackProfile = agentProfiles.find((entry) => entry.agentId === DEFAULT_AGENT_ID);
+			if (fallbackProfile) {
+				const fallbackReason = isAgentProfileArchivedSync(this.options.projectRoot, ref.profileId)
+					? "profile_archived"
+					: "profile_not_found";
+				return await this.resolvePlaygroundAgentProfile({
+					profile: fallbackProfile,
+					ref,
+					fallbackUsed: true,
+					fallbackReason,
+				});
+			}
+		}
+
+		const resolvedProfile =
+			profile ??
+			resolveRegistryEntry(
+				profileRegistry.profiles,
+				ref.profileId,
+				DEFAULT_PROFILE_ID,
+				"Unknown background agent profile",
+			);
+		const profileAgentSpecId = resolvedProfile.agentSpecId ?? DEFAULT_AGENT_SPEC_ID;
+		const profileSkillSetId = resolvedProfile.skillSetId ?? DEFAULT_SKILL_SET_ID;
+		const profileModelPolicyId = resolvedProfile.modelPolicyId ?? DEFAULT_MODEL_POLICY_ID;
 		if (profileAgentSpecId !== ref.agentSpecId) {
 			throw new Error(`Background agent profile ${ref.profileId} expects agent spec ${profileAgentSpecId}`);
 		}
@@ -153,7 +192,7 @@ export class BackgroundAgentProfileResolver {
 
 		return {
 			profileId: ref.profileId,
-			profileVersion: profile.version ?? BUILTIN_VERSION,
+			profileVersion: resolvedProfile.version ?? BUILTIN_VERSION,
 			agentSpecId: ref.agentSpecId,
 			agentSpecVersion: agentSpec.version ?? BUILTIN_VERSION,
 			skillSetId: ref.skillSetId,
@@ -168,6 +207,55 @@ export class BackgroundAgentProfileResolver {
 		};
 	}
 
+	private async resolvePlaygroundAgentProfile(input: {
+		profile: AgentProfile;
+		ref: BackgroundAgentProfileRef;
+		fallbackUsed: boolean;
+		fallbackReason?: "profile_not_found" | "profile_archived" | "legacy_profile";
+	}): Promise<ResolvedBackgroundAgentSnapshot> {
+		const defaultModel = resolveProjectDefaultModelContext(this.options.projectRoot);
+		const provider = input.ref.modelProvider ?? defaultModel.provider;
+		const model = input.ref.modelId ?? defaultModel.model;
+		const skillPaths = input.profile.allowedSkillPaths.length
+			? input.profile.allowedSkillPaths
+			: getDefaultAllowedSkillPaths(this.options.projectRoot);
+		const skills = await collectSkills(skillPaths);
+		const skillSetVersion = hashStrings([
+			...skillPaths,
+			...skills.flatMap((skill) => [skill.path, skill.version]),
+		]);
+		const rulesPath =
+			input.profile.runtimeAgentRulesPath ||
+			(input.profile.agentId === DEFAULT_AGENT_ID
+				? getDefaultRuntimeAgentRulesPath(this.options.projectRoot)
+				: undefined);
+		const agentDir = input.profile.agentDir || getProjectAgentDirPath(this.options.projectRoot);
+
+		return {
+			requestedAgentId: input.ref.profileId,
+			agentId: input.profile.agentId,
+			agentName: input.profile.name,
+			agentDir,
+			...(rulesPath ? { rulesPath } : {}),
+			skillPaths,
+			fallbackUsed: input.fallbackUsed,
+			...(input.fallbackReason ? { fallbackReason: input.fallbackReason } : {}),
+			profileId: input.profile.agentId,
+			profileVersion: BUILTIN_VERSION,
+			agentSpecId: input.ref.agentSpecId,
+			agentSpecVersion: BUILTIN_VERSION,
+			skillSetId: input.ref.skillSetId,
+			skillSetVersion,
+			skills,
+			modelPolicyId: input.ref.modelPolicyId,
+			modelPolicyVersion: BUILTIN_VERSION,
+			provider,
+			model,
+			upgradePolicy: input.ref.upgradePolicy,
+			resolvedAt: (input.ref.now ?? new Date()).toISOString(),
+		};
+	}
+
 	private async readJson<T>(fileName: string, fallback: T): Promise<T> {
 		try {
 			return JSON.parse(await readFile(join(this.registryDir, fileName), "utf8")) as T;
@@ -178,6 +266,10 @@ export class BackgroundAgentProfileResolver {
 			throw error;
 		}
 	}
+}
+
+function findRegistryEntry<T extends { id: string; version?: string }>(entries: T[] | undefined, id: string): T | undefined {
+	return entries?.find((entry) => entry.id === id);
 }
 
 function resolveRegistryEntry<T extends { id: string; version?: string }>(

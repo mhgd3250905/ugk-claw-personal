@@ -148,6 +148,7 @@ export interface ConnRunBody {
 	finishedAt?: string;
 	workspacePath: string;
 	sessionFile?: string;
+	resolvedSnapshot?: Record<string, unknown>;
 	resultSummary?: string;
 	resultText?: string;
 	errorText?: string;

@@ -298,6 +298,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 判断 agent 是否当前注册可用，以 `GET /v1/agents` 为准；`.data/agents/profiles.json` 只记录用户创建的自定义 agent，不是完整运行时注册表。`main` 和默认 `search` 可能来自代码内置 profile，不能因为 `profiles.json` 没有记录就说它未注册。
 
+禁止直接编辑 `.data/agents/profiles.json` 来创建、恢复、归档或修复 agent profile。这个文件只是持久化 catalog，不是操作接口；手写它会绕过进程内 `AgentServiceRegistry`，造成 `POST /v1/agents` 因磁盘记录报重复、但 `GET /v1/agents` 因运行时 registry 未加载而看不到的分裂。创建走 `POST /v1/agents`，归档走 `POST /v1/agents/:agentId/archive`，技能变更走 `/v1/agents/:agentId/skills`；如果线上已经手改过文件，先说明分裂原因，再通过 API 收口或重启 `ugk-pi` 重新加载，不要继续补 JSON。
+
 只有用户明确说 `subagent`、`.pi/agents`、`scout/planner/worker/reviewer` 或“派发子任务”时，才进入 legacy subagent 文件：
 
 - `.pi/extensions/subagent/index.ts`

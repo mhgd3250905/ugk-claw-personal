@@ -18,6 +18,8 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 - 禁止归档或删除 `main`。
 - 运行中 agent 不允许归档。
 - 涉及 agent profile 创建、配置、安装技能、归档、删除或可能改变用户当前操作视窗的动作时，缺少用户明确确认就只能解释影响并询问下一步；不要自作主张继续执行。
+- **禁止直接编辑 `.data/agents/profiles.json` 或手动搬动 `.data/agents/:agentId` 来创建 / 恢复 / 归档 agent。** 这些文件是持久化存储，不是操作接口；手动改文件会绕过进程内 `AgentServiceRegistry`，导致 `POST /v1/agents` 认为 agent 已存在，但 `GET /v1/agents` 和 scoped chat 路由仍看不到它。
+- 如果发现 `profiles.json` 和 `GET /v1/agents` 不一致，不要继续手改 JSON 补洞；先说明这是“磁盘 catalog 与运行时 registry 分裂”，再建议通过 API 重建 / 归档，或在明确维护窗口内重启 `ugk-pi` 让 registry 重新加载。
 
 ## 快速接口
 
@@ -57,6 +59,7 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 
 - 判断某个 agent 是否当前注册可用，唯一事实源是 `GET /v1/agents`。
 - `.data/agents/profiles.json` 只记录用户创建的自定义 agent profile；它不是完整运行时 agent 注册表。
+- `.data/agents/profiles.json` 只能作为只读排障证据，不允许作为创建、恢复、归档或修复 agent 的编辑目标。API 会同时维护磁盘 catalog、运行目录和进程内 registry；手写 JSON 只会维护其中一层，属于半截操作。
 - `main` 和默认 `search` 可能来自代码内置 profile，不一定出现在 `profiles.json`。因此 `profiles.json` 没有 `search` 不能说 `search` 未注册。
 - 如果 `GET /v1/agents` 返回某个 `agentId`，它就是当前运行时已注册可用；如果目录存在但 `/v1/agents` 不返回，才说明它当前不在运行时列表中，常见原因是已归档或未被 catalog 加载。
 - 如果要区分来源，可说“内置 Agent / 自定义 Agent”；不要用“未注册”描述仅仅缺少 `profiles.json` 记录的内置 Agent。
@@ -118,5 +121,7 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 - 不要把“要不要继续”替用户决定；涉及创建、修改、安装、归档、删除时，先问清楚。
 - 不要说“要我帮你切换过去看看”；应提示用户在 Playground 设置菜单切换到目标 agent。
 - 不要直接删除 agent 目录；第一版只归档。
+- 不要直接编辑 `.data/agents/profiles.json` 创建或修复 agent；创建走 `POST /v1/agents`，归档走 `POST /v1/agents/:agentId/archive`，技能变更走对应 skills API。
+- 不要在发现 “POST 说重复但 GET 看不到” 时继续手改文件；这是运行时 registry 没加载磁盘 catalog 的典型症状，应通过 API 收口或重启服务重新加载。
 - 不要在 agent 正在运行时归档。
 - 不要把创建 agent profile / 操作视窗和“派发 subagent 执行任务”混为一谈。

@@ -169,19 +169,24 @@ test("BackgroundAgentProfileResolver lets a conn override the default or policy 
 	assert.equal(snapshot.model, "mimo-v2.5-pro");
 });
 
-test("BackgroundAgentProfileResolver rejects unknown non-default ids clearly", async () => {
+test("BackgroundAgentProfileResolver falls back to the main agent when a non-default profile is missing", async () => {
 	const projectRoot = await createProjectRoot();
 	const resolver = new BackgroundAgentProfileResolver({ projectRoot });
 
-	await assert.rejects(
-		() =>
-			resolver.resolve({
-				profileId: "background.missing",
-				agentSpecId: "agent.default",
-				skillSetId: "skills.default",
-				modelPolicyId: "model.default",
-				upgradePolicy: "latest",
-			}),
-		/Unknown background agent profile/,
+	const snapshot = await resolver.resolve({
+		profileId: "background.missing",
+		agentSpecId: "agent.default",
+		skillSetId: "skills.default",
+		modelPolicyId: "model.default",
+		upgradePolicy: "latest",
+	});
+
+	assert.equal(snapshot.requestedAgentId, "background.missing");
+	assert.equal(snapshot.agentId, "main");
+	assert.equal(snapshot.fallbackUsed, true);
+	assert.equal(snapshot.fallbackReason, "profile_not_found");
+	assert.deepEqual(
+		snapshot.skills.map((skill) => skill.name),
+		["skill-a", "skill-b"],
 	);
 });

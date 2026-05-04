@@ -293,6 +293,46 @@ test("BackgroundAgentRunner executes a conn run in an isolated workspace and rec
 	database.close();
 });
 
+test("BackgroundAgentRunner records fallback events when the requested agent is unavailable", async () => {
+	const { database, connStore, runStore, runner } = await createRunner();
+	const conn = await connStore.create({
+		title: "Missing Agent Task",
+		prompt: "Summarize",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		profileId: "missing-agent",
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-agent-fallback",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	const completed = await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+	const events = await runStore.listEvents(run.runId);
+
+	assert.equal(completed?.status, "succeeded");
+	assert.deepEqual(
+		events.map((event) => event.eventType),
+		["workspace_created", "snapshot_resolved", "agent_profile_fallback", "message_update", "run_succeeded"],
+	);
+	assert.deepEqual(events.find((event) => event.eventType === "agent_profile_fallback")?.event, {
+		requestedProfileId: "missing-agent",
+		fallbackProfileId: "main",
+		reason: "profile_not_found",
+	});
+
+	database.close();
+});
+
 test("BackgroundAgentRunner scopes browser cleanup around background conn runs", async () => {
 	const cleanupScopes: string[] = [];
 	const session = new ScopeObservingSession();

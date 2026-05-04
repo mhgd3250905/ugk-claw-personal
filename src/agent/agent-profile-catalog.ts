@@ -290,6 +290,11 @@ export function loadAgentProfilesSync(projectRoot: string): AgentProfile[] {
 	return createDefaultAgentProfiles(projectRoot, catalog.agents).filter((profile) => !archived.has(profile.agentId));
 }
 
+export function isAgentProfileArchivedSync(projectRoot: string, agentId: string): boolean {
+	const catalog = readStoredAgentProfileCatalogSync(projectRoot);
+	return catalog.archivedAgentIds.includes(agentId);
+}
+
 export async function createStoredAgentProfile(
 	projectRoot: string,
 	input: CreateAgentProfileInput,

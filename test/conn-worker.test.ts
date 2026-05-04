@@ -4,6 +4,8 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AgentActivityStore } from "../src/agent/agent-activity-store.js";
+import { writeStoredAgentProfileSummaries } from "../src/agent/agent-profile-catalog.js";
+import { BackgroundAgentProfileResolver } from "../src/agent/background-agent-profile.js";
 import { ConnDatabase } from "../src/agent/conn-db.js";
 import type { ConnRunRecord } from "../src/agent/conn-run-store.js";
 import { ConnRunStore } from "../src/agent/conn-run-store.js";
@@ -133,6 +135,124 @@ test("createBackgroundResourceLoader loads project extensions while sessions run
 		loader.getSkills().skills.map((skill) => skill.name),
 		["background-skill"],
 	);
+});
+
+test("createBackgroundResourceLoader uses snapshot agent rules when provided", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-background-loader-rules-"));
+	const runtimeRulesPath = join(projectRoot, ".data", "agents", "search", "AGENTS.md");
+	await mkdir(join(projectRoot, ".data", "agents", "search"), { recursive: true });
+	await mkdir(join(projectRoot, ".data", "agents", "search", "pi-agent"), { recursive: true });
+	await mkdir(join(projectRoot, ".data", "agents", "search", "pi", "skills"), { recursive: true });
+	await writeFile(join(projectRoot, "AGENTS.md"), "# Project Rules\n\nShould not leak.\n", "utf8");
+	await writeFile(runtimeRulesPath, "# Search Runtime Rules\n\nUse scoped search behavior.\n", "utf8");
+
+	const loader = createBackgroundResourceLoader({
+		projectRoot,
+		workspaceRoot: join(projectRoot, ".data", "agent", "background", "runs", "run-1"),
+		agentDir: join(projectRoot, ".data", "agents", "search", "pi-agent"),
+		runtimeAgentRulesPath: runtimeRulesPath,
+		skillPaths: [join(projectRoot, ".data", "agents", "search", "pi", "skills")],
+	});
+
+	await loader.reload();
+
+	const files = loader.getAgentsFiles().agentsFiles;
+	assert.equal(files.some((file) => file.path === join(projectRoot, "AGENTS.md")), false);
+	assert.deepEqual(files, [
+		{
+			path: runtimeRulesPath,
+			content: "# Search Runtime Rules\n\nUse scoped search behavior.\n",
+		},
+	]);
+});
+
+test("BackgroundAgentProfileResolver resolves Playground agent profile snapshots", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-background-agent-profile-"));
+	const searchSkillPath = join(projectRoot, ".data", "agents", "search", "pi", "skills", "search-skill", "SKILL.md");
+	await mkdir(join(projectRoot, ".data", "agents", "search", "pi", "skills", "search-skill"), { recursive: true });
+	await writeFile(
+		searchSkillPath,
+		"---\nname: search-skill\ndescription: search scoped skill\n---\n",
+		"utf8",
+	);
+
+	const snapshot = await new BackgroundAgentProfileResolver({ projectRoot }).resolve({
+		profileId: "search",
+		agentSpecId: "agent.default",
+		skillSetId: "skills.default",
+		modelPolicyId: "model.default",
+		upgradePolicy: "latest",
+		now: new Date("2026-05-04T00:00:00.000Z"),
+	});
+
+	assert.equal(snapshot.requestedAgentId, "search");
+	assert.equal(snapshot.agentId, "search");
+	assert.equal(snapshot.agentName, "搜索 Agent");
+	assert.equal(snapshot.fallbackUsed, false);
+	assert.equal(snapshot.rulesPath, join(projectRoot, ".data", "agents", "search", "AGENTS.md"));
+	assert.deepEqual(snapshot.skillPaths, [
+		join(projectRoot, ".data", "agents", "search", "pi", "skills"),
+		join(projectRoot, ".data", "agents", "search", "user-skills"),
+	]);
+	assert.deepEqual(
+		snapshot.skills.map((skill) => skill.name),
+		["search-skill"],
+	);
+});
+
+test("BackgroundAgentProfileResolver falls back to main-like snapshot when Playground agent is missing", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-background-agent-fallback-"));
+	const defaultSkillPath = join(projectRoot, ".pi", "skills", "default-skill", "SKILL.md");
+	await mkdir(join(projectRoot, ".pi", "skills", "default-skill"), { recursive: true });
+	await writeFile(
+		defaultSkillPath,
+		"---\nname: default-skill\ndescription: default scoped skill\n---\n",
+		"utf8",
+	);
+
+	const snapshot = await new BackgroundAgentProfileResolver({ projectRoot }).resolve({
+		profileId: "missing-agent",
+		agentSpecId: "agent.default",
+		skillSetId: "skills.default",
+		modelPolicyId: "model.default",
+		upgradePolicy: "latest",
+		now: new Date("2026-05-04T00:00:00.000Z"),
+	});
+
+	assert.equal(snapshot.requestedAgentId, "missing-agent");
+	assert.equal(snapshot.agentId, "main");
+	assert.equal(snapshot.agentName, "主 Agent");
+	assert.equal(snapshot.fallbackUsed, true);
+	assert.equal(snapshot.fallbackReason, "profile_not_found");
+	assert.equal(snapshot.rulesPath, join(projectRoot, ".data", "agent", "AGENTS.md"));
+	assert.deepEqual(snapshot.skillPaths, [join(projectRoot, ".pi", "skills"), join(projectRoot, "runtime", "skills-user")]);
+	assert.deepEqual(
+		snapshot.skills.map((skill) => skill.name),
+		["default-skill"],
+	);
+});
+
+test("BackgroundAgentProfileResolver marks fallback reason when Playground agent is archived", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-background-agent-archived-"));
+	await writeStoredAgentProfileSummaries(
+		projectRoot,
+		[{ agentId: "draft", name: "草稿 Agent", description: "已归档测试。" }],
+		["draft"],
+	);
+
+	const snapshot = await new BackgroundAgentProfileResolver({ projectRoot }).resolve({
+		profileId: "draft",
+		agentSpecId: "agent.default",
+		skillSetId: "skills.default",
+		modelPolicyId: "model.default",
+		upgradePolicy: "latest",
+		now: new Date("2026-05-04T00:00:00.000Z"),
+	});
+
+	assert.equal(snapshot.requestedAgentId, "draft");
+	assert.equal(snapshot.agentId, "main");
+	assert.equal(snapshot.fallbackUsed, true);
+	assert.equal(snapshot.fallbackReason, "profile_archived");
 });
 
 test("resolveBackgroundSessionModel rejects missing background snapshot models instead of falling back", () => {

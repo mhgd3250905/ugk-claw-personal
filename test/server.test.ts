@@ -2366,6 +2366,9 @@ test("GET /playground lets conn editor choose a model without hand-written ids",
 	});
 
 	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /conn-editor-profile-id/);
+	assert.match(response.body, /执行 Agent/);
+	assert.match(response.body, /后台任务借用这个 Agent 的规则和技能，不写入它的聊天历史。/);
 	assert.match(response.body, /conn-editor-model-provider/);
 	assert.match(response.body, /conn-editor-model-id/);
 	assert.doesNotMatch(response.body, /id="conn-editor-model-provider"[^>]*<input/);

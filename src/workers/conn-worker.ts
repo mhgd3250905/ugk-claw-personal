@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
 	AuthStorage,
@@ -254,9 +253,11 @@ function resolveNotificationTitleSuffix(status: ConnRunRecord["status"]): string
 }
 
 function resolveNotificationText(run: ConnRunRecord): string {
+	const executionLine = resolveRunExecutionLine(run);
 	const modelLine = resolveRunModelLine(run);
 	const body = resolveNotificationBodyText(run);
-	return modelLine ? `${modelLine}\n\n${body}` : body;
+	const headerLines = [executionLine, modelLine].filter(Boolean);
+	return headerLines.length > 0 ? `${headerLines.join("\n")}\n\n${body}` : body;
 }
 
 function resolveNotificationBodyText(run: ConnRunRecord): string {
@@ -280,6 +281,23 @@ function resolveRunModelLine(run: ConnRunRecord): string | undefined {
 		return undefined;
 	}
 	return `执行模型：${provider} / ${model}`;
+}
+
+function resolveRunExecutionLine(run: ConnRunRecord): string | undefined {
+	const snapshot = run.resolvedSnapshot;
+	if (!snapshot || typeof snapshot !== "object") {
+		return undefined;
+	}
+	const agentName = typeof snapshot.agentName === "string" ? snapshot.agentName.trim() : "";
+	const agentId = typeof snapshot.agentId === "string" ? snapshot.agentId.trim() : "";
+	const fallbackUsed = snapshot.fallbackUsed === true;
+	if (fallbackUsed) {
+		return `执行 Agent：原执行 Agent 不可用，已由 ${agentName || agentId || "默认 Agent"} 完成`;
+	}
+	if (!agentName && !agentId) {
+		return undefined;
+	}
+	return `执行 Agent：${agentName || agentId}`;
 }
 
 function resolveHeartbeatMs(heartbeatMs: number | undefined, leaseMs: number | undefined): number {
@@ -400,17 +418,21 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 		const authStorage = AuthStorage.create();
 		const modelRegistry = ModelRegistry.create(authStorage, getProjectModelsPath(this.projectRoot));
 		const model = resolveBackgroundSessionModel(modelRegistry, input.snapshot);
-		const skillPaths = Array.from(new Set(input.snapshot.skills.map((skill) => dirname(skill.path))));
+		const skillPaths = input.snapshot.skillPaths?.length
+			? input.snapshot.skillPaths
+			: Array.from(new Set(input.snapshot.skills.map((skill) => skill.path.replace(/[\\/][^\\/]+[\\/]SKILL\.md$/, ""))));
 		const resourceLoader = createBackgroundResourceLoader({
 			projectRoot: this.projectRoot,
 			workspaceRoot: input.workspace.rootPath,
+			agentDir: input.snapshot.agentDir,
+			runtimeAgentRulesPath: input.snapshot.rulesPath,
 			skillPaths,
 		});
 		await resourceLoader.reload();
 
 		const { session } = await createAgentSession({
 			cwd: input.workspace.rootPath,
-			agentDir: getProjectAgentDirPath(this.projectRoot),
+			agentDir: input.snapshot.agentDir ?? getProjectAgentDirPath(this.projectRoot),
 			authStorage,
 			modelRegistry,
 			model,
@@ -425,12 +447,15 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 export function createBackgroundResourceLoader(input: {
 	projectRoot: string;
 	workspaceRoot: string;
+	agentDir?: string;
+	runtimeAgentRulesPath?: string;
 	skillPaths: string[];
 }) {
 	return createSkillRestrictedResourceLoader({
 		projectRoot: input.projectRoot,
-		agentDir: getProjectAgentDirPath(input.projectRoot),
+		agentDir: input.agentDir ?? getProjectAgentDirPath(input.projectRoot),
 		allowedSkillPaths: input.skillPaths,
+		runtimeAgentRulesPath: input.runtimeAgentRulesPath,
 	});
 }
 

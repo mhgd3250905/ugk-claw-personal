@@ -12,6 +12,18 @@
 
 ## 2026-05-04
 
+### Agent Profile 操作接口规范
+- 日期：2026-05-04
+- 主题：禁止 agent 直接编辑 `.data/agents/profiles.json` 创建或修复 agent profile。
+- 影响范围：`agent-profile-ops`、项目接手文档和追溯地图现在明确规定：agent profile 创建、归档和技能变更必须走 `/v1/agents` API；`profiles.json` 只能作为只读排障证据，不是操作入口。若出现 `POST /v1/agents` 报重复但 `GET /v1/agents` 看不到，按磁盘 catalog 与运行时 `AgentServiceRegistry` 分裂处理，通过 API 收口或重启服务重新加载，不允许继续手补 JSON。
+- 对应入口：`.pi/skills/agent-profile-ops/SKILL.md`、`AGENTS.md`、`docs/playground-current.md`、`docs/traceability-map.md`、`test/agent-profile-ops-skill.test.ts`
+
+### 后台任务执行 Agent 选择
+- 日期：2026-05-04
+- 主题：让 `conn` 后台任务可选择 Playground agent profile 作为执行 Agent，并在不可用时可见降级。
+- 影响范围：`conn.profileId` 的新任务语义收口为执行 Agent id；worker 生成 run 级能力快照，使用被选 Agent 的规则文件和 scoped skills，但后台 session 不写入该 Agent 的前台会话。Agent 不存在或已归档时降级到 `main` / main-like 能力继续执行，记录 `agent_profile_fallback` 事件和 snapshot fallback 字段。Playground 后台任务编辑器新增执行 Agent 下拉，列表和 run detail 展示实际执行 Agent / fallback。
+- 对应入口：`src/agent/background-agent-profile.ts`、`src/agent/background-agent-runner.ts`、`src/workers/conn-worker.ts`、`src/routes/conn-route-presenters.ts`、`src/types/api.ts`、`src/ui/playground-conn-activity.ts`、`src/ui/playground-conn-activity-controller.ts`、`test/background-agent-profile.test.ts`、`test/background-agent-runner.test.ts`、`test/conn-worker.test.ts`、`test/conn-route-presenters.test.ts`、`test/server.test.ts`、`docs/runtime-assets-conn-feishu.md`、`docs/playground-current.md`
+
 ### Agent 注册状态口径收口
 - 日期：2026-05-04
 - 主题：澄清 agent profile 的运行时注册状态与 `profiles.json` 自定义记录不是一回事。

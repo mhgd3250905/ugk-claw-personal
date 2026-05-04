@@ -26,6 +26,7 @@ export function toConnRunBody(run: ConnRunRecord): ConnRunDetailResponseBody["ru
 		...(run.finishedAt ? { finishedAt: run.finishedAt } : {}),
 		workspacePath: run.workspacePath,
 		...(run.sessionFile ? { sessionFile: run.sessionFile } : {}),
+		...(run.resolvedSnapshot ? { resolvedSnapshot: run.resolvedSnapshot } : {}),
 		...(run.resultSummary ? { resultSummary: run.resultSummary } : {}),
 		...(run.resultText ? { resultText: run.resultText } : {}),
 		...(run.errorText ? { errorText: run.errorText } : {}),
