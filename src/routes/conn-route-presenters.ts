@@ -37,7 +37,10 @@ export function toConnRunBody(run: ConnRunRecord): ConnRunDetailResponseBody["ru
 	};
 }
 
-export function toConnRunFileBody(file: ConnRunFileRecord): NonNullable<ConnRunDetailResponseBody["files"]>[number] {
+export function toConnRunFileBody(
+	file: ConnRunFileRecord,
+	links?: { url?: string; latestUrl?: string },
+): NonNullable<ConnRunDetailResponseBody["files"]>[number] {
 	return {
 		fileId: file.fileId,
 		runId: file.runId,
@@ -47,6 +50,8 @@ export function toConnRunFileBody(file: ConnRunFileRecord): NonNullable<ConnRunD
 		mimeType: file.mimeType,
 		sizeBytes: file.sizeBytes,
 		createdAt: file.createdAt,
+		...(links?.url ? { url: links.url } : {}),
+		...(links?.latestUrl ? { latestUrl: links.latestUrl } : {}),
 	};
 }
 

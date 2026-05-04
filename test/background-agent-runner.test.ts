@@ -236,6 +236,7 @@ async function createRunner(options?: {
 	session?: AgentSessionLike;
 	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
 	runStore?: ConnRunStore;
+	publicBaseUrl?: string;
 }) {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-runner-"));
 	const database = new ConnDatabase({ dbPath: join(root, "conn.sqlite") });
@@ -255,6 +256,7 @@ async function createRunner(options?: {
 		}),
 		sessionFactory,
 		closeBrowserTargetsForScope: options?.closeBrowserTargetsForScope ?? (async () => undefined),
+		publicBaseUrl: options?.publicBaseUrl,
 	});
 	return { root, database, connStore, runStore, realRunStore, sessionFactory, runner, session };
 }
@@ -371,6 +373,66 @@ test("BackgroundAgentRunner prompt tells background tasks to use tools and outpu
 	assert.match(prompt, /If this task requires commands, file operations, or browser automation, call the available tools/);
 	assert.match(prompt, /Only files written under the final deliverables directory are indexed and durable conn outputs/);
 	assert.match(prompt, /Do not report execution success unless the required tool calls actually completed/);
+
+	database.close();
+});
+
+test("BackgroundAgentRunner exposes output aliases and public output base url to background sessions", async () => {
+	class EnvObservingSession extends FakeSession {
+		observedEnv: Record<string, string | undefined> = {};
+
+		constructor() {
+			super({ resultText: "done" });
+		}
+
+		override async prompt(message: string): Promise<void> {
+			this.observedEnv = {
+				OUTPUT_DIR: process.env.OUTPUT_DIR,
+				CONN_OUTPUT_BASE_URL: process.env.CONN_OUTPUT_BASE_URL,
+				ZHIHU_REPORT_BASE_URL: process.env.ZHIHU_REPORT_BASE_URL,
+			};
+			await super.prompt(message);
+		}
+	}
+	const session = new EnvObservingSession();
+	const { database, connStore, runStore, runner } = await createRunner({
+		session,
+		publicBaseUrl: "http://example.test",
+	});
+	const conn = await connStore.create({
+		title: "Script Task",
+		prompt: "Run the script",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-env-contract",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	const prompt = String(session.messages[0]?.content ?? "");
+	assert.match(prompt, /OUTPUT_DIR=/);
+	assert.match(prompt, /CONN_OUTPUT_BASE_URL=http:\/\/example\.test\/v1\/conns\/[^/]+\/runs\/run-env-contract\/output/);
+	assert.ok(session.observedEnv.OUTPUT_DIR?.endsWith(join("background", "runs", "run-env-contract", "output")));
+	assert.match(
+		session.observedEnv.CONN_OUTPUT_BASE_URL ?? "",
+		/^http:\/\/example\.test\/v1\/conns\/.+\/runs\/run-env-contract\/output$/,
+	);
+	assert.equal(session.observedEnv.ZHIHU_REPORT_BASE_URL, session.observedEnv.CONN_OUTPUT_BASE_URL);
+	assert.equal(process.env.OUTPUT_DIR, undefined);
+	assert.equal(process.env.CONN_OUTPUT_BASE_URL, undefined);
+	assert.equal(process.env.ZHIHU_REPORT_BASE_URL, undefined);
 
 	database.close();
 });

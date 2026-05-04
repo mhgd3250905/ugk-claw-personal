@@ -28,6 +28,7 @@ export interface BackgroundAgentRunnerOptions {
 	workspaceManager: BackgroundWorkspaceManager;
 	sessionFactory: BackgroundAgentSessionFactory;
 	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
+	publicBaseUrl?: string;
 }
 
 export class BackgroundAgentRunner {
@@ -122,9 +123,12 @@ export class BackgroundAgentRunner {
 				});
 			});
 
-			const prompt = buildBackgroundPrompt(conn, workspace);
+			const outputBaseUrl = buildConnOutputBaseUrl(this.options.publicBaseUrl, conn.connId, run.runId);
+			const prompt = buildBackgroundPrompt(conn, workspace, outputBaseUrl);
 			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
-				await promptWithAbort(session, prompt, signal);
+				await runWithBackgroundWorkspaceEnvironment(buildBackgroundWorkspaceEnvironment(workspace, outputBaseUrl), async () => {
+					await promptWithAbort(session, prompt, signal);
+				});
 			});
 			unsubscribe?.();
 			unsubscribe = undefined;
@@ -221,7 +225,7 @@ function toAbortError(reason: unknown): Error {
 	return reason instanceof Error ? reason : new Error(typeof reason === "string" ? reason : "Background conn run aborted");
 }
 
-function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace): string {
+function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace, outputBaseUrl: string | undefined): string {
 	return [
 		`Background conn task: ${conn.title}`,
 		"",
@@ -233,11 +237,68 @@ function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace): s
 		`- Write intermediate files to: ${workspace.workDir}`,
 		`- Write final deliverables to: ${workspace.outputDir}`,
 		`- Write logs to: ${workspace.logsDir}`,
+		"",
+		"Workspace aliases:",
+		`OUTPUT_DIR=${workspace.outputDir}`,
+		`WORK_DIR=${workspace.workDir}`,
+		`INPUT_DIR=${workspace.inputDir}`,
+		`LOGS_DIR=${workspace.logsDir}`,
+		...(outputBaseUrl ? [`CONN_OUTPUT_BASE_URL=${outputBaseUrl}`, `ZHIHU_REPORT_BASE_URL=${outputBaseUrl}`] : []),
 		"- If this task requires commands, file operations, or browser automation, call the available tools; do not answer from intention alone.",
 		"- Only files written under the final deliverables directory are indexed and durable conn outputs.",
 		"- Do not report execution success unless the required tool calls actually completed.",
 		"- Final response should summarize the result and mention output files.",
 	].join("\n");
+}
+
+function buildConnOutputBaseUrl(publicBaseUrl: string | undefined, connId: string, runId: string): string | undefined {
+	const normalizedBaseUrl = publicBaseUrl?.trim();
+	if (!normalizedBaseUrl) {
+		return undefined;
+	}
+	return new URL(
+		`/v1/conns/${encodeURIComponent(connId)}/runs/${encodeURIComponent(runId)}/output`,
+		normalizedBaseUrl.endsWith("/") ? normalizedBaseUrl : `${normalizedBaseUrl}/`,
+	).toString();
+}
+
+function buildBackgroundWorkspaceEnvironment(
+	workspace: RunWorkspace,
+	outputBaseUrl: string | undefined,
+): Record<string, string | undefined> {
+	return {
+		OUTPUT_DIR: workspace.outputDir,
+		WORK_DIR: workspace.workDir,
+		INPUT_DIR: workspace.inputDir,
+		LOGS_DIR: workspace.logsDir,
+		CONN_OUTPUT_BASE_URL: outputBaseUrl,
+		ZHIHU_REPORT_BASE_URL: outputBaseUrl,
+	};
+}
+
+async function runWithBackgroundWorkspaceEnvironment<T>(
+	values: Record<string, string | undefined>,
+	operation: () => Promise<T>,
+): Promise<T> {
+	const previousValues = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
+	for (const [key, value] of Object.entries(values)) {
+		if (value === undefined) {
+			delete process.env[key];
+			continue;
+		}
+		process.env[key] = value;
+	}
+	try {
+		return await operation();
+	} finally {
+		for (const [key, value] of Object.entries(previousValues)) {
+			if (value === undefined) {
+				delete process.env[key];
+				continue;
+			}
+			process.env[key] = value;
+		}
+	}
 }
 
 function extractAssistantText(session: AgentSessionLike): string {

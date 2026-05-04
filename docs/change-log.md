@@ -12,6 +12,12 @@
 
 ## 2026-05-04
 
+### Conn 输出产物 URL 入口
+- 日期：2026-05-04
+- 主题：评估并落地前端提出的 conn 任务输出产物对外访问诉求。
+- 影响范围：新增 `GET /v1/conns/:connId/runs/:runId/output/<path>` 打开单次 run 的已索引输出文件，新增 `GET /v1/conns/:connId/output/latest/<path>` 打开该 conn 最新成功 run 的同名输出文件；run detail 的 `files[]` 补充 `url/latestUrl`，前端 run 详情弹层把输出文件渲染成可点击链接。后台任务 prompt 和运行环境增加 `OUTPUT_DIR`、`CONN_OUTPUT_BASE_URL`，并兼容 `ZHIHU_REPORT_BASE_URL`。该方案继续以 run workspace 的 `output/` 为唯一持久产物出口，不恢复 `/app/public` 直写。
+- 对应入口：`src/routes/conns.ts`、`src/routes/conn-route-presenters.ts`、`src/types/api.ts`、`src/agent/background-agent-runner.ts`、`src/workers/conn-worker.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground-conn-activity.ts`、`test/server.test.ts`、`test/background-agent-runner.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### 历史 bug 报告文档清理
 - 日期：2026-05-04
 - 主题：清理仓库内已完成落地的旧 `bugs/` 问题报告，避免 repo 同时保存“已处理源报告”和“当前运行文档”两套口径。

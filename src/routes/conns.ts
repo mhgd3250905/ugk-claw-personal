@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import { join, posix, resolve } from "node:path";
 import type {
 	ConnRunEventRecord,
 	ConnRunFileRecord,
@@ -10,6 +12,12 @@ import type {
 import type { ConnDefinition, ConnSchedule, ConnTarget } from "../agent/conn-store.js";
 import { toConnListBody, toConnRunBody, toConnRunEventBody, toConnRunFileBody } from "./conn-route-presenters.js";
 import { parseConnIdList, parseConnMutationBody } from "./conn-route-parsers.js";
+import {
+	buildContentDispositionHeader,
+	resolveFileResponseContentType,
+	shouldForceDownload,
+	supportsInlinePreview,
+} from "./file-route-utils.js";
 import { sendBadRequest, sendInternalError } from "./http-errors.js";
 import type {
 	ConnBulkDeleteRequestBody,
@@ -25,6 +33,7 @@ interface ConnRouteOptions {
 	connStore: ConnStoreLike;
 	connRunStore: ConnRunStoreLike;
 	backgroundDataDir: string;
+	publicBaseUrl?: string;
 }
 
 interface ConnStoreLike {
@@ -126,6 +135,90 @@ function isConnRunLogNoiseEvent(event: ConnRunEventRecord): boolean {
 	return normalizedEventType === "text_delta" || nestedType === "text_delta";
 }
 
+function normalizeOutputPath(value: string | undefined): string | undefined {
+	const raw = String(value ?? "").replace(/\\/g, "/").replace(/^\/+/, "");
+	if (!raw || raw.includes("\0")) {
+		return undefined;
+	}
+	const normalized = posix.normalize(raw);
+	if (!normalized || normalized === "." || normalized.startsWith("../") || normalized === ".." || posix.isAbsolute(normalized)) {
+		return undefined;
+	}
+	return normalized;
+}
+
+function isPathInside(filePath: string, parentDir: string): boolean {
+	const normalizedFilePath = resolve(filePath);
+	const normalizedParentDir = resolve(parentDir);
+	return (
+		normalizedFilePath === normalizedParentDir ||
+		normalizedFilePath.startsWith(`${normalizedParentDir}\\`) ||
+		normalizedFilePath.startsWith(`${normalizedParentDir}/`)
+	);
+}
+
+function buildPublicUrl(publicBaseUrl: string | undefined, path: string): string {
+	const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+	if (!publicBaseUrl) {
+		return normalizedPath;
+	}
+	return new URL(normalizedPath, publicBaseUrl.endsWith("/") ? publicBaseUrl : `${publicBaseUrl}/`).toString();
+}
+
+function encodeOutputPath(relativePath: string): string {
+	return relativePath
+		.split("/")
+		.map((segment) => encodeURIComponent(segment))
+		.join("/");
+}
+
+function toOutputFileLinks(
+	connId: string,
+	runId: string,
+	file: ConnRunFileRecord,
+	publicBaseUrl: string | undefined,
+): { url?: string; latestUrl?: string } | undefined {
+	const outputPath = file.relativePath.startsWith("output/") ? file.relativePath.slice("output/".length) : undefined;
+	if (!outputPath) {
+		return undefined;
+	}
+	const encodedPath = encodeOutputPath(outputPath);
+	return {
+		url: buildPublicUrl(publicBaseUrl, `/v1/conns/${encodeURIComponent(connId)}/runs/${encodeURIComponent(runId)}/output/${encodedPath}`),
+		latestUrl: buildPublicUrl(publicBaseUrl, `/v1/conns/${encodeURIComponent(connId)}/output/latest/${encodedPath}`),
+	};
+}
+
+async function sendConnOutputFile(
+	reply: FastifyReply,
+	run: ConnRunRecord,
+	file: ConnRunFileRecord,
+	outputPath: string,
+	query: Record<string, unknown>,
+): Promise<FastifyReply> {
+	const outputRoot = resolve(run.workspacePath, "output");
+	const filePath = resolve(outputRoot, outputPath);
+	if (!isPathInside(filePath, outputRoot)) {
+		return reply.status(404).send();
+	}
+	try {
+		const fileStats = await stat(filePath);
+		if (!fileStats.isFile()) {
+			return reply.status(404).send();
+		}
+	} catch {
+		return reply.status(404).send();
+	}
+
+	const contentType = resolveFileResponseContentType(file.mimeType);
+	const disposition = shouldForceDownload(query.download as string | number | boolean | undefined) || !supportsInlinePreview(contentType)
+		? "attachment"
+		: "inline";
+	reply.header("content-type", contentType);
+	reply.header("content-disposition", buildContentDispositionHeader(disposition, file.fileName));
+	return reply.send(createReadStream(filePath));
+}
+
 function sendConnValidationError(reply: FastifyReply, error: unknown): FastifyReply | undefined {
 	if (!(error instanceof Error)) {
 		return undefined;
@@ -177,9 +270,71 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 		const files = await options.connRunStore.listFiles(runId);
 		return {
 			run: toConnRunBody(run),
-			files: files.map(toConnRunFileBody),
+			files: files.map((file) =>
+				toConnRunFileBody(file, toOutputFileLinks(connId, runId, file, options.publicBaseUrl)),
+			),
 		};
 	});
+
+	app.get(
+		"/v1/conns/:connId/runs/:runId/output/*",
+		async (
+			request: FastifyRequest<{
+				Params: { connId: string; runId: string; "*": string };
+				Querystring: { download?: string };
+			}>,
+			reply,
+		): Promise<FastifyReply> => {
+			const { connId, runId } = request.params;
+			const outputPath = normalizeOutputPath(request.params["*"]);
+			if (!outputPath) {
+				return reply.status(404).send();
+			}
+			const run = await options.connRunStore.getRun(runId);
+			if (!run || run.connId !== connId) {
+				return reply.status(404).send();
+			}
+			const files = await options.connRunStore.listFiles(runId);
+			const file = files.find((candidate) => candidate.relativePath === `output/${outputPath}`);
+			if (!file) {
+				return reply.status(404).send();
+			}
+			return await sendConnOutputFile(reply, run, file, outputPath, request.query ?? {});
+		},
+	);
+
+	app.get(
+		"/v1/conns/:connId/output/latest/*",
+		async (
+			request: FastifyRequest<{
+				Params: { connId: string; "*": string };
+				Querystring: { download?: string };
+			}>,
+			reply,
+		): Promise<FastifyReply> => {
+			const { connId } = request.params;
+			const outputPath = normalizeOutputPath(request.params["*"]);
+			if (!outputPath) {
+				return reply.status(404).send();
+			}
+			const conn = await options.connStore.get(connId);
+			if (!conn) {
+				return reply.status(404).send();
+			}
+			const runs = await options.connRunStore.listRunsForConn(connId);
+			for (const run of runs) {
+				if (run.status !== "succeeded") {
+					continue;
+				}
+				const files = await options.connRunStore.listFiles(run.runId);
+				const file = files.find((candidate) => candidate.relativePath === `output/${outputPath}`);
+				if (file) {
+					return await sendConnOutputFile(reply, run, file, outputPath, request.query ?? {});
+				}
+			}
+			return reply.status(404).send();
+		},
+	);
 
 	app.get(
 		"/v1/conns/:connId/runs/:runId/events",

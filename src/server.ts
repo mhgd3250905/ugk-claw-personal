@@ -149,6 +149,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		connStore,
 		connRunStore,
 		backgroundDataDir: options.backgroundDataDir ?? config.backgroundDataDir,
+		publicBaseUrl: config.publicBaseUrl,
 	});
 
 	return app;

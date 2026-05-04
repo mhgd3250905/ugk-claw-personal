@@ -85,6 +85,22 @@ export function getConnRunDetailsStyles(): string {
 			font-size: 11px;
 		}
 
+		.conn-run-file-link {
+			overflow-wrap: anywhere;
+			color: #8fd6ff;
+			font-family: var(--font-mono);
+			font-size: 11px;
+			text-decoration: none;
+		}
+
+		.conn-run-file-link:hover {
+			text-decoration: underline;
+		}
+
+		.conn-run-file-link-secondary {
+			color: rgba(143, 214, 255, 0.72);
+		}
+
 		.conn-run-result-bubble {
 			gap: 12px;
 			padding: 16px 18px;

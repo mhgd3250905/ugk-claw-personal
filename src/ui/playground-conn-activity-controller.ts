@@ -1826,9 +1826,29 @@ export function getConnActivityRendererScript(): string {
 				heading.textContent = "Files";
 				fileSection.appendChild(heading);
 				for (const file of files) {
-					const line = document.createElement("code");
-					line.textContent = (file.kind || "file") + " / " + (file.relativePath || file.fileName || "");
-					fileSection.appendChild(line);
+					const label = (file.kind || "file") + " / " + (file.relativePath || file.fileName || "");
+					if (file.url) {
+						const link = document.createElement("a");
+						link.className = "conn-run-file-link";
+						link.href = file.url;
+						link.target = "_blank";
+						link.rel = "noreferrer";
+						link.textContent = label;
+						fileSection.appendChild(link);
+					} else {
+						const line = document.createElement("code");
+						line.textContent = label;
+						fileSection.appendChild(line);
+					}
+					if (file.latestUrl) {
+						const latestLink = document.createElement("a");
+						latestLink.className = "conn-run-file-link conn-run-file-link-secondary";
+						latestLink.href = file.latestUrl;
+						latestLink.target = "_blank";
+						latestLink.rel = "noreferrer";
+						latestLink.textContent = "最新入口";
+						fileSection.appendChild(latestLink);
+					}
 				}
 				connRunDetailsBody.appendChild(fileSection);
 			}

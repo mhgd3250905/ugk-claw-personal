@@ -176,6 +176,8 @@ export interface ConnRunFileBody {
 	mimeType: string;
 	sizeBytes: number;
 	createdAt: string;
+	url?: string;
+	latestUrl?: string;
 }
 
 export interface ConnRunEventBody {

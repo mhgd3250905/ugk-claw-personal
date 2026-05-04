@@ -549,6 +549,7 @@ async function main(): Promise<void> {
 			assetStore,
 		}),
 		sessionFactory: new ProjectBackgroundSessionFactory(config.projectRoot),
+		publicBaseUrl: config.publicBaseUrl,
 	});
 	const worker = new ConnWorker({
 		workerId: process.env.CONN_WORKER_ID?.trim() || `conn-worker:${process.pid}`,
