@@ -21,6 +21,7 @@ services:
       WEB_ACCESS_CDP_PORT: 9223
       WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
       WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
+      SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
     ports:
       - "3000:3000"
     volumes:
@@ -52,6 +53,7 @@ services:
       WEB_ACCESS_CDP_PORT: 9223
       WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
       WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
+      SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
     volumes:
       - .:/app
       - /app/node_modules
@@ -125,6 +127,27 @@ services:
       - "TCP-LISTEN:9223,fork,bind=0.0.0.0,reuseaddr"
       - "TCP:127.0.0.1:9222"
     restart: unless-stopped
+  ugk-pi-searxng:
+    image: searxng/searxng:latest
+    environment:
+      SEARXNG_BASE_URL: http://127.0.0.1:${SEARXNG_HOST_PORT:-48080}
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-replace-me-with-random-secret}
+    volumes:
+      - ./deploy/searxng:/etc/searxng:ro
+      - ${UGK_SEARXNG_CACHE_DIR:-./.data/searxng}:/var/cache/searxng
+    ports:
+      - "127.0.0.1:${SEARXNG_HOST_PORT:-48080}:8080"
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    mem_limit: ${UGK_SEARXNG_MEM_LIMIT:-512m}
+    mem_reservation: ${UGK_SEARXNG_MEM_RESERVATION:-128m}
+    networks:
+      - ugk-pi-net
 
 volumes:
   ugk-pi-conn-db:

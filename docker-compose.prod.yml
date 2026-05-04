@@ -19,6 +19,7 @@ services:
       WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
       WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
       PLAYGROUND_EXTERNALIZED: ${PLAYGROUND_EXTERNALIZED:-0}
+      SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
     volumes:
       - ${UGK_APP_LOG_DIR:-./logs/app}:/var/log/ugk-pi
       - ${UGK_AGENT_DATA_DIR:-./.data/agent}:/app/.data/agent
@@ -66,6 +67,7 @@ services:
       WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
       WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
       PLAYGROUND_EXTERNALIZED: ${PLAYGROUND_EXTERNALIZED:-0}
+      SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
     volumes:
       - ${UGK_APP_LOG_DIR:-./logs/app}:/var/log/ugk-pi
       - ${UGK_AGENT_DATA_DIR:-./.data/agent}:/app/.data/agent
@@ -169,6 +171,27 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+  ugk-pi-searxng:
+    image: searxng/searxng:latest
+    environment:
+      SEARXNG_BASE_URL: http://127.0.0.1:${SEARXNG_HOST_PORT:-48080}
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-replace-me-with-random-secret}
+    volumes:
+      - ${UGK_SEARXNG_CONFIG_DIR:-./deploy/searxng}:/etc/searxng:ro
+      - ${UGK_SEARXNG_CACHE_DIR:-./.data/searxng}:/var/cache/searxng
+    ports:
+      - "127.0.0.1:${SEARXNG_HOST_PORT:-48080}:8080"
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    mem_limit: ${UGK_SEARXNG_MEM_LIMIT:-512m}
+    mem_reservation: ${UGK_SEARXNG_MEM_RESERVATION:-128m}
+    networks:
+      - ugk-pi-net
 
 networks:
   ugk-pi-net:

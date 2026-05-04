@@ -17,6 +17,8 @@ logs/
 references/pi-mono/
 runtime/skills-user/*
 !runtime/skills-user/.gitkeep
+!runtime/skills-user/searxng-search/
+!runtime/skills-user/searxng-search/**
 runtime/backups/
 runtime/playground/
 runtime/playground-factory/

@@ -12,6 +12,18 @@
 
 ## 2026-05-04
 
+### SearXNG 显式搜索技能
+- 日期：2026-05-04
+- 主题：新增 `searxng-search` 用户技能，作为 SearXNG 试点入口，但只允许 `/searx:` / `/searxng:` 显式触发。
+- 影响范围：该技能不接入 `web-access` 默认 staged router，也不从普通“搜索 / 查一下 / 最新”自然语言请求中自动触发；脚本通过 `SEARXNG_BASE_URL` / `SEARXNG_INTERNAL_BASE_URL` 调用内部 SearXNG JSON API，并在 JSON API 未启用、服务不可达或搜索源限流时明确失败。这样先验证服务器负载、结果质量和搜索源封锁情况，不把所有 agent 默认搜索流量压到同一个服务器出口 IP。
+- 对应入口：`runtime/skills-user/searxng-search/SKILL.md`、`runtime/skills-user/searxng-search/scripts/searxng_search.mjs`、`test/searxng-search-skill.test.ts`
+
+### SearXNG 内部容器试点
+- 日期：2026-05-04
+- 主题：为 `/searx:` 显式搜索技能补齐本地与生产 compose 的内部 SearXNG 服务。
+- 影响范围：新增 `ugk-pi-searxng` 容器，默认只绑定宿主 `127.0.0.1:${SEARXNG_HOST_PORT:-48080}`，app 与 conn-worker 通过 compose 内网 `http://ugk-pi-searxng:8080` 调用；配置文件启用 `json` 输出格式，但不把 SearXNG 接入默认 `web-access` 路由，也不让主服务依赖它启动成功。`SEARXNG_SECRET`、缓存目录和内存上限写入 `.env.example`，便于生产用 shared 目录管理。
+- 对应入口：`docker-compose.yml`、`docker-compose.prod.yml`、`.env.example`、`deploy/searxng/settings.yml`、`docs/searxng-search.md`、`README.md`、`test/containerization.test.ts`
+
 ### Conn Worker 事件写入崩溃防护
 - 日期：2026-05-04
 - 主题：修复后台 `conn-worker` 在运行中 conn/run 被删除或事件持久化失败时可能因 `FOREIGN KEY constraint failed` / 未处理 rejection 崩溃的问题。

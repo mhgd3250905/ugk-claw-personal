@@ -45,11 +45,13 @@ test("container runtime files exist with the expected base configuration", () =>
 
 	const compose = readFileSync(composePath, "utf8");
 	const workerComposeBlock = extractComposeServiceBlock(compose, "ugk-pi-conn-worker");
+	const searxngComposeBlock = extractComposeServiceBlock(compose, "ugk-pi-searxng");
 	assert.match(compose, /services:/);
 	assert.match(compose, /ugk-pi:/);
 	assert.match(compose, /ugk-pi-conn-worker:/);
 	assert.match(compose, /ugk-pi-browser:/);
 	assert.match(compose, /ugk-pi-browser-cdp:/);
+	assert.match(compose, /ugk-pi-searxng:/);
 	assert.match(compose, /3000:3000/);
 	assert.match(compose, /127\.0\.0\.1:\$\{WEB_ACCESS_BROWSER_GUI_PORT:-3901\}:3001/);
 	assert.match(compose, /HOST:\s*0\.0\.0\.0/);
@@ -62,6 +64,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL:\s*http:\/\/ugk-pi:3000/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR:\s*\/app\/\.data\/browser-upload/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR:\s*\/config\/upload/);
+	assert.match(compose, /SEARXNG_BASE_URL:\s*http:\/\/ugk-pi-searxng:8080/);
 	assert.match(compose, /lscr\.io\/linuxserver\/chrome:latest/);
 	assert.match(compose, /alpine\/socat:latest/);
 	assert.match(compose, /network_mode:\s*"service:ugk-pi-browser"/);
@@ -88,9 +91,18 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /volumes:\s*\n\s*ugk-pi-conn-db:/);
 	assert.match(workerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
 	assert.doesNotMatch(workerComposeBlock, /ports:/);
+	assert.match(searxngComposeBlock, /searxng\/searxng:latest/);
+	assert.match(searxngComposeBlock, /127\.0\.0\.1:\$\{SEARXNG_HOST_PORT:-48080\}:8080/);
+	assert.match(searxngComposeBlock, /SEARXNG_SECRET:\s*\$\{SEARXNG_SECRET:-replace-me-with-random-secret\}/);
+	assert.match(searxngComposeBlock, /\.\/deploy\/searxng:\/etc\/searxng:ro/);
+	assert.match(searxngComposeBlock, /\$\{UGK_SEARXNG_CACHE_DIR:-\.\/\.data\/searxng\}:\/var\/cache\/searxng/);
+	assert.match(searxngComposeBlock, /mem_limit:\s*\$\{UGK_SEARXNG_MEM_LIMIT:-512m\}/);
+	assert.match(searxngComposeBlock, /mem_reservation:\s*\$\{UGK_SEARXNG_MEM_RESERVATION:-128m\}/);
+	assert.doesNotMatch(searxngComposeBlock, /0\.0\.0\.0:\$\{SEARXNG_HOST_PORT/);
 
 	const prodCompose = readFileSync(prodComposePath, "utf8");
 	const prodWorkerComposeBlock = extractComposeServiceBlock(prodCompose, "ugk-pi-conn-worker");
+	const prodSearxngComposeBlock = extractComposeServiceBlock(prodCompose, "ugk-pi-searxng");
 	assert.match(prodCompose, /services:/);
 	assert.match(prodCompose, /ugk-pi:/);
 	assert.match(prodCompose, /args:\s*\n\s*APT_MIRROR_HOST:\s*\$\{APT_MIRROR_HOST:-\}/);
@@ -98,6 +110,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /ugk-pi-browser:/);
 	assert.match(prodCompose, /ugk-pi-browser-cdp:/);
 	assert.match(prodCompose, /nginx:/);
+	assert.match(prodCompose, /ugk-pi-searxng:/);
 	assert.match(prodCompose, /restart:\s*unless-stopped/);
 	assert.match(prodCompose, /env_file:/);
 	assert.match(prodCompose, /\.env/);
@@ -109,6 +122,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL:\s*http:\/\/ugk-pi:3000/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR:\s*\/app\/\.data\/browser-upload/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR:\s*\/config\/upload/);
+	assert.match(prodCompose, /SEARXNG_BASE_URL:\s*http:\/\/ugk-pi-searxng:8080/);
 	assert.match(prodCompose, /127\.0\.0\.1:\$\{WEB_ACCESS_BROWSER_GUI_PORT:-3901\}:3001/);
 	assert.match(prodCompose, /lscr\.io\/linuxserver\/chrome:latest/);
 	assert.match(prodCompose, /alpine\/socat:latest/);
@@ -140,6 +154,14 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /\$\{UGK_RUNTIME_SKILLS_USER_DIR:-\.\/runtime\/skills-user\}:\/app\/runtime\/skills-user/);
 	assert.match(prodWorkerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
 	assert.doesNotMatch(prodWorkerComposeBlock, /ports:/);
+	assert.match(prodSearxngComposeBlock, /searxng\/searxng:latest/);
+	assert.match(prodSearxngComposeBlock, /127\.0\.0\.1:\$\{SEARXNG_HOST_PORT:-48080\}:8080/);
+	assert.match(prodSearxngComposeBlock, /SEARXNG_SECRET:\s*\$\{SEARXNG_SECRET:-replace-me-with-random-secret\}/);
+	assert.match(prodSearxngComposeBlock, /\$\{UGK_SEARXNG_CONFIG_DIR:-\.\/deploy\/searxng\}:\/etc\/searxng:ro/);
+	assert.match(prodSearxngComposeBlock, /\$\{UGK_SEARXNG_CACHE_DIR:-\.\/\.data\/searxng\}:\/var\/cache\/searxng/);
+	assert.match(prodSearxngComposeBlock, /mem_limit:\s*\$\{UGK_SEARXNG_MEM_LIMIT:-512m\}/);
+	assert.match(prodSearxngComposeBlock, /mem_reservation:\s*\$\{UGK_SEARXNG_MEM_RESERVATION:-128m\}/);
+	assert.doesNotMatch(prodSearxngComposeBlock, /0\.0\.0\.0:\$\{SEARXNG_HOST_PORT/);
 	assert.match(prodCompose, /default\.conf/);
 	assert.match(prodCompose, /depends_on:/);
 
@@ -154,11 +176,23 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR=\/app\/\.data\/browser-upload/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR=\/config\/upload/);
 	assert.match(envExample, /CONN_WORKER_MAX_CONCURRENCY=3/);
+	assert.match(envExample, /SEARXNG_BASE_URL=http:\/\/ugk-pi-searxng:8080/);
+	assert.match(envExample, /SEARXNG_HOST_PORT=48080/);
+	assert.match(envExample, /SEARXNG_SECRET=replace-me-with-random-secret/);
+	assert.match(envExample, /UGK_SEARXNG_MEM_LIMIT=512m/);
+	assert.match(envExample, /UGK_SEARXNG_MEM_RESERVATION=128m/);
 	assert.match(envExample, /UGK_AGENT_DATA_DIR=\.\/\.data\/agent/);
 	assert.match(envExample, /UGK_AGENTS_DATA_DIR=\.\/\.data\/agents/);
 	assert.match(envExample, /UGK_BROWSER_UPLOAD_DIR=\.\/\.data\/chrome-sidecar\/upload/);
+	assert.match(envExample, /UGK_SEARXNG_CONFIG_DIR=\.\/deploy\/searxng/);
+	assert.match(envExample, /UGK_SEARXNG_CACHE_DIR=\.\/\.data\/searxng/);
 	assert.match(envExample, /UGK_RUNTIME_SKILLS_USER_DIR=\.\/runtime\/skills-user/);
 	assert.match(envExample, /APT_MIRROR_HOST=/);
+
+	const searxngSettings = readFileSync(join(projectRoot, "deploy", "searxng", "settings.yml"), "utf8");
+	assert.match(searxngSettings, /use_default_settings:\s*true/);
+	assert.match(searxngSettings, /formats:\s*\n\s*- html\s*\n\s*- json/);
+	assert.match(searxngSettings, /limiter:\s*false/);
 
 	const dockerignore = readFileSync(dockerignorePath, "utf8");
 	assert.match(dockerignore, /node_modules/);

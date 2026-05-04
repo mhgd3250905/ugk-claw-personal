@@ -175,6 +175,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 - [`docs/model-providers.md`](./docs/model-providers.md)：阿里、DeepSeek、小米三类模型源的 provider、region、key 和展示顺序。
 - [`docs/runtime-assets-conn-feishu.md`](./docs/runtime-assets-conn-feishu.md)：资产、附件、`send_file`、`conn` 和 Feishu 运行说明。
 - [`docs/web-access-browser-bridge.md`](./docs/web-access-browser-bridge.md)：Chrome sidecar、CDP bridge、持久 profile 和排障口径。
+- [`docs/searxng-search.md`](./docs/searxng-search.md)：`/searx:` 显式搜索技能、SearXNG 内部容器和试点边界。
 - [`docs/server-ops.md`](./docs/server-ops.md)：生产服务器更新、检查和验收的唯一入口。
 - [`docs/server-ops-quick-reference.md`](./docs/server-ops-quick-reference.md)：生产环境高频运维动作。
 - [`docs/tencent-cloud-singapore-deploy.md`](./docs/tencent-cloud-singapore-deploy.md)：腾讯云部署、更新、验收和回滚手册。
