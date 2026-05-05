@@ -17,7 +17,7 @@
 - 阿里云生产已增量更新到 `48db6b8 Fix conn HTML output links`，`server:ops aliyun verify` 通过。
 - `AGENTS.md` 与 `docs/aliyun-ecs-deploy.md` 已更新阿里云当前基线，避免继续拿 `05c3b59` 或更早的阿里云基线当现状。
 - 任务消息 / transcript 共用的文件卡片 `canPreviewFile()` 已补上 `text/html`，不再出现后端能 inline、前端却不给“打开”的半截修复。
-- 新增只读体检接口 `GET /v1/debug/cleanup`，用于查看 conn target 分布、旧 `conversation_notifications` 表残留、最近 7 天 run 与 activity/output 的对齐情况。这个接口只读，不迁移、不删除、不修复数据。
+- 新增只读体检接口 `GET /v1/debug/cleanup`，用于查看 conn target 分布、异常旧库中的 `conversation_notifications` 表残留、最近 7 天 run 与 activity/output 的对齐情况。这个接口只读，不迁移、不删除、不修复数据。
 
 ## 体检接口
 
@@ -57,7 +57,7 @@ curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z
 | 对象 | 当前状态 | 当前决策 | 禁止事项 | 可删除 / 迁移条件 |
 | --- | --- | --- | --- | --- |
 | `ConnTarget.type = "conversation"` | 后端仍兼容解析，前端主入口不再暴露 | 标记 deprecated，保留读取兼容 | 新文档、新 UI、新 agent prompt 不得推荐填写 conversation target | `/v1/debug/cleanup` 显示 active conversation target 为 0，且历史 conn 已迁移或确认可废弃 |
-| `conversation_notifications` | 旧会话通知表仍在 schema、删除清理和 cleanup debug 观测中；旧 store / 功能测试已移除 | 标记 legacy data path，保留删除清理和迁移兼容 | 不得把 conn 结果重新写回 conversation notification，也不得恢复 conversation-scoped store | 历史数据已有迁移或明确归档策略；cleanup debug 长期确认无残留后再评估删表 |
+| `conversation_notifications` | 旧会话通知表已移出 schema；旧 store / 功能测试已移除；cleanup debug 仅对异常旧库兼容统计 | 删除 legacy data path，保留只读风险观测兜底 | 不得把 conn 结果重新写回 conversation notification，也不得恢复 conversation-scoped store 或 schema | 已完成 |
 | `agent_activity_items` | 当前任务消息主链路 | 保持主链路 | 不得用 conversation transcript 替代后台任务结果读模型 | 不适用，当前不可删 |
 | Feishu `mapped` mode | 兼容模式仍保留 | 标记 compatibility mode，默认仍是 current mode | 不得把每个飞书群默认映射成本地 conversation | 线上确认无 `mapped` 配置，且有替代隔离策略 |
 | legacy subagent `.pi/agents` | 旧 scout / planner / worker / reviewer 链路仍可能被 prompt / skill 引用 | 保留，明确区别于 Playground agent profile | 用户说“agent”时不得默认解释成 `.pi/agents` subagent | profile dispatch 覆盖旧 chain 能力，且项目级 prompt / skill 不再引用 legacy subagent |
@@ -74,13 +74,15 @@ curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z
 
 ### 2. `conversation_notifications` 表
 
-现状：SQLite schema 仍存在；当前 conn 终态结果主链路已转到 `agent_activity_items`。生产路径只在删除 conn 时清理 `conversation_notifications`，cleanup debug 也会只读统计它是否还有 conn 残留；新的 conn worker 不再写入该表。
+现状：SQLite schema 已在 user_version 6 中移除 `conversation_notifications`；当前 conn 终态结果主链路是 `agent_activity_items`。生产路径不再写入或删除该旧表；cleanup debug 只在异常旧库仍存在该表时只读统计它是否还有 conn 残留。
 
-评估：这基本是旧“按会话投递通知”的遗留数据表。直接删表不划算，可能影响历史数据和迁移判断；但继续保留 store / 功能测试会误导排障。
+评估：这是旧“按会话投递通知”的遗留数据表。双云 cleanup debug 已确认 `legacyConversationNotifications.total = 0`，继续保留 schema 和删除清理只会让维护者误以为旧链路仍有效。
 
-建议：短期保留 schema、删除清理和 cleanup debug 观测；不要恢复 conversation-scoped notification store。中期如要删表，先给历史数据做迁移 / 归档策略，再移除 schema 和清理逻辑。
+决策：删除 schema 和 conn 删除清理；旧数据库升级时 `DROP TABLE IF EXISTS conversation_notifications`。保留 cleanup debug 的“有表才统计”兜底，用来发现未完成迁移的异常环境。
 
 2026-05-05 审计补充：`ConversationNotificationStore` 和对应功能测试已移除；当前 conn 主链路不再从这里写入。原先被 activity / worker 复用的 `ConversationNotificationFile` 类型已迁出为中性 `ActivityFile`，避免新链路继续从旧 store 文件进口类型。
+
+2026-05-05 清理补充：`conversation_notifications` 已从 `ConnDatabase` schema、表清单和 `ConnSqliteStore.deleteMany()` 级联清理中移除；数据库版本升到 6 时会丢弃旧表。
 
 ### 3. `GET /v1/activity/summary`
 
@@ -132,7 +134,7 @@ curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z
 
 1. 为 conn target 增加线上统计或 debug 输出：按 `task_inbox / conversation / feishu_*` 汇总 active conn 数量。
 2. 如果 `conversation` target 数量为 0 或可迁移，先在 API 文档标记 deprecated，再考虑前端隐藏该入口。
-3. 如果后续要删 `conversation_notifications` 表，先设计历史数据迁移 / 归档策略，再移除 schema、删除清理和 cleanup debug 统计。
+3. 如 cleanup debug 在某个环境继续报出旧 `conversation_notifications` 残留，先确认该环境是否未跑到 user_version 6；不要恢复旧 store。
 4. 给文件卡片增加更直接的 HTML output 回归测试：activity `files[]` 里 `text/html` 应展示“打开”和“下载”。
 5. 清理长手册首页：历史记录保留，但“当前快照”和“固定流程”必须永远在顶部，别让后来的人从 4 月旧命令开始复制。
 

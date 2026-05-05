@@ -261,7 +261,7 @@ Run 查询接口：
 ### Conn / Feishu Legacy 口径
 
 - `conversation` target：只作为后端兼容读取保留，新建 conn 默认和推荐目标都是 `task_inbox`；新 UI、文档和 prompt 不应再引导用户填写 conversation target。
-- `conversation_notifications`：只视为旧会话通知数据表；当前 conn 结果主链路是 `agent_activity_items`，不要把后台任务结果重新写回 conversation transcript 或旧通知表。conversation-scoped notification store 已移除，保留的只是 schema、删除清理和 cleanup debug 观测。
+- `conversation_notifications`：旧会话通知数据表已退出 schema；当前 conn 结果主链路是 `agent_activity_items`，不要把后台任务结果重新写回 conversation transcript 或旧通知表。conversation-scoped notification store 已移除，旧库升级到 user_version 6 时会丢弃该表；cleanup debug 只对异常旧库保留只读兼容统计。
 - Feishu `mapped` mode：只作为兼容模式保留；默认是 current conversation mode，也就是飞书作为 Web 当前会话的外挂收发窗口。
 - legacy subagent `.pi/agents`：保留旧 scout / planner / worker / reviewer 链路，但用户说“agent”时默认指 Playground agent profile 和 `/v1/agents`，不是 legacy subagent。
 - Windows host IPC：只作为本机调试 fallback；生产浏览器链路默认 Docker Chrome sidecar + direct CDP。
@@ -443,7 +443,7 @@ GET /v1/local-file?path=...
   - `DELETE /v1/conns/:connId` 删除 conn
   - `POST /v1/conns/bulk-delete` 批量删除 conn，入参是去重后的 `connIds`
 - `POST /v1/conns` 与 `PATCH /v1/conns/:connId` 现在共用同一套 payload 解析逻辑：创建时统一 trim 文本，未显式传入 `target` 时补 `{ "type": "task_inbox" }`，不读取当前服务端会话；编辑时如果显式传入 `title` 或 `prompt`，则必须是去空白后仍非空的字符串，不再把空白值默默吞掉。
-- 当前删除是软删除：`ConnSqliteStore` 会给 `conns.deleted_at` 写入时间、把任务从 `GET /v1/conns` 和管理面隐藏、停止后续调度，并清理 `source=conn` 且 `source_id=<connId>` 的 conversation notification 和全局 activity；不会在 HTTP 请求内级联删除该 conn 的 run / event / file 历史。这个取舍是为了避免用了很久的后台任务在删除时同步清扫大量 SQLite 行，把主服务线程和前端请求一起卡住。后续如果需要真正清理历史数据，应做单独维护任务，而不是恢复请求内硬删除。
+- 当前删除是软删除：`ConnSqliteStore` 会给 `conns.deleted_at` 写入时间、把任务从 `GET /v1/conns` 和管理面隐藏、停止后续调度，并清理 `source=conn` 且 `source_id=<connId>` 的全局 activity；不会在 HTTP 请求内级联删除该 conn 的 run / event / file 历史。这个取舍是为了避免用了很久的后台任务在删除时同步清扫大量 SQLite 行，把主服务线程和前端请求一起卡住。后续如果需要真正清理历史数据，应做单独维护任务，而不是恢复请求内硬删除。
 - 保存成功后，管理面会保留一条状态提示并高亮对应 conn；最近 run 历史默认折叠，打开管理面时只使用 `/v1/conns` 返回的 `latestRun` 展示最新状态摘要，需要排障时再展开并按需读取完整 runs。
 - 管理面现在有状态筛选、选择当前、清空选择和删除所选，用来批量清掉测试 conn；单个正式任务仍建议先暂停确认，再决定是否删除。删除后任务从 UI 消失，但 run 历史仍保留在 SQLite 中供维护期排查或后续清理。
 - 前台 agent 正在运行时，管理面仍可打开和操作；这是刻意保留的解耦行为。conn worker 是否执行、执行到哪里，仍以 SQLite run 状态和 worker 日志为准。

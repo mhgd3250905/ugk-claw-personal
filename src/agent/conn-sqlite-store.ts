@@ -285,7 +285,6 @@ export class ConnSqliteStore {
 	}
 
 	private deleteConnReferences(connId: string): void {
-		this.options.database.run("DELETE FROM conversation_notifications WHERE source = 'conn' AND source_id = ?", connId);
 		this.options.database.run("DELETE FROM agent_activity_items WHERE source = 'conn' AND source_id = ?", connId);
 	}
 

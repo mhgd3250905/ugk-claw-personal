@@ -17,7 +17,7 @@ test("ConnDatabase initializes the sqlite schema and creates missing parent dire
 	await database.initialize();
 
 	assert.deepEqual(database.listTableNames(), CONN_DATABASE_TABLES);
-	assert.equal(database.getUserVersion(), 5);
+	assert.equal(database.getUserVersion(), 6);
 	assert.equal(
 		database.all<{ name: string }>("PRAGMA table_info(conns)").some((column) => column.name === "max_run_ms"),
 		true,
@@ -63,7 +63,8 @@ test("ConnDatabase initializes the agent activity timeline schema", async () => 
 	await database.initialize();
 
 	assert.equal(database.listTableNames().includes("agent_activity_items"), true);
-	assert.equal(database.listTableNames().includes("conversation_notifications"), true);
+	assert.equal(database.listTableNames().includes("conversation_notifications"), false);
+	assert.equal(database.hasTable("conversation_notifications"), false);
 	const connColumns = database.all<{ name: string }>("PRAGMA table_info(conns)");
 	assert.equal(connColumns.some((column) => column.name === "deleted_at"), true);
 
@@ -91,6 +92,38 @@ test("ConnDatabase initializes the agent activity timeline schema", async () => 
 	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_conversation_id"), true);
 	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_source_run"), true);
 	assert.equal(indexes.some((index) => index.name === "idx_agent_activity_source_run_unique"), true);
+
+	database.close();
+});
+
+test("ConnDatabase drops the legacy conversation notifications table during migration", async () => {
+	const dbPath = await createTempDbPath();
+	const database = new ConnDatabase({ dbPath });
+
+	await database.initialize();
+	database.exec(`
+CREATE TABLE conversation_notifications (
+	notification_id TEXT PRIMARY KEY,
+	conversation_id TEXT NOT NULL,
+	source TEXT NOT NULL,
+	source_id TEXT NOT NULL,
+	run_id TEXT,
+	kind TEXT NOT NULL,
+	title TEXT NOT NULL,
+	text TEXT NOT NULL,
+	files_json TEXT NOT NULL DEFAULT '[]',
+	created_at TEXT NOT NULL,
+	read_at TEXT,
+	UNIQUE (source, source_id, run_id)
+);
+PRAGMA user_version = 5;
+`);
+	assert.equal(database.hasTable("conversation_notifications"), true);
+
+	await database.initialize();
+
+	assert.equal(database.hasTable("conversation_notifications"), false);
+	assert.equal(database.getUserVersion(), 6);
 
 	database.close();
 });

@@ -213,7 +213,7 @@ test("ConnSqliteStore updates, pauses, resumes, and deletes conn definitions", a
 	database.close();
 });
 
-test("ConnSqliteStore soft delete hides conn and removes stale notifications and activity items", async () => {
+test("ConnSqliteStore soft delete hides conn and removes stale activity items", async () => {
 	const { store, database } = await createConnSqliteStore();
 	const created = await store.create({
 		title: "test cleanup",
@@ -229,19 +229,6 @@ test("ConnSqliteStore soft delete hides conn and removes stale notifications and
 		now: new Date("2026-04-21T10:00:00.000Z"),
 	});
 
-	database.run(
-		"INSERT INTO conversation_notifications (notification_id, conversation_id, source, source_id, run_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		"notice-1",
-		"manual:conn",
-		"conn",
-		created.connId,
-		"run-1",
-		"conn_result",
-		"done",
-		"ok",
-		"[]",
-		"2026-04-21T10:01:00.000Z",
-	);
 	database.run(
 		"INSERT INTO agent_activity_items (activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		"activity-1",
@@ -263,10 +250,6 @@ test("ConnSqliteStore soft delete hides conn and removes stale notifications and
 	assert.match(
 		database.get<{ deleted_at: string | null }>("SELECT deleted_at FROM conns WHERE conn_id = ?", created.connId)?.deleted_at ?? "",
 		/^202/,
-	);
-	assert.equal(
-		database.get<{ notification_id: string }>("SELECT notification_id FROM conversation_notifications WHERE source_id = ?", created.connId),
-		undefined,
 	);
 	assert.equal(
 		database.get<{ activity_id: string }>("SELECT activity_id FROM agent_activity_items WHERE source_id = ?", created.connId),

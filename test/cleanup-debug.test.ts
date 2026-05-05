@@ -80,6 +80,7 @@ test("GET /v1/debug/cleanup reports legacy conn cleanup signals", async () => {
 			128,
 			"2026-05-05T11:00:02.000Z",
 		);
+		createLegacyConversationNotificationsTable(database);
 		database.run(
 			"INSERT INTO conversation_notifications (notification_id, conversation_id, source, source_id, run_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			"notification-1",
@@ -303,4 +304,23 @@ function insertRun(
 		input.createdAt,
 		input.createdAt,
 	);
+}
+
+function createLegacyConversationNotificationsTable(database: ConnDatabase): void {
+	database.exec(`
+CREATE TABLE conversation_notifications (
+	notification_id TEXT PRIMARY KEY,
+	conversation_id TEXT NOT NULL,
+	source TEXT NOT NULL,
+	source_id TEXT NOT NULL,
+	run_id TEXT,
+	kind TEXT NOT NULL,
+	title TEXT NOT NULL,
+	text TEXT NOT NULL,
+	files_json TEXT NOT NULL DEFAULT '[]',
+	created_at TEXT NOT NULL,
+	read_at TEXT,
+	UNIQUE (source, source_id, run_id)
+);
+`);
 }

@@ -12,10 +12,16 @@
 
 ## 2026-05-05
 
+### 删除旧会话通知 SQLite 表
+- 日期：2026-05-05
+- 主题：把已经退出主链路的 `conversation_notifications` 从 conn SQLite schema、迁移目标和 conn 删除清理路径中移除。
+- 影响范围：新初始化数据库不再创建旧表；旧数据库升级到 user_version 6 时会 `DROP TABLE IF EXISTS conversation_notifications`；`/v1/debug/cleanup` 对仍存在该表的异常旧库保持只读统计，正常新库返回 0。当前 conn 结果继续只走 `agent_activity_items` / 任务消息页。
+- 对应入口：`src/agent/conn-db.ts`、`src/agent/conn-sqlite-store.ts`、`src/routes/cleanup-debug.ts`、`test/conn-db.test.ts`、`test/cleanup-debug.test.ts`
+
 ### 移除旧会话通知 Store
 - 日期：2026-05-05
 - 主题：删除已退出主链路的 `ConversationNotificationStore` 和对应功能测试，避免旧 conversation-scoped notification 入口继续误导维护者。
-- 影响范围：保留 `conversation_notifications` SQLite 表、conn 删除清理和 `/v1/debug/cleanup` 只读观测；不恢复任何写入旧通知表的运行路径。当前 conn 结果仍以 `agent_activity_items` / 任务消息页为唯一主读模型。
+- 影响范围：当时保留 `conversation_notifications` SQLite 表、conn 删除清理和 `/v1/debug/cleanup` 只读观测；不恢复任何写入旧通知表的运行路径。后续旧表已在“删除旧会话通知 SQLite 表”中移出 schema。
 - 对应入口：`src/agent/conversation-notification-store.ts`、`test/conversation-notification-store.test.ts`、`src/agent/conn-db.ts`、`src/agent/conn-sqlite-store.ts`、`src/routes/cleanup-debug.ts`
 
 ### Activity 文件类型与旧会话通知解绑

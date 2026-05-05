@@ -124,6 +124,12 @@ function readConnTargetStats(database: ConnDatabase): CleanupDebugResponseBody["
 function readConversationNotificationStats(
 	database: ConnDatabase,
 ): CleanupDebugResponseBody["legacyConversationNotifications"] {
+	if (!database.hasTable("conversation_notifications")) {
+		return {
+			total: 0,
+			connSourceTotal: 0,
+		};
+	}
 	const row = database.get<NotificationStatsRow>(
 		[
 			"SELECT",

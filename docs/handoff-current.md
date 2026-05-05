@@ -87,7 +87,7 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 - [src/routes/activity.ts](/E:/AII/ugk-pi/src/routes/activity.ts)
 
 已加固点：
-- `conversation_notifications` 已降级为 legacy 表；当前主链路是 `AgentActivityStore` / `agent_activity_items`，旧 conversation-scoped store 已移除。
+- `conversation_notifications` 已从 conn SQLite schema 中移除；当前主链路是 `AgentActivityStore` / `agent_activity_items`，旧 conversation-scoped store 已移除。
 - `ConnSqliteStore.list()` / `get()` 遇到坏 JSON conn 行时跳过 / 返回空，不拖垮列表或详情。
 - `ConnRunStore` 读取坏 `resolved_snapshot_json` / `event_json` 时降级为空对象或省略字段；完成 run 时如果 owning conn 的 `schedule_json` 已坏，仍能终结 run，并把 conn 收到 completed。
 - conn、run、notification、activity 查询补稳定 tie-breaker；`GET /v1/activity` 的 `nextBefore` 现在是不透明游标 `createdAt|activityId`，旧 timestamp-only `before` 入参仍兼容。
@@ -124,7 +124,7 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 - 路由层：chat / conn / activity / notification / files 的 parser、presenter、SSE、route utils 已经拆出。
 - AgentService 领域 helper：conversation catalog、conversation commands、conversation context、conversation session、conversation state、conversation history、prompt assets、queue message、run scope、run events、run result、terminal run、session event adapter / guards。
 - playground 运行时：page shell、基础样式、状态、通知、确认弹窗、panel focus、conversation API / sync / state / history pagination / process / active run normalizer 等控制器已经拆出。
-- 存储与坏数据边界：ConversationStore、AssetStore、AgentActivityStore、ConnSqliteStore、ConnRunStore 已经完成一轮坏 JSON、并发、稳定排序、分页游标和 lease 防护加固；`conversation_notifications` 只保留 legacy 表、删除清理和 cleanup debug 观测。
+- 存储与坏数据边界：ConversationStore、AssetStore、AgentActivityStore、ConnSqliteStore、ConnRunStore 已经完成一轮坏 JSON、并发、稳定排序、分页游标和 lease 防护加固；`conversation_notifications` 只在 cleanup debug 中保留异常旧库只读观测。
 
 剩余不建议继续拆的区域：
 

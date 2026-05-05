@@ -9,7 +9,6 @@ export const CONN_DATABASE_TABLES = [
 	"conn_runs",
 	"conn_run_events",
 	"conn_run_files",
-	"conversation_notifications",
 ] as const;
 
 export interface ConnDatabaseOptions {
@@ -56,6 +55,14 @@ export class ConnDatabase {
 		return CONN_DATABASE_TABLES.filter((tableName) => existing.has(tableName));
 	}
 
+	hasTable(tableName: string): boolean {
+		const row = this.get<{ name: string }>(
+			"SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+			tableName,
+		);
+		return row?.name === tableName;
+	}
+
 	getUserVersion(): number {
 		const row = this.get<{ user_version: number }>("PRAGMA user_version");
 		return row?.user_version ?? 0;
@@ -81,7 +88,7 @@ export class ConnDatabase {
 		const db = this.open();
 		db.exec(SCHEMA_SQL);
 		this.applyMigrations(db);
-		db.exec("PRAGMA user_version = 5");
+		db.exec("PRAGMA user_version = 6");
 	}
 
 	private async prepareDatabasePath(): Promise<void> {
@@ -145,6 +152,9 @@ export class ConnDatabase {
 		}
 		if (userVersion < 5 && !this.hasColumn("conns", "deleted_at")) {
 			db.exec("ALTER TABLE conns ADD COLUMN deleted_at TEXT");
+		}
+		if (userVersion < 6) {
+			db.exec("DROP TABLE IF EXISTS conversation_notifications");
 		}
 		db.exec("CREATE INDEX IF NOT EXISTS idx_conns_deleted_at ON conns(deleted_at, created_at DESC)");
 		if (userVersion < 3) {
@@ -258,21 +268,6 @@ CREATE TABLE IF NOT EXISTS conn_run_files (
 	FOREIGN KEY (run_id) REFERENCES conn_runs(run_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS conversation_notifications (
-	notification_id TEXT PRIMARY KEY,
-	conversation_id TEXT NOT NULL,
-	source TEXT NOT NULL,
-	source_id TEXT NOT NULL,
-	run_id TEXT,
-	kind TEXT NOT NULL,
-	title TEXT NOT NULL,
-	text TEXT NOT NULL,
-	files_json TEXT NOT NULL DEFAULT '[]',
-	created_at TEXT NOT NULL,
-	read_at TEXT,
-	UNIQUE (source, source_id, run_id)
-);
-
 CREATE TABLE IF NOT EXISTS agent_activity_items (
 	activity_id TEXT PRIMARY KEY,
 	scope TEXT NOT NULL,
@@ -293,7 +288,6 @@ CREATE INDEX IF NOT EXISTS idx_conn_runs_conn_id ON conn_runs(conn_id, scheduled
 CREATE INDEX IF NOT EXISTS idx_conn_runs_claim ON conn_runs(status, lease_until, scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_conn_run_events_run_id ON conn_run_events(run_id, seq);
 CREATE INDEX IF NOT EXISTS idx_conn_run_files_run_id ON conn_run_files(run_id, kind);
-CREATE INDEX IF NOT EXISTS idx_conversation_notifications_conversation_id ON conversation_notifications(conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_agent_activity_created_at ON agent_activity_items(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_activity_conversation_id ON agent_activity_items(conversation_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_activity_read_at ON agent_activity_items(read_at, created_at DESC);
