@@ -735,6 +735,39 @@ export function getPlaygroundThemeStyles(): string {
 			color: #9d2439;
 		}
 
+			:root[data-theme="light"] .agent-switcher-meta {
+				background: rgba(255, 255, 255, 0.97);
+				color: #1f2937;
+			}
+
+			:root[data-theme="light"] .agent-switcher-item:hover:not(:disabled),
+			:root[data-theme="light"] .agent-switcher-item:focus-visible {
+				background: rgba(0, 102, 255, 0.06);
+			}
+
+			:root[data-theme="light"] .agent-switcher-item.is-current {
+				background: rgba(0, 102, 255, 0.05);
+			}
+
+			:root[data-theme="light"] .agent-switcher-item-name {
+				color: #111827;
+			}
+
+			:root[data-theme="light"] .agent-switcher-item.is-current .agent-switcher-item-name {
+				color: #0052cc;
+			}
+
+			:root[data-theme="light"] .agent-switcher-item-id {
+				color: #6b7280;
+			}
+
+			:root[data-theme="light"] .agent-switcher-item-status {
+				background: rgba(0, 102, 255, 0.08);
+				color: #0052cc;
+			}
+
+
+
 		:root[data-theme="light"] .chat-run-log-item code,
 		:root[data-theme="light"] .context-usage-model code,
 		:root[data-theme="light"] .context-usage-dialog-model code,

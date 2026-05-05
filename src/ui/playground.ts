@@ -352,6 +352,8 @@ function getPlaygroundScript(): string {
 		const newConversationButton = document.getElementById("new-conversation-button");
 		const agentSelector = document.getElementById("agent-selector");
 		const agentSelectorStatus = document.getElementById("agent-selector-status");
+		const agentSwitcherLabel = agentSelectorStatus ? agentSelectorStatus.querySelector(".agent-switcher-label") : null;
+		const agentSwitcherMeta = document.getElementById("agent-switcher-meta");
 		const openModelConfigButton = document.getElementById("open-model-config-button");
 		const modelConfigDialog = document.getElementById("model-config-dialog");
 		const modelConfigClose = document.getElementById("model-config-close");
@@ -403,9 +405,6 @@ function getPlaygroundScript(): string {
 		}
 
 		function renderAgentSelector() {
-			if (!agentSelector) {
-				return;
-			}
 			const knownAgents = Array.isArray(state.agentCatalog) && state.agentCatalog.length > 0
 				? state.agentCatalog
 				: [
@@ -413,22 +412,69 @@ function getPlaygroundScript(): string {
 					{ agentId: "search", name: "搜索 Agent" },
 				];
 			const currentAgentId = getCurrentAgentId();
-			agentSelector.innerHTML = "";
-			for (const agent of knownAgents) {
+
+			if (agentSelector) {
+				agentSelector.innerHTML = "";
+				for (const agent of knownAgents) {
+					const agentId = String(agent?.agentId || "").trim();
+					if (!agentId) {
+						continue;
+					}
+					const option = document.createElement("option");
+					option.value = agentId;
+					option.textContent = String(agent?.name || agentId);
+					agentSelector.appendChild(option);
+				}
+				agentSelector.value = currentAgentId;
+			}
+
+			if (agentSwitcherLabel) {
+				const current = knownAgents.find((agent) => agent?.agentId === currentAgentId);
+				agentSwitcherLabel.textContent = String(current?.name || currentAgentId);
+			}
+
+			if (agentSwitcherMeta) {
+				renderAgentSwitcherMeta(knownAgents, currentAgentId);
+			}
+		}
+
+		function renderAgentSwitcherMeta(agents, currentAgentId) {
+			agentSwitcherMeta.innerHTML = "";
+			const list = document.createElement("div");
+			list.className = "agent-switcher-list";
+			for (const agent of agents) {
 				const agentId = String(agent?.agentId || "").trim();
 				if (!agentId) {
 					continue;
 				}
-				const option = document.createElement("option");
-				option.value = agentId;
-				option.textContent = String(agent?.name || agentId);
-				agentSelector.appendChild(option);
+				const isCurrent = agentId === currentAgentId;
+				const item = document.createElement("button");
+				item.type = "button";
+				item.className = "agent-switcher-item" + (isCurrent ? " is-current" : "");
+				item.dataset.agentId = agentId;
+				const name = document.createElement("span");
+				name.className = "agent-switcher-item-name";
+				name.textContent = String(agent?.name || agentId);
+				const id = document.createElement("code");
+				id.className = "agent-switcher-item-id";
+				id.textContent = agentId;
+				const status = document.createElement("span");
+				status.className = "agent-switcher-item-status";
+				status.textContent = isCurrent ? "当前" : "";
+				item.appendChild(name);
+				item.appendChild(id);
+				item.appendChild(status);
+				if (!isCurrent) {
+					item.addEventListener("click", (event) => {
+						event.stopPropagation();
+						void switchAgent(agentId);
+					});
+				} else {
+					item.disabled = true;
+				}
+				list.appendChild(item);
 			}
-			agentSelector.value = currentAgentId;
-			if (agentSelectorStatus) {
-				const current = knownAgents.find((agent) => agent?.agentId === currentAgentId);
-				agentSelectorStatus.textContent = String(current?.name || currentAgentId);
-			}
+			agentSwitcherMeta.appendChild(list);
 		}
 
 		async function loadAgentCatalog() {

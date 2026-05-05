@@ -3388,6 +3388,7 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.topbar-agent-label {
+			position: relative;
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
@@ -3412,6 +3413,113 @@ export function getPlaygroundStyles(): string {
 			box-shadow: none;
 			transform: none;
 		}
+
+			.agent-switcher-label {
+				position: relative;
+				z-index: 1;
+			}
+
+			.agent-switcher-meta {
+				position: absolute;
+				top: calc(100% + 8px);
+				right: 0;
+				z-index: 90;
+				display: grid;
+				gap: 0;
+				width: min(248px, calc(100vw - 24px));
+				padding: 6px;
+				border: 0;
+				border-radius: 4px;
+				background: linear-gradient(180deg, rgba(16, 21, 35, 0.98), rgba(7, 10, 18, 0.98)), #070a12;
+				box-shadow: none;
+				color: rgba(225, 232, 247, 0.82);
+				font-size: 11px;
+				line-height: 1.35;
+				text-align: left;
+				white-space: normal;
+				opacity: 0;
+				pointer-events: none;
+				transform: translateY(-4px);
+				transition: opacity 120ms ease, transform 120ms ease;
+			}
+
+			.topbar-agent-label:hover .agent-switcher-meta,
+			.topbar-agent-label:focus-visible .agent-switcher-meta {
+				opacity: 1;
+				pointer-events: auto;
+				transform: translateY(0);
+			}
+
+			.agent-switcher-list {
+				display: grid;
+				gap: 4px;
+			}
+
+			.agent-switcher-item {
+				display: grid;
+				grid-template-columns: 1fr auto;
+				grid-template-rows: auto auto;
+				gap: 2px 8px;
+				align-items: center;
+				width: 100%;
+				padding: 8px 10px;
+				border: 0;
+				border-radius: 4px;
+				background: transparent;
+				color: inherit;
+				font: inherit;
+				text-align: left;
+				cursor: pointer;
+			}
+
+			.agent-switcher-item:hover:not(:disabled),
+			.agent-switcher-item:focus-visible {
+				background: rgba(201, 210, 255, 0.06);
+			}
+
+			.agent-switcher-item.is-current {
+				background: rgba(104, 213, 255, 0.06);
+				cursor: default;
+			}
+
+			.agent-switcher-item-name {
+				grid-column: 1;
+				grid-row: 1;
+				color: rgba(247, 249, 255, 0.92);
+				font-size: 12px;
+				font-weight: 600;
+			}
+
+			.agent-switcher-item.is-current .agent-switcher-item-name {
+				color: rgba(183, 235, 255, 0.92);
+			}
+
+			.agent-switcher-item-id {
+				grid-column: 1;
+				grid-row: 2;
+				color: rgba(226, 234, 255, 0.48);
+				font-family: var(--font-mono);
+				font-size: 10px;
+			}
+
+			.agent-switcher-item-status {
+				grid-column: 2;
+				grid-row: 1 / 3;
+				align-self: center;
+				padding: 2px 6px;
+				border-radius: 4px;
+				background: rgba(104, 213, 255, 0.1);
+				color: rgba(104, 213, 255, 0.88);
+				font-size: 9px;
+				font-weight: 700;
+				line-height: 1.4;
+			}
+
+			.agent-switcher-item-status:empty {
+				display: none;
+			}
+
+
 
 		.telemetry-action {
 			position: relative;

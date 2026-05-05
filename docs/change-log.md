@@ -12,6 +12,16 @@
 
 ## 2026-05-05
 
+### Agent 切换悬浮菜单
+- 日期：2026-05-05
+- 主题：topbar 右侧 agent label 按钮新增悬浮弹出菜单，hover 时展示可切换 agent 列表。
+- 影响范围：
+  - agent label 按钮内新增 `.agent-switcher-meta` 弹出容器和 `.agent-switcher-label` 文字包装 span。
+  - 弹出菜单沿用 `context-usage-meta` 的 `opacity/pointer-events/transform` 显隐模式，深色/浅色主题均已适配。
+  - 列表项展示名称、agentId、当前激活标识；已激活项 disabled，其他项点击直接调用 `switchAgent()`。
+  - `renderAgentSelector()` 拆分为 label 更新 + `renderAgentSwitcherMeta()` 弹出列表渲染。
+- 对应入口：`src/ui/playground-page-shell.ts`、`src/ui/playground.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`
+
 ### 桌面端工作区头部与交互优化
 - 日期：2026-05-05
 - 主题：重构桌面端文件库和任务消息页面的头部结构，统一 workspace 面板的打开/关闭交互。
