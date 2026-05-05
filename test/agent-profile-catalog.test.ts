@@ -8,6 +8,7 @@ import {
 	createStoredAgentProfile,
 	installStoredAgentProfileSkill,
 	loadAgentProfilesSync,
+	moveAgentProfileDataDir,
 	removeStoredAgentProfileSkill,
 } from "../src/agent/agent-profile-catalog.js";
 import { resolveAgentProfile } from "../src/agent/agent-profile.js";
@@ -174,6 +175,25 @@ test("archiveStoredAgentProfile removes custom profiles and preserves files", as
 
 	assert.equal(resolveAgentProfile(loaded, "draft"), undefined);
 	assert.match(archived.archivedPath, /agents-archive/);
+});
+
+test("moveAgentProfileDataDir falls back to copy and remove across devices", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+	const sourceDir = join(projectRoot, "agents", "search");
+	const targetDir = join(projectRoot, "agents-archive", "search-archived");
+	await mkdir(join(sourceDir, "sessions"), { recursive: true });
+	await writeFile(join(sourceDir, "sessions", "session.jsonl"), "ok\n", "utf8");
+
+	await moveAgentProfileDataDir(sourceDir, targetDir, {
+		rename: async () => {
+			const error = new Error("cross-device link not permitted") as NodeJS.ErrnoException;
+			error.code = "EXDEV";
+			throw error;
+		},
+	});
+
+	assert.equal(await readFile(join(targetDir, "sessions", "session.jsonl"), "utf8"), "ok\n");
+	await assert.rejects(access(sourceDir));
 });
 
 test("agent profile catalog rejects reserved and malformed ids", async () => {

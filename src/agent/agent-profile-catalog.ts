@@ -211,6 +211,39 @@ async function assertMainAgentHasInitialSystemSkills(projectRoot: string, skillN
 	}
 }
 
+function isCrossDeviceRenameError(error: unknown): boolean {
+	return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "EXDEV";
+}
+
+interface MoveAgentProfileDataDirOptions {
+	rename?: typeof rename;
+	cp?: typeof cp;
+	rm?: typeof rm;
+}
+
+export async function moveAgentProfileDataDir(
+	sourceDir: string,
+	targetDir: string,
+	options: MoveAgentProfileDataDirOptions = {},
+): Promise<void> {
+	const renameDir = options.rename ?? rename;
+	const copyDir = options.cp ?? cp;
+	const removeDir = options.rm ?? rm;
+	try {
+		await renameDir(sourceDir, targetDir);
+	} catch (error) {
+		if (!isCrossDeviceRenameError(error)) {
+			throw error;
+		}
+		await copyDir(sourceDir, targetDir, {
+			recursive: true,
+			force: false,
+			errorOnExist: true,
+		});
+		await removeDir(sourceDir, { recursive: true, force: true });
+	}
+}
+
 function assertMutableAgentProfile(agentId: string): void {
 	if (agentId === DEFAULT_AGENT_ID) {
 		throw new Error("main agent skills cannot be managed through agent profile ops");
@@ -422,7 +455,7 @@ export async function archiveStoredAgentProfile(
 	const archivedPath = join(projectRoot, ".data", "agents-archive", `${agentId}-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 	await mkdir(dirname(archivedPath), { recursive: true });
 	if (existsSync(profile.dataDir)) {
-		await rename(profile.dataDir, archivedPath);
+		await moveAgentProfileDataDir(profile.dataDir, archivedPath);
 	}
 	await writeStoredAgentProfileSummaries(projectRoot, nextStored, nextArchivedAgentIds);
 	return { agentId, archivedPath };

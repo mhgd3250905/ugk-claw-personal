@@ -2853,6 +2853,26 @@ test("GET /playground routes /new through the slash command dispatcher", async (
 	await app.close();
 });
 
+test("GET /playground exposes explicit agent switching operations for agents", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /window\.ugkPlaygroundAgentOps = Object\.freeze\(\{/);
+	assert.match(response.body, /listAgents: \(\) => \[\.\.\.state\.agentCatalog\]/);
+	assert.match(response.body, /getCurrentAgentId,/);
+	assert.match(response.body, /switchAgent,/);
+	assert.doesNotMatch(response.body, /parseNaturalAgentSwitchCommand/);
+	assert.doesNotMatch(response.body, /normalizeAgentSwitchText/);
+	await app.close();
+});
+
 test("GET /playground keeps bottom scroll room above the active composer", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

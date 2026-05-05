@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Agent profile 跨挂载归档修复
+- 日期：2026-05-05
+- 主题：修复阿里云删除 / 归档 `search` Agent 时 `EXDEV: cross-device link not permitted` 的生产错误，并把 Playground agent 切换能力暴露为明确操作接口。
+- 影响范围：Agent profile 归档仍优先使用同文件系统 `rename`；当 `.data/agents` 与 `.data/agents-archive` 位于不同挂载层导致 `EXDEV` 时，自动降级为递归复制到归档目录后删除源目录，避免前端删除 Agent 失败。Playground 暴露 `window.ugkPlaygroundAgentOps.switchAgent(agentId)` 给已理解用户明确意图的 agent 调用；不做“切换 / 切到 / 进入 + 名称”的前端自然语言文本匹配。`agent-profile-ops` 新增统一 `dispatch` 脚本：优先把 `search-engine` 这类用户创建的 agent profile 解析到 scoped chat，仍识别 `scout/worker` 等 legacy subagent，避免继续回答“不是 subagent 所以不能派发”。
+- 对应入口：`src/agent/agent-profile-catalog.ts`、`src/ui/playground.ts`、`.pi/skills/agent-profile-ops/SKILL.md`、`.pi/skills/agent-profile-ops/scripts/agent_profile_ops.mjs`、`test/agent-profile-catalog.test.ts`、`test/agent-profile-ops-skill.test.ts`、`test/server.test.ts`
+
 ### Conn 输出 URL 双云上线与 AGENTS 渐进式披露收口
 - 日期：2026-05-05
 - 主题：记录 `ba9d7a0 Expose conn output files over HTTP` 已完成双云增量上线，并优化 `AGENTS.md` 的阅读顺序。

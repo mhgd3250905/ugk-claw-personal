@@ -490,6 +490,12 @@ function getPlaygroundScript(): string {
 			await ensureCurrentConversation({ silent: true });
 		}
 
+		window.ugkPlaygroundAgentOps = Object.freeze({
+			listAgents: () => [...state.agentCatalog],
+			getCurrentAgentId,
+			switchAgent,
+		});
+
 		confirmDialogConfirm.addEventListener("click", () => {
 			closeConfirmDialog(true);
 		});
