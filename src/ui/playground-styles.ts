@@ -672,14 +672,18 @@ export function getPlaygroundStyles(): string {
 			background: rgba(141, 255, 178, 0.04);
 		}
 
+		.chat-stage > .workspace-contained .asset-modal {
+			background: transparent;
+		}
+
 		.chat-stage > .workspace-contained .asset-modal-head {
 			display: flex;
 			flex-direction: row;
 			align-items: center;
 			justify-content: space-between;
 			gap: 16px;
-			padding: 0 0 12px;
-			border-bottom: 1px solid rgba(201, 210, 255, 0.08);
+			padding: 0;
+			border-bottom: 0;
 			background: transparent;
 		}
 

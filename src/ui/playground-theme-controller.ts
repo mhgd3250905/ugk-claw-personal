@@ -816,12 +816,10 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .conn-manager-dialog,
 		:root[data-theme="light"] .conn-editor-dialog,
 		:root[data-theme="light"] .task-inbox-view {
-			background: linear-gradient(180deg, #f7f9fc 0%, #edf2f8 100%);
 			color: #172033;
 		}
 
 		:root[data-theme="light"] .asset-modal-shell {
-			background: rgba(15, 23, 42, 0.24);
 			color: #172033;
 		}
 
@@ -1045,6 +1043,8 @@ export function getPlaygroundThemeStyles(): string {
 			color: #0b1a36;
 		}
 
+
+
 		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-actions button {
 			border-color: rgba(31, 95, 200, 0.1);
 			color: #5b6b84;
@@ -1056,9 +1056,6 @@ export function getPlaygroundThemeStyles(): string {
 			color: #1b3f7a;
 		}
 
-		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-head {
-			border-bottom-color: rgba(31, 95, 200, 0.08);
-		}
 
 
 		:root[data-theme="light"] .task-inbox-result-bubble,
