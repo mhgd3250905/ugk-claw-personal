@@ -626,7 +626,12 @@ export class ConnRunStore {
 
 	private isCurrentLeaseOwner(runId: string, leaseOwner: string | undefined): boolean {
 		const row = this.options.database.get<Pick<ConnRunRow, "status" | "lease_owner">>(
-			"SELECT status, lease_owner FROM conn_runs WHERE run_id = ?",
+			[
+				"SELECT conn_runs.status, conn_runs.lease_owner",
+				"FROM conn_runs",
+				"JOIN conns ON conns.conn_id = conn_runs.conn_id",
+				"WHERE conn_runs.run_id = ? AND conns.deleted_at IS NULL",
+			].join(" "),
 			runId,
 		);
 		if (!leaseOwner) {

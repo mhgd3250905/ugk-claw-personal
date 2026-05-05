@@ -78,6 +78,7 @@ interface ConnRow {
 	last_run_at?: string;
 	next_run_at?: string;
 	last_run_id?: string;
+	deleted_at?: string | null;
 }
 
 const DEFAULT_PROFILE_ID = "background.default";
@@ -91,7 +92,7 @@ export class ConnSqliteStore {
 
 	async list(): Promise<ConnDefinition[]> {
 		const rows = this.options.database.all<ConnRow>(
-			"SELECT * FROM conns ORDER BY created_at DESC, conn_id DESC",
+			"SELECT * FROM conns WHERE deleted_at IS NULL ORDER BY created_at DESC, conn_id DESC",
 		);
 		return rows.flatMap((row) => {
 			const conn = tryRowToConnDefinition(row);
@@ -101,7 +102,7 @@ export class ConnSqliteStore {
 
 	async get(connId: string): Promise<ConnDefinition | undefined> {
 		const row = this.options.database.get<ConnRow>(
-			"SELECT * FROM conns WHERE conn_id = ?",
+			"SELECT * FROM conns WHERE conn_id = ? AND deleted_at IS NULL",
 			connId,
 		);
 		return row ? tryRowToConnDefinition(row) : undefined;
@@ -246,7 +247,7 @@ export class ConnSqliteStore {
 			this.options.database.exec("BEGIN IMMEDIATE");
 			for (const connId of uniqueConnIds) {
 				const existing = this.options.database.get<Pick<ConnRow, "conn_id">>(
-					"SELECT conn_id FROM conns WHERE conn_id = ?",
+					"SELECT conn_id FROM conns WHERE conn_id = ? AND deleted_at IS NULL",
 					connId,
 				);
 				if (!existing) {
@@ -254,7 +255,17 @@ export class ConnSqliteStore {
 					continue;
 				}
 				this.deleteConnReferences(connId);
-				this.options.database.run("DELETE FROM conns WHERE conn_id = ?", connId);
+				const deletedAt = new Date().toISOString();
+				this.options.database.run(
+					[
+						"UPDATE conns SET",
+						"status = 'completed', next_run_at = NULL, deleted_at = ?, updated_at = ?",
+						"WHERE conn_id = ? AND deleted_at IS NULL",
+					].join(" "),
+					deletedAt,
+					deletedAt,
+					connId,
+				);
 				result.deletedConnIds.push(connId);
 			}
 			this.options.database.exec("COMMIT");

@@ -114,6 +114,27 @@ test("createStoredAgentProfile can recreate an archived agent id as visible", as
 	assert.equal(draft.name, "新草稿 Agent");
 });
 
+test("createStoredAgentProfile preserves concurrent custom profile creates", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+	const agentIds = Array.from({ length: 12 }, (_, index) => `worker-${index + 1}`);
+
+	await Promise.all(
+		agentIds.map((agentId) =>
+			createStoredAgentProfile(projectRoot, {
+				agentId,
+				name: `${agentId} Agent`,
+				description: "并发创建测试。",
+			}),
+		),
+	);
+
+	const loadedIds = loadAgentProfilesSync(projectRoot).map((profile) => profile.agentId);
+
+	for (const agentId of agentIds) {
+		assert.ok(loadedIds.includes(agentId), `${agentId} should remain in profiles.json`);
+	}
+});
+
 test("installStoredAgentProfileSkill copies a main agent skill into an existing agent user skill root", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
 	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });

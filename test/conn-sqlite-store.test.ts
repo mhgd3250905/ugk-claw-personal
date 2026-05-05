@@ -213,7 +213,7 @@ test("ConnSqliteStore updates, pauses, resumes, and deletes conn definitions", a
 	database.close();
 });
 
-test("ConnSqliteStore hard delete removes stale conn notifications and activity items", async () => {
+test("ConnSqliteStore soft delete hides conn and removes stale notifications and activity items", async () => {
 	const { store, database } = await createConnSqliteStore();
 	const created = await store.create({
 		title: "test cleanup",
@@ -258,6 +258,12 @@ test("ConnSqliteStore hard delete removes stale conn notifications and activity 
 	);
 
 	assert.equal(await store.delete(created.connId), true);
+	assert.equal(await store.get(created.connId), undefined);
+	assert.equal((await store.list()).some((conn) => conn.connId === created.connId), false);
+	assert.match(
+		database.get<{ deleted_at: string | null }>("SELECT deleted_at FROM conns WHERE conn_id = ?", created.connId)?.deleted_at ?? "",
+		/^202/,
+	);
 	assert.equal(
 		database.get<{ notification_id: string }>("SELECT notification_id FROM conversation_notifications WHERE source_id = ?", created.connId),
 		undefined,
@@ -266,6 +272,49 @@ test("ConnSqliteStore hard delete removes stale conn notifications and activity 
 		database.get<{ activity_id: string }>("SELECT activity_id FROM agent_activity_items WHERE source_id = ?", created.connId),
 		undefined,
 	);
+
+	database.close();
+});
+
+test("ConnSqliteStore soft delete keeps long-lived run history rows out of the request path", async () => {
+	const { store, database } = await createConnSqliteStore();
+	const created = await store.create({
+		title: "long lived",
+		prompt: "run",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	database.run(
+		"INSERT INTO conn_runs (run_id, conn_id, status, scheduled_at, workspace_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		"run-old",
+		created.connId,
+		"succeeded",
+		"2026-04-21T10:01:00.000Z",
+		"/tmp/run-old",
+		"2026-04-21T10:01:00.000Z",
+		"2026-04-21T10:02:00.000Z",
+	);
+	database.run(
+		"INSERT INTO conn_run_events (event_id, run_id, seq, event_type, event_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"event-old",
+		"run-old",
+		1,
+		"run_succeeded",
+		"{}",
+		"2026-04-21T10:02:00.000Z",
+	);
+
+	assert.equal(await store.delete(created.connId), true);
+	assert.equal(await store.get(created.connId), undefined);
+	assert.equal(database.get<{ run_id: string }>("SELECT run_id FROM conn_runs WHERE run_id = ?", "run-old")?.run_id, "run-old");
+	assert.equal(database.get<{ event_id: string }>("SELECT event_id FROM conn_run_events WHERE event_id = ?", "event-old")?.event_id, "event-old");
 
 	database.close();
 });

@@ -17,7 +17,7 @@ test("ConnDatabase initializes the sqlite schema and creates missing parent dire
 	await database.initialize();
 
 	assert.deepEqual(database.listTableNames(), CONN_DATABASE_TABLES);
-	assert.equal(database.getUserVersion(), 4);
+	assert.equal(database.getUserVersion(), 5);
 	assert.equal(
 		database.all<{ name: string }>("PRAGMA table_info(conns)").some((column) => column.name === "max_run_ms"),
 		true,
@@ -64,6 +64,8 @@ test("ConnDatabase initializes the agent activity timeline schema", async () => 
 
 	assert.equal(database.listTableNames().includes("agent_activity_items"), true);
 	assert.equal(database.listTableNames().includes("conversation_notifications"), true);
+	const connColumns = database.all<{ name: string }>("PRAGMA table_info(conns)");
+	assert.equal(connColumns.some((column) => column.name === "deleted_at"), true);
 
 	const activityColumns = database.all<{ name: string }>("PRAGMA table_info(agent_activity_items)");
 	assert.deepEqual(

@@ -81,7 +81,7 @@ export class ConnDatabase {
 		const db = this.open();
 		db.exec(SCHEMA_SQL);
 		this.applyMigrations(db);
-		db.exec("PRAGMA user_version = 4");
+		db.exec("PRAGMA user_version = 5");
 	}
 
 	private async prepareDatabasePath(): Promise<void> {
@@ -143,6 +143,10 @@ export class ConnDatabase {
 				db.exec("ALTER TABLE conns ADD COLUMN model_id TEXT");
 			}
 		}
+		if (userVersion < 5 && !this.hasColumn("conns", "deleted_at")) {
+			db.exec("ALTER TABLE conns ADD COLUMN deleted_at TEXT");
+		}
+		db.exec("CREATE INDEX IF NOT EXISTS idx_conns_deleted_at ON conns(deleted_at, created_at DESC)");
 		if (userVersion < 3) {
 			db.exec(
 				[
@@ -204,7 +208,8 @@ CREATE TABLE IF NOT EXISTS conns (
 	updated_at TEXT NOT NULL,
 	last_run_at TEXT,
 	next_run_at TEXT,
-	last_run_id TEXT
+	last_run_id TEXT,
+	deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS conn_runs (

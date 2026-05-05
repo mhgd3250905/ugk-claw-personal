@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
-import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { cp, mkdir, readdir, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 import {
 	DEFAULT_AGENT_ID,
 	SEARCH_AGENT_ID,
@@ -17,6 +17,8 @@ interface StoredAgentProfiles {
 	agents?: AgentProfileSummaryInput[];
 	archivedAgentIds?: string[];
 }
+
+const catalogWriteQueues = new Map<string, Promise<void>>();
 
 export interface CreateAgentProfileInput {
 	agentId: string;
@@ -44,6 +46,10 @@ export interface AgentProfileSkillChangeResult {
 
 export function getAgentProfilesCatalogPath(projectRoot: string): string {
 	return join(projectRoot, ".data", "agents", "profiles.json");
+}
+
+function getCatalogQueueKey(projectRoot: string): string {
+	return resolve(projectRoot);
 }
 
 function normalizeAgentName(agentId: string, name: string | undefined): string {
@@ -287,7 +293,7 @@ export function readStoredAgentProfileSummariesSync(projectRoot: string): AgentP
 	return parseStoredCatalog(raw).agents;
 }
 
-async function readStoredAgentProfileCatalog(projectRoot: string): Promise<Required<StoredAgentProfiles>> {
+async function readStoredAgentProfileCatalogFromDisk(projectRoot: string): Promise<Required<StoredAgentProfiles>> {
 	const catalogPath = getAgentProfilesCatalogPath(projectRoot);
 	try {
 		return parseStoredCatalog(await readFile(catalogPath, "utf8"));
@@ -297,6 +303,11 @@ async function readStoredAgentProfileCatalog(projectRoot: string): Promise<Requi
 		}
 		throw error;
 	}
+}
+
+async function readStoredAgentProfileCatalog(projectRoot: string): Promise<Required<StoredAgentProfiles>> {
+	await catalogWriteQueues.get(getCatalogQueueKey(projectRoot));
+	return await readStoredAgentProfileCatalogFromDisk(projectRoot);
 }
 
 function readStoredAgentProfileCatalogSync(projectRoot: string): Required<StoredAgentProfiles> {
@@ -312,9 +323,65 @@ export async function writeStoredAgentProfileSummaries(
 	agents: AgentProfileSummaryInput[],
 	archivedAgentIds: string[] = [],
 ): Promise<void> {
+	await queueStoredAgentProfileCatalogOperation(projectRoot, async () => {
+		await writeStoredAgentProfileCatalogFile(projectRoot, { agents, archivedAgentIds });
+	});
+}
+
+async function writeStoredAgentProfileCatalogFile(
+	projectRoot: string,
+	catalog: Required<StoredAgentProfiles>,
+): Promise<void> {
 	const catalogPath = getAgentProfilesCatalogPath(projectRoot);
-	await mkdir(dirname(catalogPath), { recursive: true });
-	await writeFile(catalogPath, JSON.stringify({ agents, archivedAgentIds }, null, 2) + "\n", "utf8");
+	const catalogDir = dirname(catalogPath);
+	const tempPath = join(catalogDir, `.${basename(catalogPath)}.${process.pid}.${process.hrtime.bigint()}.tmp`);
+	await mkdir(catalogDir, { recursive: true });
+	try {
+		await writeFile(tempPath, JSON.stringify(catalog, null, 2) + "\n", "utf8");
+		await rename(tempPath, catalogPath);
+	} catch (error) {
+		await unlink(tempPath).catch(() => undefined);
+		throw error;
+	}
+}
+
+async function queueStoredAgentProfileCatalogOperation<T>(
+	projectRoot: string,
+	operation: () => Promise<T>,
+): Promise<T> {
+	const key = getCatalogQueueKey(projectRoot);
+	const previous = catalogWriteQueues.get(key) ?? Promise.resolve();
+	let result: T;
+	const current = previous
+		.catch(() => undefined)
+		.then(async () => {
+			result = await operation();
+		});
+	const settled = current.then(
+		() => undefined,
+		() => undefined,
+	);
+	catalogWriteQueues.set(key, settled);
+	try {
+		await current;
+		return result!;
+	} finally {
+		if (catalogWriteQueues.get(key) === settled) {
+			catalogWriteQueues.delete(key);
+		}
+	}
+}
+
+async function mutateStoredAgentProfileCatalog<T>(
+	projectRoot: string,
+	mutator: (catalog: Required<StoredAgentProfiles>) => Promise<{ catalog: Required<StoredAgentProfiles>; result: T }>,
+): Promise<T> {
+	return await queueStoredAgentProfileCatalogOperation(projectRoot, async () => {
+		const current = await readStoredAgentProfileCatalogFromDisk(projectRoot);
+		const next = await mutator(current);
+		await writeStoredAgentProfileCatalogFile(projectRoot, next.catalog);
+		return next.result;
+	});
 }
 
 export function loadAgentProfilesSync(projectRoot: string): AgentProfile[] {
@@ -333,24 +400,26 @@ export async function createStoredAgentProfile(
 	input: CreateAgentProfileInput,
 ): Promise<AgentProfile> {
 	const normalized = normalizeAgentProfileInput(input);
-	const catalog = await readStoredAgentProfileCatalog(projectRoot);
-	const existing = createDefaultAgentProfiles(projectRoot, catalog.agents).filter(
-		(profile) => !catalog.archivedAgentIds.includes(profile.agentId),
-	);
-	if (existing.some((profile) => profile.agentId === normalized.agentId)) {
-		throw new Error(`agent ${normalized.agentId} already exists`);
-	}
 	const initialSystemSkillNames = normalizeInitialSystemSkillNames(input.initialSystemSkillNames);
 	await assertMainAgentHasInitialSystemSkills(projectRoot, initialSystemSkillNames);
-	const profile = createAgentProfileFromSummary(projectRoot, normalized);
-	await ensureAgentProfileRuntime(profile);
-	await copyInitialSystemSkills(projectRoot, profile, initialSystemSkillNames);
-	await writeStoredAgentProfileSummaries(
-		projectRoot,
-		[...catalog.agents, normalized],
-		catalog.archivedAgentIds.filter((agentId) => agentId !== normalized.agentId),
-	);
-	return profile;
+	return await mutateStoredAgentProfileCatalog(projectRoot, async (catalog) => {
+		const existing = createDefaultAgentProfiles(projectRoot, catalog.agents).filter(
+			(profile) => !catalog.archivedAgentIds.includes(profile.agentId),
+		);
+		if (existing.some((profile) => profile.agentId === normalized.agentId)) {
+			throw new Error(`agent ${normalized.agentId} already exists`);
+		}
+		const profile = createAgentProfileFromSummary(projectRoot, normalized);
+		await ensureAgentProfileRuntime(profile);
+		await copyInitialSystemSkills(projectRoot, profile, initialSystemSkillNames);
+		return {
+			catalog: {
+				agents: [...catalog.agents, normalized],
+				archivedAgentIds: catalog.archivedAgentIds.filter((agentId) => agentId !== normalized.agentId),
+			},
+			result: profile,
+		};
+	});
 }
 
 export async function updateStoredAgentProfile(
@@ -364,27 +433,32 @@ export async function updateStoredAgentProfile(
 	if (agentId === DEFAULT_AGENT_ID) {
 		throw new Error("main agent cannot be edited");
 	}
-	const catalog = await readStoredAgentProfileCatalog(projectRoot);
-	if (catalog.archivedAgentIds.includes(agentId)) {
-		throw new Error(`agent ${agentId} is archived`);
-	}
-	const currentProfile = createDefaultAgentProfiles(projectRoot, catalog.agents).find(
-		(profile) => profile.agentId === agentId,
-	);
-	if (!currentProfile) {
-		throw new Error(`agent ${agentId} does not exist`);
-	}
-	const updatedSummary: AgentProfileSummaryInput = {
-		agentId,
-		name: normalizeAgentName(agentId, input.name ?? currentProfile.name),
-		description: normalizeAgentDescription(input.description ?? currentProfile.description),
-	};
-	const nextStored = [
-		...catalog.agents.filter((entry) => entry.agentId !== agentId),
-		updatedSummary,
-	];
-	await writeStoredAgentProfileSummaries(projectRoot, nextStored, catalog.archivedAgentIds);
-	return createAgentProfileFromSummary(projectRoot, updatedSummary);
+	return await mutateStoredAgentProfileCatalog(projectRoot, async (catalog) => {
+		if (catalog.archivedAgentIds.includes(agentId)) {
+			throw new Error(`agent ${agentId} is archived`);
+		}
+		const currentProfile = createDefaultAgentProfiles(projectRoot, catalog.agents).find(
+			(profile) => profile.agentId === agentId,
+		);
+		if (!currentProfile) {
+			throw new Error(`agent ${agentId} does not exist`);
+		}
+		const updatedSummary: AgentProfileSummaryInput = {
+			agentId,
+			name: normalizeAgentName(agentId, input.name ?? currentProfile.name),
+			description: normalizeAgentDescription(input.description ?? currentProfile.description),
+		};
+		return {
+			catalog: {
+				agents: [
+					...catalog.agents.filter((entry) => entry.agentId !== agentId),
+					updatedSummary,
+				],
+				archivedAgentIds: catalog.archivedAgentIds,
+			},
+			result: createAgentProfileFromSummary(projectRoot, updatedSummary),
+		};
+	});
 }
 
 export async function installStoredAgentProfileSkill(
@@ -445,18 +519,22 @@ export async function archiveStoredAgentProfile(
 	if (agentId === DEFAULT_AGENT_ID) {
 		throw new Error("main agent cannot be archived");
 	}
-	const catalog = await readStoredAgentProfileCatalog(projectRoot);
-	const profile = createDefaultAgentProfiles(projectRoot, catalog.agents).find((entry) => entry.agentId === agentId);
-	if (!profile) {
-		throw new Error(`agent ${agentId} does not exist`);
-	}
-	const nextStored = catalog.agents.filter((entry) => entry.agentId !== agentId);
-	const nextArchivedAgentIds = Array.from(new Set([...catalog.archivedAgentIds, agentId]));
-	const archivedPath = join(projectRoot, ".data", "agents-archive", `${agentId}-${new Date().toISOString().replace(/[:.]/g, "-")}`);
-	await mkdir(dirname(archivedPath), { recursive: true });
-	if (existsSync(profile.dataDir)) {
-		await moveAgentProfileDataDir(profile.dataDir, archivedPath);
-	}
-	await writeStoredAgentProfileSummaries(projectRoot, nextStored, nextArchivedAgentIds);
-	return { agentId, archivedPath };
+	return await mutateStoredAgentProfileCatalog(projectRoot, async (catalog) => {
+		const profile = createDefaultAgentProfiles(projectRoot, catalog.agents).find((entry) => entry.agentId === agentId);
+		if (!profile) {
+			throw new Error(`agent ${agentId} does not exist`);
+		}
+		const archivedPath = join(projectRoot, ".data", "agents-archive", `${agentId}-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+		await mkdir(dirname(archivedPath), { recursive: true });
+		if (existsSync(profile.dataDir)) {
+			await moveAgentProfileDataDir(profile.dataDir, archivedPath);
+		}
+		return {
+			catalog: {
+				agents: catalog.agents.filter((entry) => entry.agentId !== agentId),
+				archivedAgentIds: Array.from(new Set([...catalog.archivedAgentIds, agentId])),
+			},
+			result: { agentId, archivedPath },
+		};
+	});
 }

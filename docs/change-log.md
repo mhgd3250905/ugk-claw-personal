@@ -12,6 +12,18 @@
 
 ## 2026-05-05
 
+### Agent profile catalog 原子写入与并发保护
+- 日期：2026-05-05
+- 主题：排查同类运行态数据丢失隐患后，修复自定义 Agent profile catalog 并发写入可能互相覆盖的问题。
+- 影响范围：`profiles.json` 写入现在通过同目录临时文件 + `rename` 原子替换完成，并按 project root 串行化 catalog 读改写；并发创建、编辑、归档自定义 Agent 时会基于最新 catalog 合并，不再让后到的写入覆盖先到的 Agent。该改动只保护 catalog 元数据写入，不改变 Agent 技能目录删除和归档目录移动的既有 API 行为。
+- 对应入口：`src/agent/agent-profile-catalog.ts`、`test/agent-profile-catalog.test.ts`
+
+### Conn 后台任务删除改为软删除
+- 日期：2026-05-05
+- 主题：排查阿里云删除长期运行后台任务时长时间卡顿的问题，并移除请求内级联硬删除隐患。
+- 影响范围：`DELETE /v1/conns/:connId` 与 `POST /v1/conns/bulk-delete` 现在通过 `conns.deleted_at` 做软删除，任务会从 `GET /v1/conns` 和管理面隐藏、停止后续调度，同时清理任务消息 / 会话通知引用；不再在 HTTP 请求内通过外键级联删除大量 run / event / file 历史，避免多年任务删除时阻塞 SQLite 和 Node 主线程。run 历史暂留在 SQLite，后续真实清理应走单独维护任务。
+- 对应入口：`src/agent/conn-db.ts`、`src/agent/conn-sqlite-store.ts`、`test/conn-db.test.ts`、`test/conn-sqlite-store.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### Agent profile 跨挂载归档修复
 - 日期：2026-05-05
 - 主题：修复阿里云删除 / 归档 `search` Agent 时 `EXDEV: cross-device link not permitted` 的生产错误，并把 Playground agent 切换能力暴露为明确操作接口。

@@ -370,7 +370,7 @@ GET /v1/local-file?path=...
 - 默认 heartbeat 间隔会按 lease 自动推导；显式传入的 heartbeat 间隔会被原样尊重，便于测试和后续调参。
 - runner / worker 完成或失败 run 时会带上当前 `leaseOwner` 做条件更新；如果 run 已经因租约过期被其他 worker 接管，迟到的旧 worker 不能再把它标成成功或失败，也不能污染 owning conn 的 `lastRunId`。
 - runner 写入 runtime metadata、过程事件和输出文件索引时也会带上当前 `leaseOwner`；旧 worker 迟到的 sessionFile、run event 或 output file 不能混进新 owner 的 run 详情。
-- 过程事件和输出文件写入必须在 SQLite 事务内完成 run/lease 校验与插入；如果用户在后台任务运行中硬删除 conn，级联删除后的迟到 event/file 写入应直接跳过，不能再用外键错误把 `conn-worker` 打崩。session event 持久化失败只允许记 warning，不应覆盖后台任务本身的成功 / 失败收口。
+- 过程事件和输出文件写入必须在 SQLite 事务内完成 run/lease 校验与插入；如果用户在后台任务删除后还有迟到 event/file，写入应直接跳过或保持在原 run 历史内，不能再用外键错误把 `conn-worker` 打崩。session event 持久化失败只允许记 warning，不应覆盖后台任务本身的成功 / 失败收口。
 
 ## Stale Run Recovery
 
@@ -412,9 +412,9 @@ GET /v1/local-file?path=...
   - `DELETE /v1/conns/:connId` 删除 conn
   - `POST /v1/conns/bulk-delete` 批量删除 conn，入参是去重后的 `connIds`
 - `POST /v1/conns` 与 `PATCH /v1/conns/:connId` 现在共用同一套 payload 解析逻辑：创建时统一 trim 文本并按当前服务端会话补默认 `target`；编辑时如果显式传入 `title` 或 `prompt`，则必须是去空白后仍非空的字符串，不再把空白值默默吞掉。
-- 当前删除是硬删除：`conns` 删除后会通过外键级联删除该 conn 的 run / event / file 记录；`ConnSqliteStore` 也会主动清理 `source=conn` 且 `source_id=<connId>` 的 conversation notification 和全局 activity，避免测试任务删掉后还在活动流里留下点不开的脏引用。这个入口主要用于清测试任务，正式任务要归档时别拿它冒充软删除。
+- 当前删除是软删除：`ConnSqliteStore` 会给 `conns.deleted_at` 写入时间、把任务从 `GET /v1/conns` 和管理面隐藏、停止后续调度，并清理 `source=conn` 且 `source_id=<connId>` 的 conversation notification 和全局 activity；不会在 HTTP 请求内级联删除该 conn 的 run / event / file 历史。这个取舍是为了避免用了很久的后台任务在删除时同步清扫大量 SQLite 行，把主服务线程和前端请求一起卡住。后续如果需要真正清理历史数据，应做单独维护任务，而不是恢复请求内硬删除。
 - 保存成功后，管理面会保留一条状态提示并高亮对应 conn；最近 run 历史默认折叠，打开管理面时只使用 `/v1/conns` 返回的 `latestRun` 展示最新状态摘要，需要排障时再展开并按需读取完整 runs。
-- 管理面现在有状态筛选、选择当前、清空选择和删除所选，用来批量清掉测试 conn；单个正式任务仍建议先暂停确认，再决定是否硬删。
+- 管理面现在有状态筛选、选择当前、清空选择和删除所选，用来批量清掉测试 conn；单个正式任务仍建议先暂停确认，再决定是否删除。删除后任务从 UI 消失，但 run 历史仍保留在 SQLite 中供维护期排查或后续清理。
 - 前台 agent 正在运行时，管理面仍可打开和操作；这是刻意保留的解耦行为。conn worker 是否执行、执行到哪里，仍以 SQLite run 状态和 worker 日志为准。
 - 从管理面点 `查看` 会复用 `conn` run 详情弹层，请求 `GET /v1/conns/:connId/runs/:runId` 和 `/events`，用于追溯 workspace、结果、文件和事件。
 
