@@ -22,6 +22,7 @@ import { NotificationHub } from "./agent/notification-hub.js";
 import { registerAssetRoutes } from "./routes/assets.js";
 import { registerActivityRoutes } from "./routes/activity.js";
 import { registerChatRoutes } from "./routes/chat.js";
+import { registerCleanupDebugRoutes } from "./routes/cleanup-debug.js";
 import { registerConnRoutes } from "./routes/conns.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerFeishuSettingsRoutes } from "./routes/feishu-settings.js";
@@ -136,6 +137,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		projectRoot: options.agentProfileProjectRoot ?? config.projectRoot,
 	});
 	registerRuntimeDebugRoutes(app, { projectRoot: config.projectRoot });
+	registerCleanupDebugRoutes(app, { database: connDatabase });
 	registerModelConfigRoutes(app, {
 		projectRoot: config.projectRoot,
 		store: options.modelConfigStore,

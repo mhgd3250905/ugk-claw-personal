@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Legacy 清理只读体检接口
+- 日期：2026-05-05
+- 主题：新增 `/v1/debug/cleanup` 只读体检接口，用真实运行态数据评估旧 conn / activity / output 链路是否还能清理。
+- 影响范围：接口读取 conn SQLite，不修改任何数据；返回未软删除 conn 的 target 分布、旧 `conversation_notifications` 统计、最近 7 天 run 与 `agent_activity_items` / `conn_run_files` 的对齐情况，以及可读 `risks[]`。该接口用于清理决策前的数据观察，不是迁移或删除入口。
+- 对应入口：`src/routes/cleanup-debug.ts`、`src/server.ts`、`src/types/api.ts`、`test/cleanup-debug.test.ts`、`test/server.test.ts`、`docs/project-cleanup-assessment-2026-05-05.md`
+
 ### 项目旧链路清理评估与 HTML 文件卡片收口
 - 日期：2026-05-05
 - 主题：测试完成后补齐文档管理，整理当前项目主链路、legacy 兼容层和可清理候选；同时修复任务消息文件卡片未把 `text/html` 当作可打开预览文件的问题。

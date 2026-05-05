@@ -4996,6 +4996,27 @@ test("GET /v1/debug/runtime is registered on the main server", async () => {
 	await app.close();
 });
 
+test("GET /v1/debug/cleanup is registered on the main server", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/debug/cleanup",
+	});
+
+	assert.equal(response.statusCode, 200);
+	const body = response.json();
+	assert.equal(typeof body.ok, "boolean");
+	assert.equal(typeof body.connTargets.total, "number");
+	assert.equal(typeof body.legacyConversationNotifications.total, "number");
+	assert.equal(body.recentRuns.windowDays, 7);
+	assert.ok(Array.isArray(body.risks));
+	assert.doesNotMatch(response.body, /API_KEY|SECRET|DASHSCOPE/i);
+	await app.close();
+});
+
 test("GET /v1/model-config returns current provider and selectable models", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

@@ -275,6 +275,38 @@ export interface RuntimeDebugResponseBody {
 	};
 }
 
+export interface CleanupDebugResponseBody {
+	ok: boolean;
+	connTargets: {
+		total: number;
+		active: number;
+		byType: {
+			task_inbox: number;
+			conversation: number;
+			feishu_chat: number;
+			feishu_user: number;
+			invalid: number;
+		};
+	};
+	legacyConversationNotifications: {
+		total: number;
+		connSourceTotal: number;
+		latestCreatedAt?: string;
+	};
+	recentRuns: {
+		windowDays: number;
+		total: number;
+		succeeded: number;
+		failed: number;
+		cancelled: number;
+		withActivity: number;
+		withoutActivity: number;
+		withOutputFiles: number;
+		withoutOutputFiles: number;
+	};
+	risks: string[];
+}
+
 export interface ChatContextUsageBody {
 	provider: string;
 	model: string;
