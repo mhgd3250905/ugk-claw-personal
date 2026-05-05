@@ -22,6 +22,7 @@ import { BackgroundAgentProfileResolver } from "../agent/background-agent-profil
 import { BackgroundWorkspaceManager, type RunWorkspace } from "../agent/background-workspace.js";
 import type { AgentActivityItem, AgentActivityStore, CreateAgentActivityInput } from "../agent/agent-activity-store.js";
 import { AgentActivityStore as DefaultAgentActivityStore } from "../agent/agent-activity-store.js";
+import type { ActivityFile } from "../agent/activity-file.js";
 import { AssetStore } from "../agent/asset-store.js";
 import { ConnDatabase } from "../agent/conn-db.js";
 import type { ConnRunFileRecord, ConnRunRecord, ConnRunStore } from "../agent/conn-run-store.js";
@@ -29,7 +30,6 @@ import { ConnRunStore as DefaultConnRunStore } from "../agent/conn-run-store.js"
 import type { ConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import { ConnSqliteStore as DefaultConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import type { ConnDefinition } from "../agent/conn-store.js";
-import type { ConversationNotificationFile } from "../agent/conversation-notification-store.js";
 import type { NotificationBroadcastEvent } from "../agent/notification-hub.js";
 import type { ResolvedBackgroundAgentSnapshot } from "../agent/background-agent-profile.js";
 import { FeishuClient } from "../integrations/feishu/client.js";
@@ -240,7 +240,7 @@ export class ConnWorker {
 		}
 	}
 
-	private async resolveRunActivityFiles(conn: ConnDefinition, run: ConnRunRecord): Promise<ConversationNotificationFile[]> {
+	private async resolveRunActivityFiles(conn: ConnDefinition, run: ConnRunRecord): Promise<ActivityFile[]> {
 		try {
 			const files = await this.options.runStore.listFiles(run.runId);
 			return toActivityOutputFiles(conn.connId, run.runId, files);
@@ -676,7 +676,7 @@ function toAgentActivityInput(
 	conn: ConnDefinition,
 	run: ConnRunRecord,
 	now: Date,
-	files: ConversationNotificationFile[] = [],
+	files: ActivityFile[] = [],
 ): CreateAgentActivityInput {
 	return {
 		source: "conn",
@@ -694,7 +694,7 @@ function toActivityOutputFiles(
 	connId: string,
 	runId: string,
 	files: ConnRunFileRecord[],
-): ConversationNotificationFile[] {
+): ActivityFile[] {
 	return files.flatMap((file) => {
 		const outputPath = file.relativePath.startsWith("output/") ? file.relativePath.slice("output/".length) : "";
 		if (!outputPath) {

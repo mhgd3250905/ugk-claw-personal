@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Activity 文件类型与旧会话通知解绑
+- 日期：2026-05-05
+- 主题：把 `ConversationNotificationFile` 从旧 `ConversationNotificationStore` 中迁出为中性 `ActivityFile`，并给旧会话通知 store 标注 deprecated。
+- 影响范围：`AgentActivityStore`、`conn-worker` 和 legacy `ConversationNotificationStore` 共享 `src/agent/activity-file.ts` 的文件元数据类型；运行行为和 SQLite schema 不变，旧通知 store 继续只承担历史兼容和测试覆盖。
+- 对应入口：`src/agent/activity-file.ts`、`src/agent/agent-activity-store.ts`、`src/agent/conversation-notification-store.ts`、`src/workers/conn-worker.ts`、`test/conversation-notification-store.test.ts`
+
 ### Legacy 清理决策表
 - 日期：2026-05-05
 - 主题：把 conn / Feishu / agent profile 相关 legacy 兼容层整理成明确决策表，先标记和观测，不在主链路刚稳定后冒进删代码。

@@ -57,7 +57,7 @@ curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z
 | 对象 | 当前状态 | 当前决策 | 禁止事项 | 可删除 / 迁移条件 |
 | --- | --- | --- | --- | --- |
 | `ConnTarget.type = "conversation"` | 后端仍兼容解析，前端主入口不再暴露 | 标记 deprecated，保留读取兼容 | 新文档、新 UI、新 agent prompt 不得推荐填写 conversation target | `/v1/debug/cleanup` 显示 active conversation target 为 0，且历史 conn 已迁移或确认可废弃 |
-| `conversation_notifications` / `ConversationNotificationStore` | 旧会话通知表仍在 schema 和清理逻辑中 | 标记 legacy data path，保留删除清理和迁移兼容 | 不得把 conn 结果重新写回 conversation notification | 调用链确认只剩测试 / 删除清理；历史数据已有迁移或明确归档策略 |
+| `conversation_notifications` / `ConversationNotificationStore` | 旧会话通知表仍在 schema 和清理逻辑中；共享文件类型已迁出到 `ActivityFile` | 标记 legacy data path，保留删除清理和迁移兼容 | 不得把 conn 结果重新写回 conversation notification | 调用链确认只剩测试 / 删除清理；历史数据已有迁移或明确归档策略 |
 | `agent_activity_items` | 当前任务消息主链路 | 保持主链路 | 不得用 conversation transcript 替代后台任务结果读模型 | 不适用，当前不可删 |
 | Feishu `mapped` mode | 兼容模式仍保留 | 标记 compatibility mode，默认仍是 current mode | 不得把每个飞书群默认映射成本地 conversation | 线上确认无 `mapped` 配置，且有替代隔离策略 |
 | legacy subagent `.pi/agents` | 旧 scout / planner / worker / reviewer 链路仍可能被 prompt / skill 引用 | 保留，明确区别于 Playground agent profile | 用户说“agent”时不得默认解释成 `.pi/agents` subagent | profile dispatch 覆盖旧 chain 能力，且项目级 prompt / skill 不再引用 legacy subagent |
@@ -79,6 +79,8 @@ curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z
 评估：这基本是旧“按会话投递通知”的遗留读写模型。直接删表不划算，可能影响历史数据和迁移测试；但继续把它当主能力会误导排障。
 
 建议：短期保留 schema 和删除清理；中期做一次迁移评估，确认没有 UI/API 依赖后，将 store 标注 deprecated，测试改成迁移兼容测试而不是主功能测试。
+
+2026-05-05 审计补充：`ConversationNotificationStore` 已标注 deprecated；当前 conn 主链路不再从这里写入。原先被 activity / worker 复用的 `ConversationNotificationFile` 类型已迁出为中性 `ActivityFile`，避免新链路继续从旧 store 文件进口类型。
 
 ### 3. `GET /v1/activity/summary`
 

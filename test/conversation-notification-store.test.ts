@@ -16,7 +16,7 @@ async function createStore(): Promise<{ store: ConversationNotificationStore; da
 	};
 }
 
-test("ConversationNotificationStore creates and lists notifications by conversation", async () => {
+test("legacy ConversationNotificationStore creates and lists notifications by conversation", async () => {
 	const { store, database } = await createStore();
 
 	const notification = await store.create({
@@ -52,7 +52,7 @@ test("ConversationNotificationStore creates and lists notifications by conversat
 	database.close();
 });
 
-test("ConversationNotificationStore deduplicates delivery for the same source and run", async () => {
+test("legacy ConversationNotificationStore deduplicates delivery for the same source and run", async () => {
 	const { store, database } = await createStore();
 
 	const first = await store.create({
@@ -82,7 +82,7 @@ test("ConversationNotificationStore deduplicates delivery for the same source an
 	database.close();
 });
 
-test("ConversationNotificationStore returns the existing notification when a concurrent insert wins the same source run", async () => {
+test("legacy ConversationNotificationStore returns the existing notification when a concurrent insert wins the same source run", async () => {
 	const { store, database } = await createStore();
 	const originalRun = database.run.bind(database);
 	let injectedConcurrentInsert = false;
@@ -124,7 +124,7 @@ test("ConversationNotificationStore returns the existing notification when a con
 	database.close();
 });
 
-test("ConversationNotificationStore uses notification ids as stable timestamp tie-breakers", async () => {
+test("legacy ConversationNotificationStore uses notification ids as stable timestamp tie-breakers", async () => {
 	const { store, database } = await createStore();
 	for (const notificationId of ["notification-a", "notification-b", "notification-c"]) {
 		database.run(
@@ -152,7 +152,7 @@ test("ConversationNotificationStore uses notification ids as stable timestamp ti
 	database.close();
 });
 
-test("ConversationNotificationStore marks notifications as read", async () => {
+test("legacy ConversationNotificationStore marks notifications as read", async () => {
 	const { store, database } = await createStore();
 	const notification = await store.create({
 		conversationId: "manual:conn",

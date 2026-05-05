@@ -1,12 +1,6 @@
 import { randomUUID } from "node:crypto";
+import type { ActivityFile } from "./activity-file.js";
 import type { ConnDatabase } from "./conn-db.js";
-
-export interface ConversationNotificationFile {
-	fileName: string;
-	downloadUrl: string;
-	mimeType?: string;
-	sizeBytes?: number;
-}
 
 export interface ConversationNotification {
 	notificationId: string;
@@ -17,7 +11,7 @@ export interface ConversationNotification {
 	kind: string;
 	title: string;
 	text: string;
-	files: ConversationNotificationFile[];
+	files: ActivityFile[];
 	createdAt: string;
 	readAt?: string;
 }
@@ -34,7 +28,7 @@ export interface CreateConversationNotificationInput {
 	kind: string;
 	title: string;
 	text: string;
-	files?: ConversationNotificationFile[];
+	files?: ActivityFile[];
 	createdAt?: Date;
 }
 
@@ -57,6 +51,11 @@ interface ConversationNotificationRow {
 	read_at?: string | null;
 }
 
+/**
+ * @deprecated Legacy conversation-scoped notification store.
+ * Current conn results are delivered through AgentActivityStore and
+ * agent_activity_items; keep this store only for old data compatibility.
+ */
 export class ConversationNotificationStore {
 	constructor(private readonly options: ConversationNotificationStoreOptions) {}
 
@@ -218,10 +217,10 @@ function rowToNotification(row: ConversationNotificationRow): ConversationNotifi
 	};
 }
 
-function parseFiles(value: string): ConversationNotificationFile[] {
+function parseFiles(value: string): ActivityFile[] {
 	try {
 		const parsed = JSON.parse(value) as unknown;
-		return Array.isArray(parsed) ? (parsed as ConversationNotificationFile[]) : [];
+		return Array.isArray(parsed) ? (parsed as ActivityFile[]) : [];
 	} catch {
 		return [];
 	}
