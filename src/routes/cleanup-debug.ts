@@ -33,7 +33,7 @@ const WINDOW_DAYS = 7;
 const KNOWN_CONN_TARGET_TYPES = ["task_inbox", "conversation", "feishu_chat", "feishu_user"] as const;
 
 export function registerCleanupDebugRoutes(app: FastifyInstance, deps: CleanupDebugRouteDependencies = {}): void {
-	app.get("/v1/debug/cleanup", async (): Promise<CleanupDebugResponseBody> => {
+	app.get<{ Querystring: { since?: string } }>("/v1/debug/cleanup", async (request): Promise<CleanupDebugResponseBody> => {
 		if (!deps.database) {
 			return {
 				ok: false,
@@ -48,7 +48,7 @@ export function registerCleanupDebugRoutes(app: FastifyInstance, deps: CleanupDe
 		}
 
 		const now = deps.now?.() ?? new Date();
-		const since = new Date(now.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+		const since = parseSinceQuery(request.query.since) ?? new Date(now.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 		const connTargets = readConnTargetStats(deps.database);
 		const legacyConversationNotifications = readConversationNotificationStats(deps.database);
 		const recentRuns = readRecentRunStats(deps.database, since);
@@ -93,6 +93,14 @@ function emptyRecentRuns(): CleanupDebugResponseBody["recentRuns"] {
 		failedWithoutOutputFiles: 0,
 		cancelledWithoutOutputFiles: 0,
 	};
+}
+
+function parseSinceQuery(value: string | undefined): string | undefined {
+	if (!value) {
+		return undefined;
+	}
+	const timestamp = new Date(value);
+	return Number.isNaN(timestamp.getTime()) ? undefined : timestamp.toISOString();
 }
 
 function readConnTargetStats(database: ConnDatabase): CleanupDebugResponseBody["connTargets"] {

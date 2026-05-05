@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Cleanup debug 支持 since 过滤
+- 日期：2026-05-05
+- 主题：为 `/v1/debug/cleanup` 增加 `?since=<ISO time>` 查询参数，用修复时间之后的 run 观察当前链路，避免修复前历史假成功 / 无产物 run 长期污染体检结果。
+- 影响范围：未传 `since` 时仍按最近 7 天统计；传入合法 ISO 时间时，`recentRuns` 只统计该时间之后的 run，conn target 和 legacy conversation notification 统计保持全量只读。
+- 对应入口：`src/routes/cleanup-debug.ts`、`test/cleanup-debug.test.ts`、`docs/project-cleanup-assessment-2026-05-05.md`
+
 ### Cleanup debug output 风险口径细化
 - 日期：2026-05-05
 - 主题：细化 `/v1/debug/cleanup` 对缺少 output 文件索引的风险判断，避免把失败 / 取消 run 没有产物也算成产物链路风险。

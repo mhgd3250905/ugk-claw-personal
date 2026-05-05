@@ -28,6 +28,7 @@
 - `recentRuns`：最近 7 天 run 的状态分布，以及是否存在 task inbox activity 和 output 文件索引。
 - `recentRuns.succeededWithoutOutputFiles / failedWithoutOutputFiles / cancelledWithoutOutputFiles`：按终态拆分缺少 output 文件索引的 run。失败或取消任务没有 output 通常不应算产物链路风险。
 - `risks[]`：把可疑项转成可读提示。`ok=false` 不代表服务坏了，只代表仍有清理风险或遗留数据需要评估。output 文件风险只对 `succeededWithoutOutputFiles > 0` 报警，避免把失败任务也当作产物链路问题。
+- 可选 `?since=<ISO time>`：只统计指定时间之后的 run，用来排除修复前的历史假成功 / 无产物旧账。未传时仍使用最近 7 天窗口。
 
 本地查看：
 
@@ -39,6 +40,12 @@ curl http://127.0.0.1:3000/v1/debug/cleanup
 
 ```bash
 curl http://101.37.209.54:3000/v1/debug/cleanup
+```
+
+只看某个修复时间之后的腾讯云状态：
+
+```bash
+curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z"
 ```
 
 ## 保留但必须标记为 legacy 的兼容层

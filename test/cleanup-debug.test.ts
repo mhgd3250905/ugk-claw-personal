@@ -193,6 +193,69 @@ test("GET /v1/debug/cleanup flags succeeded runs without output files", async ()
 	}
 });
 
+test("GET /v1/debug/cleanup supports a since filter for recent runs", async () => {
+	const { app, database } = await createCleanupDebugApp();
+	try {
+		insertConn(database, {
+			connId: "conn-task-inbox",
+			targetJson: JSON.stringify({ type: "task_inbox" }),
+			status: "active",
+		});
+		insertRun(database, {
+			runId: "run-before-fix-no-output",
+			connId: "conn-task-inbox",
+			status: "succeeded",
+			createdAt: "2026-05-05T05:00:00.000Z",
+		});
+		insertRun(database, {
+			runId: "run-after-fix-with-output",
+			connId: "conn-task-inbox",
+			status: "succeeded",
+			createdAt: "2026-05-05T06:00:01.000Z",
+		});
+		database.run(
+			"INSERT INTO agent_activity_items (activity_id, scope, source, source_id, run_id, conversation_id, kind, title, text, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"activity-after-fix",
+			"agent",
+			"conn",
+			"conn-task-inbox",
+			"run-after-fix-with-output",
+			undefined,
+			"conn_result",
+			"Done",
+			"ok",
+			"[]",
+			"2026-05-05T06:00:02.000Z",
+		);
+		database.run(
+			"INSERT INTO conn_run_files (file_id, run_id, kind, relative_path, file_name, mime_type, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			"file-after-fix",
+			"run-after-fix-with-output",
+			"output",
+			"output/report.md",
+			"report.md",
+			"text/plain; charset=utf-8",
+			256,
+			"2026-05-05T06:00:03.000Z",
+		);
+
+		const response = await app.inject({
+			method: "GET",
+			url: "/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z",
+		});
+
+		assert.equal(response.statusCode, 200);
+		const body = response.json();
+		assert.equal(body.ok, true);
+		assert.equal(body.recentRuns.total, 1);
+		assert.equal(body.recentRuns.succeededWithoutOutputFiles, 0);
+		assert.deepEqual(body.risks, []);
+	} finally {
+		await app.close();
+		database.close();
+	}
+});
+
 function insertConn(
 	database: ConnDatabase,
 	input: {
