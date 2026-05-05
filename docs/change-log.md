@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Legacy 清理决策表
+- 日期：2026-05-05
+- 主题：把 conn / Feishu / agent profile 相关 legacy 兼容层整理成明确决策表，先标记和观测，不在主链路刚稳定后冒进删代码。
+- 影响范围：明确 `conversation` target、`conversation_notifications`、Feishu `mapped` mode、legacy subagent、Windows host IPC 和 `/playground/reset` 的保留原因、禁止事项和后续删除条件；运行文档同步补充 Conn / Feishu legacy 口径。
+- 对应入口：`docs/project-cleanup-assessment-2026-05-05.md`、`docs/runtime-assets-conn-feishu.md`
+
 ### Conn worker 运行验收清单
 - 日期：2026-05-05
 - 主题：把 conn worker 会话解耦、任务消息投递、output 文件索引、公网链接和 cleanup debug 的验收口径固化到运行文档。

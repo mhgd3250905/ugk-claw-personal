@@ -258,6 +258,14 @@ Run 查询接口：
 - 腾讯云在同一 `since` 口径下返回 `ok=true`，用户手动触发的 V2EX AI run 成功生成 `output/v2ex-report.md`，run URL 和 latest URL 均返回 HTTP `200`。
 - 腾讯云未加 `since` 时仍可能看到一个修复前历史 succeeded run 缺 output 索引；这是旧数据残留，不代表当前 conn output 链路失败。
 
+### Conn / Feishu Legacy 口径
+
+- `conversation` target：只作为后端兼容读取保留，新建 conn 默认和推荐目标都是 `task_inbox`；新 UI、文档和 prompt 不应再引导用户填写 conversation target。
+- `conversation_notifications`：只视为旧会话通知数据路径；当前 conn 结果主链路是 `agent_activity_items`，不要把后台任务结果重新写回 conversation transcript 或旧通知表。
+- Feishu `mapped` mode：只作为兼容模式保留；默认是 current conversation mode，也就是飞书作为 Web 当前会话的外挂收发窗口。
+- legacy subagent `.pi/agents`：保留旧 scout / planner / worker / reviewer 链路，但用户说“agent”时默认指 Playground agent profile 和 `/v1/agents`，不是 legacy subagent。
+- Windows host IPC：只作为本机调试 fallback；生产浏览器链路默认 Docker Chrome sidecar + direct CDP。
+
 关键入口：
 
 - [src/agent/conn-store.ts](/E:/AII/ugk-pi/src/agent/conn-store.ts)

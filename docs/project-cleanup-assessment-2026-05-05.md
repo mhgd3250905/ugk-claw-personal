@@ -50,6 +50,20 @@ curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z
 
 ## 保留但必须标记为 legacy 的兼容层
 
+### Legacy 清理决策表
+
+这张表是后续清理的准绳：先标记、再观测、最后才删除。不要一看到 `legacy` 就手痒删代码，线上旧数据和旧配置不会因为你心情好就自动迁移。
+
+| 对象 | 当前状态 | 当前决策 | 禁止事项 | 可删除 / 迁移条件 |
+| --- | --- | --- | --- | --- |
+| `ConnTarget.type = "conversation"` | 后端仍兼容解析，前端主入口不再暴露 | 标记 deprecated，保留读取兼容 | 新文档、新 UI、新 agent prompt 不得推荐填写 conversation target | `/v1/debug/cleanup` 显示 active conversation target 为 0，且历史 conn 已迁移或确认可废弃 |
+| `conversation_notifications` / `ConversationNotificationStore` | 旧会话通知表仍在 schema 和清理逻辑中 | 标记 legacy data path，保留删除清理和迁移兼容 | 不得把 conn 结果重新写回 conversation notification | 调用链确认只剩测试 / 删除清理；历史数据已有迁移或明确归档策略 |
+| `agent_activity_items` | 当前任务消息主链路 | 保持主链路 | 不得用 conversation transcript 替代后台任务结果读模型 | 不适用，当前不可删 |
+| Feishu `mapped` mode | 兼容模式仍保留 | 标记 compatibility mode，默认仍是 current mode | 不得把每个飞书群默认映射成本地 conversation | 线上确认无 `mapped` 配置，且有替代隔离策略 |
+| legacy subagent `.pi/agents` | 旧 scout / planner / worker / reviewer 链路仍可能被 prompt / skill 引用 | 保留，明确区别于 Playground agent profile | 用户说“agent”时不得默认解释成 `.pi/agents` subagent | profile dispatch 覆盖旧 chain 能力，且项目级 prompt / skill 不再引用 legacy subagent |
+| Windows host IPC fallback | 本机 legacy 调试兜底 | 保留 fallback | 不得写成生产默认浏览器链路 | Docker Chrome sidecar 在本机和生产排障上完全覆盖 IPC 需求 |
+| `/playground/reset` | runtime factory reset | 保留但明确语义 | 不得宣传为源码热更新或完整会话重置 | 如果 runtime 外部化机制改造完成并有替代入口，再评估删除 |
+
 ### 1. `ConnTarget.type = "conversation"`
 
 现状：`src/routes/conn-route-parsers.ts` 仍接受 `target.type === "conversation"`，`.pi/extensions/conn` 测试也覆盖显式 conversation target。
