@@ -238,6 +238,26 @@ Run 查询接口：
 - Medtrum 舆情监控这类长链路任务定义要走 subagent 工具的 single / parallel / chain 能力，不要让主模型手写一堆 prompt 文件再串行拉 CLI。平台检索可以并行，汇总单独收口，邮件发送必须由最终主流程直接执行并留下完整输出；不要使用 `tee | tail` 这类会截断真实错误的管道。
 - 本地 `GET /v1/conns` 当前没有 Medtrum 舆情监控 conn，`GET /v1/assets/6d82261f-afb5-433c-a3c0-f11db172fb2a` 也返回 `404`；因此这台本地环境无法确认报告里提到的 v2 asset 已生效。生产排查时先查目标服务器的 `GET /v1/conns` 和 asset detail，再决定是否更新 conn `assetRefs`。
 
+### Conn Worker 运行验收清单
+
+这份清单用于验证 conn worker 当前主链路，尤其适合改完后台任务、output、通知或部署后做回归。不要只看页面上出现“成功”两个字，那个最多说明模型会说漂亮话，不说明产物链路真的通。
+
+1. 新建或编辑 conn 时，如果没有显式传 `target`，后端应落成 `{ "type": "task_inbox" }`，不能再自动绑定当前前台 `conversationId`。
+2. 删除或切换前台聊天会话后，既有 conn 定义、pending run、历史 run、任务消息和输出文件链接仍应可查询。
+3. 手动触发 run 后，`GET /v1/conns/:connId/runs/:runId` 应返回真实终态；成功 run 的 `files[]` 应包含 `output/` 下的真实产物。
+4. 成功 run 应写入 `agent_activity_items`，任务消息页和 `/v1/activity` 能看到对应 activity；在线 toast 只是提醒层，不是结果真源。
+5. output 文件的 run URL 和 latest URL 都应能从公网访问；HTML / Markdown / 文本类默认可直接打开，强制下载才使用 `?download=true`。
+6. 如果 agent 正文里写了一个自造路径或旧 public 链接，验收时以 run detail 的 `files[].url / latestUrl` 为准；模型正文不能当事实来源。
+7. `GET /v1/debug/cleanup` 用于看最近 7 天是否仍有 legacy 风险；`recentRuns.succeededWithoutOutputFiles > 0` 才代表成功任务缺产物索引需要处理。
+8. 修复后验收应优先使用 `GET /v1/debug/cleanup?since=<ISO time>`，只看修复时间之后的 run，避免被修复前历史假成功 / 无产物旧账误导。
+9. 阿里云和腾讯云都应分别跑 `npm run server:ops -- <aliyun|tencent> verify`，再查对应公网 `/v1/debug/cleanup?since=...`；只看 `/healthz` 太粗，约等于体检只量身高。
+
+2026-05-05 本轮双云验收事实：
+
+- 阿里云在 `?since=2026-05-05T06:00:00.000Z` 口径下返回 `ok=true`，成功 run 有 activity 和 output files，`risks=[]`。
+- 腾讯云在同一 `since` 口径下返回 `ok=true`，用户手动触发的 V2EX AI run 成功生成 `output/v2ex-report.md`，run URL 和 latest URL 均返回 HTTP `200`。
+- 腾讯云未加 `since` 时仍可能看到一个修复前历史 succeeded run 缺 output 索引；这是旧数据残留，不代表当前 conn output 链路失败。
+
 关键入口：
 
 - [src/agent/conn-store.ts](/E:/AII/ugk-pi/src/agent/conn-store.ts)

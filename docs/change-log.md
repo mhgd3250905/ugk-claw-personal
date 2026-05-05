@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Conn worker 运行验收清单
+- 日期：2026-05-05
+- 主题：把 conn worker 会话解耦、任务消息投递、output 文件索引、公网链接和 cleanup debug 的验收口径固化到运行文档。
+- 影响范围：新增“Conn Worker 运行验收清单”，明确改动或部署后应检查 `task_inbox`、会话删除不影响后台 run、activity 投递、output files、run/latest URL、公网可访问性和 `/v1/debug/cleanup?since=...`。
+- 对应入口：`docs/runtime-assets-conn-feishu.md`
+
 ### Cleanup debug 支持 since 过滤
 - 日期：2026-05-05
 - 主题：为 `/v1/debug/cleanup` 增加 `?since=<ISO time>` 查询参数，用修复时间之后的 run 观察当前链路，避免修复前历史假成功 / 无产物 run 长期污染体检结果。
