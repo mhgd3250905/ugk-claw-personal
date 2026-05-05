@@ -8,6 +8,24 @@
 
 后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 Git 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；GitHub 不通时走 `git pull --ff-only gitee main`，不要再把小包覆盖当长期主流程。
 
+## 2026-05-05 桌面工作区 UI 优化与 Agent 切换悬浮菜单发布记录
+
+本次腾讯云从 `b088620 Persist model source selection in runtime state` 增量更新到 `538265b`。发布走 clean Git 主流程，没有整目录覆盖，没有触碰 `~/ugk-claw-shared` 运行态。
+
+实际结果：
+1. 本地 `origin/main` 已推送到 `538265b`。
+2. 执行 `npm run server:ops -- tencent preflight`，确认 `~/ugk-claw-repo` 工作区干净、compose 配置和运行态挂载正常。
+3. 执行 `npm run server:ops -- tencent deploy`，服务器 fast-forward 到 `538265b`，重建并重启 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`，nginx 已重启。
+4. verify 通过：公网 `/healthz` 返回 `{"ok":true}`，runtime debug 返回 `ok=true`，skills 数量为 `39`。
+
+本次上线行为：
+- 桌面端文件库和任务消息 header 从手机遗留结构改为桌面原生透明工具栏。
+- 任务消息列表项改为完整卡片容器，未读项增加左侧渐变亮条。
+- topbar "新会话" 按钮在 workspace 面板打开时自动变为"回到会话"，点击返回对话。
+- 在 workspace 面板打开时点击左侧会话列表项，自动关闭面板并切换会话。
+- topbar agent label 按钮新增悬浮弹出菜单，hover 时展示可切换 agent 列表并直接切换。
+- 桌面端 `min-width: 641px` 下强制隐藏所有 `mobile-work-back-button`。
+
 ## 2026-05-05 Conn worker 解耦、HTML output 与 legacy notification 清理发布记录
 
 本次腾讯云从 `c05753b Remove legacy conversation notification store` 增量更新到 `4a8c7e5 Drop legacy conversation notifications table`。发布走 clean Git 主流程，没有整目录覆盖，没有触碰 `~/ugk-claw-shared` 运行态。

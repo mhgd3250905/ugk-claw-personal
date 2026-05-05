@@ -6,6 +6,24 @@
 
 如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops.md](./server-ops.md)；阿里云当前固定口径已经切换为 Git 工作目录更新，默认 `git pull --ff-only gitee main`，只有 Gitee 不通且确认 GitHub 可用时才走 `git pull --ff-only origin main`。archive 小包只作为双远端都不可用时的兜底。
 
+## 2026-05-05 桌面工作区 UI 优化与 Agent 切换悬浮菜单发布记录
+
+本次阿里云从 `b088620 Persist model source selection in runtime state` 通过 `gitee/main` fast-forward 增量更新到 `538265b`。发布走 clean Git 主流程，没有整目录覆盖，没有触碰 `/root/ugk-claw-shared` 运行态，阿里云 agent 区域开发结果（包括 `zhihu-helper`、`card-creator`、`volc-image-vision`、`wechat-helper`、`xhs-helper` 等自定义技能）均未被触碰。
+
+实际结果：
+1. 本地 `gitee/main` 已推送到 `538265b`。
+2. 执行 `npm run server:ops -- aliyun preflight`，确认 `/root/ugk-claw-repo` 工作区干净、compose 配置和运行态挂载正常。
+3. 执行 `npm run server:ops -- aliyun deploy`，服务器 fast-forward 到 `538265b`，重建并重启 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`，nginx 已重启。
+4. verify 通过：公网 `/healthz` 返回 `{"ok":true}`，runtime debug 返回 `ok=true`，skills 数量为 `30`，用户自定义技能全部完整。
+
+本次上线行为：
+- 桌面端文件库和任务消息 header 从手机遗留结构改为桌面原生透明工具栏。
+- 任务消息列表项改为完整卡片容器，未读项增加左侧渐变亮条。
+- topbar "新会话" 按钮在 workspace 面板打开时自动变为"回到会话"，点击返回对话。
+- 在 workspace 面板打开时点击左侧会话列表项，自动关闭面板并切换会话。
+- topbar agent label 按钮新增悬浮弹出菜单，hover 时展示可切换 agent 列表并直接切换。
+- 桌面端 `min-width: 641px` 下强制隐藏所有 `mobile-work-back-button`。
+
 ## 2026-05-05 Conn worker 解耦与 HTML output 链接修复发布记录
 
 本次通过固定脚本执行阿里云 Git 增量发布，服务器从 `gitee/main` fast-forward 到 `48db6b8 Fix conn HTML output links`。没有整目录覆盖，没有触碰 `/root/ugk-claw-shared` 运行态。
