@@ -6,6 +6,7 @@ export function getPlaygroundAssetElementRefsScript(): string {
 		const fileList = document.getElementById("file-list");
 		const selectedAssetsSection = document.getElementById("selected-assets");
 		const selectedAssetList = document.getElementById("selected-asset-list");
+
 	`;
 }
 

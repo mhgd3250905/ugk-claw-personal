@@ -487,6 +487,10 @@ export function getPlaygroundConversationControllerScript(): string {
 		}
 
 		async function selectConversationFromDrawer(conversationId) {
+				if (state.workspaceMode !== "chat") {
+					closeInactiveWorkspacePanels("chat");
+					setWorkspaceMode("chat");
+				}
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId || nextConversationId === state.conversationId) {
 				closeMobileConversationDrawer();

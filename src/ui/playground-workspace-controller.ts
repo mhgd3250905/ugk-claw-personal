@@ -50,6 +50,7 @@ export function getPlaygroundWorkspaceControllerScript(): string {
 			state.workspaceMode = nextMode;
 			chatStage.dataset.workspaceMode = state.workspaceMode;
 			renderWorkspaceModeControls();
+			syncBackToChatButton();
 			if (!options?.skipLayoutSync) {
 				scheduleConversationLayoutSync();
 			}
@@ -129,7 +130,56 @@ export function getPlaygroundWorkspaceControllerScript(): string {
 			openPanel();
 		}
 
-		function bindPlaygroundWorkspaceController() {
+		
+			const BACK_TO_CHAT_LABEL = "回到会话";
+			const BACK_TO_CHAT_SUBTITLE = "返回对话";
+			const BACK_TO_CHAT_TITLE = "回到会话";
+			const BACK_TO_CHAT_DESC = "关闭当前面板，返回对话工作区";
+
+			let backToChatOriginalState = null;
+
+			function captureBackToChatOriginalState() {
+				if (backToChatOriginalState) return;
+				const span = newConversationButton ? newConversationButton.querySelector("span") : null;
+				backToChatOriginalState = {
+					strongText: commandStatus ? commandStatus.textContent : BACK_TO_CHAT_LABEL,
+					spanText: span ? span.textContent : "",
+					tooltipTitle: newConversationButton ? newConversationButton.getAttribute("data-tooltip-title") || "" : "",
+					tooltipDesc: newConversationButton ? newConversationButton.getAttribute("data-tooltip-desc") || "" : "",
+				};
+			}
+
+			function syncBackToChatButton() {
+				if (!newConversationButton || !commandStatus) return;
+				const inWorkspace = state.workspaceMode !== "chat";
+				const span = newConversationButton.querySelector("span");
+				if (inWorkspace) {
+					captureBackToChatOriginalState();
+					commandStatus.textContent = BACK_TO_CHAT_LABEL;
+					if (span) span.textContent = BACK_TO_CHAT_SUBTITLE;
+					newConversationButton.setAttribute("data-tooltip-title", BACK_TO_CHAT_TITLE);
+					newConversationButton.setAttribute("data-tooltip-desc", BACK_TO_CHAT_DESC);
+				} else {
+					if (backToChatOriginalState) {
+						commandStatus.textContent = backToChatOriginalState.strongText;
+						if (span) span.textContent = backToChatOriginalState.spanText;
+						newConversationButton.setAttribute("data-tooltip-title", backToChatOriginalState.tooltipTitle);
+						newConversationButton.setAttribute("data-tooltip-desc", backToChatOriginalState.tooltipDesc);
+					}
+				}
+			}
+
+			function handleBackToChatClick() {
+				if (state.workspaceMode !== "chat") {
+					setWorkspaceMode("chat");
+					return;
+				}
+				void startNewConversation().then(function(created) {
+					if (created) messageInput.focus();
+				});
+			}
+
+			function bindPlaygroundWorkspaceController() {
 			chatStage.dataset.workspaceMode = state.workspaceMode;
 			workspaceDesktopMediaQuery.addEventListener("change", () => {
 				if (!isDesktopWorkspaceMode()) {

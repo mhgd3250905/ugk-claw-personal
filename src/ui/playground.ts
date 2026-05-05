@@ -345,6 +345,7 @@ function getPlaygroundScript(): string {
 		const assetModal = document.getElementById("asset-modal");
 		const assetModalList = document.getElementById("asset-modal-list");
 		const closeAssetModalButton = document.getElementById("close-asset-modal-button");
+						const assetModalCount = document.getElementById("asset-modal-count");
 		const refreshAssetsButton = document.getElementById("refresh-assets-button");
 		const sendButton = document.getElementById("send-button");
 		const interruptButton = document.getElementById("interrupt-button");
@@ -1016,12 +1017,17 @@ function getPlaygroundScript(): string {
 
 
 			newConversationButton.addEventListener("click", () => {
-				void startNewConversation().then((created) => {
-					if (created) {
-						messageInput.focus();
+					if (state.workspaceMode !== "chat") {
+						closeInactiveWorkspacePanels("chat");
+						setWorkspaceMode("chat");
+						return;
 					}
+					void startNewConversation().then((created) => {
+						if (created) {
+							messageInput.focus();
+						}
+					});
 				});
-			});
 			${getPlaygroundMobileShellEventHandlersScript()}
 
 			errorBannerClose.addEventListener("click", () => {

@@ -804,7 +804,58 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .task-inbox-list,
-		:root[data-theme="light"] .task-inbox-item,
+				:root[data-theme="light"] .task-inbox-item-shell {
+			background: rgba(255, 255, 255, 0.92);
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .task-inbox-item.is-unread .task-inbox-item-shell::before {
+			background: linear-gradient(180deg, #3b6fd4, #28a262);
+		}
+
+		:root[data-theme="light"] .task-inbox-item-head strong {
+			color: #172033;
+		}
+
+		:root[data-theme="light"] .task-inbox-item:not(.is-unread) .task-inbox-item-head strong {
+			color: #4a5568;
+		}
+
+		:root[data-theme="light"] .task-inbox-item-kind {
+			background: rgba(0, 0, 0, 0.04);
+			color: #667085;
+		}
+
+		
+
+		:root[data-theme="light"] .task-inbox-item-text {
+			color: #2d3848;
+		}
+
+		:root[data-theme="light"] .task-inbox-item:not(.is-unread) .task-inbox-item-text {
+			color: #667085;
+		}
+
+		:root[data-theme="light"] .task-inbox-item-meta > span {
+			background: rgba(0, 0, 0, 0.04);
+			color: #667085;
+		}
+
+		:root[data-theme="light"] .task-inbox-item-meta > span:last-child {
+			background: rgba(40, 162, 98, 0.08);
+			color: #1f6e42;
+		}
+
+		:root[data-theme="light"] .task-inbox-item-actions button {
+			color: #8a94a6;
+		}
+
+		:root[data-theme="light"] .task-inbox-item-actions button:hover:not(:disabled) {
+			background: rgba(0, 0, 0, 0.04);
+			color: #333a47;
+		}
+
+:root[data-theme="light"] .task-inbox-item,
 		:root[data-theme="light"] .conn-manager-list,
 		:root[data-theme="light"] .conn-editor-form {
 			border-color: transparent;
@@ -908,6 +959,24 @@ export function getPlaygroundThemeStyles(): string {
 			background: rgba(197, 41, 69, 0.07);
 			color: #9d2439;
 		}
+			:root[data-theme="light"] .asset-head-breadcrumb {
+				color: #99a2b3;
+			}
+
+			:root[data-theme="light"] .asset-head-count {
+				background: rgba(31, 95, 200, 0.08);
+				color: #4a7cc9;
+			}
+
+			:root[data-theme="light"] .asset-head-close-button {
+				color: #7c8699;
+			}
+
+			:root[data-theme="light"] .asset-head-close-button:hover {
+				background: rgba(0, 0, 0, 0.04);
+				color: #333a47;
+			}
+
 
 		:root[data-theme="light"] .task-inbox-result-bubble,
 		:root[data-theme="light"] .conn-run-result-bubble {
@@ -1091,6 +1160,25 @@ export function getPlaygroundThemeStyles(): string {
 			:root[data-theme="light"] .chat-stage {
 				background: transparent;
 			}
+			:root[data-theme="light"] .task-inbox-head-breadcrumb {
+				color: #99a2b3;
+			}
+
+			:root[data-theme="light"] .task-inbox-head-count {
+				background: rgba(197, 41, 69, 0.08);
+				color: #b33a4a;
+			}
+
+			:root[data-theme="light"] .task-inbox-head-close-button {
+				color: #7c8699;
+			}
+
+			:root[data-theme="light"] .task-inbox-head-close-button:hover {
+				background: rgba(0, 0, 0, 0.04);
+				color: #333a47;
+			}
+
+
 
 			:root[data-theme="light"] .topbar,
 			:root[data-theme="light"] .mobile-topbar,

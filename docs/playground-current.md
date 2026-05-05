@@ -1,6 +1,14 @@
 # Playground 当前状态
 
-更新时间：`2026-05-04`
+更新时间：`2026-05-05`
+
+## 2026-05-05 桌面工作区头部与交互收口
+
+- 桌面端文件库和任务消息 header 不再复用 `mobile-work-topbar` 手机结构。桌面 workspace 下 header 为透明工具栏：左侧 `工作区 / 页面名称 [N]` 面包屑 + 标题 + 数量徽标，右侧操作按钮，← 返回箭头在 `min-width: 641px` 下强制隐藏。手机端（`max-width: 640px`）保持原有全屏页结构不变。
+- 任务消息列表项改为完整卡片容器：每条独立 `#0b0c18` 背景 + 4px 圆角，标题从药丸按钮变成干净文字，未读项左侧有 `linear-gradient(180deg, #c9d2ff, #8dffb2)` 渐变亮条，元数据（时间/任务ID/文件数）收为 18px 小徽标，操作按钮改为无边框透明风格，已读项文字和正文颜色变暗。
+- workspace 面板的打开/关闭统一通过 topbar 左侧按钮：正常对话时显示"新会话"（点击创建新会话），进入文件库/后台任务/消息/Agent 管理后自动变为"回到会话"（点击关闭面板返回对话）。面板不再各自提供 × 关闭按钮。
+- 在 workspace 面板打开时点击左侧会话列表项，会先关闭当前面板再切换到目标会话，避免面板与会话界面重叠。
+- 相关源码：`src/ui/playground-assets.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-workspace-controller.ts`、`src/ui/playground-conversations-controller.ts`、`src/ui/playground.ts`
 
 ## 2026-05-02 多 Agent 操作视窗补充
 

@@ -82,6 +82,12 @@ export function getPlaygroundStyles(): string {
 			justify-content: center;
 		}
 
+			@media (min-width: 641px) {
+				.mobile-work-back-button {
+					display: none !important;
+				}
+			}
+
 		.shell {
 			width: min(1180px, 100%);
 			height: calc(100vh - 40px);
@@ -618,6 +624,196 @@ export function getPlaygroundStyles(): string {
 		.chat-stage > .workspace-contained .task-inbox-list {
 			min-height: 0;
 		}
+		.chat-stage > .workspace-contained .asset-modal-head {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 8px 0 10px;
+			border-bottom: 1px solid rgba(201, 210, 255, 0.08);
+			background: transparent;
+			color: var(--muted);
+			font-size: 11px;
+			text-transform: none;
+			letter-spacing: 0.02em;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal-head .asset-modal-head-left {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			min-width: 0;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal-head .mobile-work-back-button {
+			display: none;
+		}
+
+		.asset-head-breadcrumb {
+			display: none;
+			color: rgba(143, 147, 173, 0.5);
+			font-size: 11px;
+			line-height: 1.5;
+			white-space: nowrap;
+		}
+
+		.chat-stage > .workspace-contained .asset-head-breadcrumb {
+			display: inline;
+		}
+
+		.asset-head-count {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 22px;
+			height: 18px;
+			padding: 0 6px;
+			border-radius: 4px;
+			background: rgba(255, 255, 255, 0.06);
+			color: rgba(238, 244, 255, 0.48);
+			font-size: 10px;
+			line-height: 1;
+			letter-spacing: 0.02em;
+		}
+
+		.asset-head-count:empty {
+			display: none;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal-copy {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal-copy strong {
+			font-size: 12px;
+			letter-spacing: 0.04em;
+			text-transform: none;
+		}
+
+		.asset-head-close-button {
+			display: none;
+			align-items: center;
+			justify-content: center;
+			width: 24px;
+			height: 24px;
+			padding: 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			color: rgba(238, 244, 255, 0.42);
+			font-size: 16px;
+			line-height: 1;
+			cursor: pointer;
+		}
+
+		.asset-head-close-button:hover {
+			background: rgba(255, 255, 255, 0.06);
+			color: rgba(238, 244, 255, 0.72);
+		}
+
+		.chat-stage > .workspace-contained .asset-head-close-button {
+
+		.chat-stage > .workspace-contained .task-inbox-head {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 8px 0 10px;
+			border-bottom: 1px solid rgba(201, 210, 255, 0.08);
+			background: transparent;
+			color: var(--muted);
+			font-size: 11px;
+			text-transform: none;
+			letter-spacing: 0.02em;
+		}
+
+		.chat-stage > .workspace-contained .task-inbox-head .task-inbox-head-left {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			min-width: 0;
+		}
+
+		.chat-stage > .workspace-contained .task-inbox-head .mobile-work-back-button {
+			display: none;
+		}
+
+		.task-inbox-head-breadcrumb {
+			display: none;
+			color: rgba(143, 147, 173, 0.5);
+			font-size: 11px;
+			line-height: 1.5;
+			white-space: nowrap;
+		}
+
+		.chat-stage > .workspace-contained .task-inbox-head-breadcrumb {
+			display: inline;
+		}
+
+		.task-inbox-head-count {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 22px;
+			height: 18px;
+			padding: 0 6px;
+			border-radius: 4px;
+			background: rgba(255, 23, 68, 0.12);
+			color: rgba(255, 174, 174, 0.84);
+			font-size: 10px;
+			line-height: 1;
+			letter-spacing: 0.02em;
+		}
+
+		.task-inbox-head-count:empty {
+			display: none;
+		}
+
+		.chat-stage > .workspace-contained .task-inbox-head-copy {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.chat-stage > .workspace-contained .task-inbox-head-copy strong {
+			font-size: 12px;
+			letter-spacing: 0.04em;
+			text-transform: none;
+		}
+
+		.task-inbox-head-close-button {
+			display: none;
+			align-items: center;
+			justify-content: center;
+			width: 24px;
+			height: 24px;
+			padding: 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			color: rgba(238, 244, 255, 0.42);
+			font-size: 16px;
+			line-height: 1;
+			cursor: pointer;
+		}
+
+		.task-inbox-head-close-button:hover {
+			background: rgba(255, 255, 255, 0.06);
+			color: rgba(238, 244, 255, 0.72);
+		}
+
+		.chat-stage > .workspace-contained .task-inbox-head-close-button {
+			display: inline-flex;
+		}
+			display: inline-flex;
+		}
+
 
 		.chat-meta {
 			display: grid;

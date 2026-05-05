@@ -1037,17 +1037,20 @@ export function getPlaygroundAssetDialogs(): string {
 	return `
 		<div id="asset-modal" class="asset-modal-shell" aria-hidden="true" hidden>
 			<section class="asset-modal" role="dialog" aria-modal="true" aria-labelledby="asset-modal-title">
-				<header class="topbar asset-modal-head mobile-work-topbar">
-					<div class="mobile-work-title-row">
+				<header class="topbar asset-modal-head">
+					<div class="mobile-work-title-row asset-modal-head-left">
 						<button id="close-asset-modal-button" class="mobile-work-back-button" type="button" aria-label="返回对话">
 							<span aria-hidden="true">&larr;</span>
 						</button>
+						<span class="asset-head-breadcrumb">工作区 /</span>
 						<div class="asset-modal-copy">
 							<strong id="asset-modal-title">可复用资产</strong>
+							<span id="asset-modal-count" class="asset-head-count"></span>
 						</div>
 					</div>
-					<div class="asset-modal-actions mobile-work-topbar-actions">
-						<button id="refresh-assets-button" type="button">刷新文件库</button>
+					<div class="asset-modal-actions">
+						<button id="refresh-assets-button" type="button">刷新</button>
+						
 					</div>
 				</header>
 				<div class="asset-modal-body">

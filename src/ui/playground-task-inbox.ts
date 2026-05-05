@@ -131,7 +131,29 @@ export function getPlaygroundTaskInboxStyles(): string {
 
 		.task-inbox-head-actions,
 		.task-inbox-item-actions {
-			justify-content: flex-end;
+			justify-content: flex-start;
+			gap: 4px;
+			padding-top: 2px;
+		}
+
+		.task-inbox-item-actions button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			height: 22px;
+			padding: 0 8px;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			color: rgba(238, 244, 255, 0.36);
+			font-size: 10px;
+			line-height: 1;
+			cursor: pointer;
+		}
+
+		.task-inbox-item-actions button:hover:not(:disabled) {
+			background: rgba(255, 255, 255, 0.05);
+			color: rgba(238, 244, 255, 0.62);
 		}
 
 		.task-inbox-head-actions {
@@ -210,45 +232,51 @@ export function getPlaygroundTaskInboxStyles(): string {
 
 		.task-inbox-item {
 			display: grid;
-			gap: 8px;
-			padding: 14px 0 0;
+			gap: 0;
+			padding: 0;
+		}
+
+		.task-inbox-item + .task-inbox-item {
+			margin-top: 8px;
 		}
 
 		.task-inbox-item-shell {
+			position: relative;
 			display: grid;
-			gap: 8px;
-			padding: 0;
+			gap: 10px;
+			padding: 14px 16px;
 			border: 0;
-			border-radius: 0;
-			background: transparent;
+			border-radius: 4px;
+			background: #0b0c18;
+			box-shadow: none;
+			overflow: hidden;
 		}
 
 		.task-inbox-result-bubble {
 			display: grid;
-			gap: 14px;
+			gap: 10px;
 			width: 100%;
 			min-width: 0;
-			padding: 16px 18px;
+			padding: 0;
 			border: 0;
-			border-radius: 4px;
-			background: rgba(34, 38, 46, 0.72);
-			color: #edf5ff;
+			border-radius: 0;
+			background: transparent;
+			color: #d1d5e0;
 			box-shadow: none;
 			backdrop-filter: none;
 		}
 
-		.task-inbox-item.is-unread .task-inbox-result-bubble {
-			box-shadow: none;
-		}
-
 		.task-inbox-item-head {
+			display: flex;
 			justify-content: space-between;
+			align-items: flex-start;
+			gap: 12px;
 			background: transparent;
 			color: rgba(238, 244, 255, 0.42);
 			font-size: 10px;
-			line-height: 1.6;
-			letter-spacing: 0.14em;
-			text-transform: uppercase;
+			line-height: 1.5;
+			letter-spacing: 0.02em;
+			text-transform: none;
 		}
 
 		.task-inbox-item-title-row {
@@ -260,23 +288,25 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-item-head strong {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
+			display: inline;
 			min-width: 0;
-			padding: 6px 10px;
-			border: 1px solid rgba(255, 255, 255, 0.16);
-			border-radius: 4px;
-			background: rgba(255, 255, 255, 0.08);
-			color: #f3fbff;
-			font-size: 10px;
+			padding: 0;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
+			color: rgba(248, 251, 255, 0.94);
+			font-size: 12px;
 			font-weight: 650;
-			line-height: 1.2;
+			line-height: 1.35;
+			letter-spacing: 0.01em;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 
 		.task-inbox-item-unread-dot {
-			width: 8px;
-			height: 8px;
+			width: 7px;
+			height: 7px;
 			border-radius: 999px;
 			background: #ff1744;
 			box-shadow: none;
@@ -284,18 +314,50 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-item-kind {
-			color: rgba(238, 244, 255, 0.42);
-			font-family: var(--font-mono);
+			display: inline-flex;
+			align-items: center;
+			height: 18px;
+			padding: 0 7px;
+			border-radius: 4px;
+			background: rgba(143, 147, 173, 0.1);
+			color: rgba(143, 147, 173, 0.6);
+			font-family: inherit;
 			font-size: 10px;
-			letter-spacing: 0.14em;
-			text-transform: uppercase;
+			line-height: 1;
+			letter-spacing: 0.02em;
+			text-transform: none;
+			white-space: nowrap;
+			flex-shrink: 0;
+		}
+
+		/* Unread left edge accent */
+		.task-inbox-item.is-unread .task-inbox-item-shell::before {
+			content: "";
+			position: absolute;
+			left: 0;
+			top: 12px;
+			bottom: 12px;
+			width: 3px;
+			border-radius: 999px;
+			background: linear-gradient(180deg, #c9d2ff, #8dffb2);
+		}
+
+		/* Read item: dimmed */
+		.task-inbox-item:not(.is-unread) .task-inbox-item-head strong {
+			color: rgba(238, 244, 255, 0.76);
+			font-weight: 600;
+		}
+
+		.task-inbox-item:not(.is-unread) .task-inbox-item-text {
+			color: rgba(209, 213, 224, 0.72);
 		}
 
 		.task-inbox-item-text {
-			color: #edf5ff;
+			color: #d1d5e0;
 			font-size: 12px;
-			line-height: 1.75;
+			line-height: 1.7;
 			word-break: break-word;
+			padding-right: 6px;
 		}
 
 		.task-inbox-result-bubble .message-content,
@@ -372,17 +434,60 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-item-meta {
-			color: rgba(226, 234, 255, 0.5);
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 6px;
+			color: rgba(226, 234, 255, 0.48);
 			font-size: 10px;
+		}
+
+		.task-inbox-item-meta > span {
+			display: inline-flex;
+			align-items: center;
+			height: 18px;
+			padding: 0 6px;
+			border-radius: 4px;
+			background: rgba(255, 255, 255, 0.04);
+			color: rgba(226, 234, 255, 0.48);
+			font-size: 10px;
+			line-height: 1;
+			font-family: var(--font-mono);
+		}
+
+		.task-inbox-item-meta > span:last-child {
+			background: rgba(141, 255, 178, 0.07);
+			color: rgba(141, 255, 178, 0.64);
+			font-family: inherit;
 		}
 
 		.task-inbox-item-meta code {
-			color: rgba(223, 230, 255, 0.72);
-			font-family: var(--font-mono);
-			font-size: 10px;
+			color: inherit;
+			font-family: inherit;
+			font-size: inherit;
+			background: transparent;
+			padding: 0;
 		}
 
-		@media (max-width: 640px) {
+					@media (min-width: 641px) {
+				.mobile-work-back-button {
+					display: none !important;
+				}
+			}
+
+@media (max-width: 640px) {
+				.task-inbox-item-shell {
+					border-radius: 4px;
+					background: transparent;
+				}
+
+				.task-inbox-result-bubble {
+					background: #0b0e19;
+					border: 0;
+					border-radius: 4px;
+					padding: 14px;
+				}
+
 			.task-inbox-view.open {
 				align-items: stretch;
 				justify-content: stretch;
@@ -460,13 +565,15 @@ export function getPlaygroundTaskInboxView(): string {
 	return `
 				<div id="task-inbox-view" class="task-inbox-view" aria-hidden="true" hidden>
 					<section class="task-inbox-pane" role="dialog" aria-modal="true" aria-labelledby="task-inbox-title">
-						<header class="topbar pane-head task-inbox-head mobile-work-topbar">
-							<div class="mobile-work-title-row">
+						<header class="topbar pane-head task-inbox-head">
+							<div class="mobile-work-title-row task-inbox-head-left">
 								<button id="close-task-inbox-button" class="mobile-work-back-button task-inbox-head-button" type="button" aria-label="返回对话">
 									<span aria-hidden="true">&larr;</span>
 								</button>
+								<span class="task-inbox-head-breadcrumb">工作区 /</span>
 								<div class="task-inbox-head-copy">
 									<strong id="task-inbox-title">任务消息</strong>
+									<span id="task-inbox-unread-count" class="task-inbox-head-count"></span>
 								</div>
 							</div>
 							<div class="task-inbox-head-actions">
@@ -476,6 +583,7 @@ export function getPlaygroundTaskInboxView(): string {
 								</div>
 								<button id="mark-all-task-inbox-read-button" class="task-inbox-head-button" type="button">全部已读</button>
 								<button id="refresh-task-inbox-button" class="task-inbox-head-button" type="button">刷新</button>
+								
 							</div>
 						</header>
 						<section id="task-inbox-list" class="task-inbox-list" aria-live="polite"></section>
@@ -490,6 +598,7 @@ export function getPlaygroundTaskInboxElementRefsScript(): string {
 		const taskInboxFilterUnreadButton = document.getElementById("task-inbox-filter-unread-button");
 		const taskInboxFilterAllButton = document.getElementById("task-inbox-filter-all-button");
 		const mobileOverflowTaskInboxBadge = document.getElementById("mobile-overflow-task-inbox-badge");
+						const taskInboxUnreadCount = document.getElementById("task-inbox-unread-count");
 	`;
 }
 
@@ -510,6 +619,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				entry.button.dataset.active = isTasksView ? "true" : "false";
 				entry.badge.hidden = unreadCount < 1;
 				entry.badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+				if (taskInboxUnreadCount) { taskInboxUnreadCount.textContent = unreadCount > 0 ? String(unreadCount) : ""; }
 				entry.button.setAttribute(
 					"aria-label",
 					unreadCount > 0 ? entry.baseLabel + "，未读 " + unreadCount : entry.baseLabel,

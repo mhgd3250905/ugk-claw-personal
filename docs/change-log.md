@@ -12,6 +12,17 @@
 
 ## 2026-05-05
 
+### 桌面端工作区头部与交互优化
+- 日期：2026-05-05
+- 主题：重构桌面端文件库和任务消息页面的头部结构，统一 workspace 面板的打开/关闭交互。
+- 影响范围：
+  - 文件库 header：去除手机端遗留的 `mobile-work-topbar` 结构，← 返回箭头桌面端隐藏，改为 `工作区 / 可复用资产 [N]` 面包屑 + `刷新` 按钮。
+  - 任务消息 header：同样去除手机遗留结构，改为 `工作区 / 任务消息 [N]` + 筛选按钮，未读计数显示在 header 徽标中。
+  - 任务消息列表项：从透明碎片改为完整卡片容器（`#0b0c18` + 4px 圆角），标题从药丸按钮改为干净文字，元数据改为小徽标，未读项增加左侧渐变亮条，操作按钮改为无边框透明风格。
+  - workspace 打开/关闭交互：topbar 左侧按钮在 workspace 激活时自动从"新会话"切换为"回到会话"，点击关闭面板返回对话；在 workspace 打开时点击左侧会话列表项，自动关闭面板并切换会话。
+  - 桌面端（≥641px）强制隐藏所有 `.mobile-work-back-button`，手机端不受影响。
+- 对应入口：`src/ui/playground-assets.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-workspace-controller.ts`、`src/ui/playground-conversations-controller.ts`、`src/ui/playground.ts`
+
 ### 模型源默认选择改为运行态持久化
 - 日期：2026-05-05
 - 主题：修复生产上线后 Web 里选择的默认 API 源 / 模型回到仓库默认值的问题。
