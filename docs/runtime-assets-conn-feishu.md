@@ -261,7 +261,7 @@ Run 查询接口：
 ### Conn / Feishu Legacy 口径
 
 - `conversation` target：只作为后端兼容读取保留，新建 conn 默认和推荐目标都是 `task_inbox`；新 UI、文档和 prompt 不应再引导用户填写 conversation target。
-- `conversation_notifications`：只视为旧会话通知数据路径；当前 conn 结果主链路是 `agent_activity_items`，不要把后台任务结果重新写回 conversation transcript 或旧通知表。共享文件类型已经迁出为 `ActivityFile`，新 activity / worker 代码不要再从旧 notification store 引类型。
+- `conversation_notifications`：只视为旧会话通知数据表；当前 conn 结果主链路是 `agent_activity_items`，不要把后台任务结果重新写回 conversation transcript 或旧通知表。conversation-scoped notification store 已移除，保留的只是 schema、删除清理和 cleanup debug 观测。
 - Feishu `mapped` mode：只作为兼容模式保留；默认是 current conversation mode，也就是飞书作为 Web 当前会话的外挂收发窗口。
 - legacy subagent `.pi/agents`：保留旧 scout / planner / worker / reviewer 链路，但用户说“agent”时默认指 Playground agent profile 和 `/v1/agents`，不是 legacy subagent。
 - Windows host IPC：只作为本机调试 fallback；生产浏览器链路默认 Docker Chrome sidecar + direct CDP。

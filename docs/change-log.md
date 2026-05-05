@@ -12,10 +12,16 @@
 
 ## 2026-05-05
 
+### 移除旧会话通知 Store
+- 日期：2026-05-05
+- 主题：删除已退出主链路的 `ConversationNotificationStore` 和对应功能测试，避免旧 conversation-scoped notification 入口继续误导维护者。
+- 影响范围：保留 `conversation_notifications` SQLite 表、conn 删除清理和 `/v1/debug/cleanup` 只读观测；不恢复任何写入旧通知表的运行路径。当前 conn 结果仍以 `agent_activity_items` / 任务消息页为唯一主读模型。
+- 对应入口：`src/agent/conversation-notification-store.ts`、`test/conversation-notification-store.test.ts`、`src/agent/conn-db.ts`、`src/agent/conn-sqlite-store.ts`、`src/routes/cleanup-debug.ts`
+
 ### Activity 文件类型与旧会话通知解绑
 - 日期：2026-05-05
 - 主题：把 `ConversationNotificationFile` 从旧 `ConversationNotificationStore` 中迁出为中性 `ActivityFile`，并给旧会话通知 store 标注 deprecated。
-- 影响范围：`AgentActivityStore`、`conn-worker` 和 legacy `ConversationNotificationStore` 共享 `src/agent/activity-file.ts` 的文件元数据类型；运行行为和 SQLite schema 不变，旧通知 store 继续只承担历史兼容和测试覆盖。
+- 影响范围：`AgentActivityStore`、`conn-worker` 和当时仍保留的 legacy `ConversationNotificationStore` 共享 `src/agent/activity-file.ts` 的文件元数据类型；运行行为和 SQLite schema 不变。后续 `ConversationNotificationStore` 已在“移除旧会话通知 Store”中删除。
 - 对应入口：`src/agent/activity-file.ts`、`src/agent/agent-activity-store.ts`、`src/agent/conversation-notification-store.ts`、`src/workers/conn-worker.ts`、`test/conversation-notification-store.test.ts`
 
 ### Legacy 清理决策表
