@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### 双云增量更新到 05c3b59
+- 日期：2026-05-05
+- 主题：完成 `05c3b59 Harden runtime catalog and conn deletion` 的阿里云与腾讯云增量发布，并更新接手文档。
+- 影响范围：阿里云从 `gitee/main`、腾讯云从 `origin/main` fast-forward 到 `05c3b59` 并重建 app / conn-worker / feishu-worker；两边 `server:ops verify` 均通过，`/v1/debug/runtime` 返回 `ok=true`。阿里云发布前备份为 `/root/ugk-claw-shared/backups/pre-deploy-05c3b59-20260505-095431`，发布后 `/v1/agents` 为 `main/search/zhihu`；腾讯云发布前备份为 `/home/ubuntu/ugk-claw-shared/backups/pre-deploy-05c3b59-20260505-100040`，发布后 `/v1/agents` 为 `main/search`。`docs/server-ops.md` 明确 `deploy` 脚本不自动备份，发布前必须手动备份 `.data/agent`、`.data/agents` 和 `runtime/skills-user`。
+- 对应入口：`AGENTS.md`、`docs/server-ops.md`
+
 ### Agent profile catalog 原子写入与并发保护
 - 日期：2026-05-05
 - 主题：排查同类运行态数据丢失隐患后，修复自定义 Agent profile catalog 并发写入可能互相覆盖的问题。

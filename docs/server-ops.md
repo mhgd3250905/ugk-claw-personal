@@ -13,6 +13,7 @@
 - 禁止把 `.env`、`.data`、skills、Chrome profile、日志、临时 tar 包当作代码发布内容
 - 发布拉取远端由 `scripts/server-ops.mjs` 固定选择：腾讯云默认 `origin`，阿里云默认 `gitee`。阿里云不要再优先连 GitHub，国内网络下这属于浪费时间还增加失败面。
 - 标准 SSH 入口使用本机别名：腾讯云 `ugk-claw-prod`，阿里云 `ugk-claw-aliyun`。`scripts/server-ops.mjs` 固定走这两个 alias；不要再让发布脚本裸连 IP 后卡在密码交互里，太原始。
+- `scripts/server-ops.mjs deploy` 不会自动备份 shared 运行态；正式发布前必须手动备份 `.data/agent`、`.data/agents` 和 `runtime/skills-user` 到 shared `backups/`，再执行 `deploy`。别裸奔更新，尤其是刚处理过自定义 Agent 数据事故之后还裸奔，那就不是快，是莽。
 
 ## 推荐命令
 
