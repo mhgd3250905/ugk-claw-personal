@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### 校准全新接手文档
+- 日期：2026-05-05
+- 主题：把全新 agent `/init` 最容易先读到的接手入口校准到 `4a8c7e5` 双云验收后的事实，避免继续把 `48db6b8` 或更早云端基线当现状。
+- 影响范围：`AGENTS.md` 只保留当前基线和渐进式披露入口，不塞发布流水账；`docs/handoff-current.md` 改回当前交接摘要；双云部署手册顶部补 `4a8c7e5` 发布记录和当前基线。
+- 对应入口：`AGENTS.md`、`docs/handoff-current.md`、`docs/tencent-cloud-singapore-deploy.md`、`docs/aliyun-ecs-deploy.md`、`docs/project-cleanup-assessment-2026-05-05.md`
+
 ### 删除旧会话通知 SQLite 表
 - 日期：2026-05-05
 - 主题：把已经退出主链路的 `conversation_notifications` 从 conn SQLite schema、迁移目标和 conn 删除清理路径中移除。

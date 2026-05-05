@@ -21,6 +21,23 @@
 - conn output HTML 通过 `/v1/conns/:connId/runs/:runId/output/<path>` 和 `/v1/conns/:connId/output/latest/<path>` 直接 inline 打开。
 - 后台 runner 会 best-effort 收编结果正文中真实存在的 public 静态文件到本轮 `output/`，任务消息和飞书通知使用平台生成的 `files[]` 链接。
 
+## 2026-05-05 Legacy conversation notification 清理发布记录
+
+本次阿里云从 `c05753b Remove legacy conversation notification store` 增量更新到 `4a8c7e5 Drop legacy conversation notifications table`。由于本地向 Gitee 推送被安全策略拒绝，服务器直连 GitHub 又遇到 TLS / HTTP2 网络错误，本次使用经过 `git bundle verify` 的 Git bundle 做 `ff-only` 合并；没有整目录覆盖，没有触碰 `/root/ugk-claw-shared` 运行态。
+
+实际结果：
+1. 服务器 `/root/ugk-claw-repo` 工作区发布前干净，基线为 `c05753b`。
+2. 上传只包含 `c05753b..4a8c7e5` 的 bundle 到 `/root/ugk-pi-4a8c7e5.bundle`，服务器执行 `git bundle verify`、`git fetch /root/ugk-pi-4a8c7e5.bundle main:refs/remotes/bundle/main` 和 `git merge --ff-only refs/remotes/bundle/main`。
+3. 重建并重启 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`，nginx 已重启。
+4. `npm run server:ops -- aliyun verify` 通过，服务器最终 `git rev-parse --short HEAD` 为 `4a8c7e5`。
+5. `/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z` 返回 `ok=true`、`connTargets.byType.conversation=0`、`legacyConversationNotifications.total=0`、`risks=[]`。
+
+本次上线行为：
+- 新初始化 conn SQLite 不再创建 `conversation_notifications` 表。
+- 旧库升级到 `user_version=6` 时执行 `DROP TABLE IF EXISTS conversation_notifications`。
+- `ConnSqliteStore` 删除 conn 时只清理当前主链路 `agent_activity_items`，不再访问旧会话通知表。
+- cleanup debug 对异常旧库仍保留“有表才统计”的只读兜底。
+
 ## 2026-04-30 阿里云 SSH key alias 配置记录
 
 阿里云已经补齐本机无密码 SSH 入口：`C:\Users\29485\.ssh\config` 中新增 `Host ugk-claw-aliyun`，指向 `root@101.37.209.54`，使用本机私钥 `C:\Users\29485\.ssh\id_ed25519_ugk_claw_aliyun`。对应公钥已追加到服务器 `/root/.ssh/authorized_keys`。
@@ -90,7 +107,7 @@ APT_MIRROR_HOST=mirrors.aliyun.com
 - 主部署目录：`/root/ugk-claw-repo`
 - shared 运行态目录：`/root/ugk-claw-shared`
 - 当前部署来源：Git 工作目录，`gitee` 为默认发布 remote，`origin` 为 GitHub 备用 remote
-- 当前部署基线：`48db6b8 Fix conn HTML output links`
+- 当前部署基线：`4a8c7e5 Drop legacy conversation notifications table`
 
 注意：阿里云首次部署时，服务器访问 GitHub 超时，`git clone` 未成功，因此曾经使用 archive 解包目录。截至 `2026-04-29`，`/root/ugk-claw-repo` 已迁移为 Git 工作目录。后续不要再默认打包上传，也不要把 `/root/ugk-claw-shared` 塞回代码目录。
 

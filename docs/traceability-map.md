@@ -59,7 +59,7 @@
 - 两台服务器的用户 skills 都属于 shared 运行态：腾讯云 `~/ugk-claw-shared/runtime/skills-user`，阿里云 `/root/ugk-claw-shared/runtime/skills-user`；排查技能丢失先看 `UGK_RUNTIME_SKILLS_USER_DIR` 和 `GET /v1/debug/skills`。排查运行态挂载、session、conn SQLite 和公开配置时看 `GET /v1/debug/runtime`。
 - 如果这次 `/init` 还要接手 `playground` 前端，先读 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)；当前手机端是单独重写的移动展示层，不要按桌面端缩略版理解
 - 如果这次还要接着改 `playground` runtime，而不是只看当前 UI 口径，再补读 [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)；这轮 controller / renderer / sync ownership / stream lifecycle 是怎么收口的，都在那里，别重复考古
-- 如果这次目标是直接发布或接线上盘，优先读 [docs/server-ops.md](/E:/AII/ugk-pi/docs/server-ops.md) 和 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)；[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md) 只是历史交接快照，别再拿旧 tag 当新基线。
+- 如果这次目标是直接发布或接线上盘，优先读 [docs/server-ops.md](/E:/AII/ugk-pi/docs/server-ops.md) 和 [docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)；[docs/handoff-current.md](/E:/AII/ugk-pi/docs/handoff-current.md) 是当前接手摘要，但具体发布命令仍以 server ops 文档为准。
 
 ## B. 聊天、流式、追加消息、打断
 

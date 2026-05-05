@@ -129,7 +129,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 - 截至 `2026-04-19`，本阶段已经把 `web-access` 主链路收口到 Docker Chrome sidecar；后续 `/init` 不要再默认按 Windows 宿主 IPC 理解。
 - 当前代码主仓库已经切到 GitHub：`https://github.com/mhgd3250905/ugk-claw-personal.git`；腾讯云新加坡服务器主部署目录为 `~/ugk-claw-repo`，阿里云 ECS 主部署目录为 `/root/ugk-claw-repo`，两边现在都是 Git 工作目录。两台服务器均已配置 `origin` GitHub 和 `gitee` remote；腾讯云增量发布默认拉 `origin`，阿里云增量发布默认拉 `gitee`，不要再把 tar 包搬运当成长期主流程。
-- 截至 `2026-05-05 11:37 +08:00`，阿里云生产已增量更新到 `48db6b8 Fix conn HTML output links`，包含 conn 会话解耦、HTML output 平台链接和任务消息文件链接修复；`npm run server:ops -- aliyun verify` 通过。腾讯云最近一次已确认生产基线仍是 `05c3b59 Harden runtime catalog and conn deletion`，除非另行执行腾讯云增量发布，不要默认说双云都在 `48db6b8`。
+- 截至 `2026-05-05 17:05 +08:00`，腾讯云和阿里云生产均已增量更新到 `4a8c7e5 Drop legacy conversation notifications table`。本轮 conn / output / legacy notification 清理详情看 `docs/handoff-current.md`、`docs/runtime-assets-conn-feishu.md` 和双云部署手册，不要把发布流水账塞回本文件。
 - 默认浏览器链路是 `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223` -> Docker Chrome sidecar。
 - agent 任务结束时，`AgentService` 会通过 `src/agent/browser-cleanup.ts` 按 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 清理本轮 `web-access` scope 下保留的浏览器页面；不要只在运行容器 `/app` 里热改，否则重建镜像会直接丢修复。
 - sidecar GUI 登录入口是 `https://127.0.0.1:3901/`，登录态持久目录是 `.data/chrome-sidecar`。

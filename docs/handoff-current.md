@@ -1,23 +1,20 @@
-# 历史交接快照
+# 当前交接快照
 
-更新时间：`2026-04-27`
+更新时间：`2026-05-05`
 
-这份文档保留为 `2026-04-27` 的交接快照，不再作为当前部署事实入口。当前服务器更新、双云目录、shared 运行态和 user skills 规则以 [server-ops.md](./server-ops.md)、[server-ops-quick-reference.md](./server-ops-quick-reference.md)、[tencent-cloud-singapore-deploy.md](./tencent-cloud-singapore-deploy.md) 和 [aliyun-ecs-deploy.md](./aliyun-ecs-deploy.md) 顶部“当前部署快照”为准。
+这份文档给下一位全新接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
-别被文件名里的 `current` 骗了，这名字现在已经有点欠揍。它有历史价值，但不能再拿来指挥生产更新。
+当前服务器更新、双云目录、shared 运行态和 user skills 规则仍以 [server-ops.md](./server-ops.md)、[server-ops-quick-reference.md](./server-ops-quick-reference.md)、[tencent-cloud-singapore-deploy.md](./tencent-cloud-singapore-deploy.md) 和 [aliyun-ecs-deploy.md](./aliyun-ecs-deploy.md) 顶部“当前部署快照”为准。本文件只做接手摘要，不替代发布 runbook。
 
-这份文档给下一位接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
-
-## 当时结论
+## 当前结论
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- 当前本地 / GitHub 最新提交：`030d6f1 Record DeepSeek production deploy`
-- 腾讯云生产运行代码提交：`fb3fc42 Add DeepSeek model provider switching`
-- 阿里云生产运行代码提交：`030d6f1 Record DeepSeek production deploy`
-- 说明：腾讯云已增量更新到 DeepSeek 功能提交并验证通过，`030d6f1` 只是腾讯云发布记录文档提交；阿里云首次部署使用本地 archive，包含 `030d6f1`
-- 上一轮架构整理代码落点：`524fb71 Extract assistant run result checks`
-- 本轮架构整理前备份 tag：`backup-pre-architecture-cleanup-20260426`
+- 当前本地 / GitHub 最新提交：`4a8c7e5 Drop legacy conversation notifications table`
+- 腾讯云生产运行代码提交：`4a8c7e5 Drop legacy conversation notifications table`
+- 阿里云生产运行代码提交：`4a8c7e5 Drop legacy conversation notifications table`
+- 本轮主线：conn worker 会话解耦、HTML output links 修复、任务消息文件链接修复、旧 conversation notification store / SQLite 表清理。
+- 验收结论：本地 `npm test` 552 个全过；腾讯云和阿里云 `server:ops verify` 通过；双云 `/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z` 均 `ok=true` 且 `risks=[]`；用户真实 conn HTML smoke test 已确认通过。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
 - 腾讯云健康检查：`http://43.134.167.179:3000/healthz`
 - 腾讯云主部署目录：`/home/ubuntu/ugk-claw-repo`
@@ -28,24 +25,25 @@
 - 阿里云健康检查：`http://101.37.209.54:3000/healthz`
 - 阿里云主部署目录：`/root/ugk-claw-repo`
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
-- 当时服务器更新方式：默认倾向“增量更新”，不要洗 shared 运行态；阿里云在这份快照写成时还不是 Git 工作目录，后来已迁移，当前流程看 `docs/server-ops.md`
-- 当前未跟踪 runtime / 本地密钥文件不要顺手提交：`runtime/commit-playground-asset-detail-hydration.ps1`、`runtime/pudong-weather.md`、`runtime/zhihu-collection-ai-agent-summary.md`、`阿里-config.txt`
+- 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
+- 当前未提交本地现场不要顺手提交：`.pi/settings.json`、`runtime/dangyang-weather-2026-05-01.json`、`runtime/karpathy-guidelines-CLAUDE.md`、`runtime/tab-accumulation-report.md`
 
 ## 最近已完成
 
-这一轮已经完成一批“低风险、小切片、可测试”的整理，核心目标是减少胖文件和隐性坏数据风险：
+最近一轮已经完成 conn / activity / output 主链路收口：
 
-- 路由 parser / presenter / SSE helper 拆分：chat、conn、activity、notification、files。
-- `AgentService` 继续瘦身：会话 catalog、conversation commands、context loading、session lifecycle、queue message、run scope、run result、terminal snapshot、event buffering 等逻辑已经拆到独立 helper。
-- playground 运行时代码继续模块化：page shell、base styles、status、notification、confirm dialog、panel focus、conversation API / sync / state / history pagination / process controller、active run normalizer。
-- conn run 租约防护：过期 worker 不能迟到写入终态、runtime metadata、events 或 output files。
-- 数据索引读边界加固：`ConversationStore`、`AssetStore`、session JSONL 全量读取都已经补回归测试，坏索引 / 坏 JSONL 行不会直接拖垮页面恢复。
-- 资产库并发写入、会话索引写入、Feishu map 并发写入都已有串行队列和原子替换防护。注意：Feishu 后续现阶段不继续做。
+- conn 默认目标是 `task_inbox`，不再依赖前台 `conversationId`；删除或切换聊天会话不影响后台 run、任务消息或 output 链接。
+- conn run 只索引 `workspace/output/` 下的真实产物；用户可见链接走 `/v1/conns/:connId/runs/:runId/output/<path>` 和 `/v1/conns/:connId/output/latest/<path>`。
+- HTML / 图片 / PDF / 文本类 conn output 默认 inline 打开；强制下载才用 `?download=true`。
+- `ActivityFile` 已从旧 conversation notification store 中拆出，`AgentActivityStore` / `conn-worker` 不再从旧 store 引类型。
+- `ConversationNotificationStore` 和对应测试已删除。
+- `conversation_notifications` 已从 conn SQLite schema、表清单和 conn 删除清理路径移除；旧库升级到 `user_version=6` 时会 `DROP TABLE IF EXISTS conversation_notifications`。
+- `/v1/debug/cleanup` 保留只读体检：正常新库旧通知统计返回 0；异常旧库如果仍有该表，会继续统计并暴露风险。
 
-关键提交从 `backup-pre-architecture-cleanup-20260426` 到 `524fb71` 可查：
+关键提交：
 
 ```bash
-git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
+git log --oneline c05753b..HEAD
 ```
 
 ## 当前测试状态
@@ -57,23 +55,26 @@ git log --oneline backup-pre-architecture-cleanup-20260426..HEAD
 - `docker compose -f docker-compose.prod.yml config --quiet`
 - `npm test`
 
-截至最近一次全量测试，测试总数为 `404`，通过 `404`，跳过 `0`。上一版交接提到的两个 `test.skip` 已处理：一个是过时断言，另一个是重复覆盖；SQLite / JSON 字段边界也已完成一轮非 Feishu 区域加固。本轮新增了 `test/agent-queue-message.test.ts` 的 3 个队列消息 helper 用例和 `test/agent-conversation-commands.test.ts` 的 5 个会话命令 helper 用例，已纳入 `npm test` 全量验证。
+截至最近一次全量测试，`npm test` 为 `552 pass / 0 fail`。本轮还单独跑过：
+
+- `npx tsc --noEmit`
+- `node --test --test-concurrency=1 --import tsx test\conn-db.test.ts test\conn-sqlite-store.test.ts test\cleanup-debug.test.ts`
+- `node --test --test-concurrency=1 --import tsx test\server.test.ts --test-name-pattern "debug/cleanup"`
+- `git diff --check`
 
 最近一次生产验收：
 
-- 腾讯云服务器已增量更新到 DeepSeek provider 功能提交 `fb3fc42`
-- `ugk-pi`、`nginx`、`ugk-pi-browser` 均 healthy
-- 内网 / 公网 `/healthz` 返回 `{"ok":true}`
-- 内网 / 公网 `/playground` 返回 `200 OK`
-- `check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`
-- DeepSeek provider 真实验证通过，模型源切换入口可用
-- 阿里云 ECS 首次部署已完成，`101.37.209.54:3000` 公网 playground 当时已由用户确认可访问；这份快照写成时阿里云代码目录还是 archive 解包目录，后来已迁移为 Git 工作目录
+- 腾讯云服务器已增量更新到 `4a8c7e5`，`npm run server:ops -- tencent verify` 通过。
+- 阿里云服务器已增量更新到 `4a8c7e5`，`npm run server:ops -- aliyun verify` 通过。
+- 腾讯云 cleanup：`ok=true`，`conversation=0`，`legacyConversationNotifications.total=0`，`withActivity=1`，`withOutputFiles=1`，`risks=[]`。
+- 阿里云 cleanup：`ok=true`，`conversation=0`，`legacyConversationNotifications.total=0`，`withActivity=7`，`succeededWithoutOutputFiles=0`，`risks=[]`。
+- 用户已真实测试 conn HTML 输出任务，确认全局通知和 output/latest 链接可用。
 
 ## 下一步建议
 
 如果你是用户刚点了新会话后重新 `/init` 的新 agent，先别急着开工。先确认：
 
-1. `git status --short` 里只有上面列出的 runtime 临时文件，或者先处理它们。
+1. `git status --short` 里只有上面列出的本地现场文件，或者先处理它们。
 2. 不要把腾讯云和阿里云当成一台机器。腾讯云是 `ubuntu@43.134.167.179` 且目录是 `/home/ubuntu/...`；阿里云是 `root@101.37.209.54` 且目录是 `/root/...`。
 3. 这条是历史提醒：当时不要在阿里云 `/root/ugk-claw-repo` 里直接 `git pull`，因为那时它还是 archive 解包目录；当前阿里云已经迁移为 Git 工作目录，发布看 `docs/server-ops.md`。
 4. SQLite / JSON 字段边界本轮已扫完，`AgentService.queueMessage()` 已经抽到 `src/agent/agent-queue-message.ts`，新建 / 删除 / 切换 / 重置会话命令也已经抽到 `src/agent/agent-conversation-commands.ts`；下一步如果继续做架构整理，优先从 `AgentService.runChat()` 周边找真正可测的窄边界，别继续堆“为了拆而拆”的文件。

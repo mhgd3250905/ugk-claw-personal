@@ -8,6 +8,22 @@
 
 后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 Git 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；GitHub 不通时走 `git pull --ff-only gitee main`，不要再把小包覆盖当长期主流程。
 
+## 2026-05-05 Conn worker 解耦、HTML output 与 legacy notification 清理发布记录
+
+本次腾讯云从 `c05753b Remove legacy conversation notification store` 增量更新到 `4a8c7e5 Drop legacy conversation notifications table`。发布走 clean Git 主流程，没有整目录覆盖，没有触碰 `~/ugk-claw-shared` 运行态。
+
+实际结果：
+1. 本地 `origin/main` 已推送到 `4a8c7e5`。
+2. 执行 `npm run server:ops -- tencent preflight`，确认 `~/ugk-claw-repo` 工作区干净、compose 配置和运行态挂载正常。
+3. 执行 `npm run server:ops -- tencent deploy`，服务器从 `c05753b` fast-forward 到 `4a8c7e5`，重建并重启 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`，nginx 已重启。
+4. 执行 `npm run server:ops -- tencent verify` 通过，服务器最终 `git rev-parse --short HEAD` 为 `4a8c7e5`。
+5. `/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z` 返回 `ok=true`、`connTargets.byType.conversation=0`、`legacyConversationNotifications.total=0`、`risks=[]`。
+
+本次上线行为：
+- conn 默认投递目标为 `task_inbox`，删除聊天会话不影响后台 conn run。
+- conn output HTML 通过 `/v1/conns/:connId/runs/:runId/output/<path>` 和 `/v1/conns/:connId/output/latest/<path>` 直接 inline 打开。
+- 旧 `ConversationNotificationStore` 已删除，`conversation_notifications` SQLite 表已从 schema 移除；当前主链路是 `agent_activity_items` / 任务消息页。
+
 ## 2026-04-30 飞书 /stop、subagent 模型继承与 DeepSeek Flash 下架发布记录
 
 本次发布走腾讯云 clean Git 主流程，没有整目录替换，没有触碰 `~/ugk-claw-shared/.data/agent`、sidecar 登录态、资产、conn 或生产日志。服务器工作区发布前 `git status --short` 为空，从 `fe4cca6 docs: add dual-cloud incremental deploy guide` fast-forward 到 `921df49 chore: remove deepseek flash model option`。
@@ -75,7 +91,7 @@
 
 ## 当前部署快照
 
-- 日期：`2026-04-30`
+- 日期：`2026-05-05`
 - 云厂商：腾讯云 CVM
 - 地域：新加坡二区
 - 实例 ID：`ins-0voci0xy`
@@ -94,7 +110,7 @@
 - 回滚保留目录：`/home/ubuntu/ugk-pi-claw`、`/home/ubuntu/ugk-pi-claw-pre-github-20260420-105142`、`/home/ubuntu/ugk-pi-claw-prev-20260419-231530`
 - 当前迁移验证结果：`http://127.0.0.1:3000/healthz` 与 `http://127.0.0.1:3000/playground` 均返回 `200`，生产容器挂载已经切到 `~/ugk-claw-shared`
 - 当前推荐稳定发布 tag：`snapshot-20260422-v4.1.2-stable`
-- 当前线上应用提交：`921df49 chore: remove deepseek flash model option`
+- 当前线上应用提交：`4a8c7e5 Drop legacy conversation notifications table`
 - 当前服务器本地回滚 tag：`server-pre-deploy-20260426-234533`
 - 当前 clean Git 迁移备份：`/home/ubuntu/ugk-claw-shared/backups/tencent-git-clean-20260429-225108`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线

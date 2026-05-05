@@ -14,8 +14,8 @@
 
 ## 本轮已收口
 
-- 阿里云生产已增量更新到 `48db6b8 Fix conn HTML output links`，`server:ops aliyun verify` 通过。
-- `AGENTS.md` 与 `docs/aliyun-ecs-deploy.md` 已更新阿里云当前基线，避免继续拿 `05c3b59` 或更早的阿里云基线当现状。
+- 腾讯云和阿里云生产均已增量更新到 `4a8c7e5 Drop legacy conversation notifications table`，`server:ops tencent verify` 与 `server:ops aliyun verify` 均通过。
+- `AGENTS.md`、`docs/tencent-cloud-singapore-deploy.md` 与 `docs/aliyun-ecs-deploy.md` 已更新双云当前基线，避免继续拿 `48db6b8`、`05c3b59` 或更早基线当现状。
 - 任务消息 / transcript 共用的文件卡片 `canPreviewFile()` 已补上 `text/html`，不再出现后端能 inline、前端却不给“打开”的半截修复。
 - 新增只读体检接口 `GET /v1/debug/cleanup`，用于查看 conn target 分布、异常旧库中的 `conversation_notifications` 表残留、最近 7 天 run 与 activity/output 的对齐情况。这个接口只读，不迁移、不删除、不修复数据。
 
@@ -128,7 +128,7 @@ curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z
 
 - 长部署手册包含大量历史记录，例如 archive 小包、DeepSeek Flash 下架、旧目录等。它们用于追溯是有价值的，但不能作为当前操作入口。
 - 当前应优先读 `docs/server-ops.md` 和 `docs/server-ops-quick-reference.md`；单云长手册只在迁移、回滚或异常排障时展开。
-- `docs/aliyun-ecs-deploy.md` 的当前基线已更新到 `48db6b8`；腾讯云没有在本轮发布到 `48db6b8`，不要默认双云同步。
+- 双云当前基线已更新到 `4a8c7e5`；本轮阿里云因 Gitee 推送被策略拒绝、GitHub 直连不稳，使用 Git bundle 做 ff-only 增量合并，不是整目录覆盖。
 
 ## 建议的后续清理顺序
 
