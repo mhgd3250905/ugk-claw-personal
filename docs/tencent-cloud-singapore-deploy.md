@@ -8,6 +8,10 @@
 
 后续发布固定先看速查里的“固定增量发布流程（先选目标云）”。腾讯云当前固定口径是 Git 工作目录 `~/ugk-claw-repo` 里 `git pull --ff-only origin main` 后按改动类型重建 / 重启；GitHub 不通时走 `git pull --ff-only gitee main`，不要再把小包覆盖当长期主流程。
 
+## 2026-05-06 文件库桌面 UI 细化发布记录
+
+腾讯云从 `538265b` fast-forward 到 `425227e`。浅色主题 `.asset-modal` / `.asset-modal-shell` 去掉 background，workspace-contained header 无背景无底线。文件库 2 列网格卡片、header 标题美化。
+
 ## 2026-05-05 桌面工作区 UI 优化与 Agent 切换悬浮菜单发布记录
 
 本次腾讯云从 `b088620 Persist model source selection in runtime state` 增量更新到 `538265b`。发布走 clean Git 主流程，没有整目录覆盖，没有触碰 `~/ugk-claw-shared` 运行态。

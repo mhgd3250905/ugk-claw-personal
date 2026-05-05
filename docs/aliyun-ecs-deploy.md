@@ -6,6 +6,10 @@
 
 如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops.md](./server-ops.md)；阿里云当前固定口径已经切换为 Git 工作目录更新，默认 `git pull --ff-only gitee main`，只有 Gitee 不通且确认 GitHub 可用时才走 `git pull --ff-only origin main`。archive 小包只作为双远端都不可用时的兜底。
 
+## 2026-05-06 文件库桌面 UI 细化发布记录
+
+阿里云从 `538265b` fast-forward 到 `425227e`。浅色主题面板去背景、header 无边框。用户自定义技能（zhihu-helper、card-creator 等）未触碰。
+
 ## 2026-05-05 桌面工作区 UI 优化与 Agent 切换悬浮菜单发布记录
 
 本次阿里云从 `b088620 Persist model source selection in runtime state` 通过 `gitee/main` fast-forward 增量更新到 `538265b`。发布走 clean Git 主流程，没有整目录覆盖，没有触碰 `/root/ugk-claw-shared` 运行态，阿里云 agent 区域开发结果（包括 `zhihu-helper`、`card-creator`、`volc-image-vision`、`wechat-helper`、`xhs-helper` 等自定义技能）均未被触碰。
