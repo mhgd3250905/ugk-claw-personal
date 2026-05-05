@@ -2237,14 +2237,12 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 		return matches[matches.length - 1][1];
 	};
 
-	const mobileAssetHeadBlock = mobileCssBlock(".asset-modal-head");
 	const mobileAssetAndConnCardBlock = mobileCssBlock(".asset-pill,\n\t\t\t.conn-manager-item");
 	const mobileConnToolbarBlock = mobileCssBlock(".conn-manager-toolbar");
 	const mobileConnEditorFieldBlock = mobileCssBlock(".conn-editor-field");
 	const mobileConnEditorAdvancedBlock = mobileCssBlock(".conn-editor-advanced");
 	const mobileConnRunItemBlock = mobileCssBlock(".conn-manager-run-item");
 	const mobileConnRunPanelBlock = mobileCssBlock(".conn-run-details-panel");
-	const mobileTaskHeadBlock = mobileCssBlock(".task-inbox-head");
 	const mobileTaskBubbleBlock = mobileCssBlock(".task-inbox-result-bubble");
 	const mobileStreamLayoutBlock = mobileCssBlock(
 		'.shell[data-stage-mode="landing"][data-transcript-state="active"] .stream-layout',
@@ -2262,8 +2260,8 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-pane\s*\{[\s\S]*border-radius:\s*0;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal::before\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-head\s*\{[\s\S]*position:\s*sticky;/);
-	assert.match(mobileAssetHeadBlock, /border-bottom:\s*0;/);
-	assert.match(mobileAssetHeadBlock, /background:\s*#101421;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-head\s*\{[\s\S]*border-bottom:\s*0;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-head\s*\{[\s\S]*background:\s*#101421;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-head\s*\{[\s\S]*flex-direction:\s*row;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-actions\s*\{[\s\S]*display:\s*flex;[\s\S]*overflow-x:\s*auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.asset-modal-actions button\s*\{[\s\S]*border-radius:\s*4px;/);
@@ -2295,8 +2293,8 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(mobileConnRunPanelBlock, /border:\s*0;/);
 	assert.match(mobileConnRunPanelBlock, /border-radius:\s*4px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-head\s*\{[\s\S]*position:\s*sticky;/);
-	assert.match(mobileTaskHeadBlock, /border-bottom:\s*0;/);
-	assert.match(mobileTaskHeadBlock, /background:\s*#101421;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-head\s*\{[\s\S]*border-bottom:\s*0;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-head\s*\{[\s\S]*background:\s*#101421;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-head-actions\s*\{[\s\S]*display:\s*flex;[\s\S]*overflow-x:\s*auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.task-inbox-filter-row\s*\{[\s\S]*display:\s*flex;[\s\S]*padding:\s*0;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.context-usage-dialog-panel\s*\{[\s\S]*border:\s*0;[\s\S]*border-radius:\s*8px;/);

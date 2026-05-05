@@ -340,6 +340,7 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .message-body,
+
 		:root[data-theme="light"] .message.assistant .message-body,
 		:root[data-theme="light"] :is(.task-inbox-result-bubble) {
 			background: rgba(255, 255, 255, 0.9);
@@ -812,15 +813,15 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .asset-modal,
-		:root[data-theme="light"] .asset-modal-shell,
 		:root[data-theme="light"] .conn-manager-dialog,
 		:root[data-theme="light"] .conn-editor-dialog,
 		:root[data-theme="light"] .task-inbox-view {
-			background:
-				linear-gradient(rgba(36, 84, 214, 0.032) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(36, 84, 214, 0.024) 1px, transparent 1px),
-				linear-gradient(180deg, #f7f9fc 0%, #edf2f8 100%);
-			background-size: 34px 34px, 34px 34px, auto;
+			background: linear-gradient(180deg, #f7f9fc 0%, #edf2f8 100%);
+			color: #172033;
+		}
+
+		:root[data-theme="light"] .asset-modal-shell {
+			background: rgba(15, 23, 42, 0.24);
 			color: #172033;
 		}
 
@@ -983,6 +984,36 @@ export function getPlaygroundThemeStyles(): string {
 			color: #172033;
 		}
 
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-pill {
+			border-color: rgba(31, 95, 200, 0.08);
+			background: #ffffff;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-pill strong {
+			color: #0b1a36;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-pill span {
+			color: #5b6b84;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-pill button {
+			border-color: rgba(31, 95, 200, 0.12);
+			background: rgba(31, 95, 200, 0.04);
+			color: #3a5f9b;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-pill button:hover:not(:disabled) {
+			border-color: rgba(31, 95, 200, 0.24);
+			background: rgba(31, 95, 200, 0.08);
+			color: #1b3f7a;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-pill.active {
+			border-color: rgba(34, 168, 106, 0.18);
+			background: #eaf8f0;
+		}
+
 		:root[data-theme="light"] .file-chip-badge {
 			background: #e8f0ff;
 			color: #1d4f9a;
@@ -1009,6 +1040,25 @@ export function getPlaygroundThemeStyles(): string {
 				background: rgba(0, 0, 0, 0.04);
 				color: #333a47;
 			}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-copy strong {
+			color: #0b1a36;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-actions button {
+			border-color: rgba(31, 95, 200, 0.1);
+			color: #5b6b84;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-actions button:hover:not(:disabled) {
+			border-color: rgba(31, 95, 200, 0.22);
+			background: rgba(31, 95, 200, 0.04);
+			color: #1b3f7a;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-head {
+			border-bottom-color: rgba(31, 95, 200, 0.08);
+		}
 
 
 		:root[data-theme="light"] .task-inbox-result-bubble,

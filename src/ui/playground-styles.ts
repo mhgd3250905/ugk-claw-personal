@@ -623,25 +623,69 @@ export function getPlaygroundStyles(): string {
 		.chat-stage > .workspace-contained .agent-manager-body,
 		.chat-stage > .workspace-contained .task-inbox-list {
 			min-height: 0;
+			padding: 14px 0;
 		}
+
+		.chat-stage > .workspace-contained .asset-modal-list {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 8px;
+		}
+
+		.chat-stage > .workspace-contained .asset-pill {
+			gap: 8px;
+			padding: 10px 12px;
+			border: 1px solid rgba(201, 210, 255, 0.08);
+			border-radius: 4px;
+			background: #0b0c18;
+		}
+
+		.chat-stage > .workspace-contained .asset-pill strong {
+			font-size: 12px;
+			color: rgba(247, 249, 255, 0.9);
+		}
+
+		.chat-stage > .workspace-contained .asset-pill span {
+			color: rgba(226, 234, 255, 0.46);
+			font-family: var(--font-mono);
+			font-size: 10px;
+			overflow-wrap: anywhere;
+			white-space: normal;
+		}
+
+		.chat-stage > .workspace-contained .asset-pill button {
+			padding: 4px 10px;
+			border: 1px solid rgba(201, 210, 255, 0.12);
+			border-radius: 4px;
+			background: rgba(201, 210, 255, 0.04);
+			color: rgba(201, 210, 255, 0.72);
+			font-size: 10px;
+		}
+
+		.chat-stage > .workspace-contained .asset-pill button:hover:not(:disabled) {
+			border-color: rgba(201, 210, 255, 0.24);
+			background: rgba(201, 210, 255, 0.08);
+			color: rgba(247, 249, 255, 0.92);
+		}
+
+		.chat-stage > .workspace-contained .asset-pill.active {
+			border-color: rgba(141, 255, 178, 0.16);
+			background: rgba(141, 255, 178, 0.04);
+		}
+
 		.chat-stage > .workspace-contained .asset-modal-head {
 			display: flex;
 			flex-direction: row;
 			align-items: center;
 			justify-content: space-between;
-			gap: 12px;
-			padding: 8px 0 10px;
+			gap: 16px;
+			padding: 0 0 12px;
 			border-bottom: 1px solid rgba(201, 210, 255, 0.08);
 			background: transparent;
-			color: var(--muted);
-			font-size: 11px;
-			text-transform: none;
-			letter-spacing: 0.02em;
 		}
 
 		.chat-stage > .workspace-contained .asset-modal-head .asset-modal-head-left {
 			display: flex;
-			align-items: center;
+			align-items: baseline;
 			gap: 6px;
 			min-width: 0;
 		}
@@ -652,9 +696,10 @@ export function getPlaygroundStyles(): string {
 
 		.asset-head-breadcrumb {
 			display: none;
-			color: rgba(143, 147, 173, 0.5);
+			color: rgba(143, 147, 173, 0.42);
 			font-size: 11px;
-			line-height: 1.5;
+			font-weight: 500;
+			line-height: 1;
 			white-space: nowrap;
 		}
 
@@ -662,36 +707,66 @@ export function getPlaygroundStyles(): string {
 			display: inline;
 		}
 
+		.chat-stage > .workspace-contained .asset-modal-copy {
+			display: flex;
+			flex-direction: row;
+			align-items: baseline;
+			gap: 8px;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal-copy strong {
+			color: rgba(247, 249, 255, 0.92);
+			font-size: 14px;
+			font-weight: 650;
+			letter-spacing: 0.01em;
+			text-transform: none;
+			line-height: 1;
+		}
+
 		.asset-head-count {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			min-width: 22px;
+			min-width: 20px;
 			height: 18px;
-			padding: 0 6px;
+			padding: 0 5px;
 			border-radius: 4px;
 			background: rgba(255, 255, 255, 0.06);
-			color: rgba(238, 244, 255, 0.48);
+			color: rgba(238, 244, 255, 0.42);
 			font-size: 10px;
+			font-weight: 600;
 			line-height: 1;
-			letter-spacing: 0.02em;
 		}
 
 		.asset-head-count:empty {
 			display: none;
 		}
 
-		.chat-stage > .workspace-contained .asset-modal-copy {
+		.chat-stage > .workspace-contained .asset-modal-actions {
 			display: flex;
-			flex-direction: row;
 			align-items: center;
 			gap: 8px;
+			flex-shrink: 0;
 		}
 
-		.chat-stage > .workspace-contained .asset-modal-copy strong {
-			font-size: 12px;
-			letter-spacing: 0.04em;
-			text-transform: none;
+		.chat-stage > .workspace-contained .asset-modal-actions button {
+			display: inline-flex;
+			align-items: center;
+			height: 28px;
+			padding: 0 10px;
+			border: 1px solid rgba(201, 210, 255, 0.1);
+			border-radius: 4px;
+			background: transparent;
+			color: rgba(238, 244, 255, 0.6);
+			font-size: 11px;
+			line-height: 1;
+			cursor: pointer;
+		}
+
+		.chat-stage > .workspace-contained .asset-modal-actions button:hover:not(:disabled) {
+			border-color: rgba(201, 210, 255, 0.22);
+			background: rgba(201, 210, 255, 0.04);
+			color: rgba(247, 249, 255, 0.88);
 		}
 
 		.asset-head-close-button {
