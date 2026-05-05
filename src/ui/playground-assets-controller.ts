@@ -410,6 +410,7 @@ export function getPlaygroundAssetControllerScript(): string {
 				normalized.startsWith("image/gif") ||
 				normalized.startsWith("image/webp") ||
 				normalized === "application/pdf" ||
+				normalized === "text/html" ||
 				normalized === "text/plain" ||
 				normalized === "text/markdown" ||
 				normalized === "application/json" ||

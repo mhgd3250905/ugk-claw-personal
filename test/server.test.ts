@@ -1864,6 +1864,7 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /copyButton\.setAttribute\("aria-label", original\)/);
 	assert.match(response.body, /await copyTextToClipboard\(entry\.text \|\| ""\)/);
 	assert.match(response.body, /function canPreviewFile\(mimeType\)\s*\{/);
+	assert.match(response.body, /normalized === "text\/html"/);
 	assert.match(response.body, /function buildDownloadUrl\(downloadUrl\)\s*\{/);
 	assert.match(response.body, /openLink\.textContent = /);
 	assert.match(response.body, /link\.textContent = /);

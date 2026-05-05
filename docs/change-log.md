@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### 项目旧链路清理评估与 HTML 文件卡片收口
+- 日期：2026-05-05
+- 主题：测试完成后补齐文档管理，整理当前项目主链路、legacy 兼容层和可清理候选；同时修复任务消息文件卡片未把 `text/html` 当作可打开预览文件的问题。
+- 影响范围：新增项目清理评估文档，明确 conn / activity / output / Feishu / web-access / agent profile 等主链路与遗留兼容层边界；更新阿里云部署手册和 `AGENTS.md` 当前基线到 `48db6b8`。前端通用文件卡片现在会为 `text/html` 显示“打开”操作，和后端 inline preview 白名单保持一致。
+- 对应入口：`docs/project-cleanup-assessment-2026-05-05.md`、`AGENTS.md`、`docs/aliyun-ecs-deploy.md`、`src/ui/playground-assets-controller.ts`、`test/server.test.ts`
+
 ### Conn HTML 输出链接可访问性修复
 - 日期：2026-05-05
 - 主题：修复后台 conn worker 生成 HTML 后，任务消息或飞书通知里给出的报告链接不可直接访问 / 只能下载的问题。

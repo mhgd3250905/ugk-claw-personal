@@ -6,6 +6,21 @@
 
 如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops.md](./server-ops.md)；阿里云当前固定口径已经切换为 Git 工作目录更新，默认 `git pull --ff-only gitee main`，只有 Gitee 不通且确认 GitHub 可用时才走 `git pull --ff-only origin main`。archive 小包只作为双远端都不可用时的兜底。
 
+## 2026-05-05 Conn worker 解耦与 HTML output 链接修复发布记录
+
+本次通过固定脚本执行阿里云 Git 增量发布，服务器从 `gitee/main` fast-forward 到 `48db6b8 Fix conn HTML output links`。没有整目录覆盖，没有触碰 `/root/ugk-claw-shared` 运行态。
+
+实际结果：
+1. 本地提交 `48db6b8` 已推送到 `gitee/main` 和 `origin/main`。
+2. 执行 `npm run server:ops -- aliyun preflight`，确认 `/root/ugk-claw-repo` 工作区干净、compose 配置和运行态挂载正常。
+3. 执行 `npm run server:ops -- aliyun deploy`，服务器从 `05c3b59` fast-forward 到 `48db6b8`，重建并重启 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`，nginx 已重启。
+4. 执行 `npm run server:ops -- aliyun verify` 通过：公网 `/healthz` 返回 `{"ok":true}`，runtime debug 返回 `ok=true`，skills 数量为 `30`。
+
+本次上线行为：
+- conn 默认投递目标为 `task_inbox`，不再默认绑定前台 `conversationId`；删除聊天会话不应影响后台 conn run 投递。
+- conn output HTML 通过 `/v1/conns/:connId/runs/:runId/output/<path>` 和 `/v1/conns/:connId/output/latest/<path>` 直接 inline 打开。
+- 后台 runner 会 best-effort 收编结果正文中真实存在的 public 静态文件到本轮 `output/`，任务消息和飞书通知使用平台生成的 `files[]` 链接。
+
 ## 2026-04-30 阿里云 SSH key alias 配置记录
 
 阿里云已经补齐本机无密码 SSH 入口：`C:\Users\29485\.ssh\config` 中新增 `Host ugk-claw-aliyun`，指向 `root@101.37.209.54`，使用本机私钥 `C:\Users\29485\.ssh\id_ed25519_ugk_claw_aliyun`。对应公钥已追加到服务器 `/root/.ssh/authorized_keys`。
@@ -61,7 +76,7 @@ APT_MIRROR_HOST=mirrors.aliyun.com
 
 ## 当前部署快照
 
-- 日期：`2026-04-27`
+- 日期：`2026-05-05`
 - 云厂商：阿里云 ECS
 - 公网 IP：`101.37.209.54`
 - SSH 用户：`root`
@@ -75,7 +90,7 @@ APT_MIRROR_HOST=mirrors.aliyun.com
 - 主部署目录：`/root/ugk-claw-repo`
 - shared 运行态目录：`/root/ugk-claw-shared`
 - 当前部署来源：Git 工作目录，`gitee` 为默认发布 remote，`origin` 为 GitHub 备用 remote
-- 当前部署基线：`e446ec2 chore: consolidate aliyun deployed updates`
+- 当前部署基线：`48db6b8 Fix conn HTML output links`
 
 注意：阿里云首次部署时，服务器访问 GitHub 超时，`git clone` 未成功，因此曾经使用 archive 解包目录。截至 `2026-04-29`，`/root/ugk-claw-repo` 已迁移为 Git 工作目录。后续不要再默认打包上传，也不要把 `/root/ugk-claw-shared` 塞回代码目录。
 
