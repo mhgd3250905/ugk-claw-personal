@@ -303,6 +303,9 @@ export interface CleanupDebugResponseBody {
 		withoutActivity: number;
 		withOutputFiles: number;
 		withoutOutputFiles: number;
+		succeededWithoutOutputFiles: number;
+		failedWithoutOutputFiles: number;
+		cancelledWithoutOutputFiles: number;
 	};
 	risks: string[];
 }

@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Cleanup debug output 风险口径细化
+- 日期：2026-05-05
+- 主题：细化 `/v1/debug/cleanup` 对缺少 output 文件索引的风险判断，避免把失败 / 取消 run 没有产物也算成产物链路风险。
+- 影响范围：`recentRuns` 新增 `succeededWithoutOutputFiles / failedWithoutOutputFiles / cancelledWithoutOutputFiles`；`risks[]` 只在成功 run 缺少 output 文件时提示 `recent succeeded conn runs without indexed output files`。失败和取消 run 的缺产物情况仍保留统计，但不默认报警。
+- 对应入口：`src/routes/cleanup-debug.ts`、`src/types/api.ts`、`test/cleanup-debug.test.ts`、`docs/project-cleanup-assessment-2026-05-05.md`
+
 ### Legacy 清理只读体检接口
 - 日期：2026-05-05
 - 主题：新增 `/v1/debug/cleanup` 只读体检接口，用真实运行态数据评估旧 conn / activity / output 链路是否还能清理。

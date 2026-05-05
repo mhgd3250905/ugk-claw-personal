@@ -89,6 +89,9 @@ function emptyRecentRuns(): CleanupDebugResponseBody["recentRuns"] {
 		withoutActivity: 0,
 		withOutputFiles: 0,
 		withoutOutputFiles: 0,
+		succeededWithoutOutputFiles: 0,
+		failedWithoutOutputFiles: 0,
+		cancelledWithoutOutputFiles: 0,
 	};
 }
 
@@ -158,10 +161,18 @@ function readRecentRunStats(database: ConnDatabase, since: string): CleanupDebug
 		} else {
 			stats.withoutActivity += 1;
 		}
-		if (outputFileRunIds.has(run.run_id)) {
+		const hasOutputFiles = outputFileRunIds.has(run.run_id);
+		if (hasOutputFiles) {
 			stats.withOutputFiles += 1;
 		} else {
 			stats.withoutOutputFiles += 1;
+			if (run.status === "succeeded") {
+				stats.succeededWithoutOutputFiles += 1;
+			} else if (run.status === "failed") {
+				stats.failedWithoutOutputFiles += 1;
+			} else if (run.status === "cancelled") {
+				stats.cancelledWithoutOutputFiles += 1;
+			}
 		}
 	}
 	return stats;
@@ -197,8 +208,8 @@ function buildCleanupRisks(
 	if (recentRuns.withoutActivity > 0) {
 		risks.push(`recent conn runs without task inbox activity: ${recentRuns.withoutActivity}`);
 	}
-	if (recentRuns.withoutOutputFiles > 0 && recentRuns.succeeded > 0) {
-		risks.push(`recent conn runs without indexed output files: ${recentRuns.withoutOutputFiles}`);
+	if (recentRuns.succeededWithoutOutputFiles > 0) {
+		risks.push(`recent succeeded conn runs without indexed output files: ${recentRuns.succeededWithoutOutputFiles}`);
 	}
 	return risks;
 }

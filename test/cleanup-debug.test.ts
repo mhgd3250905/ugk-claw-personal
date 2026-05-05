@@ -128,13 +128,15 @@ test("GET /v1/debug/cleanup reports legacy conn cleanup signals", async () => {
 				withoutActivity: 1,
 				withOutputFiles: 1,
 				withoutOutputFiles: 1,
+				succeededWithoutOutputFiles: 0,
+				failedWithoutOutputFiles: 1,
+				cancelledWithoutOutputFiles: 0,
 			},
 			risks: [
 				"legacy conversation conn targets still exist: 1",
 				"invalid conn target rows found: 1",
 				"legacy conn conversation notifications still exist: 1",
 				"recent conn runs without task inbox activity: 1",
-				"recent conn runs without indexed output files: 1",
 			],
 		});
 	} finally {
@@ -157,6 +159,37 @@ test("GET /v1/debug/cleanup returns an explicit unavailable status without a dat
 		assert.deepEqual(response.json().risks, ["cleanup debug database is unavailable"]);
 	} finally {
 		await app.close();
+	}
+});
+
+test("GET /v1/debug/cleanup flags succeeded runs without output files", async () => {
+	const { app, database } = await createCleanupDebugApp();
+	try {
+		insertConn(database, {
+			connId: "conn-task-inbox",
+			targetJson: JSON.stringify({ type: "task_inbox" }),
+			status: "active",
+		});
+		insertRun(database, {
+			runId: "run-succeeded-no-output",
+			connId: "conn-task-inbox",
+			status: "succeeded",
+			createdAt: "2026-05-05T11:00:00.000Z",
+		});
+
+		const response = await app.inject({
+			method: "GET",
+			url: "/v1/debug/cleanup",
+		});
+
+		assert.equal(response.statusCode, 200);
+		const body = response.json();
+		assert.equal(body.recentRuns.succeededWithoutOutputFiles, 1);
+		assert.equal(body.recentRuns.failedWithoutOutputFiles, 0);
+		assert.ok(body.risks.includes("recent succeeded conn runs without indexed output files: 1"));
+	} finally {
+		await app.close();
+		database.close();
 	}
 });
 

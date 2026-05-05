@@ -26,7 +26,8 @@
 - `connTargets.total / active / byType`：统计未软删除 conn 的 target 类型分布，重点看 `conversation` 和 `invalid`。
 - `legacyConversationNotifications.total / connSourceTotal / latestCreatedAt`：判断旧会话通知表是否仍有 conn 残留。
 - `recentRuns`：最近 7 天 run 的状态分布，以及是否存在 task inbox activity 和 output 文件索引。
-- `risks[]`：把可疑项转成可读提示。`ok=false` 不代表服务坏了，只代表仍有清理风险或遗留数据需要评估。
+- `recentRuns.succeededWithoutOutputFiles / failedWithoutOutputFiles / cancelledWithoutOutputFiles`：按终态拆分缺少 output 文件索引的 run。失败或取消任务没有 output 通常不应算产物链路风险。
+- `risks[]`：把可疑项转成可读提示。`ok=false` 不代表服务坏了，只代表仍有清理风险或遗留数据需要评估。output 文件风险只对 `succeededWithoutOutputFiles > 0` 报警，避免把失败任务也当作产物链路问题。
 
 本地查看：
 
