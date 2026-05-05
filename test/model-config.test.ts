@@ -274,6 +274,43 @@ test("saveDefaultModelConfig validates before writing settings", async () => {
 	assert.match(settings, /\/\/ keep this comment/);
 });
 
+test("model config store persists web default selection outside bundled settings when runtime path is configured", async () => {
+	const projectRoot = await createProjectRoot();
+	const runtimeSettingsPath = join(projectRoot, ".data", "agent", "model-settings.json");
+	const previousSettingsPath = process.env.UGK_MODEL_SETTINGS_PATH;
+	process.env.UGK_MODEL_SETTINGS_PATH = runtimeSettingsPath;
+	try {
+		const store = createFileModelConfigStore(projectRoot);
+
+		assert.deepEqual((await store.getConfig()).current, {
+			provider: "dashscope-coding",
+			model: "glm-5",
+		});
+
+		await store.setDefault({
+			provider: "deepseek",
+			model: "deepseek-v4-pro",
+		});
+
+		const runtimeSettings = await readFile(runtimeSettingsPath, "utf8");
+		const bundledSettings = await readFile(join(projectRoot, ".pi", "settings.json"), "utf8");
+		assert.match(runtimeSettings, /"defaultProvider": "deepseek"/);
+		assert.match(runtimeSettings, /"defaultModel": "deepseek-v4-pro"/);
+		assert.match(runtimeSettings, /\/\/ keep this comment/);
+		assert.match(bundledSettings, /"defaultProvider": "dashscope-coding"/);
+		assert.deepEqual((await store.getConfig()).current, {
+			provider: "deepseek",
+			model: "deepseek-v4-pro",
+		});
+	} finally {
+		if (previousSettingsPath === undefined) {
+			delete process.env.UGK_MODEL_SETTINGS_PATH;
+		} else {
+			process.env.UGK_MODEL_SETTINGS_PATH = previousSettingsPath;
+		}
+	}
+});
+
 test("saveDefaultModelConfig inserts active defaults instead of replacing commented defaults", async () => {
 	const projectRoot = await createProjectRoot();
 	await writeFile(

@@ -18,6 +18,7 @@ services:
       WEB_ACCESS_CDP_PORT: 9223
       WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
       WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
+      UGK_MODEL_SETTINGS_PATH: /app/.data/agent/model-settings.json
       PLAYGROUND_EXTERNALIZED: ${PLAYGROUND_EXTERNALIZED:-0}
       SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
     volumes:
@@ -66,6 +67,7 @@ services:
       WEB_ACCESS_CDP_PORT: 9223
       WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
       WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
+      UGK_MODEL_SETTINGS_PATH: /app/.data/agent/model-settings.json
       PLAYGROUND_EXTERNALIZED: ${PLAYGROUND_EXTERNALIZED:-0}
       SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
     volumes:

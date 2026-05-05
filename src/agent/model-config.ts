@@ -1,5 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import {
 	AuthStorage,
 	createAgentSession,
@@ -11,6 +11,7 @@ import {
 	getProjectAgentDirPath,
 	getProjectModelsPath,
 	getProjectSettingsPath,
+	readProjectSettingsContent,
 } from "./agent-session-factory.js";
 import {
 	readJsonScalarSetting,
@@ -104,7 +105,7 @@ export function createFileModelConfigStore(projectRoot: string): ModelConfigStor
 	return {
 		async getConfig(): Promise<ModelConfigBody> {
 			const [settingsContent, modelsContent] = await Promise.all([
-				readOptionalText(getProjectSettingsPath(projectRoot)),
+				Promise.resolve(readProjectSettingsContent(projectRoot) ?? ""),
 				readOptionalText(getProjectModelsPath(projectRoot)),
 			]);
 			return {
@@ -114,8 +115,9 @@ export function createFileModelConfigStore(projectRoot: string): ModelConfigStor
 		},
 		async setDefault(selection): Promise<ModelConfigBody> {
 			const settingsPath = getProjectSettingsPath(projectRoot);
-			const settingsContent = await readOptionalText(settingsPath);
+			const settingsContent = readProjectSettingsContent(projectRoot) ?? "{}";
 			const nextContent = replaceDefaultSelection(settingsContent || "{}", selection);
+			await mkdir(dirname(settingsPath), { recursive: true });
 			await writeFile(settingsPath, nextContent, "utf8");
 			return await this.getConfig();
 		},

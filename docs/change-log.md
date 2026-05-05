@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### 模型源默认选择改为运行态持久化
+- 日期：2026-05-05
+- 主题：修复生产上线后 Web 里选择的默认 API 源 / 模型回到仓库默认值的问题。
+- 影响范围：`/v1/model-config`、前台 Agent session factory 和 conn worker 现在优先读取 `UGK_MODEL_SETTINGS_PATH=/app/.data/agent/model-settings.json`，运行态文件缺失时才回退 `.pi/settings.json`；保存默认选择只写运行态路径。生产 compose 和 server-ops 验收同步检查该路径，deploy 会在重建容器前把旧容器当前 `/app/.pi/settings.json` 迁移到 shared，避免第一次上线该修复时再丢一次用户偏好。
+- 对应入口：`src/agent/model-config.ts`、`src/agent/agent-session-factory.ts`、`docker-compose.yml`、`docker-compose.prod.yml`、`scripts/server-ops.mjs`、`docs/model-providers.md`、`docs/server-ops.md`
+
 ### 校准全新接手文档
 - 日期：2026-05-05
 - 主题：把全新 agent `/init` 最容易先读到的接手入口校准到 `4a8c7e5` 双云验收后的事实，避免继续把 `48db6b8` 或更早云端基线当现状。

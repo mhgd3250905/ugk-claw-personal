@@ -37,6 +37,9 @@ test("server ops script protects shared runtime state during deploys", () => {
 	assert.match(script, /127\.0\.0\.1:9222\/json\/version/);
 	assert.match(script, /172\.31\.250\.10:9223\/json\/version/);
 	assert.match(script, /\/app\/\.data\/agent/);
+	assert.match(script, /preserve model settings/);
+	assert.match(script, /model-settings\.json/);
+	assert.match(script, /docker cp "\$APP_CID":\/app\/\.pi\/settings\.json/);
 	assert.match(script, /\/v1\/debug\/skills/);
 	assert.match(script, /\/v1\/debug\/runtime/);
 	assert.match(script, /runtime debug/);

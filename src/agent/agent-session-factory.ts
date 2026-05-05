@@ -170,8 +170,33 @@ export function getProjectModelsPath(projectRoot: string): string {
 	return join(getProjectAgentDirPath(projectRoot), "models.json");
 }
 
-export function getProjectSettingsPath(projectRoot: string): string {
+export function getBundledProjectSettingsPath(projectRoot: string): string {
 	return join(projectRoot, ".pi", "settings.json");
+}
+
+export function getProjectSettingsPath(projectRoot: string): string {
+	const runtimeSettingsPath = process.env.UGK_MODEL_SETTINGS_PATH?.trim();
+	return runtimeSettingsPath || getBundledProjectSettingsPath(projectRoot);
+}
+
+export function readProjectSettingsContent(projectRoot: string): string | undefined {
+	const settingsPath = getProjectSettingsPath(projectRoot);
+	try {
+		return readFileSyncUtf8(settingsPath);
+	} catch {
+		// Runtime settings are user state. If they do not exist yet, seed reads from bundled defaults.
+	}
+
+	const bundledPath = getBundledProjectSettingsPath(projectRoot);
+	if (settingsPath === bundledPath) {
+		return undefined;
+	}
+
+	try {
+		return readFileSyncUtf8(bundledPath);
+	} catch {
+		return undefined;
+	}
 }
 
 export function getDefaultAllowedSkillPaths(projectRoot: string): string[] {
@@ -275,10 +300,8 @@ export function resolveProjectDefaultModelContext(projectRoot: string): ProjectD
 		reserveTokens: 16384,
 	};
 
-	let settingsContent = "";
-	try {
-		settingsContent = readFileSyncUtf8(getProjectSettingsPath(projectRoot));
-	} catch {
+	const settingsContent = readProjectSettingsContent(projectRoot);
+	if (!settingsContent) {
 		return fallback;
 	}
 
@@ -307,10 +330,8 @@ export function resolveProjectDefaultModelContext(projectRoot: string): ProjectD
 }
 
 export function createProjectSettingsManager(projectRoot: string): SettingsManager {
-	let settingsContent = "";
-	try {
-		settingsContent = readFileSyncUtf8(getProjectSettingsPath(projectRoot));
-	} catch {
+	const settingsContent = readProjectSettingsContent(projectRoot);
+	if (!settingsContent) {
 		return SettingsManager.inMemory({});
 	}
 

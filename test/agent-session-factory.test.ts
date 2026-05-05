@@ -276,6 +276,66 @@ test("resolveProjectDefaultModelContext uses project defaults and reserve budget
 	});
 });
 
+test("resolveProjectDefaultModelContext prefers runtime model settings when configured", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-runtime-model-context-"));
+	const runtimeSettingsPath = join(projectRoot, ".data", "agent", "model-settings.json");
+	const previousSettingsPath = process.env.UGK_MODEL_SETTINGS_PATH;
+	await mkdir(join(projectRoot, ".pi"), { recursive: true });
+	await mkdir(join(projectRoot, ".data", "agent"), { recursive: true });
+	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
+	await writeFile(
+		join(projectRoot, ".pi", "settings.json"),
+		JSON.stringify({
+			defaultProvider: "dashscope-coding",
+			defaultModel: "glm-5",
+			compaction: { reserveTokens: 16384 },
+		}),
+		"utf8",
+	);
+	await writeFile(
+		runtimeSettingsPath,
+		JSON.stringify({
+			defaultProvider: "deepseek",
+			defaultModel: "deepseek-v4-pro",
+			compaction: { reserveTokens: 20000 },
+		}),
+		"utf8",
+	);
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: {
+				"dashscope-coding": {
+					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
+				},
+				deepseek: {
+					models: [{ id: "deepseek-v4-pro", contextWindow: 1000000, maxTokens: 384000 }],
+				},
+			},
+		}),
+		"utf8",
+	);
+
+	process.env.UGK_MODEL_SETTINGS_PATH = runtimeSettingsPath;
+	try {
+		const context = resolveProjectDefaultModelContext(projectRoot);
+		const manager = createProjectSettingsManager(projectRoot);
+
+		assert.equal(context.provider, "deepseek");
+		assert.equal(context.model, "deepseek-v4-pro");
+		assert.equal(context.contextWindow, 1000000);
+		assert.equal(context.reserveTokens, 20000);
+		assert.equal(manager.getDefaultProvider(), "deepseek");
+		assert.equal(manager.getDefaultModel(), "deepseek-v4-pro");
+	} finally {
+		if (previousSettingsPath === undefined) {
+			delete process.env.UGK_MODEL_SETTINGS_PATH;
+		} else {
+			process.env.UGK_MODEL_SETTINGS_PATH = previousSettingsPath;
+		}
+	}
+});
+
 test("resolveProjectDefaultSessionModel returns the current project default model", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-default-session-model-"));
 	await mkdir(join(projectRoot, ".pi"), { recursive: true });

@@ -56,6 +56,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /127\.0\.0\.1:\$\{WEB_ACCESS_BROWSER_GUI_PORT:-3901\}:3001/);
 	assert.match(compose, /HOST:\s*0\.0\.0\.0/);
 	assert.match(compose, /CONN_DATABASE_PATH:\s*\/var\/lib\/ugk-pi\/conn\/conn\.sqlite/);
+	assert.match(compose, /UGK_MODEL_SETTINGS_PATH:\s*\/app\/\.data\/agent\/model-settings\.json/);
 	assert.match(compose, /CONN_WORKER_MAX_CONCURRENCY:\s*\$\{CONN_WORKER_MAX_CONCURRENCY:-3\}/);
 	assert.match(compose, /NOTIFICATION_BROADCAST_URL:\s*http:\/\/ugk-pi:3000\/v1\/internal\/notifications\/broadcast/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_PROVIDER:\s*direct_cdp/);
@@ -114,6 +115,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /restart:\s*unless-stopped/);
 	assert.match(prodCompose, /env_file:/);
 	assert.match(prodCompose, /\.env/);
+	assert.match(prodCompose, /UGK_MODEL_SETTINGS_PATH:\s*\/app\/\.data\/agent\/model-settings\.json/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_PROVIDER:\s*direct_cdp/);
 	assert.match(prodCompose, /CONN_WORKER_MAX_CONCURRENCY:\s*\$\{CONN_WORKER_MAX_CONCURRENCY:-3\}/);
 	assert.match(prodCompose, /NOTIFICATION_BROADCAST_URL:\s*http:\/\/ugk-pi:3000\/v1\/internal\/notifications\/broadcast/);
@@ -183,6 +185,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /UGK_SEARXNG_MEM_RESERVATION=128m/);
 	assert.match(envExample, /UGK_AGENT_DATA_DIR=\.\/\.data\/agent/);
 	assert.match(envExample, /UGK_AGENTS_DATA_DIR=\.\/\.data\/agents/);
+	assert.match(envExample, /UGK_MODEL_SETTINGS_PATH=\/app\/\.data\/agent\/model-settings\.json/);
 	assert.match(envExample, /UGK_BROWSER_UPLOAD_DIR=\.\/\.data\/chrome-sidecar\/upload/);
 	assert.match(envExample, /UGK_SEARXNG_CONFIG_DIR=\.\/deploy\/searxng/);
 	assert.match(envExample, /UGK_SEARXNG_CACHE_DIR=\.\/\.data\/searxng/);

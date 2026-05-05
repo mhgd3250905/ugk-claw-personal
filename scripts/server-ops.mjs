@@ -61,6 +61,11 @@ function remoteScriptFor(selectedAction) {
   const agentDataEnvCheck = guardEnvEquals("UGK_AGENT_DATA_DIR", target.agentDataDir);
   const agentsDataEnvCheck = guardEnvEquals("UGK_AGENTS_DATA_DIR", target.agentsDataDir);
   const listSkills = `find /app/runtime/skills-user -maxdepth 2 -name SKILL.md -printf '%h\\\\n' | sort`;
+  const preserveModelSettings = [
+    "printf '== preserve model settings ==\\n'",
+    `mkdir -p ${target.agentDataDir}`,
+    `if [ ! -f ${target.agentDataDir}/model-settings.json ]; then APP_CID=$(${compose} ps -q ugk-pi || true); if [ -n "$APP_CID" ] && docker exec "$APP_CID" test -f /app/.pi/settings.json; then docker cp "$APP_CID":/app/.pi/settings.json ${target.agentDataDir}/model-settings.json; fi; fi`,
+  ];
   const verify = [
     "printf '== compose env guard ==\\n'",
     `${skillsEnvCheck} || { echo 'UGK_RUNTIME_SKILLS_USER_DIR is missing or wrong' >&2; exit 12; }`,
@@ -72,6 +77,9 @@ function remoteScriptFor(selectedAction) {
     `${composeExec("ugk-pi", "test -d /app/.data/agent && test -w /app/.data/agent")}`,
     "printf '== agents data mount ==\\n'",
     `${composeExec("ugk-pi", "test -d /app/.data/agents && test -w /app/.data/agents")}`,
+    "printf '== model settings path ==\\n'",
+    `${composeExec("ugk-pi", "printenv UGK_MODEL_SETTINGS_PATH | grep -qx /app/.data/agent/model-settings.json")}`,
+    `${composeExec("ugk-pi-conn-worker", "printenv UGK_MODEL_SETTINGS_PATH | grep -qx /app/.data/agent/model-settings.json")}`,
     "printf '== browser provider ==\\n'",
     `${composeExec("ugk-pi", "printenv WEB_ACCESS_BROWSER_PROVIDER | grep -qx direct_cdp")}`,
     "printf '== browser memory limit ==\\n'",
@@ -142,6 +150,7 @@ function remoteScriptFor(selectedAction) {
     `printf '== fetch/pull (%s) ==\\n' ${target.deployRemote}`,
     `git fetch ${target.deployRemote} main`,
     `git pull --ff-only ${target.deployRemote} main`,
+    ...preserveModelSettings,
     "printf '== post-pull status ==\\n'",
     "STATUS=$(git status --short)",
     "printf '%s\\n' \"$STATUS\"",
