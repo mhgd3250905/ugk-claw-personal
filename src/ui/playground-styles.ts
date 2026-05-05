@@ -3444,7 +3444,8 @@ export function getPlaygroundStyles(): string {
 			}
 
 			.topbar-agent-label:hover .agent-switcher-meta,
-			.topbar-agent-label:focus-visible .agent-switcher-meta {
+			.topbar-agent-label:focus-visible .agent-switcher-meta,
+			.topbar-agent-label[data-switcher-open="true"] .agent-switcher-meta {
 				opacity: 1;
 				pointer-events: auto;
 				transform: translateY(0);

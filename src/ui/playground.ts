@@ -438,6 +438,23 @@ function getPlaygroundScript(): string {
 			}
 		}
 
+		let agentSwitcherCloseTimer = null;
+
+		function openAgentSwitcher() {
+			if (agentSwitcherCloseTimer) {
+				clearTimeout(agentSwitcherCloseTimer);
+				agentSwitcherCloseTimer = null;
+			}
+			agentSelectorStatus.dataset.switcherOpen = "true";
+		}
+
+		function closeAgentSwitcher() {
+			agentSwitcherCloseTimer = setTimeout(() => {
+				agentSelectorStatus.dataset.switcherOpen = "false";
+				agentSwitcherCloseTimer = null;
+			}, 120);
+		}
+
 		function renderAgentSwitcherMeta(agents, currentAgentId) {
 			agentSwitcherMeta.innerHTML = "";
 			const list = document.createElement("div");
@@ -467,6 +484,7 @@ function getPlaygroundScript(): string {
 				if (!isCurrent) {
 					item.addEventListener("click", (event) => {
 						event.stopPropagation();
+						closeAgentSwitcher();
 						void switchAgent(agentId);
 					});
 				} else {
@@ -1014,6 +1032,23 @@ function getPlaygroundScript(): string {
 			agentSelector?.addEventListener("change", () => {
 				void switchAgent(agentSelector.value);
 			});
+
+			if (agentSelectorStatus) {
+				agentSelectorStatus.addEventListener("mouseenter", () => {
+					openAgentSwitcher();
+				});
+				agentSelectorStatus.addEventListener("mouseleave", () => {
+					closeAgentSwitcher();
+				});
+			}
+			if (agentSwitcherMeta) {
+				agentSwitcherMeta.addEventListener("mouseenter", () => {
+					openAgentSwitcher();
+				});
+				agentSwitcherMeta.addEventListener("mouseleave", () => {
+					closeAgentSwitcher();
+				});
+			}
 
 			openModelConfigButton.addEventListener("click", () => {
 				void openModelConfigDialog(openModelConfigButton);
