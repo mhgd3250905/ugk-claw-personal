@@ -65,6 +65,43 @@ test("conn extension creates cron tasks with timezone and asset refs", async () 
 	assert.deepEqual(conn.assetRefs, ["asset-a", "asset-b"]);
 });
 
+test("conn extension creates task inbox tasks without a conversation target", async () => {
+	const tool = registerConnTool();
+	const projectRoot = await createProjectRoot();
+
+	const explicitResult = await tool.execute(
+		"call-task-inbox",
+		{
+			action: "create",
+			title: "后台摘要",
+			prompt: "整理后台摘要",
+			target: { type: "task_inbox" },
+			schedule: { kind: "interval", everyMs: 600000 },
+		},
+		new AbortController().signal,
+		() => {},
+		{ cwd: projectRoot },
+	);
+	assert.equal(explicitResult.isError, undefined);
+	assert.deepEqual((explicitResult.details?.conn as { target: unknown }).target, { type: "task_inbox" });
+
+	const defaultResult = await tool.execute(
+		"call-default-task-inbox",
+		{
+			action: "create",
+			title: "默认后台摘要",
+			prompt: "整理默认后台摘要",
+			schedule: { kind: "interval", everyMs: 600000 },
+		},
+		new AbortController().signal,
+		() => {},
+		{ cwd: projectRoot },
+	);
+
+	assert.equal(defaultResult.isError, undefined);
+	assert.deepEqual((defaultResult.details?.conn as { target: unknown }).target, { type: "task_inbox" });
+});
+
 test("conn extension treats one-time wall-clock schedules as the provided timezone", async () => {
 	const previousTz = process.env.TZ;
 	process.env.TZ = "UTC";

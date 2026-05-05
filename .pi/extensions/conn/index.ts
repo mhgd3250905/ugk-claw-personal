@@ -85,6 +85,9 @@ function createErrorResult(message: string, details: Record<string, unknown>) {
 
 const ConnTargetSchema = Type.Union([
 	Type.Object({
+		type: Type.Literal("task_inbox"),
+	}),
+	Type.Object({
 		type: Type.Literal("conversation"),
 		conversationId: Type.String(),
 	}),
@@ -176,8 +179,8 @@ export default function connExtension(pi: ExtensionAPI) {
 				}
 
 				if (params.action === "create") {
-					if (!params.title || !params.prompt || !params.target || !params.schedule) {
-						return createErrorResult("create requires title, prompt, target, and schedule.", {
+					if (!params.title || !params.prompt || !params.schedule) {
+						return createErrorResult("create requires title, prompt, and schedule.", {
 							action: "create",
 						});
 					}
@@ -185,7 +188,7 @@ export default function connExtension(pi: ExtensionAPI) {
 					const conn = await runtime.connStore.create({
 						title: params.title,
 						prompt: params.prompt,
-						target: params.target,
+						target: params.target ?? { type: "task_inbox" },
 						schedule: params.schedule,
 						assetRefs: params.assetRefs,
 						maxRunMs: params.maxRunMs,

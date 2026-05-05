@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Conn 后台任务解除前台会话默认绑定
+- 日期：2026-05-05
+- 主题：把 conn 创建与执行从前台聊天会话默认绑定中解耦，避免删除会话或编造无效 `conversationId` 影响后台任务。
+- 影响范围：`.pi/extensions/conn` 工具未传 `target` 时默认创建 `{ "type": "task_inbox" }` 任务，系统技能不再要求为新任务猜测或编造 `conversationId`；playground conn 编辑器上传新资产改用 `conn:<connId>` / `conn:draft` 稳定归属，真正绑定后台任务的是保存时写入的 `assetRefs`。`conversation` target 保留 legacy 兼容读取，不再作为新建默认入口；`conn-worker` 继续通过全局任务消息和通知投递结果，删除前台会话不应破坏 conn 定义、run 历史、任务消息或输出文件链接。
+- 对应入口：`.pi/extensions/conn/index.ts`、`.pi/skills/conn-orchestrator/SKILL.md`、`src/ui/playground-conn-activity-controller.ts`、`test/conn-extension.test.ts`、`test/playground-conn-activity-controller.test.ts`、`test/conn-worker.test.ts`、`docs/runtime-assets-conn-feishu.md`、`docs/playground-current.md`
+
 ### 双云增量更新到 05c3b59
 - 日期：2026-05-05
 - 主题：完成 `05c3b59 Harden runtime catalog and conn deletion` 的阿里云与腾讯云增量发布，并更新接手文档。

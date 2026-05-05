@@ -665,8 +665,12 @@ export function getConnActivityEditorScript(): string {
 			renderConnEditorError("");
 			renderConnEditor();
 			try {
+				const connAssetConversationId =
+					state.connEditorMode === "edit" && state.connEditorConnId
+						? "conn:" + state.connEditorConnId
+						: "conn:draft";
 				const assets = await uploadFilesAsAssets(selectedFiles, {
-					conversationId: state.conversationId,
+					conversationId: connAssetConversationId,
 				});
 				mergeRecentAssets(assets);
 				state.connEditorSelectedAssetRefs = Array.from(
