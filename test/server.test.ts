@@ -4502,6 +4502,10 @@ test("GET /v1/conns/:connId/runs/:runId/output/* serves indexed conn output file
 		method: "GET",
 		url: "/v1/conns/conn-1/runs/run-2/output/report.html",
 	});
+	const downloadResponse = await app.inject({
+		method: "GET",
+		url: "/v1/conns/conn-1/runs/run-2/output/report.html?download=true",
+	});
 	const traversalResponse = await app.inject({
 		method: "GET",
 		url: "/v1/conns/conn-1/runs/run-2/output/../manifest.json",
@@ -4509,7 +4513,12 @@ test("GET /v1/conns/:connId/runs/:runId/output/* serves indexed conn output file
 
 	assert.equal(response.statusCode, 200);
 	assert.match(response.headers["content-type"] as string, /^text\/html/);
+	assert.match(
+		response.headers["content-disposition"] ?? "",
+		/^inline;\s*filename="report\.html";\s*filename\*=UTF-8''report\.html$/,
+	);
 	assert.equal(response.body, "<h1>report</h1>");
+	assert.match(downloadResponse.headers["content-disposition"] ?? "", /^attachment;/);
 	assert.equal(traversalResponse.statusCode, 404);
 	await app.close();
 });
@@ -4596,6 +4605,8 @@ test("GET /v1/conns/:connId/output/latest/* serves the newest run output matchin
 	});
 
 	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] as string, /^text\/html/);
+	assert.match(response.headers["content-disposition"] ?? "", /^inline;/);
 	assert.equal(response.body, "new");
 	await app.close();
 });

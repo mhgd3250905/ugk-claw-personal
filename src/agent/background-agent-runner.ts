@@ -1,5 +1,5 @@
-import { readdir, stat } from "node:fs/promises";
-import { basename, extname, join, relative } from "node:path";
+import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import type { AgentSessionLike, RawAgentSessionEventLike } from "./agent-session-factory.js";
 import type { ResolvedBackgroundAgentSnapshot, BackgroundAgentProfileResolver } from "./background-agent-profile.js";
 import type { BackgroundWorkspaceManager, RunWorkspace } from "./background-workspace.js";
@@ -29,6 +29,7 @@ export interface BackgroundAgentRunnerOptions {
 	sessionFactory: BackgroundAgentSessionFactory;
 	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
 	publicBaseUrl?: string;
+	publicDir?: string;
 }
 
 export class BackgroundAgentRunner {
@@ -133,9 +134,10 @@ export class BackgroundAgentRunner {
 			unsubscribe?.();
 			unsubscribe = undefined;
 
+			const resultText = extractAssistantText(session);
+			await captureLinkedPublicOutputFiles(resultText, workspace, this.options.publicDir);
 			const finishedAt = new Date();
 			await recordOutputFiles(this.options.runStore, run.runId, run.leaseOwner, workspace, finishedAt);
-			const resultText = extractAssistantText(session);
 			const summary = resultText.slice(0, 200) || "Conn run completed";
 			await this.options.runStore.updateRuntimeInfo({
 				runId: run.runId,
@@ -366,6 +368,69 @@ async function recordOutputFiles(
 	}
 }
 
+async function captureLinkedPublicOutputFiles(
+	resultText: string,
+	workspace: RunWorkspace,
+	publicDir: string | undefined,
+): Promise<void> {
+	if (!publicDir) {
+		return;
+	}
+	const publicRoot = resolve(publicDir);
+	const outputRoot = resolve(workspace.outputDir);
+	for (const publicPath of extractPublicLinkPaths(resultText)) {
+		const sourcePath = resolve(join(publicRoot, publicPath));
+		if (!isPathInside(sourcePath, publicRoot)) {
+			continue;
+		}
+		let fileStats;
+		try {
+			fileStats = await stat(sourcePath);
+		} catch {
+			continue;
+		}
+		if (!fileStats.isFile()) {
+			continue;
+		}
+		const destinationPath = resolve(join(outputRoot, publicPath));
+		if (!isPathInside(destinationPath, outputRoot)) {
+			continue;
+		}
+		await mkdir(dirname(destinationPath), { recursive: true });
+		await copyFile(sourcePath, destinationPath);
+	}
+}
+
+function extractPublicLinkPaths(text: string): string[] {
+	const paths = new Set<string>();
+	for (const match of text.matchAll(/https?:\/\/[^\s<>)"']+/gi)) {
+		tryAddPublicUrlPath(paths, match[0]);
+	}
+	for (const match of text.matchAll(/\/app\/public\/([^\s<>)"`']+)/g)) {
+		addSafePublicPath(paths, match[1]);
+	}
+	return Array.from(paths);
+}
+
+function tryAddPublicUrlPath(paths: Set<string>, value: string): void {
+	try {
+		addSafePublicPath(paths, new URL(value).pathname.replace(/^\/+/, ""));
+	} catch {
+		// Ignore malformed model-generated URLs.
+	}
+}
+
+function addSafePublicPath(paths: Set<string>, value: string): void {
+	const normalized = value
+		.split(/[?#]/, 1)[0]
+		.replace(/\\/g, "/")
+		.replace(/^\/+/, "");
+	if (!normalized || normalized.split("/").some((segment) => !segment || segment === "." || segment === "..")) {
+		return;
+	}
+	paths.add(normalized);
+}
+
 async function listOutputFiles(outputDir: string): Promise<string[]> {
 	const entries = await readdir(outputDir, { withFileTypes: true });
 	const files: string[] = [];
@@ -380,6 +445,16 @@ async function listOutputFiles(outputDir: string): Promise<string[]> {
 		}
 	}
 	return files.sort();
+}
+
+function isPathInside(filePath: string, parentDir: string): boolean {
+	const normalizedFilePath = resolve(filePath);
+	const normalizedParentDir = resolve(parentDir);
+	return (
+		normalizedFilePath === normalizedParentDir ||
+		normalizedFilePath.startsWith(`${normalizedParentDir}\\`) ||
+		normalizedFilePath.startsWith(`${normalizedParentDir}/`)
+	);
 }
 
 function inferOutputMimeType(filePath: string): string {

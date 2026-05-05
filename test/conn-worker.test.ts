@@ -481,6 +481,59 @@ test("ConnWorker enqueues due conn runs, executes one claim, and creates a task 
 	database.close();
 });
 
+test("ConnWorker includes indexed output files in task inbox activity", async () => {
+	let runStore: ConnRunStore;
+	const runner = {
+		async run(conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<ConnRunRecord | undefined> {
+			await runStore.recordFile({
+				runId: run.runId,
+				kind: "output",
+				relativePath: "output/zhihu-browse/report.html",
+				fileName: "report.html",
+				mimeType: "text/html; charset=utf-8",
+				sizeBytes: 128,
+				createdAt: now,
+			});
+			return {
+				...run,
+				status: "succeeded",
+				resultSummary: `summary for ${conn.title}`,
+				resultText: `result for ${conn.title}`,
+				finishedAt: now.toISOString(),
+			};
+		},
+	};
+	const created = await createWorkerWithOptions(runner, {});
+	const { database, connStore, activityStore, worker } = created;
+	runStore = created.runStore;
+	const conn = await connStore.create({
+		title: "Zhihu Report",
+		prompt: "Generate report",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	await worker.tick(new Date("2026-04-21T10:01:05.000Z"));
+
+	const activities = await activityStore.list();
+	const runs = await runStore.listRunsForConn(conn.connId);
+	assert.deepEqual(activities[0]?.files, [
+		{
+			fileName: "report.html",
+			downloadUrl: `/v1/conns/${conn.connId}/runs/${runs[0].runId}/output/zhihu-browse/report.html`,
+			mimeType: "text/html; charset=utf-8",
+			sizeBytes: 128,
+		},
+	]);
+	database.close();
+});
+
 test("ConnWorker uses the run finishedAt timestamp when creating result activity", async () => {
 	const runner = {
 		async run(conn: ConnDefinition, run: ConnRunRecord): Promise<ConnRunRecord | undefined> {

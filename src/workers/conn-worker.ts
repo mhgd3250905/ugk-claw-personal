@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
 	AuthStorage,
@@ -24,11 +24,12 @@ import type { AgentActivityItem, AgentActivityStore, CreateAgentActivityInput } 
 import { AgentActivityStore as DefaultAgentActivityStore } from "../agent/agent-activity-store.js";
 import { AssetStore } from "../agent/asset-store.js";
 import { ConnDatabase } from "../agent/conn-db.js";
-import type { ConnRunRecord, ConnRunStore } from "../agent/conn-run-store.js";
+import type { ConnRunFileRecord, ConnRunRecord, ConnRunStore } from "../agent/conn-run-store.js";
 import { ConnRunStore as DefaultConnRunStore } from "../agent/conn-run-store.js";
 import type { ConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import { ConnSqliteStore as DefaultConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import type { ConnDefinition } from "../agent/conn-store.js";
+import type { ConversationNotificationFile } from "../agent/conversation-notification-store.js";
 import type { NotificationBroadcastEvent } from "../agent/notification-hub.js";
 import type { ResolvedBackgroundAgentSnapshot } from "../agent/background-agent-profile.js";
 import { FeishuClient } from "../integrations/feishu/client.js";
@@ -220,7 +221,8 @@ export class ConnWorker {
 
 	private async deliverRunResult(conn: ConnDefinition, run: ConnRunRecord, now: Date): Promise<void> {
 		try {
-			const activity = await this.options.activityStore?.create(toAgentActivityInput(conn, run, now));
+			const files = await this.resolveRunActivityFiles(conn, run);
+			const activity = await this.options.activityStore?.create(toAgentActivityInput(conn, run, now, files));
 			if (activity) {
 				try {
 					await this.options.notificationBroadcaster?.broadcast(toNotificationBroadcastEvent(activity));
@@ -235,6 +237,16 @@ export class ConnWorker {
 			}
 		} catch (error) {
 			console.warn("[conn-worker] activity write failed:", error);
+		}
+	}
+
+	private async resolveRunActivityFiles(conn: ConnDefinition, run: ConnRunRecord): Promise<ConversationNotificationFile[]> {
+		try {
+			const files = await this.options.runStore.listFiles(run.runId);
+			return toActivityOutputFiles(conn.connId, run.runId, files);
+		} catch (error) {
+			console.warn("[conn-worker] output file activity link build failed:", error);
+			return [];
 		}
 	}
 }
@@ -405,6 +417,7 @@ class FeishuActivityNotifier implements ActivityNotifier {
 				deliveryService.deliverText(
 					target,
 					text,
+					{ files: activity.files },
 				),
 			),
 		);
@@ -550,6 +563,7 @@ async function main(): Promise<void> {
 		}),
 		sessionFactory: new ProjectBackgroundSessionFactory(config.projectRoot),
 		publicBaseUrl: config.publicBaseUrl,
+		publicDir: resolve(config.projectRoot, "public"),
 	});
 	const worker = new ConnWorker({
 		workerId: process.env.CONN_WORKER_ID?.trim() || `conn-worker:${process.pid}`,
@@ -658,7 +672,12 @@ function truncateNotificationText(text: string, maxLength: number = 1200): strin
 	return `${normalized.slice(0, maxLength - 1)}…`;
 }
 
-function toAgentActivityInput(conn: ConnDefinition, run: ConnRunRecord, now: Date): CreateAgentActivityInput {
+function toAgentActivityInput(
+	conn: ConnDefinition,
+	run: ConnRunRecord,
+	now: Date,
+	files: ConversationNotificationFile[] = [],
+): CreateAgentActivityInput {
 	return {
 		source: "conn",
 		sourceId: conn.connId,
@@ -666,8 +685,37 @@ function toAgentActivityInput(conn: ConnDefinition, run: ConnRunRecord, now: Dat
 		kind: "conn_result",
 		title: `${conn.title} ${resolveNotificationTitleSuffix(run.status)}`,
 		text: resolveNotificationText(run),
+		files,
 		createdAt: now,
 	};
+}
+
+function toActivityOutputFiles(
+	connId: string,
+	runId: string,
+	files: ConnRunFileRecord[],
+): ConversationNotificationFile[] {
+	return files.flatMap((file) => {
+		const outputPath = file.relativePath.startsWith("output/") ? file.relativePath.slice("output/".length) : "";
+		if (!outputPath) {
+			return [];
+		}
+		return [
+			{
+				fileName: file.fileName,
+				downloadUrl: `/v1/conns/${encodeURIComponent(connId)}/runs/${encodeURIComponent(runId)}/output/${encodeOutputPath(outputPath)}`,
+				mimeType: file.mimeType,
+				sizeBytes: file.sizeBytes,
+			},
+		];
+	});
+}
+
+function encodeOutputPath(outputPath: string): string {
+	return outputPath
+		.split("/")
+		.map((segment) => encodeURIComponent(segment))
+		.join("/");
 }
 
 const entrypoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : undefined;

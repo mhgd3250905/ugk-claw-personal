@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { writeFile, mkdtemp } from "node:fs/promises";
+import { mkdir, writeFile, mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
@@ -237,6 +237,7 @@ async function createRunner(options?: {
 	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
 	runStore?: ConnRunStore;
 	publicBaseUrl?: string;
+	publicDir?: string;
 }) {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-runner-"));
 	const database = new ConnDatabase({ dbPath: join(root, "conn.sqlite") });
@@ -257,6 +258,7 @@ async function createRunner(options?: {
 		sessionFactory,
 		closeBrowserTargetsForScope: options?.closeBrowserTargetsForScope ?? (async () => undefined),
 		publicBaseUrl: options?.publicBaseUrl,
+		publicDir: options?.publicDir,
 	});
 	return { root, database, connStore, runStore, realRunStore, sessionFactory, runner, session };
 }
@@ -433,6 +435,59 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 	assert.equal(process.env.OUTPUT_DIR, undefined);
 	assert.equal(process.env.CONN_OUTPUT_BASE_URL, undefined);
 	assert.equal(process.env.ZHIHU_REPORT_BASE_URL, undefined);
+
+	database.close();
+});
+
+test("BackgroundAgentRunner captures public html links into durable conn output files", async () => {
+	const publicRoot = await mkdtemp(join(tmpdir(), "ugk-pi-public-output-"));
+	await mkdir(join(publicRoot, "reports"), { recursive: true });
+	await writeFile(join(publicRoot, "reports", "test.html"), "<h1>TEST</h1>", "utf8");
+	const session = new FakeSession({
+		resultText: "报告链接：http://127.0.0.1:3000/reports/test.html",
+	});
+	const { database, connStore, runStore, runner } = await createRunner({
+		session,
+		publicDir: publicRoot,
+		publicBaseUrl: "http://example.test",
+	});
+	const conn = await connStore.create({
+		title: "Public Link Task",
+		prompt: "Create html",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-public-output-capture",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	const files = await runStore.listFiles(run.runId);
+	assert.deepEqual(
+		files.map((file) => ({
+			relativePath: file.relativePath,
+			fileName: file.fileName,
+			mimeType: file.mimeType,
+		})),
+		[
+			{
+				relativePath: "output/reports/test.html",
+				fileName: "test.html",
+				mimeType: "text/html; charset=utf-8",
+			},
+		],
+	);
 
 	database.close();
 });

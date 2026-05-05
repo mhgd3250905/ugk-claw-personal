@@ -228,7 +228,9 @@ Run 查询接口：
 - 后台任务完成 / 失败 / 取消后写入任务消息页的 activity 正文，会在开头追加 `执行 Agent：...` 和 `执行模型：provider / model`。Agent 行来自该 run 的 `resolvedSnapshot.agentName/agentId`；如果发生降级，要显示“原执行 Agent 不可用，已由主 Agent 完成”这类可见提示。模型行来自 `resolvedSnapshot.provider/model`，展示实际执行模型，不拿当前设置或 conn 表单字段猜。
 - 后台 runner 生成 `resultText` 时会优先保留用户真正要的可见答案；如果最后一条 assistant 文本只是“输出文件已写入”这类低信息量收尾，会回退到前面更有用的回答。别再让通知正文只剩一个文件路径，用户不是来猜谜的。
 - run 成功后会扫描该 workspace 的 `output/` 目录，并把真实输出文件写入 `conn_run_files`；因此 run 详情里的“输出文件索引”应与后台生成物对齐。
-- run 详情里的 `files[]` 会为 `output/` 下的文件补充可打开链接：单次产物走 `GET /v1/conns/:connId/runs/:runId/output/<path>`，某个 conn 的最新成功产物走 `GET /v1/conns/:connId/output/latest/<path>`。这两个入口只服务已经写入 `conn_run_files` 的索引文件，并按 `workspacePath/output` 做路径边界校验，不恢复 worker 对 `/app/public` 的直写。后台 session 同时会收到 `OUTPUT_DIR`、`CONN_OUTPUT_BASE_URL` 和兼容字段 `ZHIHU_REPORT_BASE_URL`，脚本型任务可以直接拼出报告链接。
+- run 详情里的 `files[]` 会为 `output/` 下的文件补充可打开链接：单次产物走 `GET /v1/conns/:connId/runs/:runId/output/<path>`，某个 conn 的最新成功产物走 `GET /v1/conns/:connId/output/latest/<path>`。这两个入口只服务已经写入 `conn_run_files` 的索引文件，并按 `workspacePath/output` 做路径边界校验，不恢复 worker 对 `/app/public` 的直写。HTML / 图片 / PDF / 文本类 conn output 默认 `inline`，浏览器应直接打开；需要强制下载时加 `?download=true`。后台 session 同时会收到 `OUTPUT_DIR`、`CONN_OUTPUT_BASE_URL` 和兼容字段 `ZHIHU_REPORT_BASE_URL`，脚本型任务可以直接拼出报告链接。
+- 如果模型或旧脚本仍然把可访问 URL 写成 `/app/public` 对应的短链接，后台 runner 会在 run 结束时按结果正文中的 public URL 或 `/app/public/...` 路径做 best-effort 收编：确认 public 文件存在后复制到本轮 `output/`，再由标准 `conn_run_files` 索引和 `/v1/conns/.../output/...` 暴露。这个兼容层只用来兜底旧脚本和模型乱写，不把 `/app/public` 恢复成 conn 的主输出目录。
+- `conn-worker` 写入任务消息 activity 时会把已索引的 `output/` 文件同步挂到 `files[]`，任务消息页会渲染平台生成的可靠文件链接；飞书全局通知镜像也会尝试发送这些文件，失败时才降级为公开 URL 文本。不要依赖模型正文里手写的 `/zhihu-browse/...` 这类业务短链接，那玩意儿一旦和实际输出目录不一致就会 404。
 - conn 终态结果当前主链路写入 `agent_activity_items`，由任务消息页读取展示；成功、失败和超时失败都会留下记录，不会再以“写回前台 conversation transcript”作为默认投递方式。
 - playground 在任务消息页或后台任务列表里遇到 `source=conn` 且带 `sourceId + runId` 的条目时，会显示“查看后台任务过程”入口；点开后分别请求 run 详情和 run 事件，展示状态、workspace、结果摘要、输出文件和过程日志。
 - 这类条目依赖 `source / sourceId / runId` 维持可追溯性；如果这些字段丢了，优先查 activity 写入与前端条目归一化，不要再朝 conversation transcript 那条旧路上瞎补。

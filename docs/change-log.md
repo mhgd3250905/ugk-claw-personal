@@ -12,6 +12,12 @@
 
 ## 2026-05-05
 
+### Conn HTML 输出链接可访问性修复
+- 日期：2026-05-05
+- 主题：修复后台 conn worker 生成 HTML 后，任务消息或飞书通知里给出的报告链接不可直接访问 / 只能下载的问题。
+- 影响范围：conn output 文件接口继续以 `workspace/output/` 和 `conn_run_files` 为唯一持久产物出口，不新增知乎专属 `/zhihu-browse` 静态路由，也不恢复 `/app/public` 直写。`text/html` 现在纳入 inline 预览白名单，`GET /v1/conns/:connId/runs/:runId/output/<path>` 与 `GET /v1/conns/:connId/output/latest/<path>` 会让浏览器直接打开 HTML，只有显式 `?download=true` 才强制下载。`BackgroundAgentRunner` 会 best-effort 把结果正文中确实存在的 public 静态文件链接收编到本轮 `output/`，`conn-worker` 写入任务消息 activity 时会携带已索引 output 文件链接，飞书全局通知镜像也会复用这些平台生成的文件链接，减少模型正文手写错误 URL 导致的 404。
+- 对应入口：`src/agent/background-agent-runner.ts`、`src/routes/file-route-utils.ts`、`src/workers/conn-worker.ts`、`test/background-agent-runner.test.ts`、`test/server.test.ts`、`test/conn-worker.test.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ### Conn 后台任务解除前台会话默认绑定
 - 日期：2026-05-05
 - 主题：把 conn 创建与执行从前台聊天会话默认绑定中解耦，避免删除会话或编造无效 `conversationId` 影响后台任务。
