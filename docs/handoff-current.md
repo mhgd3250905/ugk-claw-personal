@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-05`
+更新时间：`2026-05-06`
 
 这份文档给下一位全新接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
@@ -10,11 +10,12 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- 当前本地 / GitHub 最新提交：`4a8c7e5 Drop legacy conversation notifications table`
-- 腾讯云生产运行代码提交：`4a8c7e5 Drop legacy conversation notifications table`
-- 阿里云生产运行代码提交：`4a8c7e5 Drop legacy conversation notifications table`
-- 本轮主线：conn worker 会话解耦、HTML output links 修复、任务消息文件链接修复、旧 conversation notification store / SQLite 表清理。
-- 验收结论：本地 `npm test` 552 个全过；腾讯云和阿里云 `server:ops verify` 通过；双云 `/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z` 均 `ok=true` 且 `risks=[]`；用户真实 conn HTML smoke test 已确认通过。
+- 当前本地最新提交：`379eb82 chore: document architecture governance handoff`
+- 当前 `origin/main`：`425227e`；本地 `main` ahead 2，包含 `b69c34f` 双云文件库 UI 发布文档记录与 `379eb82` 架构治理交接记录，尚未推送。
+- 腾讯云生产运行代码提交：`425227e`，以 `docs/tencent-cloud-singapore-deploy.md` 的 `2026-05-06 文件库桌面 UI 细化发布记录` 为准。
+- 阿里云生产运行代码提交：`425227e`，以 `docs/aliyun-ecs-deploy.md` 的 `2026-05-06 文件库桌面 UI 细化发布记录` 为准。
+- 本轮主线：架构治理文档体系、测试矩阵、Playground / Conn / Agent Chat 治理地图、`feature-handoff` 开发协作 skill，以及 `src/routes/chat.ts` scoped agent service resolver 小重构。
+- 验收结论：架构治理提交已通过 `git diff --check`、`npx tsc --noEmit`、`node --test --import tsx test/chat-agent-routes.test.ts`、`node --test --import tsx test/server.test.ts --test-name-pattern "GET /playground labels timed-out conn runs distinctly"` 和 `npm test`，全量结果为 `554 pass / 0 fail`；本次交接文档刷新后另跑 `git diff --check`。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
 - 腾讯云健康检查：`http://43.134.167.179:3000/healthz`
 - 腾讯云主部署目录：`/home/ubuntu/ugk-claw-repo`
@@ -26,7 +27,7 @@
 - 阿里云主部署目录：`/root/ugk-claw-repo`
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
-- 当前未提交本地现场不要顺手提交：`.pi/settings.json`、`runtime/dangyang-weather-2026-05-01.json`、`runtime/karpathy-guidelines-CLAUDE.md`、`runtime/tab-accumulation-report.md`
+- 当前未提交本地现场：`.codex/plans/2026-05-06-handoff-architecture-governance.md`、`docs/handoff-current.md`、`docs/change-log.md`，以及 3 个不应提交的 runtime 临时文件：`runtime/dangyang-weather-2026-05-01.json`、`runtime/karpathy-guidelines-CLAUDE.md`、`runtime/tab-accumulation-report.md`。
 
 ## 最近已完成
 

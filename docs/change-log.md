@@ -12,6 +12,12 @@
 
 ## 2026-05-06
 
+### 架构治理交接快照刷新
+- 日期：2026-05-06
+- 主题：按 `feature-handoff` 流程刷新当前交接快照，校准本地 HEAD、origin/main、双云生产基线和未提交工作区边界。
+- 影响范围：后续新 agent 接手时能看到 `379eb82` 本地架构治理交接提交、`425227e` 生产文件库 UI 细化发布基线、当前本地 ahead 2 状态，以及哪些 runtime 临时文件不应提交。
+- 对应入口：`docs/handoff-current.md`、`.codex/plans/2026-05-06-handoff-architecture-governance.md`、`docs/change-log.md`
+
 ### Feature handoff 开发协作技能
 - 日期：2026-05-06
 - 主题：新增 repo-local `feature-handoff` 开发协作 skill，把维护本仓库的 coding agent 在功能完成后的记录、验证、提交边界和换 agent 前交接流程沉淀为可复用规范。
