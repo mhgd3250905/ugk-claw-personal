@@ -10,6 +10,62 @@
 
 ---
 
+## 2026-05-06
+
+### Feature handoff 开发协作技能
+- 日期：2026-05-06
+- 主题：新增 repo-local `feature-handoff` 开发协作 skill，把维护本仓库的 coding agent 在功能完成后的记录、验证、提交边界和换 agent 前交接流程沉淀为可复用规范。
+- 影响范围：后续 coding agent 在用户要求“做完记录”“收尾”“交接”“换 agent 前备份”时，应使用该技能整理 `docs/change-log.md`、模块文档、`.codex/plans/` 交接说明、验证结果和不应提交文件清单；明确 `.codex/skills/` 是开发协作层，不能和产品运行时 `.pi/skills/` 混用。
+- 对应入口：`.codex/skills/feature-handoff/SKILL.md`、`AGENTS.md`、`docs/change-log.md`
+
+### AGENTS.md 接手规范收口
+- 日期：2026-05-06
+- 主题：整理仓库根 `AGENTS.md` 的职责边界，明确它是高层接手契约，不再作为 UI、部署或排障流水账。
+- 影响范围：新增 `AGENTS.md` 本文件维护规则，规定允许写入内容、禁止写入内容、细节去处、新增规则门槛和过期规则处理；将 `8.4 运行事实` 从细节堆叠收口为跨模块硬约束和专题文档入口，并补充架构治理指南在阅读顺序与文档分层中的位置。
+- 对应入口：`AGENTS.md`、`docs/architecture-governance-guide.md`、`docs/change-log.md`
+
+### 架构治理接手总入口
+- 日期：2026-05-06
+- 主题：新增后续 agent 接手与架构治理总入口，避免治理文档分散后继续靠猜测接手。
+- 影响范围：新增 `docs/architecture-governance-guide.md`，汇总先读顺序、治理文档地图、模块边界、修改前检查清单、禁区、推荐治理节奏和验证口径；`README.md` 与 `docs/traceability-map.md` 已挂入该入口。
+- 对应入口：`docs/architecture-governance-guide.md`、`README.md`、`docs/traceability-map.md`
+
+### Chat scoped agent service resolver 收口
+- 日期：2026-05-06
+- 主题：按 Agent / Chat 治理地图执行第一步源码治理，把 `src/routes/chat.ts` 中 scoped agent service 解析与 unknown agent 404 响应收口到 `resolveScopedAgentServiceOrSend()`。
+- 影响范围：scoped debug skills、agent profile 元操作、rules 文件、scoped chat conversations / state / status / history / events / stream / queue / reset / interrupt 等路由复用同一解析 helper；外部 URL、响应体、unknown agent 不 fallback main 和 `AgentService` run 生命周期不变。
+- 对应入口：`src/routes/chat.ts`、`docs/agent-chat-governance-map.md`、`test/chat-agent-routes.test.ts`
+
+### Agent / Chat 治理地图
+- 日期：2026-05-06
+- 主题：执行架构治理批次 E，新增前台 Chat、scoped Agent profile 路由与 `AgentService` run 生命周期的治理地图，区分可抽薄的 HTTP wrapper 和不应强拆的运行生命周期。
+- 影响范围：梳理 main `/v1/chat/*`、scoped `/v1/agents/:agentId/chat/*`、agent profile 元操作、SSE、route parser、`activeRuns` / `terminalRuns`、browser cleanup 和 run result helper 的边界；明确 unknown scoped agent 不能 fallback main，`AgentService.runChat()` 暂不作为优先拆分点。
+- 对应入口：`docs/agent-chat-governance-map.md`、`src/routes/chat.ts`、`src/agent/agent-service.ts`、`test/chat-agent-routes.test.ts`
+
+### Conn / Activity / Legacy 治理地图
+- 日期：2026-05-06
+- 主题：执行架构治理批次 D，新增后台任务、任务消息、output 文件与 legacy 兼容层的治理地图，明确主链路、保留原因和删除条件。
+- 影响范围：梳理 `conn` 定义、worker 执行、`workspace/output` 文件索引、`agent_activity_items` 任务消息、通知投递和 `/v1/debug/cleanup` 观测项；标注 `conversation` target、旧 `conversation_notifications`、`/app/public` output 收编、`modelPolicyId` 等兼容对象的保留边界。
+- 对应入口：`docs/conn-activity-legacy-governance-map.md`、`docs/runtime-assets-conn-feishu.md`、`src/workers/conn-worker.ts`、`src/routes/cleanup-debug.ts`
+
+### Playground UI 治理地图
+- 日期：2026-05-06
+- 主题：执行架构治理批次 C，新增 Playground UI 边界治理文档，明确 shell、脚本装配、共享样式、workspace 壳层和各 feature controller 的当前职责。
+- 影响范围：记录 `playground.ts`、`playground-page-shell.ts`、`playground-styles.ts`、`playground-workspace-controller.ts` 与资产库 / 后台任务 / Agent 管理 / 任务消息等模块的真源边界；补充样式治理口径、禁止回退项、后续低风险整理队列和最小验证组合。
+- 对应入口：`docs/playground-ui-governance-map.md`、`docs/playground-current.md`、`DESIGN.md`
+
+### 架构治理测试矩阵
+- 日期：2026-05-06
+- 主题：执行架构治理批次 B，新增测试矩阵与风险闸门文档，明确后续不同业务域改动对应的最小验证命令和全量验证条件。
+- 影响范围：按 Chat / Agent、Agent profile、Playground、Assets / Files、Conn / Activity / Output、Feishu、Runtime Debug / Deployment、Skills / Extensions 分组整理测试；同时标注 `test/server.test.ts` 哪些集成烟测应保留，哪些纯 UI 字符串断言可后续评估迁移。
+- 对应入口：`docs/architecture-test-matrix.md`、`.codex/plans/2026-05-06-architecture-governance-next-batches.md`
+
+### 架构治理批次 A 审计
+- 日期：2026-05-06
+- 主题：执行架构分析与优化计划的第一批只读审计，先建立当前架构地图、legacy 决策表、高风险调用链和候选优化 backlog，不修改业务源码。
+- 影响范围：新增架构治理审计文档，明确 `server.ts` 装配层、Chat / Agent 主链路、Playground UI、conn / activity / output、Feishu 与 legacy 兼容层的当前边界；后续优化建议按批次 B/C/D/E 小步推进。
+- 对应入口：`docs/architecture-governance-audit-2026-05-06.md`、`.codex/plans/2026-05-06-architecture-analysis-and-optimization-plan.md`
+
 ## 2026-05-05
 
 ### Agent 切换悬浮菜单

@@ -9,6 +9,8 @@ deepseek-api.txt
 阿里-config.txt
 node_modules/
 skills/
+!.codex/skills/
+!.codex/skills/**
 !.pi/skills/
 !.pi/skills/site-search-skill-designer/
 !.pi/skills/site-search-skill-designer/SKILL.md

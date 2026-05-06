@@ -7,10 +7,29 @@ This file provides the highest-level working rules for AI coding agents in this 
 `AGENTS.md` 是接手索引，不是让 agent 一口气背完的小说。先按任务类型读最小集合，再按场景索引展开：
 
 - 普通代码 / 文档修改：先读 `1-4`、`8.1`、`8.3`，再按第 `6` 节场景索引打开对应文件。
+- 架构治理 / 重构评估：先读 `docs/architecture-governance-guide.md`，再按它指向的治理地图和测试矩阵展开。
+- 功能完成 / 换 coding agent 前收尾：先读 `.codex/skills/feature-handoff/SKILL.md`，再补记录、验证结果、提交边界和交接说明。
 - 云服务器增量更新：只读 `3.1` 的生产状态边界、`8.2`，然后进入 `docs/server-ops.md`；需要命令速查再看 `docs/server-ops-quick-reference.md`，只有迁移、回滚或异常排障才展开单云长手册。
 - Playground 前端修改：先读 `docs/playground-current.md` 和 `DESIGN.md`，再看第 `6.C` 场景文件；手机端不要按桌面压缩版推断。
 - conn / Feishu / 后台任务：先看第 `6.G` 场景文件和 `docs/runtime-assets-conn-feishu.md`，不要先翻部署手册。
 - Agent profile / 自定义 Agent：先看第 `6.F` 场景，运行态以 API 和 `/app/.data/agents` 挂载为准，不要手写 `profiles.json`。
+
+### 0.1 本文件维护规则
+
+`AGENTS.md` 是维护本仓库的高层接手契约，不是更新流水账。以后按这套规则办：
+
+- **允许写入：** 沟通准则、行为准则、项目边界、当前稳定运行事实、固定运行口径、关键路径、场景索引、文档分层、编辑 / 部署 / 验证硬规则。
+- **禁止写入：** 单次 UI 微调、发布流水账、排障过程、详细测试矩阵、长篇模块设计、已经有专门文档承载的细节。
+- **细节去处：**
+  - 架构治理：`docs/architecture-governance-guide.md`
+  - 更新记录：`docs/change-log.md`
+  - 开发任务收尾 / 换 agent 交接：`.codex/skills/feature-handoff/SKILL.md`
+  - Playground 当前 UI：`docs/playground-current.md`
+  - Conn / Activity / Feishu：`docs/runtime-assets-conn-feishu.md`
+  - 生产部署：`docs/server-ops.md` 和对应云手册
+  - 按场景找代码：`docs/traceability-map.md`
+- **新增规则门槛：** 只有跨多次任务、影响后续 agent 行为、或会造成高风险误操作的规则，才进 `AGENTS.md`。
+- **过期规则处理：** 如果某条事实变成历史事实，迁到对应专题文档或 `docs/change-log.md`，不要继续堆在本文件里。
 
 ## 1. 通信准则
 
@@ -356,8 +375,12 @@ This file provides the highest-level working rules for AI coding agents in this 
   - 对外入口、运行方式、能力概览、文档导航
 - `docs/traceability-map.md`
   - 追溯地图：按场景告诉你该先看哪些文件
+- `docs/architecture-governance-guide.md`
+  - 架构治理与后续 agent 接手总入口；决定是否重构、先读哪些治理地图、跑哪些验证时先看它
 - `docs/change-log.md`
   - 统一更新记录；行为变更、接口变更、运行口径变更、文档结构变更都要留痕
+- `.codex/skills/`
+  - 维护本仓库的 coding agent 使用的开发协作技能；不要和产品运行时 `.pi/skills/` 混用
 - `docs/playground-current.md`
   - 当前 playground 的真实交互与 UI 约束
 - `docs/model-providers.md`
@@ -428,45 +451,13 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 ### 8.4 运行事实
 
-- agent 每轮 prompt 都会通过 `src/agent/file-artifacts.ts` 注入文件交付协议：内部本地 artifact 路径允许直接用于工具与浏览器自动化；用户交付时浏览器预览走宿主可访问 HTTP，真实文件优先 `send_file`，`ugk-file` 只作小文本兜底
-- `AgentService` 会在用户可见的正文、流式增量和工具过程消息里，自动把支持的 `/app/public/...`、`/app/runtime/...`、`file:///app/...` 重写成宿主可访问的 `GET /v1/local-file?path=...`；不要再指望宿主浏览器直接打开容器 `file://`
-- `AgentService.runChat` 的 `finally` 会 best-effort 调用 `closeBrowserTargetsForScope(undefined)`，通过 `POST /session/close-all?metaAgentScope=...` 清理本轮 `web-access` 保留页面；清理失败只 warn，不应盖住原始任务结果或错误。
-- 当前品牌文案为 `UGK CLAW`；桌面端顶部与首页继续使用纯文字字标，手机端顶部状态栏显示品牌 logo + `UGK Claw` 字标。
-- 根目录 `DESIGN.md` 是当前 playground 视觉 identity 的机器可读入口；涉及颜色、字号、圆角、组件视觉语义的前端改动，先参考它，必要时同步更新并运行 `npm run design:lint`。
-- 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署 tar 包、运行时截图 / HTML 报告、本地调试目录都不属于 GitHub 主仓库内容。
-- 生产用户 skills 也属于运行态，不要再长期依赖 clean Git 工作目录里的 `runtime/skills-user/`；`docker-compose.prod.yml` 通过 `UGK_RUNTIME_SKILLS_USER_DIR` 挂载 shared skills 目录，腾讯云为 `~/ugk-claw-shared/runtime/skills-user`，阿里云为 `/root/ugk-claw-shared/runtime/skills-user`。
-- 腾讯云服务器当前已经把 `.env`、`.data/chrome-sidecar`、`.data/agent`、`.data/agents` 和生产日志外置到 `~/ugk-claw-shared/`；阿里云 ECS 对应外置目录是 `/root/ugk-claw-shared/`。后续部署默认使用 shared env 文件，不要再把运行态塞回代码目录，也不要删掉 `UGK_AGENT_DATA_DIR` / `UGK_AGENTS_DATA_DIR` 这两条挂载。
-- Playground 主 Agent 的运行规则文件是 `/app/.data/agent/AGENTS.md`，其他 agent profile 的运行规则文件是 `/app/.data/agents/<agentId>/AGENTS.md`；这些运行态规则会替换仓库根 `AGENTS.md` 进入对应 agent session。仓库根 `AGENTS.md` 只作为维护本项目代码的接手说明，不应被当作 Playground 日常 agent 的默认人格或长期记忆。旧 `/app/.data/agent/AGENTS.local.md` 仅作为主 Agent 规则迁移来源保留兼容。
-- 后台任务的“执行 Agent”使用 `conn.profileId` 选择 Playground agent profile；run 级能力快照只冻结该 Agent 的规则文件、技能目录、身份和模型解析结果，不是工具权限沙箱。底层 runtime 工具仍属于基础执行能力，不按 profile 做限制。如果原 Agent 已归档或不存在，worker 必须降级到主 Agent 继续执行，并通过 `resolvedSnapshot.fallbackUsed / fallbackReason` 和任务消息文案显式告诉用户。
-- conn run 成功后只把 `workspace/output/` 下的真实产物索引为持久输出；run detail 的 `files[]` 会为这些产物补充 `url/latestUrl`，对应 `GET /v1/conns/:connId/runs/:runId/output/<path>` 和 `GET /v1/conns/:connId/output/latest/<path>`。后台 session 会注入 `OUTPUT_DIR`、`CONN_OUTPUT_BASE_URL` 和兼容字段 `ZHIHU_REPORT_BASE_URL`；不要恢复 worker 对 `/app/public` 的直写。
-- playground 消息宽度跟随 composer；用户消息靠右，系统反馈视觉上跟助手消息保持一致。
-- playground 刷新恢复运行态以 `GET /v1/chat/state` 的 canonical conversation state 为准；`GET /v1/chat/events` 只负责同一 active run 的后续增量续订，文案统一是"当前正在运行"，不要再写"上一轮仍在运行"。
-- playground 的 `GET /v1/chat/state` 默认只返回最近 160 条可渲染历史，并通过 `historyPage.hasMore / nextBefore / limit` 暴露分页状态；旧消息补页走 `GET /v1/chat/history?before=...&limit=...`，不要再让 state 扛完整历史，也不要把本地 `localStorage` 当完整历史真源。
-- playground 从后端 session 恢复已完成任务时，连续 assistant 消息片段必须在 `AgentService` 的 canonical history 中合并成一条助手回复；不要让刷新后的同一轮浏览器处理过程拆成多条"助手"气泡。
-- playground Web 入口当前采用"一个 agent、多条历史会话、一个全局当前会话"的模型；不同浏览器 / 设备打开后应先通过 `GET /v1/chat/conversations` 跟随服务端 `currentConversationId`，再通过 `GET /v1/chat/state` 看到当前会话的历史、当前输入、active assistant 正文和过程区。
-- playground 会话目录由 `ConversationStore` 维护进程内 `mtime` cache 和串行写队列；不要把 `GET /v1/chat/conversations`、`POST /v1/chat/current`、`POST /v1/chat/conversations` 恢复成每次读写整份 JSON 且无队列保护的实现，写入应继续用同目录临时文件加 `rename` 原子替换。
-- playground 的"新会话"必须走 `POST /v1/chat/conversations` 创建并激活新的服务端会话；不要再 reset 旧会话，也不要只清当前浏览器 DOM 写一条本地假提示。
-- playground 历史会话切换必须走 `POST /v1/chat/current` 更新全局当前会话；当前 agent 运行中禁止新建和切换，避免一个 agent 工人同时被拖到两条产线。
-- playground 用户上滑阅读历史时，流式更新不应强制滚到底部；只有靠近底部时才自动跟随，离开底部后显示"回到底部"按钮。
-- playground active 对话态的 `transcript-current` 底部保留 `--transcript-bottom-scroll-buffer` 余量；最后一条消息必须能继续上拖到 composer 上方，不要把这段 padding 当成多余空白删掉。
-- playground 的 canonical state hydrate 不应默认清空 transcript；同会话同 `buildConversationStateSignature()` 时跳过 DOM 重绘，消息窗口变化时优先 patch / append 已渲染节点，只有会话切换或消息序列无法对齐时才重建当前 transcript。
-- 手机前后台切换或 `/v1/chat/stream` 短断不等于 agent 任务失败；只要 `GET /v1/chat/state` 仍显示 running，前端应切到 `/v1/chat/events` 续订事件流。
-- `AgentService` 会为同进程内 active run 保留短期事件缓冲，刷新后的 web 观察者可重新订阅继续更新；服务进程重启后的完整回放仍需要持久化 run event log。
-- `playground` 页面恢复同步必须按触发原因分级：`pageshow` 才强制校准当前 state，`visibilitychange` 只在 active run 或 state 过期时回源，`online` 优先查 active run 并续订 `/v1/chat/events`；不要把 `visibilitychange/pageshow/online` 又改回无差别 `GET /v1/chat/conversations` + `GET /v1/chat/state`。
-- 已选择文件 / 资产、以及已发送的附件 / 引用资产，统一采用 chip 风格展示。
-- playground 资产详情按 id hydrate 由 `assetDetailQueue` 控制最多 4 路并发，并通过 `assetDetailInFlightById` 复用同一 assetId 的进行中请求；不要把 `/v1/assets/:assetId` 恢复成无限制 `Promise.all`。
-- "查看技能"走真实接口 `GET /v1/debug/skills`，前端以助手式过程 + 结果列表展示；接口会返回 `source` / `cachedAt`，同一 skill fingerprint 在短 TTL 内应命中缓存，不要每次点击都 reload skills。
-- `playground` 消息气泡底部的复制正文操作是小型灰色裸 icon：无可见文字、无背景、无边框、无阴影；文字只保留在 `aria-label` / 隐藏文本里，不要再改回占高度的"复制正文"按钮。
-- `playground` 底部 composer textarea 当前按内容自适应，最多显示 10 行，超过后只在 textarea 内部纵向滚动；textarea 必须显式 `rows="1"`，空内容和单行内容保留 CSS `min-height` 来保证 placeholder / 正文纵向居中，placeholder 固定为"和我聊聊吧"。
-- `playground` 助手气泡、任务消息结果气泡和后台 run detail `Result` 都走 markdown 渲染与 hydration；正文收口为 `12px`，标题按 `18px / 16px / 14px` 分级，链接、inline code、blockquote 和表格头用轻量颜色区分。用户气泡不要套这组助手输出规则。
-- `playground` 手机端当前采用"顶部紧凑品牌状态栏 / 左侧历史会话抽屉 / 中间 transcript / 底部 composer"结构；状态栏左侧是可点击的 logo + `UGK Claw` 历史入口，右侧只保留 `新会话` 和 `更多` 两个 icon 按钮，`技能 / 文件 / 文件库 / 后台任务 / 任务消息` 收进右上角溢出菜单；发送区是 icon-only 控件，代码块展示层单独收口，所有这些改动只在 `max-width: 640px` 内生效。
-- `playground` 文件库、后台任务管理器和任务消息页的头部统一按透明单行工具栏收口：只保留标题和必要动作，不显示解释性说明句，不铺独立深色渐变背景；手机端允许横向滚动按钮行，但不要拆回筛选区 / 动作区两层。
-- 任务消息未读数随 `GET /v1/activity`、`POST /v1/activity/:activityId/read` 和 `POST /v1/activity/read-all` 主响应返回；`GET /v1/activity/summary` 只保留给初始化 / 轻量兜底，不要在打开任务消息或标记已读后固定补打一条 summary 请求。
-- 后台任务管理器打开时只应请求一次 `GET /v1/conns`；该接口会在 conn 条目上返回 `latestRun` 摘要，完整 runs 只在展开单个 conn 或打开详情时按需读取。不要再恢复成打开管理器就对所有 conn 做 `1 + N` runs 请求。
-- `playground` 手机端历史会话抽屉右侧只保留透明点击遮罩用于关闭，不再叠加暗色或 blur；历史列表保留纵向滚动但隐藏侧边滚动条，列表项统一 `4px` 圆角。
-- Docker 镜像已内置 `git`、`curl`、`ca-certificates` 与 `python3`，不要再把 `/bin/bash: git: command not found`、`/bin/bash: curl: command not found` 或 `python3: not found` 当成玄学问题。
-- `web-access` 默认真实浏览器链路走 Docker Chrome sidecar：`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> `http://172.31.250.10:9223`；Windows host IPC fallback 仅保留给 legacy 本机调试和紧急排障。
-- `ugk-pi-browser` 当前通过容器内 healthcheck 自举 Chrome CDP；后续排障别只看 GUI 能不能打开，至少同时确认浏览器容器 `healthy`，以及 `127.0.0.1:9222` / `172.31.250.10:9223` 探针能通。
-- sidecar GUI 从桌面手点打开的 Chrome 也必须走同一个 `WEB_ACCESS_BROWSER_PROFILE_DIR=/config/chrome-profile-sidecar`；如果 GUI 和 agent 看起来像两套登录态，优先检查 desktop launcher 是否还是旧容器里的默认命令。
-- 宿主浏览器和 sidecar Chrome 都不能直接依赖容器内 `file:///app/...`：用户可见文本要改写成 `PUBLIC_BASE_URL` 下的 `GET /v1/local-file?path=...`，sidecar 自动化要改写成 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL` 下的同一路由，真实文件交付优先走 `send_file`。
-- 腾讯云新加坡和阿里云 ECS 都使用 `docker-compose.prod.yml` 与 `HOST_PORT=3000`；腾讯云 `PUBLIC_BASE_URL=http://43.134.167.179:3000`，阿里云 `PUBLIC_BASE_URL=http://101.37.209.54:3000`。后续切域名或 HTTPS 时必须同步对应服务器 `.env`、安全组和部署手册。
+- 代码仓库和运行态目录必须分离：`.env`、`.data/`、部署包、运行时截图 / HTML 报告、本地临时输出都不属于 Git 主仓库内容。
+- 用户可见文件和本地 artifact 统一通过文件交付协议处理：真实文件优先 `send_file`，浏览器预览走宿主可访问 HTTP，本地 `/app/...` / `file:///app/...` 不直接暴露给用户。细节见 `docs/runtime-assets-conn-feishu.md`。
+- `web-access` 默认真实浏览器链路走 Docker Chrome sidecar：`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` -> Docker Chrome CDP；Windows host IPC fallback 只用于 legacy 本机调试和紧急排障。细节见 `docs/web-access-browser-bridge.md`。
+- Playground 当前 UI、消息、composer、工作区、浅色主题和手机端行为以 `docs/playground-current.md` 与 `docs/playground-ui-governance-map.md` 为准；不要把 UI 细节继续塞回本节。
+- Playground 多会话和运行态恢复以服务端 canonical state 为准：`GET /v1/chat/conversations` 管当前会话目录，`GET /v1/chat/state` 管可渲染状态，`GET /v1/chat/events` 管 active run 增量续订。本节只保留原则，具体实现看 `docs/agent-chat-governance-map.md`。
+- Agent profile 的运行时注册列表以 `GET /v1/agents` 为准；创建、归档、技能变更必须走 API。`.data/agents/profiles.json` 只是持久化 catalog，不是操作入口。
+- 仓库根 `AGENTS.md` 只给维护本项目代码的 coding agent 使用；Playground 主 Agent 和其他 agent profile 使用运行态规则文件 `/app/.data/agent/AGENTS.md` 或 `/app/.data/agents/<agentId>/AGENTS.md`。
+- `conn` 后台任务默认投递到任务消息；`workspace/output/` 是持久产物标准出口，`/app/public` 只保留兼容收编，不恢复为主输出目录。细节见 `docs/conn-activity-legacy-governance-map.md`。
+- 生产部署必须保留 shared 运行态：Chrome profile、agent session / assets / conn 数据、自定义 agent profile、用户 skills 都不能被代码更新洗掉。具体路径和验收以 `docs/server-ops.md` 及对应云手册为准。
+- Docker 镜像基础工具、浏览器 sidecar、公开 URL、模型源和双云部署事实如果变化，应更新对应专题文档和 `docs/change-log.md`，不要把变更流水账塞进本文件。

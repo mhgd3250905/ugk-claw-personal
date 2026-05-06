@@ -169,6 +169,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 - [`AGENTS.md`](./AGENTS.md)：agent 工作规则、当前事实和关键路径索引。
 - [`README.en.md`](./README.en.md)：英文版 README。
+- [`docs/architecture-governance-guide.md`](./docs/architecture-governance-guide.md)：架构治理与后续 agent 接手总入口，先看它再决定读哪些治理地图。
 - [`docs/handoff-current.md`](./docs/handoff-current.md)：历史交接快照，保留用于理解 `2026-04-27` 当时状态；不要当作当前部署事实入口。
 - [`docs/traceability-map.md`](./docs/traceability-map.md)：按场景定位代码入口。
 - [`docs/playground-current.md`](./docs/playground-current.md)：当前 playground 的 UI、交互和手机端约束。
