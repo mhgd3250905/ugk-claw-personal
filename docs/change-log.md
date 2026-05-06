@@ -12,6 +12,12 @@
 
 ## 2026-05-06
 
+### Playground 刷新时保留当前 Agent
+- 日期：2026-05-06
+- 主题：修复刷新页面或短暂读取 `/v1/agents` 失败时，前端把已选自定义 Agent 误重置为 `main`，导致用户误以为当前 Agent 会话上下文消失的问题。
+- 影响范围：`loadAgentCatalog()` 只有在可靠获取 agent catalog 后才会判断当前 agent 是否不存在并回退 `main`；catalog 请求失败时保留 `localStorage` 中的 active agent，并在选择器中临时显示该 agent，避免刷新期间把 scoped agent 会话切走。服务端 session 与 conversation index 不变。
+- 对应入口：`src/ui/playground.ts`、`test/playground-agent-switch.test.ts`
+
 ### Conn 跨 run 共享目录
 - 日期：2026-05-06
 - 主题：为后台 conn run 提供平台级 `CONN_SHARED_DIR`，解决 zhihu-robot 等周期任务跨 run 去重、审计记录、冷却时间戳和 checkpoint 没有稳定持久目录的问题。

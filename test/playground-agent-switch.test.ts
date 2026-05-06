@@ -22,6 +22,15 @@ test("playground renders an agent selector for switching operation windows", () 
 	assert.match(html, /localStorage\.setItem\(AGENT_SELECTION_STORAGE_KEY, normalized\)/);
 });
 
+test("playground keeps the stored active agent when the catalog request falls back", () => {
+	const html = renderPlaygroundPage();
+
+	assert.match(html, /agentCatalogReliable:\s*true/);
+	assert.match(html, /state\.agentCatalogReliable = true;/);
+	assert.match(html, /state\.agentCatalogReliable = false;/);
+	assert.match(html, /if \(state\.agentCatalogReliable && !knownAgentIds\.has\(getCurrentAgentId\(\)\)\)/);
+});
+
 test("playground renders agent management entry points and workspace", () => {
 	const html = renderPlaygroundPage();
 

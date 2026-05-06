@@ -11,6 +11,13 @@
 - 资产刷新按钮只在真实加载资产列表时由 `loadAssets()` 临时禁用，不再被全局 `setLoading(true)` 锁死。
 - 相关源码：`src/ui/playground-status-controller.ts`、`src/ui/playground-workspace-controller.ts`、`src/ui/playground-assets-controller.ts`
 
+## 2026-05-06 刷新时保留当前 Agent
+
+- Playground 当前操作视窗以 `localStorage` 的 `ugk-pi:active-agent-id` 为刷新恢复入口，服务端 `/v1/agents` catalog 只用于校验和展示。
+- 如果刷新、网络抖动或服务刚重建时 `/v1/agents` 短暂失败，前端不再用兜底 `[main, search]` 列表把已选自定义 Agent 覆盖成 `main`；只有可靠拿到 catalog 且当前 agent 确实不存在时才回退。
+- catalog 失败期间，选择器会临时显示当前已存 agent id，随后会话恢复仍走对应 scoped `/v1/agents/:agentId/chat/*` API。
+- 相关源码：`src/ui/playground.ts`
+
 ## 2026-05-06 桌面上下文用量 tooltip 不常驻
 
 - 桌面 Web 模式下，上下文用量按钮只用 hover / focus-visible 展示 tooltip；鼠标移走后 tooltip 消失。

@@ -156,6 +156,7 @@ function getPlaygroundScript(): string {
 			workspaceMode: "chat",
 			agentId: readStoredAgentId(),
 			agentCatalog: [],
+			agentCatalogReliable: true,
 			conversationId: "",
 			streamingText: "",
 			activeAssistantContent: null,
@@ -412,6 +413,9 @@ function getPlaygroundScript(): string {
 					{ agentId: "search", name: "搜索 Agent" },
 				];
 			const currentAgentId = getCurrentAgentId();
+			if (currentAgentId && !knownAgents.some((agent) => String(agent?.agentId || "").trim() === currentAgentId)) {
+				knownAgents.push({ agentId: currentAgentId, name: currentAgentId });
+			}
 
 			if (agentSelector) {
 				agentSelector.innerHTML = "";
@@ -506,14 +510,16 @@ function getPlaygroundScript(): string {
 					throw new Error(payload?.message || "无法读取 agent 列表");
 				}
 				state.agentCatalog = Array.isArray(payload?.agents) ? payload.agents : [];
+				state.agentCatalogReliable = true;
 			} catch {
 				state.agentCatalog = [
 					{ agentId: "main", name: "主 Agent" },
 					{ agentId: "search", name: "搜索 Agent" },
 				];
+				state.agentCatalogReliable = false;
 			}
 			const knownAgentIds = new Set(state.agentCatalog.map((agent) => String(agent?.agentId || "").trim()).filter(Boolean));
-			if (!knownAgentIds.has(getCurrentAgentId())) {
+			if (state.agentCatalogReliable && !knownAgentIds.has(getCurrentAgentId())) {
 				state.agentId = writeStoredAgentId("main");
 			}
 			renderAgentSelector();
