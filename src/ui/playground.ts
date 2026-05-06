@@ -268,6 +268,7 @@ function getPlaygroundScript(): string {
 			conversationCatalogAbortController: null,
 			conversationCatalogSyncedAt: 0,
 			conversationCreatePending: false,
+			conversationMenuOpenId: "",
 			conversationSwitchPendingById: {},
 			conversationSyncGeneration: 0,
 			conversationSyncRequestId: 0,
@@ -1154,6 +1155,10 @@ function getPlaygroundScript(): string {
 				}
 			});
 			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape" && state.conversationMenuOpenId) {
+					closeConversationMenu();
+					return;
+				}
 				if (event.key === "Escape" && state.assetModalOpen) {
 					closeAssetLibrary();
 				}
@@ -1192,6 +1197,14 @@ function getPlaygroundScript(): string {
 				}
 				if (event.key === "Escape" && state.mobileConversationDrawerOpen) {
 					closeMobileConversationDrawer();
+				}
+			});
+			document.addEventListener("click", (event) => {
+				if (
+					state.conversationMenuOpenId &&
+					!event.target?.closest?.(".conversation-item-shell")
+				) {
+					closeConversationMenu();
 				}
 			});
 

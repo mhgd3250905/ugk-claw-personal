@@ -365,6 +365,8 @@ export interface ConversationCatalogItemBody {
 	createdAt: string;
 	updatedAt: string;
 	running: boolean;
+	pinned?: boolean;
+	backgroundColor?: string;
 }
 
 export interface ConversationCatalogResponseBody {
@@ -395,6 +397,19 @@ export interface SwitchConversationResponseBody {
 	currentConversationId: string;
 	switched: boolean;
 	reason?: "running" | "not_found";
+}
+
+export interface UpdateConversationRequestBody {
+	title?: string;
+	pinned?: boolean;
+	backgroundColor?: string;
+}
+
+export interface UpdateConversationResponseBody {
+	conversationId: string;
+	updated: boolean;
+	conversation?: ConversationCatalogItemBody;
+	reason?: "not_found";
 }
 
 export interface ChatProcessEntryBody {

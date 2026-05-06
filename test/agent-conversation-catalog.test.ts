@@ -17,6 +17,8 @@ test("buildConversationCatalog maps entries with stable fallbacks and running fl
 				title: "",
 				preview: undefined,
 				messageCount: Number.NaN,
+				pinned: true,
+				backgroundColor: "blue",
 			},
 			{
 				conversationId: "manual:newer",
@@ -32,19 +34,10 @@ test("buildConversationCatalog maps entries with stable fallbacks and running fl
 
 	assert.equal(catalog.currentConversationId, "manual:newer");
 	assert.deepEqual(catalog.conversations.map((conversation) => conversation.conversationId), [
-		"manual:newer",
 		"manual:older",
+		"manual:newer",
 	]);
 	assert.deepEqual(catalog.conversations[0], {
-		conversationId: "manual:newer",
-		title: "Newer",
-		preview: "latest",
-		messageCount: 2,
-		createdAt: "2026-04-24T00:00:00.000Z",
-		updatedAt: "2026-04-26T00:00:00.000Z",
-		running: false,
-	});
-	assert.deepEqual(catalog.conversations[1], {
 		conversationId: "manual:older",
 		title: "新会话",
 		preview: "",
@@ -52,6 +45,19 @@ test("buildConversationCatalog maps entries with stable fallbacks and running fl
 		createdAt: "2026-04-25T00:00:00.000Z",
 		updatedAt: "2026-04-25T00:00:00.000Z",
 		running: true,
+		pinned: true,
+		backgroundColor: "blue",
+	});
+	assert.deepEqual(catalog.conversations[1], {
+		conversationId: "manual:newer",
+		title: "Newer",
+		preview: "latest",
+		messageCount: 2,
+		createdAt: "2026-04-24T00:00:00.000Z",
+		updatedAt: "2026-04-26T00:00:00.000Z",
+		running: false,
+		pinned: false,
+		backgroundColor: "",
 	});
 });
 

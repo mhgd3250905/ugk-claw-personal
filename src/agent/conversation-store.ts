@@ -9,6 +9,8 @@ export interface ConversationEntry {
 	title?: string;
 	preview?: string;
 	messageCount?: number;
+	pinned?: boolean;
+	backgroundColor?: string;
 }
 
 export interface ConversationListEntry extends ConversationEntry {
@@ -61,6 +63,8 @@ export class ConversationStore {
 				title: options?.title ?? existing?.title,
 				preview: options?.preview ?? existing?.preview,
 				messageCount: options?.messageCount ?? existing?.messageCount ?? 0,
+				pinned: existing?.pinned,
+				backgroundColor: existing?.backgroundColor,
 			};
 
 			state.conversations[conversationId] = entry;
@@ -79,6 +83,38 @@ export class ConversationStore {
 				const fallback = this.sortEntries(state).at(0);
 				state.currentConversationId = fallback?.conversationId;
 			}
+		});
+	}
+
+	async updateMetadata(
+		conversationId: string,
+		patch: {
+			title?: string;
+			pinned?: boolean;
+			backgroundColor?: string;
+		},
+	): Promise<ConversationEntry | undefined> {
+		return this.mutateState((state) => {
+			const existing = state.conversations[conversationId];
+			if (!existing) {
+				return undefined;
+			}
+
+			if (patch.title !== undefined) {
+				existing.title = patch.title;
+			}
+			if (patch.pinned !== undefined) {
+				existing.pinned = patch.pinned;
+			}
+			if (patch.backgroundColor !== undefined) {
+				if (patch.backgroundColor) {
+					existing.backgroundColor = patch.backgroundColor;
+				} else {
+					delete existing.backgroundColor;
+				}
+			}
+
+			return this.cloneEntry(existing);
 		});
 	}
 
@@ -178,7 +214,12 @@ export class ConversationStore {
 					...cloned,
 				};
 			})
-			.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+			.sort((left, right) => {
+				if (left.pinned !== right.pinned) {
+					return left.pinned ? -1 : 1;
+				}
+				return right.updatedAt.localeCompare(left.updatedAt);
+			});
 	}
 
 	private async mutateState<T>(mutator: (state: ConversationStoreState) => T | Promise<T>): Promise<T> {
@@ -271,6 +312,12 @@ export class ConversationStore {
 		}
 		if (typeof rawEntry.preview === "string") {
 			cloned.preview = rawEntry.preview;
+		}
+		if (rawEntry.pinned === true) {
+			cloned.pinned = true;
+		}
+		if (typeof rawEntry.backgroundColor === "string") {
+			cloned.backgroundColor = rawEntry.backgroundColor;
 		}
 		if (typeof rawEntry.messageCount === "number" && Number.isFinite(rawEntry.messageCount)) {
 			cloned.messageCount = rawEntry.messageCount;

@@ -401,14 +401,15 @@ export function getPlaygroundStyles(): string {
 			gap: 5px;
 			width: 100%;
 			padding: 11px 46px 11px 12px;
-			border: 1px solid rgba(201, 210, 255, 0.1);
+			border: 1px solid var(--conversation-card-border, rgba(201, 210, 255, 0.1));
 			border-radius: 4px;
-			background: rgba(255, 255, 255, 0.035);
+			background: var(--conversation-card-bg, rgba(255, 255, 255, 0.035));
 			box-shadow: none;
 			text-align: left;
 		}
 
 		.conversation-item-shell {
+			position: relative;
 			display: block;
 		}
 
@@ -416,43 +417,222 @@ export function getPlaygroundStyles(): string {
 			min-width: 0;
 		}
 
-		.conversation-item-delete {
+		.conversation-item-shell.conversation-bg-sky {
+			--conversation-card-bg: #dbeafe;
+			--conversation-card-hover-bg: #cfe1fb;
+			--conversation-card-active-bg: #bfd6f8;
+			--conversation-card-border: rgba(37, 99, 235, 0.18);
+		}
+
+		.conversation-item-shell.conversation-bg-mint {
+			--conversation-card-bg: #dff7ea;
+			--conversation-card-hover-bg: #d2f0df;
+			--conversation-card-active-bg: #c4e8d3;
+			--conversation-card-border: rgba(22, 163, 74, 0.18);
+		}
+
+		.conversation-item-shell.conversation-bg-peach {
+			--conversation-card-bg: #ffe4cf;
+			--conversation-card-hover-bg: #ffd9bd;
+			--conversation-card-active-bg: #facaa8;
+			--conversation-card-border: rgba(234, 88, 12, 0.18);
+		}
+
+		.conversation-item-shell.conversation-bg-pink {
+			--conversation-card-bg: #fce0ea;
+			--conversation-card-hover-bg: #f8d4e2;
+			--conversation-card-active-bg: #f3c4d5;
+			--conversation-card-border: rgba(219, 39, 119, 0.16);
+		}
+
+		.conversation-item-shell.conversation-bg-gray {
+			--conversation-card-bg: #e8edf4;
+			--conversation-card-hover-bg: #dfe6f0;
+			--conversation-card-active-bg: #d4dde9;
+			--conversation-card-border: rgba(71, 85, 105, 0.14);
+		}
+
+		.conversation-item-shell[class*="conversation-bg-"] .mobile-conversation-title {
+			color: #172033;
+		}
+
+		.conversation-item-shell[class*="conversation-bg-"] .mobile-conversation-preview {
+			color: rgba(23, 32, 51, 0.68);
+		}
+
+		.conversation-item-shell[class*="conversation-bg-"] .mobile-conversation-meta span {
+			border-color: transparent;
+			background: transparent;
+			color: rgba(23, 32, 51, 0.58);
+		}
+
+		.conversation-item-shell[class*="conversation-bg-"] .conversation-item-menu-trigger {
+			color: rgba(23, 32, 51, 0.68);
+		}
+
+		.conversation-item-shell[class*="conversation-bg-"] .conversation-item-menu-trigger:hover,
+		.conversation-item-shell[class*="conversation-bg-"] .conversation-item-menu-trigger:focus-visible,
+		.conversation-item-shell[class*="conversation-bg-"] .conversation-item-menu-trigger[aria-expanded="true"] {
+			color: #111827;
+		}
+
+		.conversation-item-shell.is-pinned .mobile-conversation-item::after {
+			content: "";
+			position: absolute;
+			left: 0;
+			top: 10px;
+			bottom: 10px;
+			width: 4px;
+			border-radius: 999px;
+			background: #ff304f;
+		}
+
+		.conversation-item-menu-trigger {
 			position: absolute;
 			top: 8px;
 			right: 8px;
 			z-index: 2;
-			width: 28px;
-			min-width: 28px;
-			height: 28px;
+			width: 24px;
+			min-width: 24px;
+			height: 24px;
 			padding: 0;
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			border: 1px solid rgba(255, 120, 140, 0.16);
-			background: rgba(255, 120, 140, 0.06);
-			color: rgba(255, 184, 198, 0.82);
-			font-size: 16px;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
+			color: rgba(226, 234, 255, 0.72);
+			font-size: 18px;
+			line-height: 1;
 			box-shadow: none;
 		}
 
-		.conversation-item-delete:hover:not(:disabled),
-		.conversation-item-delete:focus-visible {
-			border-color: rgba(255, 138, 157, 0.34);
-			background: rgba(255, 120, 140, 0.12);
-			color: rgba(255, 214, 223, 0.96);
+		.conversation-item-menu-trigger:hover,
+		.conversation-item-menu-trigger:focus-visible,
+		.conversation-item-menu-trigger[aria-expanded="true"] {
+			border-color: transparent;
+			background: transparent !important;
+			color: rgba(247, 249, 255, 0.96);
 			transform: none;
+		}
+
+		.conversation-item-menu {
+			position: absolute;
+			top: 42px;
+			right: 6px;
+			z-index: 120;
+			display: grid;
+			gap: 4px;
+			width: 168px;
+			padding: 7px;
+			border: 1px solid rgba(201, 210, 255, 0.12);
+			border-radius: 8px;
+			background: #252832;
+			box-shadow: none;
+		}
+
+		.conversation-menu-item {
+			display: grid;
+			grid-template-columns: 22px minmax(0, 1fr);
+			align-items: center;
+			gap: 8px;
+			min-height: 34px;
+			width: 100%;
+			padding: 0 8px;
+			border: 0;
+			border-radius: 6px;
+			background: transparent;
+			color: rgba(247, 249, 255, 0.86);
+			font-size: 13px;
+			text-align: left;
+		}
+
+		.conversation-menu-item:hover:not(:disabled),
+		.conversation-menu-item:focus-visible {
+			background: rgba(255, 255, 255, 0.08);
+			transform: none;
+		}
+
+		.conversation-menu-item.danger {
+			color: #ff667d;
+		}
+
+		.conversation-menu-icon {
+			color: currentColor;
+			font-size: 15px;
+			text-align: center;
+		}
+
+		.conversation-menu-color-group {
+			display: grid;
+			gap: 8px;
+			padding: 8px;
+			border-radius: 6px;
+			background: rgba(255, 255, 255, 0.04);
+		}
+
+		.conversation-menu-color-group > span {
+			color: rgba(226, 234, 255, 0.58);
+			font-size: 11px;
+		}
+
+		.conversation-menu-colors {
+			display: flex;
+			align-items: center;
+			gap: 7px;
+			flex-wrap: wrap;
+		}
+
+		.conversation-color-swatch {
+			width: 20px;
+			min-width: 20px;
+			height: 20px;
+			padding: 0;
+			border: 2px solid transparent;
+			border-radius: 999px;
+			background: #111722;
+			box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+		}
+
+		.conversation-color-swatch.is-selected {
+			border-color: #f7f9ff;
+		}
+
+		.conversation-color-swatch.color-default {
+			background: #111722 !important;
+		}
+
+		.conversation-color-swatch.color-sky {
+			background: #dbeafe !important;
+		}
+
+		.conversation-color-swatch.color-mint {
+			background: #dff7ea !important;
+		}
+
+		.conversation-color-swatch.color-peach {
+			background: #ffe4cf !important;
+		}
+
+		.conversation-color-swatch.color-pink {
+			background: #fce0ea !important;
+		}
+
+		.conversation-color-swatch.color-gray {
+			background: #e8edf4 !important;
 		}
 
 		.mobile-conversation-item:hover:not(:disabled),
 		.mobile-conversation-item:focus-visible {
 			border-color: rgba(201, 210, 255, 0.2);
-			background: rgba(255, 255, 255, 0.07);
+			background: var(--conversation-card-hover-bg, rgba(255, 255, 255, 0.07));
 			transform: none;
 		}
 
 		.mobile-conversation-item.is-active {
 			border-color: rgba(101, 209, 255, 0.36);
-			background: rgba(101, 209, 255, 0.1);
+			background: var(--conversation-card-active-bg, rgba(101, 209, 255, 0.1));
 		}
 
 		.mobile-conversation-item:disabled {
@@ -1417,6 +1597,8 @@ export function getPlaygroundStyles(): string {
 		.message-content {
 			font-size: 14px;
 			line-height: 1.85;
+			min-width: 0;
+			max-width: 100%;
 			word-break: break-word;
 		}
 
@@ -1534,6 +1716,10 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.message-content pre {
+			min-width: 0;
+			width: 100%;
+			max-width: 100%;
+			box-sizing: border-box;
 			padding: 14px;
 			border: 1px solid var(--line);
 			background: rgba(4, 8, 18, 0.95);
@@ -1541,6 +1727,12 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.message-content .code-block {
+			display: block;
+			min-width: 0;
+			width: 100%;
+			max-width: 100%;
+			box-sizing: border-box;
+			overflow: hidden;
 			border: 1px solid var(--line);
 			background:
 				linear-gradient(90deg, rgba(201, 210, 255, 0.05), transparent 45%),
@@ -1580,8 +1772,11 @@ export function getPlaygroundStyles(): string {
 
 		.message-content .code-block pre {
 			margin: 0;
+			width: 100%;
+			max-width: 100%;
 			border: 0;
 			background: transparent;
+			overflow-x: auto;
 		}
 
 		.message-content code {
@@ -3782,7 +3977,7 @@ export function getPlaygroundStyles(): string {
 		.desktop-conversation-list .mobile-conversation-item {
 			min-height: 82px;
 			border-color: transparent;
-			background: rgba(14, 19, 31, 0.84);
+			background: var(--conversation-card-bg, rgba(14, 19, 31, 0.84));
 		}
 
 		.shell[data-stage-mode="landing"] .stream-layout {

@@ -11,6 +11,19 @@
 - 资产刷新按钮只在真实加载资产列表时由 `loadAssets()` 临时禁用，不再被全局 `setLoading(true)` 锁死。
 - 相关源码：`src/ui/playground-status-controller.ts`、`src/ui/playground-workspace-controller.ts`、`src/ui/playground-assets-controller.ts`
 
+## 2026-05-06 会话更多菜单
+
+- 桌面左侧会话列表和移动端历史抽屉的每条会话右侧统一使用“更多”菜单，不再裸露单独删除按钮。
+- 菜单支持重命名、置顶 / 取消置顶、设置背景颜色和删除；背景颜色保留跟随浅 / 深主题的默认项，默认色块在浅色主题显示浅色、深色主题显示深色，并只提供浅蓝、薄荷、蜜桃、浅粉、浅灰这类浅色卡片色；删除仍走既有二次确认弹窗。
+- 会话元数据持久化在服务端 catalog 中，新增 `pinned` 与 `backgroundColor` 字段；旧会话默认未置顶、无背景色，读取时有兼容默认值。
+- 会话列表排序变为置顶优先，其余仍按 `updatedAt` 倒序。运行中会话仍不能切换 / 删除 / 改名 / 改色，避免 active run 归属被改乱。
+- 相关源码：`src/agent/conversation-store.ts`、`src/agent/agent-conversation-catalog.ts`、`src/routes/chat.ts`、`src/ui/playground-conversations-controller.ts`、`src/ui/playground-styles.ts`
+
+## 2026-05-06 Markdown 代码块宽度约束
+
+- 对话气泡中的 Markdown 代码块 `.code-block` 与内部 `pre` 现在和表格一样受消息正文宽度约束：外层不再被长代码行撑破，长行只在代码块内部横向滚动。
+- 相关源码：`src/ui/playground-styles.ts`、`test/server.test.ts`
+
 ## 2026-05-06 刷新时保留当前 Agent
 
 - Playground 当前操作视窗以 `localStorage` 的 `ugk-pi:active-agent-id` 为刷新恢复入口，服务端 `/v1/agents` catalog 只用于校验和展示。

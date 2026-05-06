@@ -97,6 +97,8 @@
 - `GET /v1/chat/events`
 - `GET /v1/chat/conversations`
 - `POST /v1/chat/conversations`
+- `PATCH /v1/chat/conversations/:conversationId`
+- `DELETE /v1/chat/conversations/:conversationId`
 - `POST /v1/chat/current`
 - `POST /v1/chat/reset`
 - `POST /v1/chat`

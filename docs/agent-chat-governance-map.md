@@ -47,7 +47,7 @@
 | --- | --- | --- | --- |
 | skills | `/v1/debug/skills` | `/v1/agents/:agentId/debug/skills` | 可抽薄 handler 工厂 |
 | conversation catalog | `/v1/chat/conversations` | `/v1/agents/:agentId/chat/conversations` | 可抽薄 handler 工厂 |
-| create / delete / switch | `/v1/chat/...` | `/v1/agents/:agentId/chat/...` | 可抽薄，但要保留路径语义 |
+| create / update metadata / delete / switch | `/v1/chat/...` | `/v1/agents/:agentId/chat/...` | 可抽薄，但要保留路径语义 |
 | state / status / history | `/v1/chat/...` | `/v1/agents/:agentId/chat/...` | 可抽薄 query 解析 |
 | events / run logs | `/v1/chat/events`、`/v1/chat/runs/:runId/events` | scoped 对应路径 | 可抽薄 SSE 与 pagination handler |
 | chat / stream / queue / reset / interrupt | `/v1/chat...` | scoped 对应路径 | 可抽薄 wrapper，但必须保留 main/scoped 服务选择差异 |

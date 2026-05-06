@@ -12,6 +12,18 @@
 
 ## 2026-05-06
 
+### Playground 会话菜单
+- 日期：2026-05-06
+- 主题：把会话列表里的单一删除按钮升级为会话更多菜单，支持重命名、置顶、背景颜色和删除。
+- 影响范围：会话 catalog 元数据新增 `pinned` 与 `backgroundColor`，旧会话默认未置顶且无背景色；`PATCH /v1/chat/conversations/:conversationId` 和 scoped agent 同名接口可更新会话标题、置顶状态和颜色；会话列表按置顶优先、更新时间次序展示，并在深浅主题下显示菜单和颜色标识。背景颜色选项收口为“默认 + 浅蓝 / 薄荷 / 蜜桃 / 浅粉 / 浅灰”，默认项继续跟随浅 / 深主题，默认色块也按当前主题显示单色，自定义浅色卡片会切换深色文字；置顶标记改为更醒目的红色竖线。
+- 对应入口：`src/agent/conversation-store.ts`、`src/agent/agent-service.ts`、`src/routes/chat.ts`、`src/ui/playground-conversations-controller.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`test/server.test.ts`、`README.md`、`docs/traceability-map.md`、`docs/agent-chat-governance-map.md`
+
+### Playground Markdown 代码块宽度约束
+- 日期：2026-05-06
+- 主题：修复对话气泡中 Markdown 代码块 `.code-block` 被长代码行撑出气泡宽度的问题。
+- 影响范围：`.message-content`、`.code-block` 和内部 `pre` 补齐 `min-width / max-width / width / overflow` 约束，外层跟随气泡宽度，长代码行只在代码块内部横向滚动；表格渲染逻辑不变。
+- 对应入口：`src/ui/playground-styles.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ### Step Contract Designer 运行时技能
 - 日期：2026-05-06
 - 主题：将 `step-contract-designer` 项目级运行时技能从重型 step 契约生成流程，收口为“参考引导 + 诊断评估”两类辅助能力。

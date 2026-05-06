@@ -25,6 +25,36 @@ export function getPlaygroundConversationControllerScript(): string {
 			});
 		}
 
+		const CONVERSATION_BACKGROUND_OPTIONS = [
+			{ value: "", label: "默认" },
+			{ value: "sky", label: "浅蓝" },
+			{ value: "mint", label: "薄荷" },
+			{ value: "peach", label: "蜜桃" },
+			{ value: "pink", label: "浅粉" },
+			{ value: "gray", label: "浅灰" },
+		];
+
+		function getConversationBackgroundClass(value) {
+			const normalized = String(value || "").trim();
+			return CONVERSATION_BACKGROUND_OPTIONS.some((option) => option.value === normalized) && normalized
+				? "conversation-bg-" + normalized
+				: "";
+		}
+
+		function closeConversationMenu() {
+			if (!state.conversationMenuOpenId) {
+				return;
+			}
+			state.conversationMenuOpenId = "";
+			renderConversationDrawer();
+		}
+
+		function toggleConversationMenu(conversationId) {
+			const nextConversationId = String(conversationId || "").trim();
+			state.conversationMenuOpenId = state.conversationMenuOpenId === nextConversationId ? "" : nextConversationId;
+			renderConversationDrawer();
+		}
+
 		function renderConversationDrawer() {
 			mobileConversationList.innerHTML = "";
 			const catalog = Array.isArray(state.conversationCatalog) ? state.conversationCatalog : [];
@@ -80,6 +110,13 @@ export function getPlaygroundConversationControllerScript(): string {
 			for (const item of catalog) {
 				const shell = document.createElement("div");
 				shell.className = "conversation-item-shell";
+				if (item.pinned) {
+					shell.classList.add("is-pinned");
+				}
+				const backgroundClass = getConversationBackgroundClass(item.backgroundColor);
+				if (backgroundClass) {
+					shell.classList.add(backgroundClass);
+				}
 				const button = document.createElement("button");
 				button.type = "button";
 				button.className = "mobile-conversation-item";
@@ -97,26 +134,112 @@ export function getPlaygroundConversationControllerScript(): string {
 				button.querySelector(".mobile-conversation-title").textContent = item.title || "\\u65b0\\u4f1a\\u8bdd";
 				button.querySelector(".mobile-conversation-preview").textContent = item.preview || "\\u6682\\u65e0\\u6458\\u8981";
 				const metaNodes = button.querySelectorAll(".mobile-conversation-meta span");
-				metaNodes[0].textContent = item.running ? "\\u8fd0\\u884c\\u4e2d" : formatConversationTime(item.updatedAt);
+				metaNodes[0].textContent = item.running ? "\\u8fd0\\u884c\\u4e2d" : item.pinned ? "已置顶" : formatConversationTime(item.updatedAt);
 				metaNodes[1].textContent = item.messageCount + " \\u6761";
 				button.addEventListener("click", () => {
 					void selectConversationFromDrawer(item.conversationId);
 				});
 				shell.appendChild(button);
-				const deleteButton = document.createElement("button");
-				deleteButton.type = "button";
-				deleteButton.className = "conversation-item-delete";
-				deleteButton.textContent = "×";
-				deleteButton.disabled = state.loading || item.running || hasPendingSwitch || switching;
-				deleteButton.setAttribute("aria-label", "删除会话 " + (item.title || item.conversationId));
-				deleteButton.addEventListener("click", (event) => {
+				const menuButton = document.createElement("button");
+				menuButton.type = "button";
+				menuButton.className = "conversation-item-menu-trigger";
+				menuButton.textContent = "⋯";
+				menuButton.setAttribute("aria-haspopup", "menu");
+				menuButton.setAttribute("aria-expanded", state.conversationMenuOpenId === item.conversationId ? "true" : "false");
+				menuButton.setAttribute("aria-label", "打开会话菜单 " + (item.title || item.conversationId));
+				menuButton.addEventListener("click", (event) => {
 					event.preventDefault();
 					event.stopPropagation();
-					void requestDeleteConversation(item, deleteButton);
+					toggleConversationMenu(item.conversationId);
 				});
-				button.appendChild(deleteButton);
+				button.appendChild(menuButton);
+				if (state.conversationMenuOpenId === item.conversationId) {
+					shell.appendChild(renderConversationItemMenu(item, menuButton, {
+						disabled: state.loading || item.running || hasPendingSwitch || switching,
+					}));
+				}
 				container.appendChild(shell);
 			}
+		}
+
+		function createConversationMenuButton(options) {
+			const button = document.createElement("button");
+			button.type = "button";
+			button.className = "conversation-menu-item" + (options.danger ? " danger" : "");
+			button.setAttribute("role", "menuitem");
+			button.disabled = Boolean(options.disabled);
+			button.innerHTML = '<span class="conversation-menu-icon"></span><span></span>';
+			button.querySelector(".conversation-menu-icon").textContent = options.icon || "";
+			button.querySelector("span:last-child").textContent = options.label;
+			button.addEventListener("click", (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				if (button.disabled) {
+					return;
+				}
+				options.onClick?.();
+			});
+			return button;
+		}
+
+		function renderConversationItemMenu(item, restoreFocusElement, options) {
+			const menu = document.createElement("div");
+			menu.className = "conversation-item-menu";
+			menu.setAttribute("role", "menu");
+			menu.addEventListener("click", (event) => {
+				event.stopPropagation();
+			});
+
+			menu.appendChild(createConversationMenuButton({
+				icon: "✎",
+				label: "重命名",
+				disabled: options?.disabled,
+				onClick: () => void requestRenameConversation(item, restoreFocusElement),
+			}));
+			menu.appendChild(createConversationMenuButton({
+				icon: item.pinned ? "⌄" : "⌃",
+				label: item.pinned ? "取消置顶" : "置顶",
+				disabled: options?.disabled,
+				onClick: () => void requestUpdateConversation(item.conversationId, { pinned: !item.pinned }),
+			}));
+
+			const colorGroup = document.createElement("div");
+			colorGroup.className = "conversation-menu-color-group";
+			const colorLabel = document.createElement("span");
+			colorLabel.textContent = "背景颜色";
+			colorGroup.appendChild(colorLabel);
+			const colorList = document.createElement("div");
+			colorList.className = "conversation-menu-colors";
+			for (const colorOption of CONVERSATION_BACKGROUND_OPTIONS) {
+				const swatch = document.createElement("button");
+				swatch.type = "button";
+				swatch.className = "conversation-color-swatch" + (colorOption.value ? " color-" + colorOption.value : " color-default");
+				if ((item.backgroundColor || "") === colorOption.value) {
+					swatch.classList.add("is-selected");
+				}
+				swatch.disabled = Boolean(options?.disabled);
+				swatch.setAttribute("aria-label", "设置背景颜色为" + colorOption.label);
+				swatch.addEventListener("click", (event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					if (swatch.disabled) {
+						return;
+					}
+					void requestUpdateConversation(item.conversationId, { backgroundColor: colorOption.value });
+				});
+				colorList.appendChild(swatch);
+			}
+			colorGroup.appendChild(colorList);
+			menu.appendChild(colorGroup);
+
+			menu.appendChild(createConversationMenuButton({
+				icon: "×",
+				label: "删除",
+				danger: true,
+				disabled: options?.disabled,
+				onClick: () => void requestDeleteConversation(item, restoreFocusElement),
+			}));
+			return menu;
 		}
 
 		function renderConversationDrawer() {
@@ -138,7 +261,18 @@ export function getPlaygroundConversationControllerScript(): string {
 				createdAt: typeof item?.createdAt === "string" ? item.createdAt : new Date(0).toISOString(),
 				updatedAt: typeof item?.updatedAt === "string" ? item.updatedAt : new Date(0).toISOString(),
 				running: Boolean(item?.running),
+				pinned: item?.pinned === true,
+				backgroundColor: String(item?.backgroundColor || "").trim(),
 			};
+		}
+
+		function sortConversationCatalog() {
+			state.conversationCatalog.sort((left, right) => {
+				if (Boolean(left?.pinned) !== Boolean(right?.pinned)) {
+					return left?.pinned ? -1 : 1;
+				}
+				return String(right?.updatedAt || "").localeCompare(String(left?.updatedAt || ""));
+			});
 		}
 
 		const CONVERSATION_CATALOG_FRESH_MS = 1600;
@@ -293,8 +427,11 @@ export function getPlaygroundConversationControllerScript(): string {
 					createdAt: new Date().toISOString(),
 					updatedAt: new Date().toISOString(),
 					running: false,
+					pinned: false,
+					backgroundColor: "",
 				});
 			}
+			sortConversationCatalog();
 			markConversationCatalogFresh();
 			renderConversationDrawer();
 			return currentConversationId;
@@ -318,6 +455,8 @@ export function getPlaygroundConversationControllerScript(): string {
 				createdAt: normalized.createdAt || existingEntry?.createdAt || new Date().toISOString(),
 				updatedAt: normalized.updatedAt || existingEntry?.updatedAt || new Date().toISOString(),
 				running: normalized.running,
+				pinned: normalized.pinned,
+				backgroundColor: normalized.backgroundColor,
 			};
 
 			if (existingIndex >= 0) {
@@ -329,6 +468,7 @@ export function getPlaygroundConversationControllerScript(): string {
 			} else {
 				state.conversationCatalog.push(merged);
 			}
+			sortConversationCatalog();
 
 			renderConversationDrawer();
 			return merged.conversationId;
@@ -339,6 +479,71 @@ export function getPlaygroundConversationControllerScript(): string {
 				(item) => item?.conversationId !== conversationId,
 			);
 			renderConversationDrawer();
+		}
+
+		async function updateConversationOnServer(conversationId, patch) {
+			const targetConversationId = String(conversationId || "").trim();
+			const response = await fetch(getAgentApiPath("/chat/conversations/" + encodeURIComponent(targetConversationId)), {
+				method: "PATCH",
+				headers: {
+					"content-type": "application/json",
+					accept: "application/json",
+				},
+				body: JSON.stringify(patch || {}),
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				const errorMessage = payload?.error?.message || payload?.message || "无法更新会话";
+				throw new Error(errorMessage);
+			}
+
+			return {
+				conversationId: String(payload?.conversationId || targetConversationId).trim(),
+				updated: payload?.updated === true,
+				reason: typeof payload?.reason === "string" ? payload.reason : undefined,
+				conversation: payload?.conversation ? normalizeConversationCatalogItem(payload.conversation) : null,
+			};
+		}
+
+		async function requestUpdateConversation(conversationId, patch) {
+			if (!conversationId) {
+				return;
+			}
+			try {
+				const result = await updateConversationOnServer(conversationId, patch);
+				if (!result.updated) {
+					showError(result.reason === "not_found" ? "这个会话不存在" : "无法更新会话");
+					return;
+				}
+				if (result.conversation) {
+					upsertConversationCatalogItem(result.conversation);
+				}
+				state.conversationMenuOpenId = "";
+				invalidateConversationCatalog();
+				void syncConversationCatalog({ silent: true, activateCurrent: false, force: true });
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "更新会话失败";
+				showError(messageText);
+			} finally {
+				renderConversationDrawer();
+			}
+		}
+
+		async function requestRenameConversation(item, restoreFocusElement) {
+			if (!item?.conversationId) {
+				return;
+			}
+			const nextTitle = window.prompt("重命名会话", item.title || "新会话");
+			if (nextTitle === null) {
+				return;
+			}
+			const trimmedTitle = nextTitle.trim();
+			if (!trimmedTitle) {
+				showError("会话名称不能为空");
+				restoreFocusElement?.focus?.();
+				return;
+			}
+			await requestUpdateConversation(item.conversationId, { title: trimmedTitle });
 		}
 
 		async function syncConversationCatalog(options) {
@@ -581,6 +786,8 @@ export function getPlaygroundConversationControllerScript(): string {
 								createdAt: optimisticTimestamp,
 								updatedAt: optimisticTimestamp,
 								running: false,
+								pinned: false,
+								backgroundColor: "",
 							},
 							{ prepend: true },
 						);
@@ -648,6 +855,8 @@ export function getPlaygroundConversationControllerScript(): string {
 						createdAt: optimisticTimestamp,
 						updatedAt: optimisticTimestamp,
 						running: false,
+						pinned: false,
+						backgroundColor: "",
 					},
 					{ isNew: true },
 				);

@@ -13,6 +13,8 @@ export interface ConversationCatalogItemView {
 	createdAt: string;
 	updatedAt: string;
 	running: boolean;
+	pinned: boolean;
+	backgroundColor: string;
 }
 
 export interface ConversationCatalogView {
@@ -43,8 +45,15 @@ export function buildConversationCatalog(input: BuildConversationCatalogInput): 
 		createdAt: entry.createdAt ?? entry.updatedAt,
 		updatedAt: entry.updatedAt,
 		running: input.runningConversationIds.has(entry.conversationId),
+		pinned: entry.pinned === true,
+		backgroundColor: entry.backgroundColor || "",
 	}));
-	conversations.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+	conversations.sort((left, right) => {
+		if (left.pinned !== right.pinned) {
+			return left.pinned ? -1 : 1;
+		}
+		return right.updatedAt.localeCompare(left.updatedAt);
+	});
 
 	return {
 		currentConversationId: input.currentConversationId,

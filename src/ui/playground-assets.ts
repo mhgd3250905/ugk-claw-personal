@@ -1004,28 +1004,30 @@ export function getPlaygroundAssetMobileStyles(): string {
 				display: block;
 			}
 
-			.conversation-item-delete {
+			.conversation-item-menu-trigger {
 				position: absolute;
 				top: 8px;
 				right: 8px;
 				z-index: 2;
-				width: 28px;
-				min-width: 28px;
-				height: 28px;
+				width: 24px;
+				min-width: 24px;
+				height: 24px;
 				padding: 0;
+				appearance: none;
 				border: 0;
-				border-radius: 6px;
-				background: #171a28;
-				color: rgba(255, 184, 198, 0.74);
-				font-size: 16px;
+				border-radius: 0;
+				background: transparent;
+				color: rgba(226, 234, 255, 0.74);
+				font-size: 18px;
 				box-shadow: none;
 			}
 
-			.conversation-item-delete:hover:not(:disabled),
-			.conversation-item-delete:focus-visible {
+			.conversation-item-menu-trigger:hover,
+			.conversation-item-menu-trigger:focus-visible,
+			.conversation-item-menu-trigger[aria-expanded="true"] {
 				border: 0;
-				background: rgba(255, 113, 136, 0.16);
-				color: rgba(255, 226, 232, 0.96);
+				background: transparent !important;
+				color: rgba(247, 249, 255, 0.96);
 				box-shadow: none;
 				transform: none;
 			}
@@ -1038,7 +1040,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				padding: 11px 46px 10px 14px;
 				border: 0;
 				border-radius: 8px;
-				background: #0b0e19;
+				background: var(--conversation-card-bg, #0b0e19);
 				align-content: start;
 				line-height: normal;
 				letter-spacing: 0;
@@ -1054,7 +1056,7 @@ export function getPlaygroundAssetMobileStyles(): string {
 				min-width: 0;
 			}
 
-			.mobile-conversation-item > .conversation-item-delete {
+			.mobile-conversation-item > .conversation-item-menu-trigger {
 				position: absolute;
 				top: 8px;
 				right: 8px;
@@ -1069,14 +1071,14 @@ export function getPlaygroundAssetMobileStyles(): string {
 			.mobile-conversation-item:hover:not(:disabled),
 			.mobile-conversation-item:focus-visible {
 				border: 0;
-				background: #111625;
+				background: var(--conversation-card-hover-bg, #111625);
 				box-shadow: none;
 				transform: none;
 			}
 
 			.mobile-conversation-item.is-active {
 				border: 0;
-				background: #151a2b;
+				background: var(--conversation-card-active-bg, #151a2b);
 				box-shadow: none;
 			}
 
@@ -1128,6 +1130,10 @@ export function getPlaygroundAssetMobileStyles(): string {
 				padding: 0 7px;
 				border-radius: 4px;
 				background: rgba(238, 244, 255, 0.055);
+			}
+
+			.conversation-item-shell[class*="conversation-bg-"] .mobile-conversation-meta span {
+				background: transparent;
 			}
 
 			.mobile-conversation-meta span:first-child {

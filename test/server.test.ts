@@ -107,6 +107,25 @@ function createAgentServiceStub(overrides?: {
 		switched: boolean;
 		reason?: "running" | "not_found";
 	}>;
+	updateConversation?: (
+		conversationId: string,
+		patch: { title?: string; pinned?: boolean; backgroundColor?: string },
+	) => Promise<{
+		conversationId: string;
+		updated: boolean;
+		conversation?: {
+			conversationId: string;
+			title: string;
+			preview: string;
+			messageCount: number;
+			createdAt: string;
+			updatedAt: string;
+			running: boolean;
+			pinned?: boolean;
+			backgroundColor?: string;
+		};
+		reason?: "not_found";
+	}>;
 	getAvailableSkills?: () => Promise<{
 		skills: Array<{ name: string; path?: string }>;
 		source: "fresh" | "cache";
@@ -256,6 +275,23 @@ function createAgentServiceStub(overrides?: {
 				conversationId,
 				currentConversationId: conversationId,
 				switched: true,
+			})),
+		updateConversation:
+			overrides?.updateConversation ??
+			(async (conversationId, patch) => ({
+				conversationId,
+				updated: true,
+				conversation: {
+					conversationId,
+					title: patch.title ?? "Catalog 1",
+					preview: "preview",
+					messageCount: 1,
+					createdAt: "2026-04-20T00:00:00.000Z",
+					updatedAt: "2026-04-20T00:00:00.000Z",
+					running: false,
+					pinned: patch.pinned ?? false,
+					backgroundColor: patch.backgroundColor ?? "",
+				},
 			})),
 		getAvailableSkills:
 			overrides?.getAvailableSkills ??
@@ -583,6 +619,10 @@ test("GET /playground returns the test UI html", async () => {
 		response.body,
 		/\.message-content \.markdown-table-scroll\s*\{\s*display:\s*block;\s*width:\s*100%;\s*max-width:\s*100%;\s*overflow-x:\s*hidden;/,
 	);
+	assert.match(response.body, /\.message-content\s*\{[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/);
+	assert.match(response.body, /\.message-content pre\s*\{[\s\S]*min-width:\s*0;[\s\S]*width:\s*100%;[\s\S]*max-width:\s*100%;[\s\S]*overflow-x:\s*auto;/);
+	assert.match(response.body, /\.message-content \.code-block\s*\{[\s\S]*display:\s*block;[\s\S]*min-width:\s*0;[\s\S]*width:\s*100%;[\s\S]*max-width:\s*100%;[\s\S]*overflow:\s*hidden;/);
+	assert.match(response.body, /\.message-content \.code-block pre\s*\{[\s\S]*width:\s*100%;[\s\S]*max-width:\s*100%;[\s\S]*overflow-x:\s*auto;/);
 	assert.match(
 		response.body,
 		/\.message-content table\s*\{\s*width:\s*100%;\s*max-width:\s*100%;\s*border-collapse:\s*collapse;/,
@@ -969,7 +1009,10 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /assistant-run-log-hint/);
 	assert.match(response.body, /chat-run-log-dialog/);
 	assert.match(response.body, /chat-run-log-body/);
-	assert.match(response.body, /conversation-item-delete/);
+	assert.match(response.body, /conversation-item-menu-trigger/);
+	assert.match(response.body, /conversation-item-menu/);
+	assert.match(response.body, /requestRenameConversation/);
+	assert.match(response.body, /requestUpdateConversation/);
 	assert.match(response.body, /confirm-dialog/);
 	assert.match(response.body, /confirm-dialog-title/);
 	assert.match(response.body, /confirm-dialog-confirm/);
@@ -2318,13 +2361,29 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-empty\s*\{[\s\S]*border:\s*0;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-empty\s*\{[\s\S]*background:\s*#0b0e19;/);
 	assert.doesNotMatch(response.body, /shell\.appendChild\(deleteButton\);/);
-	assert.match(response.body, /button\.appendChild\(deleteButton\);/);
+	assert.match(response.body, /button\.appendChild\(menuButton\);/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conversation-item-shell\s*\{[\s\S]*display:\s*block;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conversation-item-delete\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*8px;[\s\S]*right:\s*8px;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item > \.conversation-item-delete\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*8px;[\s\S]*right:\s*8px;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conversation-item-delete\s*\{[\s\S]*width:\s*28px;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conversation-item-delete\s*\{[\s\S]*border:\s*0;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conversation-item-delete\s*\{[\s\S]*background:\s*#171a28;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conversation-item-menu-trigger\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*8px;[\s\S]*right:\s*8px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conversation-item-menu-trigger\s*\{[\s\S]*width:\s*24px;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.conversation-item-menu-trigger\s*\{[\s\S]*background:\s*transparent;/);
+	assert.match(response.body, /\.conversation-item-menu\s*\{[\s\S]*position:\s*absolute;[\s\S]*width:\s*168px;/);
+	assert.match(response.body, /CONVERSATION_BACKGROUND_OPTIONS = \[[\s\S]*value: "mint"/);
+	assert.match(response.body, /CONVERSATION_BACKGROUND_OPTIONS = \[[\s\S]*value: "gray"/);
+	assert.doesNotMatch(response.body, /value: "slate"/);
+	assert.doesNotMatch(response.body, /value: "blue"/);
+	assert.doesNotMatch(response.body, /value: "teal"/);
+	assert.doesNotMatch(response.body, /value: "yellow"/);
+	assert.doesNotMatch(response.body, /value: "purple"/);
+	assert.match(response.body, /\.conversation-item-shell\.conversation-bg-sky\s*\{[\s\S]*--conversation-card-bg:\s*#dbeafe;/);
+	assert.match(response.body, /\.conversation-item-shell\[class\*="conversation-bg-"\] \.mobile-conversation-title\s*\{[\s\S]*color:\s*#172033;/);
+	assert.match(response.body, /\.conversation-item-shell\[class\*="conversation-bg-"\] \.mobile-conversation-meta span\s*\{[\s\S]*background:\s*transparent;/);
+	assert.match(response.body, /\.conversation-item-menu-trigger:hover,[\s\S]*\.conversation-item-menu-trigger:focus-visible,[\s\S]*\.conversation-item-menu-trigger\[aria-expanded="true"\]\s*\{[\s\S]*background:\s*transparent !important;/);
+	assert.match(response.body, /\.conversation-item-shell\.is-pinned \.mobile-conversation-item::after\s*\{[\s\S]*background:\s*#ff304f;/);
+	assert.match(response.body, /\.conversation-color-swatch\.color-default\s*\{[\s\S]*background:\s*#111722 !important;/);
+	assert.doesNotMatch(response.body, /background:\s*linear-gradient\(135deg, #f4f7fb 0 50%, #111722 50% 100%\) !important;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conversation-color-swatch\.color-default\s*\{[\s\S]*background:\s*#f4f7fb !important;/);
+	assert.match(response.body, /\.conversation-color-swatch\.color-sky\s*\{[\s\S]*background:\s*#dbeafe !important;/);
+	assert.match(response.body, /\.desktop-conversation-list \.mobile-conversation-item\s*\{[\s\S]*background:\s*var\(--conversation-card-bg, rgba\(14, 19, 31, 0\.84\)\);/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*min-height:\s*92px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*padding:\s*11px 46px 10px 14px;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*border:\s*0;/);
@@ -2332,7 +2391,7 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*background:\s*#0b0e19;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\s*\{[\s\S]*line-height:\s*normal;/);
-	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\.is-active\s*\{[\s\S]*background:\s*#151a2b;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\.is-active\s*\{[\s\S]*background:\s*var\(--conversation-card-active-bg, #151a2b\);/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item:disabled\s*\{[\s\S]*opacity:\s*1;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-item\.is-active::before\s*\{/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-title\s*\{[\s\S]*line-height:\s*1\.35;/);
@@ -2340,7 +2399,7 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-preview\s*\{[\s\S]*-webkit-line-clamp:\s*2;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-meta\s*\{[\s\S]*line-height:\s*1\.4;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-conversation-meta span\s*\{[\s\S]*min-height:\s*20px;/);
-	assert.match(response.body, /deleteButton\.textContent = "×";/);
+	assert.match(response.body, /menuButton\.textContent = "⋯";/);
 	assert.match(response.body, /<span>运行中不能切换<\/span>/);
 	assert.match(mobileStreamLayoutBlock, /position:\s*relative;/);
 	assert.match(mobileStreamLayoutBlock, /inset:\s*auto;/);
@@ -3406,6 +3465,58 @@ test("DELETE /v1/chat/conversations/:conversationId removes a conversation", asy
 		deleted: true,
 	});
 	assert.deepEqual(calls, ["manual:thread-1"]);
+	await app.close();
+});
+
+test("PATCH /v1/chat/conversations/:conversationId updates conversation menu metadata", async () => {
+	const calls: Array<{ conversationId: string; patch: { title?: string; pinned?: boolean; backgroundColor?: string } }> = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			updateConversation: async (conversationId, patch) => {
+				calls.push({ conversationId, patch });
+				return {
+					conversationId,
+					updated: true,
+					conversation: {
+						conversationId,
+						title: patch.title ?? "Thread",
+						preview: "preview",
+						messageCount: 2,
+						createdAt: "2026-04-20T00:00:00.000Z",
+						updatedAt: "2026-04-20T00:01:00.000Z",
+						running: false,
+						pinned: patch.pinned,
+						backgroundColor: patch.backgroundColor,
+					},
+				};
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "PATCH",
+		url: "/v1/chat/conversations/manual%3Athread-1",
+		payload: {
+			title: "  重命名后的会话  ",
+			pinned: true,
+			backgroundColor: "sky",
+		},
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(calls, [
+		{
+			conversationId: "manual:thread-1",
+			patch: {
+				title: "重命名后的会话",
+				pinned: true,
+				backgroundColor: "sky",
+			},
+		},
+	]);
+	assert.equal(response.json().conversation.title, "重命名后的会话");
+	assert.equal(response.json().conversation.pinned, true);
+	assert.equal(response.json().conversation.backgroundColor, "sky");
 	await app.close();
 });
 

@@ -1195,7 +1195,7 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] .mobile-overflow-menu-item,
 		:root[data-theme="light"] .mobile-conversation-item {
-			background: #f4f7fb;
+			background: var(--conversation-card-bg, #f4f7fb);
 			color: #24324a;
 			box-shadow: none;
 		}
@@ -1204,14 +1204,14 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] .mobile-overflow-menu-item:focus-visible,
 		:root[data-theme="light"] .mobile-conversation-item:hover:not(:disabled),
 		:root[data-theme="light"] .mobile-conversation-item:focus-visible {
-			background: #ffffff;
+			background: var(--conversation-card-hover-bg, #ffffff);
 			color: #123fb7;
 			box-shadow: none;
 		}
 
 		:root[data-theme="light"] .mobile-conversation-item.is-active {
 			border-color: rgba(36, 84, 214, 0.28);
-			background: #e7eeff;
+			background: var(--conversation-card-active-bg, #e7eeff);
 		}
 
 		:root[data-theme="light"] .mobile-conversation-item.is-active::before {
@@ -1219,10 +1219,46 @@ export function getPlaygroundThemeStyles(): string {
 			box-shadow: none;
 		}
 
-		:root[data-theme="light"] .conversation-item-delete {
-			border-color: rgba(197, 41, 69, 0.16);
-			background: rgba(197, 41, 69, 0.07);
-			color: #9d2439;
+		:root[data-theme="light"] .conversation-item-menu-trigger {
+			border-color: transparent;
+			background: transparent;
+			color: #536078;
+		}
+
+		:root[data-theme="light"] .conversation-item-menu-trigger:hover,
+		:root[data-theme="light"] .conversation-item-menu-trigger:focus-visible,
+		:root[data-theme="light"] .conversation-item-menu-trigger[aria-expanded="true"] {
+			background: transparent !important;
+			color: #24324a;
+		}
+
+		:root[data-theme="light"] .conversation-item-menu,
+		:root[data-theme="light"] .conversation-menu-color-group {
+			border-color: rgba(36, 84, 214, 0.1);
+			background: #ffffff;
+			color: #172033;
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .conversation-color-swatch.color-default {
+			background: #f4f7fb !important;
+		}
+
+		:root[data-theme="light"] .conversation-menu-item {
+			color: #24324a;
+		}
+
+		:root[data-theme="light"] .conversation-menu-item:hover:not(:disabled),
+		:root[data-theme="light"] .conversation-menu-item:focus-visible {
+			background: #edf3ff;
+		}
+
+		:root[data-theme="light"] .conversation-menu-item.danger {
+			color: #c52945;
+		}
+
+		:root[data-theme="light"] .conversation-menu-color-group > span {
+			color: #647086;
 		}
 
 		:root[data-theme="light"] .error-banner {

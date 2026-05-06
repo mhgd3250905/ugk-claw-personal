@@ -144,6 +144,8 @@ export interface ConversationCatalogItem {
 	createdAt: string;
 	updatedAt: string;
 	running: boolean;
+	pinned?: boolean;
+	backgroundColor?: string;
 }
 
 export interface ConversationCatalogResult {
@@ -170,6 +172,13 @@ export interface SwitchConversationResult {
 	currentConversationId: string;
 	switched: boolean;
 	reason?: "running" | "not_found";
+}
+
+export interface UpdateConversationResult {
+	conversationId: string;
+	updated: boolean;
+	conversation?: ConversationCatalogItem;
+	reason?: "not_found";
 }
 
 export interface ConversationHistoryResult {
@@ -289,6 +298,30 @@ export class AgentService {
 			conversationId,
 			hasActiveRun: this.activeRuns.size > 0,
 		});
+	}
+
+	async updateConversation(
+		conversationId: string,
+		patch: { title?: string; pinned?: boolean; backgroundColor?: string },
+	): Promise<UpdateConversationResult> {
+		const updatedEntry = await this.options.conversationStore.updateMetadata(conversationId, patch);
+		if (!updatedEntry) {
+			return {
+				conversationId,
+				updated: false,
+				reason: "not_found",
+			};
+		}
+		const catalog = buildConversationCatalog({
+			currentConversationId: await this.ensureCurrentConversationId(),
+			entries: [{ conversationId, ...updatedEntry }],
+			runningConversationIds: new Set(this.activeRuns.keys()),
+		});
+		return {
+			conversationId,
+			updated: true,
+			conversation: catalog.conversations[0],
+		};
 	}
 
 	async queueMessage(input: QueueMessageInput): Promise<QueueMessageResult> {

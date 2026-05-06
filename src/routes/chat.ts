@@ -44,6 +44,8 @@ import type {
 	ResetConversationResponseBody,
 	SwitchConversationRequestBody,
 	SwitchConversationResponseBody,
+	UpdateConversationRequestBody,
+	UpdateConversationResponseBody,
 } from "../types/api.js";
 
 const RUN_EVENT_PAGE_SIZE = 2;
@@ -85,6 +87,45 @@ function paginateChatRunEvents(
 		hasMore: startIndex > 0,
 		...(startIndex > 0 ? { nextBefore: String(startIndex) } : {}),
 	};
+}
+
+const CONVERSATION_BACKGROUND_COLORS = new Set(["", "sky", "mint", "peach", "pink", "gray"]);
+
+function parseUpdateConversationBody(body: Partial<UpdateConversationRequestBody> | undefined): {
+	value?: UpdateConversationRequestBody;
+	error?: string;
+} {
+	const patch: UpdateConversationRequestBody = {};
+	if (!body || typeof body !== "object") {
+		return { value: patch };
+	}
+	if ("title" in body) {
+		if (typeof body.title !== "string") {
+			return { error: 'Field "title" must be a string when provided' };
+		}
+		const title = body.title.trim();
+		if (!title) {
+			return { error: 'Field "title" must not be blank when provided' };
+		}
+		patch.title = title.slice(0, 80);
+	}
+	if ("pinned" in body) {
+		if (typeof body.pinned !== "boolean") {
+			return { error: 'Field "pinned" must be a boolean when provided' };
+		}
+		patch.pinned = body.pinned;
+	}
+	if ("backgroundColor" in body) {
+		if (typeof body.backgroundColor !== "string") {
+			return { error: 'Field "backgroundColor" must be a string when provided' };
+		}
+		const backgroundColor = body.backgroundColor.trim();
+		if (!CONVERSATION_BACKGROUND_COLORS.has(backgroundColor)) {
+			return { error: 'Field "backgroundColor" must be one of: sky, mint, peach, pink, gray' };
+		}
+		patch.backgroundColor = backgroundColor;
+	}
+	return { value: patch };
 }
 
 interface ChatRouteDependencies {
@@ -479,6 +520,35 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}
 			try {
 				return await service.deleteConversation(conversationId);
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
+		},
+	);
+
+	app.patch(
+		"/v1/agents/:agentId/chat/conversations/:conversationId",
+		async (
+			request: FastifyRequest<{
+				Params: { agentId?: string; conversationId?: string };
+				Body: Partial<UpdateConversationRequestBody>;
+			}>,
+			reply,
+		): Promise<UpdateConversationResponseBody | FastifyReply> => {
+			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			if (!service) {
+				return reply;
+			}
+			const { conversationId } = request.params ?? {};
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+			const parsed = parseUpdateConversationBody(request.body);
+			if (parsed.error) {
+				return sendBadRequest(reply, parsed.error);
+			}
+			try {
+				return await service.updateConversation(conversationId, parsed.value ?? {});
 			} catch (error) {
 				return sendInternalError(reply, error);
 			}
@@ -890,6 +960,33 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 
 			try {
 				return await deps.agentService.deleteConversation(conversationId);
+			} catch (error) {
+				return sendInternalError(reply, error);
+			}
+		},
+	);
+
+	app.patch(
+		"/v1/chat/conversations/:conversationId",
+		async (
+			request: FastifyRequest<{
+				Params: { conversationId: string };
+				Body: Partial<UpdateConversationRequestBody>;
+			}>,
+			reply,
+		): Promise<UpdateConversationResponseBody | FastifyReply> => {
+			const { conversationId } = request.params ?? {};
+
+			if (!isValidConversationId(conversationId)) {
+				return sendBadRequest(reply, 'Field "conversationId" must be a non-empty string');
+			}
+			const parsed = parseUpdateConversationBody(request.body);
+			if (parsed.error) {
+				return sendBadRequest(reply, parsed.error);
+			}
+
+			try {
+				return await deps.agentService.updateConversation(conversationId, parsed.value ?? {});
 			} catch (error) {
 				return sendInternalError(reply, error);
 			}
