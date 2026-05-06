@@ -698,19 +698,6 @@ export function getPlaygroundStyles(): string {
 			display: none;
 		}
 
-		.asset-head-breadcrumb {
-			display: none;
-			color: rgba(143, 147, 173, 0.42);
-			font-size: 11px;
-			font-weight: 500;
-			line-height: 1;
-			white-space: nowrap;
-		}
-
-		.chat-stage > .workspace-contained .asset-head-breadcrumb {
-			display: inline;
-		}
-
 		.chat-stage > .workspace-contained .asset-modal-copy {
 			display: flex;
 			flex-direction: row;
@@ -820,18 +807,6 @@ export function getPlaygroundStyles(): string {
 
 		.chat-stage > .workspace-contained .task-inbox-head .mobile-work-back-button {
 			display: none;
-		}
-
-		.task-inbox-head-breadcrumb {
-			display: none;
-			color: rgba(143, 147, 173, 0.5);
-			font-size: 11px;
-			line-height: 1.5;
-			white-space: nowrap;
-		}
-
-		.chat-stage > .workspace-contained .task-inbox-head-breadcrumb {
-			display: inline;
 		}
 
 		.task-inbox-head-count {

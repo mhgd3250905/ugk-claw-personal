@@ -24,15 +24,18 @@ export function getPlaygroundStatusControllerScript(): string {
 			mobileNewConversationButton.disabled = next || state.conversationCreatePending;
 			mobileOverflowMenuButton.disabled = false;
 			mobileMenuFileButton.disabled = false;
-			mobileMenuLibraryButton.disabled = next;
+			mobileMenuLibraryButton.disabled = false;
 			mobileMenuTaskInboxButton.disabled = false;
 			mobileMenuConnButton.disabled = false;
-			openAssetLibraryButton.disabled = next;
+			openAssetLibraryButton.disabled = false;
 			openTaskInboxButton.disabled = false;
 			openConnManagerButton.disabled = false;
-			refreshAssetsButton.disabled = next;
+			refreshAssetsButton.disabled = false;
 			if (next) {
 				closeMobileOverflowMenu();
+			}
+			if (typeof syncBackToChatButton === "function") {
+				syncBackToChatButton();
 			}
 			renderConversationDrawer();
 			setCommandStatus(next ? "RUNNING" : "STANDBY");

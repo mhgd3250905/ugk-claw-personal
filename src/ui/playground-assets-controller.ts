@@ -760,7 +760,7 @@ export function getPlaygroundAssetControllerScript(): string {
 					appendProcessEvent("error", "\\u8d44\\u4ea7\\u6e05\\u5355\\u5931\\u8d25", messageText);
 				}
 			} finally {
-				refreshAssetsButton.disabled = state.loading;
+				refreshAssetsButton.disabled = false;
 			}
 		}
 

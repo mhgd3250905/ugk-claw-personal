@@ -1021,10 +1021,6 @@ export function getPlaygroundThemeStyles(): string {
 			background: rgba(197, 41, 69, 0.07);
 			color: #9d2439;
 		}
-			:root[data-theme="light"] .asset-head-breadcrumb {
-				color: #99a2b3;
-			}
-
 			:root[data-theme="light"] .asset-head-count {
 				background: rgba(31, 95, 200, 0.08);
 				color: #4a7cc9;
@@ -1240,10 +1236,6 @@ export function getPlaygroundThemeStyles(): string {
 			:root[data-theme="light"] .chat-stage {
 				background: transparent;
 			}
-			:root[data-theme="light"] .task-inbox-head-breadcrumb {
-				color: #99a2b3;
-			}
-
 			:root[data-theme="light"] .task-inbox-head-count {
 				background: rgba(197, 41, 69, 0.08);
 				color: #b33a4a;

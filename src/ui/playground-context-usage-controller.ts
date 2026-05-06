@@ -320,7 +320,7 @@ export function getPlaygroundContextUsageControllerScript(): string {
 				openContextUsageDialog();
 				return;
 			}
-			state.contextUsageExpanded = !state.contextUsageExpanded;
+			state.contextUsageExpanded = false;
 			renderContextUsageBar();
 		}
 

@@ -12,6 +12,30 @@
 
 ## 2026-05-06
 
+### Conn 跨 run 共享目录
+- 日期：2026-05-06
+- 主题：为后台 conn run 提供平台级 `CONN_SHARED_DIR`，解决 zhihu-robot 等周期任务跨 run 去重、审计记录、冷却时间戳和 checkpoint 没有稳定持久目录的问题。
+- 影响范围：每条 conn 的 run workspace 会创建同 conn 共享的 `background/shared/<connId>` 目录；后台 prompt 和环境变量会注入 `CONN_SHARED_DIR`；`conn-orchestrator` 基础技能和运行文档明确禁止把跨 run 状态写入 `/tmp`、`/app/runtime`、`runtime/skills-user` 或 `OUTPUT_DIR`。平台不在删除 conn 时自动清理该目录，避免误删生产状态。
+- 对应入口：`src/agent/background-workspace.ts`、`src/agent/background-agent-runner.ts`、`.pi/skills/conn-orchestrator/SKILL.md`、`docs/runtime-assets-conn-feishu.md`、`test/background-workspace.test.ts`、`test/background-agent-runner.test.ts`
+
+### Playground 桌面 workspace 头部视觉升级
+- 日期：2026-05-06
+- 主题：优化桌面 Web 模式下文件库、任务消息等操作页共用的 `asset-modal-head mobile-work-topbar` 头部布局，避免手机 topbar 风格直接塞进桌面工作区导致粗糙拥挤。
+- 影响范围：桌面 workspace 头部统一为两列 command bar，左侧只保留竖向强调线和页面标题，不再显示 `工作区 /` 面包屑或标题旁数量胶囊；右侧操作按钮右对齐并采用小型分段控制视觉；桌面隐藏移动返回箭头，移动端全屏工作页结构不变。
+- 对应入口：`src/ui/playground-assets.ts`、`src/ui/playground-task-inbox.ts`、`test/playground-styles.test.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
+### Playground 桌面上下文用量 tooltip 不常驻
+- 日期：2026-05-06
+- 主题：修复桌面 Web 模式下点击上下文用量按钮会把 hover tooltip 置为常驻展开的问题。
+- 影响范围：桌面端上下文用量浮层只随 hover / focus-visible 展示，点击不再切换 `contextUsageExpanded`；移动端点击仍打开完整上下文详情 dialog。
+- 对应入口：`src/ui/playground-context-usage-controller.ts`、`test/playground-context-usage-controller.test.ts`、`docs/playground-current.md`
+
+### Playground 运行中文件库可用
+- 日期：2026-05-06
+- 主题：修复会话运行中“文件库”和 workspace“回到会话”被全局 loading 状态禁用的问题，允许运行中打开文件库并返回对话补充下一条消息。
+- 影响范围：运行中仍禁用 chat 态“新会话”以保护 active run 归属；桌面文件库入口、移动端文件库菜单和资产刷新入口不再被 `setLoading(true)` 锁死；当 topbar 左侧按钮在 workspace 态显示为“回到会话”时保持可点击，返回 chat 后恢复“新会话”的运行中禁用规则。
+- 对应入口：`src/ui/playground-status-controller.ts`、`src/ui/playground-workspace-controller.ts`、`src/ui/playground-assets-controller.ts`、`test/playground-status-controller.test.ts`、`test/playground-workspace-controller.test.ts`、`test/playground-assets-controller.test.ts`、`docs/playground-current.md`
+
 ### 架构治理交接快照刷新
 - 日期：2026-05-06
 - 主题：按 `feature-handoff` 流程刷新当前交接快照，校准本地 HEAD、origin/main、双云生产基线和未提交工作区边界。

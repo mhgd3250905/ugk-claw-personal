@@ -362,6 +362,139 @@ export function getPlaygroundAssetModalStyles(): string {
 			overflow-y: auto;
 			border-top: 1px solid var(--line);
 		}
+
+		.chat-stage > .workspace-contained :is(.asset-modal-head, .task-inbox-head) {
+			position: relative;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: center;
+			gap: 18px;
+			min-height: 58px;
+			padding: 10px 14px;
+			border: 0;
+			background:
+				linear-gradient(90deg, rgba(13, 18, 30, 0.98), rgba(8, 11, 20, 0.94)),
+				#080c14;
+			color: rgba(232, 238, 255, 0.62);
+			text-transform: none;
+			letter-spacing: 0;
+		}
+
+		.chat-stage > .workspace-contained :is(.asset-modal-head, .task-inbox-head)::before {
+			content: "";
+			position: absolute;
+			left: 14px;
+			right: 14px;
+			bottom: 0;
+			height: 1px;
+			background: linear-gradient(90deg, rgba(141, 255, 178, 0.32), rgba(201, 210, 255, 0.18), transparent);
+			pointer-events: none;
+		}
+
+		.chat-stage > .workspace-contained :is(.asset-modal-copy, .task-inbox-head-copy) {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			column-gap: 10px;
+			align-items: center;
+			min-width: 0;
+		}
+
+		.chat-stage > .workspace-contained :is(.asset-modal-copy, .task-inbox-head-copy)::before {
+			content: "";
+			width: 4px;
+			height: 28px;
+			border-radius: 999px;
+			background: linear-gradient(180deg, #8dffb2, #65d1ff 52%, #c9d2ff);
+		}
+
+		.chat-stage > .workspace-contained :is(.asset-modal-copy strong, .task-inbox-head-copy strong) {
+			min-width: 0;
+			overflow: hidden;
+			color: rgba(247, 250, 255, 0.96);
+			font-size: 14px;
+			font-weight: 700;
+			line-height: 1.25;
+			letter-spacing: 0.02em;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.chat-stage > .workspace-contained :is(.asset-head-count, .task-inbox-head-count) {
+			display: none;
+		}
+
+		.chat-stage > .workspace-contained :is(.asset-modal-actions, .task-inbox-head-actions) {
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 6px;
+			min-width: 0;
+			padding: 4px;
+			overflow-x: auto;
+			overflow-y: hidden;
+			border-radius: 4px;
+			background: rgba(255, 255, 255, 0.035);
+			scrollbar-width: none;
+		}
+
+		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button) {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 30px;
+			padding: 0 10px;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			color: rgba(235, 242, 255, 0.64);
+			font-size: 10.5px;
+			font-weight: 650;
+			line-height: 1;
+			letter-spacing: 0.02em;
+			text-transform: none;
+			white-space: nowrap;
+		}
+
+		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button):hover:not(:disabled),
+		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button):focus-visible {
+			background: rgba(201, 210, 255, 0.11);
+			color: rgba(248, 251, 255, 0.96);
+			transform: none;
+		}
+
+		.chat-stage > .workspace-contained .task-inbox-filter-button[data-active="true"] {
+			background: rgba(101, 209, 255, 0.16);
+			color: rgba(236, 249, 255, 0.98);
+		}
+
+		.chat-stage > .workspace-contained .mobile-work-back-button {
+			display: none;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-head, .task-inbox-head) {
+			background:
+				linear-gradient(90deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 252, 0.96)),
+				#ffffff;
+			color: #5d687a;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-copy strong, .task-inbox-head-copy strong) {
+			color: #142033;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions, .task-inbox-head-actions) {
+			background: #eef3f8;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button) {
+			color: #536176;
+		}
+
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button):hover:not(:disabled),
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button):focus-visible {
+			background: #ffffff;
+			color: #142033;
+		}
 	`;
 }
 
@@ -1042,7 +1175,6 @@ export function getPlaygroundAssetDialogs(): string {
 						<button id="close-asset-modal-button" class="mobile-work-back-button" type="button" aria-label="返回对话">
 							<span aria-hidden="true">&larr;</span>
 						</button>
-						<span class="asset-head-breadcrumb">工作区 /</span>
 						<div class="asset-modal-copy">
 							<strong id="asset-modal-title">可复用资产</strong>
 							<span id="asset-modal-count" class="asset-head-count"></span>

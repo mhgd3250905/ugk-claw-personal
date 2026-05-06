@@ -10,12 +10,12 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- 当前本地最新提交：`379eb82 chore: document architecture governance handoff`
-- 当前 `origin/main`：`425227e`；本地 `main` ahead 2，包含 `b69c34f` 双云文件库 UI 发布文档记录与 `379eb82` 架构治理交接记录，尚未推送。
+- 当前本地最新提交：`766ee94 chore: refresh architecture governance handoff`
+- 当前 `origin/main`：`425227e`；本地 `main` ahead 3，包含 `b69c34f` 双云文件库 UI 发布文档记录、`379eb82` 架构治理交接记录与 `766ee94` 架构治理 handoff 刷新，尚未推送。
 - 腾讯云生产运行代码提交：`425227e`，以 `docs/tencent-cloud-singapore-deploy.md` 的 `2026-05-06 文件库桌面 UI 细化发布记录` 为准。
 - 阿里云生产运行代码提交：`425227e`，以 `docs/aliyun-ecs-deploy.md` 的 `2026-05-06 文件库桌面 UI 细化发布记录` 为准。
-- 本轮主线：架构治理文档体系、测试矩阵、Playground / Conn / Agent Chat 治理地图、`feature-handoff` 开发协作 skill，以及 `src/routes/chat.ts` scoped agent service resolver 小重构。
-- 验收结论：架构治理提交已通过 `git diff --check`、`npx tsc --noEmit`、`node --test --import tsx test/chat-agent-routes.test.ts`、`node --test --import tsx test/server.test.ts --test-name-pattern "GET /playground labels timed-out conn runs distinctly"` 和 `npm test`，全量结果为 `554 pass / 0 fail`；本次交接文档刷新后另跑 `git diff --check`。
+- 本轮主线：Playground 运行中 workspace 交互与桌面操作页 header 收口；同时新增 Conn 平台级跨 run 共享目录 `CONN_SHARED_DIR`，让周期任务把去重历史、冷却时间戳、审计记录和 checkpoint 写到同一 conn 的持久目录，而不是继续滥用 `runtime/skills-user`。
+- 验收结论：Playground 修复已通过 `git diff --check`、`npx tsc --noEmit`、相关 controller / styles / server HTML 测试；最后一次 server 定向命令实际跑完 `110 pass / 0 fail`。Conn 共享目录改动已通过 `node --test --import tsx test/background-workspace.test.ts`、`node --test --import tsx test/background-agent-runner.test.ts`、`node --test --import tsx test/conn-worker.test.ts` 和 `npx tsc --noEmit`。Docker 本地服务已重启，`/healthz` 正常，真实页面验证文件库 header 左侧只剩 `可复用资产`。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
 - 腾讯云健康检查：`http://43.134.167.179:3000/healthz`
 - 腾讯云主部署目录：`/home/ubuntu/ugk-claw-repo`
@@ -27,7 +27,7 @@
 - 阿里云主部署目录：`/root/ugk-claw-repo`
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
-- 当前未提交本地现场：`.codex/plans/2026-05-06-handoff-architecture-governance.md`、`docs/handoff-current.md`、`docs/change-log.md`，以及 3 个不应提交的 runtime 临时文件：`runtime/dangyang-weather-2026-05-01.json`、`runtime/karpathy-guidelines-CLAUDE.md`、`runtime/tab-accumulation-report.md`。
+- 当前未提交本地现场：本轮应提交候选包括 `docs/change-log.md`、`docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md`、`docs/handoff-current.md`、`.codex/plans/2026-05-06-handoff-playground-runtime-workspace-ui.md`、`.pi/skills/conn-orchestrator/SKILL.md`、`src/agent/background-agent-runner.ts`、`src/agent/background-workspace.ts`、`src/ui/playground-assets-controller.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-context-usage-controller.ts`、`src/ui/playground-status-controller.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-workspace-controller.ts`、`test/background-agent-runner.test.ts`、`test/background-workspace.test.ts`、`test/playground-assets-controller.test.ts`、`test/playground-workspace-controller.test.ts`、`test/playground-context-usage-controller.test.ts`、`test/playground-status-controller.test.ts`、`test/playground-styles.test.ts`、`test/server.test.ts`。不要提交 runtime 临时文件：`runtime/dangyang-weather-2026-05-01.json`、`runtime/dev-server.log`、`runtime/karpathy-guidelines-CLAUDE.md`、`runtime/tab-accumulation-report.md`。
 
 ## 最近已完成
 

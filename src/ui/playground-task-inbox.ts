@@ -570,7 +570,6 @@ export function getPlaygroundTaskInboxView(): string {
 								<button id="close-task-inbox-button" class="mobile-work-back-button task-inbox-head-button" type="button" aria-label="返回对话">
 									<span aria-hidden="true">&larr;</span>
 								</button>
-								<span class="task-inbox-head-breadcrumb">工作区 /</span>
 								<div class="task-inbox-head-copy">
 									<strong id="task-inbox-title">任务消息</strong>
 									<span id="task-inbox-unread-count" class="task-inbox-head-count"></span>

@@ -87,6 +87,8 @@ test("BackgroundWorkspaceManager creates run workspace directories and manifest"
 	await assert.doesNotReject(() => stat(workspace.outputDir));
 	await assert.doesNotReject(() => stat(workspace.logsDir));
 	await assert.doesNotReject(() => stat(workspace.sessionDir));
+	await assert.doesNotReject(() => stat(workspace.sharedDir));
+	assert.equal(workspace.sharedDir, join(root, "shared", "conn-1"));
 
 	const manifest = JSON.parse(await readFile(workspace.manifestPath, "utf8")) as Record<string, unknown>;
 	assert.equal(manifest.runId, "run-1");
@@ -95,6 +97,32 @@ test("BackgroundWorkspaceManager creates run workspace directories and manifest"
 	assert.equal(manifest.createdAt, "2026-04-21T10:01:00.000Z");
 	assert.deepEqual(manifest.assetRefs, []);
 	assert.deepEqual(manifest.assets, []);
+	assert.deepEqual((manifest.directories as Record<string, string>).shared, "../../shared/conn-1");
+});
+
+test("BackgroundWorkspaceManager reuses a conn-scoped shared directory across runs", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-workspace-"));
+	const manager = new BackgroundWorkspaceManager({
+		backgroundDataDir: root,
+		assetStore: new FakeAssetStore({}),
+	});
+
+	const first = await manager.createRunWorkspace({
+		runId: "run-a",
+		connId: "conn/shared:daily",
+		title: "Daily Digest",
+		assetRefs: [],
+	});
+	const second = await manager.createRunWorkspace({
+		runId: "run-b",
+		connId: "conn/shared:daily",
+		title: "Daily Digest",
+		assetRefs: [],
+	});
+
+	assert.equal(first.sharedDir, second.sharedDir);
+	assert.equal(first.sharedDir, join(root, "shared", "conn_shared_daily"));
+	await assert.doesNotReject(() => stat(first.sharedDir));
 });
 
 test("BackgroundWorkspaceManager snapshots input assets and deduplicates filenames", async () => {

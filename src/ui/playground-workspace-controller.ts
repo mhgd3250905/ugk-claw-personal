@@ -159,6 +159,7 @@ export function getPlaygroundWorkspaceControllerScript(): string {
 					if (span) span.textContent = BACK_TO_CHAT_SUBTITLE;
 					newConversationButton.setAttribute("data-tooltip-title", BACK_TO_CHAT_TITLE);
 					newConversationButton.setAttribute("data-tooltip-desc", BACK_TO_CHAT_DESC);
+					newConversationButton.disabled = false;
 				} else {
 					if (backToChatOriginalState) {
 						commandStatus.textContent = backToChatOriginalState.strongText;
@@ -166,6 +167,7 @@ export function getPlaygroundWorkspaceControllerScript(): string {
 						newConversationButton.setAttribute("data-tooltip-title", backToChatOriginalState.tooltipTitle);
 						newConversationButton.setAttribute("data-tooltip-desc", backToChatOriginalState.tooltipDesc);
 					}
+					newConversationButton.disabled = state.loading || state.conversationCreatePending;
 				}
 			}
 

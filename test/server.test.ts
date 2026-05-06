@@ -836,6 +836,9 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /class="topbar asset-modal-head mobile-work-topbar"[\s\S]*id="close-conn-manager-button"[\s\S]*aria-label="返回对话"[\s\S]*id="conn-manager-title"[\s\S]*id="open-conn-editor-button"[\s\S]*id="refresh-conn-manager-button"/);
 	assert.match(response.body, /class="topbar asset-modal-head mobile-work-topbar"[\s\S]*id="close-conn-editor-button"[\s\S]*aria-label="返回对话"[\s\S]*id="conn-editor-title"[\s\S]*id="save-conn-editor-button"[\s\S]*id="cancel-conn-editor-button"/);
 	assert.match(response.body, /class="topbar pane-head task-inbox-head"[\s\S]*id="close-task-inbox-button"[\s\S]*aria-label="返回对话"[\s\S]*id="task-inbox-title">任务消息[\s\S]*id="task-inbox-unread-count"[\s\S]*id="task-inbox-filter-unread-button"[\s\S]*id="refresh-task-inbox-button"/);
+	assert.doesNotMatch(response.body, /asset-head-breadcrumb/);
+	assert.doesNotMatch(response.body, /task-inbox-head-breadcrumb/);
+	assert.doesNotMatch(response.body, /工作区 \//);
 	assert.doesNotMatch(response.body, /id="close-asset-modal-button"[^>]*>回到对话/);
 	assert.doesNotMatch(response.body, /id="close-conn-manager-button"[^>]*>回到对话/);
 	assert.doesNotMatch(response.body, /id="close-conn-editor-button"[^>]*>回到对话/);

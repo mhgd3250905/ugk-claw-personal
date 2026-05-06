@@ -2,6 +2,30 @@
 
 更新时间：`2026-05-05`
 
+## 2026-05-06 运行中文件库可用
+
+- 会话运行中继续禁用“新会话”和会话切换类操作，避免 active run 归属被切走。
+- 文件库入口在运行中保持可点击，用户可以打开文件库、复用已有资产，并把选中的文件补到 composer；随后发送会走运行中追加消息链路。
+- 移动端更多菜单里的“文件库”同样不再因运行中状态禁用。
+- 运行中进入桌面 workspace 后，topbar 左侧按钮会从“新会话”切换为“回到会话”；此时它承担关闭面板返回对话的语义，必须保持可点击。返回 chat 后按钮恢复“新会话”语义，并继续按运行中状态禁用。
+- 资产刷新按钮只在真实加载资产列表时由 `loadAssets()` 临时禁用，不再被全局 `setLoading(true)` 锁死。
+- 相关源码：`src/ui/playground-status-controller.ts`、`src/ui/playground-workspace-controller.ts`、`src/ui/playground-assets-controller.ts`
+
+## 2026-05-06 桌面上下文用量 tooltip 不常驻
+
+- 桌面 Web 模式下，上下文用量按钮只用 hover / focus-visible 展示 tooltip；鼠标移走后 tooltip 消失。
+- 点击上下文用量按钮在桌面端不再切换 `data-expanded="true"` 常驻态，避免点一下后必须再点一次才能收起。
+- 移动端仍保留点击打开完整上下文详情 dialog 的行为，因为移动端没有可靠 hover。
+- 相关源码：`src/ui/playground-context-usage-controller.ts`
+
+## 2026-05-06 桌面 workspace 头部视觉升级
+
+- 桌面 Web 模式下，文件库和任务消息等 workspace 页面头部不再直接暴露成手机全屏页式的粗糙 topbar；`.chat-stage > .workspace-contained` 内的 `.asset-modal-head` / `.task-inbox-head` 统一升级为紧凑 command bar。
+- 头部采用两列 grid：左侧只保留竖向强调线和页面标题，不再显示 `工作区 /` 面包屑、副标题或数量胶囊；右侧承载刷新、筛选、全部已读等操作按钮。按钮区右对齐并使用小型分段控制视觉，避免操作页顶部像一排随手堆的按钮。
+- 桌面 workspace 下 `.mobile-work-back-button` 强制隐藏，返回对话仍由全局 topbar 左侧“回到会话”承担；移动端全屏工作页继续保留返回箭头和原有结构。
+- 浅色主题同步提供白底、冷蓝边框和弱阴影口径；深色主题使用克制的暗色承载、底部分隔线和左侧细强调条，避免整块 header 和列表内容糊成一团。
+- 相关源码：`src/ui/playground-assets.ts`
+
 ## 2026-05-05 桌面工作区头部与交互收口
 
 - 桌面端文件库和任务消息 header 不再复用 `mobile-work-topbar` 手机结构。桌面 workspace 下 header 为透明工具栏：左侧 `工作区 / 页面名称 [N]` 面包屑 + 标题 + 数量徽标，右侧操作按钮，← 返回箭头在 `min-width: 641px` 下强制隐藏。手机端（`max-width: 640px`）保持原有全屏页结构不变。

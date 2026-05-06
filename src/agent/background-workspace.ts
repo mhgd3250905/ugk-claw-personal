@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { basename, extname, join } from "node:path";
+import { basename, extname, join, relative } from "node:path";
 import type { AssetStoreLike, StoredAssetRecord } from "./asset-store.js";
 
 export interface BackgroundWorkspaceManagerOptions {
@@ -22,6 +22,7 @@ export interface RunWorkspace {
 	outputDir: string;
 	logsDir: string;
 	sessionDir: string;
+	sharedDir: string;
 	manifestPath: string;
 }
 
@@ -38,6 +39,7 @@ interface WorkspaceManifest {
 		output: string;
 		logs: string;
 		session: string;
+		shared: string;
 	};
 }
 
@@ -57,13 +59,14 @@ export class BackgroundWorkspaceManager {
 	constructor(private readonly options: BackgroundWorkspaceManagerOptions) {}
 
 	async createRunWorkspace(input: CreateRunWorkspaceInput): Promise<RunWorkspace> {
-		const workspace = this.resolveWorkspace(input.runId);
+		const workspace = this.resolveWorkspace(input.runId, input.connId);
 		await Promise.all([
 			mkdir(workspace.inputDir, { recursive: true }),
 			mkdir(workspace.workDir, { recursive: true }),
 			mkdir(workspace.outputDir, { recursive: true }),
 			mkdir(workspace.logsDir, { recursive: true }),
 			mkdir(workspace.sessionDir, { recursive: true }),
+			mkdir(workspace.sharedDir, { recursive: true }),
 		]);
 
 		const assets = await this.snapshotInputAssets(workspace, input.assetRefs);
@@ -80,14 +83,16 @@ export class BackgroundWorkspaceManager {
 				output: "output",
 				logs: "logs",
 				session: "session",
+				shared: relative(workspace.rootPath, workspace.sharedDir).replace(/\\/g, "/"),
 			},
 		};
 		await writeFile(workspace.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 		return workspace;
 	}
 
-	private resolveWorkspace(runId: string): RunWorkspace {
+	private resolveWorkspace(runId: string, connId: string): RunWorkspace {
 		const safeRunId = sanitizePathSegment(runId);
+		const safeConnId = sanitizePathSegment(connId);
 		const rootPath = join(this.options.backgroundDataDir, "runs", safeRunId);
 		return {
 			rootPath,
@@ -96,6 +101,7 @@ export class BackgroundWorkspaceManager {
 			outputDir: join(rootPath, "output"),
 			logsDir: join(rootPath, "logs"),
 			sessionDir: join(rootPath, "session"),
+			sharedDir: join(this.options.backgroundDataDir, "shared", safeConnId),
 			manifestPath: join(rootPath, "manifest.json"),
 		};
 	}

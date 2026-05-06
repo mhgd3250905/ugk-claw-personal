@@ -390,6 +390,7 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 		override async prompt(message: string): Promise<void> {
 			this.observedEnv = {
 				OUTPUT_DIR: process.env.OUTPUT_DIR,
+				CONN_SHARED_DIR: process.env.CONN_SHARED_DIR,
 				CONN_OUTPUT_BASE_URL: process.env.CONN_OUTPUT_BASE_URL,
 				ZHIHU_REPORT_BASE_URL: process.env.ZHIHU_REPORT_BASE_URL,
 			};
@@ -425,14 +426,19 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 
 	const prompt = String(session.messages[0]?.content ?? "");
 	assert.match(prompt, /OUTPUT_DIR=/);
+	assert.match(prompt, /CONN_SHARED_DIR=/);
+	assert.match(prompt, /Store durable state shared across runs in:/);
+	assert.match(prompt, /Do not store cross-run state in \/tmp, \/app\/runtime, or runtime\/skills-user/);
 	assert.match(prompt, /CONN_OUTPUT_BASE_URL=http:\/\/example\.test\/v1\/conns\/[^/]+\/runs\/run-env-contract\/output/);
 	assert.ok(session.observedEnv.OUTPUT_DIR?.endsWith(join("background", "runs", "run-env-contract", "output")));
+	assert.ok(session.observedEnv.CONN_SHARED_DIR?.endsWith(join("background", "shared", conn.connId)));
 	assert.match(
 		session.observedEnv.CONN_OUTPUT_BASE_URL ?? "",
 		/^http:\/\/example\.test\/v1\/conns\/.+\/runs\/run-env-contract\/output$/,
 	);
 	assert.equal(session.observedEnv.ZHIHU_REPORT_BASE_URL, session.observedEnv.CONN_OUTPUT_BASE_URL);
 	assert.equal(process.env.OUTPUT_DIR, undefined);
+	assert.equal(process.env.CONN_SHARED_DIR, undefined);
 	assert.equal(process.env.CONN_OUTPUT_BASE_URL, undefined);
 	assert.equal(process.env.ZHIHU_REPORT_BASE_URL, undefined);
 

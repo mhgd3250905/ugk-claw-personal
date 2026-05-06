@@ -16,3 +16,16 @@ test("status controller exposes loading, error, and command status helpers", () 
 	assert.match(script, /renderConversationDrawer\(\)/);
 	assert.match(script, /statusPill\.textContent = next \? "运行中" : "就绪"/);
 });
+
+test("status controller keeps the asset library available during active runs", () => {
+	const script = getPlaygroundStatusControllerScript();
+
+	assert.match(script, /newConversationButton\.disabled = next \|\| state\.conversationCreatePending/);
+	assert.match(script, /mobileNewConversationButton\.disabled = next \|\| state\.conversationCreatePending/);
+	assert.match(script, /openAssetLibraryButton\.disabled = false/);
+	assert.match(script, /mobileMenuLibraryButton\.disabled = false/);
+	assert.match(script, /refreshAssetsButton\.disabled = false/);
+	assert.doesNotMatch(script, /openAssetLibraryButton\.disabled = next/);
+	assert.doesNotMatch(script, /mobileMenuLibraryButton\.disabled = next/);
+	assert.doesNotMatch(script, /refreshAssetsButton\.disabled = next/);
+});

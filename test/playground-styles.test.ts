@@ -33,3 +33,31 @@ test("playground styles keep desktop rail full height and reset it on phones", (
 	);
 	assert.doesNotMatch(styles, /\.landing-side-right > \.topbar-context-slot\s*\{[\s\S]*display:\s*none;/);
 });
+
+test("playground styles give desktop workspace headers a polished command-bar layout", () => {
+	const styles = getPlaygroundStyles();
+
+	assert.match(
+		styles,
+		/\.chat-stage > \.workspace-contained :is\(\.asset-modal-head, \.task-inbox-head\)\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/,
+	);
+	assert.match(
+		styles,
+		/\.chat-stage > \.workspace-contained :is\(\.asset-modal-head, \.task-inbox-head\)\s*\{[\s\S]*min-height:\s*58px;/,
+	);
+	assert.match(
+		styles,
+		/\.chat-stage > \.workspace-contained :is\(\.asset-modal-actions, \.task-inbox-head-actions\)\s*\{[\s\S]*justify-content:\s*flex-end;/,
+	);
+	assert.match(
+		styles,
+		/\.chat-stage > \.workspace-contained :is\(\.asset-modal-actions button, \.task-inbox-head-button, \.task-inbox-filter-button\)\s*\{[\s\S]*border-radius:\s*4px;/,
+	);
+	assert.match(
+		styles,
+		/\.chat-stage > \.workspace-contained :is\(\.asset-head-count, \.task-inbox-head-count\)\s*\{[\s\S]*display:\s*none;/,
+	);
+	assert.doesNotMatch(styles, /asset-head-breadcrumb/);
+	assert.doesNotMatch(styles, /task-inbox-head-breadcrumb/);
+	assert.match(styles, /\.chat-stage > \.workspace-contained \.mobile-work-back-button\s*\{[\s\S]*display:\s*none;/);
+});

@@ -12,3 +12,14 @@ test("context usage controller owns toggle and sync helpers", () => {
 	assert.match(script, /renderContextUsageBar\(\)/);
 	assert.match(script, /openContextUsageDialog\(\)/);
 });
+
+test("context usage click only opens the persistent dialog on mobile surfaces", () => {
+	const script = getPlaygroundContextUsageControllerScript();
+
+	assert.match(
+		script,
+		/function toggleContextUsageDetails\(\)\s*\{[\s\S]*if \(isMobileContextUsageSurface\(\)\) \{[\s\S]*openContextUsageDialog\(\);[\s\S]*return;[\s\S]*\}/,
+	);
+	assert.match(script, /state\.contextUsageExpanded = false/);
+	assert.doesNotMatch(script, /state\.contextUsageExpanded = !state\.contextUsageExpanded/);
+});
