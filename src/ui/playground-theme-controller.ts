@@ -1082,34 +1082,6 @@ export function getPlaygroundThemeStyles(): string {
 				color: #4a7cc9;
 			}
 
-			:root[data-theme="light"] .asset-head-close-button {
-				color: #7c8699;
-			}
-
-			:root[data-theme="light"] .asset-head-close-button:hover {
-				background: rgba(0, 0, 0, 0.04);
-				color: #333a47;
-			}
-
-		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-copy strong {
-			color: #0b1a36;
-		}
-
-
-
-		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-actions button {
-			border-color: rgba(31, 95, 200, 0.1);
-			color: #5b6b84;
-		}
-
-		:root[data-theme="light"] .chat-stage > .workspace-contained .asset-modal-actions button:hover:not(:disabled) {
-			border-color: rgba(31, 95, 200, 0.22);
-			background: rgba(31, 95, 200, 0.04);
-			color: #1b3f7a;
-		}
-
-
-
 		:root[data-theme="light"] .task-inbox-result-bubble,
 		:root[data-theme="light"] .conn-run-result-bubble {
 			background: #ffffff;
@@ -1332,17 +1304,6 @@ export function getPlaygroundThemeStyles(): string {
 				background: rgba(197, 41, 69, 0.08);
 				color: #b33a4a;
 			}
-
-			:root[data-theme="light"] .task-inbox-head-close-button {
-				color: #7c8699;
-			}
-
-			:root[data-theme="light"] .task-inbox-head-close-button:hover {
-				background: rgba(0, 0, 0, 0.04);
-				color: #333a47;
-			}
-
-
 
 			:root[data-theme="light"] .topbar,
 			:root[data-theme="light"] .mobile-topbar,

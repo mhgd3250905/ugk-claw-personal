@@ -483,12 +483,6 @@ export function getPlaygroundTaskInboxStyles(): string {
 			padding: 0;
 		}
 
-					@media (min-width: 641px) {
-				.mobile-work-back-button {
-					display: none !important;
-				}
-			}
-
 @media (max-width: 640px) {
 				.task-inbox-item-shell {
 					border-radius: 4px;

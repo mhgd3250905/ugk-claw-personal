@@ -530,6 +530,12 @@ export function getPlaygroundAgentManagerStyles(): string {
 			color: #52617a;
 		}
 
+		:root[data-theme="light"] .agent-manager-panel > .asset-modal-body,
+		:root[data-theme="light"] .agent-editor-panel > .asset-modal-body,
+		:root[data-theme="light"] .agent-rules-editor-panel > .asset-modal-body {
+			background: #f1f5fa;
+		}
+
 		:root[data-theme="light"] .agent-manager-list {
 			padding: 8px;
 			background: #f1f5fa;

@@ -1,6 +1,14 @@
 # Playground 当前状态
 
-更新时间：`2026-05-06`
+更新时间：`2026-05-07`
+
+## 2026-05-07 UI 层级与主题一致性收口
+
+- 桌面 workspace 页面不再保留独立关闭按钮层级；文件库、后台任务、Agent 操作台和任务消息的返回语义统一交给全局 topbar 的“回到会话”，移动端全屏工作页继续使用 `.mobile-work-back-button` 返回。
+- 文件库和任务消息的桌面 header 只保留一套 command-bar 样式来源：`src/ui/playground-assets.ts`。不要再在 `src/ui/playground-styles.ts` 里重复塑形 `.asset-modal-head` / `.task-inbox-head`，否则浅色主题按钮、强调线和分段工具条会互相覆盖。
+- `asset-head-close-button` 与 `task-inbox-head-close-button` 已作为废弃样式移除；当前真实 DOM 使用的是移动端返回按钮 `.mobile-work-back-button`，桌面断点隐藏。
+- 浅色主题下 Agent 操作台、Agent 编辑器和规则编辑器的 `.asset-modal-body` 使用浅灰蓝工作底，条目、详情字段、规则卡片、技能项和输入框才使用白色承载面；不能让页面网格直接透到详情区域里。
+- 相关源码：`src/ui/playground-styles.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-agent-manager.ts`、`src/ui/playground-task-inbox.ts`
 
 ## 2026-05-06 任务消息列表重设计
 

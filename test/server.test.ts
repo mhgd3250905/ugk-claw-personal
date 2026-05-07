@@ -2246,6 +2246,7 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /:root\[data-theme="light"\]\s+:is\(\.conn-manager-item\)\s*\{[\s\S]*border-color:\s*#dfe7f2;[\s\S]*background:\s*#ffffff;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+:is\(\.conn-manager-run-item\)\s*\{[\s\S]*border-color:\s*#e2e8f0;[\s\S]*background:\s*#f8fbff;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.conn-editor-form\s*\{[\s\S]*background:\s*transparent;/);
+	assert.match(response.body, /:root\[data-theme="light"\]\s+\.agent-manager-panel > \.asset-modal-body,[\s\S]*:root\[data-theme="light"\]\s+\.agent-rules-editor-panel > \.asset-modal-body\s*\{[\s\S]*background:\s*#f1f5fa;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.agent-manager-list\s*\{[\s\S]*background:\s*#f1f5fa;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.agent-manager-list-button,[\s\S]*:root\[data-theme="light"\]\s+\.agent-manager-skill-item\s*\{[\s\S]*border-color:\s*#dfe7f2;[\s\S]*background:\s*#ffffff;[\s\S]*color:\s*#24324a;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.agent-manager-status\s*\{[\s\S]*background:\s*#eef3fb;[\s\S]*color:\s*#40516d;/);

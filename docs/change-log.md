@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-05-07
+
+### Playground UI 层级与主题一致性排查
+- 日期：2026-05-07
+- 主题：收口桌面 workspace 的废弃关闭按钮样式、重复 header 规则和 Agent 操作台浅色主题透底问题。
+- 影响范围：桌面文件库 / 任务消息 workspace 继续由 topbar “回到会话”承担返回语义，移除已废弃的 `asset-head-close-button` / `task-inbox-head-close-button` 样式和打歪的 CSS 片段；文件库与任务消息 header 统一使用 `playground-assets.ts` 的 command-bar 规则，浅色主题不再额外给 header 按钮补描边；Agent 操作台、编辑器和规则编辑器浅色 body 统一使用浅灰蓝工作底，真正内容项保持白色卡片承载。
+- 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-agent-manager.ts`、`src/ui/playground-task-inbox.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ## 2026-05-06
 
 ### Playground 任务消息列表重设计

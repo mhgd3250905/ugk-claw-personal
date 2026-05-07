@@ -852,48 +852,6 @@ export function getPlaygroundStyles(): string {
 			background: rgba(141, 255, 178, 0.04);
 		}
 
-		.chat-stage > .workspace-contained .asset-modal {
-			background: transparent;
-		}
-
-		.chat-stage > .workspace-contained .asset-modal-head {
-			display: flex;
-			flex-direction: row;
-			align-items: center;
-			justify-content: space-between;
-			gap: 16px;
-			padding: 0;
-			border-bottom: 0;
-			background: transparent;
-		}
-
-		.chat-stage > .workspace-contained .asset-modal-head .asset-modal-head-left {
-			display: flex;
-			align-items: baseline;
-			gap: 6px;
-			min-width: 0;
-		}
-
-		.chat-stage > .workspace-contained .asset-modal-head .mobile-work-back-button {
-			display: none;
-		}
-
-		.chat-stage > .workspace-contained .asset-modal-copy {
-			display: flex;
-			flex-direction: row;
-			align-items: baseline;
-			gap: 8px;
-		}
-
-		.chat-stage > .workspace-contained .asset-modal-copy strong {
-			color: rgba(247, 249, 255, 0.92);
-			font-size: 14px;
-			font-weight: 650;
-			letter-spacing: 0.01em;
-			text-transform: none;
-			line-height: 1;
-		}
-
 		.asset-head-count {
 			display: inline-flex;
 			align-items: center;
@@ -910,82 +868,6 @@ export function getPlaygroundStyles(): string {
 		}
 
 		.asset-head-count:empty {
-			display: none;
-		}
-
-		.chat-stage > .workspace-contained .asset-modal-actions {
-			display: flex;
-			align-items: center;
-			gap: 8px;
-			flex-shrink: 0;
-		}
-
-		.chat-stage > .workspace-contained .asset-modal-actions button {
-			display: inline-flex;
-			align-items: center;
-			height: 28px;
-			padding: 0 10px;
-			border: 1px solid rgba(201, 210, 255, 0.1);
-			border-radius: 4px;
-			background: transparent;
-			color: rgba(238, 244, 255, 0.6);
-			font-size: 11px;
-			line-height: 1;
-			cursor: pointer;
-		}
-
-		.chat-stage > .workspace-contained .asset-modal-actions button:hover:not(:disabled) {
-			border-color: rgba(201, 210, 255, 0.22);
-			background: rgba(201, 210, 255, 0.04);
-			color: rgba(247, 249, 255, 0.88);
-		}
-
-		.asset-head-close-button {
-			display: none;
-			align-items: center;
-			justify-content: center;
-			width: 24px;
-			height: 24px;
-			padding: 0;
-			border: 0;
-			border-radius: 4px;
-			background: transparent;
-			color: rgba(238, 244, 255, 0.42);
-			font-size: 16px;
-			line-height: 1;
-			cursor: pointer;
-		}
-
-		.asset-head-close-button:hover {
-			background: rgba(255, 255, 255, 0.06);
-			color: rgba(238, 244, 255, 0.72);
-		}
-
-		.chat-stage > .workspace-contained .asset-head-close-button {
-
-		.chat-stage > .workspace-contained .task-inbox-head {
-			display: flex;
-			flex-direction: row;
-			align-items: center;
-			justify-content: space-between;
-			gap: 12px;
-			padding: 8px 0 10px;
-			border-bottom: 1px solid rgba(201, 210, 255, 0.08);
-			background: transparent;
-			color: var(--muted);
-			font-size: 11px;
-			text-transform: none;
-			letter-spacing: 0.02em;
-		}
-
-		.chat-stage > .workspace-contained .task-inbox-head .task-inbox-head-left {
-			display: flex;
-			align-items: center;
-			gap: 6px;
-			min-width: 0;
-		}
-
-		.chat-stage > .workspace-contained .task-inbox-head .mobile-work-back-button {
 			display: none;
 		}
 
@@ -1020,34 +902,6 @@ export function getPlaygroundStyles(): string {
 			letter-spacing: 0.04em;
 			text-transform: none;
 		}
-
-		.task-inbox-head-close-button {
-			display: none;
-			align-items: center;
-			justify-content: center;
-			width: 24px;
-			height: 24px;
-			padding: 0;
-			border: 0;
-			border-radius: 4px;
-			background: transparent;
-			color: rgba(238, 244, 255, 0.42);
-			font-size: 16px;
-			line-height: 1;
-			cursor: pointer;
-		}
-
-		.task-inbox-head-close-button:hover {
-			background: rgba(255, 255, 255, 0.06);
-			color: rgba(238, 244, 255, 0.72);
-		}
-
-		.chat-stage > .workspace-contained .task-inbox-head-close-button {
-			display: inline-flex;
-		}
-			display: inline-flex;
-		}
-
 
 		.chat-meta {
 			display: grid;
