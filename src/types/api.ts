@@ -110,6 +110,7 @@ export interface ConnBody {
 	modelProvider?: string;
 	modelId?: string;
 	upgradePolicy?: "latest" | "pinned" | "manual";
+	publicSiteId?: string;
 	status: "active" | "paused" | "completed";
 	createdAt: string;
 	updatedAt: string;

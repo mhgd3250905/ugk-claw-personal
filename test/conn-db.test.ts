@@ -17,9 +17,13 @@ test("ConnDatabase initializes the sqlite schema and creates missing parent dire
 	await database.initialize();
 
 	assert.deepEqual(database.listTableNames(), CONN_DATABASE_TABLES);
-	assert.equal(database.getUserVersion(), 6);
+	assert.equal(database.getUserVersion(), 7);
 	assert.equal(
 		database.all<{ name: string }>("PRAGMA table_info(conns)").some((column) => column.name === "max_run_ms"),
+		true,
+	);
+	assert.equal(
+		database.all<{ name: string }>("PRAGMA table_info(conns)").some((column) => column.name === "public_site_id"),
 		true,
 	);
 
@@ -123,7 +127,7 @@ PRAGMA user_version = 5;
 	await database.initialize();
 
 	assert.equal(database.hasTable("conversation_notifications"), false);
-	assert.equal(database.getUserVersion(), 6);
+	assert.equal(database.getUserVersion(), 7);
 
 	database.close();
 });

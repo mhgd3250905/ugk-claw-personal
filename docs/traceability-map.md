@@ -193,6 +193,7 @@
 - 用户拿到的是容器 `file:///app/...`
 - HTML / 图片已经生成，但浏览器打不开
 - `/v1/local-file?path=...` 返回异常
+- conn 长期公开文件应该走 `/v1/conns/:connId/public/...`，多个 conn 共建网站应该走 `/v1/sites/:siteId/...`
 
 如果问题是“agent 内部想继续用 `file:///app/...`，但用户看到的地址必须能打开”，重点看：
 

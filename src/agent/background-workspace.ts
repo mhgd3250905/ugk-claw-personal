@@ -12,6 +12,7 @@ export interface CreateRunWorkspaceInput {
 	connId: string;
 	title: string;
 	assetRefs: string[];
+	publicSiteId?: string;
 	now?: Date;
 }
 
@@ -23,6 +24,8 @@ export interface RunWorkspace {
 	logsDir: string;
 	sessionDir: string;
 	sharedDir: string;
+	publicDir: string;
+	sitePublicDir?: string;
 	manifestPath: string;
 }
 
@@ -40,6 +43,8 @@ interface WorkspaceManifest {
 		logs: string;
 		session: string;
 		shared: string;
+		public: string;
+		sitePublic?: string;
 	};
 }
 
@@ -59,7 +64,7 @@ export class BackgroundWorkspaceManager {
 	constructor(private readonly options: BackgroundWorkspaceManagerOptions) {}
 
 	async createRunWorkspace(input: CreateRunWorkspaceInput): Promise<RunWorkspace> {
-		const workspace = this.resolveWorkspace(input.runId, input.connId);
+		const workspace = this.resolveWorkspace(input.runId, input.connId, input.publicSiteId);
 		await Promise.all([
 			mkdir(workspace.inputDir, { recursive: true }),
 			mkdir(workspace.workDir, { recursive: true }),
@@ -67,6 +72,8 @@ export class BackgroundWorkspaceManager {
 			mkdir(workspace.logsDir, { recursive: true }),
 			mkdir(workspace.sessionDir, { recursive: true }),
 			mkdir(workspace.sharedDir, { recursive: true }),
+			mkdir(workspace.publicDir, { recursive: true }),
+			...(workspace.sitePublicDir ? [mkdir(workspace.sitePublicDir, { recursive: true })] : []),
 		]);
 
 		const assets = await this.snapshotInputAssets(workspace, input.assetRefs);
@@ -84,15 +91,18 @@ export class BackgroundWorkspaceManager {
 				logs: "logs",
 				session: "session",
 				shared: relative(workspace.rootPath, workspace.sharedDir).replace(/\\/g, "/"),
+				public: relative(workspace.rootPath, workspace.publicDir).replace(/\\/g, "/"),
+				...(workspace.sitePublicDir ? { sitePublic: relative(workspace.rootPath, workspace.sitePublicDir).replace(/\\/g, "/") } : {}),
 			},
 		};
 		await writeFile(workspace.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 		return workspace;
 	}
 
-	private resolveWorkspace(runId: string, connId: string): RunWorkspace {
-		const safeRunId = sanitizePathSegment(runId);
-		const safeConnId = sanitizePathSegment(connId);
+	private resolveWorkspace(runId: string, connId: string, publicSiteId?: string): RunWorkspace {
+		const safeRunId = sanitizeBackgroundPathSegment(runId);
+		const safeConnId = sanitizeBackgroundPathSegment(connId);
+		const safeSiteId = publicSiteId ? sanitizeBackgroundPathSegment(publicSiteId) : undefined;
 		const rootPath = join(this.options.backgroundDataDir, "runs", safeRunId);
 		return {
 			rootPath,
@@ -102,6 +112,8 @@ export class BackgroundWorkspaceManager {
 			logsDir: join(rootPath, "logs"),
 			sessionDir: join(rootPath, "session"),
 			sharedDir: join(this.options.backgroundDataDir, "shared", safeConnId),
+			publicDir: join(this.options.backgroundDataDir, "shared", safeConnId, "public"),
+			...(safeSiteId ? { sitePublicDir: join(this.options.backgroundDataDir, "sites", safeSiteId, "public") } : {}),
 			manifestPath: join(rootPath, "manifest.json"),
 		};
 	}
@@ -168,6 +180,10 @@ function sanitizeFileName(fileName: string): string {
 	return safeBaseName || "asset.bin";
 }
 
-function sanitizePathSegment(value: string): string {
-	return value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").trim() || "run";
+export function sanitizeBackgroundPathSegment(value: string): string {
+	const sanitized = value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").trim();
+	if (!sanitized || sanitized === "." || sanitized === "..") {
+		return "run";
+	}
+	return sanitized.replace(/\.\./g, "__");
 }

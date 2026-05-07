@@ -89,6 +89,37 @@ test("ConnSqliteStore persists task-level model selection", async () => {
 	database.close();
 });
 
+test("ConnSqliteStore persists and validates public site ids", async () => {
+	const { store, database } = await createConnSqliteStore();
+
+	const created = await store.create({
+		title: "site task",
+		prompt: "publish site",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "interval",
+			everyMs: 60_000,
+		},
+		publicSiteId: "team-site",
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	assert.equal(created.publicSiteId, "team-site");
+	assert.equal((await store.get(created.connId))?.publicSiteId, "team-site");
+	await assert.rejects(
+		() =>
+			store.update(created.connId, {
+				publicSiteId: "../team-site",
+				now: new Date("2026-04-21T10:01:00.000Z"),
+			}),
+		/Invalid conn publicSiteId/,
+	);
+
+	database.close();
+});
+
 test("ConnSqliteStore skips malformed JSON conn rows instead of breaking list and detail reads", async () => {
 	const { store, database } = await createConnSqliteStore();
 	const healthy = await store.create({

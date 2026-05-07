@@ -88,7 +88,9 @@ test("BackgroundWorkspaceManager creates run workspace directories and manifest"
 	await assert.doesNotReject(() => stat(workspace.logsDir));
 	await assert.doesNotReject(() => stat(workspace.sessionDir));
 	await assert.doesNotReject(() => stat(workspace.sharedDir));
+	await assert.doesNotReject(() => stat(workspace.publicDir));
 	assert.equal(workspace.sharedDir, join(root, "shared", "conn-1"));
+	assert.equal(workspace.publicDir, join(root, "shared", "conn-1", "public"));
 
 	const manifest = JSON.parse(await readFile(workspace.manifestPath, "utf8")) as Record<string, unknown>;
 	assert.equal(manifest.runId, "run-1");
@@ -98,6 +100,7 @@ test("BackgroundWorkspaceManager creates run workspace directories and manifest"
 	assert.deepEqual(manifest.assetRefs, []);
 	assert.deepEqual(manifest.assets, []);
 	assert.deepEqual((manifest.directories as Record<string, string>).shared, "../../shared/conn-1");
+	assert.deepEqual((manifest.directories as Record<string, string>).public, "../../shared/conn-1/public");
 });
 
 test("BackgroundWorkspaceManager reuses a conn-scoped shared directory across runs", async () => {
@@ -123,6 +126,25 @@ test("BackgroundWorkspaceManager reuses a conn-scoped shared directory across ru
 	assert.equal(first.sharedDir, second.sharedDir);
 	assert.equal(first.sharedDir, join(root, "shared", "conn_shared_daily"));
 	await assert.doesNotReject(() => stat(first.sharedDir));
+});
+
+test("BackgroundWorkspaceManager sanitizes public site ids before creating site directories", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-workspace-"));
+	const manager = new BackgroundWorkspaceManager({
+		backgroundDataDir: root,
+		assetStore: new FakeAssetStore({}),
+	});
+
+	const workspace = await manager.createRunWorkspace({
+		runId: "run-site",
+		connId: "conn-1",
+		title: "Site Builder",
+		assetRefs: [],
+		publicSiteId: "../team-site",
+	});
+
+	assert.equal(workspace.sitePublicDir, join(root, "sites", "___team-site", "public"));
+	await assert.doesNotReject(() => stat(workspace.sitePublicDir!));
 });
 
 test("BackgroundWorkspaceManager snapshots input assets and deduplicates filenames", async () => {

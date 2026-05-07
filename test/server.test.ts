@@ -4739,6 +4739,96 @@ test("GET /v1/conns/:connId/output/latest/* serves the newest run output matchin
 	await app.close();
 });
 
+test("GET /v1/conns/:connId/public/* serves only conn public shared files", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-conn-public-"));
+	const publicDir = join(root, "background", "shared", "conn-1", "public");
+	await mkdir(publicDir, { recursive: true });
+	await writeFile(join(publicDir, "site.html"), "<h1>public</h1>", "utf8");
+	await writeFile(join(root, "background", "shared", "conn-1", "secret.txt"), "secret", "utf8");
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		activityStore: {} as never,
+		backgroundDataDir: join(root, "background"),
+		connStore: {
+			list: async () => [],
+			get: async (connId: string) =>
+				connId === "conn-1"
+					? {
+							connId: "conn-1",
+							title: "digest",
+							prompt: "summarize",
+							target: { type: "conversation", conversationId: "manual:digest" },
+							schedule: { kind: "interval", everyMs: 60000 },
+							assetRefs: [],
+							status: "active",
+							createdAt: "2026-04-18T00:00:00.000Z",
+							updatedAt: "2026-04-18T00:00:00.000Z",
+						}
+					: undefined,
+			create: async () => {
+				throw new Error("not used");
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async () => [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
+		} as never,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/conns/conn-1/public/site.html",
+	});
+	const traversalResponse = await app.inject({
+		method: "GET",
+		url: "/v1/conns/conn-1/public/../secret.txt",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] as string, /^text\/html/);
+	assert.match(response.headers["content-disposition"] ?? "", /^inline;/);
+	assert.equal(response.body, "<h1>public</h1>");
+	assert.equal(traversalResponse.statusCode, 404);
+	await app.close();
+});
+
+test("GET /v1/sites/:siteId/* serves site public files without exposing sibling files", async () => {
+	const root = await mkdtemp(join(tmpdir(), "ugk-pi-site-public-"));
+	const publicDir = join(root, "background", "sites", "team-website", "public");
+	await mkdir(publicDir, { recursive: true });
+	await writeFile(join(publicDir, "index.json"), "{\"ok\":true}", "utf8");
+	await writeFile(join(root, "background", "sites", "team-website", "private.json"), "{\"secret\":true}", "utf8");
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		activityStore: {} as never,
+		backgroundDataDir: join(root, "background"),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/sites/team-website/index.json",
+	});
+	const traversalResponse = await app.inject({
+		method: "GET",
+		url: "/v1/sites/team-website/../private.json",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.headers["content-type"] as string, /^application\/json/);
+	assert.equal(response.body, "{\"ok\":true}");
+	assert.equal(traversalResponse.statusCode, 404);
+	await app.close();
+});
+
 test("GET /v1/conns/:connId/runs/:runId/events returns ordered run events", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),

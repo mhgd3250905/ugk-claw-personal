@@ -10,6 +10,7 @@ import type {
 	ListConnRunEventsOptions,
 } from "../agent/conn-run-store.js";
 import type { ConnDefinition, ConnSchedule, ConnTarget } from "../agent/conn-store.js";
+import { sanitizeBackgroundPathSegment } from "../agent/background-workspace.js";
 import { toConnListBody, toConnRunBody, toConnRunEventBody, toConnRunFileBody } from "./conn-route-presenters.js";
 import { parseConnIdList, parseConnMutationBody } from "./conn-route-parsers.js";
 import {
@@ -53,6 +54,7 @@ interface ConnStoreLike {
 		modelProvider?: string;
 		modelId?: string;
 		upgradePolicy?: "latest" | "pinned" | "manual";
+		publicSiteId?: string;
 	}): Promise<ConnDefinition>;
 	update(
 		connId: string,
@@ -72,6 +74,7 @@ interface ConnStoreLike {
 				| "modelProvider"
 				| "modelId"
 				| "upgradePolicy"
+				| "publicSiteId"
 			>
 		>,
 	): Promise<ConnDefinition | undefined>;
@@ -172,6 +175,32 @@ function encodeOutputPath(relativePath: string): string {
 		.join("/");
 }
 
+function inferPublicMimeType(filePath: string): string {
+	const extension = filePath.split(".").pop()?.toLowerCase();
+	if (extension === "txt" || extension === "md" || extension === "csv") {
+		return "text/plain; charset=utf-8";
+	}
+	if (extension === "json") {
+		return "application/json";
+	}
+	if (extension === "html" || extension === "htm") {
+		return "text/html; charset=utf-8";
+	}
+	if (extension === "png") {
+		return "image/png";
+	}
+	if (extension === "jpg" || extension === "jpeg") {
+		return "image/jpeg";
+	}
+	if (extension === "webp") {
+		return "image/webp";
+	}
+	if (extension === "pdf") {
+		return "application/pdf";
+	}
+	return "application/octet-stream";
+}
+
 function toOutputFileLinks(
 	connId: string,
 	runId: string,
@@ -216,6 +245,35 @@ async function sendConnOutputFile(
 		: "inline";
 	reply.header("content-type", contentType);
 	reply.header("content-disposition", buildContentDispositionHeader(disposition, file.fileName));
+	return reply.send(createReadStream(filePath));
+}
+
+async function sendPublicDirectoryFile(
+	reply: FastifyReply,
+	publicRoot: string,
+	publicPath: string,
+	query: Record<string, unknown>,
+): Promise<FastifyReply> {
+	const rootPath = resolve(publicRoot);
+	const filePath = resolve(rootPath, publicPath);
+	if (!isPathInside(filePath, rootPath)) {
+		return reply.status(404).send();
+	}
+	try {
+		const fileStats = await stat(filePath);
+		if (!fileStats.isFile()) {
+			return reply.status(404).send();
+		}
+	} catch {
+		return reply.status(404).send();
+	}
+
+	const contentType = resolveFileResponseContentType(inferPublicMimeType(filePath));
+	const disposition = shouldForceDownload(query.download as string | number | boolean | undefined) || !supportsInlinePreview(contentType)
+		? "attachment"
+		: "inline";
+	reply.header("content-type", contentType);
+	reply.header("content-disposition", buildContentDispositionHeader(disposition, filePath.split(/[\\/]/).pop() ?? "file"));
 	return reply.send(createReadStream(filePath));
 }
 
@@ -337,6 +395,48 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 	);
 
 	app.get(
+		"/v1/conns/:connId/public/*",
+		async (
+			request: FastifyRequest<{
+				Params: { connId: string; "*": string };
+				Querystring: { download?: string };
+			}>,
+			reply,
+		): Promise<FastifyReply> => {
+			const { connId } = request.params;
+			const publicPath = normalizeOutputPath(request.params["*"]);
+			if (!publicPath) {
+				return reply.status(404).send();
+			}
+			const conn = await options.connStore.get(connId);
+			if (!conn) {
+				return reply.status(404).send();
+			}
+			const publicRoot = join(options.backgroundDataDir, "shared", sanitizeBackgroundPathSegment(conn.connId), "public");
+			return await sendPublicDirectoryFile(reply, publicRoot, publicPath, request.query ?? {});
+		},
+	);
+
+	app.get(
+		"/v1/sites/:siteId/*",
+		async (
+			request: FastifyRequest<{
+				Params: { siteId: string; "*": string };
+				Querystring: { download?: string };
+			}>,
+			reply,
+		): Promise<FastifyReply> => {
+			const siteId = request.params.siteId.trim();
+			const publicPath = normalizeOutputPath(request.params["*"]);
+			if (!siteId || !publicPath) {
+				return reply.status(404).send();
+			}
+			const publicRoot = join(options.backgroundDataDir, "sites", sanitizeBackgroundPathSegment(siteId), "public");
+			return await sendPublicDirectoryFile(reply, publicRoot, publicPath, request.query ?? {});
+		},
+	);
+
+	app.get(
 		"/v1/conns/:connId/runs/:runId/events",
 		async (
 			request: FastifyRequest<{
@@ -400,6 +500,7 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				modelProvider: parsed.value!.modelProvider,
 				modelId: parsed.value!.modelId,
 				upgradePolicy: parsed.value!.upgradePolicy,
+				...(parsed.value!.publicSiteId !== undefined ? { publicSiteId: parsed.value!.publicSiteId } : {}),
 			});
 			return reply.status(201).send({ conn } satisfies ConnDetailResponseBody);
 		} catch (error) {
@@ -456,6 +557,7 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				...(body.modelProvider !== undefined ? { modelProvider: parsed.value!.modelProvider } : {}),
 				...(body.modelId !== undefined ? { modelId: parsed.value!.modelId } : {}),
 				...(body.upgradePolicy !== undefined ? { upgradePolicy: parsed.value!.upgradePolicy } : {}),
+				...(body.publicSiteId !== undefined ? { publicSiteId: parsed.value!.publicSiteId } : {}),
 				...(body.maxRunMs !== undefined ? { maxRunMs: parsed.value!.maxRunMs } : {}),
 			});
 			if (!conn) {

@@ -29,6 +29,7 @@ export interface CreateConnInput {
 	modelProvider?: string;
 	modelId?: string;
 	upgradePolicy?: ConnUpgradePolicy;
+	publicSiteId?: string;
 	now?: Date;
 }
 
@@ -48,6 +49,7 @@ export type UpdateConnInput = Partial<
 		| "modelProvider"
 		| "modelId"
 		| "upgradePolicy"
+		| "publicSiteId"
 		| "status"
 	>
 > & { now?: Date };
@@ -72,6 +74,7 @@ interface ConnRow {
 	model_provider?: string | null;
 	model_id?: string | null;
 	upgrade_policy: ConnUpgradePolicy;
+	public_site_id?: string | null;
 	status: ConnStatus;
 	created_at: string;
 	updated_at: string;
@@ -127,6 +130,7 @@ export class ConnSqliteStore {
 			...(input.modelProvider !== undefined ? { modelProvider: normalizeRequiredId(input.modelProvider, "modelProvider") } : {}),
 			...(input.modelId !== undefined ? { modelId: normalizeRequiredId(input.modelId, "modelId") } : {}),
 			upgradePolicy: input.upgradePolicy ?? DEFAULT_UPGRADE_POLICY,
+			...(input.publicSiteId !== undefined ? { publicSiteId: normalizePublicSiteId(input.publicSiteId) } : {}),
 			status: "active",
 			createdAt,
 			updatedAt: createdAt,
@@ -137,9 +141,9 @@ export class ConnSqliteStore {
 			[
 				"INSERT INTO conns (",
 				"conn_id, title, prompt, target_json, schedule_json, asset_refs_json, max_run_ms,",
-				"profile_id, agent_spec_id, skill_set_id, model_policy_id, model_provider, model_id, upgrade_policy,",
+				"profile_id, agent_spec_id, skill_set_id, model_policy_id, model_provider, model_id, upgrade_policy, public_site_id,",
 				"status, created_at, updated_at, next_run_at",
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			].join(" "),
 			conn.connId,
 			conn.title,
@@ -155,6 +159,7 @@ export class ConnSqliteStore {
 			conn.modelProvider,
 			conn.modelId,
 			conn.upgradePolicy,
+			conn.publicSiteId,
 			conn.status,
 			conn.createdAt,
 			conn.updatedAt,
@@ -188,6 +193,7 @@ export class ConnSqliteStore {
 			...(patch.modelProvider !== undefined ? { modelProvider: normalizeRequiredId(patch.modelProvider, "modelProvider") } : {}),
 			...(patch.modelId !== undefined ? { modelId: normalizeRequiredId(patch.modelId, "modelId") } : {}),
 			...(patch.upgradePolicy !== undefined ? { upgradePolicy: patch.upgradePolicy } : {}),
+			...(patch.publicSiteId !== undefined ? { publicSiteId: normalizePublicSiteId(patch.publicSiteId) } : {}),
 			status,
 			updatedAt: now.toISOString(),
 			nextRunAt:
@@ -200,7 +206,7 @@ export class ConnSqliteStore {
 			[
 				"UPDATE conns SET",
 				"title = ?, prompt = ?, target_json = ?, schedule_json = ?, asset_refs_json = ?, max_run_ms = ?,",
-				"profile_id = ?, agent_spec_id = ?, skill_set_id = ?, model_policy_id = ?, model_provider = ?, model_id = ?, upgrade_policy = ?,",
+				"profile_id = ?, agent_spec_id = ?, skill_set_id = ?, model_policy_id = ?, model_provider = ?, model_id = ?, upgrade_policy = ?, public_site_id = ?,",
 				"status = ?, updated_at = ?, next_run_at = ?",
 				"WHERE conn_id = ?",
 			].join(" "),
@@ -217,6 +223,7 @@ export class ConnSqliteStore {
 			updated.modelProvider,
 			updated.modelId,
 			updated.upgradePolicy,
+			updated.publicSiteId,
 			updated.status,
 			updated.updatedAt,
 			updated.nextRunAt,
@@ -313,6 +320,7 @@ function rowToConnDefinition(row: ConnRow): ConnDefinition {
 		...(row.model_provider ? { modelProvider: row.model_provider } : {}),
 		...(row.model_id ? { modelId: row.model_id } : {}),
 		upgradePolicy: row.upgrade_policy,
+		...(row.public_site_id ? { publicSiteId: row.public_site_id } : {}),
 		status: row.status,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
@@ -436,6 +444,14 @@ function normalizeRequiredId(value: string, fieldName: string): string {
 		throw new Error(`Invalid conn ${fieldName}: value must be non-empty`);
 	}
 	return trimmed;
+}
+
+function normalizePublicSiteId(value: string): string {
+	const siteId = normalizeRequiredId(value, "publicSiteId");
+	if (siteId === "." || siteId === ".." || siteId.includes("..") || !/^[A-Za-z0-9._-]+$/.test(siteId)) {
+		throw new Error("Invalid conn publicSiteId: value must be a URL-safe slug");
+	}
+	return siteId;
 }
 
 function normalizeMaxRunMs(value: number): number {

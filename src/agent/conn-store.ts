@@ -51,6 +51,7 @@ export interface ConnDefinition {
 	modelProvider?: string;
 	modelId?: string;
 	upgradePolicy?: ConnUpgradePolicy;
+	publicSiteId?: string;
 	status: ConnStatus;
 	createdAt: string;
 	updatedAt: string;

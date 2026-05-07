@@ -13,6 +13,7 @@ export interface ParsedConnMutationBody {
 	modelProvider?: string;
 	modelId?: string;
 	upgradePolicy?: "latest" | "pinned" | "manual";
+	publicSiteId?: string;
 	maxRunMs?: number;
 }
 
@@ -103,6 +104,14 @@ export function parseConnMutationBody(
 	}
 	if (body.upgradePolicy !== undefined) {
 		parsed.upgradePolicy = parsedUpgradePolicy.value;
+	}
+
+	const parsedPublicSiteId = parseOptionalId(body.publicSiteId, "publicSiteId");
+	if (parsedPublicSiteId.error) {
+		return { error: parsedPublicSiteId.error };
+	}
+	if (body.publicSiteId !== undefined) {
+		parsed.publicSiteId = parsedPublicSiteId.value;
 	}
 
 	const parsedMaxRunMs = parseMaxRunMs(body.maxRunMs);

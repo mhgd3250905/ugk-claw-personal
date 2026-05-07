@@ -12,6 +12,12 @@
 
 ## 2026-05-07
 
+### Conn 长期公开目录契约
+- 日期：2026-05-07
+- 主题：为后台 conn 增加长期稳定公开目录和站点级公开目录，避免 agent 继续在 `CONN_SHARED_DIR`、`OUTPUT_DIR` 和 `/app/public` 之间猜。
+- 影响范围：每条 conn run 会创建 `CONN_PUBLIC_DIR=<background>/shared/<connId>/public` 并注入 `CONN_PUBLIC_BASE_URL`；新增 `GET /v1/conns/:connId/public/<path>` 只服务该 public 子目录，不公开 `CONN_SHARED_DIR` 里的私有状态。conn 可选 `publicSiteId`，配置后 run 会创建 `SITE_PUBLIC_DIR=<background>/sites/<publicSiteId>/public` 并注入 `SITE_PUBLIC_BASE_URL`；新增 `GET /v1/sites/:siteId/<path>` 作为多个 conn 共建网站的公开出口。数据库 `conns` 表新增 `public_site_id`，迁移到 `PRAGMA user_version = 7`。
+- 对应入口：`src/agent/background-workspace.ts`、`src/agent/background-agent-runner.ts`、`src/agent/conn-store.ts`、`src/agent/conn-sqlite-store.ts`、`src/agent/conn-db.ts`、`src/routes/conns.ts`、`src/routes/conn-route-parsers.ts`、`.pi/skills/conn-orchestrator/SKILL.md`、`docs/runtime-assets-conn-feishu.md`、`test/background-workspace.test.ts`、`test/background-agent-runner.test.ts`、`test/server.test.ts`
+
 ### Playground UI 层级与主题一致性排查
 - 日期：2026-05-07
 - 主题：收口桌面 workspace 的废弃关闭按钮样式、重复 header 规则和 Agent 操作台浅色主题透底问题。

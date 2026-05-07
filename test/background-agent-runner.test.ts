@@ -391,7 +391,11 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 			this.observedEnv = {
 				OUTPUT_DIR: process.env.OUTPUT_DIR,
 				CONN_SHARED_DIR: process.env.CONN_SHARED_DIR,
+				CONN_PUBLIC_DIR: process.env.CONN_PUBLIC_DIR,
+				CONN_PUBLIC_BASE_URL: process.env.CONN_PUBLIC_BASE_URL,
 				CONN_OUTPUT_BASE_URL: process.env.CONN_OUTPUT_BASE_URL,
+				SITE_PUBLIC_DIR: process.env.SITE_PUBLIC_DIR,
+				SITE_PUBLIC_BASE_URL: process.env.SITE_PUBLIC_BASE_URL,
 				ZHIHU_REPORT_BASE_URL: process.env.ZHIHU_REPORT_BASE_URL,
 			};
 			await super.prompt(message);
@@ -414,6 +418,7 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 		},
 		now: new Date("2026-04-21T10:00:00.000Z"),
 	});
+	const connWithSite = { ...conn, publicSiteId: "team-website" };
 	const run = await runStore.createRun({
 		runId: "run-env-contract",
 		connId: conn.connId,
@@ -422,24 +427,35 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 		now: new Date("2026-04-21T10:00:59.000Z"),
 	});
 
-	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+	await runner.run(connWithSite, run, new Date("2026-04-21T10:01:05.000Z"));
 
 	const prompt = String(session.messages[0]?.content ?? "");
 	assert.match(prompt, /OUTPUT_DIR=/);
 	assert.match(prompt, /CONN_SHARED_DIR=/);
+	assert.match(prompt, /CONN_PUBLIC_DIR=/);
 	assert.match(prompt, /Store durable state shared across runs in:/);
 	assert.match(prompt, /Do not store cross-run state in \/tmp, \/app\/runtime, or runtime\/skills-user/);
 	assert.match(prompt, /CONN_OUTPUT_BASE_URL=http:\/\/example\.test\/v1\/conns\/[^/]+\/runs\/run-env-contract\/output/);
+	assert.match(prompt, /CONN_PUBLIC_BASE_URL=http:\/\/example\.test\/v1\/conns\/[^/]+\/public/);
+	assert.match(prompt, /SITE_PUBLIC_BASE_URL=http:\/\/example\.test\/v1\/sites\/team-website/);
 	assert.ok(session.observedEnv.OUTPUT_DIR?.endsWith(join("background", "runs", "run-env-contract", "output")));
 	assert.ok(session.observedEnv.CONN_SHARED_DIR?.endsWith(join("background", "shared", conn.connId)));
+	assert.ok(session.observedEnv.CONN_PUBLIC_DIR?.endsWith(join("background", "shared", conn.connId, "public")));
+	assert.ok(session.observedEnv.SITE_PUBLIC_DIR?.endsWith(join("background", "sites", "team-website", "public")));
 	assert.match(
 		session.observedEnv.CONN_OUTPUT_BASE_URL ?? "",
 		/^http:\/\/example\.test\/v1\/conns\/.+\/runs\/run-env-contract\/output$/,
 	);
+	assert.equal(session.observedEnv.CONN_PUBLIC_BASE_URL, `http://example.test/v1/conns/${conn.connId}/public`);
+	assert.equal(session.observedEnv.SITE_PUBLIC_BASE_URL, "http://example.test/v1/sites/team-website");
 	assert.equal(session.observedEnv.ZHIHU_REPORT_BASE_URL, session.observedEnv.CONN_OUTPUT_BASE_URL);
 	assert.equal(process.env.OUTPUT_DIR, undefined);
 	assert.equal(process.env.CONN_SHARED_DIR, undefined);
+	assert.equal(process.env.CONN_PUBLIC_DIR, undefined);
+	assert.equal(process.env.CONN_PUBLIC_BASE_URL, undefined);
 	assert.equal(process.env.CONN_OUTPUT_BASE_URL, undefined);
+	assert.equal(process.env.SITE_PUBLIC_DIR, undefined);
+	assert.equal(process.env.SITE_PUBLIC_BASE_URL, undefined);
 	assert.equal(process.env.ZHIHU_REPORT_BASE_URL, undefined);
 
 	database.close();

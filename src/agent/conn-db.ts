@@ -88,7 +88,7 @@ export class ConnDatabase {
 		const db = this.open();
 		db.exec(SCHEMA_SQL);
 		this.applyMigrations(db);
-		db.exec("PRAGMA user_version = 6");
+		db.exec("PRAGMA user_version = 7");
 	}
 
 	private async prepareDatabasePath(): Promise<void> {
@@ -156,6 +156,9 @@ export class ConnDatabase {
 		if (userVersion < 6) {
 			db.exec("DROP TABLE IF EXISTS conversation_notifications");
 		}
+		if (userVersion < 7 && !this.hasColumn("conns", "public_site_id")) {
+			db.exec("ALTER TABLE conns ADD COLUMN public_site_id TEXT");
+		}
 		db.exec("CREATE INDEX IF NOT EXISTS idx_conns_deleted_at ON conns(deleted_at, created_at DESC)");
 		if (userVersion < 3) {
 			db.exec(
@@ -213,6 +216,7 @@ CREATE TABLE IF NOT EXISTS conns (
 	model_provider TEXT,
 	model_id TEXT,
 	upgrade_policy TEXT NOT NULL DEFAULT 'latest',
+	public_site_id TEXT,
 	status TEXT NOT NULL DEFAULT 'active',
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL,

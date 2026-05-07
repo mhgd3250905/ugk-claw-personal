@@ -51,6 +51,7 @@ export class BackgroundAgentRunner {
 				connId: conn.connId,
 				title: conn.title,
 				assetRefs: conn.assetRefs,
+				publicSiteId: conn.publicSiteId,
 				now,
 			});
 			await this.options.runStore.appendEvent({
@@ -125,9 +126,11 @@ export class BackgroundAgentRunner {
 			});
 
 			const outputBaseUrl = buildConnOutputBaseUrl(this.options.publicBaseUrl, conn.connId, run.runId);
-			const prompt = buildBackgroundPrompt(conn, workspace, outputBaseUrl);
+			const connPublicBaseUrl = buildConnPublicBaseUrl(this.options.publicBaseUrl, conn.connId);
+			const sitePublicBaseUrl = buildSitePublicBaseUrl(this.options.publicBaseUrl, conn.publicSiteId);
+			const prompt = buildBackgroundPrompt(conn, workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl);
 			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
-				await runWithBackgroundWorkspaceEnvironment(buildBackgroundWorkspaceEnvironment(workspace, outputBaseUrl), async () => {
+				await runWithBackgroundWorkspaceEnvironment(buildBackgroundWorkspaceEnvironment(workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl), async () => {
 					await promptWithAbort(session, prompt, signal);
 				});
 			});
@@ -227,7 +230,13 @@ function toAbortError(reason: unknown): Error {
 	return reason instanceof Error ? reason : new Error(typeof reason === "string" ? reason : "Background conn run aborted");
 }
 
-function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace, outputBaseUrl: string | undefined): string {
+function buildBackgroundPrompt(
+	conn: ConnDefinition,
+	workspace: RunWorkspace,
+	outputBaseUrl: string | undefined,
+	connPublicBaseUrl: string | undefined,
+	sitePublicBaseUrl: string | undefined,
+): string {
 	return [
 		`Background conn task: ${conn.title}`,
 		"",
@@ -241,6 +250,14 @@ function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace, ou
 		`- Write logs to: ${workspace.logsDir}`,
 		`- Store durable state shared across runs in: ${workspace.sharedDir}`,
 		"- Use the shared directory for dedupe state, audit records, cooldown markers, cursors, checkpoints, and other private cross-run state.",
+		`- Store long-lived public files for this conn in: ${workspace.publicDir}`,
+		"- Only files under that public directory are served by the conn public URL; do not put secrets, tokens, cursors, or checkpoints there.",
+		...(workspace.sitePublicDir
+			? [
+					`- Store shared website public files for site "${conn.publicSiteId}" in: ${workspace.sitePublicDir}`,
+					"- Use the site public directory only for files intended to be maintained by multiple conns and opened publicly.",
+				]
+			: []),
 		"- Do not store cross-run state in /tmp, /app/runtime, or runtime/skills-user.",
 		"",
 		"Workspace aliases:",
@@ -249,7 +266,11 @@ function buildBackgroundPrompt(conn: ConnDefinition, workspace: RunWorkspace, ou
 		`INPUT_DIR=${workspace.inputDir}`,
 		`LOGS_DIR=${workspace.logsDir}`,
 		`CONN_SHARED_DIR=${workspace.sharedDir}`,
+		`CONN_PUBLIC_DIR=${workspace.publicDir}`,
+		...(connPublicBaseUrl ? [`CONN_PUBLIC_BASE_URL=${connPublicBaseUrl}`] : []),
 		...(outputBaseUrl ? [`CONN_OUTPUT_BASE_URL=${outputBaseUrl}`, `ZHIHU_REPORT_BASE_URL=${outputBaseUrl}`] : []),
+		...(workspace.sitePublicDir ? [`SITE_PUBLIC_DIR=${workspace.sitePublicDir}`] : []),
+		...(sitePublicBaseUrl ? [`SITE_PUBLIC_BASE_URL=${sitePublicBaseUrl}`] : []),
 		"- If this task requires commands, file operations, or browser automation, call the available tools; do not answer from intention alone.",
 		"- Only files written under the final deliverables directory are indexed and durable conn outputs.",
 		"- Do not report execution success unless the required tool calls actually completed.",
@@ -268,9 +289,34 @@ function buildConnOutputBaseUrl(publicBaseUrl: string | undefined, connId: strin
 	).toString();
 }
 
+function buildConnPublicBaseUrl(publicBaseUrl: string | undefined, connId: string): string | undefined {
+	const normalizedBaseUrl = publicBaseUrl?.trim();
+	if (!normalizedBaseUrl) {
+		return undefined;
+	}
+	return new URL(
+		`/v1/conns/${encodeURIComponent(connId)}/public`,
+		normalizedBaseUrl.endsWith("/") ? normalizedBaseUrl : `${normalizedBaseUrl}/`,
+	).toString();
+}
+
+function buildSitePublicBaseUrl(publicBaseUrl: string | undefined, siteId: string | undefined): string | undefined {
+	const normalizedBaseUrl = publicBaseUrl?.trim();
+	const normalizedSiteId = siteId?.trim();
+	if (!normalizedBaseUrl || !normalizedSiteId) {
+		return undefined;
+	}
+	return new URL(
+		`/v1/sites/${encodeURIComponent(normalizedSiteId)}`,
+		normalizedBaseUrl.endsWith("/") ? normalizedBaseUrl : `${normalizedBaseUrl}/`,
+	).toString();
+}
+
 function buildBackgroundWorkspaceEnvironment(
 	workspace: RunWorkspace,
 	outputBaseUrl: string | undefined,
+	connPublicBaseUrl: string | undefined,
+	sitePublicBaseUrl: string | undefined,
 ): Record<string, string | undefined> {
 	return {
 		OUTPUT_DIR: workspace.outputDir,
@@ -278,7 +324,11 @@ function buildBackgroundWorkspaceEnvironment(
 		INPUT_DIR: workspace.inputDir,
 		LOGS_DIR: workspace.logsDir,
 		CONN_SHARED_DIR: workspace.sharedDir,
+		CONN_PUBLIC_DIR: workspace.publicDir,
+		CONN_PUBLIC_BASE_URL: connPublicBaseUrl,
 		CONN_OUTPUT_BASE_URL: outputBaseUrl,
+		SITE_PUBLIC_DIR: workspace.sitePublicDir,
+		SITE_PUBLIC_BASE_URL: sitePublicBaseUrl,
 		ZHIHU_REPORT_BASE_URL: outputBaseUrl,
 	};
 }
