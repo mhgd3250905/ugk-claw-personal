@@ -1,6 +1,16 @@
 # Playground 当前状态
 
-更新时间：`2026-05-05`
+更新时间：`2026-05-06`
+
+## 2026-05-06 任务消息列表重设计
+
+- 任务消息页不再提供“未读 / 全部”筛选按钮；入口始终加载全部任务消息，未读数量只作为入口徽标和页头提示。
+- 列表内用状态区分阅读层级：未读消息使用红色左侧强调线和更亮卡片背景，并默认展开正文与操作；已读消息默认折叠，只显示标题和时间，点击条目后再展开 / 收起。
+- 浅色主题下，任务消息列表使用浅灰蓝底承接，单条消息使用白色卡片、细边框和独立内边距，避免白色页面、白色列表和白色条目糊成一整块。
+- 浅色主题的后台任务列表和 Agent 操作台也使用同样的层级口径：后台任务页 body 是浅灰蓝工作底，列表透明承接，条目 / 技能 / 规则 / 详情字段是白色卡片，正文、标签、状态和代码字段使用深色语义色，不能继续沿用深色主题的半透明浅字。
+- 每条任务消息的时间抬到标题同级，使用等宽数字和更高字重展示；来源、正文、任务 ID、附件和操作按钮只在展开态展示。
+- “全部已读”会把当前列表内未读项标记为已读并收起；单条未读消息被点击或执行复制 / 查看过程操作后会保留展开状态，避免刚点开就塌回去。
+- 相关源码：`src/ui/playground-task-inbox.ts`、`src/ui/playground.ts`、`src/ui/playground-theme-controller.ts`
 
 ## 2026-05-06 运行中文件库可用
 
@@ -41,7 +51,7 @@
 ## 2026-05-06 桌面 workspace 头部视觉升级
 
 - 桌面 Web 模式下，文件库和任务消息等 workspace 页面头部不再直接暴露成手机全屏页式的粗糙 topbar；`.chat-stage > .workspace-contained` 内的 `.asset-modal-head` / `.task-inbox-head` 统一升级为紧凑 command bar。
-- 头部采用两列 grid：左侧只保留竖向强调线和页面标题，不再显示 `工作区 /` 面包屑、副标题或数量胶囊；右侧承载刷新、筛选、全部已读等操作按钮。按钮区右对齐并使用小型分段控制视觉，避免操作页顶部像一排随手堆的按钮。
+- 头部采用两列 grid：左侧只保留竖向强调线和页面标题，不再显示 `工作区 /` 面包屑、副标题或数量胶囊；右侧承载刷新、全部已读等操作按钮。按钮区右对齐并使用小型分段控制视觉，避免操作页顶部像一排随手堆的按钮。
 - 桌面 workspace 下 `.mobile-work-back-button` 强制隐藏，返回对话仍由全局 topbar 左侧“回到会话”承担；移动端全屏工作页继续保留返回箭头和原有结构。
 - 浅色主题同步提供白底、冷蓝边框和弱阴影口径；深色主题使用克制的暗色承载、底部分隔线和左侧细强调条，避免整块 header 和列表内容糊成一团。
 - 相关源码：`src/ui/playground-assets.ts`
@@ -340,7 +350,7 @@
 - `playground` 现在提供独立的 `任务消息` 入口：桌面端顶部按钮是 `open-task-inbox-button`，手机端入口在更多菜单里的 `mobile-menu-task-inbox-button`。
 - 任务消息读取 `GET /v1/activity?limit=50`，展示跨会话的 `agent_activity_items`；它是后台结果的独立收件箱，不再把结果硬塞进当前 conversation transcript。
 - 这层是观察与追溯页面，不是新的聊天真源。当前会话仍然由 `GET /v1/chat/state` 驱动；后台结果页面只负责展示完成后的异步结果。
-- 手机端任务消息页是全屏工作页，不再按贴底抽屉处理：顶部左侧是返回箭头和 `任务消息` 标题，右侧直接放 `未读 / 全部 / 全部已读 / 刷新`；任务结果正文按对话气泡规格渲染，卡片结构是“消息元信息 / 结果气泡 / 底部动作”，正文走与 transcript 相同的 markdown hydration，文件结果复用下载卡片；点开“查看过程”后的 run detail `Result` 也按同一套消息正文规格渲染完整 `resultText`；任务结果 Markdown 正文字号收口为 `12px`，标题按 `18px / 16px / 14px` 分级，链接、代码、引用和表格头使用轻量颜色区分；列表卡片最小触摸高度为 `64px`。
+- 手机端任务消息页是全屏工作页，不再按贴底抽屉处理：顶部左侧是返回箭头和 `任务消息` 标题，右侧只放 `全部已读 / 刷新`；任务结果正文按对话气泡规格渲染，卡片结构是“标题时间 / 结果气泡 / 底部动作”，正文走与 transcript 相同的 markdown hydration，文件结果复用下载卡片；点开“查看过程”后的 run detail `Result` 也按同一套消息正文规格渲染完整 `resultText`；任务结果 Markdown 正文字号收口为 `12px`，标题按 `18px / 16px / 14px` 分级，链接、代码、引用和表格头使用轻量颜色区分；列表卡片最小触摸高度为 `64px`。
 - 活动条目里的来源和文件信息走人话口径：来源显示为 `后台任务 / 飞书 / 助手 / 通知`，文件显示为“附 N 个文件”。
 - `source=conn` 且带有 `sourceId + runId` 的 activity 条目会复用后台任务过程弹层，继续请求：
   - `GET /v1/conns/:connId/runs/:runId`
@@ -577,11 +587,10 @@
 - 任务消息不是 conversation，也不再把后台结果硬塞回当前会话；任务消息页现在像文件库一样是独立 fixed 工作页，不再通过 `data-primary-view=chat|tasks` 把聊天主壳内容替换掉。
 - 任务消息页的主体结构在 [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)，`src/ui/playground.ts` 只负责拼装入口和把页面挂在 `#shell` 外层，不再继续把任务消息逻辑堆进主文件。
 - 列表数据来自 `GET /v1/activity?limit=50`，该响应会同时返回 `unreadCount`；`GET /v1/activity/summary` 只保留给页面初始化和极轻量兜底，不再作为打开任务消息后的固定第二跳。页面打开后不再偷偷清未读。
-- 如果顶部 `任务消息` badge 有未读数，打开任务消息页会默认进入 `未读` 筛选，并请求 `GET /v1/activity?limit=50&unreadOnly=true`。这不是装饰，是防止“最新 50 条已读、旧数据还有未读”时红标和列表打架。
-- 任务消息页提供 `未读 / 全部` 两个筛选；`未读` 只展示 `readAt` 为空的条目，`全部` 按时间倒序展示完整任务消息。
-- 任务消息页头部只保留 `任务消息` 标题，不再显示“后台任务跑完……”说明句；顶部使用 `topbar pane-head task-inbox-head mobile-work-topbar`，左侧是返回箭头和标题，右侧直接放 `未读 / 全部 / 全部已读 / 刷新`。任务消息页外层是独立的 `task-inbox-view.open` fixed 页面壳，内层是 `task-inbox-pane`；手机端占满 `100dvh`，全局聊天用的 `<section id="mobile-topbar" class="mobile-topbar">` 不参与该页面。手机端任务消息页现在按全屏工作页处理：外层是 `#01030a`，sticky 头部是 `#060711`，任务结果卡片是 `#0b0c18` 实心面板，不再沿用透明头部和松散气泡。
+- 任务消息页不再提供 `未读 / 全部` 两个筛选；打开后始终请求 `GET /v1/activity?limit=50`，未读条目在完整时间线里红色高亮并默认展开，已读条目默认折叠，只显示标题和时间。
+- 任务消息页头部只保留 `任务消息` 标题，不再显示“后台任务跑完……”说明句；顶部使用 `topbar pane-head task-inbox-head mobile-work-topbar`，左侧是返回箭头和标题，右侧直接放 `全部已读 / 刷新`。任务消息页外层是独立的 `task-inbox-view.open` fixed 页面壳，内层是 `task-inbox-pane`；手机端占满 `100dvh`，全局聊天用的 `<section id="mobile-topbar" class="mobile-topbar">` 不参与该页面。手机端任务消息页现在按全屏工作页处理：外层是 `#01030a`，sticky 头部是 `#060711`，任务结果卡片是 `#0b0c18` 实心面板，不再沿用透明头部和松散气泡。
 - `GET /v1/activity` 响应包含 `hasMore` / `nextBefore` / `unreadCount`，前端据此显示 `加载更多` 并直接刷新 badge，继续用 `before=nextBefore` 分页拉取。不要再把一个固定 `limit=50` 当成全量收件箱，那个坑已经踩过了。
-- 任务消息页现在按条处理未读：未读条目会显示红点；点击条目本身，或点击 `任务ID / 复制 / 查看过程`，才会调用 `POST /v1/activity/:activityId/read` 把当前条目标记已读；该响应会返回新的 `unreadCount`，前端本地同步，不再补打一条 summary 请求。
+- 任务消息页现在按条处理未读：未读条目会显示红点、红色左侧强调线和更亮背景；点击条目本身，或点击 `任务ID / 复制 / 查看过程`，才会调用 `POST /v1/activity/:activityId/read` 把当前条目标记已读；该响应会返回新的 `unreadCount`，前端本地同步，不再补打一条 summary 请求。
 - 任务消息页头部提供显式 `全部已读`，走 `POST /v1/activity/read-all`；该响应会返回 `markedCount` 与新的 `unreadCount`。这才是批量清空未读的正式入口，不再把“打开页面”伪装成“看过全部消息”。
 - 每条任务消息的结果正文按对话气泡规格渲染：正文使用 `.message-content` 和 `renderMessageMarkdown()`，代码块、表格、链接和文件下载卡片与聊天 transcript 保持同一套视觉与交互；任务结果区域会覆盖全局 Markdown 标题字号，正文为 `12px`，`h1 / h2 / h3` 分别为 `18px / 16px / 14px`，并给链接、inline code、blockquote、表格头做颜色区分；底部固定提供复制任务 ID、复制正文、查看过程三类动作。其中 `source=conn` 且带 `sourceId + runId` 的条目会继续复用后台 run detail 弹层，弹层里的 `Result` 优先渲染完整 `resultText`，再兜底 `resultSummary`。
 - 实时广播到达后，前端只刷新任务消息列表和未读数，不再因为后台结果广播去刷新当前 conversation transcript。

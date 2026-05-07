@@ -460,10 +460,10 @@ GET /v1/local-file?path=...
   - `GET /v1/activity?limit=50`：按时间倒序读取任务消息列表，支持 `limit`、`conversationId`、`before`、`unreadOnly=true`；响应包含 `activities`、`hasMore` 和可选 `nextBefore`。
   - `POST /v1/activity/:activityId/read`：标记活动已读。
   - `POST /v1/activity/read-all`：批量标记全部任务消息已读。
-- `playground` 桌面端顶部状态栏新增 `任务消息`，手机端更多菜单也有同名入口。打开后如果存在未读数，默认读取 `/v1/activity?limit=50&unreadOnly=true`，并从条目跳转到已有的后台任务过程弹层。
+- `playground` 桌面端顶部状态栏提供 `任务消息`，手机端更多菜单也有同名入口。打开后统一读取 `/v1/activity?limit=50` 全量时间线，并从展开条目跳转到已有的后台任务过程弹层。
 - 手机端右上角 `更多` 按钮自身也会显示任务消息未读数字徽标，颜色统一为 `#ff1744`，超过 99 显示 `99+`；不要只把数字藏在更多菜单内部。
-- 任务消息页提供 `未读 / 全部` 筛选和 `加载更多` 分页；`未读` 视图按全库 `read_at IS NULL` 查询，不受最新一页已读记录影响。
-- 未读状态现在按条处理：未读条目带红点；点击条目本身，或点击 `任务ID / 复制 / 查看过程` 才会把当前条目标成已读；进入页面本身不再自动清空未读。
+- 任务消息页不再提供 `未读 / 全部` 筛选；未读条目在全部列表里红色高亮并默认展开，已读条目默认折叠，只显示标题和时间，点击后展开 / 收起。
+- 未读状态按条处理：点击未读条目本身，或点击 `任务ID / 复制 / 查看过程` 才会把当前条目标成已读；进入页面本身不再自动清空未读。
 - 实时广播到达时，页面会刷新任务消息列表；后台 conn 结果不再要求匹配当前聊天会话，也不把前台 `conversationId` 当作展示前置条件。在线 toast 仍只是提醒层，真实记录以 SQLite activity 表为准。
 - 关键入口：
   - [src/agent/agent-activity-store.ts](/E:/AII/ugk-pi/src/agent/agent-activity-store.ts)
@@ -486,5 +486,5 @@ GET /v1/local-file?path=...
   - `GET /v1/activity?limit=50`：返回任务消息列表，支持 `unreadOnly=true` 与 `before` 分页，响应带 `hasMore` / `nextBefore`
   - `POST /v1/activity/:activityId/read`：标记已读
   - `POST /v1/activity/read-all`：全部标记已读
-- `playground` 任务消息页当前不会在打开时自动清未读；未读 badge 与条目红点都以后端 `readAt` 为准，避免前端假已读。
-- 顶部 badge 有未读时，任务消息页默认进入 `未读` 筛选，专门查询全库未读；`全部` 筛选用于按时间倒序翻完整记录，底部 `加载更多` 用 `nextBefore` 游标继续取下一页。
+- `playground` 任务消息页当前不会在打开时自动清未读；未读 badge、条目红点、高亮背景和展开状态都以后端 `readAt` 为准，避免前端假已读。
+- 任务消息页始终按时间倒序翻完整记录，底部 `加载更多` 用 `nextBefore` 游标继续取下一页；`unreadOnly=true` 仍是后端兼容查询能力，不再是当前前端默认入口。

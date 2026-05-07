@@ -121,7 +121,6 @@ export function getPlaygroundTaskInboxStyles(): string {
 
 		.task-inbox-head-actions,
 		.task-inbox-item-actions,
-		.task-inbox-item-head,
 		.task-inbox-item-meta {
 			display: flex;
 			flex-wrap: wrap;
@@ -177,32 +176,9 @@ export function getPlaygroundTaskInboxStyles(): string {
 			font-size: 11px;
 		}
 
-		.task-inbox-filter-row {
-			display: flex;
-			flex: 0 0 auto;
-			flex-wrap: nowrap;
-			align-items: center;
-			gap: 6px;
-			padding: 0;
-		}
-
-		.task-inbox-head-button,
-		.task-inbox-filter-button {
+		.task-inbox-head-button {
 			flex: 0 0 auto;
 			white-space: nowrap;
-		}
-
-		.task-inbox-filter-button {
-			min-height: 30px;
-			padding: 5px 12px;
-			border-radius: 4px;
-			font-size: 11px;
-		}
-
-		.task-inbox-filter-button[data-active="true"] {
-			border-color: rgba(101, 209, 255, 0.28);
-			background: rgba(101, 209, 255, 0.1);
-			color: rgba(242, 248, 255, 0.96);
 		}
 
 		.task-inbox-load-more {
@@ -252,6 +228,18 @@ export function getPlaygroundTaskInboxStyles(): string {
 			overflow: hidden;
 		}
 
+		.task-inbox-item-shell:hover {
+			background: #0f1320;
+		}
+
+		.task-inbox-item.is-unread .task-inbox-item-shell {
+			background: #111827;
+		}
+
+		.task-inbox-item.is-unread .task-inbox-item-shell:hover {
+			background: #141f31;
+		}
+
 		.task-inbox-result-bubble {
 			display: grid;
 			gap: 10px;
@@ -267,9 +255,9 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-item-head {
-			display: flex;
-			justify-content: space-between;
-			align-items: flex-start;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: center;
 			gap: 12px;
 			background: transparent;
 			color: rgba(238, 244, 255, 0.42);
@@ -280,27 +268,38 @@ export function getPlaygroundTaskInboxStyles(): string {
 		}
 
 		.task-inbox-item-title-row {
-			display: flex;
-			flex-wrap: wrap;
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto;
 			align-items: center;
-			gap: 8px;
+			gap: 10px;
 			min-width: 0;
 		}
 
 		.task-inbox-item-head strong {
-			display: inline;
+			display: block;
 			min-width: 0;
 			padding: 0;
 			border: 0;
 			border-radius: 0;
 			background: transparent;
 			color: rgba(248, 251, 255, 0.94);
-			font-size: 12px;
-			font-weight: 650;
+			font-size: 13px;
+			font-weight: 700;
 			line-height: 1.35;
 			letter-spacing: 0.01em;
 			overflow: hidden;
 			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.task-inbox-item-time {
+			min-width: max-content;
+			color: rgba(238, 244, 255, 0.82);
+			font-family: var(--font-mono);
+			font-size: 12px;
+			font-variant-numeric: tabular-nums;
+			font-weight: 700;
+			line-height: 1.35;
 			white-space: nowrap;
 		}
 
@@ -337,19 +336,34 @@ export function getPlaygroundTaskInboxStyles(): string {
 			left: 0;
 			top: 12px;
 			bottom: 12px;
-			width: 3px;
+			width: 4px;
 			border-radius: 999px;
-			background: linear-gradient(180deg, #c9d2ff, #8dffb2);
+			background: #ff1744;
 		}
 
 		/* Read item: dimmed */
 		.task-inbox-item:not(.is-unread) .task-inbox-item-head strong {
-			color: rgba(238, 244, 255, 0.76);
+			color: rgba(238, 244, 255, 0.7);
 			font-weight: 600;
+		}
+
+		.task-inbox-item:not(.is-unread) .task-inbox-item-time {
+			color: rgba(238, 244, 255, 0.66);
 		}
 
 		.task-inbox-item:not(.is-unread) .task-inbox-item-text {
 			color: rgba(209, 213, 224, 0.72);
+		}
+
+		.task-inbox-item:not(.is-expanded) .task-inbox-result-bubble,
+		.task-inbox-item:not(.is-expanded) .task-inbox-item-actions,
+		.task-inbox-item:not(.is-expanded) .task-inbox-item-kind {
+			display: none;
+		}
+
+		.task-inbox-item:not(.is-expanded) .task-inbox-item-shell {
+			cursor: pointer;
+			gap: 0;
 		}
 
 		.task-inbox-item-text {
@@ -529,11 +543,6 @@ export function getPlaygroundTaskInboxStyles(): string {
 				overflow-x: auto;
 			}
 
-			.task-inbox-filter-row {
-				display: flex;
-				padding: 0;
-			}
-
 			.task-inbox-list {
 				gap: 12px;
 				padding: 12px 10px calc(16px + env(safe-area-inset-bottom));
@@ -551,6 +560,25 @@ export function getPlaygroundTaskInboxStyles(): string {
 			.task-inbox-item-actions {
 				display: grid;
 				grid-template-columns: repeat(3, minmax(0, 1fr));
+			}
+
+			.task-inbox-item-head {
+				grid-template-columns: minmax(0, 1fr);
+				gap: 8px;
+			}
+
+			.task-inbox-item-title-row {
+				grid-template-columns: auto minmax(0, 1fr);
+				gap: 6px 10px;
+			}
+
+			.task-inbox-item-time {
+				grid-column: 2;
+				justify-self: start;
+			}
+
+			.task-inbox-item:not(.is-expanded) .task-inbox-item-actions {
+				display: none;
 			}
 
 			.task-inbox-head-button,
@@ -576,10 +604,6 @@ export function getPlaygroundTaskInboxView(): string {
 								</div>
 							</div>
 							<div class="task-inbox-head-actions">
-								<div class="task-inbox-filter-row" role="group" aria-label="任务消息筛选">
-									<button id="task-inbox-filter-unread-button" class="task-inbox-filter-button" type="button">未读</button>
-									<button id="task-inbox-filter-all-button" class="task-inbox-filter-button" type="button">全部</button>
-								</div>
 								<button id="mark-all-task-inbox-read-button" class="task-inbox-head-button" type="button">全部已读</button>
 								<button id="refresh-task-inbox-button" class="task-inbox-head-button" type="button">刷新</button>
 								
@@ -594,8 +618,6 @@ export function getPlaygroundTaskInboxView(): string {
 export function getPlaygroundTaskInboxElementRefsScript(): string {
 	return `
 		const markAllTaskInboxReadButton = document.getElementById("mark-all-task-inbox-read-button");
-		const taskInboxFilterUnreadButton = document.getElementById("task-inbox-filter-unread-button");
-		const taskInboxFilterAllButton = document.getElementById("task-inbox-filter-all-button");
 		const mobileOverflowTaskInboxBadge = document.getElementById("mobile-overflow-task-inbox-badge");
 						const taskInboxUnreadCount = document.getElementById("task-inbox-unread-count");
 	`;
@@ -654,7 +676,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 		}
 
 		function openTaskInbox(restoreFocusElement, options) {
-			state.taskInboxFilter = state.taskInboxUnreadCount > 0 ? "unread" : "all";
+			state.taskInboxFilter = "all";
 			showTaskInboxPage(restoreFocusElement, options);
 		}
 
@@ -726,9 +748,6 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 		async function fetchTaskInboxItems(options) {
 			const params = new URLSearchParams();
 			params.set("limit", "50");
-			if (state.taskInboxFilter === "unread") {
-				params.set("unreadOnly", "true");
-			}
 			if (options?.append && state.taskInboxNextBefore) {
 				params.set("before", state.taskInboxNextBefore);
 			}
@@ -768,22 +787,16 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 
 		function setTaskInboxItemReadLocally(activityId, readAt) {
 			let changed = false;
-			if (state.taskInboxFilter === "unread") {
-				const nextItems = state.taskInboxItems.filter((item) => item?.activityId !== activityId);
-				changed = nextItems.length !== state.taskInboxItems.length;
-				state.taskInboxItems = nextItems;
-			} else {
-				state.taskInboxItems = state.taskInboxItems.map((item) => {
-					if (!item || item.activityId !== activityId || item.readAt) {
-						return item;
-					}
-					changed = true;
-					return {
-						...item,
-						readAt: readAt || new Date().toISOString(),
-					};
-				});
-			}
+			state.taskInboxItems = state.taskInboxItems.map((item) => {
+				if (!item || item.activityId !== activityId || item.readAt) {
+					return item;
+				}
+				changed = true;
+				return {
+					...item,
+					readAt: readAt || new Date().toISOString(),
+				};
+			});
 			if (changed && state.taskInboxOpen) {
 				renderTaskInbox();
 			}
@@ -795,6 +808,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			if (!current || current.readAt) {
 				return;
 			}
+			keepTaskInboxItemExpanded(activityId);
 			try {
 				const payload = await markTaskInboxItemRead(activityId);
 				setTaskInboxItemReadLocally(activityId, payload.activity?.readAt);
@@ -826,15 +840,10 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 					const errorMessage = payload?.error?.message || payload?.message || "全部标记已读失败";
 					throw new Error(errorMessage);
 				}
-				if (state.taskInboxFilter === "unread") {
-					state.taskInboxItems = [];
-					state.taskInboxHasMore = false;
-					state.taskInboxNextBefore = "";
-				} else {
-					state.taskInboxItems = state.taskInboxItems.map((item) =>
-						item?.readAt ? item : { ...item, readAt: now },
-					);
-				}
+				state.taskInboxItems = state.taskInboxItems.map((item) =>
+					item?.readAt ? item : { ...item, readAt: now },
+				);
+				state.taskInboxExpandedActivityIds = [];
 				if (state.taskInboxOpen) {
 					renderTaskInbox();
 				}
@@ -929,26 +938,42 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			return button;
 		}
 
-		function updateTaskInboxFilterButtons() {
-			const unreadCount = Math.max(0, Number(state.taskInboxUnreadCount) || 0);
-			const filters = [
-				{
-					button: taskInboxFilterUnreadButton,
-					filter: "unread",
-					label: unreadCount > 0 ? "未读 " + unreadCount : "未读",
-				},
-				{ button: taskInboxFilterAllButton, filter: "all", label: "全部" },
-			];
-			for (const entry of filters) {
-				if (!entry.button) {
-					continue;
-				}
-				const active = state.taskInboxFilter === entry.filter;
-				entry.button.textContent = entry.label;
-				entry.button.dataset.active = active ? "true" : "false";
-				entry.button.setAttribute("aria-pressed", active ? "true" : "false");
-				entry.button.disabled = state.taskInboxLoading || state.taskInboxLoadingMore;
+		function getTaskInboxExpandedIds() {
+			return Array.isArray(state.taskInboxExpandedActivityIds) ? state.taskInboxExpandedActivityIds : [];
+		}
+
+		function isTaskInboxItemExpanded(activity) {
+			if (!activity?.readAt) {
+				return true;
 			}
+			return getTaskInboxExpandedIds().includes(activity.activityId);
+		}
+
+		function keepTaskInboxItemExpanded(activityId) {
+			const id = String(activityId || "").trim();
+			if (!id) {
+				return;
+			}
+			const expandedIds = getTaskInboxExpandedIds();
+			if (!expandedIds.includes(id)) {
+				state.taskInboxExpandedActivityIds = expandedIds.concat(id);
+			}
+		}
+
+		function toggleTaskInboxItemExpanded(activityId) {
+			const id = String(activityId || "").trim();
+			if (!id) {
+				return;
+			}
+			const expandedIds = getTaskInboxExpandedIds();
+			state.taskInboxExpandedActivityIds = expandedIds.includes(id)
+				? expandedIds.filter((expandedId) => expandedId !== id)
+				: expandedIds.concat(id);
+			renderTaskInbox();
+		}
+
+		function updateTaskInboxFilterButtons() {
+			state.taskInboxFilter = "all";
 		}
 
 		function updateMarkAllTaskInboxReadButtonState() {
@@ -985,39 +1010,55 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			if (items.length === 0) {
 				const empty = document.createElement("div");
 				empty.className = "asset-empty";
-				empty.textContent =
-					state.taskInboxFilter === "unread"
-						? "暂无未读任务消息。"
-						: "暂时没有任务消息。后台任务完成后，结果会出现在这里。";
+				empty.textContent = "暂时没有任务消息。后台任务完成后，结果会出现在这里。";
 				taskInboxList.appendChild(empty);
 				return;
 			}
 			for (const activity of items) {
+				const isUnread = !activity.readAt;
+				const isExpanded = isTaskInboxItemExpanded(activity);
 				const item = document.createElement("article");
 				item.className = "task-inbox-item";
-				if (!activity.readAt) {
+				if (isUnread) {
 					item.classList.add("is-unread");
+				}
+				if (isExpanded) {
+					item.classList.add("is-expanded");
 				}
 				const shell = document.createElement("div");
 				shell.className = "task-inbox-item-shell";
 				shell.tabIndex = 0;
 				shell.setAttribute("role", "button");
-				shell.setAttribute("aria-pressed", activity.readAt ? "true" : "false");
-				shell.setAttribute("aria-label", (activity.title || "任务消息") + "，点击标记已读");
+				shell.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+				shell.setAttribute(
+					"aria-label",
+					(activity.title || "任务消息") + (isExpanded ? "，点击收起" : "，点击展开"),
+				);
 
 				const head = document.createElement("div");
 				head.className = "task-inbox-item-head";
 				const titleRow = document.createElement("div");
 				titleRow.className = "task-inbox-item-title-row";
-				if (!activity.readAt) {
+				if (isUnread) {
 					const unreadDot = document.createElement("span");
 					unreadDot.className = "task-inbox-item-unread-dot";
 					unreadDot.setAttribute("aria-hidden", "true");
 					titleRow.appendChild(unreadDot);
+				} else {
+					const readDotSpacer = document.createElement("span");
+					readDotSpacer.className = "task-inbox-item-unread-dot";
+					readDotSpacer.setAttribute("aria-hidden", "true");
+					readDotSpacer.style.visibility = "hidden";
+					titleRow.appendChild(readDotSpacer);
 				}
 				const title = document.createElement("strong");
 				title.textContent = activity.title || "任务消息";
 				titleRow.appendChild(title);
+				const created = document.createElement("time");
+				created.className = "task-inbox-item-time";
+				created.dateTime = activity.createdAt || "";
+				created.textContent = formatConnRunTimestamp(activity.createdAt) || activity.createdAt || "";
+				titleRow.appendChild(created);
 				const source = document.createElement("span");
 				source.className = "task-inbox-item-kind";
 				source.textContent = describeActivitySourceLabel(activity.source, activity.kind);
@@ -1040,9 +1081,6 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 
 				const meta = document.createElement("div");
 				meta.className = "task-inbox-item-meta";
-				const created = document.createElement("span");
-				created.textContent = formatConnRunTimestamp(activity.createdAt) || activity.createdAt || "";
-				meta.appendChild(created);
 				const taskId = activity.runId || activity.activityId;
 				if (taskId) {
 					const run = document.createElement("span");
@@ -1105,14 +1143,24 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 					if (event.target instanceof Element && event.target.closest("button")) {
 						return;
 					}
-					await markTaskInboxItemReadAndSync(activity.activityId);
+					if (isUnread) {
+						keepTaskInboxItemExpanded(activity.activityId);
+						await markTaskInboxItemReadAndSync(activity.activityId);
+						return;
+					}
+					toggleTaskInboxItemExpanded(activity.activityId);
 				});
 				shell.addEventListener("keydown", async (event) => {
 					if (event.key !== "Enter" && event.key !== " ") {
 						return;
 					}
 					event.preventDefault();
-					await markTaskInboxItemReadAndSync(activity.activityId);
+					if (isUnread) {
+						keepTaskInboxItemExpanded(activity.activityId);
+						await markTaskInboxItemReadAndSync(activity.activityId);
+						return;
+					}
+					toggleTaskInboxItemExpanded(activity.activityId);
 				});
 
 				shell.appendChild(head);
@@ -1160,20 +1208,6 @@ export function getPlaygroundTaskInboxEventHandlersScript(): string {
 			void markAllTaskInboxItemsRead();
 		});
 		refreshTaskInboxButton.addEventListener("click", () => {
-			void loadTaskInbox({ silent: false });
-		});
-		taskInboxFilterUnreadButton.addEventListener("click", () => {
-			if (state.taskInboxFilter === "unread") {
-				return;
-			}
-			state.taskInboxFilter = "unread";
-			void loadTaskInbox({ silent: false });
-		});
-		taskInboxFilterAllButton.addEventListener("click", () => {
-			if (state.taskInboxFilter === "all") {
-				return;
-			}
-			state.taskInboxFilter = "all";
 			void loadTaskInbox({ silent: false });
 		});
 	`;

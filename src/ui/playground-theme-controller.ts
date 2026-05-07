@@ -835,21 +835,54 @@ export function getPlaygroundThemeStyles(): string {
 			box-shadow: none;
 		}
 
-		:root[data-theme="light"] .task-inbox-list,
-				:root[data-theme="light"] .task-inbox-item-shell {
-			background: rgba(255, 255, 255, 0.92);
+		:root[data-theme="light"] .conn-manager-panel > .asset-modal-body {
+			background: #f1f5fa;
+		}
+
+		:root[data-theme="light"] .task-inbox-list {
+			padding: 12px 14px 16px;
+			background: #f1f5fa;
 			box-shadow: none;
 		}
 
+		:root[data-theme="light"] .task-inbox-item-shell {
+			border: 1px solid #dfe7f2;
+			background: #ffffff;
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .task-inbox-item-shell:hover {
+			border-color: #cbd8ea;
+			background: #f8fbff;
+		}
+
+		:root[data-theme="light"] .task-inbox-item.is-unread .task-inbox-item-shell {
+			border-color: #ffd6dd;
+			background: #fff5f6;
+		}
+
+		:root[data-theme="light"] .task-inbox-item.is-unread .task-inbox-item-shell:hover {
+			border-color: #ffc4ce;
+			background: #fff0f2;
+		}
+
 		:root[data-theme="light"] .task-inbox-item.is-unread .task-inbox-item-shell::before {
-			background: linear-gradient(180deg, #3b6fd4, #28a262);
+			background: #ff1744;
 		}
 
 		:root[data-theme="light"] .task-inbox-item-head strong {
 			color: #172033;
 		}
 
+		:root[data-theme="light"] .task-inbox-item-time {
+			color: #172033;
+		}
+
 		:root[data-theme="light"] .task-inbox-item:not(.is-unread) .task-inbox-item-head strong {
+			color: #4a5568;
+		}
+
+		:root[data-theme="light"] .task-inbox-item:not(.is-unread) .task-inbox-item-time {
 			color: #4a5568;
 		}
 
@@ -888,9 +921,15 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 :root[data-theme="light"] .task-inbox-item,
-		:root[data-theme="light"] .conn-manager-list,
 		:root[data-theme="light"] .conn-editor-form {
 			border-color: transparent;
+			background: transparent;
+			color: #172033;
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .conn-manager-list {
+			padding: 12px 14px 16px;
 			background: transparent;
 			color: #172033;
 			box-shadow: none;
@@ -899,18 +938,35 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"] :is(.asset-pill),
 		:root[data-theme="light"] :is(.file-download),
 		:root[data-theme="light"] :is(.asset-empty),
-		:root[data-theme="light"] :is(.file-chip),
-		:root[data-theme="light"] :is(.conn-manager-item),
-		:root[data-theme="light"] :is(.conn-manager-run-item) {
+		:root[data-theme="light"] :is(.file-chip) {
 			border-color: transparent;
 			background: rgba(255, 255, 255, 0.9);
 			color: #24324a;
 			box-shadow: none;
 		}
 
+		:root[data-theme="light"] :is(.conn-manager-item) {
+			border-color: #dfe7f2;
+			background: #ffffff;
+			color: #24324a;
+			box-shadow: none;
+		}
+
+		:root[data-theme="light"] :is(.conn-manager-item):hover {
+			border-color: #cbd8ea;
+			background: #f8fbff;
+		}
+
+		:root[data-theme="light"] :is(.conn-manager-run-item) {
+			border-color: #e2e8f0;
+			background: #f8fbff;
+			color: #24324a;
+			box-shadow: none;
+		}
+
 		:root[data-theme="light"] :is(.conn-manager-toolbar, .conn-editor-field, .conn-editor-advanced) {
-			border-color: transparent;
-			background: transparent;
+			border-color: #dfe7f2;
+			background: #f8fbff;
 			color: #596579;
 			box-shadow: none;
 		}

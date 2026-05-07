@@ -530,6 +530,48 @@ export function getPlaygroundAgentManagerStyles(): string {
 			color: #52617a;
 		}
 
+		:root[data-theme="light"] .agent-manager-list {
+			padding: 8px;
+			background: #f1f5fa;
+		}
+
+		:root[data-theme="light"] .agent-manager-list-button,
+		:root[data-theme="light"] .agent-manager-detail-field,
+		:root[data-theme="light"] .agent-manager-create-section,
+		:root[data-theme="light"] .agent-manager-rules-card,
+		:root[data-theme="light"] .agent-manager-skill-install,
+		:root[data-theme="light"] .agent-manager-skill-choice,
+		:root[data-theme="light"] .agent-manager-skill-item {
+			border-color: #dfe7f2;
+			background: #ffffff;
+			color: #24324a;
+		}
+
+		:root[data-theme="light"] .agent-manager-list-button:hover:not(:disabled),
+		:root[data-theme="light"] .agent-manager-list-button:focus-visible,
+		:root[data-theme="light"] .agent-manager-list-button.is-selected,
+		:root[data-theme="light"] .agent-manager-rules-card:hover,
+		:root[data-theme="light"] .agent-manager-rules-card:focus-visible {
+			border-color: #cbd8ea;
+			background: #f8fbff;
+		}
+
+		:root[data-theme="light"] .agent-manager-list-button.is-selected {
+			border-color: #9db8e8;
+			background: #eaf2ff;
+		}
+
+		:root[data-theme="light"] .agent-manager-stat {
+			border: 1px solid #dfe7f2;
+			background: #f8fbff;
+		}
+
+		:root[data-theme="light"] .agent-manager-notice {
+			border-color: #b7dfc9;
+			background: #e8f6ef;
+			color: #145c3b;
+		}
+
 		:root[data-theme="light"] .agent-manager-stat strong,
 		:root[data-theme="light"] .agent-manager-list-title strong,
 		:root[data-theme="light"] .agent-manager-detail-title strong,
@@ -548,7 +590,25 @@ export function getPlaygroundAgentManagerStyles(): string {
 		:root[data-theme="light"] .agent-manager-rules-card-copy span,
 		:root[data-theme="light"] .agent-manager-rules-card-action,
 		:root[data-theme="light"] .agent-editor-field {
-			color: #52617a;
+			color: #40516d;
+		}
+
+		:root[data-theme="light"] .agent-manager-detail-field code,
+		:root[data-theme="light"] .agent-manager-rules-content,
+		:root[data-theme="light"] .agent-manager-skill-item strong {
+			color: #24324a;
+		}
+
+		:root[data-theme="light"] .agent-manager-status {
+			border-color: #cbd8ea;
+			background: #eef3fb;
+			color: #40516d;
+		}
+
+		:root[data-theme="light"] .agent-manager-status.active {
+			border-color: #b7dfc9;
+			background: #e8f6ef;
+			color: #08784b;
 		}
 
 		:root[data-theme="light"] .agent-editor-field input,
@@ -561,10 +621,24 @@ export function getPlaygroundAgentManagerStyles(): string {
 			border-color: rgba(31, 95, 200, 0.14);
 		}
 
+		:root[data-theme="light"] .agent-editor-field input::placeholder,
+		:root[data-theme="light"] .agent-editor-field textarea::placeholder,
+		:root[data-theme="light"] .agent-manager-create input::placeholder,
+		:root[data-theme="light"] .agent-manager-create textarea::placeholder {
+			color: #7b879a;
+		}
+
 		:root[data-theme="light"] .agent-rules-editor-textarea {
 			background: #ffffff;
 			color: #172033;
 			border-color: rgba(31, 95, 200, 0.14);
+		}
+
+		:root[data-theme="light"] .agent-editor-error,
+		:root[data-theme="light"] .agent-rules-editor-error {
+			border-color: #f2bdc7;
+			background: #fff0f3;
+			color: #9d2439;
 		}
 
 		@media (max-width: 640px) {

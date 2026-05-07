@@ -51,8 +51,9 @@ test("playground styles give desktop workspace headers a polished command-bar la
 	);
 	assert.match(
 		styles,
-		/\.chat-stage > \.workspace-contained :is\(\.asset-modal-actions button, \.task-inbox-head-button, \.task-inbox-filter-button\)\s*\{[\s\S]*border-radius:\s*4px;/,
+		/\.chat-stage > \.workspace-contained :is\(\.asset-modal-actions button, \.task-inbox-head-button\)\s*\{[\s\S]*border-radius:\s*4px;/,
 	);
+	assert.doesNotMatch(styles, /task-inbox-filter-button/);
 	assert.match(
 		styles,
 		/\.chat-stage > \.workspace-contained :is\(\.asset-head-count, \.task-inbox-head-count\)\s*\{[\s\S]*display:\s*none;/,

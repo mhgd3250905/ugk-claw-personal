@@ -437,7 +437,7 @@ export function getPlaygroundAssetModalStyles(): string {
 			scrollbar-width: none;
 		}
 
-		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button) {
+		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button) {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
@@ -455,16 +455,11 @@ export function getPlaygroundAssetModalStyles(): string {
 			white-space: nowrap;
 		}
 
-		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button):hover:not(:disabled),
-		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button):focus-visible {
+		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button):hover:not(:disabled),
+		.chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button):focus-visible {
 			background: rgba(201, 210, 255, 0.11);
 			color: rgba(248, 251, 255, 0.96);
 			transform: none;
-		}
-
-		.chat-stage > .workspace-contained .task-inbox-filter-button[data-active="true"] {
-			background: rgba(101, 209, 255, 0.16);
-			color: rgba(236, 249, 255, 0.98);
 		}
 
 		.chat-stage > .workspace-contained .mobile-work-back-button {
@@ -486,12 +481,12 @@ export function getPlaygroundAssetModalStyles(): string {
 			background: #eef3f8;
 		}
 
-		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button) {
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button) {
 			color: #536176;
 		}
 
-		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button):hover:not(:disabled),
-		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button, .task-inbox-filter-button):focus-visible {
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button):hover:not(:disabled),
+		:root[data-theme="light"] .chat-stage > .workspace-contained :is(.asset-modal-actions button, .task-inbox-head-button):focus-visible {
 			background: #ffffff;
 			color: #142033;
 		}

@@ -12,6 +12,12 @@
 
 ## 2026-05-06
 
+### Playground 任务消息列表重设计
+- 日期：2026-05-06
+- 主题：移除任务消息页的“未读 / 全部”筛选入口，改为在全部消息列表里用展开状态和视觉高亮区分未读 / 已读。
+- 影响范围：任务消息页始终请求 `/v1/activity` 全量列表，不再由前端追加 `unreadOnly=true`；未读消息红色高亮并默认展开，已读消息默认折叠且只显示标题和时间；时间提升到标题同级展示，展开态再显示来源、正文、任务 ID、附件和操作按钮；“全部已读”会同步收起当前列表；浅色主题补齐任务消息、后台任务和 Agent 操作台的浅灰蓝工作底、白色卡片、细边框和深色文字，避免条目与页面背景混在一起。
+- 对应入口：`src/ui/playground-task-inbox.ts`、`src/ui/playground.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-agent-manager.ts`、`test/server.test.ts`、`docs/playground-current.md`
+
 ### Playground 会话菜单
 - 日期：2026-05-06
 - 主题：把会话列表里的单一删除按钮升级为会话更多菜单，支持重命名、置顶、背景颜色和删除。
