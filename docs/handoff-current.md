@@ -12,9 +12,9 @@
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
 - 当前本地最新提交：本文件所在 HEAD，提交主题为 `Add Chrome workbench`；具体 hash 以 `git log -1 --oneline` 为准。
-- 当前 `origin/main` / `gitee/main`：仍停在上一轮已推送版本；本地 HEAD 需要先推送到目标远端后，服务器才能走 Git fast-forward 增量更新。`v1.2.0` tag 仍指向上一轮稳定版，不代表本轮 Chrome 工作台已上线。
-- 腾讯云生产运行代码提交：最近一次已增量更新并验证到 `260faf3 Add conn public directory contract`，随后本地只追加版本号 / change-log release commit `c95af2d`。
-- 阿里云生产运行代码提交：最近一次已增量更新并验证到 `260faf3 Add conn public directory contract`，随后本地只追加版本号 / change-log release commit `c95af2d`。
+- 当前 `origin/main` / `gitee/main`：均已推送到 `e92da82 Add Chrome workbench`。
+- 腾讯云生产运行代码提交：已增量更新并验证到 `e92da82 Add Chrome workbench`。
+- 阿里云生产运行代码提交：已增量更新并验证到 `e92da82 Add Chrome workbench`。
 - 本轮稳定版主线：Playground 会话菜单、任务消息重设计、Markdown 代码块宽度约束、浅色主题 / 后台任务 / Agent 设置页面视觉一致性收口、UI 层级清理，以及 conn 长期公开目录 / 站点级公开目录契约。
 - 验收结论：双云已完成 conn 公共目录契约增量更新与运行态检查；`v1.2.0` release commit 只变更 `package.json`、`package-lock.json` 和 `docs/change-log.md`，已通过 `git diff --check`，并确认 tag 指向当前 HEAD。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
@@ -28,10 +28,10 @@
 - 阿里云主部署目录：`/root/ugk-claw-repo`
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
-- 当前待发布本地现场：Chrome 工作台第一阶段已经在本地完成并验证，准备提交后走双云 Git 增量发布。发布时必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`；不要整目录覆盖 shared，不要 `docker compose down -v`，不要复制本地 Chrome profile 到服务器。
+- 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
 - 当前未跟踪文件：`runtime/xhs-extract.mjs` 来源不属于本轮 Chrome 工作台，继续不要提交、不要删除，除非用户明确说明它的归属。
 
-## 2026-05-08 Chrome 工作台待发布摘要
+## 2026-05-08 Chrome 工作台已发布摘要
 
 本轮新增前台 `Chrome 工作台`：
 
@@ -39,7 +39,7 @@
 - 后端边界：`BrowserControlService` 负责编排 CDP 状态，`BrowserTargetUsageReader` / `CdpBrowserTargetUsageReader` 独立读取页面级 JS heap、DOM 节点和事件监听器；不接 Docker socket。
 - 前端边界：`src/ui/playground-browser-workbench.ts` 独立承载工作台样式、弹层和脚本；Playground 只负责装配入口与 workspace 模式。
 - 用户可见口径：默认只展示真实 `page` 页面，iframe / service worker 等内部 target 只折叠为中文提示；页面条目突出 `页面` 标签、网址和占用状态。
-- 生产部署口径：这是代码增量，不是登录态迁移；保留现有 Chrome sidecar profile 和 shared 数据即可。
+- 生产部署口径：这是代码增量，不是登录态迁移；已通过双云 `npm run server:ops -- <target> verify` 和公开浏览器接口抽查。`chrome-01` / `chrome-02` 是独立 profile，由用户分别登录维护。
 
 ## 最近已完成
 
@@ -68,7 +68,7 @@ git log --oneline c05753b..HEAD
 - `docker compose -f docker-compose.prod.yml config --quiet`
 - `npm test`
 
-截至最近一次全量测试，`npm test` 为 `552 pass / 0 fail`。本轮还单独跑过：
+截至最近一次全量测试，`npm test` 为 `595 pass / 0 fail`。本轮还单独跑过：
 
 - `npx tsc --noEmit`
 - `node --test --test-concurrency=1 --import tsx test\conn-db.test.ts test\conn-sqlite-store.test.ts test\cleanup-debug.test.ts`
@@ -76,6 +76,14 @@ git log --oneline c05753b..HEAD
 - `git diff --check`
 
 最近一次生产验收：
+
+- 腾讯云服务器已增量更新到 `e92da82`，`npm run server:ops -- tencent verify` 通过。
+- 阿里云服务器已增量更新到 `e92da82`，`npm run server:ops -- aliyun verify` 通过。
+- 腾讯云 / 阿里云公开 `GET /v1/browsers` 均返回 `default`、`chrome-01`、`chrome-02`。
+- 腾讯云 / 阿里云 `GET /v1/browsers/<browserId>/status` 抽查通过，三套 Chrome 均 `online` 并可返回页面级 usage。
+- 双云默认旧 Chrome sidecar `ugk-pi-browser` 验收时仍为 `Up 4 days (healthy)`；新增 `chrome-01` / `chrome-02` sidecar 是本次增量创建的独立 profile。
+
+上一轮 conn / cleanup 生产验收：
 
 - 腾讯云服务器已增量更新到 `4a8c7e5`，`npm run server:ops -- tencent verify` 通过。
 - 阿里云服务器已增量更新到 `4a8c7e5`，`npm run server:ops -- aliyun verify` 通过。
