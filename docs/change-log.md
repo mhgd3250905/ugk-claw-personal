@@ -12,6 +12,12 @@
 
 ## 2026-05-07
 
+### v1.2.0 稳定版
+- 日期：2026-05-07
+- 主题：将当前双云已验证的 `260faf3 Add conn public directory contract` 标记为 `v1.2.0` 稳定版本。
+- 影响范围：版本号提升到 `1.2.0`；本版本包含 Playground 会话菜单、任务消息与浅色主题收口、UI 层级清理，以及 conn 长期公开目录 / 站点级公开目录契约。腾讯云和阿里云均已增量更新到该代码基线并通过运行态检查。
+- 对应入口：`package.json`、`package-lock.json`、`docs/change-log.md`
+
 ### Conn 长期公开目录契约
 - 日期：2026-05-07
 - 主题：为后台 conn 增加长期稳定公开目录和站点级公开目录，避免 agent 继续在 `CONN_SHARED_DIR`、`OUTPUT_DIR` 和 `/app/public` 之间猜。
