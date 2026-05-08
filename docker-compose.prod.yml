@@ -16,6 +16,9 @@ services:
       WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
       WEB_ACCESS_CDP_HOST: 172.31.250.10
       WEB_ACCESS_CDP_PORT: 9223
+      UGK_DEFAULT_BROWSER_ID: ${UGK_DEFAULT_BROWSER_ID:-default}
+      UGK_BROWSER_INSTANCES_JSON: ${UGK_BROWSER_INSTANCES_JSON:-[{"browserId":"default","name":"Default","cdpHost":"172.31.250.10","cdpPort":9223,"guiUrl":"https://127.0.0.1:3901/","profileLabel":"chrome-sidecar"},{"browserId":"chrome-01","name":"chrome-01","cdpHost":"172.31.250.11","cdpPort":9223,"guiUrl":"https://127.0.0.1:3902/","profileLabel":"chrome-sidecar-chrome-01"},{"browserId":"chrome-02","name":"chrome-02","cdpHost":"172.31.250.12","cdpPort":9223,"guiUrl":"https://127.0.0.1:3903/","profileLabel":"chrome-sidecar-chrome-02"}]}
+      UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH: /app/.data/browser-scope-routes.json
       WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
       WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
       UGK_MODEL_SETTINGS_PATH: /app/.data/agent/model-settings.json
@@ -65,6 +68,9 @@ services:
       WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
       WEB_ACCESS_CDP_HOST: 172.31.250.10
       WEB_ACCESS_CDP_PORT: 9223
+      UGK_DEFAULT_BROWSER_ID: ${UGK_DEFAULT_BROWSER_ID:-default}
+      UGK_BROWSER_INSTANCES_JSON: ${UGK_BROWSER_INSTANCES_JSON:-[{"browserId":"default","name":"Default","cdpHost":"172.31.250.10","cdpPort":9223,"guiUrl":"https://127.0.0.1:3901/","profileLabel":"chrome-sidecar"},{"browserId":"chrome-01","name":"chrome-01","cdpHost":"172.31.250.11","cdpPort":9223,"guiUrl":"https://127.0.0.1:3902/","profileLabel":"chrome-sidecar-chrome-01"},{"browserId":"chrome-02","name":"chrome-02","cdpHost":"172.31.250.12","cdpPort":9223,"guiUrl":"https://127.0.0.1:3903/","profileLabel":"chrome-sidecar-chrome-02"}]}
+      UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH: /app/.data/browser-scope-routes.json
       WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
       WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
       UGK_MODEL_SETTINGS_PATH: /app/.data/agent/model-settings.json
@@ -150,6 +156,88 @@ services:
       ugk-pi-browser:
         condition: service_healthy
     network_mode: "service:ugk-pi-browser"
+    command:
+      - "TCP-LISTEN:9223,fork,bind=0.0.0.0,reuseaddr"
+      - "TCP:127.0.0.1:9222"
+    restart: unless-stopped
+  ugk-pi-browser-chrome-01:
+    image: lscr.io/linuxserver/chrome:latest
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-Asia/Shanghai}
+      DISPLAY: ":0"
+      SELKIES_USE_BROWSER_CURSORS: "true"
+      WEB_ACCESS_BROWSER_PROFILE_DIR: ${WEB_ACCESS_BROWSER_CHROME_01_PROFILE_DIR:-/config/chrome-profile-sidecar}
+      CHROME_CLI: "--remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --hide-crash-restore-bubble --js-flags=--max-old-space-size=1536 --ozone-platform=x11 --user-data-dir=${WEB_ACCESS_BROWSER_CHROME_01_PROFILE_DIR:-/config/chrome-profile-sidecar} about:blank"
+    volumes:
+      - ${UGK_BROWSER_CHROME_01_CONFIG_DIR:-./.data/chrome-sidecar-chrome-01}:/config
+      - ${UGK_BROWSER_CHROME_01_UPLOAD_DIR:-./.data/chrome-sidecar-chrome-01/upload}:/config/upload
+      - ./scripts/ensure-sidecar-chrome.sh:/usr/local/bin/ensure-sidecar-chrome.sh:ro
+    ports:
+      - "127.0.0.1:${WEB_ACCESS_BROWSER_CHROME_01_GUI_PORT:-3902}:3001"
+    shm_size: "1gb"
+    mem_limit: ${UGK_BROWSER_CHROME_01_MEM_LIMIT:-2g}
+    mem_reservation: ${UGK_BROWSER_CHROME_01_MEM_RESERVATION:-512m}
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "sh /usr/local/bin/ensure-sidecar-chrome.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+    networks:
+      ugk-pi-net:
+        ipv4_address: 172.31.250.11
+  ugk-pi-browser-chrome-01-cdp:
+    image: alpine/socat:latest
+    depends_on:
+      ugk-pi-browser-chrome-01:
+        condition: service_healthy
+    network_mode: "service:ugk-pi-browser-chrome-01"
+    command:
+      - "TCP-LISTEN:9223,fork,bind=0.0.0.0,reuseaddr"
+      - "TCP:127.0.0.1:9222"
+    restart: unless-stopped
+  ugk-pi-browser-chrome-02:
+    image: lscr.io/linuxserver/chrome:latest
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: ${TZ:-Asia/Shanghai}
+      DISPLAY: ":0"
+      SELKIES_USE_BROWSER_CURSORS: "true"
+      WEB_ACCESS_BROWSER_PROFILE_DIR: ${WEB_ACCESS_BROWSER_CHROME_02_PROFILE_DIR:-/config/chrome-profile-sidecar}
+      CHROME_CLI: "--remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --hide-crash-restore-bubble --js-flags=--max-old-space-size=1536 --ozone-platform=x11 --user-data-dir=${WEB_ACCESS_BROWSER_CHROME_02_PROFILE_DIR:-/config/chrome-profile-sidecar} about:blank"
+    volumes:
+      - ${UGK_BROWSER_CHROME_02_CONFIG_DIR:-./.data/chrome-sidecar-chrome-02}:/config
+      - ${UGK_BROWSER_CHROME_02_UPLOAD_DIR:-./.data/chrome-sidecar-chrome-02/upload}:/config/upload
+      - ./scripts/ensure-sidecar-chrome.sh:/usr/local/bin/ensure-sidecar-chrome.sh:ro
+    ports:
+      - "127.0.0.1:${WEB_ACCESS_BROWSER_CHROME_02_GUI_PORT:-3903}:3001"
+    shm_size: "1gb"
+    mem_limit: ${UGK_BROWSER_CHROME_02_MEM_LIMIT:-2g}
+    mem_reservation: ${UGK_BROWSER_CHROME_02_MEM_RESERVATION:-512m}
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "sh /usr/local/bin/ensure-sidecar-chrome.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+    networks:
+      ugk-pi-net:
+        ipv4_address: 172.31.250.12
+  ugk-pi-browser-chrome-02-cdp:
+    image: alpine/socat:latest
+    depends_on:
+      ugk-pi-browser-chrome-02:
+        condition: service_healthy
+    network_mode: "service:ugk-pi-browser-chrome-02"
     command:
       - "TCP-LISTEN:9223,fork,bind=0.0.0.0,reuseaddr"
       - "TCP:127.0.0.1:9222"

@@ -1,11 +1,15 @@
 import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import type { AgentSessionLike, RawAgentSessionEventLike } from "./agent-session-factory.js";
-import type { ResolvedBackgroundAgentSnapshot, BackgroundAgentProfileResolver } from "./background-agent-profile.js";
+import type {
+	BackgroundAgentProfileRef,
+	ResolvedBackgroundAgentSnapshot,
+} from "./background-agent-profile.js";
 import type { BackgroundWorkspaceManager, RunWorkspace } from "./background-workspace.js";
 import type { ConnRunRecord, ConnRunStore } from "./conn-run-store.js";
 import type { ConnDefinition } from "./conn-store.js";
 import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
+import { setBrowserScopeRoute } from "../browser/browser-scope-routes.js";
 import {
 	createBrowserCleanupScope,
 	runWithScopedAgentEnvironment,
@@ -18,16 +22,23 @@ export interface BackgroundAgentSessionFactory {
 		connId: string;
 		workspace: RunWorkspace;
 		snapshot: ResolvedBackgroundAgentSnapshot;
+		browserId?: string;
+		browserScope?: string;
 		sessionFile?: string;
 	}): Promise<AgentSessionLike>;
 }
 
+export interface BackgroundAgentProfileResolverLike {
+	resolve(ref: BackgroundAgentProfileRef): Promise<ResolvedBackgroundAgentSnapshot>;
+}
+
 export interface BackgroundAgentRunnerOptions {
 	runStore: ConnRunStore;
-	profileResolver: BackgroundAgentProfileResolver;
+	profileResolver: BackgroundAgentProfileResolverLike;
 	workspaceManager: BackgroundWorkspaceManager;
 	sessionFactory: BackgroundAgentSessionFactory;
-	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
+	closeBrowserTargetsForScope?: (scope: string, options?: { browserId?: string }) => Promise<void>;
+	defaultBrowserId?: string;
 	publicBaseUrl?: string;
 	publicDir?: string;
 }
@@ -43,9 +54,9 @@ export class BackgroundAgentRunner {
 	): Promise<ConnRunRecord | undefined> {
 		const browserCleanupScope = createBrowserCleanupScope(conn.connId);
 		const closeBrowserTargets = this.options.closeBrowserTargetsForScope ?? closeBrowserTargetsForScope;
+		let effectiveBrowserId: string | undefined;
 		let unsubscribe: (() => void) | undefined;
 		try {
-			await closeBrowserTargets(browserCleanupScope);
 			const workspace = await this.options.workspaceManager.createRunWorkspace({
 				runId: run.runId,
 				connId: conn.connId,
@@ -103,6 +114,9 @@ export class BackgroundAgentRunner {
 					createdAt: now,
 				});
 			}
+			effectiveBrowserId = resolveBackgroundBrowserId(conn, snapshot, this.options.defaultBrowserId);
+			await setBrowserScopeRoute(browserCleanupScope, effectiveBrowserId);
+			await closeBrowserTargets(browserCleanupScope, effectiveBrowserId ? { browserId: effectiveBrowserId } : undefined);
 
 			await this.options.runStore.updateRuntimeInfo({
 				runId: run.runId,
@@ -117,6 +131,8 @@ export class BackgroundAgentRunner {
 				connId: conn.connId,
 				workspace,
 				snapshot,
+				...(effectiveBrowserId ? { browserId: effectiveBrowserId } : {}),
+				browserScope: browserCleanupScope,
 				sessionFile: run.sessionFile,
 			});
 			unsubscribe = session.subscribe((event) => {
@@ -181,7 +197,8 @@ export class BackgroundAgentRunner {
 				finishedAt: failedAt,
 			});
 		} finally {
-			await closeBrowserTargets(browserCleanupScope);
+			await closeBrowserTargets(browserCleanupScope, effectiveBrowserId ? { browserId: effectiveBrowserId } : undefined);
+			await setBrowserScopeRoute(browserCleanupScope, undefined);
 		}
 	}
 
@@ -193,6 +210,14 @@ export class BackgroundAgentRunner {
 			event: normalizeEvent(event),
 		});
 	}
+}
+
+function resolveBackgroundBrowserId(
+	conn: Pick<ConnDefinition, "browserId">,
+	snapshot: Pick<ResolvedBackgroundAgentSnapshot, "defaultBrowserId">,
+	defaultBrowserId?: string,
+): string | undefined {
+	return conn.browserId?.trim() || snapshot.defaultBrowserId?.trim() || defaultBrowserId?.trim() || undefined;
 }
 
 async function promptWithAbort(session: AgentSessionLike, prompt: string, signal?: AbortSignal): Promise<void> {

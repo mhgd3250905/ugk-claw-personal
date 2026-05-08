@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AgentService } from "../agent/agent-service.js";
 import type { AgentServiceRegistry } from "../agent/agent-service-registry.js";
+import type { BrowserRegistry } from "../browser/browser-registry.js";
 import {
 	archiveStoredAgentProfile,
 	createStoredAgentProfile,
@@ -131,6 +132,7 @@ function parseUpdateConversationBody(body: Partial<UpdateConversationRequestBody
 interface ChatRouteDependencies {
 	agentService: AgentService;
 	agentServiceRegistry?: AgentServiceRegistry<AgentService>;
+	browserRegistry?: BrowserRegistry;
 	projectRoot?: string;
 }
 
@@ -162,9 +164,59 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		return service;
 	}
 
+	function validateBrowserId(reply: FastifyReply, browserId: string | undefined | null): FastifyReply | undefined {
+		const normalized = String(browserId ?? "").trim();
+		if (!normalized) {
+			return undefined;
+		}
+		if (!deps.browserRegistry?.get(normalized)) {
+			return reply.status(400).send({
+				error: "BAD_REQUEST",
+				message: `Unknown browserId: ${normalized}`,
+			});
+		}
+		return undefined;
+	}
+
+	function resolveBrowserIdForRequest(
+		reply: FastifyReply,
+		agentId: string | undefined,
+		requestedBrowserId: string | undefined,
+	): { browserId?: string; response?: FastifyReply } {
+		const browserValidation = validateBrowserId(reply, requestedBrowserId);
+		if (browserValidation) {
+			return { response: browserValidation };
+		}
+		if (requestedBrowserId) {
+			return { browserId: requestedBrowserId };
+		}
+		const profileBrowserId = agentId ? deps.agentServiceRegistry?.getProfile(agentId)?.defaultBrowserId : undefined;
+		const profileValidation = validateBrowserId(reply, profileBrowserId);
+		if (profileValidation) {
+			return { response: profileValidation };
+		}
+		return {
+			...(profileBrowserId ? { browserId: profileBrowserId } : {}),
+		};
+	}
+
+	function presentAgentSummary(agent: { agentId: string; name: string; description: string; defaultBrowserId?: string }): {
+		agentId: string;
+		name: string;
+		description: string;
+		defaultBrowserId?: string;
+	} {
+		return {
+			agentId: agent.agentId,
+			name: agent.name,
+			description: agent.description,
+			...(agent.defaultBrowserId ? { defaultBrowserId: agent.defaultBrowserId } : {}),
+		};
+	}
+
 	app.get("/v1/agents", async () => {
 		return {
-			agents: deps.agentServiceRegistry?.list() ?? [
+			agents: deps.agentServiceRegistry?.list().map(presentAgentSummary) ?? [
 				{
 					agentId: "main",
 					name: "主 Agent",
@@ -178,10 +230,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		"/v1/agents",
 		async (
 			request: FastifyRequest<{
-				Body: { agentId?: string; name?: string; description?: string; initialSystemSkillNames?: string[] };
+				Body: { agentId?: string; name?: string; description?: string; defaultBrowserId?: string; initialSystemSkillNames?: string[] };
 			}>,
 			reply,
-		): Promise<{ agent: { agentId: string; name: string; description: string } } | FastifyReply> => {
+		): Promise<{ agent: { agentId: string; name: string; description: string; defaultBrowserId?: string } } | FastifyReply> => {
 			if (!deps.projectRoot || !deps.agentServiceRegistry) {
 				return reply.status(501).send({
 					error: "NOT_IMPLEMENTED",
@@ -190,19 +242,20 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}
 			try {
 				const body = request.body ?? {};
+				const browserValidation = validateBrowserId(reply, body.defaultBrowserId);
+				if (browserValidation) {
+					return browserValidation;
+				}
 				const profile = await createStoredAgentProfile(deps.projectRoot, {
 					agentId: body.agentId ?? "",
 					name: body.name,
 					description: body.description,
+					defaultBrowserId: body.defaultBrowserId,
 					initialSystemSkillNames: body.initialSystemSkillNames,
 				});
 				deps.agentServiceRegistry.add(profile);
 				return {
-					agent: {
-						agentId: profile.agentId,
-						name: profile.name,
-						description: profile.description,
-					},
+					agent: presentAgentSummary(profile),
 				};
 			} catch (error) {
 				return reply.status(400).send({
@@ -218,10 +271,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		async (
 			request: FastifyRequest<{
 				Params: { agentId?: string };
-				Body: { name?: string; description?: string };
+				Body: { name?: string; description?: string; defaultBrowserId?: string | null };
 			}>,
 			reply,
-		): Promise<{ agent: { agentId: string; name: string; description: string } } | FastifyReply> => {
+		): Promise<{ agent: { agentId: string; name: string; description: string; defaultBrowserId?: string } } | FastifyReply> => {
 			const { agentId } = request.params ?? {};
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
@@ -231,17 +284,18 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}
 			try {
 				const body = request.body ?? {};
+				const browserValidation = validateBrowserId(reply, body.defaultBrowserId);
+				if (browserValidation) {
+					return browserValidation;
+				}
 				const profile = await updateStoredAgentProfile(deps.projectRoot, agentId, {
 					name: body.name,
 					description: body.description,
+					...(Object.hasOwn(body, "defaultBrowserId") ? { defaultBrowserId: body.defaultBrowserId } : {}),
 				});
 				deps.agentServiceRegistry.updateProfile(profile);
 				return {
-					agent: {
-						agentId: profile.agentId,
-						name: profile.name,
-						description: profile.description,
-					},
+					agent: presentAgentSummary(profile),
 				};
 			} catch (error) {
 				return reply.status(400).send({
@@ -780,11 +834,16 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return sendBadRequest(reply, parsedBody.error);
 			}
 			const body = parsedBody.value!;
+			const resolvedBrowser = resolveBrowserIdForRequest(reply, request.params?.agentId, body.browserId);
+			if (resolvedBrowser.response) {
+				return resolvedBrowser.response;
+			}
 			try {
 				return await service.chat({
 					conversationId: body.conversationId,
 					message: body.message,
 					userId: body.userId,
+					...(resolvedBrowser.browserId ? { browserId: resolvedBrowser.browserId } : {}),
 					...(body.attachments ? { attachments: body.attachments } : {}),
 					...(body.assetRefs ? { assetRefs: body.assetRefs } : {}),
 				});
@@ -812,6 +871,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return sendBadRequest(reply, parsedBody.error);
 			}
 			const body = parsedBody.value!;
+			const resolvedBrowser = resolveBrowserIdForRequest(reply, request.params?.agentId, body.browserId);
+			if (resolvedBrowser.response) {
+				return resolvedBrowser.response;
+			}
 			reply.hijack();
 			configureSseResponse(reply.raw);
 			const heartbeat = startSseHeartbeat(reply.raw);
@@ -821,6 +884,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 						conversationId: body.conversationId,
 						message: body.message,
 						userId: body.userId,
+						...(resolvedBrowser.browserId ? { browserId: resolvedBrowser.browserId } : {}),
 						...(body.attachments ? { attachments: body.attachments } : {}),
 						...(body.assetRefs ? { assetRefs: body.assetRefs } : {}),
 					},
@@ -869,12 +933,17 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return sendBadRequest(reply, parsedBody.error);
 			}
 			const body = parsedBody.value!;
+			const resolvedBrowser = resolveBrowserIdForRequest(reply, request.params?.agentId, body.browserId);
+			if (resolvedBrowser.response) {
+				return resolvedBrowser.response;
+			}
 			try {
 				return await service.queueMessage({
 					conversationId: body.conversationId,
 					message: body.message,
 					mode: body.mode,
 					userId: body.userId,
+					...(resolvedBrowser.browserId ? { browserId: resolvedBrowser.browserId } : {}),
 					...(body.attachments ? { attachments: body.attachments } : {}),
 					...(body.assetRefs ? { assetRefs: body.assetRefs } : {}),
 				});
@@ -1188,12 +1257,17 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return sendBadRequest(reply, parsedBody.error);
 			}
 			const body = parsedBody.value!;
+			const resolvedBrowser = resolveBrowserIdForRequest(reply, undefined, body.browserId);
+			if (resolvedBrowser.response) {
+				return resolvedBrowser.response;
+			}
 
 			try {
 				return await deps.agentService.chat({
 					conversationId: body.conversationId,
 					message: body.message,
 					userId: body.userId,
+					...(resolvedBrowser.browserId ? { browserId: resolvedBrowser.browserId } : {}),
 					...(body.attachments ? { attachments: body.attachments } : {}),
 					...(body.assetRefs ? { assetRefs: body.assetRefs } : {}),
 				});
@@ -1211,6 +1285,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return sendBadRequest(reply, parsedBody.error);
 			}
 			const body = parsedBody.value!;
+			const resolvedBrowser = resolveBrowserIdForRequest(reply, undefined, body.browserId);
+			if (resolvedBrowser.response) {
+				return resolvedBrowser.response;
+			}
 
 			reply.hijack();
 			configureSseResponse(reply.raw);
@@ -1222,6 +1300,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 						conversationId: body.conversationId,
 						message: body.message,
 						userId: body.userId,
+						...(resolvedBrowser.browserId ? { browserId: resolvedBrowser.browserId } : {}),
 						...(body.attachments ? { attachments: body.attachments } : {}),
 						...(body.assetRefs ? { assetRefs: body.assetRefs } : {}),
 					},
@@ -1263,6 +1342,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return sendBadRequest(reply, parsedBody.error);
 			}
 			const body = parsedBody.value!;
+			const resolvedBrowser = resolveBrowserIdForRequest(reply, undefined, body.browserId);
+			if (resolvedBrowser.response) {
+				return resolvedBrowser.response;
+			}
 
 			try {
 				return await deps.agentService.queueMessage({
@@ -1270,6 +1353,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					message: body.message,
 					mode: body.mode,
 					userId: body.userId,
+					...(resolvedBrowser.browserId ? { browserId: resolvedBrowser.browserId } : {}),
 					...(body.attachments ? { attachments: body.attachments } : {}),
 					...(body.assetRefs ? { assetRefs: body.assetRefs } : {}),
 				});

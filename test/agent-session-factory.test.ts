@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AuthStorage, ModelRegistry } from "@mariozechner/pi-coding-agent";
+import { prepareBrowserBoundBashEnvironment } from "../src/browser/browser-bound-bash.js";
 import {
 	createDefaultAgentSessionFactory,
 	createProjectSettingsManager,
@@ -16,6 +17,32 @@ import {
 	resolveProjectDefaultModelContext,
 	resolveProjectDefaultSessionModel,
 } from "../src/agent/agent-session-factory.js";
+
+test("prepareBrowserBoundBashEnvironment pins curl web-access calls to the run browser", async () => {
+	const workspaceRoot = await mkdtemp(join(tmpdir(), "ugk-pi-browser-bound-bash-"));
+
+	const env = await prepareBrowserBoundBashEnvironment({
+		workspaceRoot,
+		browserId: "chrome-02",
+		browserScope: "conn-1",
+		env: { PATH: "/usr/bin" } as NodeJS.ProcessEnv,
+	});
+
+	assert.equal(env.CLAUDE_AGENT_ID, "conn-1");
+	assert.equal(env.CLAUDE_HOOK_AGENT_ID, "conn-1");
+	assert.equal(env.agent_id, "conn-1");
+	assert.equal(env.WEB_ACCESS_BROWSER_ID, "chrome-02");
+	assert.match(env.PATH, new RegExp(`^${join(workspaceRoot, ".data", "browser-bin").replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")}`));
+
+	const wrapperScriptPath = process.platform === "win32"
+		? join(workspaceRoot, ".data", "browser-bin", "curl-browser-binding.mjs")
+		: join(workspaceRoot, ".data", "browser-bin", "curl");
+	const wrapper = await readFile(wrapperScriptPath, "utf8");
+	assert.match(wrapper, /127\\\.0\\\.0\\\.1\|localhost/);
+	assert.match(wrapper, /metaAgentScope/);
+	assert.match(wrapper, /metaBrowserId/);
+	assert.match(wrapper, /WEB_ACCESS_BROWSER_ID/);
+});
 
 test("createSkillRestrictedResourceLoader only loads skills from the allowed paths", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-session-factory-"));

@@ -66,6 +66,7 @@ const PROXY_QUERY_KEYS = new Set([
   'metaOperation',
   'metaNote',
   'metaAgentScope',
+  'metaBrowserId',
 ]);
 
 function appendQueryEntries(url, entries) {
@@ -125,6 +126,13 @@ function buildRequestMeta(parsed, req, defaults = {}) {
       'x-nanoclaw-agent-scope',
       120,
     ),
+    browserId: readMetaValue(
+      parsed,
+      req,
+      'metaBrowserId',
+      'x-nanoclaw-browser-id',
+      64,
+    ),
   };
 
   return Object.values(meta).some((value) => typeof value === 'string')
@@ -169,7 +177,7 @@ export function createProxyServer(options = {}) {
       }
 
       if (pathname === '/session/target' && req.method === 'GET') {
-        const result = await requestHostBrowser(
+        const result = await requestBrowser(
           { action: 'get_default_target' },
           {
             meta: buildRequestMeta(parsed, req, {
@@ -182,7 +190,7 @@ export function createProxyServer(options = {}) {
       }
 
       if (pathname === '/session/target' && req.method === 'POST') {
-        const result = await requestHostBrowser(
+        const result = await requestBrowser(
           {
             action: 'set_default_target',
             targetId: requireTargetId(readTargetParam(parsed, req)),
@@ -198,7 +206,7 @@ export function createProxyServer(options = {}) {
       }
 
       if (pathname === '/session/target' && req.method === 'DELETE') {
-        const result = await requestHostBrowser(
+        const result = await requestBrowser(
           { action: 'clear_default_target' },
           {
             meta: buildRequestMeta(parsed, req, {
@@ -211,7 +219,7 @@ export function createProxyServer(options = {}) {
       }
 
       if (pathname === '/session/close-all' && req.method === 'POST') {
-        const result = await requestHostBrowser(
+        const result = await requestBrowser(
           { action: 'close_scope_targets' },
           {
             meta: buildRequestMeta(parsed, req, {
@@ -242,7 +250,7 @@ export function createProxyServer(options = {}) {
       }
 
     if (pathname === '/targets') {
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         { action: 'list_targets' },
         {
           meta: buildRequestMeta(parsed, req, {
@@ -256,7 +264,7 @@ export function createProxyServer(options = {}) {
 
     if (pathname === '/new') {
       const url = readNestedUrlParam(parsed, 'url');
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'new_target',
           url,
@@ -277,7 +285,7 @@ export function createProxyServer(options = {}) {
     }
 
     if (pathname === '/close') {
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'close_target',
           targetId: requireTargetId(targetId),
@@ -293,7 +301,7 @@ export function createProxyServer(options = {}) {
     }
 
     if (pathname === '/info') {
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'get_target_info',
           targetId: requireTargetId(targetId),
@@ -310,7 +318,7 @@ export function createProxyServer(options = {}) {
 
     if (pathname === '/navigate') {
       const url = readNestedUrlParam(parsed, 'url') || '';
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'navigate',
           targetId: requireTargetId(targetId),
@@ -328,7 +336,7 @@ export function createProxyServer(options = {}) {
     }
 
     if (pathname === '/back') {
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'back',
           targetId: requireTargetId(targetId),
@@ -345,7 +353,7 @@ export function createProxyServer(options = {}) {
 
     if (pathname === '/eval') {
       const expression = await readBody(req);
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'evaluate',
           targetId: requireTargetId(targetId),
@@ -424,7 +432,7 @@ export function createProxyServer(options = {}) {
     if (pathname === '/click' || pathname === '/clickAt') {
       const selector = (await readBody(req)).trim();
       const action = pathname === '/clickAt' ? 'click_at' : 'click';
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action,
           targetId: requireTargetId(targetId),
@@ -443,7 +451,7 @@ export function createProxyServer(options = {}) {
     if (pathname === '/scroll') {
       const y = parsed.searchParams.get('y');
       const direction = parsed.searchParams.get('direction');
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'scroll',
           targetId: requireTargetId(targetId),
@@ -461,7 +469,7 @@ export function createProxyServer(options = {}) {
     }
 
     if (pathname === '/screenshot') {
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'screenshot',
           targetId: requireTargetId(targetId),
@@ -498,7 +506,7 @@ export function createProxyServer(options = {}) {
           ? (await readBody(req)).trim()
           : (parsed.searchParams.get('selector') || '').trim();
       const timeoutMs = parsed.searchParams.get('timeoutMs');
-      const result = await requestHostBrowser(
+      const result = await requestBrowser(
         {
           action: 'download',
           targetId: requireTargetId(targetId),

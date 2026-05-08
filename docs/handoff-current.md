@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-06`
+更新时间：`2026-05-08`
 
 这份文档给下一位全新接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
@@ -10,12 +10,13 @@
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
-- 当前本地最新提交：`766ee94 chore: refresh architecture governance handoff`
-- 当前 `origin/main`：`425227e`；本地 `main` ahead 3，包含 `b69c34f` 双云文件库 UI 发布文档记录、`379eb82` 架构治理交接记录与 `766ee94` 架构治理 handoff 刷新，尚未推送。
-- 腾讯云生产运行代码提交：`425227e`，以 `docs/tencent-cloud-singapore-deploy.md` 的 `2026-05-06 文件库桌面 UI 细化发布记录` 为准。
-- 阿里云生产运行代码提交：`425227e`，以 `docs/aliyun-ecs-deploy.md` 的 `2026-05-06 文件库桌面 UI 细化发布记录` 为准。
-- 本轮主线：Playground 运行中 workspace 交互与桌面操作页 header 收口；同时新增 Conn 平台级跨 run 共享目录 `CONN_SHARED_DIR`，让周期任务把去重历史、冷却时间戳、审计记录和 checkpoint 写到同一 conn 的持久目录，而不是继续滥用 `runtime/skills-user`。
-- 验收结论：Playground 修复已通过 `git diff --check`、`npx tsc --noEmit`、相关 controller / styles / server HTML 测试；最后一次 server 定向命令实际跑完 `110 pass / 0 fail`。Conn 共享目录改动已通过 `node --test --import tsx test/background-workspace.test.ts`、`node --test --import tsx test/background-agent-runner.test.ts`、`node --test --import tsx test/conn-worker.test.ts` 和 `npx tsc --noEmit`。Docker 本地服务已重启，`/healthz` 正常，真实页面验证文件库 header 左侧只剩 `可复用资产`。
+- 当前稳定版本：`v1.2.0`
+- 当前本地最新提交：`c95af2d Release v1.2.0`
+- 当前 `origin/main` / `gitee/main`：均已推送到 `c95af2d`；`v1.2.0` tag 也已同步推送到 GitHub 和 Gitee。
+- 腾讯云生产运行代码提交：最近一次已增量更新并验证到 `260faf3 Add conn public directory contract`，随后本地只追加版本号 / change-log release commit `c95af2d`。
+- 阿里云生产运行代码提交：最近一次已增量更新并验证到 `260faf3 Add conn public directory contract`，随后本地只追加版本号 / change-log release commit `c95af2d`。
+- 本轮稳定版主线：Playground 会话菜单、任务消息重设计、Markdown 代码块宽度约束、浅色主题 / 后台任务 / Agent 设置页面视觉一致性收口、UI 层级清理，以及 conn 长期公开目录 / 站点级公开目录契约。
+- 验收结论：双云已完成 conn 公共目录契约增量更新与运行态检查；`v1.2.0` release commit 只变更 `package.json`、`package-lock.json` 和 `docs/change-log.md`，已通过 `git diff --check`，并确认 tag 指向当前 HEAD。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
 - 腾讯云健康检查：`http://43.134.167.179:3000/healthz`
 - 腾讯云主部署目录：`/home/ubuntu/ugk-claw-repo`
@@ -27,7 +28,7 @@
 - 阿里云主部署目录：`/root/ugk-claw-repo`
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
-- 当前未提交本地现场：本轮应提交候选包括 `docs/change-log.md`、`docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md`、`docs/handoff-current.md`、`.codex/plans/2026-05-06-handoff-playground-runtime-workspace-ui.md`、`.pi/skills/conn-orchestrator/SKILL.md`、`src/agent/background-agent-runner.ts`、`src/agent/background-workspace.ts`、`src/ui/playground-assets-controller.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-context-usage-controller.ts`、`src/ui/playground-status-controller.ts`、`src/ui/playground-styles.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-workspace-controller.ts`、`test/background-agent-runner.test.ts`、`test/background-workspace.test.ts`、`test/playground-assets-controller.test.ts`、`test/playground-workspace-controller.test.ts`、`test/playground-context-usage-controller.test.ts`、`test/playground-status-controller.test.ts`、`test/playground-styles.test.ts`、`test/server.test.ts`。不要提交 runtime 临时文件：`runtime/dangyang-weather-2026-05-01.json`、`runtime/dev-server.log`、`runtime/karpathy-guidelines-CLAUDE.md`、`runtime/tab-accumulation-report.md`。
+- 当前未提交本地现场：本轮只剩交接文档和架构治理审计文档的事实校准需要视情况提交；此前遗留的 `public/test.html` 和 `runtime/*` 临时日志 / 报告已清理，不要在后续任务里恢复为仓库内容。
 
 ## 最近已完成
 

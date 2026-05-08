@@ -6,6 +6,10 @@ import { AgentService } from "./agent/agent-service.js";
 import { AgentActivityStore } from "./agent/agent-activity-store.js";
 import { AssetStore, type AssetStoreLike } from "./agent/asset-store.js";
 import {
+	createBrowserRegistryFromEnv,
+	type BrowserRegistry,
+} from "./browser/browser-registry.js";
+import {
 	DEFAULT_AGENT_ID,
 	type AgentProfile,
 } from "./agent/agent-profile.js";
@@ -21,6 +25,7 @@ import type { ModelConfigStore, ModelSelectionValidator } from "./agent/model-co
 import { NotificationHub } from "./agent/notification-hub.js";
 import { registerAssetRoutes } from "./routes/assets.js";
 import { registerActivityRoutes } from "./routes/activity.js";
+import { registerBrowserRoutes } from "./routes/browsers.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerCleanupDebugRoutes } from "./routes/cleanup-debug.js";
 import { registerConnRoutes } from "./routes/conns.js";
@@ -42,6 +47,7 @@ export interface BuildServerOptions {
 	connRunStore?: ConnRunStore;
 	activityStore?: AgentActivityStore;
 	notificationHub?: NotificationHub;
+	browserRegistry?: BrowserRegistry;
 	backgroundDataDir?: string;
 	modelConfigStore?: ModelConfigStore;
 	modelSelectionValidator?: ModelSelectionValidator;
@@ -109,6 +115,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 			? undefined
 			: createDefaultConnDatabase(config.connDatabasePath);
 	const notificationHub = options.notificationHub ?? new NotificationHub();
+	const browserRegistry = options.browserRegistry ?? createBrowserRegistryFromEnv();
 	const agentServiceRegistry = options.agentServiceRegistry ?? createDefaultAgentServiceRegistry(assetStore);
 	const agentService = options.agentService ?? agentServiceRegistry.get(DEFAULT_AGENT_ID) ?? createDefaultAgentService(assetStore);
 	const connStore = options.connStore ?? new ConnSqliteStore({ database: connDatabase! });
@@ -131,9 +138,11 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	registerPlaygroundRoute(app, { projectRoot: config.projectRoot });
 	registerStaticRoutes(app, { projectRoot: config.projectRoot });
 	registerActivityRoutes(app, { activityStore });
+	registerBrowserRoutes(app, { browserRegistry });
 	registerChatRoutes(app, {
 		agentService,
 		agentServiceRegistry,
+		browserRegistry,
 		projectRoot: options.agentProfileProjectRoot ?? config.projectRoot,
 	});
 	registerRuntimeDebugRoutes(app, { projectRoot: config.projectRoot });
@@ -151,6 +160,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		connStore,
 		connRunStore,
 		backgroundDataDir: options.backgroundDataDir ?? config.backgroundDataDir,
+		browserRegistry,
 		publicBaseUrl: config.publicBaseUrl,
 	});
 

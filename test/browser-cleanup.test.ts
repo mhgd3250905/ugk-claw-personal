@@ -75,6 +75,29 @@ test("closeBrowserTargetsForScope posts the encoded scope to the CDP proxy", asy
 	assert.ok(calls[0]?.init?.signal);
 });
 
+test("closeBrowserTargetsForScope includes browserId when provided", async () => {
+	const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+	await closeBrowserTargetsForScope("manual-browser", {
+		browserId: "chrome-01",
+		proxyBaseUrl: "http://127.0.0.1:4567",
+		fetchImpl: (async (url, init) => {
+			calls.push({ url: String(url), init });
+			return new Response(JSON.stringify({ ok: true }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		}) as typeof fetch,
+		timeoutMs: 250,
+		warn: () => undefined,
+	});
+
+	assert.equal(
+		calls[0]?.url,
+		"http://127.0.0.1:4567/session/close-all?metaAgentScope=manual-browser&metaBrowserId=chrome-01",
+	);
+});
+
 test("closeBrowserTargetsForScope keeps cleanup best-effort when the proxy fails", async () => {
 	await assert.doesNotReject(
 		closeBrowserTargetsForScope("scope-failure", {

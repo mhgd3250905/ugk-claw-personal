@@ -272,6 +272,7 @@ export function getPlaygroundStreamControllerScript(): string {
 					);
 					break;
 				case "interrupted":
+					state.receivedDoneEvent = true;
 					updateStreamingProcess("system", "任务已打断", event.conversationId);
 					completeAssistantLoadingBubble("warn", "本轮已中断");
 					completeProcessStream();
@@ -309,6 +310,7 @@ export function getPlaygroundStreamControllerScript(): string {
 					break;
 				}
 				case "error":
+					state.receivedDoneEvent = true;
 					showError(event.message);
 					updateStreamingProcess("error", "任务错误", event.message);
 					completeAssistantLoadingBubble("error", "本轮执行失败");
@@ -488,6 +490,19 @@ export function getPlaygroundStreamControllerScript(): string {
 				return;
 			}
 
+			const serverActiveConversation = await resolveServerActiveConversation({ silent: true });
+			if (serverActiveConversation.running && serverActiveConversation.conversationId) {
+				if (isInterruptIntentMessage(outboundMessage) && attachments.length === 0 && assetRefs.length === 0) {
+					appendTranscriptMessage("user", serverActiveConversation.conversationId, outboundMessage, { forceScroll: true });
+					updateStreamingProcess("system", "检测到停止意图", "本次发送改为直接打断当前任务");
+					messageInput.value = "";
+					await interruptRun();
+					return;
+				}
+				await queueActiveMessage(outboundMessage, attachments, assetRefs, { composerDraft });
+				return;
+			}
+
 			setTranscriptState("active");
 			stopActiveRunEventStream();
 			resetStreamingState();
@@ -615,15 +630,23 @@ export function getPlaygroundStreamControllerScript(): string {
 		}
 
 		async function interruptRun() {
-			if (!state.loading) {
-				return;
-			}
-
 			await ensureCurrentConversation({ silent: true });
 			ensureConversationId();
 			if (!state.conversationId) {
 				showError("无法确认当前会话");
 				return;
+			}
+			if (!state.loading) {
+				const serverActiveConversation = await resolveServerActiveConversation({ silent: true });
+				if (!serverActiveConversation.running || !serverActiveConversation.conversationId) {
+					updateStreamingProcess("ok", "任务状态已同步", "后端没有正在运行的任务");
+					stopActiveRunEventStream();
+					completeAssistantLoadingBubble("ok", "当前任务已结束");
+					completeProcessStream();
+					setLoading(false);
+					statusPill.textContent = "已结束";
+					return;
+				}
 			}
 
 			try {
@@ -649,11 +672,13 @@ export function getPlaygroundStreamControllerScript(): string {
 					showError(errorMessage);
 					return;
 				}
-				updateStreamingProcess("ok", "打断请求已接收", state.conversationId);
-				completeAssistantLoadingBubble("warn", "本轮已中断");
-				completeProcessStream();
-				setLoading(false);
-				statusPill.textContent = "已打断";
+				updateStreamingProcess("warn", "打断请求已接收", "等待后端确认任务终止");
+				setAssistantLoadingState("正在中断当前任务", "system");
+				setLoading(true);
+				statusPill.textContent = "正在中断";
+				if (!state.primaryStreamActive) {
+					void attachActiveRunEventStream(state.conversationId);
+				}
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "打断请求失败";
 				showError(messageText);

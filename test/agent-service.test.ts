@@ -16,6 +16,7 @@ import type {
 import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
 import { buildPromptWithAssetContext } from "../src/agent/file-artifacts.js";
+import { readBrowserScopeRoute } from "../src/browser/browser-scope-routes.js";
 import type { ChatStreamEvent, ConversationStateResponseBody } from "../src/types/api.js";
 
 class FakeSession implements AgentSessionLike {
@@ -287,7 +288,7 @@ class InterruptHistorySession implements AgentSessionLike {
 }
 
 class FakeAgentSessionFactory implements AgentSessionFactory {
-	public calls: Array<{ conversationId: string; sessionFile?: string }> = [];
+	public calls: Array<{ browserId?: string; browserScope?: string; conversationId: string; sessionFile?: string }> = [];
 	public readCalls: string[] = [];
 	public readRecentCalls: Array<{ sessionFile: string; input: RecentSessionMessagesInput }> = [];
 	public availableSkills: Array<{ name: string; path?: string }> = [];
@@ -300,7 +301,7 @@ class FakeAgentSessionFactory implements AgentSessionFactory {
 
 	constructor(private readonly buildSession: (callIndex: number) => AgentSessionLike) {}
 
-	async createSession(input: { conversationId: string; sessionFile?: string }): Promise<AgentSessionLike> {
+	async createSession(input: { browserId?: string; browserScope?: string; conversationId: string; sessionFile?: string }): Promise<AgentSessionLike> {
 		this.calls.push(input);
 		return this.buildSession(this.calls.length - 1);
 	}
@@ -517,7 +518,13 @@ test("creates a new conversation, prompts the session, and persists the session 
 	assert.match(result.conversationId, /^manual:/);
 	assert.equal(result.text, "你好，世界");
 	assert.equal(result.sessionFile, "E:/sessions/new.jsonl");
-	assert.deepEqual(factory.calls, [{ conversationId: result.conversationId, sessionFile: undefined }]);
+	assert.deepEqual(factory.calls, [
+		{
+			browserScope: result.conversationId.replace(/[^a-zA-Z0-9_-]+/g, "-"),
+			conversationId: result.conversationId,
+			sessionFile: undefined,
+		},
+	]);
 	assert.deepEqual(factory.calls.length, 1);
 	const storedConversation = await store.get(result.conversationId);
 	assert.equal(storedConversation?.sessionFile, "E:/sessions/new.jsonl");
@@ -972,6 +979,92 @@ test("queueMessage steers into the active session while a run is streaming", asy
 	activeSession.finish();
 	await run;
 	assert.equal(events.at(-1)?.type, "done");
+});
+
+test("queueMessage rejects browser changes during an active run", async () => {
+	const store = await createStore();
+	const activeSession = new DeferredSession("E:/sessions/active-browser.jsonl");
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:active-browser",
+			message: "start",
+			browserId: "work-01",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+
+	const queued = await service.queueMessage({
+		conversationId: "manual:active-browser",
+		message: "不要换窗口",
+		mode: "steer",
+		browserId: "work-02",
+	});
+
+	assert.deepEqual(queued, {
+		conversationId: "manual:active-browser",
+		mode: "steer",
+		queued: false,
+		reason: "browser_changed",
+	});
+	assert.deepEqual(activeSession.steerCalls, []);
+
+	activeSession.finish();
+	await run;
+});
+
+test("runChat passes browser scope and browserId into the session factory", async () => {
+	const store = await createStore();
+	const session = new FakeSession("E:/sessions/browser-context.jsonl", [], "ok");
+	const factory = new FakeAgentSessionFactory(() => session);
+	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+	await service.chat({
+		conversationId: "manual:browser-context",
+		message: "用指定浏览器",
+		browserId: "chrome-01",
+	});
+
+	assert.equal(factory.calls[0]?.conversationId, "manual:browser-context");
+	assert.equal(factory.calls[0]?.browserScope, "manual-browser-context");
+	assert.equal(factory.calls[0]?.browserId, "chrome-01");
+});
+
+test("runChat clears the scoped browser route after the run finishes", async () => {
+	const originalFetch = globalThis.fetch;
+	const originalRouteCachePath = process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH;
+	const routeCachePath = join(await mkdtemp(join(tmpdir(), "ugk-pi-chat-browser-routes-")), "routes.json");
+	globalThis.fetch = (async () =>
+		new Response(JSON.stringify({ ok: true }), {
+			status: 200,
+			headers: { "content-type": "application/json" },
+		})) as typeof fetch;
+	process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH = routeCachePath;
+
+	try {
+		const store = await createStore();
+		const session = new FakeSession("E:/sessions/browser-route-clear.jsonl", [], "ok");
+		const factory = new FakeAgentSessionFactory(() => session);
+		const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+		await service.chat({
+			conversationId: "manual:browser-route-clear",
+			message: "用指定浏览器",
+			browserId: "chrome-01",
+		});
+
+		assert.equal(await readBrowserScopeRoute("manual-browser-route-clear", { cachePath: routeCachePath }), undefined);
+	} finally {
+		globalThis.fetch = originalFetch;
+		if (originalRouteCachePath === undefined) {
+			delete process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH;
+		} else {
+			process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH = originalRouteCachePath;
+		}
+	}
 });
 
 test("queueMessage can enqueue a follow-up after the active turn", async () => {
@@ -2395,7 +2488,13 @@ test("reuses the stored session file for an existing conversation", async () => 
 
 	assert.equal(result.conversationId, "manual:existing");
 	assert.equal(result.text, "继续对话");
-	assert.deepEqual(factory.calls, [{ conversationId: "manual:existing", sessionFile: "E:/sessions/existing.jsonl" }]);
+	assert.deepEqual(factory.calls, [
+		{
+			browserScope: "manual-existing",
+			conversationId: "manual:existing",
+			sessionFile: "E:/sessions/existing.jsonl",
+		},
+	]);
 });
 
 test("returns empty text when the agent produces no text deltas", async () => {
@@ -2761,7 +2860,13 @@ test("reuses an existing session when the skill fingerprint changes", async () =
 	});
 
 	assert.equal(result.sessionFile, "E:/sessions/new-after-skill-change.jsonl");
-	assert.deepEqual(factory.calls, [{ conversationId: "manual:existing", sessionFile: "E:/sessions/existing.jsonl" }]);
+	assert.deepEqual(factory.calls, [
+		{
+			browserScope: "manual-existing",
+			conversationId: "manual:existing",
+			sessionFile: "E:/sessions/existing.jsonl",
+		},
+	]);
 	const storedConversation = await store.get("manual:existing");
 	assert.equal(storedConversation?.sessionFile, "E:/sessions/new-after-skill-change.jsonl");
 	assert.equal(storedConversation?.skillFingerprint, "skills-v2");

@@ -14,6 +14,11 @@ import type { AssetRecord, AssetStoreLike, ChatAttachment, StoredAssetRecord } f
 import type { AgentSessionLike, RawAgentSessionEventLike } from "../src/agent/agent-session-factory.js";
 import type { AgentFileArtifact, AgentFileDraft } from "../src/agent/file-artifacts.js";
 
+process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH = join(
+	tmpdir(),
+	`ugk-pi-background-runner-browser-routes-${process.pid}.json`,
+);
+
 class FakeAssetStore implements AssetStoreLike {
 	async registerAttachments(_conversationId: string, _attachments: readonly ChatAttachment[]): Promise<AssetRecord[]> {
 		return [];
@@ -234,10 +239,12 @@ function extractPromptPath(message: string, prefix: string): string {
 
 async function createRunner(options?: {
 	session?: AgentSessionLike;
-	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
+	closeBrowserTargetsForScope?: (scope: string, options?: { browserId?: string }) => Promise<void>;
 	runStore?: ConnRunStore;
+	defaultBrowserId?: string;
 	publicBaseUrl?: string;
 	publicDir?: string;
+	profileResolver?: ConstructorParameters<typeof BackgroundAgentRunner>[0]["profileResolver"];
 }) {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-runner-"));
 	const database = new ConnDatabase({ dbPath: join(root, "conn.sqlite") });
@@ -250,13 +257,14 @@ async function createRunner(options?: {
 	const sessionFactory = new FakeSessionFactory(session as FakeSession);
 	const runner = new BackgroundAgentRunner({
 		runStore,
-		profileResolver: new BackgroundAgentProfileResolver({ projectRoot: root }),
+		profileResolver: options?.profileResolver ?? new BackgroundAgentProfileResolver({ projectRoot: root }),
 		workspaceManager: new BackgroundWorkspaceManager({
 			backgroundDataDir: join(root, "background"),
 			assetStore,
 		}),
 		sessionFactory,
 		closeBrowserTargetsForScope: options?.closeBrowserTargetsForScope ?? (async () => undefined),
+		defaultBrowserId: options?.defaultBrowserId,
 		publicBaseUrl: options?.publicBaseUrl,
 		publicDir: options?.publicDir,
 	});
@@ -590,6 +598,177 @@ test("BackgroundAgentRunner scopes browser cleanup around background conn runs",
 	assert.equal(session.observedScope, conn.connId);
 	assert.equal(process.env.CLAUDE_AGENT_ID, undefined);
 	assert.deepEqual(cleanupScopes, [conn.connId, conn.connId]);
+});
+
+test("BackgroundAgentRunner uses conn browserId before the selected agent default browser", async () => {
+	const cleanupCalls: Array<{ scope: string; browserId?: string }> = [];
+	const profileResolver = {
+		resolve: async () => ({
+			profileId: "zhihu-helper",
+			profileVersion: "test",
+			agentSpecId: "agent.default",
+			agentSpecVersion: "test",
+			skillSetId: "skills.default",
+			skillSetVersion: "test",
+			skills: [],
+			modelPolicyId: "model.default",
+			modelPolicyVersion: "test",
+			provider: "test-provider",
+			model: "test-model",
+			upgradePolicy: "latest" as const,
+			defaultBrowserId: "chrome-01",
+			resolvedAt: "2026-04-21T10:01:05.000Z",
+		}),
+	};
+	const { database, connStore, runStore, sessionFactory, runner } = await createRunner({
+		profileResolver,
+		closeBrowserTargetsForScope: async (scope, options) => {
+			cleanupCalls.push({ scope, browserId: options?.browserId });
+		},
+	});
+	const conn = await connStore.create({
+		title: "Browser Override",
+		prompt: "Use the conn browser",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		profileId: "zhihu-helper",
+		browserId: "chrome-02",
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-browser-override",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	const [sessionInput] = sessionFactory.createdInputs as Array<{ browserId?: string; browserScope?: string }>;
+	assert.equal(sessionInput.browserId, "chrome-02");
+	assert.equal(sessionInput.browserScope, conn.connId);
+	assert.deepEqual(cleanupCalls, [
+		{ scope: conn.connId, browserId: "chrome-02" },
+		{ scope: conn.connId, browserId: "chrome-02" },
+	]);
+
+	database.close();
+});
+
+test("BackgroundAgentRunner falls back to the selected agent default browser", async () => {
+	const profileResolver = {
+		resolve: async () => ({
+			profileId: "zhihu-helper",
+			profileVersion: "test",
+			agentSpecId: "agent.default",
+			agentSpecVersion: "test",
+			skillSetId: "skills.default",
+			skillSetVersion: "test",
+			skills: [],
+			modelPolicyId: "model.default",
+			modelPolicyVersion: "test",
+			provider: "test-provider",
+			model: "test-model",
+			upgradePolicy: "latest" as const,
+			defaultBrowserId: "chrome-01",
+			resolvedAt: "2026-04-21T10:01:05.000Z",
+		}),
+	};
+	const { database, connStore, runStore, sessionFactory, runner } = await createRunner({ profileResolver });
+	const conn = await connStore.create({
+		title: "Browser Fallback",
+		prompt: "Use the agent browser",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		profileId: "zhihu-helper",
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-browser-fallback",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	const [sessionInput] = sessionFactory.createdInputs as Array<{ browserId?: string; browserScope?: string }>;
+	assert.equal(sessionInput.browserId, "chrome-01");
+	assert.equal(sessionInput.browserScope, conn.connId);
+
+	database.close();
+});
+
+test("BackgroundAgentRunner pins the browser registry default when conn and agent have no browser", async () => {
+	const cleanupCalls: Array<{ scope: string; browserId?: string }> = [];
+	const profileResolver = {
+		resolve: async () => ({
+			profileId: "main",
+			profileVersion: "test",
+			agentSpecId: "agent.default",
+			agentSpecVersion: "test",
+			skillSetId: "skills.default",
+			skillSetVersion: "test",
+			skills: [],
+			modelPolicyId: "model.default",
+			modelPolicyVersion: "test",
+			provider: "test-provider",
+			model: "test-model",
+			upgradePolicy: "latest" as const,
+			resolvedAt: "2026-04-21T10:01:05.000Z",
+		}),
+	};
+	const { database, connStore, runStore, sessionFactory, runner } = await createRunner({
+		defaultBrowserId: "default",
+		profileResolver,
+		closeBrowserTargetsForScope: async (scope, options) => {
+			cleanupCalls.push({ scope, browserId: options?.browserId });
+		},
+	});
+	const conn = await connStore.create({
+		title: "Browser Default",
+		prompt: "Use the registry default browser",
+		target: {
+			type: "task_inbox",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		profileId: "main",
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-browser-registry-default",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	const [sessionInput] = sessionFactory.createdInputs as Array<{ browserId?: string; browserScope?: string }>;
+	assert.equal(sessionInput.browserId, "default");
+	assert.equal(sessionInput.browserScope, conn.connId);
+	assert.deepEqual(cleanupCalls, [
+		{ scope: conn.connId, browserId: "default" },
+		{ scope: conn.connId, browserId: "default" },
+	]);
+
+	database.close();
 });
 
 test("BackgroundAgentRunner records failed runs without throwing into the foreground service", async () => {

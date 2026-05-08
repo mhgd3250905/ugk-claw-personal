@@ -5,11 +5,13 @@ import { join, relative } from "node:path";
 import {
 	AuthStorage,
 	createAgentSession,
+	createBashToolDefinition,
 	DefaultResourceLoader,
 	ModelRegistry,
 	SessionManager,
 	SettingsManager,
 } from "@mariozechner/pi-coding-agent";
+import { prepareBrowserBoundBashEnvironment } from "../browser/browser-bound-bash.js";
 import {
 	parseJsonSettingsObject,
 	readJsonScalarSetting,
@@ -103,7 +105,7 @@ export interface AgentSessionMessageLike {
 }
 
 export interface AgentSessionFactory {
-	createSession(input: { conversationId: string; sessionFile?: string }): Promise<AgentSessionLike>;
+	createSession(input: { browserId?: string; browserScope?: string; conversationId: string; sessionFile?: string }): Promise<AgentSessionLike>;
 	readSessionMessages?(sessionFile: string): Promise<AgentSessionMessageLike[] | undefined>;
 	readRecentSessionMessages?(
 		sessionFile: string,
@@ -622,14 +624,33 @@ export function createDefaultAgentSessionFactory(
 			});
 
 			await resourceLoader.reload();
+			const settingsManager = createProjectSettingsManager(options.projectRoot);
+			const browserEnv = await prepareBrowserBoundBashEnvironment({
+				workspaceRoot: options.projectRoot,
+				browserId: input.browserId,
+				browserScope: input.browserScope,
+			});
 
 			const { session } = await createAgentSession({
 				cwd: options.projectRoot,
 				agentDir: options.agentDir,
 				authStorage,
+				customTools: [
+					createBashToolDefinition(options.projectRoot, {
+						commandPrefix: settingsManager.getShellCommandPrefix(),
+						shellPath: settingsManager.getShellPath(),
+						spawnHook: (context) => ({
+							...context,
+							env: {
+								...context.env,
+								...browserEnv,
+							},
+						}),
+					}) as never,
+				],
 				modelRegistry,
 				model: resolveProjectDefaultSessionModel(options.projectRoot, modelRegistry),
-				settingsManager: createProjectSettingsManager(options.projectRoot),
+				settingsManager,
 				sessionManager,
 				resourceLoader,
 			});

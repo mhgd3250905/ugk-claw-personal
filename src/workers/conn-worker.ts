@@ -4,12 +4,16 @@ import { pathToFileURL } from "node:url";
 import {
 	AuthStorage,
 	createAgentSession,
+	createBashToolDefinition,
 	ModelRegistry,
 	SessionManager,
 } from "@mariozechner/pi-coding-agent";
 import { getAppConfig } from "../config.js";
+import { prepareBrowserBoundBashEnvironment } from "../browser/browser-bound-bash.js";
+import { createBrowserRegistryFromEnv } from "../browser/browser-registry.js";
 import {
 	createSkillRestrictedResourceLoader,
+	createProjectSettingsManager,
 	getProjectAgentDirPath,
 	getProjectModelsPath,
 	type AgentSessionLike,
@@ -432,6 +436,8 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 		connId: string;
 		workspace: RunWorkspace;
 		snapshot: ResolvedBackgroundAgentSnapshot;
+		browserId?: string;
+		browserScope?: string;
 		sessionFile?: string;
 	}): Promise<AgentSessionLike> {
 		const sessionManager = input.sessionFile
@@ -451,13 +457,33 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 			skillPaths,
 		});
 		await resourceLoader.reload();
+		const settingsManager = createProjectSettingsManager(this.projectRoot);
+		const browserEnv = await prepareBrowserBoundBashEnvironment({
+			workspaceRoot: input.workspace.rootPath,
+			browserId: input.browserId,
+			browserScope: input.browserScope,
+		});
 
 		const { session } = await createAgentSession({
 			cwd: input.workspace.rootPath,
 			agentDir: input.snapshot.agentDir ?? getProjectAgentDirPath(this.projectRoot),
 			authStorage,
+			customTools: [
+				createBashToolDefinition(input.workspace.rootPath, {
+					commandPrefix: settingsManager.getShellCommandPrefix(),
+					shellPath: settingsManager.getShellPath(),
+					spawnHook: (context) => ({
+						...context,
+						env: {
+							...context.env,
+							...browserEnv,
+						},
+					}),
+				}) as never,
+			],
 			modelRegistry,
 			model,
+			settingsManager,
 			sessionManager,
 			resourceLoader,
 		});
@@ -552,6 +578,7 @@ async function main(): Promise<void> {
 		settingsPath: config.feishuSettingsPath,
 		publicBaseUrl: config.publicBaseUrl,
 	});
+	const browserRegistry = createBrowserRegistryFromEnv();
 	const runner = new BackgroundAgentRunner({
 		runStore,
 		profileResolver: new BackgroundAgentProfileResolver({
@@ -562,6 +589,7 @@ async function main(): Promise<void> {
 			assetStore,
 		}),
 		sessionFactory: new ProjectBackgroundSessionFactory(config.projectRoot),
+		defaultBrowserId: browserRegistry.defaultBrowserId,
 		publicBaseUrl: config.publicBaseUrl,
 		publicDir: resolve(config.projectRoot, "public"),
 	});

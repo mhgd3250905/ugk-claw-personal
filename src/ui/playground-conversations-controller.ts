@@ -605,6 +605,57 @@ export function getPlaygroundConversationControllerScript(): string {
 			return await syncPromise;
 		}
 
+		function findRunningConversationInCatalog(catalog) {
+			const conversations = Array.isArray(catalog?.conversations) ? catalog.conversations : [];
+			return conversations.find((conversation) => conversation?.running)?.conversationId || "";
+		}
+
+		async function resolveServerActiveConversation(options) {
+			const catalog = await syncConversationCatalog({
+				silent: options?.silent !== false,
+				activateCurrent: false,
+				force: true,
+			});
+			const runningConversationId = String(findRunningConversationInCatalog(catalog) || "").trim();
+			if (!runningConversationId) {
+				return {
+					conversationId: "",
+					running: false,
+					activeRun: null,
+				};
+			}
+			if (options?.activate !== false && runningConversationId !== state.conversationId) {
+				const activated = await activateConversation(runningConversationId, {
+					silent: options?.silent !== false,
+					skipCatalogSync: true,
+					skipServerSwitch: true,
+				});
+				if (!activated) {
+					return {
+						conversationId: "",
+						running: false,
+						activeRun: null,
+					};
+				}
+			}
+			const statePayload = await restoreConversationHistoryFromServer(runningConversationId, {
+				silent: true,
+				clearIfIdle: true,
+				attachIfRunning: true,
+			});
+			const activeRun = normalizeActiveRun(statePayload?.activeRun || state.conversationState?.activeRun);
+			const running = Boolean(statePayload?.running || activeRun?.loading);
+			if (running) {
+				setLoading(true);
+				void attachActiveRunEventStream(runningConversationId);
+			}
+			return {
+				conversationId: runningConversationId,
+				running,
+				activeRun,
+			};
+		}
+
 		async function ensureCurrentConversation(options) {
 			const catalog = await syncConversationCatalog({
 				silent: options?.silent,

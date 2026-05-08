@@ -24,6 +24,7 @@ export interface CreateAgentProfileInput {
 	agentId: string;
 	name?: string;
 	description?: string;
+	defaultBrowserId?: string;
 	initialSystemSkillNames?: string[];
 }
 
@@ -35,6 +36,7 @@ export interface ArchiveAgentProfileResult {
 export interface UpdateAgentProfileInput {
 	name?: string;
 	description?: string;
+	defaultBrowserId?: string | null;
 }
 
 export interface AgentProfileSkillChangeResult {
@@ -60,6 +62,20 @@ function normalizeAgentName(agentId: string, name: string | undefined): string {
 function normalizeAgentDescription(description: string | undefined): string {
 	const normalized = String(description || "").trim();
 	return normalized || "独立 agent profile。";
+}
+
+function normalizeOptionalBrowserId(browserId: unknown): string | undefined {
+	if (browserId === undefined || browserId === null) {
+		return undefined;
+	}
+	const normalized = String(browserId).trim();
+	if (!normalized) {
+		return undefined;
+	}
+	if (!/^[a-z][a-z0-9-]{0,62}$/.test(normalized)) {
+		throw new Error("defaultBrowserId must start with a lowercase letter and contain only lowercase letters, digits, or hyphens");
+	}
+	return normalized;
 }
 
 function normalizeInitialSystemSkillNames(skillNames: unknown): string[] {
@@ -102,6 +118,9 @@ export function normalizeAgentProfileInput(input: CreateAgentProfileInput): Agen
 		agentId,
 		name: normalizeAgentName(agentId, input.name),
 		description: normalizeAgentDescription(input.description),
+		...(normalizeOptionalBrowserId(input.defaultBrowserId)
+			? { defaultBrowserId: normalizeOptionalBrowserId(input.defaultBrowserId) }
+			: {}),
 	};
 }
 
@@ -447,6 +466,13 @@ export async function updateStoredAgentProfile(
 			agentId,
 			name: normalizeAgentName(agentId, input.name ?? currentProfile.name),
 			description: normalizeAgentDescription(input.description ?? currentProfile.description),
+			...(Object.hasOwn(input, "defaultBrowserId")
+				? normalizeOptionalBrowserId(input.defaultBrowserId)
+					? { defaultBrowserId: normalizeOptionalBrowserId(input.defaultBrowserId) }
+					: {}
+				: currentProfile.defaultBrowserId
+					? { defaultBrowserId: currentProfile.defaultBrowserId }
+					: {}),
 		};
 		return {
 			catalog: {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -8,6 +8,8 @@ import {
 	findDockerHostCdpBaseUrl,
 	LocalCdpBrowser,
 	resolveBrowserInputUrl,
+	resolveBrowserIdFromMeta,
+	resolveBrowserInstanceFromEnv,
 	rewriteCdpTargetForBaseUrl,
 } from "../runtime/skills-user/web-access/scripts/local-cdp-browser.mjs";
 
@@ -88,6 +90,68 @@ test("resolveBrowserInputUrl keeps external URLs unchanged when using a sidecar 
 		}),
 		"https://example.com/path",
 	);
+});
+
+test("resolveBrowserIdFromMeta resolves explicit, env, and scope-routed browser ids", async () => {
+	const tempDir = await mkdtemp(path.join(tmpdir(), "ugk-browser-id-route-"));
+	const routeCachePath = path.join(tempDir, "routes.json");
+	await writeFile(
+		routeCachePath,
+		JSON.stringify({
+			routes: {
+				"scope-1": {
+					browserId: "chrome-01",
+					updatedAt: "2026-05-08T00:00:00.000Z",
+				},
+			},
+		}),
+	);
+
+	try {
+		assert.equal(
+			resolveBrowserIdFromMeta({ browserId: "chrome-02", agentScope: "scope-1" }, { routeCachePath }),
+			"chrome-02",
+		);
+		assert.equal(
+			resolveBrowserIdFromMeta({ agentScope: "scope-1" }, { routeCachePath }),
+			"chrome-01",
+		);
+		assert.equal(
+			resolveBrowserIdFromMeta(
+				{ agentScope: "scope-1" },
+				{ env: { WEB_ACCESS_BROWSER_ID: "chrome-02" }, routeCachePath },
+			),
+			"chrome-01",
+		);
+		assert.equal(
+			resolveBrowserIdFromMeta(
+				{ agentScope: "scope-without-route" },
+				{ env: { WEB_ACCESS_BROWSER_ID: "chrome-02", UGK_DEFAULT_BROWSER_ID: "default" }, routeCachePath },
+			),
+			"default",
+		);
+		assert.equal(
+			resolveBrowserIdFromMeta({}, { env: { WEB_ACCESS_BROWSER_ID: "chrome-02" } }),
+			"chrome-02",
+		);
+	} finally {
+		await rm(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("resolveBrowserInstanceFromEnv maps browserId to the configured CDP endpoint", () => {
+	const instance = resolveBrowserInstanceFromEnv("chrome-01", {
+		UGK_BROWSER_INSTANCES_JSON: JSON.stringify([
+			{ browserId: "default", cdpHost: "172.31.250.10", cdpPort: 9223 },
+			{ browserId: "chrome-01", cdpHost: "172.31.250.11", cdpPort: 9223 },
+		]),
+	});
+
+	assert.deepEqual(instance, {
+		browserId: "chrome-01",
+		cdpHost: "172.31.250.11",
+		cdpPort: 9223,
+	});
 });
 
 test("resolveBrowserInputUrl rewrites workspace public paths to the local artifact bridge", () => {

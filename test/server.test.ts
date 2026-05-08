@@ -8,6 +8,7 @@ import { buildServer } from "../src/server.js";
 import { FeishuSettingsStore } from "../src/integrations/feishu/settings-store.js";
 import type { AgentService } from "../src/agent/agent-service.js";
 import { renderPlaygroundMarkdown } from "../src/ui/playground.js";
+import { createBrowserRegistry } from "../src/browser/browser-registry.js";
 import type {
 	ModelConfigBody,
 	ModelConfigSelection,
@@ -1374,6 +1375,13 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 	const createdInputs: unknown[] = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
+		browserRegistry: createBrowserRegistry(
+			[
+				{ browserId: "default", name: "Default", cdpHost: "127.0.0.1", cdpPort: 9223 },
+				{ browserId: "chrome-02", name: "Chrome 02", cdpHost: "127.0.0.1", cdpPort: 9225 },
+			],
+			"default",
+		),
 		connStore: {
 			list: async () => [],
 			get: async () => undefined,
@@ -1390,6 +1398,7 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 				modelProvider?: string;
 				modelId?: string;
 				upgradePolicy?: "latest" | "pinned" | "manual";
+				browserId?: string;
 				maxRunMs?: number;
 			}) => {
 				createdInputs.push(input);
@@ -1407,6 +1416,7 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 					modelProvider: input.modelProvider,
 					modelId: input.modelId,
 					upgradePolicy: input.upgradePolicy,
+					browserId: input.browserId,
 					maxRunMs: input.maxRunMs,
 					status: "active",
 					createdAt: "2026-04-21T00:00:00.000Z",
@@ -1445,6 +1455,7 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 			modelProvider: "xiaomi-mimo-cn",
 			modelId: "mimo-v2.5-pro",
 			upgradePolicy: "pinned",
+			browserId: "chrome-02",
 			maxRunMs: 120000,
 		},
 	});
@@ -1464,6 +1475,7 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 			modelProvider: "xiaomi-mimo-cn",
 			modelId: "mimo-v2.5-pro",
 			upgradePolicy: "pinned",
+			browserId: "chrome-02",
 			maxRunMs: 120000,
 		},
 	]);
@@ -1482,6 +1494,7 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 			modelProvider: "xiaomi-mimo-cn",
 			modelId: "mimo-v2.5-pro",
 			upgradePolicy: "pinned",
+			browserId: "chrome-02",
 			maxRunMs: 120000,
 			status: "active",
 			createdAt: "2026-04-21T00:00:00.000Z",
@@ -1602,6 +1615,83 @@ test("POST /v1/conns defaults target to the task inbox when target is omitted", 
 	await app.close();
 });
 
+test("POST /v1/conns validates browserId against the browser registry", async () => {
+	const createdInputs: unknown[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		browserRegistry: createBrowserRegistry(
+			[
+				{ browserId: "default", name: "Default", cdpHost: "127.0.0.1", cdpPort: 9223 },
+				{ browserId: "chrome-01", name: "Chrome 01", cdpHost: "127.0.0.1", cdpPort: 9224 },
+			],
+			"default",
+		),
+		connStore: {
+			list: async () => [],
+			get: async () => undefined,
+			create: async (input: Record<string, unknown>) => {
+				createdInputs.push(input);
+				return {
+					connId: "conn-browser",
+					title: input.title as string,
+					prompt: input.prompt as string,
+					target: input.target as { type: "task_inbox" },
+					schedule: input.schedule as { kind: "cron"; expression: string; timezone?: string },
+					assetRefs: [],
+					browserId: input.browserId as string | undefined,
+					status: "active",
+					createdAt: "2026-04-21T00:00:00.000Z",
+					updatedAt: "2026-04-21T00:00:00.000Z",
+				};
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("not used");
+			},
+			listRunsForConn: async () => [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
+		} as never,
+	});
+
+	const created = await app.inject({
+		method: "POST",
+		url: "/v1/conns",
+		payload: {
+			title: "browser task",
+			prompt: "run",
+			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
+			browserId: "chrome-01",
+		},
+	});
+	const rejected = await app.inject({
+		method: "POST",
+		url: "/v1/conns",
+		payload: {
+			title: "browser task",
+			prompt: "run",
+			schedule: { kind: "cron", expression: "0 9 * * *", timezone: "Asia/Shanghai" },
+			browserId: "missing",
+		},
+	});
+
+	assert.equal(created.statusCode, 201);
+	assert.equal(created.json().conn.browserId, "chrome-01");
+	assert.equal(rejected.statusCode, 400);
+	assert.match(rejected.json().error.message, /Unknown browserId: missing/);
+	assert.deepEqual(
+		createdInputs.map((input) => (input as { browserId?: string }).browserId),
+		["chrome-01"],
+	);
+	await app.close();
+});
+
 test("POST /v1/conns returns 400 when the once schedule is already in the past", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -1655,6 +1745,13 @@ test("PATCH /v1/conns/:connId rejects a blank title when the field is provided",
 	const updateCalls: unknown[] = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
+		browserRegistry: createBrowserRegistry(
+			[
+				{ browserId: "default", name: "Default", cdpHost: "127.0.0.1", cdpPort: 9223 },
+				{ browserId: "chrome-02", name: "Chrome 02", cdpHost: "127.0.0.1", cdpPort: 9225 },
+			],
+			"default",
+		),
 		connStore: {
 			list: async () => [],
 			get: async () => undefined,
@@ -1729,6 +1826,7 @@ test("PATCH /v1/conns/:connId trims and forwards editable conn fields", async ()
 					skillSetId: patch.skillSetId as string | undefined,
 					modelPolicyId: patch.modelPolicyId as string | undefined,
 					upgradePolicy: patch.upgradePolicy as "latest" | "pinned" | "manual" | undefined,
+					browserId: patch.browserId as string | null | undefined,
 					maxRunMs: patch.maxRunMs as number | undefined,
 					status: "active",
 					createdAt: "2026-04-22T08:00:00.000Z",
@@ -1764,6 +1862,7 @@ test("PATCH /v1/conns/:connId trims and forwards editable conn fields", async ()
 			skillSetId: "skills.patched",
 			modelPolicyId: "model.patched",
 			upgradePolicy: "manual",
+			browserId: null,
 			maxRunMs: 90000,
 		},
 	});
@@ -1783,6 +1882,7 @@ test("PATCH /v1/conns/:connId trims and forwards editable conn fields", async ()
 				skillSetId: "skills.patched",
 				modelPolicyId: "model.patched",
 				upgradePolicy: "manual",
+				browserId: null,
 				maxRunMs: 90000,
 			},
 		},
@@ -3040,10 +3140,20 @@ test("GET /playground restores running conversations after refresh and avoids re
 		response.body,
 		/if \(state\.loading\) \{[\s\S]*await queueActiveMessage\(outboundMessage, attachments, assetRefs, \{ composerDraft \}\);/,
 	);
+	assert.match(response.body, /async function resolveServerActiveConversation\(options\)\s*\{/);
+	assert.match(response.body, /force: true,[\s\S]*const runningConversationId = String\(findRunningConversationInCatalog\(catalog\)/);
+	assert.match(
+		response.body,
+		/const serverActiveConversation = await resolveServerActiveConversation\(\{ silent: true \}\);[\s\S]*await queueActiveMessage\(outboundMessage, attachments, assetRefs, \{ composerDraft \}\);/,
+	);
 	assert.match(response.body, /activeRun\.status === "interrupted"/);
 	assert.match(response.body, /case "interrupted":[\s\S]*restoreConversationHistoryFromServer\(event\.conversationId\)/);
 	assert.match(response.body, /case "error":[\s\S]*restoreConversationHistoryFromServer\(event\.conversationId\)/);
-	assert.match(response.body, /async function interruptRun\(\)\s*\{[\s\S]*completeAssistantLoadingBubble\("warn"[\s\S]*setLoading\(false\);/);
+	assert.match(response.body, /async function interruptRun\(\)\s*\{[\s\S]*const serverActiveConversation = await resolveServerActiveConversation\(\{ silent: true \}\);/);
+	assert.match(response.body, /case "interrupted":[\s\S]*state\.receivedDoneEvent = true;/);
+	assert.match(response.body, /case "error":[\s\S]*state\.receivedDoneEvent = true;/);
+	assert.match(response.body, /async function interruptRun\(\)\s*\{[\s\S]*setAssistantLoadingState\("正在中断当前任务", "system"\);[\s\S]*statusPill\.textContent = "正在中断";/);
+	assert.doesNotMatch(response.body, /打断请求已接收"[\s\S]{0,220}setLoading\(false\);/);
 	await app.close();
 });
 

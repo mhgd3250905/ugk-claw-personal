@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { BackgroundAgentProfileResolver } from "../src/agent/background-agent-profile.js";
+import { createStoredAgentProfile } from "../src/agent/agent-profile-catalog.js";
 
 async function createProjectRoot(): Promise<string> {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-background-profile-"));
@@ -167,6 +168,29 @@ test("BackgroundAgentProfileResolver lets a conn override the default or policy 
 
 	assert.equal(snapshot.provider, "xiaomi-mimo-cn");
 	assert.equal(snapshot.model, "mimo-v2.5-pro");
+});
+
+test("BackgroundAgentProfileResolver carries the selected Playground agent default browser", async () => {
+	const projectRoot = await createProjectRoot();
+	await createStoredAgentProfile(projectRoot, {
+		agentId: "zhihu-helper",
+		name: "知乎助手",
+		description: "知乎登录态任务。",
+		defaultBrowserId: "chrome-01",
+	});
+	const resolver = new BackgroundAgentProfileResolver({ projectRoot });
+
+	const snapshot = await resolver.resolve({
+		profileId: "zhihu-helper",
+		agentSpecId: "agent.default",
+		skillSetId: "skills.default",
+		modelPolicyId: "model.default",
+		upgradePolicy: "latest",
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	assert.equal(snapshot.agentId, "zhihu-helper");
+	assert.equal(snapshot.defaultBrowserId, "chrome-01");
 });
 
 test("BackgroundAgentProfileResolver falls back to the main agent when a non-default profile is missing", async () => {

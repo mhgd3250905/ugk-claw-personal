@@ -1,6 +1,20 @@
 # Playground 当前状态
 
-更新时间：`2026-05-07`
+更新时间：`2026-05-08`
+
+## 2026-05-08 Conn 浏览器选择
+
+- 后台任务创建 / 编辑器现在提供“浏览器”下拉，选项来自 `GET /v1/browsers`；不指定时显示“跟随执行 Agent”。
+- Conn 的浏览器优先级是：conn 自身 `browserId` > 执行 Agent 的 `defaultBrowserId` > Browser Registry 默认浏览器。执行 Agent 仍只决定规则、技能、模型和身份快照，浏览器登录态由 conn 独立选择或继承。
+- 后台任务列表会展示当前浏览器策略，避免只看到执行 Agent 却猜不到实际会用哪个 Chrome。
+- 相关源码：`src/ui/playground-conn-activity.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/routes/conns.ts`、`src/agent/background-agent-runner.ts`
+
+## 2026-05-08 Agent 默认浏览器配置
+
+- Agent 操作台现在会读取 `GET /v1/browsers` 的浏览器目录，但只引用浏览器实例，不负责创建 / 启停 Chrome 容器。
+- Agent 列表和详情会展示当前 `defaultBrowserId`；未指定时显示“跟随系统默认”，实际默认值由 Browser Registry 的 `defaultBrowserId` 决定。
+- 新建 Agent 和编辑 Agent 都提供“默认浏览器”下拉，保存时通过 `POST /v1/agents` 或 `PATCH /v1/agents/:agentId` 写入 `defaultBrowserId`；浏览器 ID 仍由后端 Browser Registry 校验。
+- 相关源码：`src/ui/playground.ts`、`src/ui/playground-agent-manager.ts`、`src/routes/chat.ts`、`src/routes/browsers.ts`
 
 ## 2026-05-07 UI 层级与主题一致性收口
 
@@ -566,6 +580,7 @@
 - 调度入口只保留三种：`定时执行`、`间隔执行`、`每日执行`。前端负责把这三种映射回后端 `once / interval / cron` payload，创建时不再让用户接触 cron 细节。
 - conn 编辑器覆盖标题、prompt、投递目标、调度策略、任务级 API 源 / 模型选择和高级运行字段：
   - `执行 Agent` 使用 `GET /v1/agents` 返回的 Playground agent catalog 渲染下拉，保存为 `profileId`。后台 run 借用该 Agent 的 `AGENTS.md`、scoped skills、执行身份和模型解析结果，但运行 session 属于后台 run 自己，不进入该 Agent 的前台 conversation。这层能力快照不是工具权限沙箱；底层 runtime 工具仍保持可用。
+  - `浏览器` 使用 `GET /v1/browsers` 返回的 Browser Registry 渲染下拉，保存为 `browserId`。空值表示跟随执行 Agent 默认浏览器；这不是创建 Chrome，也不是复制登录态。
   - `API 源 / 模型` 使用和前台模型源设置同源的 `/v1/model-config` 下拉列表，保存为 conn 自身的 `modelProvider / modelId`；不要退回手写 provider/model，也不要再靠同步前台 `.pi/settings.json` 控制后台 worker。
   - 目标支持任务消息、`feishu_chat`、`feishu_user`；旧的 conversation 目标只作为历史数据兼容，不再作为新建任务的默认入口。
 - 调度区只保留三种模式：`定时执行`、`间隔执行`、`每日执行`。前端仍然映射回后端 `once / interval / cron`，但不再把 cron、工作日、每周这些复杂概念直接甩给用户。
@@ -576,7 +591,7 @@
 - 目标选择区现在会显示 `conn-editor-target-preview`：把将要投递到 `任务消息` 还是飞书目标、目标编号和实际投递口径用中文展示出来；这里不能出现 `????` 这类乱码占位。
 - 保存成功后，管理器会显示 `conn-manager-notice`，说明已创建 / 已更新的 conn 会投递到哪里，并高亮对应条目。
 - conn 列表里的最近 run 默认折叠为一行 `conn-manager-run-summary`；需要查证据时再展开最近 3 条 run，避免管理面变成一堵日志墙。
-- 后台任务列表现在按人话信息展示：`结果发到`、`执行方式`、`运行节奏`、`执行 Agent`、`模型`。不再直接向用户暴露 `target / schedule / next / last / maxRunMs` 这类后台字段名。
+- 后台任务列表现在按人话信息展示：`结果发到`、`执行方式`、`运行节奏`、`执行 Agent`、`浏览器`、`模型`。不再直接向用户暴露 `target / schedule / next / last / maxRunMs` 这类后台字段名。
 - 列表状态与最近 run 结果统一显示为中文口径：`运行中 / 已暂停 / 已完成`、`待执行 / 执行中 / 成功 / 失败 / 已取消`，避免用户自己翻译状态码。
 - 目标归属不要再脑补成“当前打开哪个会话就往哪个会话冒泡”。后台结果的主落点已经是任务消息页；飞书目标按各自 adapter 投递，聊天 transcript 不再承担这层异步收件箱职责。
 - 管理器顶部提供状态筛选和批量工具：`conn-manager-filter` 按全部 / 运行中 / 已暂停 / 已完成过滤；`选择当前` 会选择当前筛选结果；`删除所选` 调用 `POST /v1/conns/bulk-delete`，用于一次清理多条测试 conn。

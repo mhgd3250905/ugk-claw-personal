@@ -55,6 +55,7 @@ import {
 import { createAgentSessionEventAdapter } from "./agent-session-event-adapter.js";
 import { preparePromptAssets } from "./agent-prompt-assets.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment } from "./asset-store.js";
+import { setBrowserScopeRoute } from "../browser/browser-scope-routes.js";
 import type {
 	AgentSessionFactory,
 	AgentSessionLike,
@@ -82,6 +83,7 @@ export interface ChatInput {
 	conversationId?: string;
 	message: string;
 	userId?: string;
+	browserId?: string;
 	attachments?: ChatAttachment[];
 	assetRefs?: string[];
 }
@@ -99,6 +101,7 @@ export interface QueueMessageInput {
 	message: string;
 	mode: QueueMessageMode;
 	userId?: string;
+	browserId?: string;
 	attachments?: ChatAttachment[];
 	assetRefs?: string[];
 }
@@ -107,7 +110,7 @@ export interface QueueMessageResult {
 	conversationId: string;
 	mode: QueueMessageMode;
 	queued: boolean;
-	reason?: "not_running";
+	reason?: "not_running" | "browser_changed";
 }
 
 export interface InterruptChatInput {
@@ -218,6 +221,7 @@ interface ActiveRunState {
 	events: ChatStreamEvent[];
 	subscribers: Set<ChatStreamEventSink>;
 	view: ChatActiveRunBody;
+	browserId?: string;
 	sessionMessageCountBeforeRun: number;
 	historyMessageCountBeforeRun: number;
 	persistedTurnCoverage: PersistedTurnCoverage | null;
@@ -332,6 +336,14 @@ export class AgentService {
 				mode: input.mode,
 				queued: false,
 				reason: "not_running",
+			};
+		}
+		if (input.browserId && activeRun.browserId && input.browserId !== activeRun.browserId) {
+			return {
+				conversationId: input.conversationId,
+				mode: input.mode,
+				queued: false,
+				reason: "browser_changed",
 			};
 		}
 
@@ -543,7 +555,7 @@ export class AgentService {
 		if (this.activeRuns.size > 0) {
 			throw new Error("Another conversation is already running");
 		}
-		const { session, skillFingerprint } = await this.openSession(conversationId);
+		const { session, skillFingerprint } = await this.openSession(conversationId, browserCleanupScope, input.browserId);
 		const preparedAssets = await preparePromptAssets({
 			conversationId,
 			attachments: input.attachments,
@@ -561,6 +573,7 @@ export class AgentService {
 			events: [],
 			subscribers: new Set<ChatStreamEventSink>(),
 			view: createActiveRunView(conversationId, input.message, preparedAssets.uploadedAssets),
+			...(input.browserId ? { browserId: input.browserId } : {}),
 			sessionMessageCountBeforeRun,
 			historyMessageCountBeforeRun,
 			persistedTurnCoverage: null,
@@ -579,7 +592,13 @@ export class AgentService {
 		const unsubscribe = session.subscribe(sessionEventAdapter.handle);
 
 		try {
-			await closeBrowserTargetsForScope(browserCleanupScope);
+			if (input.browserId) {
+				await setBrowserScopeRoute(browserCleanupScope, input.browserId);
+				await closeBrowserTargetsForScope(browserCleanupScope, { browserId: input.browserId });
+			} else {
+				await setBrowserScopeRoute(browserCleanupScope, undefined);
+				await closeBrowserTargetsForScope(browserCleanupScope);
+			}
 			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
 				await session.prompt(
 					buildPromptWithAssetContext(prependCurrentTimeContext(input.message), preparedAssets.promptAssets),
@@ -655,7 +674,13 @@ export class AgentService {
 				this.terminalRuns.delete(conversationId);
 			}
 			activeRun.subscribers.clear();
-			await closeBrowserTargetsForScope(browserCleanupScope);
+			try {
+				await closeBrowserTargetsForScope(browserCleanupScope, {
+					...(activeRun.browserId ? { browserId: activeRun.browserId } : {}),
+				});
+			} finally {
+				await setBrowserScopeRoute(browserCleanupScope, undefined);
+			}
 		}
 	}
 
@@ -682,9 +707,13 @@ export class AgentService {
 
 	private async openSession(
 		conversationId: string,
+		browserScope?: string,
+		browserId?: string,
 	): Promise<{ session: AgentSessionLike; skillFingerprint?: string }> {
 		return await openConversationSession({
 			conversationId,
+			browserScope,
+			browserId,
 			conversationStore: this.options.conversationStore,
 			sessionFactory: this.options.sessionFactory,
 		});

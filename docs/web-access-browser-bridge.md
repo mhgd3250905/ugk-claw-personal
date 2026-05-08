@@ -78,7 +78,51 @@ WEB_ACCESS_BROWSER_PROFILE_DIR=/config/chrome-profile-sidecar
 - sidecar profile 宿主目录：`.data/chrome-sidecar`
 - sidecar CDP app 侧地址：`http://172.31.250.10:9223`
 
-### 3.1 Chrome Memory Guardrails
+### 3.1 Browser Instance Registry
+
+`2026-05-08` 起，服务端新增只读浏览器实例注册表，用于把用户自定义的 `browserId` 映射到 Chrome sidecar CDP 信息。未配置时，系统会自动合成当前老链路：
+
+```text
+browserId=default
+cdpHost=172.31.250.10
+cdpPort=9223
+guiUrl=https://127.0.0.1:3901/
+profileLabel=chrome-sidecar
+```
+
+接口：
+
+```text
+GET /v1/browsers
+GET /v1/browsers/:browserId
+```
+
+可选配置：
+
+```text
+UGK_DEFAULT_BROWSER_ID=default
+UGK_BROWSER_INSTANCES_JSON=[{"browserId":"default","name":"Default","cdpHost":"172.31.250.10","cdpPort":9223,"guiUrl":"https://127.0.0.1:3901/","profileLabel":"chrome-sidecar"}]
+```
+
+`browserId` 只做路由标识，由用户自定义；系统不内置 `x`、`feishu`、`research` 这类业务命名。每个 Chrome 实例必须使用独立 profile/config 目录，登录态由用户自己打开对应 GUI 维护。不要让两个 Chrome service 指向同一个 `/config` 或同一个 `--user-data-dir`，也不要复制正在运行的 Chrome profile。这个坑不是“可能不优雅”，是可能直接伤登录态。
+
+当前已接入 Agent profile 默认浏览器字段 `defaultBrowserId` 和 chat 请求可选 `browserId` 解析。`AgentService` 会在每轮 run 开始前把 `browser cleanup scope -> browserId` 写入轻量路由缓存，并把 `WEB_ACCESS_BROWSER_ID` / scope 注入本轮 Bash 子进程；run 结束后会清掉该 scope 路由，避免同一会话后续切回默认浏览器时继续吃到旧绑定。`web-access` 的 proxy / host bridge / local CDP 层会按 `metaBrowserId`、`metaAgentScope` 路由缓存、`WEB_ACCESS_BROWSER_ID`、`UGK_DEFAULT_BROWSER_ID` 的顺序选择 Chrome 实例。不要用进程级 `WEB_ACCESS_CDP_HOST` 在多任务之间来回切，这会让并发任务串浏览器。
+
+路由缓存只记录 scope 和 `browserId`，默认路径为 `/app/.data/browser-scope-routes.json`，可通过 `UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH` 覆盖。它不保存 cookie、不读取 profile，也不迁移登录态；同一进程内写入会串行化，避免并发更新互相覆盖。
+
+每个 browserId 使用独立的 CDP target scope cache。`default` 继续使用 `WEB_ACCESS_SCOPE_CACHE_PATH`；非默认浏览器会在同目录生成带 browserId 后缀的 cache，避免 `chrome-01` 的 targetId 被 `chrome-02` 误清理。
+
+本地 compose 现在默认建立三个浏览器实例：
+
+| browserId | CDP | GUI | config/profile 宿主目录 |
+| --- | --- | --- | --- |
+| `default` | `172.31.250.10:9223` | `https://127.0.0.1:3901/` | `.data/chrome-sidecar` |
+| `chrome-01` | `172.31.250.11:9223` | `https://127.0.0.1:3902/` | `.data/chrome-sidecar-chrome-01` |
+| `chrome-02` | `172.31.250.12:9223` | `https://127.0.0.1:3903/` | `.data/chrome-sidecar-chrome-02` |
+
+`chrome-01` 和 `chrome-02` 是空白独立 profile。用户需要分别打开对应 GUI 自己登录并维护账号；不要从 `default` 复制正在使用的 profile。
+
+### 3.2 Chrome Memory Guardrails
 
 Chrome sidecar 当前有两层内存防护：
 
@@ -421,6 +465,8 @@ Linux 云服务器上不要把 `3901` 裸露公网。这个入口能操作登录
 - [runtime/skills-user/web-access/scripts/local-cdp-browser.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/local-cdp-browser.mjs)
 - [runtime/skills-user/web-access/scripts/check-deps.mjs](/E:/AII/ugk-pi/runtime/skills-user/web-access/scripts/check-deps.mjs)
 - [runtime/screenshot.mjs](/E:/AII/ugk-pi/runtime/screenshot.mjs)
+- [src/browser/browser-bound-bash.ts](/E:/AII/ugk-pi/src/browser/browser-bound-bash.ts)
+- [src/browser/browser-scope-routes.ts](/E:/AII/ugk-pi/src/browser/browser-scope-routes.ts)
 - [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
 - [src/agent/agent-service.ts](/E:/AII/ugk-pi/src/agent/agent-service.ts)
 - [src/agent/file-artifacts.ts](/E:/AII/ugk-pi/src/agent/file-artifacts.ts)

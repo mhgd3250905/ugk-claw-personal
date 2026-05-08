@@ -26,6 +26,7 @@ export interface ResolvedBackgroundAgentSnapshot {
 	requestedAgentId?: string;
 	agentId?: string;
 	agentName?: string;
+	defaultBrowserId?: string;
 	agentDir?: string;
 	rulesPath?: string;
 	skillPaths?: string[];
@@ -235,6 +236,7 @@ export class BackgroundAgentProfileResolver {
 			requestedAgentId: input.ref.profileId,
 			agentId: input.profile.agentId,
 			agentName: input.profile.name,
+			...(input.profile.defaultBrowserId ? { defaultBrowserId: input.profile.defaultBrowserId } : {}),
 			agentDir,
 			...(rulesPath ? { rulesPath } : {}),
 			skillPaths,

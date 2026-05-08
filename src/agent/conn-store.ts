@@ -45,6 +45,7 @@ export interface ConnDefinition {
 	assetRefs: string[];
 	maxRunMs?: number;
 	profileId?: string;
+	browserId?: string;
 	agentSpecId?: string;
 	skillSetId?: string;
 	modelPolicyId?: string;

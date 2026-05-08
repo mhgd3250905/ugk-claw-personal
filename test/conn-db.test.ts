@@ -17,13 +17,17 @@ test("ConnDatabase initializes the sqlite schema and creates missing parent dire
 	await database.initialize();
 
 	assert.deepEqual(database.listTableNames(), CONN_DATABASE_TABLES);
-	assert.equal(database.getUserVersion(), 7);
+	assert.equal(database.getUserVersion(), 8);
 	assert.equal(
 		database.all<{ name: string }>("PRAGMA table_info(conns)").some((column) => column.name === "max_run_ms"),
 		true,
 	);
 	assert.equal(
 		database.all<{ name: string }>("PRAGMA table_info(conns)").some((column) => column.name === "public_site_id"),
+		true,
+	);
+	assert.equal(
+		database.all<{ name: string }>("PRAGMA table_info(conns)").some((column) => column.name === "browser_id"),
 		true,
 	);
 
@@ -127,7 +131,61 @@ PRAGMA user_version = 5;
 	await database.initialize();
 
 	assert.equal(database.hasTable("conversation_notifications"), false);
-	assert.equal(database.getUserVersion(), 7);
+	assert.equal(database.getUserVersion(), 8);
+
+	database.close();
+});
+
+test("ConnDatabase migrates existing conn tables to include browser ids", async () => {
+	const dbPath = await createTempDbPath();
+	const database = new ConnDatabase({ dbPath });
+
+	await database.initialize();
+	database.exec(`
+CREATE TABLE conns_legacy (
+	conn_id TEXT PRIMARY KEY,
+	title TEXT NOT NULL,
+	prompt TEXT NOT NULL,
+	target_json TEXT NOT NULL,
+	schedule_json TEXT NOT NULL,
+	asset_refs_json TEXT NOT NULL DEFAULT '[]',
+	max_run_ms INTEGER,
+	profile_id TEXT NOT NULL,
+	agent_spec_id TEXT NOT NULL,
+	skill_set_id TEXT NOT NULL,
+	model_policy_id TEXT NOT NULL,
+	model_provider TEXT,
+	model_id TEXT,
+	upgrade_policy TEXT NOT NULL DEFAULT 'latest',
+	public_site_id TEXT,
+	status TEXT NOT NULL DEFAULT 'active',
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL,
+	last_run_at TEXT,
+	next_run_at TEXT,
+	last_run_id TEXT,
+	deleted_at TEXT
+);
+INSERT INTO conns_legacy SELECT conn_id, title, prompt, target_json, schedule_json, asset_refs_json, max_run_ms, profile_id, agent_spec_id, skill_set_id, model_policy_id, model_provider, model_id, upgrade_policy, public_site_id, status, created_at, updated_at, last_run_at, next_run_at, last_run_id, deleted_at FROM conns;
+DROP TABLE conns;
+ALTER TABLE conns_legacy RENAME TO conns;
+INSERT INTO conns (conn_id, title, prompt, target_json, schedule_json, asset_refs_json, profile_id, agent_spec_id, skill_set_id, model_policy_id, upgrade_policy, status, created_at, updated_at)
+VALUES ('conn-legacy-browser', 'Digest', 'Summarize', '{}', '{}', '[]', 'background.default', 'agent.default', 'skills.default', 'model.default', 'latest', 'active', '2026-04-21T00:00:00.000Z', '2026-04-21T00:00:00.000Z');
+PRAGMA user_version = 7;
+`);
+
+	await database.initialize();
+
+	const columns = database.all<{ name: string }>("PRAGMA table_info(conns)");
+	assert.equal(columns.some((column) => column.name === "browser_id"), true);
+	assert.equal(database.getUserVersion(), 8);
+	assert.deepEqual(
+		database.get<{ title: string; browser_id: string | null }>(
+			"SELECT title, browser_id FROM conns WHERE conn_id = ?",
+			"conn-legacy-browser",
+		),
+		{ title: "Digest", browser_id: null },
+	);
 
 	database.close();
 });

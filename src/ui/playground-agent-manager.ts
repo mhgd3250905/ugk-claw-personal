@@ -118,6 +118,15 @@ export function getPlaygroundAgentManagerStyles(): string {
 			white-space: nowrap;
 		}
 
+		.agent-manager-list-browser {
+			overflow: hidden;
+			color: rgba(226, 234, 255, 0.52);
+			font-size: 10px;
+			line-height: 1.35;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
 		.agent-manager-status {
 			display: inline-flex;
 			align-items: center;
@@ -431,7 +440,9 @@ export function getPlaygroundAgentManagerStyles(): string {
 		}
 
 		.agent-editor-field input,
+		.agent-editor-field select,
 		.agent-editor-field textarea,
+		.agent-manager-create select,
 		.agent-manager-create input,
 		.agent-manager-create textarea {
 			width: 100%;
@@ -445,6 +456,8 @@ export function getPlaygroundAgentManagerStyles(): string {
 		}
 
 		.agent-editor-field input,
+		.agent-editor-field select,
+		.agent-manager-create select,
 		.agent-manager-create input {
 			min-height: 34px;
 			padding: 7px 9px;
@@ -595,6 +608,7 @@ export function getPlaygroundAgentManagerStyles(): string {
 		:root[data-theme="light"] .agent-manager-hint,
 		:root[data-theme="light"] .agent-manager-rules-card-copy span,
 		:root[data-theme="light"] .agent-manager-rules-card-action,
+		:root[data-theme="light"] .agent-manager-list-browser,
 		:root[data-theme="light"] .agent-editor-field {
 			color: #40516d;
 		}
@@ -618,8 +632,10 @@ export function getPlaygroundAgentManagerStyles(): string {
 		}
 
 		:root[data-theme="light"] .agent-editor-field input,
+		:root[data-theme="light"] .agent-editor-field select,
 		:root[data-theme="light"] .agent-editor-field textarea,
 		:root[data-theme="light"] .agent-manager-skill-install select,
+		:root[data-theme="light"] .agent-manager-create select,
 		:root[data-theme="light"] .agent-manager-create input,
 		:root[data-theme="light"] .agent-manager-create textarea {
 			background: #ffffff;
@@ -761,6 +777,10 @@ export function getPlaygroundAgentManagerDialogs(): string {
 							<span>用途描述</span>
 							<textarea id="agent-editor-description-input" name="description" required></textarea>
 						</label>
+						<label class="agent-editor-field">
+							<span>默认浏览器</span>
+							<select id="agent-editor-browser-select" name="defaultBrowserId"></select>
+						</label>
 					</div>
 				</form>
 			</section>
@@ -809,6 +829,7 @@ export function getPlaygroundAgentManagerScript(): string {
 		const agentEditorIdInput = document.getElementById("agent-editor-id-input");
 		const agentEditorNameInput = document.getElementById("agent-editor-name-input");
 		const agentEditorDescriptionInput = document.getElementById("agent-editor-description-input");
+		const agentEditorBrowserSelect = document.getElementById("agent-editor-browser-select");
 		const saveAgentEditorButton = document.getElementById("save-agent-editor-button");
 		const cancelAgentEditorButton = document.getElementById("cancel-agent-editor-button");
 		const closeAgentEditorButton = document.getElementById("close-agent-editor-button");
@@ -827,6 +848,48 @@ export function getPlaygroundAgentManagerScript(): string {
 
 		function isMainAgent(agent) {
 			return agent?.agentId === "main";
+		}
+
+		function getBrowserCatalog() {
+			return Array.isArray(state.browserCatalog) ? state.browserCatalog : [];
+		}
+
+		function getBrowserLabel(browserId) {
+			const normalized = String(browserId || "").trim();
+			if (!normalized) {
+				return "跟随系统默认";
+			}
+			const browser = getBrowserCatalog().find((entry) => entry?.browserId === normalized);
+			return browser ? (browser.name || browser.browserId) + " · " + browser.browserId : normalized;
+		}
+
+		function renderBrowserOptions(select, selectedBrowserId) {
+			if (!select) {
+				return;
+			}
+			const selected = String(selectedBrowserId || "").trim();
+			select.innerHTML = "";
+			const defaultOption = document.createElement("option");
+			defaultOption.value = "";
+			defaultOption.textContent = "跟随系统默认（" + getBrowserLabel(state.defaultBrowserId || "default") + "）";
+			select.appendChild(defaultOption);
+			for (const browser of getBrowserCatalog()) {
+				const browserId = String(browser?.browserId || "").trim();
+				if (!browserId) {
+					continue;
+				}
+				const option = document.createElement("option");
+				option.value = browserId;
+				option.textContent = (browser.name || browserId) + " · " + browserId;
+				select.appendChild(option);
+			}
+			if (selected && !getBrowserCatalog().some((browser) => browser?.browserId === selected)) {
+				const unknownOption = document.createElement("option");
+				unknownOption.value = selected;
+				unknownOption.textContent = selected + "（未在当前浏览器列表中）";
+				select.appendChild(unknownOption);
+			}
+			select.value = selected;
 		}
 
 		function getRequiredAgentSkillNames() {
@@ -959,6 +1022,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			agentEditorIdInput.readOnly = editing;
 			agentEditorNameInput.value = editing ? agent.name || "" : "";
 			agentEditorDescriptionInput.value = editing ? agent.description || "" : "";
+			renderBrowserOptions(agentEditorBrowserSelect, editing ? agent.defaultBrowserId || "" : "");
 			renderAgentEditor();
 			agentEditorDialog.hidden = false;
 			agentEditorDialog.classList.add("open");
@@ -971,6 +1035,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			state.agentManagerSelectedAgentId = "";
 			state.agentCreateName = "";
 			state.agentCreateDescription = "";
+			state.agentCreateDefaultBrowserId = "";
 			state.agentCreateSelectedSkillNames = [];
 			setAgentEditorError("");
 			renderAgentManager();
@@ -999,8 +1064,31 @@ export function getPlaygroundAgentManagerScript(): string {
 			agentEditorIdInput.disabled = saving;
 			agentEditorNameInput.disabled = saving;
 			agentEditorDescriptionInput.disabled = saving;
+			agentEditorBrowserSelect.disabled = saving;
 			saveAgentEditorButton.disabled = saving;
 			saveAgentEditorButton.textContent = saving ? "保存中" : "保存";
+		}
+
+		async function loadBrowserCatalog() {
+			try {
+				const response = await fetch("/v1/browsers", {
+					method: "GET",
+					headers: { accept: "application/json" },
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.message || "无法读取浏览器列表");
+				}
+				state.defaultBrowserId = String(payload?.defaultBrowserId || "default").trim() || "default";
+				state.browserCatalog = Array.isArray(payload?.browsers) ? payload.browsers : [];
+				state.browserCatalogReliable = true;
+			} catch {
+				state.defaultBrowserId = "default";
+				state.browserCatalog = [
+					{ browserId: "default", name: "Default", isDefault: true },
+				];
+				state.browserCatalogReliable = false;
+			}
 		}
 
 		async function openAgentRulesEditor(agent, restoreFocusElement) {
@@ -1112,8 +1200,12 @@ export function getPlaygroundAgentManagerScript(): string {
 				row.appendChild(status);
 				const id = document.createElement("code");
 				id.textContent = agent.agentId;
+				const browser = document.createElement("span");
+				browser.className = "agent-manager-list-browser";
+				browser.textContent = "浏览器：" + getBrowserLabel(agent.defaultBrowserId || "");
 				button.appendChild(row);
 				button.appendChild(id);
+				button.appendChild(browser);
 				agentManagerList.appendChild(button);
 			}
 		}
@@ -1160,6 +1252,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			for (const [label, value] of [
 				["Agent ID", agent.agentId],
 				["状态", agent.agentId === getCurrentAgentId() ? "当前激活" : (isCoreAgent ? "核心 Agent" : "可切换")],
+				["默认浏览器", getBrowserLabel(agent.defaultBrowserId || "")],
 				["会话接口", "/v1/agents/" + agent.agentId + "/chat/*"],
 				["技能接口", "/v1/agents/" + agent.agentId + "/debug/skills"],
 				["规则文件", "AGENTS.md"],
@@ -1227,9 +1320,11 @@ export function getPlaygroundAgentManagerScript(): string {
 				state.agentCreateDescription = value;
 				refreshCreatePreview();
 			});
+			const browserField = renderAgentCreateBrowserField();
 			form.appendChild(nameField);
 			form.appendChild(idField);
 			form.appendChild(descriptionField);
+			form.appendChild(browserField);
 
 			const skillsSection = renderAgentCreateSkillsSection();
 			const rulesSection = document.createElement("section");
@@ -1282,6 +1377,21 @@ export function getPlaygroundAgentManagerScript(): string {
 			input.addEventListener("input", () => onInput(input.value));
 			field.appendChild(label);
 			field.appendChild(input);
+			return field;
+		}
+
+		function renderAgentCreateBrowserField() {
+			const field = document.createElement("label");
+			field.className = "agent-editor-field";
+			const label = document.createElement("span");
+			label.textContent = "默认浏览器";
+			const select = document.createElement("select");
+			renderBrowserOptions(select, state.agentCreateDefaultBrowserId || "");
+			select.addEventListener("change", () => {
+				state.agentCreateDefaultBrowserId = String(select.value || "").trim();
+			});
+			field.appendChild(label);
+			field.appendChild(select);
 			return field;
 		}
 
@@ -1485,7 +1595,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			refreshAgentManagerButton.disabled = true;
 			agentManagerList.setAttribute("aria-busy", "true");
 			try {
-				await loadAgentCatalog();
+				await Promise.all([loadAgentCatalog(), loadBrowserCatalog()]);
 				const selected = getSelectedAgentForManager();
 				if (selected) {
 					state.agentManagerSelectedAgentId = selected.agentId;
@@ -1541,6 +1651,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			const agentId = String(agentEditorIdInput.value || "").trim();
 			const name = String(agentEditorNameInput.value || "").trim();
 			const description = String(agentEditorDescriptionInput.value || "").trim();
+			const defaultBrowserId = String(agentEditorBrowserSelect.value || "").trim();
 			if (!agentId || !name || !description) {
 				setAgentEditorError("Agent ID、显示名称和用途描述都要填写。");
 				return;
@@ -1558,7 +1669,12 @@ export function getPlaygroundAgentManagerScript(): string {
 							accept: "application/json",
 							"content-type": "application/json",
 						},
-						body: JSON.stringify({ agentId, name, description }),
+						body: JSON.stringify({
+							agentId,
+							name,
+							description,
+							...(editing || defaultBrowserId ? { defaultBrowserId: defaultBrowserId || null } : {}),
+						}),
 					},
 				);
 				const payload = await response.json().catch(() => ({}));
@@ -1610,6 +1726,7 @@ export function getPlaygroundAgentManagerScript(): string {
 						agentId,
 						name,
 						description,
+						...(state.agentCreateDefaultBrowserId ? { defaultBrowserId: state.agentCreateDefaultBrowserId } : {}),
 						initialSystemSkillNames: state.agentCreateSelectedSkillNames || [],
 					}),
 				});
@@ -1622,6 +1739,7 @@ export function getPlaygroundAgentManagerScript(): string {
 				state.agentManagerSelectedAgentId = agentId;
 				state.agentCreateName = "";
 				state.agentCreateDescription = "";
+				state.agentCreateDefaultBrowserId = "";
 				state.agentCreateSelectedSkillNames = [];
 				renderAgentSelector();
 				renderAgentManager();

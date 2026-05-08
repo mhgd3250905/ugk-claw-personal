@@ -51,6 +51,10 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /ugk-pi-conn-worker:/);
 	assert.match(compose, /ugk-pi-browser:/);
 	assert.match(compose, /ugk-pi-browser-cdp:/);
+	assert.match(compose, /ugk-pi-browser-chrome-01:/);
+	assert.match(compose, /ugk-pi-browser-chrome-01-cdp:/);
+	assert.match(compose, /ugk-pi-browser-chrome-02:/);
+	assert.match(compose, /ugk-pi-browser-chrome-02-cdp:/);
 	assert.match(compose, /ugk-pi-searxng:/);
 	assert.match(compose, /3000:3000/);
 	assert.match(compose, /127\.0\.0\.1:\$\{WEB_ACCESS_BROWSER_GUI_PORT:-3901\}:3001/);
@@ -62,6 +66,11 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /WEB_ACCESS_BROWSER_PROVIDER:\s*direct_cdp/);
 	assert.match(compose, /WEB_ACCESS_CDP_HOST:\s*172\.31\.250\.10/);
 	assert.match(compose, /WEB_ACCESS_CDP_PORT:\s*9223/);
+	assert.match(compose, /UGK_DEFAULT_BROWSER_ID:\s*\$\{UGK_DEFAULT_BROWSER_ID:-default\}/);
+	assert.match(compose, /UGK_BROWSER_INSTANCES_JSON:\s*\$\{UGK_BROWSER_INSTANCES_JSON:-/);
+	assert.match(compose, /UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH:\s*\/app\/\.data\/browser-scope-routes\.json/);
+	assert.match(compose, /"browserId":"chrome-01"/);
+	assert.match(compose, /"browserId":"chrome-02"/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL:\s*http:\/\/ugk-pi:3000/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR:\s*\/app\/\.data\/browser-upload/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR:\s*\/config\/upload/);
@@ -69,7 +78,11 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /lscr\.io\/linuxserver\/chrome:latest/);
 	assert.match(compose, /alpine\/socat:latest/);
 	assert.match(compose, /network_mode:\s*"service:ugk-pi-browser"/);
+	assert.match(compose, /network_mode:\s*"service:ugk-pi-browser-chrome-01"/);
+	assert.match(compose, /network_mode:\s*"service:ugk-pi-browser-chrome-02"/);
 	assert.match(compose, /ipv4_address:\s*172\.31\.250\.10/);
+	assert.match(compose, /ipv4_address:\s*172\.31\.250\.11/);
+	assert.match(compose, /ipv4_address:\s*172\.31\.250\.12/);
 	assert.match(compose, /subnet:\s*172\.31\.250\.0\/24/);
 	assert.match(compose, /CHROME_CLI:\s*"--remote-debugging-address=0\.0\.0\.0 --remote-debugging-port=9222/);
 	assert.match(compose, /CHROME_CLI:.*--hide-crash-restore-bubble/);
@@ -89,6 +102,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /ugk-pi-conn-db:\/var\/lib\/ugk-pi\/conn/);
 	assert.match(compose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/app\/\.data\/browser-upload/);
 	assert.match(compose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/config\/upload/);
+	assert.match(compose, /\$\{UGK_BROWSER_CHROME_01_CONFIG_DIR:-\.\/\.data\/chrome-sidecar-chrome-01\}:\/config/);
+	assert.match(compose, /\$\{UGK_BROWSER_CHROME_02_CONFIG_DIR:-\.\/\.data\/chrome-sidecar-chrome-02\}:\/config/);
 	assert.match(compose, /volumes:\s*\n\s*ugk-pi-conn-db:/);
 	assert.match(workerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
 	assert.doesNotMatch(workerComposeBlock, /ports:/);
@@ -110,6 +125,10 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /ugk-pi-conn-worker:/);
 	assert.match(prodCompose, /ugk-pi-browser:/);
 	assert.match(prodCompose, /ugk-pi-browser-cdp:/);
+	assert.match(prodCompose, /ugk-pi-browser-chrome-01:/);
+	assert.match(prodCompose, /ugk-pi-browser-chrome-01-cdp:/);
+	assert.match(prodCompose, /ugk-pi-browser-chrome-02:/);
+	assert.match(prodCompose, /ugk-pi-browser-chrome-02-cdp:/);
 	assert.match(prodCompose, /nginx:/);
 	assert.match(prodCompose, /ugk-pi-searxng:/);
 	assert.match(prodCompose, /restart:\s*unless-stopped/);
@@ -121,6 +140,11 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /NOTIFICATION_BROADCAST_URL:\s*http:\/\/ugk-pi:3000\/v1\/internal\/notifications\/broadcast/);
 	assert.match(prodCompose, /WEB_ACCESS_CDP_HOST:\s*172\.31\.250\.10/);
 	assert.match(prodCompose, /WEB_ACCESS_CDP_PORT:\s*9223/);
+	assert.match(prodCompose, /UGK_DEFAULT_BROWSER_ID:\s*\$\{UGK_DEFAULT_BROWSER_ID:-default\}/);
+	assert.match(prodCompose, /UGK_BROWSER_INSTANCES_JSON:\s*\$\{UGK_BROWSER_INSTANCES_JSON:-/);
+	assert.match(prodCompose, /UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH:\s*\/app\/\.data\/browser-scope-routes\.json/);
+	assert.match(prodCompose, /"browserId":"chrome-01"/);
+	assert.match(prodCompose, /"browserId":"chrome-02"/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL:\s*http:\/\/ugk-pi:3000/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR:\s*\/app\/\.data\/browser-upload/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR:\s*\/config\/upload/);
@@ -129,7 +153,11 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /lscr\.io\/linuxserver\/chrome:latest/);
 	assert.match(prodCompose, /alpine\/socat:latest/);
 	assert.match(prodCompose, /network_mode:\s*"service:ugk-pi-browser"/);
+	assert.match(prodCompose, /network_mode:\s*"service:ugk-pi-browser-chrome-01"/);
+	assert.match(prodCompose, /network_mode:\s*"service:ugk-pi-browser-chrome-02"/);
 	assert.match(prodCompose, /ipv4_address:\s*172\.31\.250\.10/);
+	assert.match(prodCompose, /ipv4_address:\s*172\.31\.250\.11/);
+	assert.match(prodCompose, /ipv4_address:\s*172\.31\.250\.12/);
 	assert.match(prodCompose, /subnet:\s*172\.31\.250\.0\/24/);
 	assert.match(prodCompose, /CHROME_CLI:\s*"--remote-debugging-address=0\.0\.0\.0 --remote-debugging-port=9222/);
 	assert.match(prodCompose, /CHROME_CLI:.*--hide-crash-restore-bubble/);
@@ -153,6 +181,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /\$\{UGK_AGENTS_DATA_DIR:-\.\/\.data\/agents\}:\/app\/\.data\/agents/);
 	assert.match(prodCompose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/app\/\.data\/browser-upload/);
 	assert.match(prodCompose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/config\/upload/);
+	assert.match(prodCompose, /\$\{UGK_BROWSER_CHROME_01_CONFIG_DIR:-\.\/\.data\/chrome-sidecar-chrome-01\}:\/config/);
+	assert.match(prodCompose, /\$\{UGK_BROWSER_CHROME_02_CONFIG_DIR:-\.\/\.data\/chrome-sidecar-chrome-02\}:\/config/);
 	assert.match(prodCompose, /\$\{UGK_RUNTIME_SKILLS_USER_DIR:-\.\/runtime\/skills-user\}:\/app\/runtime\/skills-user/);
 	assert.match(prodWorkerComposeBlock, /healthcheck:\s*\n\s*disable:\s*true/);
 	assert.doesNotMatch(prodWorkerComposeBlock, /ports:/);
@@ -177,6 +207,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /WEB_ACCESS_BROWSER_PUBLIC_BASE_URL=http:\/\/ugk-pi:3000/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_UPLOAD_APP_DIR=\/app\/\.data\/browser-upload/);
 	assert.match(envExample, /WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR=\/config\/upload/);
+	assert.match(envExample, /UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH=\/app\/\.data\/browser-scope-routes\.json/);
 	assert.match(envExample, /CONN_WORKER_MAX_CONCURRENCY=3/);
 	assert.match(envExample, /SEARXNG_BASE_URL=http:\/\/ugk-pi-searxng:8080/);
 	assert.match(envExample, /SEARXNG_HOST_PORT=48080/);
@@ -187,6 +218,8 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(envExample, /UGK_AGENTS_DATA_DIR=\.\/\.data\/agents/);
 	assert.match(envExample, /UGK_MODEL_SETTINGS_PATH=\/app\/\.data\/agent\/model-settings\.json/);
 	assert.match(envExample, /UGK_BROWSER_UPLOAD_DIR=\.\/\.data\/chrome-sidecar\/upload/);
+	assert.match(envExample, /UGK_BROWSER_CHROME_01_CONFIG_DIR=\.\/\.data\/chrome-sidecar-chrome-01/);
+	assert.match(envExample, /UGK_BROWSER_CHROME_02_CONFIG_DIR=\.\/\.data\/chrome-sidecar-chrome-02/);
 	assert.match(envExample, /UGK_SEARXNG_CONFIG_DIR=\.\/deploy\/searxng/);
 	assert.match(envExample, /UGK_SEARXNG_CACHE_DIR=\.\/\.data\/searxng/);
 	assert.match(envExample, /UGK_RUNTIME_SKILLS_USER_DIR=\.\/runtime\/skills-user/);

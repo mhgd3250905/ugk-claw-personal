@@ -63,6 +63,7 @@ export function getConnActivityElementRefsScript(): string {
 		const connEditorIntervalStart = document.getElementById("conn-editor-interval-start");
 		const connEditorTimeOfDay = document.getElementById("conn-editor-time-of-day");
 		const connEditorProfileId = document.getElementById("conn-editor-profile-id");
+		const connEditorBrowserId = document.getElementById("conn-editor-browser-id");
 		const connEditorAgentSpecId = document.getElementById("conn-editor-agent-spec-id");
 		const connEditorSkillSetId = document.getElementById("conn-editor-skill-set-id");
 		const connEditorModelProvider = document.getElementById("conn-editor-model-provider");
@@ -105,6 +106,7 @@ export function getConnActivityEditorScript(): string {
 			openWorkspacePanel("conn", connManagerDialog, {
 				forceOverlay: options?.mode !== "workspace",
 			});
+			void loadConnBrowserCatalog().then(() => renderConnManager());
 			void loadConnManager({ silent: false });
 		}
 
@@ -130,6 +132,7 @@ export function getConnActivityEditorScript(): string {
 			fillConnEditor(buildConnEditorDraft(editing ? conn : null));
 			renderConnEditor();
 			void loadAgentCatalog().then(() => renderConnEditorAgentOptions());
+			void loadConnBrowserCatalog().then(() => renderConnEditorBrowserOptions());
 			void ensureConnEditorModelConfig();
 			void loadAssets(true);
 			connEditorDialog.hidden = false;
@@ -226,6 +229,7 @@ export function getConnActivityEditorScript(): string {
 				intervalStart: formatConnDateTimeLocal(schedule.kind === "interval" ? schedule.startAt : undefined),
 				timeOfDay: inferConnScheduleTimeOfDay(schedule),
 				profileId: conn?.profileId || "main",
+				browserId: conn?.browserId || "",
 				agentSpecId: conn?.agentSpecId || "",
 				skillSetId: conn?.skillSetId || "",
 				modelProvider: conn?.modelProvider || "",
@@ -249,6 +253,9 @@ export function getConnActivityEditorScript(): string {
 			connEditorProfileId.value = draft.profileId;
 			connEditorProfileId.dataset.pendingValue = draft.profileId;
 			renderConnEditorAgentOptions();
+			connEditorBrowserId.value = draft.browserId;
+			connEditorBrowserId.dataset.pendingValue = draft.browserId;
+			renderConnEditorBrowserOptions();
 			connEditorAgentSpecId.value = draft.agentSpecId;
 			connEditorSkillSetId.value = draft.skillSetId;
 			connEditorModelProvider.dataset.pendingValue = draft.modelProvider;
@@ -538,6 +545,72 @@ export function getConnActivityEditorScript(): string {
 			delete connEditorProfileId.dataset.pendingValue;
 		}
 
+		function getConnBrowserCatalog() {
+			return Array.isArray(state.browserCatalog) && state.browserCatalog.length > 0
+				? state.browserCatalog
+				: [{ browserId: "default", name: "Default", isDefault: true }];
+		}
+
+		function getConnBrowserLabel(browserId) {
+			const normalized = String(browserId || "").trim();
+			if (!normalized) {
+				return "跟随执行 Agent";
+			}
+			const browser = getConnBrowserCatalog().find((entry) => String(entry?.browserId || "").trim() === normalized);
+			return browser ? (browser.name || browser.browserId) + " · " + browser.browserId : normalized;
+		}
+
+		async function loadConnBrowserCatalog() {
+			try {
+				const response = await fetch("/v1/browsers", {
+					method: "GET",
+					headers: { accept: "application/json" },
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload?.message || "无法读取浏览器列表");
+				}
+				state.defaultBrowserId = String(payload?.defaultBrowserId || "default").trim() || "default";
+				state.browserCatalog = Array.isArray(payload?.browsers) ? payload.browsers : [];
+				state.browserCatalogReliable = true;
+			} catch {
+				state.defaultBrowserId = "default";
+				state.browserCatalog = [{ browserId: "default", name: "Default", isDefault: true }];
+				state.browserCatalogReliable = false;
+			}
+		}
+
+		function renderConnEditorBrowserOptions() {
+			if (!connEditorBrowserId) {
+				return;
+			}
+			const pendingValue = String(connEditorBrowserId.dataset.pendingValue || connEditorBrowserId.value || "").trim();
+			connEditorBrowserId.innerHTML = "";
+			const followOption = document.createElement("option");
+			followOption.value = "";
+			followOption.textContent = "跟随执行 Agent";
+			connEditorBrowserId.appendChild(followOption);
+			for (const browser of getConnBrowserCatalog()) {
+				const browserId = String(browser?.browserId || "").trim();
+				if (!browserId) {
+					continue;
+				}
+				const option = document.createElement("option");
+				option.value = browserId;
+				option.textContent = getConnBrowserLabel(browserId);
+				connEditorBrowserId.appendChild(option);
+			}
+			if (pendingValue && !getConnBrowserCatalog().some((browser) => String(browser?.browserId || "").trim() === pendingValue)) {
+				const option = document.createElement("option");
+				option.value = pendingValue;
+				option.textContent = pendingValue + "（未在当前浏览器列表中）";
+				connEditorBrowserId.appendChild(option);
+			}
+			connEditorBrowserId.value = pendingValue;
+			connEditorBrowserId.disabled = state.connEditorSaving;
+			delete connEditorBrowserId.dataset.pendingValue;
+		}
+
 		async function ensureConnEditorModelConfig() {
 			if (!state.modelConfig) {
 				await loadModelConfig();
@@ -650,6 +723,7 @@ export function getConnActivityEditorScript(): string {
 			connEditorUploadAssetsButton.disabled = state.connEditorSaving || state.connEditorUploadingAssets;
 			connEditorUploadAssetsButton.textContent = state.connEditorUploadingAssets ? "上传中" : "上传新文件";
 			renderConnEditorAgentOptions();
+			renderConnEditorBrowserOptions();
 			renderConnEditorModelOptions();
 			renderConnEditorError(state.connEditorError);
 			renderConnEditorSelectedAssets();
@@ -758,6 +832,9 @@ export function getConnActivityEditorScript(): string {
 			payload.modelProvider = modelProvider;
 			payload.modelId = modelId;
 			payload.profileId = String(connEditorProfileId?.value || "main").trim() || "main";
+			if (state.connEditorMode === "edit" || String(connEditorBrowserId?.value || "").trim()) {
+				payload.browserId = connEditorBrowserId.value || null;
+			}
 			const assetRefs = Array.isArray(state.connEditorSelectedAssetRefs)
 				? state.connEditorSelectedAssetRefs.map((assetId) => String(assetId || "").trim()).filter(Boolean)
 				: [];
@@ -1497,6 +1574,11 @@ export function getConnActivityRendererScript(): string {
 				const agentCode = document.createElement("code");
 				agentCode.textContent = getAgentDisplayName(conn.profileId || "main");
 				agentLine.appendChild(agentCode);
+				const browserLine = document.createElement("span");
+				browserLine.textContent = "浏览器：";
+				const browserCode = document.createElement("code");
+				browserCode.textContent = getConnBrowserLabel(conn.browserId || "");
+				browserLine.appendChild(browserCode);
 				const modelLine = document.createElement("span");
 				modelLine.textContent = "模型：";
 				const modelCode = document.createElement("code");
@@ -1509,6 +1591,7 @@ export function getConnActivityRendererScript(): string {
 				meta.appendChild(scheduleLine);
 				meta.appendChild(timeLine);
 				meta.appendChild(agentLine);
+				meta.appendChild(browserLine);
 				meta.appendChild(modelLine);
 				main.appendChild(titleRow);
 				main.appendChild(meta);

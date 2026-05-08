@@ -9,6 +9,7 @@ export interface ParsedChatMessageBody {
 	conversationId?: string;
 	message: string;
 	userId?: string;
+	browserId?: string;
 	attachments?: ChatAttachmentBody[];
 	assetRefs?: string[];
 }
@@ -41,7 +42,7 @@ export function parseOptionalPositiveInteger(value: unknown, fieldName: string):
 export function parseChatMessageBody(
 	body: Partial<ChatRequestBody>,
 ): { value?: ParsedChatMessageBody; error?: string } {
-	const { conversationId, message, userId, attachments, assetRefs } = body;
+	const { conversationId, message, userId, browserId, attachments, assetRefs } = body;
 
 	if (!isValidMessage(message)) {
 		return { error: 'Field "message" must be a non-empty string' };
@@ -61,6 +62,7 @@ export function parseChatMessageBody(
 			conversationId,
 			message,
 			userId,
+			...(typeof browserId === "string" && browserId.trim() ? { browserId: browserId.trim() } : {}),
 			...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
 			...(parsedAssetRefs.assetRefs ? { assetRefs: parsedAssetRefs.assetRefs } : {}),
 		},
@@ -70,7 +72,7 @@ export function parseChatMessageBody(
 export function parseQueueMessageBody(
 	body: Partial<QueueMessageRequestBody>,
 ): { value?: ParsedQueueMessageBody; error?: string } {
-	const { conversationId, message, mode, userId, attachments, assetRefs } = body;
+	const { conversationId, message, mode, userId, browserId, attachments, assetRefs } = body;
 
 	if (!isValidConversationId(conversationId)) {
 		return { error: 'Field "conversationId" must be a non-empty string' };
@@ -97,6 +99,7 @@ export function parseQueueMessageBody(
 			message,
 			mode,
 			userId,
+			...(typeof browserId === "string" && browserId.trim() ? { browserId: browserId.trim() } : {}),
 			...(parsedAttachments.attachments ? { attachments: parsedAttachments.attachments } : {}),
 			...(parsedAssetRefs.assetRefs ? { assetRefs: parsedAssetRefs.assetRefs } : {}),
 		},

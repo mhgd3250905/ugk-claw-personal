@@ -57,6 +57,7 @@ function sanitizeMeta(meta) {
     operation: trimMetaValue(meta.operation, 80),
     note: trimMetaValue(meta.note, 160),
     agentScope: trimMetaValue(meta.agentScope, 120),
+    browserId: trimMetaValue(meta.browserId, 64),
   };
 
   return Object.values(sanitized).some((value) => typeof value === 'string')
@@ -91,7 +92,10 @@ function shouldUseLocalFallbackForPayload(payload) {
 }
 
 async function runLocalFallback(command, options) {
-  const localBrowser = options.localBrowser || getDefaultLocalBrowser();
+  const localBrowser = options.localBrowser || getDefaultLocalBrowser({
+    env: options.env,
+    meta: sanitizeMeta(options.meta),
+  });
   return await localBrowser.handleCommand(command, {
     meta: sanitizeMeta(options.meta),
   });

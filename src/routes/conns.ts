@@ -20,6 +20,7 @@ import {
 	supportsInlinePreview,
 } from "./file-route-utils.js";
 import { sendBadRequest, sendInternalError } from "./http-errors.js";
+import type { BrowserRegistry } from "../browser/browser-registry.js";
 import type {
 	ConnBulkDeleteRequestBody,
 	ConnBulkDeleteResponseBody,
@@ -34,6 +35,7 @@ interface ConnRouteOptions {
 	connStore: ConnStoreLike;
 	connRunStore: ConnRunStoreLike;
 	backgroundDataDir: string;
+	browserRegistry?: BrowserRegistry;
 	publicBaseUrl?: string;
 }
 
@@ -48,6 +50,7 @@ interface ConnStoreLike {
 		assetRefs?: string[];
 		maxRunMs?: number;
 		profileId?: string;
+		browserId?: string;
 		agentSpecId?: string;
 		skillSetId?: string;
 		modelPolicyId?: string;
@@ -76,7 +79,7 @@ interface ConnStoreLike {
 				| "upgradePolicy"
 				| "publicSiteId"
 			>
-		>,
+		> & { browserId?: string | null },
 	): Promise<ConnDefinition | undefined>;
 	delete(connId: string): Promise<boolean>;
 	deleteMany?(connIds: readonly string[]): Promise<ConnBulkDeleteResponseBody>;
@@ -287,6 +290,20 @@ function sendConnValidationError(reply: FastifyReply, error: unknown): FastifyRe
 	return sendBadRequest(reply, error.message);
 }
 
+function validateConnBrowserId(
+	browserRegistry: BrowserRegistry | undefined,
+	browserId: string | null | undefined,
+): string | undefined {
+	const normalized = browserId?.trim();
+	if (!normalized) {
+		return undefined;
+	}
+	if (browserRegistry && !browserRegistry.get(normalized)) {
+		return `Unknown browserId: ${normalized}`;
+	}
+	return undefined;
+}
+
 export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptions): void {
 	app.get("/v1/conns", async (): Promise<ConnListResponseBody> => {
 		const conns = await options.connStore.list();
@@ -485,6 +502,10 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 			if (parsed.error) {
 				return sendBadRequest(reply, parsed.error);
 			}
+			const browserError = validateConnBrowserId(options.browserRegistry, parsed.value!.browserId);
+			if (browserError) {
+				return sendBadRequest(reply, browserError);
+			}
 
 			const conn = await options.connStore.create({
 				title: parsed.value!.title!,
@@ -494,6 +515,7 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				assetRefs: parsed.value!.assetRefs,
 				...(parsed.value!.maxRunMs !== undefined ? { maxRunMs: parsed.value!.maxRunMs } : {}),
 				profileId: parsed.value!.profileId,
+				...(parsed.value!.browserId ? { browserId: parsed.value!.browserId } : {}),
 				agentSpecId: parsed.value!.agentSpecId,
 				skillSetId: parsed.value!.skillSetId,
 				modelPolicyId: parsed.value!.modelPolicyId,
@@ -542,6 +564,10 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 		if (parsed.error) {
 			return sendBadRequest(reply, parsed.error);
 		}
+		const browserError = validateConnBrowserId(options.browserRegistry, parsed.value!.browserId);
+		if (browserError) {
+			return sendBadRequest(reply, browserError);
+		}
 
 		try {
 			const conn = await options.connStore.update(connId, {
@@ -551,6 +577,7 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				...(parsed.value!.schedule ? { schedule: parsed.value!.schedule } : {}),
 				...(body.assetRefs !== undefined ? { assetRefs: parsed.value!.assetRefs ?? [] } : {}),
 				...(body.profileId !== undefined ? { profileId: parsed.value!.profileId } : {}),
+				...(body.browserId !== undefined ? { browserId: parsed.value!.browserId ?? null } : {}),
 				...(body.agentSpecId !== undefined ? { agentSpecId: parsed.value!.agentSpecId } : {}),
 				...(body.skillSetId !== undefined ? { skillSetId: parsed.value!.skillSetId } : {}),
 				...(body.modelPolicyId !== undefined ? { modelPolicyId: parsed.value!.modelPolicyId } : {}),

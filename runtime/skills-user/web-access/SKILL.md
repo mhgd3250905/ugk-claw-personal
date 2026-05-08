@@ -95,13 +95,16 @@ Do not tell a Docker sidecar user to start this launcher just because Chrome is 
 
 Sidecar facts:
 
-- GUI login entrypoint: `https://127.0.0.1:3901/`
-- CDP endpoint inside compose: `http://172.31.250.10:9223`
+- Default GUI login entrypoint: `https://127.0.0.1:3901/`
+- Additional local GUI entrypoints: `chrome-01` at `https://127.0.0.1:3902/`, `chrome-02` at `https://127.0.0.1:3903/`
+- Default CDP endpoint inside compose: `http://172.31.250.10:9223`
 - Persistent profile on the host: `.data/chrome-sidecar`
 - Chrome profile inside the sidecar container: `${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar}`
 - Browser-reachable app base URL: `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL=http://ugk-pi:3000`
 
 Manual login and automation must use the same profile path. Do not split manual login and auto-start across different profile directories.
+
+When the platform assigns a `browserId`, keep passing `metaAgentScope` to proxy calls. The bridge resolves the browser through explicit `metaBrowserId`, then the current scope route cache, then `WEB_ACCESS_BROWSER_ID`. Do not rewrite `WEB_ACCESS_CDP_HOST` during a task; it is process-global and can make concurrent work jump browsers.
 
 Chrome must stay on `DISPLAY=:0` with `--ozone-platform=x11`. Do not switch it back to Wayland unless Chrome top-layer UI clicks are revalidated.
 

@@ -38,6 +38,21 @@ test("createStoredAgentProfile persists an isolated agent profile", async () => 
 	assert.doesNotMatch(rules, /GET \/v1\/agents\/search\/debug\/skills/);
 });
 
+test("createStoredAgentProfile persists a user-selected default browser id", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
+
+	await createStoredAgentProfile(projectRoot, {
+		agentId: "research",
+		name: "研究 Agent",
+		description: "用于资料研究。",
+		defaultBrowserId: "work-01",
+	});
+	const loaded = loadAgentProfilesSync(projectRoot);
+	const research = resolveAgentProfile(loaded, "research");
+
+	assert.equal(research?.defaultBrowserId, "work-01");
+});
+
 test("createStoredAgentProfile copies selected main agent skills into the new system skill root", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-profile-"));
 	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });

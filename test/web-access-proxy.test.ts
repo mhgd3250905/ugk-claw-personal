@@ -140,3 +140,29 @@ test("cdp proxy exposes /session/navigate for scoped single-tab navigation", asy
 		await once(server, "close");
 	}
 });
+
+test("cdp proxy forwards browserId metadata to browser requests", async () => {
+	const calls: Array<{ command: Record<string, unknown>; meta?: Record<string, unknown> }> = [];
+	const server = createProxyServer({
+		requestHostBrowser: async (command: Record<string, unknown>, options: { meta?: Record<string, unknown> }) => {
+			calls.push({ command, meta: options.meta });
+			return { ok: true, target: { id: "target-1", url: command.url } };
+		},
+	});
+
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as AddressInfo;
+
+	try {
+		const response = await fetch(
+			`http://127.0.0.1:${port}/new?url=https%3A%2F%2Fexample.com&metaAgentScope=scope-1&metaBrowserId=chrome-01`,
+		);
+
+		assert.equal(response.status, 200);
+		assert.equal(calls[0]?.meta?.agentScope, "scope-1");
+		assert.equal(calls[0]?.meta?.browserId, "chrome-01");
+	} finally {
+		server.close();
+		await once(server, "close");
+	}
+});

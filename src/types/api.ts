@@ -2,6 +2,7 @@ export interface ChatRequestBody {
 	conversationId?: string;
 	message: string;
 	userId?: string;
+	browserId?: string;
 	attachments?: ChatAttachmentBody[];
 	assetRefs?: string[];
 }
@@ -104,6 +105,7 @@ export interface ConnBody {
 	assetRefs: string[];
 	maxRunMs?: number;
 	profileId?: string;
+	browserId?: string;
 	agentSpecId?: string;
 	skillSetId?: string;
 	modelPolicyId?: string;
@@ -274,6 +276,25 @@ export interface RuntimeDebugResponseBody {
 		browserProvider?: string;
 		webAccessBrowserPublicBaseUrl?: string;
 	};
+}
+
+export interface BrowserInstanceBody {
+	browserId: string;
+	name: string;
+	cdpHost: string;
+	cdpPort: number;
+	guiUrl?: string;
+	profileLabel?: string;
+	isDefault?: boolean;
+}
+
+export interface BrowserListResponseBody {
+	defaultBrowserId: string;
+	browsers: BrowserInstanceBody[];
+}
+
+export interface BrowserDetailResponseBody {
+	browser: BrowserInstanceBody;
 }
 
 export interface CleanupDebugResponseBody {
@@ -485,6 +506,7 @@ export interface QueueMessageRequestBody {
 	message: string;
 	mode: QueueMessageMode;
 	userId?: string;
+	browserId?: string;
 	attachments?: ChatAttachmentBody[];
 	assetRefs?: string[];
 }
@@ -493,7 +515,7 @@ export interface QueueMessageResponseBody {
 	conversationId: string;
 	mode: QueueMessageMode;
 	queued: boolean;
-	reason?: "not_running";
+	reason?: "not_running" | "browser_changed";
 }
 
 export interface InterruptChatRequestBody {

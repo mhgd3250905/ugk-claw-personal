@@ -10,6 +10,7 @@
   - 腾讯云：`~/ugk-claw-shared/runtime/skills-user`
   - 阿里云：`/root/ugk-claw-shared/runtime/skills-user`
 - 生产 compose 必须通过 `UGK_RUNTIME_SKILLS_USER_DIR` 把 shared skills 挂到容器 `/app/runtime/skills-user`
+- 多 Chrome 实例必须各自使用独立 config/profile 目录；`UGK_BROWSER_INSTANCES_JSON` 只登记 CDP/GUI 元数据，不负责复制登录态。现有 `UGK_BROWSER_CONFIG_DIR` 对应 `default`，不要让新增实例复用它。
 - Web 里选择的默认 API 源 / 模型属于运行态，生产容器必须设置 `UGK_MODEL_SETTINGS_PATH=/app/.data/agent/model-settings.json`，让它落在 shared agent data 挂载里；仓库 `.pi/settings.json` 只做首次默认值
 - 禁止把 `.env`、`.data`、skills、Chrome profile、日志、临时 tar 包当作代码发布内容
 - 发布拉取远端由 `scripts/server-ops.mjs` 固定选择：腾讯云默认 `origin`，阿里云默认 `gitee`。阿里云不要再优先连 GitHub，国内网络下这属于浪费时间还增加失败面。
@@ -52,6 +53,7 @@ npm run server:ops -- aliyun verify
 - 容器内 `/app/.data/agents` 是否是可写挂载
 - app 与 conn worker 的 `UGK_MODEL_SETTINGS_PATH` 是否指向 `/app/.data/agent/model-settings.json`
 - `WEB_ACCESS_BROWSER_PROVIDER` 是否为 `direct_cdp`
+- `GET /v1/browsers` 是否至少返回 `default`，且 `default` 仍指向当前生产 CDP
 - Chrome sidecar 容器是否真的有 Docker memory limit
 - Chrome 实际进程命令行是否包含 `max-old-space-size=1536`
 - sidecar 本机 `127.0.0.1:9222/json/version` 是否可达

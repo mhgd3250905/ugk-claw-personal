@@ -52,9 +52,16 @@ test("playground renders agent management entry points and workspace", () => {
 	assert.match(html, /主 Agent 可查看不可删除/);
 	assert.match(html, /id="agent-editor-dialog"/);
 	assert.match(html, /id="agent-editor-form"/);
+	assert.match(html, /id="agent-editor-browser-select"/);
+	assert.match(html, /browserCatalog:\s*\[\]/);
+	assert.match(html, /async function loadBrowserCatalog/);
+	assert.match(html, /fetch\("\/v1\/browsers"/);
+	assert.match(html, /defaultBrowserId/);
+	assert.match(html, /renderBrowserOptions/);
 	assert.match(html, /agentManagerMode:\s*"detail"/);
 	assert.match(html, /agent-manager-create/);
 	assert.match(html, /Agent ID（自动生成）/);
+	assert.match(html, /默认浏览器/);
 	assert.match(html, /AGENTS\.md 预览/);
 	assert.match(html, /initialSystemSkillNames/);
 	assert.match(html, /\/v1\/agents\/main\/debug\/skills/);

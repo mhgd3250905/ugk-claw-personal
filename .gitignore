@@ -1,5 +1,6 @@
 .codex/tmp/
 .tmp/
+.ugk-browser-bin/
 .env
 .pi/sessions/
 .data/

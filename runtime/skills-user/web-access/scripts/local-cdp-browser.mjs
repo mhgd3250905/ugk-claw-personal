@@ -13,6 +13,9 @@ const DEFAULT_LISTEN_ADDRESS =
   process.env.WEB_ACCESS_CDP_LISTEN_ADDRESS || DEFAULT_HOST;
 const DEFAULT_SCOPE_CACHE_PATH =
   process.env.WEB_ACCESS_SCOPE_CACHE_PATH || '/app/.data/browser-scope-cache.json';
+const DEFAULT_BROWSER_ID = 'default';
+const DEFAULT_BROWSER_SCOPE_ROUTE_CACHE_PATH =
+  process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH || '/app/.data/browser-scope-routes.json';
 
 function normalizePublicBaseUrl(options = {}) {
   return String(
@@ -105,6 +108,106 @@ function normalizeBaseUrl(options = {}) {
     return String(options.endpoint).replace(/\/$/, '');
   }
   return `http://${options.host || DEFAULT_HOST}:${options.port || DEFAULT_PORT}`;
+}
+
+function normalizeBrowserId(value) {
+  const browserId = String(value || '').trim();
+  return /^[a-z][a-z0-9-]{0,62}$/.test(browserId) ? browserId : undefined;
+}
+
+function normalizeBrowserInstance(input) {
+  if (!input || typeof input !== 'object') return undefined;
+  const browserId = normalizeBrowserId(input.browserId);
+  const cdpHost = String(input.cdpHost || '').trim();
+  const cdpPort = Number(input.cdpPort);
+  if (!browserId || !cdpHost || !Number.isInteger(cdpPort) || cdpPort <= 0 || cdpPort > 65535) {
+    return undefined;
+  }
+  return {
+    browserId,
+    cdpHost,
+    cdpPort,
+  };
+}
+
+function readBrowserInstancesFromEnv(env = process.env) {
+  const raw = String(env.UGK_BROWSER_INSTANCES_JSON || '').trim();
+  if (!raw) {
+    return [
+      {
+        browserId: DEFAULT_BROWSER_ID,
+        cdpHost: env.WEB_ACCESS_CDP_HOST || DEFAULT_HOST,
+        cdpPort: Number(env.WEB_ACCESS_CDP_PORT || DEFAULT_PORT),
+      },
+    ];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeBrowserInstance).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function readBrowserScopeRoute(scope, options = {}) {
+  const normalizedScope = String(scope || '').trim();
+  if (!normalizedScope) return undefined;
+  const cachePath =
+    options.routeCachePath ||
+    options.env?.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH ||
+    DEFAULT_BROWSER_SCOPE_ROUTE_CACHE_PATH;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+    const route = parsed?.routes?.[normalizedScope];
+    return normalizeBrowserId(route?.browserId);
+  } catch {
+    return undefined;
+  }
+}
+
+export function resolveBrowserIdFromMeta(meta = {}, options = {}) {
+  const env = options.env || process.env;
+  const explicitBrowserId = normalizeBrowserId(meta?.browserId);
+  if (explicitBrowserId) return explicitBrowserId;
+
+  const scopedBrowserId = readBrowserScopeRoute(meta?.agentScope, options);
+  if (scopedBrowserId) return scopedBrowserId;
+
+  if (String(meta?.agentScope || '').trim()) {
+    return normalizeBrowserId(env.UGK_DEFAULT_BROWSER_ID) || DEFAULT_BROWSER_ID;
+  }
+
+  return (
+    normalizeBrowserId(env.WEB_ACCESS_BROWSER_ID) ||
+    normalizeBrowserId(env.UGK_DEFAULT_BROWSER_ID) ||
+    DEFAULT_BROWSER_ID
+  );
+}
+
+export function resolveBrowserInstanceFromEnv(browserId, env = process.env) {
+  const normalizedBrowserId = normalizeBrowserId(browserId) || DEFAULT_BROWSER_ID;
+  const instances = readBrowserInstancesFromEnv(env);
+  const instance = instances.find((entry) => entry.browserId === normalizedBrowserId);
+  if (instance) {
+    return instance;
+  }
+  return (
+    instances.find((entry) => entry.browserId === DEFAULT_BROWSER_ID) || {
+      browserId: DEFAULT_BROWSER_ID,
+      cdpHost: env.WEB_ACCESS_CDP_HOST || DEFAULT_HOST,
+      cdpPort: Number(env.WEB_ACCESS_CDP_PORT || DEFAULT_PORT),
+    }
+  );
+}
+
+function resolveScopeCachePathForBrowser(browserId, env = process.env) {
+  const basePath = env.WEB_ACCESS_SCOPE_CACHE_PATH || DEFAULT_SCOPE_CACHE_PATH;
+  if (!browserId || browserId === DEFAULT_BROWSER_ID) {
+    return basePath;
+  }
+  const parsed = path.parse(basePath);
+  return path.join(parsed.dir, `${parsed.name}-${browserId}${parsed.ext || '.json'}`);
 }
 
 function resolveAgentScopeFromEnv(env = process.env) {
@@ -915,9 +1018,22 @@ export class LocalCdpBrowser {
   }
 }
 
-let defaultLocalBrowser;
+const localBrowsersById = new Map();
 
-export function getDefaultLocalBrowser() {
-  defaultLocalBrowser ||= new LocalCdpBrowser();
-  return defaultLocalBrowser;
+export function getDefaultLocalBrowser(options = {}) {
+  const env = options.env || process.env;
+  const browserId = resolveBrowserIdFromMeta(options.meta, options);
+  const instance = resolveBrowserInstanceFromEnv(browserId, env);
+  const cacheKey = instance.browserId;
+  if (!localBrowsersById.has(cacheKey)) {
+    localBrowsersById.set(
+      cacheKey,
+      new LocalCdpBrowser({
+        host: instance.cdpHost,
+        port: instance.cdpPort,
+        scopeCachePath: resolveScopeCachePathForBrowser(instance.browserId, env),
+      }),
+    );
+  }
+  return localBrowsersById.get(cacheKey);
 }

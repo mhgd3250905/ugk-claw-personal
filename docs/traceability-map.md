@@ -234,6 +234,8 @@
 - host browser bridge
 - Docker Chrome sidecar
 - `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`
+- `GET /v1/browsers`
+- `UGK_BROWSER_INSTANCES_JSON`
 - `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`
 - `POST /session/close-all?metaAgentScope=...`
 - Chrome 持久 profile

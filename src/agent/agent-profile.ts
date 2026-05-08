@@ -9,6 +9,7 @@ export interface AgentProfile {
 	agentId: string;
 	name: string;
 	description: string;
+	defaultBrowserId?: string;
 	dataDir: string;
 	sessionsDir: string;
 	conversationIndexPath: string;
@@ -25,6 +26,7 @@ export interface AgentProfileSummaryInput {
 	agentId: string;
 	name: string;
 	description: string;
+	defaultBrowserId?: string;
 }
 
 export function isValidAgentId(agentId: string): boolean {
@@ -40,6 +42,7 @@ export function createAgentProfileFromSummary(
 		agentId: input.agentId,
 		name: input.name,
 		description: input.description,
+		...(input.defaultBrowserId ? { defaultBrowserId: input.defaultBrowserId } : {}),
 		dataDir,
 		sessionsDir: join(dataDir, "sessions"),
 		conversationIndexPath: join(dataDir, "conversation-index.json"),

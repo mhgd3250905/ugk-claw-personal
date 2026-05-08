@@ -20,11 +20,12 @@
 
 ### 1.2 当前未跟踪现场
 
-以下文件是本地 runtime / 临时现场，不纳入本轮治理提交：
+截至 `2026-05-08`，本轮接手前遗留的本地 runtime / 临时现场已清理。后续不要把同类文件纳入治理提交：
 
-- `runtime/dangyang-weather-2026-05-01.json`
-- `runtime/karpathy-guidelines-CLAUDE.md`
-- `runtime/tab-accumulation-report.md`
+- `public/test.html`
+- `runtime/*.log`
+- `runtime/*-report.md`
+- `runtime/*weather*.json`
 
 ### 1.3 主要模块规模
 

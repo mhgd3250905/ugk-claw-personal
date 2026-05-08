@@ -134,7 +134,7 @@ git pull --ff-only origin main
 - 改到 `Dockerfile`、`package*.json`、`docker-compose.prod.yml`、`deploy/nginx/default.conf`、`src/`、`runtime/skills-user/` 这类运行路径，默认重建容器；纯文档改动可以只 pull，不必重建。
 - `up --build -d` 重建 `ugk-pi` 后固定 `restart nginx`。nginx 会在启动时解析 `proxy_pass http://ugk-pi:3000`，app 容器重建后 IP 可能变化；如果 nginx 不重启，公网会 502，但 nginx 容器里直接访问 `http://ugk-pi:3000/healthz` 仍然是好的，这个现象非常会骗人。
 - 改过 nginx 配置或公网 `502` 但 app 容器内部健康时，优先 `restart nginx`；如果配置文件也改了，再 `up -d --force-recreate nginx`，别绕一圈怀疑模型、网络和玄学。
-- 发布后至少确认：`git log -1 --oneline`、`git status --short` 为空、内网 `/healthz`、公网 `/healthz`、`docker compose ps`、`UGK_AGENT_DATA_DIR`、`UGK_RUNTIME_SKILLS_USER_DIR`、`/app/.data/agent` 可写、`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`、sidecar `9222/9223` CDP 探针。
+- 发布后至少确认：`git log -1 --oneline`、`git status --short` 为空、内网 `/healthz`、公网 `/healthz`、`docker compose ps`、`UGK_AGENT_DATA_DIR`、`UGK_RUNTIME_SKILLS_USER_DIR`、`/app/.data/agent` 可写、`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`、`GET /v1/browsers` 至少返回 `default`、sidecar `9222/9223` CDP 探针。
 
 ## server:ops 当前硬闸门
 
@@ -152,6 +152,7 @@ npm run server:ops -- aliyun preflight
 - `UGK_AGENT_DATA_DIR` 必须指向 shared agent data。
 - `/app/.data/agent` 在 app 容器内必须存在且可写。
 - `WEB_ACCESS_BROWSER_PROVIDER` 必须是 `direct_cdp`。
+- 多 Chrome 扩展只登记 `browserId -> CDP/GUI`，不复制登录态；新增实例必须独立 config/profile 目录，不能复用 `default` 的 `.data/chrome-sidecar`。
 - `ugk-pi-browser` 内部 `127.0.0.1:9222/json/version` 必须可达。
 - `ugk-pi` 到 `172.31.250.10:9223/json/version` 必须可达。
 - 内网 / 公网 `/healthz`、`/v1/debug/skills`、`/v1/debug/runtime` 和容器内 skills 清单必须通过。
