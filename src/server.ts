@@ -9,6 +9,7 @@ import {
 	createBrowserRegistryFromEnv,
 	type BrowserRegistry,
 } from "./browser/browser-registry.js";
+import { BrowserControlService } from "./browser/browser-control.js";
 import {
 	DEFAULT_AGENT_ID,
 	type AgentProfile,
@@ -48,6 +49,7 @@ export interface BuildServerOptions {
 	activityStore?: AgentActivityStore;
 	notificationHub?: NotificationHub;
 	browserRegistry?: BrowserRegistry;
+	browserControl?: BrowserControlService;
 	backgroundDataDir?: string;
 	modelConfigStore?: ModelConfigStore;
 	modelSelectionValidator?: ModelSelectionValidator;
@@ -138,7 +140,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	registerPlaygroundRoute(app, { projectRoot: config.projectRoot });
 	registerStaticRoutes(app, { projectRoot: config.projectRoot });
 	registerActivityRoutes(app, { activityStore });
-	registerBrowserRoutes(app, { browserRegistry });
+	registerBrowserRoutes(app, { browserRegistry, browserControl: options.browserControl });
 	registerChatRoutes(app, {
 		agentService,
 		agentServiceRegistry,

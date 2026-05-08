@@ -2,6 +2,15 @@
 
 更新时间：`2026-05-08`
 
+## 2026-05-08 Chrome 工作台
+
+- Playground 新增 `Chrome 工作台`，桌面入口在右侧设置菜单，手机入口在更多菜单。它是浏览器运行态查看面板，不负责复制登录态，也不把浏览器生命周期塞进 Agent profile。
+- 工作台读取 `GET /v1/browsers` 渲染已注册 Chrome，再按选中 `browserId` 调用 `GET /v1/browsers/:browserId/status` 读取 CDP 在线状态、版本信息和当前 targets；前台默认只展示 `type=page` 的真实页面，iframe / service worker 等浏览器内部 target 只用中文提示折叠数量，避免外行用户把内部对象误认为打开了很多网页。
+- 页面条目用绿色 `页面` 类别标签和高亮网址作为主识别信息；菜单和状态文案使用中文口径，例如 `在线 / 离线`、`系统默认 / 独立登录态`、`技术地址`。
+- 页面条目会展示页面级负载估算：`JS 内存`、`页面元素`、`事件`，并用 `占用正常 / 占用较多 / 占用偏高 / 占用未知` 帮普通用户快速判断哪个页面可能拖慢服务器。这里不是 Docker 容器总内存；准确容器 RSS 需要后续接入受控 actuator 或 cgroup 读取，不能把 Docker socket 直接交给主服务。
+- `启动` 按钮已经接到 `POST /v1/browsers/:browserId/start` 扩展点，但当前 app 没有 Docker 管理权限，默认返回“不支持从 Web 启动”。后续如果要真启动，只能接受控 actuator，不能把 Docker socket 直接塞给前台服务。
+- 相关源码：`src/browser/browser-control.ts`、`src/browser/browser-target-usage.ts`、`src/routes/browsers.ts`、`src/ui/playground-browser-workbench.ts`、`src/ui/playground.ts`
+
 ## 2026-05-08 Conn 浏览器选择
 
 - 后台任务创建 / 编辑器现在提供“浏览器”下拉，选项来自 `GET /v1/browsers`；不指定时显示“跟随执行 Agent”。

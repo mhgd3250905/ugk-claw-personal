@@ -129,6 +129,7 @@ git pull --ff-only origin main
 
 - 本地没提交、没推送，就不要让服务器 pull。服务器不是你的草稿箱。
 - `.env`、API key、`.data/agent`、`.data/chrome-sidecar`、日志、tar 包和临时报告都不属于 Git 仓库。
+- 本次 Chrome 工作台 / 多浏览器更新只需要增量更新代码并重建 `ugk-pi` / worker / nginx；不要删除、覆盖或迁移 shared 里的 Chrome profile。腾讯云重点保护 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云重点保护 `/root/ugk-claw-shared/.data/chrome-sidecar*`。别用 `docker compose down -v`、别删 shared、别把本地 `.data/chrome-*` 传上去覆盖生产，登录态不是可再生耗材。
 - 生产用户技能不要再依赖 clean Git 工作目录里的 `runtime/skills-user`。`docker-compose.prod.yml` 支持 `UGK_RUNTIME_SKILLS_USER_DIR`，腾讯云固定指向 `~/ugk-claw-shared/runtime/skills-user`，阿里云固定指向 `/root/ugk-claw-shared/runtime/skills-user`；把用户态技能继续放 repo 目录里，就是等下一次 clean checkout 把它们请走。
 - agent 会话、session、资产和 conn 数据必须通过 `UGK_AGENT_DATA_DIR` 指到 shared agent data：腾讯云固定是 `~/ugk-claw-shared/.data/agent`，阿里云固定是 `/root/ugk-claw-shared/.data/agent`。少了这条，重建容器就等于把用户历史押在容器可写层上，听起来就已经够离谱。
 - 改到 `Dockerfile`、`package*.json`、`docker-compose.prod.yml`、`deploy/nginx/default.conf`、`src/`、`runtime/skills-user/` 这类运行路径，默认重建容器；纯文档改动可以只 pull，不必重建。
@@ -153,6 +154,7 @@ npm run server:ops -- aliyun preflight
 - `/app/.data/agent` 在 app 容器内必须存在且可写。
 - `WEB_ACCESS_BROWSER_PROVIDER` 必须是 `direct_cdp`。
 - 多 Chrome 扩展只登记 `browserId -> CDP/GUI`，不复制登录态；新增实例必须独立 config/profile 目录，不能复用 `default` 的 `.data/chrome-sidecar`。
+- Chrome 工作台的 `/v1/browsers/:browserId/status` 只读取 CDP 状态和页面级负载估算，不需要 Docker socket；`/start` 当前是受控启动扩展点，默认 501。生产验收时看到 501 不是故障，别为了让按钮“真启动”给主 app 挂 Docker 管理权限。
 - `ugk-pi-browser` 内部 `127.0.0.1:9222/json/version` 必须可达。
 - `ugk-pi` 到 `172.31.250.10:9223/json/version` 必须可达。
 - 内网 / 公网 `/healthz`、`/v1/debug/skills`、`/v1/debug/runtime` 和容器内 skills 清单必须通过。

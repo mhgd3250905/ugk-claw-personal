@@ -11,8 +11,8 @@
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
-- 当前本地最新提交：`c95af2d Release v1.2.0`
-- 当前 `origin/main` / `gitee/main`：均已推送到 `c95af2d`；`v1.2.0` tag 也已同步推送到 GitHub 和 Gitee。
+- 当前本地最新提交：本文件所在 HEAD，提交主题为 `Add Chrome workbench`；具体 hash 以 `git log -1 --oneline` 为准。
+- 当前 `origin/main` / `gitee/main`：仍停在上一轮已推送版本；本地 HEAD 需要先推送到目标远端后，服务器才能走 Git fast-forward 增量更新。`v1.2.0` tag 仍指向上一轮稳定版，不代表本轮 Chrome 工作台已上线。
 - 腾讯云生产运行代码提交：最近一次已增量更新并验证到 `260faf3 Add conn public directory contract`，随后本地只追加版本号 / change-log release commit `c95af2d`。
 - 阿里云生产运行代码提交：最近一次已增量更新并验证到 `260faf3 Add conn public directory contract`，随后本地只追加版本号 / change-log release commit `c95af2d`。
 - 本轮稳定版主线：Playground 会话菜单、任务消息重设计、Markdown 代码块宽度约束、浅色主题 / 后台任务 / Agent 设置页面视觉一致性收口、UI 层级清理，以及 conn 长期公开目录 / 站点级公开目录契约。
@@ -28,7 +28,18 @@
 - 阿里云主部署目录：`/root/ugk-claw-repo`
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
-- 当前未提交本地现场：本轮只剩交接文档和架构治理审计文档的事实校准需要视情况提交；此前遗留的 `public/test.html` 和 `runtime/*` 临时日志 / 报告已清理，不要在后续任务里恢复为仓库内容。
+- 当前待发布本地现场：Chrome 工作台第一阶段已经在本地完成并验证，准备提交后走双云 Git 增量发布。发布时必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`；不要整目录覆盖 shared，不要 `docker compose down -v`，不要复制本地 Chrome profile 到服务器。
+- 当前未跟踪文件：`runtime/xhs-extract.mjs` 来源不属于本轮 Chrome 工作台，继续不要提交、不要删除，除非用户明确说明它的归属。
+
+## 2026-05-08 Chrome 工作台待发布摘要
+
+本轮新增前台 `Chrome 工作台`：
+
+- 接口：`GET /v1/browsers/:browserId/status`、`POST /v1/browsers/:browserId/targets/:targetId/close`、`POST /v1/browsers/:browserId/start`。
+- 后端边界：`BrowserControlService` 负责编排 CDP 状态，`BrowserTargetUsageReader` / `CdpBrowserTargetUsageReader` 独立读取页面级 JS heap、DOM 节点和事件监听器；不接 Docker socket。
+- 前端边界：`src/ui/playground-browser-workbench.ts` 独立承载工作台样式、弹层和脚本；Playground 只负责装配入口与 workspace 模式。
+- 用户可见口径：默认只展示真实 `page` 页面，iframe / service worker 等内部 target 只折叠为中文提示；页面条目突出 `页面` 标签、网址和占用状态。
+- 生产部署口径：这是代码增量，不是登录态迁移；保留现有 Chrome sidecar profile 和 shared 数据即可。
 
 ## 最近已完成
 

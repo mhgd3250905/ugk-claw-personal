@@ -12,6 +12,12 @@
 
 ## 2026-05-08
 
+### Chrome 工作台第一阶段
+- 日期：2026-05-08
+- 主题：在 Playground 前台提供 Chrome 工作台，减少必须 SSH tunnel 到本地端口才能查看浏览器状态的原始操作。
+- 影响范围：新增 `BrowserControlService`，`/v1/browsers/:browserId/status` 返回 CDP 在线状态、版本和页面 target 列表，并为真实页面补充 JS heap、DOM 节点和事件监听器等页面级负载估算；`/v1/browsers/:browserId/targets/:targetId/close` 支持关闭单个页面，`/v1/browsers/:browserId/start` 作为受控启动扩展点但当前默认 501。Playground 新增桌面 / 手机入口和工作区面板，可切换浏览器、刷新状态、查看页面并关闭 target；前台默认只展示真实页面，iframe / service worker 等底层 target 只折叠为中文提示，页面条目突出显示类别标签、网址和占用状态。当前不挂 Docker socket，不从 Web 直接重启或创建 Chrome，登录态仍由用户自己维护。
+- 对应入口：`src/browser/browser-control.ts`、`src/browser/browser-target-usage.ts`、`src/routes/browsers.ts`、`src/ui/playground-browser-workbench.ts`、`src/ui/playground.ts`、`docs/playground-current.md`、`docs/web-access-browser-bridge.md`
+
 ### 多 Chrome browserId 注册表第一阶段
 - 日期：2026-05-08
 - 主题：为多 Chrome / 多登录态隔离打基础，引入只读 Browser Registry 和 Agent 默认 `browserId` 配置，不触碰现有 Chrome profile。

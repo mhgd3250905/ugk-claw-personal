@@ -503,6 +503,17 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\/v1\/model-config/);
 	assert.match(response.body, /\/v1\/model-config\/validate/);
 	assert.match(response.body, /\/v1\/model-config\/default/);
+	assert.match(response.body, /open-browser-workbench-button/);
+	assert.match(response.body, /browser-workbench-dialog/);
+	assert.match(response.body, /browser-workbench-list/);
+	assert.match(response.body, /browser-workbench-targets/);
+	assert.match(response.body, /function openBrowserWorkbench/);
+	assert.match(response.body, /JS 内存/);
+	assert.match(response.body, /页面元素/);
+	assert.match(response.body, /占用偏高/);
+	assert.match(response.body, /\/v1\/browsers\/" \+ encodeURIComponent\(browserId\) \+ "\/status/);
+	assert.match(response.body, /\/targets\/" \+ encodeURIComponent\(targetId\) \+ "\/close/);
+	assert.match(response.body, /\/start/);
 	assert.match(response.body, /file-picker-action/);
 	assert.match(response.body, /asset-modal-list/);
 	assert.match(response.body, /close-asset-modal-button/);
@@ -2216,6 +2227,7 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /id="mobile-menu-library-button"/);
 	assert.match(response.body, /id="mobile-menu-task-inbox-button"/);
 	assert.match(response.body, /id="mobile-menu-model-config-button"/);
+	assert.match(response.body, /id="mobile-menu-browser-workbench-button"/);
 	assert.match(response.body, /id="mobile-task-inbox-unread-badge"/);
 	assert.match(response.body, /\.mobile-topbar\s*\{[\s\S]*display:\s*none;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);

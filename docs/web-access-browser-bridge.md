@@ -95,7 +95,14 @@ profileLabel=chrome-sidecar
 ```text
 GET /v1/browsers
 GET /v1/browsers/:browserId
+GET /v1/browsers/:browserId/status
+POST /v1/browsers/:browserId/targets/:targetId/close
+POST /v1/browsers/:browserId/start
 ```
+
+`/status` 只通过 CDP 读取当前 Chrome 是否在线、版本信息和 target 列表；真实页面 target 会尽量补充页面级负载估算，包括 JS heap、DOM 节点、document 数和事件监听器数量。这些指标用于发现“哪个页面明显偏重”，不是 Chrome 容器总 RSS，也不是服务器总内存。`/targets/:targetId/close` 关闭指定页面 target。`/start` 是后续受控启动器的扩展点，当前默认返回 `501`，因为 app 容器没有也不应该直接拥有 Docker 管理权限。别为了图省事把 Docker socket 挂进主服务，那就是把钥匙插门上还嫌门不够智能。
+
+Playground 的 `Chrome 工作台` 使用这些接口做只读状态查看和单页关闭。它不保存 cookie、不读取 profile、不迁移登录态，也不负责修改 Agent / Conn 的浏览器绑定。
 
 可选配置：
 

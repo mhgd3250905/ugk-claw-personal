@@ -297,6 +297,58 @@ export interface BrowserDetailResponseBody {
 	browser: BrowserInstanceBody;
 }
 
+export interface BrowserTargetStatusBody {
+	targetId: string;
+	type: string;
+	title: string;
+	url: string;
+	attached?: boolean;
+	usage?: BrowserTargetUsageBody;
+}
+
+export interface BrowserTargetUsageBody {
+	jsHeapUsedBytes?: number;
+	jsHeapTotalBytes?: number;
+	domNodes?: number;
+	documents?: number;
+	eventListeners?: number;
+	available: boolean;
+}
+
+export interface BrowserRuntimeStatusBody {
+	browser: BrowserInstanceBody;
+	online: boolean;
+	cdpUrl: string;
+	version?: {
+		browser?: string;
+		protocolVersion?: string;
+		webSocketDebuggerUrl?: string;
+	};
+	targets: BrowserTargetStatusBody[];
+	capabilities: {
+		closeTarget: boolean;
+		start: boolean;
+		restart: boolean;
+		memory: boolean;
+	};
+	message?: string;
+}
+
+export interface BrowserStatusResponseBody {
+	status: BrowserRuntimeStatusBody;
+}
+
+export interface BrowserCloseTargetResponseBody {
+	closed: boolean;
+	targetId: string;
+}
+
+export interface BrowserStartResponseBody {
+	started: boolean;
+	supported: boolean;
+	message: string;
+}
+
 export interface CleanupDebugResponseBody {
 	ok: boolean;
 	connTargets: {

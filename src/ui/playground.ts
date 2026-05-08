@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getPlaygroundActiveRunNormalizerScript } from "./playground-active-run-normalizer.js";
+import {
+	getPlaygroundBrowserWorkbenchDialogs,
+	getPlaygroundBrowserWorkbenchScript,
+	getPlaygroundBrowserWorkbenchStyles,
+} from "./playground-browser-workbench.js";
 import { getConnActivityDialogs } from "./playground-conn-activity.js";
 import {
 	getPlaygroundAgentManagerDialogs,
@@ -70,6 +75,7 @@ export interface PlaygroundRenderBundle {
 	taskInboxView: string;
 	connActivityDialogs: string;
 	agentManagerDialogs: string;
+	browserWorkbenchDialogs: string;
 	assetDialogs: string;
 }
 
@@ -160,6 +166,13 @@ function getPlaygroundScript(): string {
 			browserCatalog: [],
 			defaultBrowserId: "default",
 			browserCatalogReliable: true,
+			browserWorkbenchOpen: false,
+			browserWorkbenchLoading: false,
+			browserWorkbenchStarting: false,
+			browserWorkbenchSelectedBrowserId: "",
+			browserWorkbenchStatus: null,
+			browserWorkbenchActionTargetId: "",
+			browserWorkbenchRestoreFocusElement: null,
 			conversationId: "",
 			streamingText: "",
 			activeAssistantContent: null,
@@ -372,6 +385,15 @@ function getPlaygroundScript(): string {
 		const modelConfigTest = document.getElementById("model-config-test");
 		const modelConfigSave = document.getElementById("model-config-save");
 		const openFeishuSettingsButton = document.getElementById("open-feishu-settings-button");
+		const openBrowserWorkbenchButton = document.getElementById("open-browser-workbench-button");
+		const browserWorkbenchDialog = document.getElementById("browser-workbench-dialog");
+		const closeBrowserWorkbenchButton = document.getElementById("close-browser-workbench-button");
+		const refreshBrowserWorkbenchButton = document.getElementById("refresh-browser-workbench-button");
+		const startBrowserWorkbenchButton = document.getElementById("start-browser-workbench-button");
+		const browserWorkbenchList = document.getElementById("browser-workbench-list");
+		const browserWorkbenchSummary = document.getElementById("browser-workbench-summary");
+		const browserWorkbenchStatus = document.getElementById("browser-workbench-status");
+		const browserWorkbenchTargets = document.getElementById("browser-workbench-targets");
 		const feishuSettingsDialog = document.getElementById("feishu-settings-dialog");
 		const feishuSettingsClose = document.getElementById("feishu-settings-close");
 		const feishuSettingsCurrent = document.getElementById("feishu-settings-current");
@@ -593,6 +615,7 @@ function getPlaygroundScript(): string {
 
 		${getPlaygroundContextUsageControllerScript()}
 		${getPlaygroundWorkspaceControllerScript()}
+		${getPlaygroundBrowserWorkbenchScript()}
 
 		${getPlaygroundAgentManagerScript()}
 
@@ -1068,6 +1091,7 @@ function getPlaygroundScript(): string {
 			openFeishuSettingsButton.addEventListener("click", () => {
 				void openFeishuSettingsDialog(openFeishuSettingsButton);
 			});
+			bindBrowserWorkbenchEvents();
 			modelConfigClose.addEventListener("click", closeModelConfigDialog);
 			modelConfigDialog.addEventListener("click", (event) => {
 				if (event.target === modelConfigDialog) {
@@ -1176,6 +1200,10 @@ function getPlaygroundScript(): string {
 				if (event.key === "Escape" && state.feishuSettingsOpen) {
 					closeFeishuSettingsDialog();
 				}
+				if (event.key === "Escape" && state.browserWorkbenchOpen) {
+					closeBrowserWorkbench();
+					return;
+				}
 				if (event.key === "Escape" && state.agentRulesEditorOpen) {
 					closeAgentRulesEditor();
 					return;
@@ -1246,12 +1274,13 @@ function getPlaygroundScript(): string {
 
 export function getPlaygroundRenderBundle(): PlaygroundRenderBundle {
 	return {
-		styles: getPlaygroundStyles() + getPlaygroundAgentManagerStyles(),
+		styles: getPlaygroundStyles() + getPlaygroundAgentManagerStyles() + getPlaygroundBrowserWorkbenchStyles(),
 		markedBrowserScript: getMarkedBrowserScript(),
 		playgroundScript: getPlaygroundScript(),
 		taskInboxView: getPlaygroundTaskInboxView(),
 		connActivityDialogs: getConnActivityDialogs(),
 		agentManagerDialogs: getPlaygroundAgentManagerDialogs(),
+		browserWorkbenchDialogs: getPlaygroundBrowserWorkbenchDialogs(),
 		assetDialogs: getPlaygroundAssetDialogs(),
 	};
 }

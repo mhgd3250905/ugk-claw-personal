@@ -10,6 +10,7 @@ export interface PlaygroundPageHtmlInput {
 	taskInboxView: string;
 	connActivityDialogs: string;
 	agentManagerDialogs?: string;
+	browserWorkbenchDialogs?: string;
 	assetDialogs: string;
 }
 
@@ -205,6 +206,15 @@ ${input.playgroundScript ?? ""}</script>`;
 							</span>
 							<span>飞书设置</span>
 						</button>
+						<button id="mobile-menu-browser-workbench-button" class="mobile-overflow-menu-item" type="button" role="menuitem">
+							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none">
+									<path d="M4 5h16v10H4V5Z" stroke-width="1.8" stroke-linejoin="round" />
+									<path d="M8 19h8M12 15v4" stroke-width="1.8" stroke-linecap="round" />
+								</svg>
+							</span>
+							<span>Chrome 工作台</span>
+						</button>
 						<button id="mobile-menu-theme-button" class="mobile-overflow-menu-item" type="button" role="menuitem" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
 							<span class="mobile-overflow-menu-item-icon" aria-hidden="true">
 								<svg viewBox="0 0 24 24" fill="none">
@@ -267,6 +277,10 @@ ${input.playgroundScript ?? ""}</script>`;
 						<button id="open-feishu-settings-button" class="telemetry-card telemetry-action" type="button" role="menuitem">
 							<span>别再 SSH 改机器人配置</span>
 							<strong>飞书设置</strong>
+						</button>
+						<button id="open-browser-workbench-button" class="telemetry-card telemetry-action" type="button" role="menuitem">
+							<span>别再 SSH 开浏览器面板</span>
+							<strong>Chrome 工作台</strong>
 						</button>
 						<button id="theme-toggle-button" class="telemetry-card telemetry-action theme-toggle-button" type="button" role="menuitem" aria-pressed="false" aria-label="切换浅色主题" title="切换浅色主题">
 							<span>界面别太死板</span>
@@ -368,6 +382,7 @@ ${input.playgroundScript ?? ""}</script>`;
 		</div>
 		${input.taskInboxView}
 		${input.agentManagerDialogs ?? ""}
+		${input.browserWorkbenchDialogs ?? ""}
 		<div id="context-usage-dialog" class="context-usage-dialog" aria-hidden="true" inert hidden>
 			<section class="context-usage-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="context-usage-dialog-title">
 				<div class="context-usage-dialog-head">
