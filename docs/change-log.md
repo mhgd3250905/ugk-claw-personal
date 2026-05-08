@@ -10,6 +10,14 @@
 
 ---
 
+## 2026-05-09
+
+### Conn 后台 Agent 模板缓存
+- 日期：2026-05-09
+- 主题：为 conn 后台任务引入 Agent 模板缓存层，加速按 `profileId` 组装临时后台 Agent 的启动路径，同时保持运行快照隔离。
+- 影响范围：新增 `AgentTemplateRegistry`，缓存 `AgentProfile` 派生出的 rules、skills、默认浏览器和默认模型候选；`BackgroundAgentProfileResolver` 改为从模板冻结 `ResolvedBackgroundAgentSnapshot`，并把 `templateVersion / templateBuiltAt / templateSource` 写入 run snapshot 与 `snapshot_resolved` 事件。Agent 创建、编辑、归档、技能增删和 rules 保存会主动失效当前 server 进程缓存；独立 `conn-worker` 仍按模板 signature 懒刷新，不依赖前台内存事件。缓存的是模板，不是 session / workspace / history；任务级模型覆盖和 `upgradePolicy` 只进入 run snapshot，不切分模板；运行中的 conn run 不受模板替换影响。
+- 对应入口：`src/agent/agent-template-registry.ts`、`src/agent/background-agent-profile.ts`、`src/agent/background-agent-runner.ts`、`src/routes/chat.ts`、`src/server.ts`、`docs/runtime-assets-conn-feishu.md`
+
 ## 2026-05-08
 
 ### Chrome 工作台第一阶段

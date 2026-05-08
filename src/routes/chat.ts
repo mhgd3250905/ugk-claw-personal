@@ -133,6 +133,7 @@ interface ChatRouteDependencies {
 	agentService: AgentService;
 	agentServiceRegistry?: AgentServiceRegistry<AgentService>;
 	browserRegistry?: BrowserRegistry;
+	agentTemplateRegistry?: { invalidate(profileId?: string): void };
 	projectRoot?: string;
 }
 
@@ -254,6 +255,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					initialSystemSkillNames: body.initialSystemSkillNames,
 				});
 				deps.agentServiceRegistry.add(profile);
+				deps.agentTemplateRegistry?.invalidate(profile.agentId);
 				return {
 					agent: presentAgentSummary(profile),
 				};
@@ -294,6 +296,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					...(Object.hasOwn(body, "defaultBrowserId") ? { defaultBrowserId: body.defaultBrowserId } : {}),
 				});
 				deps.agentServiceRegistry.updateProfile(profile);
+				deps.agentTemplateRegistry?.invalidate(profile.agentId);
 				return {
 					agent: presentAgentSummary(profile),
 				};
@@ -330,6 +333,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				}
 				const archived = await archiveStoredAgentProfile(deps.projectRoot, agentId);
 				deps.agentServiceRegistry.remove(agentId);
+				deps.agentTemplateRegistry?.invalidate(agentId);
 				return {
 					archived: true,
 					agentId: archived.agentId,
@@ -383,7 +387,9 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				return reply;
 			}
 			try {
-				return await installStoredAgentProfileSkill(deps.projectRoot, agentId, request.body?.skillName);
+				const result = await installStoredAgentProfileSkill(deps.projectRoot, agentId, request.body?.skillName);
+				deps.agentTemplateRegistry?.invalidate(agentId);
+				return result;
 			} catch (error) {
 				return reply.status(400).send({
 					error: "BAD_REQUEST",
@@ -417,6 +423,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}
 			try {
 				const removed = await removeStoredAgentProfileSkill(deps.projectRoot, agentId, skillName);
+				deps.agentTemplateRegistry?.invalidate(agentId);
 				return { removed: true, ...removed };
 			} catch (error) {
 				return reply.status(400).send({
@@ -515,6 +522,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			try {
 				await mkdir(dirname(rulesPath), { recursive: true });
 				await writeFile(rulesPath, content, "utf8");
+				deps.agentTemplateRegistry?.invalidate(agentId);
 				return {
 					agentId,
 					fileName: "AGENTS.md",

@@ -17,6 +17,7 @@ import {
 import { loadAgentProfilesSync } from "./agent/agent-profile-catalog.js";
 import { ensureAgentProfileRuntimeSync } from "./agent/agent-profile-bootstrap.js";
 import { AgentServiceRegistry } from "./agent/agent-service-registry.js";
+import { AgentTemplateRegistry } from "./agent/agent-template-registry.js";
 import { createDefaultAgentSessionFactory } from "./agent/agent-session-factory.js";
 import { ConversationStore } from "./agent/conversation-store.js";
 import { ConnDatabase } from "./agent/conn-db.js";
@@ -42,6 +43,7 @@ import { FeishuSettingsStore } from "./integrations/feishu/settings-store.js";
 export interface BuildServerOptions {
 	agentService?: AgentService;
 	agentServiceRegistry?: AgentServiceRegistry<AgentService>;
+	agentTemplateRegistry?: AgentTemplateRegistry;
 	agentProfileProjectRoot?: string;
 	assetStore?: AssetStoreLike;
 	connStore?: ConnSqliteStore;
@@ -119,6 +121,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	const notificationHub = options.notificationHub ?? new NotificationHub();
 	const browserRegistry = options.browserRegistry ?? createBrowserRegistryFromEnv();
 	const agentServiceRegistry = options.agentServiceRegistry ?? createDefaultAgentServiceRegistry(assetStore);
+	const agentProfileProjectRoot = options.agentProfileProjectRoot ?? config.projectRoot;
+	const agentTemplateRegistry = options.agentTemplateRegistry ?? new AgentTemplateRegistry({ projectRoot: agentProfileProjectRoot });
 	const agentService = options.agentService ?? agentServiceRegistry.get(DEFAULT_AGENT_ID) ?? createDefaultAgentService(assetStore);
 	const connStore = options.connStore ?? new ConnSqliteStore({ database: connDatabase! });
 	const connRunStore = options.connRunStore ?? new ConnRunStore({ database: connDatabase! });
@@ -145,7 +149,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		agentService,
 		agentServiceRegistry,
 		browserRegistry,
-		projectRoot: options.agentProfileProjectRoot ?? config.projectRoot,
+		agentTemplateRegistry,
+		projectRoot: agentProfileProjectRoot,
 	});
 	registerRuntimeDebugRoutes(app, { projectRoot: config.projectRoot });
 	registerCleanupDebugRoutes(app, { database: connDatabase });

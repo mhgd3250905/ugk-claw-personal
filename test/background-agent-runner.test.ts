@@ -300,10 +300,17 @@ test("BackgroundAgentRunner executes a conn run in an isolated workspace and rec
 	assert.equal(completed?.resultText, "final answer");
 	assert.equal(completed?.resultSummary, "final answer");
 	assert.ok(completed?.workspacePath.endsWith(join("background", "runs", "run-success")));
+	const events = await runStore.listEvents(run.runId);
 	assert.deepEqual(
-		(await runStore.listEvents(run.runId)).map((event) => event.eventType),
+		events.map((event) => event.eventType),
 		["workspace_created", "snapshot_resolved", "message_update", "run_succeeded"],
 	);
+	const snapshotEvent = events.find((event) => event.eventType === "snapshot_resolved")?.event as
+		| { templateVersion?: string; templateBuiltAt?: string; templateSource?: string }
+		| undefined;
+	assert.ok(snapshotEvent?.templateVersion);
+	assert.ok(snapshotEvent?.templateBuiltAt);
+	assert.equal(snapshotEvent?.templateSource, "legacy");
 	const refreshed = await runStore.getRun(run.runId);
 	assert.equal(refreshed?.sessionFile, "background-session.json");
 	assert.equal(refreshed?.resolvedSnapshot?.profileId, "background.default");

@@ -291,6 +291,61 @@ test("PATCH /v1/agents/:agentId updates a custom agent profile summary", async (
 	);
 });
 
+test("agent profile mutations invalidate background agent templates", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });
+	await writeFile(join(projectRoot, ".pi", "skills", "web-access", "SKILL.md"), "# web-access\n", "utf8");
+	const registry = createTestRegistryForRoot(projectRoot);
+	const invalidated: Array<string | undefined> = [];
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: registry,
+		agentProfileProjectRoot: projectRoot,
+		agentTemplateRegistry: {
+			invalidate(profileId?: string) {
+				invalidated.push(profileId);
+			},
+		} as never,
+	});
+
+	await app.inject({
+		method: "POST",
+		url: "/v1/agents",
+		payload: {
+			agentId: "research",
+			name: "研究 Agent",
+			description: "用于资料研究。",
+		},
+	});
+	await app.inject({
+		method: "PATCH",
+		url: "/v1/agents/research",
+		payload: {
+			name: "资料 Agent",
+		},
+	});
+	await app.inject({
+		method: "POST",
+		url: "/v1/agents/research/skills",
+		payload: {
+			skillName: "web-access",
+		},
+	});
+	await app.inject({
+		method: "DELETE",
+		url: "/v1/agents/research/skills/web-access",
+	});
+	await app.inject({
+		method: "PATCH",
+		url: "/v1/agents/research/rules",
+		payload: {
+			content: "# Research rules\n",
+		},
+	});
+
+	assert.deepEqual(invalidated, ["research", "research", "research", "research", "research"]);
+});
+
 test("POST and DELETE /v1/agents/:agentId/skills manage custom agent skill copies", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
 	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });

@@ -98,6 +98,9 @@ export class BackgroundAgentRunner {
 					skillSetId: snapshot.skillSetId,
 					modelPolicyId: snapshot.modelPolicyId,
 					skillSetVersion: snapshot.skillSetVersion,
+					...(snapshot.templateVersion ? { templateVersion: snapshot.templateVersion } : {}),
+					...(snapshot.templateBuiltAt ? { templateBuiltAt: snapshot.templateBuiltAt } : {}),
+					...(snapshot.templateSource ? { templateSource: snapshot.templateSource } : {}),
 				},
 				createdAt: now,
 			});
