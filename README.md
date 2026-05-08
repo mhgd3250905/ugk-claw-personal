@@ -2,18 +2,22 @@
   <img src="./docs/assets/github-social-preview.png" alt="UGK CLAW" width="100%" />
 </p>
 
-<img src="./docs/assets/playground-hero.png" alt="UGK CLAW Playground" width="100%" />
+<p align="center">
+  <img src="./docs/assets/playground-hero.png" alt="UGK CLAW Playground" width="100%" />
+</p>
 
 <h1 align="center">UGK CLAW</h1>
 
 <p align="center">
-  <strong>把终端里的 AI Agent 搬进浏览器。<br>它能浏览网页、跑后台任务、交付文件——而且刷新页面不丢会话。</strong>
+  <strong>一个能在浏览器里操控真实 Chrome、跑定时任务、刷新不丢会话的 AI Agent 工作台。</strong><br>
+  <sub>自托管 · 开源 · 不卖</sub>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.2.0-8DFFB2?style=flat-square" alt="Version 1.2.0">
   <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen?style=flat-square" alt="Node.js >= 22">
   <img src="https://img.shields.io/badge/runtime-Docker%20Compose-2496ED?style=flat-square&logo=docker" alt="Docker Compose">
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT">
 </p>
 
 <p align="center">
@@ -30,45 +34,94 @@
 
 ---
 
+## 为什么选 UGK CLAW
+
+市面上的 AI Agent 工具不少，但大多数要么绑在终端里，要么刷新就断，要么不支持操控真实浏览器。
+
+**UGK CLAW 跟它们不一样：**
+
+| | 典型终端 Agent | 典型 IM Bot Agent | UGK CLAW |
+|---|---|---|---|
+| 运行界面 | 终端 / IDE | 聊天软件 | **浏览器 Web 工作台** |
+| 刷新状态 | 容易丢 | 不丢但不可见 | **刷新后 active run 自动恢复** |
+| 操控浏览器 | 无或受限 | 无 | **Docker Chrome sidecar，profile 持久化，登录态复用** |
+| 多浏览器隔离 | — | — | **3 组独立 Chrome 实例，互不干扰** |
+| 定时后台任务 | 手动 | 简单 cron | **Conn 系统：定时 + Agent 选择 + 通知 + 飞书推送** |
+| 文件交付 | 手动拷 | 发文件 | **Agent 生成 → 一键下载/预览，不需要进容器** |
+| 多 Agent | — | 部分支持 | **main/search/自定义，独立会话和浏览器，互不串场** |
+| API 开放 | CLI only | 有限 | **全功能 REST + SSE，可做二开集成** |
+| 中文生态 | 无 | 部分 | **飞书深度集成，Playground 内动态配置** |
+| 部署 | 本地 | 云端 | **腾讯云 + 阿里云双节点生产验证** |
+
+简单说：如果你需要的是一个**真正能帮你干活**的 Agent——能在浏览器里长期运行、操控真实网页、定时执行任务、生成文件直接交付、刷新不丢上下文——那 UGK CLAW 就是为你准备的。
+
+它是我们自己在用的工具，每天跑数据采集、网站监控、定时报告。我们把它做成了别人也能跑起来的样子。
+
+---
+
 ## ⚡ 三分钟跑起来
 
 ```bash
-npm install                    # 安装依赖
-docker compose up -d           # 启动 Agent + Chrome Sidecar + SearXNG
-open http://127.0.0.1:3000/playground   # 打开工作台
+git clone https://github.com/mhgd3250905/ugk-claw-personal.git
+cd ugk-claw-personal
+npm install
+docker compose up -d
+# 打开 http://127.0.0.1:3000/playground
 ```
 
-> 前提：Node.js 22+、Docker、以及 `DASHSCOPE_CODING_API_KEY` 环境变量。
-> 生产环境从 `.env.example` 复制为 `.env`，调整配置后 `docker compose -f docker-compose.prod.yml up --build -d`。
+> 需要 Node.js 22+、Docker、`DASHSCOPE_CODING_API_KEY`。生产部署从 `.env.example` 复制为 `.env`，`docker compose -f docker-compose.prod.yml up --build -d`。
 
 ---
 
-## 为什么做这个
+## 怎么用
 
-市面上不缺 AI 编程工具。但当你需要一个 **在浏览器里长期运行、能操控真实浏览器、刷新不丢状态、能定时执行后台任务** 的 Agent 时，选择其实不多。
+### 日常对话 + 编程
 
-大多数方案要么绑在终端里，要么刷新就断，要么不能持久化浏览器登录态。
+在 Playground 里像聊天一样跟 Agent 对话。它能写代码、查文件、改配置，所有操作在浏览器里实时可见。
 
-UGK CLAW 解决的就是这几个问题。它是我们自己的日常工具——跑数据采集、网站监控、定时报告、飞书通知——然后我们把它的接口和 UI 做成了别人也能用的样子。
+### 操控浏览器
 
-不是产品，是工作台。不卖，不收费，开源自托管。
+Agent 通过 Docker Chrome sidecar 打开真实网页，登录态持久化。三组独立 Chrome 实例（default / chrome-01 / chrome-02），各自维护各自的 cookie 和 session。
+
+```
+帮我打开 GitHub 看最近的 issue，汇总到报告里
+登录飞书后台导出昨天的数据
+```
+
+### 定时后台任务
+
+创建 Conn，设好周期规则，Agent 到点自动执行。跑完通知你，结果归档到任务消息。
+
+```
+每天早上 9 点抓取 Hacker News 首页，总结 Top 10 发到飞书
+每小时检查一次网站是否在线，挂了立刻通知
+```
+
+### 文件交付
+
+Agent 生成的 HTML 报告、截图、数据文件，在聊天里直接点击下载或浏览器预览。不需要 `docker cp`、不需要进容器找路径。
+
+### 飞书集成
+
+启动 `npm run worker:feishu`，在 Playground 里配置 App 凭据。Agent 的消息、任务结果、通知实时推送到飞书。
 
 ---
 
-## ✨ 它能做什么
+## ✨ 能力一览
 
 | | |
 |---|---|
-| 🖥️ **像聊天软件一样用 Agent** | 桌面端双栏布局 + 手机端适配。流式输出、历史会话、文件卡片、任务消息，刷新不丢运行状态 |
-| 🌐 **操控真实浏览器** | Docker Chrome sidecar 方案，profile 持久化。登录一次，后续任务自动复用。三组独立实例互不干扰 |
-| ⏰ **定时后台任务** | 创建 Conn 定义周期规则，后台自动执行。跑完通知你，结果归档到任务消息。飞书实时推送 |
-| 📦 **生成文件直接交付** | Agent 生成的 HTML 报告、截图、数据文件，一键下载或浏览器预览，不需要手动从容器里拷 |
-| 🔌 **HTTP API 全开放** | 所有功能通过 REST + SSE 暴露。聊天、打断、会话管理、文件上传、技能调试——你可以用它做二开集成 |
-| 🧩 **多 Agent 共存** | `main` 做编程，`search` 做搜索，自建 Agent 配独立技能集。每个 Agent 独立会话、独立浏览器、互不串场 |
+| 🖥️ **Web 工作台** | 桌面双栏 + 手机适配。流式输出、历史会话、文件卡片、任务消息、运行日志。刷新不丢状态 |
+| 🌐 **真实浏览器** | Docker Chrome sidecar + CDP。3 组独立实例，profile 持久化，登录一次后续复用 |
+| ⏰ **后台任务** | Conn 系统：定义周期规则 → 自动执行 → 通知投递 → 飞书推送。支持 Agent 选择 + 浏览器绑定 |
+| 📦 **文件交付** | Agent 生成 → 一键下载/预览。HTML 报告、截图、数据文件，聊天里直接交付 |
+| 🔌 **全功能 API** | REST + SSE。聊天、打断、会话管理、文件上传、技能调试——所有功能都对外开放 |
+| 🧩 **多 Agent 共存** | `main` 编程、`search` 搜索、自建 Agent 配独立技能。独立会话、独立浏览器、互不串场 |
+| 💬 **飞书深度集成** | WebSocket worker 外挂收发窗口，Playground 内动态配置凭据和接收人 |
 
 ---
 
-## 🏗️ 怎么跑起来的
+## 🏗️ 架构
 
 ```mermaid
 flowchart LR
@@ -83,92 +136,13 @@ flowchart LR
   Conn --> Inbox[任务消息 / 通知]
 ```
 
-浏览器请求链路：`Agent → direct_cdp → 172.31.250.10:9223 → Docker Chrome`
+浏览器链路：`Agent → direct_cdp → 172.31.250.10:9223 → Docker Chrome`
 
 <p align="center">
   <img src="./docs/assets/browser-workbench.png" alt="Chrome 浏览器工作台" width="100%" />
 </p>
 
----
-
-## 📰 最近在做什么
-
-- **2026-05-08** — Chrome 工作台 + 多浏览器实例路由：三组独立 Chrome 实例，各自维护登录态，Agent 和后台任务可以指定用哪个浏览器
-- **2026-05-07** — v1.2.0：会话支持重命名、置顶、颜色标记；后台任务有了稳定的公开目录；Playground UI 深色 / 浅色双主题收口
-- **2026-05-06** — 架构治理收尾：Chat、Agent、Playground UI、Conn 四大模块边界文档 + 测试矩阵落地
-
-[完整更新记录 →](./docs/change-log.md)
-
----
-
-## 📡 API 速览
-
-<details>
-<summary><strong>🔧 基础</strong></summary>
-
-```
-GET  /healthz              健康检查
-GET  /playground           工作台页面
-GET  /v1/debug/skills      技能清单
-GET  /v1/debug/runtime     运行态诊断
-```
-
-</details>
-
-<details>
-<summary><strong>💬 聊天与会话</strong></summary>
-
-```
-POST /v1/chat               发送消息
-POST /v1/chat/stream        流式请求（SSE）
-POST /v1/chat/queue         排队请求
-POST /v1/chat/interrupt     打断当前运行
-POST /v1/chat/reset         重置会话
-GET  /v1/chat/status        运行状态
-GET  /v1/chat/state         可渲染状态快照
-GET  /v1/chat/events        增量事件订阅
-GET  /v1/chat/history       历史消息
-GET  /v1/chat/conversations       会话列表
-POST /v1/chat/conversations       新建会话
-PATCH /v1/chat/conversations/:id  编辑会话
-DELETE /v1/chat/conversations/:id 删除会话
-POST /v1/chat/current       切换当前会话
-```
-
-</details>
-
-<details>
-<summary><strong>📦 文件与资产</strong></summary>
-
-```
-GET /v1/assets              资产列表
-GET /v1/assets/:id          资产详情
-GET /v1/files/:id           文件下载
-GET /v1/local-file?path=..  本地文件访问
-GET /runtime/:name          运行时文件
-```
-
-</details>
-
-<details>
-<summary><strong>⚙️ 后台任务 & 飞书</strong></summary>
-
-```
-GET  /v1/conns              任务列表
-POST /v1/conns               创建任务
-POST /v1/conns/:id/run       手动触发
-GET  /v1/conns/:id/runs      运行记录
-GET  /v1/conns/:id/runs/:rid 运行详情
-GET  /v1/conns/:id/runs/:rid/events  运行事件流
-```
-
-飞书集成：`npm run worker:feishu` 启动 WebSocket 订阅，Playground 内动态配置 App 凭据和接收人。
-
-</details>
-
----
-
-## 📂 代码地图
+### 关键文件
 
 | 想改什么 | 从这里开始 |
 |---------|-----------|
@@ -182,31 +156,78 @@ GET  /v1/conns/:id/runs/:rid/events  运行事件流
 
 ---
 
+## ❓ FAQ
+
+<details>
+<summary><strong>UGK CLAW 跟 OpenClaw / NanoClaw 有什么区别？</strong></summary>
+
+它们都是优秀的 Agent 项目。UGK CLAW 的核心差异在于：**Web 工作台优先**——它不是一个后台 service，而是一个你可以在浏览器里打开、观察、交互的工作台。另一个独特卖点是**真实浏览器操控**：Docker Chrome sidecar 方案让 Agent 能操控真实网页并持久化登录态，三组独立实例互不干扰。
+</details>
+
+<details>
+<summary><strong>为什么用 Docker Chrome 而不是 headless？</strong></summary>
+
+因为我们经常需要**登录态的网站自动化**——飞书后台、GitHub、各类 SaaS 工具。headless 模式对登录态的支持不稳定，而 Docker Chrome sidecar 提供完整的浏览器环境，profile 持久化，登录一次后续任务自动复用。
+</details>
+
+<details>
+<summary><strong>刷新页面真的不丢会话吗？</strong></summary>
+
+真的。服务端维护 canonical state，刷新后 `GET /v1/chat/state` + `GET /v1/chat/events` 恢复 active run 的增量流。这是整个系统设计的基础假设之一。
+</details>
+
+<details>
+<summary><strong>能在 Windows 上跑吗？</strong></summary>
+
+能。Docker Desktop 提供跨平台支持。我们在 Windows 上开发，生产部署在 Linux（腾讯云 + 阿里云）。
+</details>
+
+<details>
+<summary><strong>安全吗？暴露到公网需要注意什么？</strong></summary>
+
+Agent 运行在 Docker 容器内，隔离性由 Docker 保证。暴露到公网时建议：
+- 配置 nginx 反向代理 + HTTPS
+- 不要在生产环境暴露 Chrome sidecar GUI 端口
+- 生产部署参考 [`docs/server-ops.md`](./docs/server-ops.md)
+</details>
+
+<details>
+<summary><strong>能用其他模型吗？</strong></summary>
+
+支持阿里（DashScope）、DeepSeek、小米（MiMo）三种模型源。在 Playground 的模型设置里切换。
+</details>
+
+---
+
 ## 📚 文档
 
-| 文档 | 适合谁看 |
-|------|---------|
-| [`AGENTS.md`](./AGENTS.md) | 接手这个仓库的开发者——规则、约束、关键路径 |
-| [`docs/server-ops.md`](./docs/server-ops.md) | 部署和运维的人——更新、验证、回滚 |
-| [`docs/playground-current.md`](./docs/playground-current.md) | 改前端 UI 的人——当前交互约束和真实口径 |
-| [`docs/traceability-map.md`](./docs/traceability-map.md) | 排查问题时按场景找代码入口 |
-| [`docs/architecture-governance-guide.md`](./docs/architecture-governance-guide.md) | 做架构决策的人——模块边界和治理地图 |
-| [`docs/change-log.md`](./docs/change-log.md) | 想知道最近改了什么的人 |
+| 文档 | 谁该看 |
+|------|-------|
+| [`AGENTS.md`](./AGENTS.md) | 接手这个项目的开发者 |
+| [`docs/server-ops.md`](./docs/server-ops.md) | 部署和运维的人 |
+| [`docs/playground-current.md`](./docs/playground-current.md) | 改前端 UI 的人 |
+| [`docs/traceability-map.md`](./docs/traceability-map.md) | 按场景找代码入口 |
+| [`docs/architecture-governance-guide.md`](./docs/architecture-governance-guide.md) | 做架构决策的人 |
+| [`docs/change-log.md`](./docs/change-log.md) | 想知道最近改了什么 |
 | [`docs/web-access-browser-bridge.md`](./docs/web-access-browser-bridge.md) | 浏览器链路排障 |
 
 ---
 
-## 📌 运行状态
+## 👥 社区 & 贡献
 
-- **仓库**：[`mhgd3250905/ugk-claw-personal`](https://github.com/mhgd3250905/ugk-claw-personal) · `main` 分支
-- **版本**：`v1.2.0` · 腾讯云 + 阿里云双节点生产验证
-- **质量闸门**：`npm test` + `npx tsc --noEmit`
-- **发布命令**：`npm run server:ops -- <tencent|aliyun> preflight → deploy → verify`
+项目目前由 [@mhgd3250905](https://github.com/mhgd3250905) 维护，不设 roadmap，不做 feature voting。真实需求驱动开发，线上问题优先修复。
+
+欢迎提 Issue 和 PR。改动前建议先看 [`AGENTS.md`](./AGENTS.md) 了解项目规范。
 
 ---
 
-## ⚠️ 不要提交这些
+## 📌 状态
 
-`.env` · `.data/` · 部署包 · 运行时截图 · 临时文件
+- **仓库**：[`mhgd3250905/ugk-claw-personal`](https://github.com/mhgd3250905/ugk-claw-personal) · `main`
+- **版本**：`v1.2.0` · 腾讯云 + 阿里云双节点生产验证
+- **验证**：`npm test` + `npx tsc --noEmit`
+- **发布**：`npm run server:ops -- <tencent|aliyun> preflight → deploy → verify`
 
-代码归代码，状态归状态。分开管，部署才不出事故。
+---
+
+`.env` · `.data/` · 部署包 · 截图 · 临时文件 —— **不要提交。** 代码归代码，状态归状态。
