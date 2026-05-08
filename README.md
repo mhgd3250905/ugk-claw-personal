@@ -2,10 +2,12 @@
   <img src="./docs/assets/github-social-preview.png" alt="UGK CLAW" width="100%" />
 </p>
 
+<img src="./docs/assets/playground-hero.png" alt="UGK CLAW Playground" width="100%" />
+
 <h1 align="center">UGK CLAW</h1>
 
 <p align="center">
-  <strong>Self-hosted Agent Workbench — chat with AI that browses the web, runs background tasks, and delivers files.</strong>
+  <strong>把终端里的 AI Agent 搬进浏览器。<br>它能浏览网页、跑后台任务、交付文件——而且刷新页面不丢会话。</strong>
 </p>
 
 <p align="center">
@@ -21,83 +23,77 @@
   ·
   <a href="./docs/playground-current.md">Playground</a>
   ·
-  <a href="./docs/server-ops.md">运维</a>
+  <a href="./docs/server-ops.md">运维手册</a>
   ·
   <a href="./docs/change-log.md">更新记录</a>
 </p>
 
 ---
 
-## ⚡ 快速开始
+## ⚡ 三分钟跑起来
 
 ```bash
-# 1. 安装依赖
-npm install
-
-# 2. 启动全部服务（Agent + Chrome Sidecar + SearXNG）
-docker compose up -d
-
-# 3. 打开 Playground
-#    → http://127.0.0.1:3000/playground
+npm install                    # 安装依赖
+docker compose up -d           # 启动 Agent + Chrome Sidecar + SearXNG
+open http://127.0.0.1:3000/playground   # 打开工作台
 ```
 
-> **需要** Node.js 22+、Docker、以及 `DASHSCOPE_CODING_API_KEY` 环境变量。
-> 生产部署从 `.env.example` 复制为 `.env`，按实际环境调整后执行 `docker compose -f docker-compose.prod.yml up --build -d`。
+> 前提：Node.js 22+、Docker、以及 `DASHSCOPE_CODING_API_KEY` 环境变量。
+> 生产环境从 `.env.example` 复制为 `.env`，调整配置后 `docker compose -f docker-compose.prod.yml up --build -d`。
 
 ---
 
-## 这是什么
+## 为什么做这个
 
-UGK CLAW 是一个 **自托管 HTTP Agent 工作台**。你可以在浏览器里和一个编程 agent 长时间对话：
+市面上不缺 AI 编程工具。但当你需要一个 **在浏览器里长期运行、能操控真实浏览器、刷新不丢状态、能定时执行后台任务** 的 Agent 时，选择其实不多。
 
-- 观察它的流式执行过程
-- 刷新后恢复运行状态（不丢会话）
-- 让它交付真实文件、运行后台定时任务
-- 通过 Docker Chrome sidecar 操控真实浏览器（登录态可持久化）
+大多数方案要么绑在终端里，要么刷新就断，要么不能持久化浏览器登录态。
 
-不画大饼，不堆花活。当前阶段只做一件事：**把 agent runtime · 会话 · 流式 · 文件 · 浏览器 · 部署边界跑稳。**
+UGK CLAW 解决的就是这几个问题。它是我们自己的日常工具——跑数据采集、网站监控、定时报告、飞书通知——然后我们把它的接口和 UI 做成了别人也能用的样子。
+
+不是产品，是工作台。不卖，不收费，开源自托管。
 
 ---
 
-## ✨ 能力一览
+## ✨ 它能做什么
 
 | | |
 |---|---|
-| 🖥️ **Agent 工作台 UI** | 桌面 / 手机双布局，流式输出、运行中恢复、历史会话、文件 chip、任务消息、运行日志 |
-| 🌐 **HTTP-first API** | 基于 Fastify，聊天、流式、打断、会话、文件、资产、通知、后台 run、技能调试 |
-| 💾 **持久会话** | 全局当前会话 + 多条历史 + 服务端 canonical state + 分页历史 + 刷新后 active run 恢复 |
-| 📦 **文件交付** | 上传资产、本地 artifact 链接改写、inline 预览、下载、`send_file` 真实文件交付 |
-| 🌍 **真实浏览器** | Docker Chrome sidecar + CDP，3 组独立实例 + 持久 profile，适合需登录态的网页自动化 |
-| ⚙️ **后台任务** | `conn` runtime + SQLite run 存储 + Agent 选择 + 通知投递 + 任务消息页 |
-| 💬 **飞书外挂** | WebSocket worker 作为 Web 当前会话的外挂收发窗口，Playground 内动态配置凭据 |
-| 📋 **部署有记录** | 生产 runbook、回滚锚点、change log 全在仓库，不靠聊天记录考古 |
+| 🖥️ **像聊天软件一样用 Agent** | 桌面端双栏布局 + 手机端适配。流式输出、历史会话、文件卡片、任务消息，刷新不丢运行状态 |
+| 🌐 **操控真实浏览器** | Docker Chrome sidecar 方案，profile 持久化。登录一次，后续任务自动复用。三组独立实例互不干扰 |
+| ⏰ **定时后台任务** | 创建 Conn 定义周期规则，后台自动执行。跑完通知你，结果归档到任务消息。飞书实时推送 |
+| 📦 **生成文件直接交付** | Agent 生成的 HTML 报告、截图、数据文件，一键下载或浏览器预览，不需要手动从容器里拷 |
+| 🔌 **HTTP API 全开放** | 所有功能通过 REST + SSE 暴露。聊天、打断、会话管理、文件上传、技能调试——你可以用它做二开集成 |
+| 🧩 **多 Agent 共存** | `main` 做编程，`search` 做搜索，自建 Agent 配独立技能集。每个 Agent 独立会话、独立浏览器、互不串场 |
 
 ---
 
-## 🏗️ 系统架构
+## 🏗️ 怎么跑起来的
 
 ```mermaid
 flowchart LR
-  User[Browser / Client] -->|HTTP + SSE| Server[Fastify Agent Server]
+  User[浏览器 / 客户端] -->|HTTP + SSE| Server[Fastify Agent Server]
   Server --> Playground[Playground UI]
   Server --> Agent[pi-coding-agent Session]
-  Agent --> Skills[Project + Runtime Skills]
-  Agent --> Files[Assets / Files / Local Artifacts]
+  Agent --> Skills[项目技能 + 用户技能]
+  Agent --> Files[资产 / 文件 / 本地 Artifact]
   Agent --> Browser[Docker Chrome Sidecar]
-  Browser --> CDP[direct_cdp :9223]
-  Server --> Conn[Background Conn Worker]
-  Conn --> Inbox[Task Inbox / Notifications]
+  Browser --> CDP[Chrome DevTools Protocol]
+  Server --> Conn[后台 Conn Worker]
+  Conn --> Inbox[任务消息 / 通知]
 ```
 
-浏览器链路：`agent / skill → direct_cdp → 172.31.250.10:9223 → Docker Chrome sidecar`
+浏览器请求链路：`Agent → direct_cdp → 172.31.250.10:9223 → Docker Chrome`
 
 ---
 
-## 📰 近期动态
+## 📰 最近在做什么
 
-- **2026-05-08** — Chrome 工作台 + 多浏览器实例路由落地：default / chrome-01 / chrome-02 三组独立登录态 + scope 路由 + Conn 独立浏览器选择
-- **2026-05-07** — v1.2.0 稳定版：会话重命名/置顶/颜色菜单、conn 长期公开目录契约、Playground UI 层级收口
-- **2026-05-06** — 架构治理地图完成：Chat/Agent、Playground UI、Conn/Activity 四大域边界文档 + 测试矩阵
+- **2026-05-08** — Chrome 工作台 + 多浏览器实例路由：三组独立 Chrome 实例，各自维护登录态，Agent 和后台任务可以指定用哪个浏览器
+- **2026-05-07** — v1.2.0：会话支持重命名、置顶、颜色标记；后台任务有了稳定的公开目录；Playground UI 深色 / 浅色双主题收口
+- **2026-05-06** — 架构治理收尾：Chat、Agent、Playground UI、Conn 四大模块边界文档 + 测试矩阵落地
+
+[完整更新记录 →](./docs/change-log.md)
 
 ---
 
@@ -107,10 +103,10 @@ flowchart LR
 <summary><strong>🔧 基础</strong></summary>
 
 ```
-GET /healthz
-GET /playground
-GET /v1/debug/skills
-GET /v1/debug/runtime
+GET  /healthz              健康检查
+GET  /playground           工作台页面
+GET  /v1/debug/skills      技能清单
+GET  /v1/debug/runtime     运行态诊断
 ```
 
 </details>
@@ -119,20 +115,20 @@ GET /v1/debug/runtime
 <summary><strong>💬 聊天与会话</strong></summary>
 
 ```
-POST /v1/chat              ·  发送消息
-POST /v1/chat/stream       ·  流式请求
-POST /v1/chat/queue        ·  排队请求
-POST /v1/chat/interrupt    ·  打断运行
-POST /v1/chat/reset        ·  重置会话
-GET  /v1/chat/status       ·  运行状态
-GET  /v1/chat/state        ·  可渲染状态
-GET  /v1/chat/events       ·  增量事件
-GET  /v1/chat/history      ·  历史消息
-GET  /v1/chat/conversations          ·  会话列表
-POST /v1/chat/conversations          ·  新建会话
-PATCH /v1/chat/conversations/:id     ·  编辑会话
-DELETE /v1/chat/conversations/:id    ·  删除会话
-POST /v1/chat/current      ·  切换当前会话
+POST /v1/chat               发送消息
+POST /v1/chat/stream        流式请求（SSE）
+POST /v1/chat/queue         排队请求
+POST /v1/chat/interrupt     打断当前运行
+POST /v1/chat/reset         重置会话
+GET  /v1/chat/status        运行状态
+GET  /v1/chat/state         可渲染状态快照
+GET  /v1/chat/events        增量事件订阅
+GET  /v1/chat/history       历史消息
+GET  /v1/chat/conversations       会话列表
+POST /v1/chat/conversations       新建会话
+PATCH /v1/chat/conversations/:id  编辑会话
+DELETE /v1/chat/conversations/:id 删除会话
+POST /v1/chat/current       切换当前会话
 ```
 
 </details>
@@ -141,80 +137,72 @@ POST /v1/chat/current      ·  切换当前会话
 <summary><strong>📦 文件与资产</strong></summary>
 
 ```
-GET /v1/assets                ·  资产列表
-GET /v1/assets/:assetId       ·  资产详情
-GET /v1/files/:fileId         ·  文件下载
-GET /v1/local-file?path=...   ·  本地文件
-GET /runtime/:fileName        ·  运行时文件
+GET /v1/assets              资产列表
+GET /v1/assets/:id          资产详情
+GET /v1/files/:id           文件下载
+GET /v1/local-file?path=..  本地文件访问
+GET /runtime/:name          运行时文件
 ```
 
 </details>
 
 <details>
-<summary><strong>⚙️ 后台任务与集成</strong></summary>
+<summary><strong>⚙️ 后台任务 & 飞书</strong></summary>
 
 ```
-GET  /v1/conns                    ·  Conn 列表
-POST /v1/conns                    ·  创建 Conn
-POST /v1/conns/:id/run            ·  触发运行
-GET  /v1/conns/:id/runs           ·  运行记录
-GET  /v1/conns/:id/runs/:rid      ·  运行详情
-GET  /v1/conns/:id/runs/:rid/events  ·  运行事件
+GET  /v1/conns              任务列表
+POST /v1/conns               创建任务
+POST /v1/conns/:id/run       手动触发
+GET  /v1/conns/:id/runs      运行记录
+GET  /v1/conns/:id/runs/:rid 运行详情
+GET  /v1/conns/:id/runs/:rid/events  运行事件流
 ```
 
-飞书：`npm run worker:feishu` 启动 WebSocket 订阅 worker，Playground 内动态配置凭据。
+飞书集成：`npm run worker:feishu` 启动 WebSocket 订阅，Playground 内动态配置 App 凭据和接收人。
 
 </details>
 
 ---
 
-## 📂 项目地图
+## 📂 代码地图
 
-| 区域 | 入口 |
-|------|------|
-| 服务启动 | [`src/server.ts`](./src/server.ts) |
-| 聊天路由 | [`src/routes/chat.ts`](./src/routes/chat.ts) |
-| Playground UI | [`src/ui/playground.ts`](./src/ui/playground.ts) |
-| Agent 编排 | [`src/agent/agent-service.ts`](./src/agent/agent-service.ts) |
-| Session 工厂 | [`src/agent/agent-session-factory.ts`](./src/agent/agent-session-factory.ts) |
-| 文件交付 | [`src/agent/file-artifacts.ts`](./src/agent/file-artifacts.ts) |
-| 后台 conn | [`src/agent/conn-store.ts`](./src/agent/conn-store.ts) |
-| 后台 worker | [`src/workers/conn-worker.ts`](./src/workers/conn-worker.ts) |
-| Docker Chrome | [`docker-compose.yml`](./docker-compose.yml) |
+| 想改什么 | 从这里开始 |
+|---------|-----------|
+| 服务入口 / 路由装配 | [`src/server.ts`](./src/server.ts) |
+| 聊天 API / 会话管理 | [`src/routes/chat.ts`](./src/routes/chat.ts) |
+| Agent 运行生命周期 | [`src/agent/agent-service.ts`](./src/agent/agent-service.ts) |
+| Playground 前端 UI | [`src/ui/playground.ts`](./src/ui/playground.ts) |
+| 文件上传 / 下载 / 交付 | [`src/agent/file-artifacts.ts`](./src/agent/file-artifacts.ts) |
+| 后台任务定义与执行 | [`src/workers/conn-worker.ts`](./src/workers/conn-worker.ts) |
+| Docker Chrome 编排 | [`docker-compose.yml`](./docker-compose.yml) |
 
 ---
 
 ## 📚 文档
 
-| 文档 | 说明 |
-|------|------|
-| [`AGENTS.md`](./AGENTS.md) | Agent 工作规则、当前事实与场景索引 |
-| [`docs/server-ops.md`](./docs/server-ops.md) | 生产运维唯一入口 |
-| [`docs/server-ops-quick-reference.md`](./docs/server-ops-quick-reference.md) | 高频运维动作速查 |
-| [`docs/playground-current.md`](./docs/playground-current.md) | Playground UI 与交互约束 |
-| [`docs/change-log.md`](./docs/change-log.md) | 完整更新记录 |
-| [`docs/traceability-map.md`](./docs/traceability-map.md) | 按场景定位代码入口 |
-| [`docs/architecture-governance-guide.md`](./docs/architecture-governance-guide.md) | 架构治理接手总入口 |
-| [`docs/web-access-browser-bridge.md`](./docs/web-access-browser-bridge.md) | Chrome sidecar 与 CDP 桥接 |
-| [`docs/tencent-cloud-singapore-deploy.md`](./docs/tencent-cloud-singapore-deploy.md) | 腾讯云部署手册 |
-| [`docs/aliyun-ecs-deploy.md`](./docs/aliyun-ecs-deploy.md) | 阿里云部署手册 |
+| 文档 | 适合谁看 |
+|------|---------|
+| [`AGENTS.md`](./AGENTS.md) | 接手这个仓库的开发者——规则、约束、关键路径 |
+| [`docs/server-ops.md`](./docs/server-ops.md) | 部署和运维的人——更新、验证、回滚 |
+| [`docs/playground-current.md`](./docs/playground-current.md) | 改前端 UI 的人——当前交互约束和真实口径 |
+| [`docs/traceability-map.md`](./docs/traceability-map.md) | 排查问题时按场景找代码入口 |
+| [`docs/architecture-governance-guide.md`](./docs/architecture-governance-guide.md) | 做架构决策的人——模块边界和治理地图 |
+| [`docs/change-log.md`](./docs/change-log.md) | 想知道最近改了什么的人 |
+| [`docs/web-access-browser-bridge.md`](./docs/web-access-browser-bridge.md) | 浏览器链路排障 |
 
 ---
 
-## 📌 当前状态
+## 📌 运行状态
 
-- **仓库** [`mhgd3250905/ugk-claw-personal`](https://github.com/mhgd3250905/ugk-claw-personal) · **分支** `main`
-- **版本** `v1.2.0` · 双云生产（腾讯云 + 阿里云）已验证运行
-- 验证命令：`npm test` · `npx tsc --noEmit`
-- 生产发布：`npm run server:ops -- <tencent|aliyun> <preflight|deploy|verify>`
-- 增量禁区：不 `git reset --hard`、不整目录覆盖、不洗 shared 运行态
+- **仓库**：[`mhgd3250905/ugk-claw-personal`](https://github.com/mhgd3250905/ugk-claw-personal) · `main` 分支
+- **版本**：`v1.2.0` · 腾讯云 + 阿里云双节点生产验证
+- **质量闸门**：`npm test` + `npx tsc --noEmit`
+- **发布命令**：`npm run server:ops -- <tencent|aliyun> preflight → deploy → verify`
 
 ---
 
-## ⚠️ 仓库边界
+## ⚠️ 不要提交这些
 
-以下内容 **不要提交**：
+`.env` · `.data/` · 部署包 · 运行时截图 · 临时文件
 
-- `.env` · `.data/` · 部署 tar 包 · 运行时截图/报告 · 本地临时输出
-
-代码、配置、运行态分清楚，部署才不翻车。
+代码归代码，状态归状态。分开管，部署才不出事故。
