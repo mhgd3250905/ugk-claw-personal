@@ -85,6 +85,10 @@ flowchart LR
 
 浏览器请求链路：`Agent → direct_cdp → 172.31.250.10:9223 → Docker Chrome`
 
+<p align="center">
+  <img src="./docs/assets/browser-workbench.png" alt="Chrome 浏览器工作台" width="100%" />
+</p>
+
 ---
 
 ## 📰 最近在做什么
