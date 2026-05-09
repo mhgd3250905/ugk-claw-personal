@@ -75,7 +75,7 @@ test("closeBrowserTargetsForScope posts the encoded scope to the CDP proxy", asy
 	assert.ok(calls[0]?.init?.signal);
 });
 
-test("closeBrowserTargetsForScope includes browserId when provided", async () => {
+test("closeBrowserTargetsForScope ignores browserId override when provided", async () => {
 	const calls: Array<{ url: string; init?: RequestInit }> = [];
 
 	await closeBrowserTargetsForScope("manual-browser", {
@@ -94,7 +94,7 @@ test("closeBrowserTargetsForScope includes browserId when provided", async () =>
 
 	assert.equal(
 		calls[0]?.url,
-		"http://127.0.0.1:4567/session/close-all?metaAgentScope=manual-browser&metaBrowserId=chrome-01",
+		"http://127.0.0.1:4567/session/close-all?metaAgentScope=manual-browser",
 	);
 });
 

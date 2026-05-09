@@ -57,7 +57,6 @@ function sanitizeMeta(meta) {
     operation: trimMetaValue(meta.operation, 80),
     note: trimMetaValue(meta.note, 160),
     agentScope: trimMetaValue(meta.agentScope, 120),
-    browserId: trimMetaValue(meta.browserId, 64),
   };
 
   return Object.values(sanitized).some((value) => typeof value === 'string')

@@ -97,7 +97,6 @@ function buildBrowserStageMeta(input, operation, note) {
     operation,
     note,
     agentScope: resolveAgentScope(input),
-    browserId: resolveBrowserId(input),
   };
 
   return Object.values(meta).some((value) => typeof value === 'string')
@@ -115,7 +114,6 @@ function appendProxyMeta(baseUrl, meta) {
   if (meta.operation) url.searchParams.set('metaOperation', meta.operation);
   if (meta.note) url.searchParams.set('metaNote', meta.note);
   if (meta.agentScope) url.searchParams.set('metaAgentScope', meta.agentScope);
-  if (meta.browserId) url.searchParams.set('metaBrowserId', meta.browserId);
   return url.toString();
 }
 
@@ -135,18 +133,6 @@ function resolveAgentScope(input) {
     if (trimmed) return trimmed;
   }
   return undefined;
-}
-
-function resolveBrowserId(input) {
-  const explicit =
-    typeof input?.browserId === 'string' ? input.browserId.trim() : '';
-  if (explicit) return explicit;
-
-  const env = input?.env || process.env;
-  const trimmed = typeof env.WEB_ACCESS_BROWSER_ID === 'string'
-    ? env.WEB_ACCESS_BROWSER_ID.trim()
-    : '';
-  return trimmed || undefined;
 }
 
 function describeExpression(expression) {

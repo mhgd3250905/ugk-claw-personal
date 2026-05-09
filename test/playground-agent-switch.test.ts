@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { renderPlaygroundPage } from "../src/ui/playground.js";
+import { getPlaygroundAgentManagerScript } from "../src/ui/playground-agent-manager.js";
 
 test("playground renders an agent selector for switching operation windows", () => {
 	const html = renderPlaygroundPage();
@@ -58,6 +59,10 @@ test("playground renders agent management entry points and workspace", () => {
 	assert.match(html, /fetch\("\/v1\/browsers"/);
 	assert.match(html, /defaultBrowserId/);
 	assert.match(html, /renderBrowserOptions/);
+	assert.match(html, /confirmAgentBrowserChangeIfNeeded/);
+	assert.match(html, /保存成功后影响后续 run/);
+	assert.match(html, /该 Agent 当前不能有运行中任务/);
+	assert.doesNotMatch(getPlaygroundAgentManagerScript(), /不影响正在运行中的任务/);
 	assert.match(html, /agentManagerMode:\s*"detail"/);
 	assert.match(html, /agent-manager-create/);
 	assert.match(html, /Agent ID（自动生成）/);

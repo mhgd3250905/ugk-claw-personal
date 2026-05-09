@@ -19,6 +19,14 @@ import { buildPromptWithAssetContext } from "../src/agent/file-artifacts.js";
 import { readBrowserScopeRoute } from "../src/browser/browser-scope-routes.js";
 import type { ChatStreamEvent, ConversationStateResponseBody } from "../src/types/api.js";
 
+function restoreEnvValue(key: string, value: string | undefined): void {
+	if (value === undefined) {
+		delete process.env[key];
+		return;
+	}
+	process.env[key] = value;
+}
+
 class FakeSession implements AgentSessionLike {
 	public prompts: Array<{ message: string; options?: PromptOptionsLike }> = [];
 	public abortCalls = 0;
@@ -199,6 +207,25 @@ class EnvAwareSession extends FakeSession {
 
 	override async prompt(message: string, options?: PromptOptionsLike): Promise<void> {
 		this.observedAgentScope = process.env.CLAUDE_AGENT_ID;
+		await super.prompt(message, options);
+	}
+}
+
+class RouteObservingSession extends FakeSession {
+	public observedRoute: unknown;
+
+	constructor(
+		sessionFile: string | undefined,
+		events: RawAgentSessionEventLike[],
+		finalAssistantText: string | undefined,
+		private readonly routeCachePath: string,
+		private readonly scope: string,
+	) {
+		super(sessionFile, events, finalAssistantText);
+	}
+
+	override async prompt(message: string, options?: PromptOptionsLike): Promise<void> {
+		this.observedRoute = await readBrowserScopeRoute(this.scope, { cachePath: this.routeCachePath });
 		await super.prompt(message, options);
 	}
 }
@@ -1064,6 +1091,60 @@ test("runChat clears the scoped browser route after the run finishes", async () 
 		} else {
 			process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH = originalRouteCachePath;
 		}
+	}
+});
+
+test("runChat writes the scoped browser route with the resolved CDP endpoint during the run", async () => {
+	const originalFetch = globalThis.fetch;
+	const originalRouteCachePath = process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH;
+	const originalInstances = process.env.UGK_BROWSER_INSTANCES_JSON;
+	const routeCachePath = join(await mkdtemp(join(tmpdir(), "ugk-pi-chat-browser-route-endpoint-")), "routes.json");
+	globalThis.fetch = (async () =>
+		new Response(JSON.stringify({ ok: true }), {
+			status: 200,
+			headers: { "content-type": "application/json" },
+		})) as typeof fetch;
+	process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH = routeCachePath;
+	process.env.UGK_BROWSER_INSTANCES_JSON = JSON.stringify([
+		{ browserId: "chrome-01", cdpHost: "172.31.250.11", cdpPort: 9223 },
+		{ browserId: "chrome-02", cdpHost: "172.31.250.12", cdpPort: 9223 },
+	]);
+
+	try {
+		const store = await createStore();
+		const session = new RouteObservingSession(
+			"E:/sessions/browser-route-endpoint.jsonl",
+			[],
+			"ok",
+			routeCachePath,
+			"manual-browser-route-endpoint",
+		);
+		const factory = new FakeAgentSessionFactory(() => session);
+		const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+
+		await service.chat({
+			conversationId: "manual:browser-route-endpoint",
+			message: "用指定浏览器",
+			browserId: "chrome-01",
+		});
+
+		const observedRoute = session.observedRoute as {
+			browserId?: string;
+			cdpHost?: string;
+			cdpPort?: number;
+			updatedAt?: string;
+		};
+		assert.deepEqual(observedRoute, {
+			browserId: "chrome-01",
+			cdpHost: "172.31.250.11",
+			cdpPort: 9223,
+			updatedAt: observedRoute.updatedAt,
+		});
+		assert.equal(typeof observedRoute.updatedAt, "string");
+	} finally {
+		globalThis.fetch = originalFetch;
+		restoreEnvValue("UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH", originalRouteCachePath);
+		restoreEnvValue("UGK_BROWSER_INSTANCES_JSON", originalInstances);
 	}
 });
 

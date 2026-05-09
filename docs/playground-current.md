@@ -1,6 +1,14 @@
 # Playground 当前状态
 
-更新时间：`2026-05-08`
+更新时间：`2026-05-09`
+
+## 2026-05-09 Agent / Conn 浏览器绑定手动化
+
+- 浏览器绑定从自然语言 Agent 能力中撤出：Agent 不再通过 `.pi/skills/agent-profile-ops` 或 `.pi/skills/conn-orchestrator` 查询浏览器清单、生成浏览器绑定提案或修改浏览器绑定字段。
+- Chrome 绑定是用户手动配置：Agent 默认浏览器仍在 Agent 操作台设置，Conn 任务浏览器仍在 Conn 编辑器设置；UI 继续使用 `GET /v1/browsers` 渲染下拉，并通过正式 API 保存。
+- 服务端保留确认闸门和审计：如果浏览器 / 执行路由字段真实变化但请求没有确认头，或来源不是 `playground`，接口返回 400，并记录 `status: "rejected_unconfirmed"` 或 `status: "rejected_non_ui_source"`；UI 正常保存会携带确认头和 `playground` 来源。
+- `web-access` 只负责使用平台分配的浏览器路由，不负责查看、解释、切换或配置浏览器绑定。用户在对话里要求改浏览器时，Agent 应引导用户到 Playground 设置界面手动操作。
+- 相关源码 / 规则：`.pi/skills/agent-profile-ops/SKILL.md`、`.pi/skills/conn-orchestrator/SKILL.md`、`runtime/skills-user/web-access/SKILL.md`、`src/routes/chat.ts`、`src/routes/conns.ts`、`src/routes/browsers.ts`
 
 ## 2026-05-08 Chrome 工作台
 
@@ -22,7 +30,7 @@
 
 - Agent 操作台现在会读取 `GET /v1/browsers` 的浏览器目录，但只引用浏览器实例，不负责创建 / 启停 Chrome 容器。
 - Agent 列表和详情会展示当前 `defaultBrowserId`；未指定时显示“跟随系统默认”，实际默认值由 Browser Registry 的 `defaultBrowserId` 决定。
-- 新建 Agent 和编辑 Agent 都提供“默认浏览器”下拉，保存时通过 `POST /v1/agents` 或 `PATCH /v1/agents/:agentId` 写入 `defaultBrowserId`；浏览器 ID 仍由后端 Browser Registry 校验。
+- 新建 Agent 和编辑 Agent 都提供“默认浏览器”下拉，保存时通过 `POST /v1/agents` 或 `PATCH /v1/agents/:agentId` 写入 `defaultBrowserId`；浏览器 ID 仍由后端 Browser Registry 校验。默认浏览器是 Agent 全局运行参数，该 Agent 有运行中对话时服务端会拒绝切换，用户需要等当前运行结束后再改。
 - 相关源码：`src/ui/playground.ts`、`src/ui/playground-agent-manager.ts`、`src/routes/chat.ts`、`src/routes/browsers.ts`
 
 ## 2026-05-07 UI 层级与主题一致性收口

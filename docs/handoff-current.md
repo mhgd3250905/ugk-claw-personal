@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-08`
+更新时间：`2026-05-09`
 
 这份文档给下一位全新接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
@@ -11,7 +11,7 @@
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
-- 当前本地最新提交：本文件所在 HEAD，提交主题为 `Add Chrome workbench`；具体 hash 以 `git log -1 --oneline` 为准。
+- 当前本地最新提交：本文件所在 HEAD，提交主题为 `Lock browser bindings to Playground UI`；具体 hash 以 `git log -1 --oneline` 为准。
 - 当前 `origin/main` / `gitee/main`：均已推送到 `e92da82 Add Chrome workbench`。
 - 腾讯云生产运行代码提交：已增量更新并验证到 `e92da82 Add Chrome workbench`。
 - 阿里云生产运行代码提交：已增量更新并验证到 `e92da82 Add Chrome workbench`。
@@ -29,7 +29,19 @@
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
+- 当前本地未发布变更：Agent / Conn 浏览器绑定边界已本地收口并通过测试，准备走服务器增量更新。浏览器绑定只能由用户在 Playground UI 手动设置；运行时 Agent 不能通过自然语言修改浏览器绑定；`web-access` 不再接受请求级 browserId 覆盖，run 环境只暴露当前绑定 Chrome 的单条实例配置。
 - 当前未跟踪文件：`runtime/xhs-extract.mjs` 来源不属于本轮 Chrome 工作台，继续不要提交、不要删除，除非用户明确说明它的归属。
+
+## 2026-05-09 本地浏览器绑定隔离收口
+
+本轮目标不是新增“更聪明”的 Agent 操作，而是撤掉危险能力：Agent / Conn 的 Chrome 绑定只能由用户手动在 Playground UI 设置。
+
+- UI 保留：Agent 操作台和 Conn 编辑器仍通过 `/v1/browsers` 渲染下拉，并用正式 API 保存 `defaultBrowserId` / `browserId`。
+- 服务端闸门保留：浏览器 / 执行路由真实变化时必须带 `x-ugk-browser-binding-confirmed: true` 和 `x-ugk-browser-binding-source: playground`，否则拒绝并写审计。
+- Agent 能力撤销：`agent-profile-ops`、`conn-orchestrator`、`web-access` 都不得通过自然语言修改浏览器绑定。
+- 架构收口：`src/browser/browser-binding-policy.ts` 统一承载确认 header 读取、绑定字段变更计算和 UI-only 写入判断；`src/routes/chat.ts` 只处理 Agent profile 更新和 running conversation 拒绝，`src/routes/conns.ts` 只处理 Conn 更新，避免把绑定策略散落在多个路由里。
+- 底层隔离补强：`cdp-proxy` / `host-bridge` 不再转发请求级浏览器 id，`local-cdp-browser` 不再用传入 `browserId` 选路；`browser-bound-bash` 只把当前绑定 Chrome 的一条 `UGK_BROWSER_INSTANCES_JSON` 注入 run 环境。scope route 记录当前绑定的 CDP endpoint，避免长驻 `cdp-proxy` 沿用首次启动时的旧 Chrome 环境；Agent run 启动的 proxy 会拒绝缺少 `metaAgentScope` 的浏览器变更请求，旧 runner 和文档示例已补齐 scope。浏览器绑定按 Agent 全局参数处理，服务端拒绝在该 Agent 有 running conversation 时切换，返回 409 并写 `rejected_running` 审计。
+- 本地验证已通过：`npm test`（613 pass / 0 fail）、`npx tsc --noEmit`、`git diff --check`，并在本地服务上实测 UI 手动切换浏览器可生效、非 UI 来源被拒绝、运行中 Agent 不能切换默认浏览器。
 
 ## 2026-05-08 Chrome 工作台已发布摘要
 
@@ -68,7 +80,7 @@ git log --oneline c05753b..HEAD
 - `docker compose -f docker-compose.prod.yml config --quiet`
 - `npm test`
 
-截至最近一次全量测试，`npm test` 为 `595 pass / 0 fail`。本轮还单独跑过：
+截至最近一次全量测试，`npm test` 为 `613 pass / 0 fail`。本轮还单独跑过：
 
 - `npx tsc --noEmit`
 - `node --test --test-concurrency=1 --import tsx test\conn-db.test.ts test\conn-sqlite-store.test.ts test\cleanup-debug.test.ts`

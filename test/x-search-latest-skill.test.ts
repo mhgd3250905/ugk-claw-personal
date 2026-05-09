@@ -60,6 +60,19 @@ test("web-access skill documents CDP text insertion for rich editors", async () 
 	assert.match(skill, /editor\.focus\(\)/);
 });
 
+test("web-access skill keeps browser assignment out of agent-visible operations", async () => {
+	const skill = await readFile("runtime/skills-user/web-access/SKILL.md", "utf8");
+
+	assert.match(skill, /must not inspect, list, configure, switch, bind, clear, or change Agent \/ Conn browser settings/);
+	assert.match(skill, /Browser assignment is a user-only Playground UI setting/);
+	assert.match(skill, /Do not edit browser route caches/);
+	assert.doesNotMatch(skill, /PATCH \/v1\/agents\/:agentId/);
+	assert.doesNotMatch(skill, /GET \/v1\/browsers/);
+	assert.doesNotMatch(skill, /Browser Binding Change Request/);
+	assert.doesNotMatch(skill, /chrome-01/);
+	assert.doesNotMatch(skill, /chrome-02/);
+});
+
 test("explicit browser search skills do not steer Docker users back to the Windows IPC bridge", async () => {
 	const skillRoot = "runtime/skills-user";
 	const browserSearchSkillPaths = [

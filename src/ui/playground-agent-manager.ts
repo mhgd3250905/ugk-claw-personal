@@ -1644,6 +1644,41 @@ export function getPlaygroundAgentManagerScript(): string {
 			}
 		}
 
+		async function confirmAgentBrowserChangeIfNeeded(agent, nextBrowserId) {
+			const currentBrowserId = String(agent?.defaultBrowserId || "").trim();
+			const normalizedNextBrowserId = String(nextBrowserId || "").trim();
+			if (currentBrowserId === normalizedNextBrowserId) {
+				return true;
+			}
+			return await openConfirmDialog({
+				title: "确认浏览器绑定变更",
+				description:
+					"目标对象：Agent · " +
+					(agent?.name || agent?.agentId || "新 Agent") +
+					"\\n当前浏览器：" +
+					getBrowserLabel(currentBrowserId) +
+					"\\n目标浏览器：" +
+					(normalizedNextBrowserId
+						? getBrowserLabel(normalizedNextBrowserId)
+						: "跟随系统默认（" + getBrowserLabel(state.defaultBrowserId || "default") + "）") +
+					"\\n影响范围：保存成功后影响后续 run\\n保存条件：该 Agent 当前不能有运行中任务\\n不会做：不复制 cookie、不迁移 Chrome profile、不启动或关闭 Chrome",
+				confirmText: "确认变更",
+				cancelText: "取消",
+				tone: "danger",
+			});
+		}
+
+		async function confirmAgentCreateBrowserIfNeeded(agentId, name, nextBrowserId) {
+			const normalizedNextBrowserId = String(nextBrowserId || "").trim();
+			if (!normalizedNextBrowserId) {
+				return true;
+			}
+			return await confirmAgentBrowserChangeIfNeeded(
+				{ agentId, name, defaultBrowserId: "" },
+				normalizedNextBrowserId,
+			);
+		}
+
 		async function saveAgentEditor() {
 			if (state.agentEditorSaving) {
 				return;
@@ -1656,19 +1691,39 @@ export function getPlaygroundAgentManagerScript(): string {
 				setAgentEditorError("Agent ID、显示名称和用途描述都要填写。");
 				return;
 			}
+			const editing = state.agentEditorMode === "edit";
+			const currentAgent = getManagedAgentCatalog().find((entry) => entry.agentId === agentId) || {
+				agentId,
+				name,
+				defaultBrowserId: "",
+			};
+			const confirmed = editing
+				? await confirmAgentBrowserChangeIfNeeded(currentAgent, defaultBrowserId)
+				: await confirmAgentCreateBrowserIfNeeded(agentId, name, defaultBrowserId);
+			if (!confirmed) {
+				return;
+			}
+			const browserBindingChanged =
+				editing && String(currentAgent?.defaultBrowserId || "").trim() !== defaultBrowserId;
 			state.agentEditorSaving = true;
 			setAgentEditorError("");
 			renderAgentEditor();
 			try {
-				const editing = state.agentEditorMode === "edit";
+				const headers = {
+					accept: "application/json",
+					"content-type": "application/json",
+					...(browserBindingChanged
+						? {
+								"x-ugk-browser-binding-confirmed": "true",
+								"x-ugk-browser-binding-source": "playground",
+							}
+						: {}),
+				};
 				const response = await fetch(
 					editing ? "/v1/agents/" + encodeURIComponent(agentId) : "/v1/agents",
 					{
 						method: editing ? "PATCH" : "POST",
-						headers: {
-							accept: "application/json",
-							"content-type": "application/json",
-						},
+						headers,
 						body: JSON.stringify({
 							agentId,
 							name,
@@ -1710,6 +1765,10 @@ export function getPlaygroundAgentManagerScript(): string {
 			if (!name || !description) {
 				setAgentEditorError("Agent 名称和用途描述都要填写。");
 				setAgentManagerNotice("Agent 名称和用途描述都要填写。");
+				return;
+			}
+			const confirmed = await confirmAgentCreateBrowserIfNeeded(agentId, name, state.agentCreateDefaultBrowserId);
+			if (!confirmed) {
 				return;
 			}
 			state.agentEditorSaving = true;

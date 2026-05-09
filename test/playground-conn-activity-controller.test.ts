@@ -19,4 +19,7 @@ test("conn editor supports task-level browser selection independent of the execu
 	assert.match(script, /renderConnEditorBrowserOptions/);
 	assert.match(script, /payload\.browserId = connEditorBrowserId\.value \|\| null/);
 	assert.match(script, /跟随执行 Agent/);
+	assert.match(script, /confirmConnExecutionBindingChangeIfNeeded/);
+	assert.match(script, /x-ugk-browser-binding-source/);
+	assert.match(script, /只影响后续 run/);
 });

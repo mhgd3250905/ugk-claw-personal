@@ -5,6 +5,18 @@ import type { AgentService } from "../agent/agent-service.js";
 import type { AgentServiceRegistry } from "../agent/agent-service-registry.js";
 import type { BrowserRegistry } from "../browser/browser-registry.js";
 import {
+	normalizeBrowserBindingAuditValue,
+	recordBrowserBindingAudit,
+	type BrowserBindingAuditLog,
+	type BrowserBindingAuditChange,
+} from "../browser/browser-binding-audit-log.js";
+import {
+	compactBrowserBindingChanges,
+	createBrowserBindingChange,
+	evaluateBrowserBindingWrite,
+	readBrowserBindingRequestContext,
+} from "../browser/browser-binding-policy.js";
+import {
 	archiveStoredAgentProfile,
 	createStoredAgentProfile,
 	installStoredAgentProfileSkill,
@@ -133,6 +145,7 @@ interface ChatRouteDependencies {
 	agentService: AgentService;
 	agentServiceRegistry?: AgentServiceRegistry<AgentService>;
 	browserRegistry?: BrowserRegistry;
+	browserBindingAuditLog?: BrowserBindingAuditLog;
 	agentTemplateRegistry?: { invalidate(profileId?: string): void };
 	projectRoot?: string;
 }
@@ -215,6 +228,13 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		};
 	}
 
+	function sendRunningBrowserBindingChange(reply: FastifyReply, agentId: string): FastifyReply {
+		return reply.status(409).send({
+			error: "CONFLICT",
+			message: `Agent ${agentId} has a running conversation. Stop the current run before changing its default browser.`,
+		});
+	}
+
 	app.get("/v1/agents", async () => {
 		return {
 			agents: deps.agentServiceRegistry?.list().map(presentAgentSummary) ?? [
@@ -281,7 +301,8 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
 			}
-			if (!resolveScopedAgentServiceOrSend(reply, agentId)) {
+			const service = resolveScopedAgentServiceOrSend(reply, agentId);
+			if (!service) {
 				return reply;
 			}
 			try {
@@ -290,6 +311,56 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				if (browserValidation) {
 					return browserValidation;
 				}
+				const currentProfile = deps.agentServiceRegistry.getProfile(agentId);
+				const auditSource = readBrowserBindingRequestContext(request.headers);
+				let browserBindingChanges: BrowserBindingAuditChange[] = [];
+				if (Object.hasOwn(body, "defaultBrowserId")) {
+					const from = normalizeBrowserBindingAuditValue(currentProfile?.defaultBrowserId);
+					const to = normalizeBrowserBindingAuditValue(body.defaultBrowserId);
+					browserBindingChanges = compactBrowserBindingChanges([
+						createBrowserBindingChange("defaultBrowserId", from, to),
+					]);
+				}
+				const bindingDecision = evaluateBrowserBindingWrite(browserBindingChanges, auditSource);
+				if (!bindingDecision.allowed && bindingDecision.status === "rejected_unconfirmed") {
+					await recordBrowserBindingAudit(deps.browserBindingAuditLog, {
+						kind: "agent_browser_binding",
+						targetId: agentId,
+						targetLabel: currentProfile?.name ?? agentId,
+						source: auditSource.source,
+						confirmedByClient: false,
+						status: bindingDecision.status,
+						changes: browserBindingChanges,
+					});
+					return sendBadRequest(reply, bindingDecision.message);
+				}
+				if (!bindingDecision.allowed && bindingDecision.status === "rejected_non_ui_source") {
+					await recordBrowserBindingAudit(deps.browserBindingAuditLog, {
+						kind: "agent_browser_binding",
+						targetId: agentId,
+						targetLabel: currentProfile?.name ?? agentId,
+						source: auditSource.source,
+						confirmedByClient: auditSource.confirmedByClient,
+						status: bindingDecision.status,
+						changes: browserBindingChanges,
+					});
+					return sendBadRequest(reply, bindingDecision.message);
+				}
+				if (browserBindingChanges.length > 0) {
+					const catalog = await service.getConversationCatalog();
+					if (catalog.conversations.some((conversation) => conversation.running)) {
+						await recordBrowserBindingAudit(deps.browserBindingAuditLog, {
+							kind: "agent_browser_binding",
+							targetId: agentId,
+							targetLabel: currentProfile?.name ?? agentId,
+							source: auditSource.source,
+							confirmedByClient: auditSource.confirmedByClient,
+							status: "rejected_running",
+							changes: browserBindingChanges,
+						});
+						return sendRunningBrowserBindingChange(reply, agentId);
+					}
+				}
 				const profile = await updateStoredAgentProfile(deps.projectRoot, agentId, {
 					name: body.name,
 					description: body.description,
@@ -297,6 +368,17 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				});
 				deps.agentServiceRegistry.updateProfile(profile);
 				deps.agentTemplateRegistry?.invalidate(profile.agentId);
+				if (browserBindingChanges.length > 0) {
+					await recordBrowserBindingAudit(deps.browserBindingAuditLog, {
+						kind: "agent_browser_binding",
+						targetId: profile.agentId,
+						targetLabel: profile.name,
+						source: auditSource.source,
+						confirmedByClient: auditSource.confirmedByClient,
+						status: "succeeded",
+						changes: browserBindingChanges,
+					});
+				}
 				return {
 					agent: presentAgentSummary(profile),
 				};

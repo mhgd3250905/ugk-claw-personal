@@ -865,6 +865,42 @@ export function getConnActivityEditorScript(): string {
 			return payload;
 		}
 
+		function getEditingConn() {
+			const connId = String(state.connEditorConnId || "").trim();
+			if (!connId) {
+				return null;
+			}
+			return (state.connManagerItems || []).find((conn) => String(conn?.connId || "").trim() === connId) || null;
+		}
+
+		async function confirmConnExecutionBindingChangeIfNeeded(conn, nextProfileId, nextBrowserId) {
+			const currentProfileId = String(conn?.profileId || "main").trim() || "main";
+			const normalizedNextProfileId = String(nextProfileId || "main").trim() || "main";
+			const currentBrowserId = String(conn?.browserId || "").trim();
+			const normalizedNextBrowserId = String(nextBrowserId || "").trim();
+			if (currentProfileId === normalizedNextProfileId && currentBrowserId === normalizedNextBrowserId) {
+				return true;
+			}
+			return await openConfirmDialog({
+				title: "确认 Conn 执行路由变更",
+				description:
+					"目标对象：Conn · " +
+					(conn?.title || connEditorTitleInput.value || "新后台任务") +
+					"\\n当前执行 Agent：" +
+					getAgentDisplayName(currentProfileId) +
+					"\\n目标执行 Agent：" +
+					getAgentDisplayName(normalizedNextProfileId) +
+					"\\n当前浏览器：" +
+					getConnBrowserLabel(currentBrowserId) +
+					"\\n目标浏览器：" +
+					(normalizedNextBrowserId ? getConnBrowserLabel(normalizedNextBrowserId) : "跟随执行 Agent") +
+					"\\n影响范围：只影响后续 run\\n不会做：不复制 cookie、不迁移 Chrome profile、不启动或关闭 Chrome、不影响正在运行中的任务",
+				confirmText: "确认变更",
+				cancelText: "取消",
+				tone: "danger",
+			});
+		}
+
 		async function submitConnEditor() {
 			if (state.connEditorSaving) {
 				return;
@@ -877,18 +913,41 @@ export function getConnActivityEditorScript(): string {
 				return;
 			}
 
+			const isEditing = state.connEditorMode === "edit" && state.connEditorConnId;
+			const editingConn = isEditing ? getEditingConn() : null;
+			const confirmedExecutionBinding = await confirmConnExecutionBindingChangeIfNeeded(
+				editingConn,
+				payload.profileId,
+				Object.hasOwn(payload, "browserId") ? payload.browserId : "",
+			);
+			if (!confirmedExecutionBinding) {
+				return;
+			}
+			const currentProfileId = String(editingConn?.profileId || "main").trim() || "main";
+			const nextProfileId = String(payload.profileId || "main").trim() || "main";
+			const currentBrowserId = String(editingConn?.browserId || "").trim();
+			const nextBrowserId = String(Object.hasOwn(payload, "browserId") ? payload.browserId || "" : "").trim();
+			const executionBindingChanged =
+				Boolean(isEditing) && (currentProfileId !== nextProfileId || currentBrowserId !== nextBrowserId);
+
 			state.connEditorSaving = true;
 			renderConnEditor();
 			try {
-				const isEditing = state.connEditorMode === "edit" && state.connEditorConnId;
+				const headers = {
+					accept: "application/json",
+					"content-type": "application/json",
+					...(executionBindingChanged
+						? {
+								"x-ugk-browser-binding-confirmed": "true",
+								"x-ugk-browser-binding-source": "playground",
+							}
+						: {}),
+				};
 				const response = await fetch(
 					isEditing ? "/v1/conns/" + encodeURIComponent(state.connEditorConnId) : "/v1/conns",
 					{
 						method: isEditing ? "PATCH" : "POST",
-						headers: {
-							accept: "application/json",
-							"content-type": "application/json",
-						},
+						headers,
 						body: JSON.stringify(payload),
 					},
 				);

@@ -130,6 +130,19 @@ function normalizeBrowserInstance(input) {
   };
 }
 
+function normalizeBrowserScopeRoute(input) {
+  if (!input || typeof input !== 'object') return undefined;
+  const browserId = normalizeBrowserId(input.browserId);
+  const cdpHost = String(input.cdpHost || '').trim();
+  const cdpPort = Number(input.cdpPort);
+  return {
+    ...(browserId ? { browserId } : {}),
+    ...(cdpHost && Number.isInteger(cdpPort) && cdpPort > 0 && cdpPort <= 65535
+      ? { cdpHost, cdpPort }
+      : {}),
+  };
+}
+
 function readBrowserInstancesFromEnv(env = process.env) {
   const raw = String(env.UGK_BROWSER_INSTANCES_JSON || '').trim();
   if (!raw) {
@@ -160,33 +173,49 @@ function readBrowserScopeRoute(scope, options = {}) {
   try {
     const parsed = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
     const route = parsed?.routes?.[normalizedScope];
-    return normalizeBrowserId(route?.browserId);
+    const normalizedRoute = normalizeBrowserScopeRoute(route);
+    return normalizedRoute?.browserId ? normalizedRoute : undefined;
   } catch {
     return undefined;
   }
 }
 
-export function resolveBrowserIdFromMeta(meta = {}, options = {}) {
-  const env = options.env || process.env;
-  const explicitBrowserId = normalizeBrowserId(meta?.browserId);
-  if (explicitBrowserId) return explicitBrowserId;
+export function resolveBrowserRouteFromMeta(meta = {}, options = {}) {
+	const env = options.env || process.env;
+	const scopedRoute = readBrowserScopeRoute(meta?.agentScope, options);
+	if (scopedRoute?.browserId) return scopedRoute;
 
-  const scopedBrowserId = readBrowserScopeRoute(meta?.agentScope, options);
-  if (scopedBrowserId) return scopedBrowserId;
-
-  if (String(meta?.agentScope || '').trim()) {
-    return normalizeBrowserId(env.UGK_DEFAULT_BROWSER_ID) || DEFAULT_BROWSER_ID;
+	if (String(meta?.agentScope || '').trim()) {
+    return { browserId: normalizeBrowserId(env.UGK_DEFAULT_BROWSER_ID) || DEFAULT_BROWSER_ID };
   }
 
-  return (
-    normalizeBrowserId(env.WEB_ACCESS_BROWSER_ID) ||
-    normalizeBrowserId(env.UGK_DEFAULT_BROWSER_ID) ||
-    DEFAULT_BROWSER_ID
-  );
+  return {
+    browserId:
+      normalizeBrowserId(env.WEB_ACCESS_BROWSER_ID) ||
+      normalizeBrowserId(env.UGK_DEFAULT_BROWSER_ID) ||
+      DEFAULT_BROWSER_ID,
+  };
 }
 
-export function resolveBrowserInstanceFromEnv(browserId, env = process.env) {
+export function resolveBrowserIdFromMeta(meta = {}, options = {}) {
+  return resolveBrowserRouteFromMeta(meta, options).browserId;
+}
+
+export function resolveBrowserInstanceFromEnv(browserId, env = process.env, route = undefined) {
   const normalizedBrowserId = normalizeBrowserId(browserId) || DEFAULT_BROWSER_ID;
+  if (
+    route?.browserId === normalizedBrowserId &&
+    route.cdpHost &&
+    Number.isInteger(route.cdpPort) &&
+    route.cdpPort > 0 &&
+    route.cdpPort <= 65535
+  ) {
+    return {
+      browserId: normalizedBrowserId,
+      cdpHost: route.cdpHost,
+      cdpPort: route.cdpPort,
+    };
+  }
   const instances = readBrowserInstancesFromEnv(env);
   const instance = instances.find((entry) => entry.browserId === normalizedBrowserId);
   if (instance) {
@@ -1022,8 +1051,8 @@ const localBrowsersById = new Map();
 
 export function getDefaultLocalBrowser(options = {}) {
   const env = options.env || process.env;
-  const browserId = resolveBrowserIdFromMeta(options.meta, options);
-  const instance = resolveBrowserInstanceFromEnv(browserId, env);
+  const route = resolveBrowserRouteFromMeta(options.meta, options);
+  const instance = resolveBrowserInstanceFromEnv(route.browserId, env, route);
   const cacheKey = instance.browserId;
   if (!localBrowsersById.has(cacheKey)) {
     localBrowsersById.set(

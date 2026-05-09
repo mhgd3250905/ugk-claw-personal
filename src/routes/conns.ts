@@ -21,6 +21,18 @@ import {
 } from "./file-route-utils.js";
 import { sendBadRequest, sendInternalError } from "./http-errors.js";
 import type { BrowserRegistry } from "../browser/browser-registry.js";
+import {
+	normalizeBrowserBindingAuditValue,
+	recordBrowserBindingAudit,
+	type BrowserBindingAuditChange,
+	type BrowserBindingAuditLog,
+} from "../browser/browser-binding-audit-log.js";
+import {
+	compactBrowserBindingChanges,
+	createBrowserBindingChange,
+	evaluateBrowserBindingWrite,
+	readBrowserBindingRequestContext,
+} from "../browser/browser-binding-policy.js";
 import type {
 	ConnBulkDeleteRequestBody,
 	ConnBulkDeleteResponseBody,
@@ -36,6 +48,7 @@ interface ConnRouteOptions {
 	connRunStore: ConnRunStoreLike;
 	backgroundDataDir: string;
 	browserRegistry?: BrowserRegistry;
+	browserBindingAuditLog?: BrowserBindingAuditLog;
 	publicBaseUrl?: string;
 }
 
@@ -570,6 +583,50 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 		}
 
 		try {
+			const currentConn = body.profileId !== undefined || body.browserId !== undefined
+				? await options.connStore.get(connId)
+				: undefined;
+			const auditSource = readBrowserBindingRequestContext(request.headers);
+			let browserBindingChanges: BrowserBindingAuditChange[] = [];
+			if (currentConn) {
+				const changes: Array<BrowserBindingAuditChange | undefined> = [];
+				if (body.profileId !== undefined) {
+					const from = normalizeBrowserBindingAuditValue(currentConn.profileId);
+					const to = normalizeBrowserBindingAuditValue(parsed.value!.profileId);
+					changes.push(createBrowserBindingChange("profileId", from, to));
+				}
+				if (body.browserId !== undefined) {
+					const from = normalizeBrowserBindingAuditValue(currentConn.browserId);
+					const to = normalizeBrowserBindingAuditValue(parsed.value!.browserId);
+					changes.push(createBrowserBindingChange("browserId", from, to));
+				}
+				browserBindingChanges = compactBrowserBindingChanges(changes);
+			}
+			const bindingDecision = evaluateBrowserBindingWrite(browserBindingChanges, auditSource);
+			if (!bindingDecision.allowed && bindingDecision.status === "rejected_unconfirmed") {
+				await recordBrowserBindingAudit(options.browserBindingAuditLog, {
+					kind: browserBindingChanges.some((change) => change.field === "profileId") ? "conn_execution_binding" : "conn_browser_binding",
+					targetId: connId,
+					targetLabel: currentConn?.title ?? connId,
+					source: auditSource.source,
+					confirmedByClient: false,
+					status: bindingDecision.status,
+					changes: browserBindingChanges,
+				});
+				return sendBadRequest(reply, bindingDecision.message);
+			}
+			if (!bindingDecision.allowed && bindingDecision.status === "rejected_non_ui_source") {
+				await recordBrowserBindingAudit(options.browserBindingAuditLog, {
+					kind: browserBindingChanges.some((change) => change.field === "profileId") ? "conn_execution_binding" : "conn_browser_binding",
+					targetId: connId,
+					targetLabel: currentConn?.title ?? connId,
+					source: auditSource.source,
+					confirmedByClient: auditSource.confirmedByClient,
+					status: bindingDecision.status,
+					changes: browserBindingChanges,
+				});
+				return sendBadRequest(reply, bindingDecision.message);
+			}
 			const conn = await options.connStore.update(connId, {
 				...(parsed.value!.title !== undefined ? { title: parsed.value!.title } : {}),
 				...(parsed.value!.prompt !== undefined ? { prompt: parsed.value!.prompt } : {}),
@@ -589,6 +646,17 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 			});
 			if (!conn) {
 				return reply.status(404).send();
+			}
+			if (browserBindingChanges.length > 0) {
+				await recordBrowserBindingAudit(options.browserBindingAuditLog, {
+					kind: browserBindingChanges.some((change) => change.field === "profileId") ? "conn_execution_binding" : "conn_browser_binding",
+					targetId: conn.connId,
+					targetLabel: conn.title,
+					source: auditSource.source,
+					confirmedByClient: auditSource.confirmedByClient,
+					status: "succeeded",
+					changes: browserBindingChanges,
+				});
 			}
 			return { conn } satisfies ConnDetailResponseBody;
 		} catch (error) {

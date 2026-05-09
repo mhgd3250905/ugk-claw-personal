@@ -47,6 +47,8 @@
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
+再记一句浏览器绑定红线：Agent / Conn 的 Chrome 绑定只能由用户在 Playground UI 手动设置。排查时看 `docs/playground-current.md`、`docs/web-access-browser-bridge.md`、`src/browser/browser-binding-policy.ts`、`src/routes/chat.ts`、`src/routes/conns.ts`、`src/browser/browser-bound-bash.ts` 和 `runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`；不要恢复自然语言改浏览器，不要把 `browser-scope-routes.json` 当长期配置，不要让 Agent 通过 `metaBrowserId` 或环境里的完整浏览器清单绕到其他 Chrome。
+
 再记一句：当前已开始引入“单进程多 agent profile”底座，第一版内置 `main` 与 `search`，后续自定义 agent 记录在 `.data/agents/profiles.json`。`GET /v1/agents` 是当前运行时注册可用列表；`profiles.json` 只代表用户创建记录，不是完整注册表，也不是创建 / 修复入口。禁止直接编辑 `profiles.json` 创建、恢复、归档或修复 agent；手写文件会绕过 `AgentServiceRegistry`，导致磁盘说存在、运行时列表看不到。`main` 继续走旧 `/v1/chat/*`，`search` 和后续 agent 走 `/v1/agents/:agentId/...`。排查技能串场、会话串场或创建 / 归档 agent 时先看 [src/agent/agent-profile.ts](/E:/AII/ugk-pi/src/agent/agent-profile.ts)、[src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)、[src/agent/agent-service-registry.ts](/E:/AII/ugk-pi/src/agent/agent-service-registry.ts)、[src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)、[.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md) 和 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
 
 用户问“我有哪些 agent / 有哪些 agent / 当前有哪些 agent”时，默认指 `/v1/agents` 的 agent profile / 操作视窗，不是 `.pi/agents` 里的 legacy subagent。只有明确说 `subagent`、`scout/planner/worker/reviewer` 或“派发子任务”时才看 `.pi/agents`。
@@ -236,6 +238,7 @@
 - `WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`
 - `GET /v1/browsers`
 - `UGK_BROWSER_INSTANCES_JSON`
+- Agent / Conn 浏览器绑定 UI-only 边界
 - `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`
 - `POST /session/close-all?metaAgentScope=...`
 - Chrome 持久 profile

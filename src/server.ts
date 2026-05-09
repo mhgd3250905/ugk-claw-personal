@@ -10,6 +10,7 @@ import {
 	type BrowserRegistry,
 } from "./browser/browser-registry.js";
 import { BrowserControlService } from "./browser/browser-control.js";
+import { JsonlBrowserBindingAuditLog, type BrowserBindingAuditLog } from "./browser/browser-binding-audit-log.js";
 import {
 	DEFAULT_AGENT_ID,
 	type AgentProfile,
@@ -52,6 +53,7 @@ export interface BuildServerOptions {
 	notificationHub?: NotificationHub;
 	browserRegistry?: BrowserRegistry;
 	browserControl?: BrowserControlService;
+	browserBindingAuditLog?: BrowserBindingAuditLog;
 	backgroundDataDir?: string;
 	modelConfigStore?: ModelConfigStore;
 	modelSelectionValidator?: ModelSelectionValidator;
@@ -120,6 +122,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 			: createDefaultConnDatabase(config.connDatabasePath);
 	const notificationHub = options.notificationHub ?? new NotificationHub();
 	const browserRegistry = options.browserRegistry ?? createBrowserRegistryFromEnv();
+	const browserBindingAuditLog =
+		options.browserBindingAuditLog ?? new JsonlBrowserBindingAuditLog(join(config.projectRoot, ".data", "audit", "browser-bindings.jsonl"));
 	const agentServiceRegistry = options.agentServiceRegistry ?? createDefaultAgentServiceRegistry(assetStore);
 	const agentProfileProjectRoot = options.agentProfileProjectRoot ?? config.projectRoot;
 	const agentTemplateRegistry = options.agentTemplateRegistry ?? new AgentTemplateRegistry({ projectRoot: agentProfileProjectRoot });
@@ -149,6 +153,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		agentService,
 		agentServiceRegistry,
 		browserRegistry,
+		browserBindingAuditLog,
 		agentTemplateRegistry,
 		projectRoot: agentProfileProjectRoot,
 	});
@@ -168,6 +173,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		connRunStore,
 		backgroundDataDir: options.backgroundDataDir ?? config.backgroundDataDir,
 		browserRegistry,
+		browserBindingAuditLog,
 		publicBaseUrl: config.publicBaseUrl,
 	});
 

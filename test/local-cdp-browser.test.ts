@@ -10,6 +10,7 @@ import {
 	resolveBrowserInputUrl,
 	resolveBrowserIdFromMeta,
 	resolveBrowserInstanceFromEnv,
+	resolveBrowserRouteFromMeta,
 	rewriteCdpTargetForBaseUrl,
 } from "../runtime/skills-user/web-access/scripts/local-cdp-browser.mjs";
 
@@ -92,7 +93,7 @@ test("resolveBrowserInputUrl keeps external URLs unchanged when using a sidecar 
 	);
 });
 
-test("resolveBrowserIdFromMeta resolves explicit, env, and scope-routed browser ids", async () => {
+test("resolveBrowserIdFromMeta resolves scope routes before any request-supplied browser id", async () => {
 	const tempDir = await mkdtemp(path.join(tmpdir(), "ugk-browser-id-route-"));
 	const routeCachePath = path.join(tempDir, "routes.json");
 	await writeFile(
@@ -110,7 +111,7 @@ test("resolveBrowserIdFromMeta resolves explicit, env, and scope-routed browser 
 	try {
 		assert.equal(
 			resolveBrowserIdFromMeta({ browserId: "chrome-02", agentScope: "scope-1" }, { routeCachePath }),
-			"chrome-02",
+			"chrome-01",
 		);
 		assert.equal(
 			resolveBrowserIdFromMeta({ agentScope: "scope-1" }, { routeCachePath }),
@@ -131,7 +132,7 @@ test("resolveBrowserIdFromMeta resolves explicit, env, and scope-routed browser 
 			"default",
 		);
 		assert.equal(
-			resolveBrowserIdFromMeta({}, { env: { WEB_ACCESS_BROWSER_ID: "chrome-02" } }),
+			resolveBrowserIdFromMeta({ browserId: "chrome-01" }, { env: { WEB_ACCESS_BROWSER_ID: "chrome-02" } }),
 			"chrome-02",
 		);
 	} finally {
@@ -152,6 +153,48 @@ test("resolveBrowserInstanceFromEnv maps browserId to the configured CDP endpoin
 		cdpHost: "172.31.250.11",
 		cdpPort: 9223,
 	});
+});
+
+test("scoped route endpoint overrides a long-lived proxy environment", async () => {
+	const tempDir = await mkdtemp(path.join(tmpdir(), "ugk-browser-route-endpoint-"));
+	const routeCachePath = path.join(tempDir, "routes.json");
+	await writeFile(
+		routeCachePath,
+		JSON.stringify({
+			routes: {
+				"scope-1": {
+					browserId: "chrome-01",
+					cdpHost: "172.31.250.11",
+					cdpPort: 9223,
+					updatedAt: "2026-05-09T00:00:00.000Z",
+				},
+			},
+		}),
+	);
+
+	try {
+		const route = resolveBrowserRouteFromMeta({ agentScope: "scope-1" }, { routeCachePath });
+		const instance = resolveBrowserInstanceFromEnv(
+			route.browserId,
+			{
+				WEB_ACCESS_BROWSER_ID: "chrome-02",
+				WEB_ACCESS_CDP_HOST: "172.31.250.12",
+				WEB_ACCESS_CDP_PORT: "9223",
+				UGK_BROWSER_INSTANCES_JSON: JSON.stringify([
+					{ browserId: "chrome-02", cdpHost: "172.31.250.12", cdpPort: 9223 },
+				]),
+			},
+			route,
+		);
+
+		assert.deepEqual(instance, {
+			browserId: "chrome-01",
+			cdpHost: "172.31.250.11",
+			cdpPort: 9223,
+		});
+	} finally {
+		await rm(tempDir, { recursive: true, force: true });
+	}
 });
 
 test("resolveBrowserInputUrl rewrites workspace public paths to the local artifact bridge", () => {

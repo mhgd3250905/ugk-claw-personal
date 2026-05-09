@@ -48,9 +48,6 @@ export async function closeBrowserTargetsForScope(
 		const signal = typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(timeoutMs) : undefined;
 		const url = new URL("/session/close-all", resolveProxyBaseUrl(options, env));
 		url.searchParams.set("metaAgentScope", agentScope);
-		if (options.browserId?.trim()) {
-			url.searchParams.set("metaBrowserId", options.browserId.trim());
-		}
 
 		const response = await fetchImpl(url, {
 			method: "POST",

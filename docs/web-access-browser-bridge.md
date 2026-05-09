@@ -113,9 +113,15 @@ UGK_BROWSER_INSTANCES_JSON=[{"browserId":"default","name":"Default","cdpHost":"1
 
 `browserId` 只做路由标识，由用户自定义；系统不内置 `x`、`feishu`、`research` 这类业务命名。每个 Chrome 实例必须使用独立 profile/config 目录，登录态由用户自己打开对应 GUI 维护。不要让两个 Chrome service 指向同一个 `/config` 或同一个 `--user-data-dir`，也不要复制正在运行的 Chrome profile。这个坑不是“可能不优雅”，是可能直接伤登录态。
 
-当前已接入 Agent profile 默认浏览器字段 `defaultBrowserId` 和 chat 请求可选 `browserId` 解析。`AgentService` 会在每轮 run 开始前把 `browser cleanup scope -> browserId` 写入轻量路由缓存，并把 `WEB_ACCESS_BROWSER_ID` / scope 注入本轮 Bash 子进程；run 结束后会清掉该 scope 路由，避免同一会话后续切回默认浏览器时继续吃到旧绑定。`web-access` 的 proxy / host bridge / local CDP 层会按 `metaBrowserId`、`metaAgentScope` 路由缓存、`WEB_ACCESS_BROWSER_ID`、`UGK_DEFAULT_BROWSER_ID` 的顺序选择 Chrome 实例。不要用进程级 `WEB_ACCESS_CDP_HOST` 在多任务之间来回切，这会让并发任务串浏览器。
+当前已接入 Agent profile 默认浏览器字段 `defaultBrowserId` 和 chat 请求可选 `browserId` 解析。`AgentService` 会在每轮 run 开始前把 `browser cleanup scope -> browserId` 写入轻量路由缓存，并把 `WEB_ACCESS_BROWSER_ID` / scope 注入本轮 Bash 子进程；run 结束后会清掉该 scope 路由，避免同一会话后续切回默认浏览器时继续吃到旧绑定。`web-access` 的 proxy / host bridge / local CDP 层不再接受请求级浏览器覆盖：带 `metaAgentScope` 的请求只按 scope route 选择 Chrome；未命中 route 时回到系统默认。run 级 Bash 环境会把 `UGK_BROWSER_INSTANCES_JSON` 收缩到当前绑定的单个 Chrome 实例，避免 Agent 从环境里看到其他 Chrome。不要用进程级 `WEB_ACCESS_CDP_HOST` 在多任务之间来回切，这会让并发任务串浏览器。
 
-路由缓存只记录 scope 和 `browserId`，默认路径为 `/app/.data/browser-scope-routes.json`，可通过 `UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH` 覆盖。它不保存 cookie、不读取 profile，也不迁移登录态；同一进程内写入会串行化，避免并发更新互相覆盖。
+路由缓存记录 scope、`browserId` 和当前绑定的 CDP endpoint，默认路径为 `/app/.data/browser-scope-routes.json`，可通过 `UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH` 覆盖。它不保存 cookie、不读取 profile，也不迁移登录态；同一进程内写入会串行化，避免并发更新互相覆盖。CDP endpoint 是为了让长驻 `web-access` proxy 不被首次启动时的单浏览器环境固定到旧 Chrome，不是浏览器登录态配置入口。
+
+Agent run 启动的 `cdp-proxy` 会带 `UGK_REQUIRE_SCOPED_BROWSER_PROXY=true`。在这个模式下，`/new`、`/navigate` 和 `/session/*` 这类会改变浏览器页面状态的请求必须携带 `metaAgentScope`；缺失时直接返回 `missing_agent_scope`，避免无 scope 调用悄悄落到 proxy 进程启动时的旧 Chrome。手工排障如果绕过 Agent run 启动 proxy，则仍可用无 scope 请求，但不能把它当作生产 Agent 路由行为。
+
+不要把路由缓存当作 Agent / Conn 的默认浏览器配置入口。Agent 默认浏览器的持久字段是 `defaultBrowserId`，Conn 任务级覆盖是 `browserId`；这些字段只允许用户在 Playground UI 手动设置。`web-access` 只消费本轮路由，不负责设置默认浏览器。
+
+正式 API 写入 Agent / Conn 浏览器绑定时，会把变更审计追加到 `.data/audit/browser-bindings.jsonl`。审计记录是追溯用的事实流，包含旧值、新值、目标对象、来源和前端确认标记；它不参与运行时路由选择，也不替代 `defaultBrowserId` / `browserId` 这两个真实配置字段。服务端会拒绝未确认或非 `playground` 来源的真实绑定变更，并记录 `status: "rejected_unconfirmed"` 或 `status: "rejected_non_ui_source"`，所以 Agent 即使裸调 `PATCH` 也不能静默修改 Chrome 绑定。
 
 每个 browserId 使用独立的 CDP target scope cache。`default` 继续使用 `WEB_ACCESS_SCOPE_CACHE_PATH`；非默认浏览器会在同目录生成带 browserId 后缀的 cache，避免 `chrome-01` 的 targetId 被 `chrome-02` 误清理。
 

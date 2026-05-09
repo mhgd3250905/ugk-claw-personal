@@ -95,8 +95,6 @@ Do not tell a Docker sidecar user to start this launcher just because Chrome is 
 
 Sidecar facts:
 
-- Default GUI login entrypoint: `https://127.0.0.1:3901/`
-- Additional local GUI entrypoints: `chrome-01` at `https://127.0.0.1:3902/`, `chrome-02` at `https://127.0.0.1:3903/`
 - Default CDP endpoint inside compose: `http://172.31.250.10:9223`
 - Persistent profile on the host: `.data/chrome-sidecar`
 - Chrome profile inside the sidecar container: `${WEB_ACCESS_BROWSER_PROFILE_DIR:-/config/chrome-profile-sidecar}`
@@ -104,7 +102,9 @@ Sidecar facts:
 
 Manual login and automation must use the same profile path. Do not split manual login and auto-start across different profile directories.
 
-When the platform assigns a `browserId`, keep passing `metaAgentScope` to proxy calls. The bridge resolves the browser through explicit `metaBrowserId`, then the current scope route cache, then `WEB_ACCESS_BROWSER_ID`. Do not rewrite `WEB_ACCESS_CDP_HOST` during a task; it is process-global and can make concurrent work jump browsers.
+Keep passing the platform-provided scope metadata to proxy calls. Do not rewrite `WEB_ACCESS_CDP_HOST` during a task; it is process-global and can make concurrent work jump browsers.
+
+`web-access` must not inspect, list, configure, switch, bind, clear, or change Agent / Conn browser settings. Browser assignment is a user-only Playground UI setting. If the user asks to change it, stop and tell them to use the UI instead of browser automation. Do not edit browser route caches, environment variables, Docker Compose, Chrome profiles, cookies, or login state to satisfy such a request.
 
 Chrome must stay on `DISPLAY=:0` with `--ozone-platform=x11`. Do not switch it back to Wayland unless Chrome top-layer UI clicks are revalidated.
 
@@ -153,24 +153,25 @@ When `check-deps.mjs` passes, a compatibility proxy is available at `http://127.
 Common endpoints:
 
 ```bash
+AGENT_SCOPE="${CLAUDE_AGENT_ID:-${CLAUDE_HOOK_AGENT_ID:-${agent_id:-}}}"
 curl -s http://127.0.0.1:3456/health
 curl -s http://127.0.0.1:3456/targets
-curl -s "http://127.0.0.1:3456/new?url=https%3A%2F%2Fexample.com"
+curl -s "http://127.0.0.1:3456/new?url=https%3A%2F%2Fexample.com&metaAgentScope=${AGENT_SCOPE}"
 curl -s "http://127.0.0.1:3456/session/target?metaAgentScope=${AGENT_SCOPE}"
 curl -s -X POST "http://127.0.0.1:3456/session/target?target=ID&metaAgentScope=${AGENT_SCOPE}"
 curl -s -X DELETE "http://127.0.0.1:3456/session/target?metaAgentScope=${AGENT_SCOPE}"
 curl -s -X POST "http://127.0.0.1:3456/session/navigate?url=https%3A%2F%2Fexample.com&metaAgentScope=${AGENT_SCOPE}"
 curl -s -X POST "http://127.0.0.1:3456/session/close-all?metaAgentScope=${AGENT_SCOPE}"
-curl -s "http://127.0.0.1:3456/info?target=ID"
-curl -s -X POST "http://127.0.0.1:3456/eval?target=ID" -d 'document.title'
-curl -s -X POST "http://127.0.0.1:3456/type?target=ID" -H "Content-Type: text/plain; charset=utf-8" -d 'text to insert'
-curl -s -X POST "http://127.0.0.1:3456/key?target=ID&key=Enter"
-curl -s -X POST "http://127.0.0.1:3456/enter?target=ID"
-curl -s "http://127.0.0.1:3456/navigate?target=ID&url=https%3A%2F%2Fexample.com"
-curl -s -X POST "http://127.0.0.1:3456/click?target=ID" -d 'button.submit'
-curl -s "http://127.0.0.1:3456/scroll?target=ID&direction=bottom"
-curl -s "http://127.0.0.1:3456/screenshot?target=ID&file=/tmp/page.png"
-curl -s "http://127.0.0.1:3456/close?target=ID"
+curl -s "http://127.0.0.1:3456/info?target=ID&metaAgentScope=${AGENT_SCOPE}"
+curl -s -X POST "http://127.0.0.1:3456/eval?target=ID&metaAgentScope=${AGENT_SCOPE}" -d 'document.title'
+curl -s -X POST "http://127.0.0.1:3456/type?target=ID&metaAgentScope=${AGENT_SCOPE}" -H "Content-Type: text/plain; charset=utf-8" -d 'text to insert'
+curl -s -X POST "http://127.0.0.1:3456/key?target=ID&key=Enter&metaAgentScope=${AGENT_SCOPE}"
+curl -s -X POST "http://127.0.0.1:3456/enter?target=ID&metaAgentScope=${AGENT_SCOPE}"
+curl -s "http://127.0.0.1:3456/navigate?target=ID&url=https%3A%2F%2Fexample.com&metaAgentScope=${AGENT_SCOPE}"
+curl -s -X POST "http://127.0.0.1:3456/click?target=ID&metaAgentScope=${AGENT_SCOPE}" -d 'button.submit'
+curl -s "http://127.0.0.1:3456/scroll?target=ID&direction=bottom&metaAgentScope=${AGENT_SCOPE}"
+curl -s "http://127.0.0.1:3456/screenshot?target=ID&file=/tmp/page.png&metaAgentScope=${AGENT_SCOPE}"
+curl -s "http://127.0.0.1:3456/close?target=ID&metaAgentScope=${AGENT_SCOPE}"
 ```
 
 When passing a nested URL into `/new`, `/navigate`, or `/session/navigate`, URL-encode it first. Otherwise query params inside the target URL can be mistaken for proxy params.

@@ -7,12 +7,26 @@ function sleep(ms) {
 }
 
 async function proxyRequest(endpoint, options = {}) {
-  const url = `http://127.0.0.1:3456${endpoint}`;
+  const url = `http://127.0.0.1:3456${appendAgentScope(endpoint)}`;
   const response = await fetch(url, {
     ...options,
     signal: AbortSignal.timeout(60000),
   });
   return response.json();
+}
+
+function resolveAgentScope() {
+  return process.env.CLAUDE_AGENT_ID || process.env.CLAUDE_HOOK_AGENT_ID || process.env.agent_id || '';
+}
+
+function appendAgentScope(endpoint) {
+  const agentScope = resolveAgentScope();
+  if (!agentScope) return endpoint;
+  const parsed = new URL(endpoint, 'http://127.0.0.1:3456');
+  if (!parsed.searchParams.has('metaAgentScope')) {
+    parsed.searchParams.set('metaAgentScope', agentScope);
+  }
+  return `${parsed.pathname}${parsed.search}`;
 }
 
 async function createTarget(url) {

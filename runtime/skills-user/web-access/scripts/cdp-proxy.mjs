@@ -66,7 +66,6 @@ const PROXY_QUERY_KEYS = new Set([
   'metaOperation',
   'metaNote',
   'metaAgentScope',
-  'metaBrowserId',
 ]);
 
 function appendQueryEntries(url, entries) {
@@ -126,18 +125,31 @@ function buildRequestMeta(parsed, req, defaults = {}) {
       'x-nanoclaw-agent-scope',
       120,
     ),
-    browserId: readMetaValue(
-      parsed,
-      req,
-      'metaBrowserId',
-      'x-nanoclaw-browser-id',
-      64,
-    ),
   };
 
   return Object.values(meta).some((value) => typeof value === 'string')
     ? meta
     : undefined;
+}
+
+function requiresScopedBrowserProxy() {
+  return String(process.env.UGK_REQUIRE_SCOPED_BROWSER_PROXY || '').trim().toLowerCase() === 'true';
+}
+
+function shouldRequireAgentScope(pathname, method) {
+  if (!requiresScopedBrowserProxy()) return false;
+  if (pathname === '/new') return true;
+  if (pathname === '/navigate') return true;
+  if (pathname.startsWith('/session/')) return true;
+  return false;
+}
+
+function sendMissingAgentScope(res) {
+  sendJson(res, 400, {
+    ok: false,
+    error: 'missing_agent_scope',
+    message: 'Browser proxy requests from agent runs must include metaAgentScope.',
+  });
 }
 
 function readTargetParam(parsed, req) {
@@ -174,6 +186,14 @@ export function createProxyServer(options = {}) {
       if (pathname === '/health') {
         sendJson(res, 200, { status: 'ok', port: PORT });
         return;
+      }
+
+      if (shouldRequireAgentScope(pathname, req.method)) {
+        const meta = buildRequestMeta(parsed, req);
+        if (!meta?.agentScope) {
+          sendMissingAgentScope(res);
+          return;
+        }
       }
 
       if (pathname === '/session/target' && req.method === 'GET') {

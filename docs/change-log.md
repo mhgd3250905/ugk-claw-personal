@@ -12,6 +12,34 @@
 
 ## 2026-05-09
 
+### 浏览器绑定策略模块化收口
+- 日期：2026-05-09
+- 主题：把 Agent / Conn 浏览器绑定写入闸门从路由文件里的重复逻辑收口到独立策略模块，保持“UI 手动设置、Agent 只消费参数”的架构边界。
+- 影响范围：新增 `browser-binding-policy` 统一读取确认 header、计算绑定字段变更、判断未确认 / 非 Playground 来源拒绝；`chat` 路由只保留 Agent profile 更新和 running conversation 拒绝逻辑，`conns` 路由只保留 Conn 更新逻辑。对外 API 行为不变，审计状态和错误文案保持兼容。
+- 对应入口：`src/browser/browser-binding-policy.ts`、`src/browser/browser-binding-audit-log.ts`、`src/routes/chat.ts`、`src/routes/conns.ts`、`docs/traceability-map.md`
+
+### 撤销 Agent 自然语言浏览器修改能力
+- 日期：2026-05-09
+- 主题：撤掉通过自然语言让 Agent 修改浏览器绑定的能力，将 Agent / Conn 浏览器配置收回为用户手动 UI 设置。
+- 影响范围：`agent-profile-ops` 移除 `browsers / set-browser / clear-browser` 脚本动作和浏览器绑定工作流；`conn-orchestrator` 不再映射或写入 `browserId`；`web-access` 不再提供浏览器绑定配置指引，只消费平台分配的路由。UI、`GET /v1/browsers`、Agent / Conn 编辑保存接口、审计日志和服务端确认闸门保留；服务端进一步要求浏览器 / 执行路由变更必须来自 `playground` 来源，否则记录 `rejected_non_ui_source` 并拒绝。
+- 隔离补强：删除旧自然语言浏览器绑定提案模块；`web-access` proxy 不再接受或转发 `metaBrowserId` / `x-nanoclaw-browser-id`，`local-cdp-browser` 不再把请求传入的 `browserId` 当作选路依据；run 级 Bash 环境只注入当前绑定浏览器的一条 `UGK_BROWSER_INSTANCES_JSON`，避免 Agent 从环境里看到其他 Chrome 实例。scope route 同时写入当前绑定的 CDP endpoint，避免长驻 `cdp-proxy` 被首次启动时的单浏览器环境固定到旧 Chrome；Agent run 启动的 proxy 现在会拒绝缺少 `metaAgentScope` 的浏览器变更请求，旧 runner 和文档示例同步补齐 scope，避免同一对话切换浏览器后无 scope 调用继续命中旧 Chrome。浏览器绑定变更是 Agent 全局参数变更；服务端会在该 Agent 有 running conversation 时返回 409 并记录 `rejected_running`，要求用户等当前运行结束后再切换。
+- 对应入口：`.pi/skills/agent-profile-ops/SKILL.md`、`.pi/skills/agent-profile-ops/scripts/agent_profile_ops.mjs`、`.pi/skills/conn-orchestrator/SKILL.md`、`runtime/skills-user/web-access/SKILL.md`、`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`、`src/browser/browser-bound-bash.ts`、`docs/playground-current.md`
+
+### Agent / Conn 浏览器绑定审计日志
+- 日期：2026-05-09
+- 主题：为 Agent 默认浏览器和 Conn 执行路由变更补充可追溯审计记录，避免只能靠最终状态反推操作过程。
+- 影响范围：`PATCH /v1/agents/:agentId` 在 `defaultBrowserId` 变化时记录 `agent_browser_binding`；`PATCH /v1/conns/:connId` 在 `profileId` / `browserId` 变化时记录 `conn_execution_binding` 或 `conn_browser_binding`。Playground 已确认的保存请求会携带 `x-ugk-browser-binding-confirmed: true` 和来源头；服务端将目标对象、旧值、新值、来源、确认状态和写入结果追加到 `.data/audit/browser-bindings.jsonl`。审计失败只记录 warning，不阻断正常保存。
+- 对应入口：`src/browser/browser-binding-audit-log.ts`、`src/routes/chat.ts`、`src/routes/conns.ts`、`src/ui/playground-agent-manager.ts`、`src/ui/playground-conn-activity-controller.ts`、`docs/runtime-assets-conn-feishu.md`、`docs/web-access-browser-bridge.md`
+- 历史修正：`agent_profile_ops.mjs set-browser / clear-browser` 曾要求显式带 `--confirmed` 并发送浏览器绑定审计 header；该自然语言写入路径已在上方“撤销 Agent 自然语言浏览器修改能力”中移除。
+- 服务端闸门：`PATCH /v1/agents/:agentId` 与 `PATCH /v1/conns/:connId` 现在会在浏览器 / 执行路由真实变化但缺少确认头时拒绝写入，并记录 `status: "rejected_unconfirmed"` 审计。这样即使 Agent 绕过脚本裸调 API，也不能静默修改 Chrome 绑定。
+
+### Agent / Conn 浏览器绑定自然语言操作口径
+- 日期：2026-05-09
+- 主题：历史方案，曾尝试让主 Agent 通过运行时技能和确定性脚本处理浏览器绑定。
+- 状态：已被上方“撤销 Agent 自然语言浏览器修改能力”取代；当前产品口径是只能由用户在 Playground UI 手动设置浏览器，Agent 不再生成浏览器绑定提案、不修改浏览器绑定字段。
+- 当前处理：相关自然语言脚本动作、提案模块和计划文档已经清理；保留这条记录只为解释为什么同日会出现撤销和审计两类变更。
+- 对应入口：当前事实以本节上方“撤销 Agent 自然语言浏览器修改能力”、`docs/playground-current.md` 和 `docs/web-access-browser-bridge.md` 为准。
+
 ### Conn 后台 Agent 模板缓存
 - 日期：2026-05-09
 - 主题：为 conn 后台任务引入 Agent 模板缓存层，加速按 `profileId` 组装临时后台 Agent 的启动路径，同时保持运行快照隔离。
@@ -41,13 +69,13 @@
 ### 多浏览器运行链路架构收口
 - 日期：2026-05-08
 - 主题：收口多 Chrome 运行链路的职责边界，避免浏览器 scope 路由在前台会话结束后残留。
-- 影响范围：新增 `src/browser/browser-bound-bash.ts`，把 run 级 `curl` 包装和 `WEB_ACCESS_BROWSER_ID` / `metaBrowserId` 注入从 `AgentSessionFactory` 中拆出。前台 `AgentService.runChat()` 在 run 开始时设置当前 scope 的浏览器路由，结束时无论页面清理是否成功都会清除该路由；`browser-scope-routes` 增加进程内同文件写入串行化；run 级 `curl` wrapper 默认写入 `.data/browser-bin`，旧根目录 `.ugk-browser-bin/` 加入 `.gitignore`。
+- 影响范围：新增 `src/browser/browser-bound-bash.ts`，把 run 级 `curl` 包装和浏览器 scope 注入从 `AgentSessionFactory` 中拆出。前台 `AgentService.runChat()` 在 run 开始时设置当前 scope 的浏览器路由，结束时无论页面清理是否成功都会清除该路由；`browser-scope-routes` 增加进程内同文件写入串行化；run 级 `curl` wrapper 默认写入 `.data/browser-bin`，旧根目录 `.ugk-browser-bin/` 加入 `.gitignore`。后续 2026-05-09 收口后，wrapper 只补 `metaAgentScope`，不再补浏览器 id。
 - 对应入口：`src/browser/browser-bound-bash.ts`、`src/browser/browser-scope-routes.ts`、`src/agent/agent-service.ts`、`test/agent-service.test.ts`
 
 ### web-access run 级浏览器通道绑定
 - 日期：2026-05-08
 - 主题：把前台 Agent 和后台 Conn 的浏览器绑定从“传一组参数”收口为“运行环境里的 Chrome 通道”，避免裸 `curl 127.0.0.1:3456` 漏回默认 Chrome。
-- 影响范围：Agent / Conn 创建 session 时会按最终 `browserId` 和 browser scope 生成 run 级 Bash 环境，注入 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` / `WEB_ACCESS_BROWSER_ID`，并在 workspace 前置受控 `curl` wrapper。该 wrapper 只改写访问本地 `web-access` proxy 的 URL，自动补齐 `metaAgentScope` 和 `metaBrowserId`，使常规 `/new`、`/targets`、`/screenshot` 等裸 proxy 调用也只命中本轮绑定 Chrome。测试侧覆盖 wrapper 生成和前后台 session 注入；容器内实测裸 `/new`、`/targets` 均命中 `chrome-02` 的 `172.31.250.12:9223`。
+- 影响范围：Agent / Conn 创建 session 时会按最终 `browserId` 和 browser scope 生成 run 级 Bash 环境，注入 `CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` / `WEB_ACCESS_BROWSER_ID`，并在 workspace 前置受控 `curl` wrapper。该 wrapper 只改写访问本地 `web-access` proxy 的 URL，自动补齐 `metaAgentScope`，使常规 `/new`、`/targets`、`/screenshot` 等裸 proxy 调用按本轮 scope route 命中绑定 Chrome；后续 2026-05-09 收口后，Agent 传入的浏览器 id 不再参与选路。
 - 对应入口：`src/agent/agent-session-factory.ts`、`src/workers/conn-worker.ts`、`test/agent-session-factory.test.ts`、`docs/runtime-assets-conn-feishu.md`
 
 ### Conn 独立浏览器选择
@@ -65,13 +93,13 @@
 ### web-access 长驻 proxy 浏览器路由顺序修复
 - 日期：2026-05-08
 - 主题：修复 Agent 默认浏览器从 `chrome-01` 切回 `chrome-02` 后，长驻 `cdp-proxy` 仍沿用旧 `WEB_ACCESS_BROWSER_ID` 导致页面继续开到旧 Chrome 的问题。
-- 影响范围：`resolveBrowserIdFromMeta()` 的选择顺序调整为显式 `metaBrowserId` 优先，其次当前 `metaAgentScope` 的 scope route cache；如果请求带了 `metaAgentScope` 但没有命中 route，则直接使用系统默认浏览器，不再读取 proxy 进程环境里的 `WEB_ACCESS_BROWSER_ID`。只有无 scope 的手工请求才允许使用 proxy 进程环境兜底。这样即使长驻 proxy 是在上一次 `chrome-02` 任务里启动的，后续 scoped run 也不会被旧环境变量带跑。
+- 影响范围：`resolveBrowserIdFromMeta()` 选择顺序后续已再次收口为当前 `metaAgentScope` 的 scope route cache 优先；请求传入的浏览器 id 不再参与选路。如果请求带了 `metaAgentScope` 但没有命中 route，则直接使用系统默认浏览器，不再读取 proxy 进程环境里的 `WEB_ACCESS_BROWSER_ID`。只有无 scope 的手工请求才允许使用 proxy 进程环境兜底。
 - 对应入口：`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`、`runtime/skills-user/web-access/SKILL.md`、`docs/web-access-browser-bridge.md`、`test/local-cdp-browser.test.ts`
 
 ### 多 Chrome browserId 路由落地
 - 日期：2026-05-08
 - 主题：把 Agent / chat 请求中的 `browserId` 真正接入 `web-access` CDP 路由，避免多任务继续争抢同一个 Chrome 前台。
-- 影响范围：`AgentService` 会为本轮 run 记录 `browser cleanup scope -> browserId`，并把 scope / `WEB_ACCESS_BROWSER_ID` 注入 Bash 子进程；`web-access` 的 `cdp-proxy`、`host-bridge`、`local-cdp-browser` 会按显式 `metaBrowserId`、任务环境、scope 路由缓存和默认浏览器顺序选择 CDP 实例。每个 browserId 使用独立 target scope cache，cleanup 会带上当前 browserId，避免误关其他 Chrome 的页面。登录态仍只由用户通过对应 GUI 自己维护，不复制 profile、不迁移 cookie。
+- 影响范围：`AgentService` 会为本轮 run 记录 `browser cleanup scope -> browserId`，并把 scope / `WEB_ACCESS_BROWSER_ID` 注入 Bash 子进程；后续 2026-05-09 收口后，`web-access` 的 `cdp-proxy`、`host-bridge`、`local-cdp-browser` 不再接受请求级浏览器覆盖，带 scope 的请求只按 scope 路由缓存和默认浏览器选择 CDP 实例。每个 browserId 使用独立 target scope cache，避免误关其他 Chrome 的页面。登录态仍只由用户通过对应 GUI 自己维护，不复制 profile、不迁移 cookie。
 - 对应入口：`src/agent/agent-service.ts`、`src/agent/agent-session-factory.ts`、`src/browser/browser-scope-routes.ts`、`src/agent/browser-cleanup.ts`、`runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`、`runtime/skills-user/web-access/scripts/host-bridge.mjs`、`runtime/skills-user/web-access/scripts/cdp-proxy.mjs`、`runtime/skills-user/web-access/scripts/url-stage-executor.mjs`、`docs/web-access-browser-bridge.md`
 
 ## 2026-05-07

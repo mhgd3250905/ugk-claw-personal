@@ -4,6 +4,8 @@ import { dirname, join } from "node:path";
 
 export interface BrowserScopeRoute {
 	browserId: string;
+	cdpHost?: string;
+	cdpPort?: number;
 	updatedAt: string;
 }
 
@@ -41,8 +43,10 @@ export async function setBrowserScopeRoute(
 	const cachePath = options.cachePath ?? getBrowserScopeRouteCachePath();
 	await updateBrowserScopeRouteStore(cachePath, (store) => {
 		if (browserId?.trim()) {
+			const endpoint = resolveBrowserEndpointFromEnv(browserId.trim());
 			store.routes[normalizedScope] = {
 				browserId: browserId.trim(),
+				...(endpoint ? endpoint : {}),
 				updatedAt: (options.now?.() ?? new Date()).toISOString(),
 			};
 		} else {
@@ -110,10 +114,58 @@ async function updateBrowserScopeRouteStore(
 }
 
 function isBrowserScopeRoute(value: unknown): value is BrowserScopeRoute {
+	const route = value as BrowserScopeRoute;
 	return (
 		typeof value === "object" &&
 		value !== null &&
-		typeof (value as BrowserScopeRoute).browserId === "string" &&
-		typeof (value as BrowserScopeRoute).updatedAt === "string"
+		typeof route.browserId === "string" &&
+		typeof route.updatedAt === "string" &&
+		(route.cdpHost === undefined || typeof route.cdpHost === "string") &&
+		(route.cdpPort === undefined || (Number.isInteger(route.cdpPort) && route.cdpPort > 0 && route.cdpPort <= 65535))
 	);
+}
+
+function resolveBrowserEndpointFromEnv(browserId: string): { cdpHost: string; cdpPort: number } | undefined {
+	const raw = process.env.UGK_BROWSER_INSTANCES_JSON?.trim();
+	if (raw) {
+		try {
+			const parsed = JSON.parse(raw) as unknown;
+			if (Array.isArray(parsed)) {
+				for (const entry of parsed) {
+					const normalized = normalizeBrowserEndpoint(entry);
+					if (normalized?.browserId === browserId) {
+						return {
+							cdpHost: normalized.cdpHost,
+							cdpPort: normalized.cdpPort,
+						};
+					}
+				}
+			}
+		} catch {
+			// Fall through to legacy single-CDP env below.
+		}
+	}
+
+	const envBrowserId = process.env.WEB_ACCESS_BROWSER_ID?.trim() || process.env.UGK_DEFAULT_BROWSER_ID?.trim();
+	const cdpHost = process.env.WEB_ACCESS_CDP_HOST?.trim();
+	const cdpPort = normalizeCdpPort(process.env.WEB_ACCESS_CDP_PORT);
+	if (envBrowserId === browserId && cdpHost && cdpPort) {
+		return { cdpHost, cdpPort };
+	}
+	return undefined;
+}
+
+function normalizeBrowserEndpoint(value: unknown): { browserId: string; cdpHost: string; cdpPort: number } | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const record = value as Record<string, unknown>;
+	const browserId = String(record.browserId || "").trim();
+	const cdpHost = String(record.cdpHost || "").trim();
+	const cdpPort = normalizeCdpPort(record.cdpPort);
+	if (!browserId || !cdpHost || !cdpPort) return undefined;
+	return { browserId, cdpHost, cdpPort };
+}
+
+function normalizeCdpPort(value: unknown): number | undefined {
+	const port = Number(value);
+	return Number.isInteger(port) && port > 0 && port <= 65535 ? port : undefined;
 }

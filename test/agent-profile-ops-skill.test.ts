@@ -48,6 +48,20 @@ test("agent-profile-ops documents unified dispatch for profiles and legacy subag
 	assert.match(skill, /统一 dispatch 作为 agent profile 代办任务/);
 });
 
+test("agent-profile-ops keeps browser configuration out of agent-visible operations", async () => {
+	const skill = await readFile(SKILL_PATH, "utf8");
+	const script = await readFile(SCRIPT_PATH, "utf8");
+
+	assert.match(skill, /浏览器配置只允许用户在 Playground UI 中手动设置/);
+	assert.match(skill, /不得查询浏览器清单/);
+	assert.doesNotMatch(skill, /GET \/v1\/browsers/);
+	assert.doesNotMatch(skill, /defaultBrowserId/);
+	assert.doesNotMatch(skill, /Browser Binding Change Request/);
+	assert.doesNotMatch(script, /set-browser/);
+	assert.doesNotMatch(script, /clear-browser/);
+	assert.doesNotMatch(script, /\/v1\/browsers/);
+});
+
 test("agent profile ops dispatch dry-run resolves agent profiles before legacy subagents", async () => {
 	const { stdout } = await execFileAsync(
 		process.execPath,
