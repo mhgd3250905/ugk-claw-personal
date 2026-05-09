@@ -30,6 +30,7 @@
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
 - 当前本地未发布变更：Agent / Conn 浏览器绑定边界已本地收口并通过测试，准备走服务器增量更新。浏览器绑定只能由用户在 Playground UI 手动设置；运行时 Agent 不能通过自然语言修改浏览器绑定；`web-access` 不再接受请求级 browserId 覆盖，run 环境只暴露当前绑定 Chrome 的单条实例配置。
+- 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
 - 当前未跟踪文件：`runtime/xhs-extract.mjs` 来源不属于本轮 Chrome 工作台，继续不要提交、不要删除，除非用户明确说明它的归属。
 
 ## 2026-05-09 本地浏览器绑定隔离收口

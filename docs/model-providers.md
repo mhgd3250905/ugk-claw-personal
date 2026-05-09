@@ -8,7 +8,7 @@
 
 | 来源 | provider | 模型 | 集群 | Key |
 | --- | --- | --- | --- | --- |
-| 阿里 | `dashscope-coding` | `glm-5` | `cn` | `DASHSCOPE_CODING_API_KEY` |
+| 智谱 | `zhipu-glm` | `glm-5.1` | `cn` | `ANTHROPIC_AUTH_TOKEN` |
 | DeepSeek | `deepseek` | `deepseek-v4-pro` / `deepseek-v4-flash` | `global` | `DEEPSEEK_API_KEY` |
 | 小米 | `xiaomi-mimo-cn` | `mimo-v2.5-pro` | `cn` | `XIAOMI_MIMO_API_KEY` |
 | 小米 | `xiaomi-mimo-sgp` | `mimo-v2.5-pro` | `sgp` | `XIAOMI_MIMO_API_KEY` |
@@ -25,13 +25,14 @@
 ## 配置规则
 
 - `provider.id` 是稳定机器标识，不随展示文案改名。
-- `provider.vendor` 表示来源：`ali`、`deepseek`、`xiaomi`。
+- `provider.vendor` 表示来源：`zhipu`、`deepseek`、`xiaomi`。
 - `provider.region` 表示集群或区域。
 - `provider.priority` 控制 Web 模型源下拉展示顺序。
 - `provider.name` 是给用户看的名称，前端优先展示它，再附带 provider id。
 - `model.contextWindow` 用真实上下文窗口。DeepSeek V4 Pro / Flash 当前登记为 `1000000`，小米 `mimo-v2.5-pro` 当前登记为 `1048576`。
+- 智谱 GLM 当前走 `anthropic-messages` 链路和 `https://open.bigmodel.cn/api/anthropic`，模型登记为 `glm-5.1`。
 - DeepSeek 当前走 `openai-completions` 链路和 `https://api.deepseek.com`，并通过 `compat.thinkingFormat = "deepseek"`、`requiresReasoningContentOnAssistantMessages = true` 与 `reasoningEffortMap` 对齐 pi 的 DeepSeek reasoning 行为。
-- API key 只通过环境变量读取；本地兜底可以使用 `api.txt`、`deepseek-api.txt`、`小米api.txt`，这些文件必须保持 ignored。
+- API key 只通过环境变量读取；本地兜底可以使用 `zhipu-api.txt`、`deepseek-api.txt`、`小米api.txt`，这些文件必须保持 ignored。`zhipu-api.txt` 可放 `api-key: ...`，也可放 Claude 风格 JSON 并从 `env.ANTHROPIC_AUTH_TOKEN` 读取。
 - `GET /v1/model-config` 和后台 conn worker 的默认模型解析都读取同一个有效 settings：优先 `UGK_MODEL_SETTINGS_PATH`，缺失时回退 `.pi/settings.json`。保存默认选择时只写有效 settings 路径，不改仓库默认文件。
 
 ## 修改入口

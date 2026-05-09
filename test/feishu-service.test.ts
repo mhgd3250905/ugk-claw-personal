@@ -10,8 +10,8 @@ import type { FeishuClientLike, FeishuDeliveryTarget } from "../src/integrations
 
 function makeContextUsage() {
 	return {
-		provider: "dashscope-coding",
-		model: "glm-5",
+		provider: "zhipu-glm",
+		model: "glm-5.1",
 		currentTokens: 0,
 		contextWindow: 128000,
 		reserveTokens: 16384,
@@ -227,8 +227,8 @@ test("FeishuService queues incoming text onto the active run with steer mode", a
 					conversationId,
 					running: true,
 					contextUsage: {
-						provider: "dashscope-coding",
-						model: "glm-5",
+						provider: "zhipu-glm",
+						model: "glm-5.1",
 						currentTokens: 0,
 						contextWindow: 128000,
 						reserveTokens: 16384,
@@ -810,8 +810,8 @@ test("FeishuService downloads incoming file resources and passes them to the age
 					conversationId,
 					running: false,
 					contextUsage: {
-						provider: "dashscope-coding",
-						model: "glm-5",
+						provider: "zhipu-glm",
+						model: "glm-5.1",
 						currentTokens: 0,
 						contextWindow: 128000,
 						reserveTokens: 16384,

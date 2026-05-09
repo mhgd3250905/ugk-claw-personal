@@ -18,8 +18,8 @@ async function createProjectRoot(): Promise<string> {
 		[
 			"{",
 			'  // keep this comment',
-			'  "defaultProvider": "dashscope-coding",',
-			'  "defaultModel": "glm-5",',
+			'  "defaultProvider": "zhipu-glm",',
+			'  "defaultModel": "glm-5.1",',
 			'  "defaultThinkingLevel": "medium"',
 			"}",
 		].join("\n"),
@@ -29,13 +29,13 @@ async function createProjectRoot(): Promise<string> {
 		join(root, "runtime", "pi-agent", "models.json"),
 		JSON.stringify({
 			providers: {
-				"dashscope-coding": {
-					name: "Ali DashScope Coding",
-					vendor: "ali",
+				"zhipu-glm": {
+					name: "Zhipu GLM",
+					vendor: "zhipu",
 					region: "cn",
 					priority: 10,
-					apiKey: "DASHSCOPE_CODING_API_KEY",
-					models: [{ id: "glm-5", name: "GLM-5" }],
+					apiKey: "ANTHROPIC_AUTH_TOKEN",
+					models: [{ id: "glm-5.1", name: "GLM-5.1" }],
 				},
 				deepseek: {
 					name: "DeepSeek",
@@ -114,15 +114,15 @@ test("model config store lists providers and current default selection", async (
 	const config = await store.getConfig();
 
 	assert.deepEqual(config.current, {
-		provider: "dashscope-coding",
-		model: "glm-5",
+		provider: "zhipu-glm",
+		model: "glm-5.1",
 	});
 	assert.deepEqual(
 		config.providers.map((provider) => provider.id),
-		["dashscope-coding", "deepseek", "xiaomi-mimo-cn", "xiaomi-mimo-sgp", "xiaomi-mimo-ams"],
+		["zhipu-glm", "deepseek", "xiaomi-mimo-cn", "xiaomi-mimo-sgp", "xiaomi-mimo-ams"],
 	);
 	assert.deepEqual(config.providers.map((provider) => [provider.id, provider.name, provider.vendor, provider.region, provider.priority]), [
-		["dashscope-coding", "Ali DashScope Coding", "ali", "cn", 10],
+		["zhipu-glm", "Zhipu GLM", "zhipu", "cn", 10],
 		["deepseek", "DeepSeek", "deepseek", "global", 20],
 		["xiaomi-mimo-cn", "Xiaomi MiMo China", "xiaomi", "cn", 31],
 		["xiaomi-mimo-sgp", "Xiaomi MiMo Singapore", "xiaomi", "sgp", 32],
@@ -164,7 +164,7 @@ test("model config store ignores default selection inside line comments", async 
 			"{",
 			'  // "defaultProvider": "deepseek-anthropic",',
 			'  // "defaultModel": "deepseek-v4-flash",',
-			'  "defaultModel": "glm-5"',
+			'  "defaultModel": "glm-5.1"',
 			"}",
 		].join("\n"),
 		"utf8",
@@ -175,7 +175,7 @@ test("model config store ignores default selection inside line comments", async 
 
 	assert.deepEqual(config.current, {
 		provider: "unknown",
-		model: "glm-5",
+		model: "glm-5.1",
 	});
 });
 
@@ -185,8 +185,8 @@ test("model config store reads default selection only from top-level settings", 
 		join(projectRoot, ".pi", "settings.json"),
 		[
 			"{",
-			'  "defaultProvider": "dashscope-coding",',
-			'  "defaultModel": "glm-5",',
+			'  "defaultProvider": "zhipu-glm",',
+			'  "defaultModel": "glm-5.1",',
 			'  "nested": {',
 			'    "defaultProvider": "deepseek",',
 			'    "defaultModel": "deepseek-v4-pro"',
@@ -200,8 +200,8 @@ test("model config store reads default selection only from top-level settings", 
 	const config = await store.getConfig();
 
 	assert.deepEqual(config.current, {
-		provider: "dashscope-coding",
-		model: "glm-5",
+		provider: "zhipu-glm",
+		model: "glm-5.1",
 	});
 });
 
@@ -283,8 +283,8 @@ test("model config store persists web default selection outside bundled settings
 		const store = createFileModelConfigStore(projectRoot);
 
 		assert.deepEqual((await store.getConfig()).current, {
-			provider: "dashscope-coding",
-			model: "glm-5",
+			provider: "zhipu-glm",
+			model: "glm-5.1",
 		});
 
 		await store.setDefault({
@@ -297,7 +297,7 @@ test("model config store persists web default selection outside bundled settings
 		assert.match(runtimeSettings, /"defaultProvider": "deepseek"/);
 		assert.match(runtimeSettings, /"defaultModel": "deepseek-v4-pro"/);
 		assert.match(runtimeSettings, /\/\/ keep this comment/);
-		assert.match(bundledSettings, /"defaultProvider": "dashscope-coding"/);
+		assert.match(bundledSettings, /"defaultProvider": "zhipu-glm"/);
 		assert.deepEqual((await store.getConfig()).current, {
 			provider: "deepseek",
 			model: "deepseek-v4-pro",
@@ -328,16 +328,16 @@ test("saveDefaultModelConfig inserts active defaults instead of replacing commen
 	const validator: ModelSelectionValidator = async () => ({ ok: true });
 
 	const result = await saveDefaultModelConfig(store, validator, {
-		provider: "dashscope-coding",
-		model: "glm-5",
+		provider: "zhipu-glm",
+		model: "glm-5.1",
 	});
 
 	const settings = await readFile(join(projectRoot, ".pi", "settings.json"), "utf8");
 	assert.equal(result.ok, true);
 	assert.match(settings, /\/\/ "defaultProvider": "deepseek-anthropic"/);
 	assert.match(settings, /\/\/ "defaultModel": "deepseek-v4-flash"/);
-	assert.match(settings, /^\s*"defaultProvider": "dashscope-coding",?$/m);
-	assert.match(settings, /^\s*"defaultModel": "glm-5",?$/m);
+	assert.match(settings, /^\s*"defaultProvider": "zhipu-glm",?$/m);
+	assert.match(settings, /^\s*"defaultModel": "glm-5\.1",?$/m);
 });
 
 test("saveDefaultModelConfig does not write settings when validation fails", async () => {
@@ -360,6 +360,6 @@ test("saveDefaultModelConfig does not write settings when validation fails", asy
 		code: "provider_validation_failed",
 		message: "model request failed",
 	});
-	assert.match(settings, /"defaultProvider": "dashscope-coding"/);
-	assert.match(settings, /"defaultModel": "glm-5"/);
+	assert.match(settings, /"defaultProvider": "zhipu-glm"/);
+	assert.match(settings, /"defaultModel": "glm-5\.1"/);
 });

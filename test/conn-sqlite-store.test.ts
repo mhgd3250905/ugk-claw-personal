@@ -78,13 +78,13 @@ test("ConnSqliteStore persists task-level model selection", async () => {
 	assert.equal((await store.get(created.connId))?.modelId, "mimo-v2.5-pro");
 
 	const updated = await store.update(created.connId, {
-		modelProvider: "dashscope-coding",
-		modelId: "glm-5",
+		modelProvider: "zhipu-glm",
+		modelId: "glm-5.1",
 		now: new Date("2026-04-21T10:01:00.000Z"),
 	});
 
-	assert.equal(updated?.modelProvider, "dashscope-coding");
-	assert.equal(updated?.modelId, "glm-5");
+	assert.equal(updated?.modelProvider, "zhipu-glm");
+	assert.equal(updated?.modelId, "glm-5.1");
 
 	database.close();
 });

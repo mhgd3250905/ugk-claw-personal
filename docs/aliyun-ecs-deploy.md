@@ -187,7 +187,7 @@ nginx 入口必须保留 SSE 长连接配置：`proxy_read_timeout 600s`、`prox
 /root/ugk-claw-shared/backups
 ```
 
-`app.env` 内包含真实 `DASHSCOPE_CODING_API_KEY` 和 `DEEPSEEK_API_KEY`，不要打印、不要复制进文档、不要提交进仓库。
+`app.env` 内包含真实 `ANTHROPIC_AUTH_TOKEN` 和 `DEEPSEEK_API_KEY`，不要打印、不要复制进文档、不要提交进仓库。
 
 `compose.env` 当前口径：
 

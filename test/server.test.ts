@@ -190,8 +190,8 @@ function createAgentServiceStub(overrides?: {
 				conversationId,
 				running: false,
 				contextUsage: {
-					provider: "dashscope-coding",
-					model: "glm-5",
+					provider: "zhipu-glm",
+					model: "glm-5.1",
 					currentTokens: 45231,
 					contextWindow: 128000,
 					reserveTokens: 16384,
@@ -224,8 +224,8 @@ function createAgentServiceStub(overrides?: {
 				conversationId,
 				running: false,
 				contextUsage: {
-					provider: "dashscope-coding",
-					model: "glm-5",
+					provider: "zhipu-glm",
+					model: "glm-5.1",
 					currentTokens: 45231,
 					contextWindow: 128000,
 					reserveTokens: 16384,
@@ -309,22 +309,22 @@ function createAgentServiceStub(overrides?: {
 
 function createModelConfigStoreStub(): ModelConfigStore {
 	let current: ModelConfigSelection = {
-		provider: "dashscope-coding",
-		model: "glm-5",
+		provider: "zhipu-glm",
+		model: "glm-5.1",
 	};
 	const config = (): ModelConfigBody => ({
 		current,
 		providers: [
 			{
-				id: "dashscope-coding",
-				name: "Ali DashScope Coding",
-				vendor: "ali",
+				id: "zhipu-glm",
+				name: "Zhipu GLM",
+				vendor: "zhipu",
 				region: "cn",
 				priority: 10,
-				models: [{ id: "glm-5", name: "GLM-5" }],
+				models: [{ id: "glm-5.1", name: "GLM-5.1" }],
 				auth: {
 					configured: true,
-					envVar: "DASHSCOPE_CODING_API_KEY",
+					envVar: "ANTHROPIC_AUTH_TOKEN",
 					source: "environment",
 				},
 			},
@@ -3290,8 +3290,8 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 					conversationId,
 					running: true,
 					contextUsage: {
-						provider: "dashscope-coding",
-						model: "glm-5",
+						provider: "zhipu-glm",
+						model: "glm-5.1",
 						currentTokens: 128,
 						contextWindow: 128000,
 						reserveTokens: 16384,
@@ -3378,8 +3378,8 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 		conversationId: "manual:thread-2",
 		running: true,
 		contextUsage: {
-			provider: "dashscope-coding",
-			model: "glm-5",
+			provider: "zhipu-glm",
+			model: "glm-5.1",
 			currentTokens: 128,
 			contextWindow: 128000,
 			reserveTokens: 16384,
@@ -5331,7 +5331,7 @@ test("GET /v1/debug/runtime is registered on the main server", async () => {
 	assert.ok(body.checks.some((check: { name?: string }) => check.name === "agent data dir"));
 	assert.ok(body.checks.some((check: { name?: string }) => check.name === "agents data dir"));
 	assert.equal(typeof body.config, "object");
-	assert.doesNotMatch(response.body, /API_KEY|SECRET|DASHSCOPE/i);
+	assert.doesNotMatch(response.body, /API_KEY|SECRET|ANTHROPIC_AUTH_TOKEN/i);
 	await app.close();
 });
 
@@ -5352,7 +5352,7 @@ test("GET /v1/debug/cleanup is registered on the main server", async () => {
 	assert.equal(typeof body.legacyConversationNotifications.total, "number");
 	assert.equal(body.recentRuns.windowDays, 7);
 	assert.ok(Array.isArray(body.risks));
-	assert.doesNotMatch(response.body, /API_KEY|SECRET|DASHSCOPE/i);
+	assert.doesNotMatch(response.body, /API_KEY|SECRET|ANTHROPIC_AUTH_TOKEN/i);
 	await app.close();
 });
 
@@ -5371,20 +5371,20 @@ test("GET /v1/model-config returns current provider and selectable models", asyn
 	assert.equal(response.statusCode, 200);
 	assert.deepEqual(response.json(), {
 		current: {
-			provider: "dashscope-coding",
-			model: "glm-5",
+			provider: "zhipu-glm",
+			model: "glm-5.1",
 		},
 		providers: [
 			{
-				id: "dashscope-coding",
-				name: "Ali DashScope Coding",
-				vendor: "ali",
+				id: "zhipu-glm",
+				name: "Zhipu GLM",
+				vendor: "zhipu",
 				region: "cn",
 				priority: 10,
-				models: [{ id: "glm-5", name: "GLM-5" }],
+				models: [{ id: "glm-5.1", name: "GLM-5.1" }],
 				auth: {
 					configured: true,
-					envVar: "DASHSCOPE_CODING_API_KEY",
+					envVar: "ANTHROPIC_AUTH_TOKEN",
 					source: "environment",
 				},
 			},
@@ -5489,8 +5489,8 @@ test("PUT /v1/model-config/default does not switch when validation fails", async
 		method: "GET",
 		url: "/v1/model-config",
 	});
-	assert.equal(configResponse.json().current.provider, "dashscope-coding");
-	assert.equal(configResponse.json().current.model, "glm-5");
+	assert.equal(configResponse.json().current.provider, "zhipu-glm");
+	assert.equal(configResponse.json().current.model, "glm-5.1");
 	await app.close();
 });
 
@@ -5504,8 +5504,8 @@ test("GET /v1/chat/status returns whether the conversation is currently running"
 					conversationId,
 					running: true,
 					contextUsage: {
-						provider: "dashscope-coding",
-						model: "glm-5",
+						provider: "zhipu-glm",
+						model: "glm-5.1",
 						currentTokens: 45231,
 						contextWindow: 128000,
 						reserveTokens: 16384,
@@ -5530,8 +5530,8 @@ test("GET /v1/chat/status returns whether the conversation is currently running"
 		conversationId: "manual:refresh-run",
 		running: true,
 		contextUsage: {
-			provider: "dashscope-coding",
-			model: "glm-5",
+			provider: "zhipu-glm",
+			model: "glm-5.1",
 			currentTokens: 45231,
 			contextWindow: 128000,
 			reserveTokens: 16384,

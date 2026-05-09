@@ -24,8 +24,8 @@ export interface AppConfig {
 
 export function loadApiKeyFromApiTxt(
 	projectRoot: string,
-	envVarName: string = "DASHSCOPE_CODING_API_KEY",
-	fileName: string = "api.txt",
+	envVarName: string = "ANTHROPIC_AUTH_TOKEN",
+	fileName: string = "zhipu-api.txt",
 ): string | undefined {
 	const existingValue = process.env[envVarName];
 	if (existingValue && existingValue.trim().length > 0) {
@@ -38,14 +38,29 @@ export function loadApiKeyFromApiTxt(
 	}
 
 	const content = readFileSync(apiTxtPath, "utf8");
-	const match = content.match(/api-?key\s*[:=]\s*(\S+)/i);
-	const apiKey = match?.[1]?.trim();
+	const apiKey = readApiKeyFromText(content, envVarName);
 	if (!apiKey) {
 		return undefined;
 	}
 
 	process.env[envVarName] = apiKey;
 	return apiKey;
+}
+
+function readApiKeyFromText(content: string, envVarName: string): string | undefined {
+	const match = content.match(/api-?key\s*[:=]\s*(\S+)/i);
+	const apiKey = match?.[1]?.trim();
+	if (apiKey) {
+		return apiKey;
+	}
+
+	try {
+		const parsed = JSON.parse(content) as { env?: Record<string, unknown> } & Record<string, unknown>;
+		const value = parsed.env?.[envVarName] ?? parsed[envVarName];
+		return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {

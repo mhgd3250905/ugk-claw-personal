@@ -844,7 +844,7 @@ tsconfig.json
 模板如下，真实 key 不要写进仓库和文档：
 
 ```dotenv
-DASHSCOPE_CODING_API_KEY=<填真实 DashScope Key>
+ANTHROPIC_AUTH_TOKEN=<填真实智谱 GLM Key>
 
 HOST=0.0.0.0
 PORT=3000
@@ -1313,7 +1313,7 @@ free -h
 
 ## 不要做的事
 
-- 不要把真实 `DASHSCOPE_CODING_API_KEY` 写进仓库。
+- 不要把真实 `ANTHROPIC_AUTH_TOKEN` 写进仓库。
 - 不要开放公网 `3901`。
 - 不要开放公网 `9223`。
 - 不要把 `.env`、`.data/`、`node_modules/`、临时 tar 包提交到 git。

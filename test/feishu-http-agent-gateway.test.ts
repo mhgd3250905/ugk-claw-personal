@@ -41,8 +41,8 @@ test("FeishuHttpAgentGateway forwards chat, status, and queue calls to the main 
 					conversationId: "manual:current",
 					running: true,
 					contextUsage: {
-						provider: "dashscope-coding",
-						model: "glm-5",
+						provider: "zhipu-glm",
+						model: "glm-5.1",
 						currentTokens: 0,
 						contextWindow: 128000,
 						reserveTokens: 16384,
@@ -66,8 +66,8 @@ test("FeishuHttpAgentGateway forwards chat, status, and queue calls to the main 
 					conversationId: "manual:current",
 					running: true,
 					contextUsage: {
-						provider: "dashscope-coding",
-						model: "glm-5",
+						provider: "zhipu-glm",
+						model: "glm-5.1",
 						currentTokens: 0,
 						contextWindow: 128000,
 						reserveTokens: 16384,

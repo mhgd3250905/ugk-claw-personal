@@ -384,7 +384,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `docs/playground-current.md`
   - 当前 playground 的真实交互与 UI 约束
 - `docs/model-providers.md`
-  - 阿里、DeepSeek、小米三类模型源的 provider、region、key 环境变量和展示顺序
+  - 智谱 GLM、DeepSeek、小米三类模型源的 provider、region、key 环境变量和展示顺序
 - `DESIGN.md`
   - 当前 playground 的视觉 identity / token / 组件口径；用于辅助 agent 做前端设计决策
 - `docs/runtime-assets-conn-feishu.md`

@@ -70,7 +70,7 @@ Requirements:
 
 - Node.js 22+
 - Docker and Docker Compose
-- A `DASHSCOPE_CODING_API_KEY` or compatible `pi-coding-agent` provider setup
+- An `ANTHROPIC_AUTH_TOKEN` for Zhipu GLM, or a compatible `pi-coding-agent` provider setup
 
 Install dependencies:
 

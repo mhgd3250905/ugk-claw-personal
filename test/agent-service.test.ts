@@ -364,8 +364,8 @@ class FakeAgentSessionFactory implements AgentSessionFactory {
 
 	getDefaultModelContext() {
 		return {
-			provider: "dashscope-coding",
-			model: "glm-5",
+			provider: "zhipu-glm",
+			model: "glm-5.1",
 			contextWindow: 128000,
 			maxResponseTokens: 16384,
 			reserveTokens: 16384,
@@ -1205,8 +1205,8 @@ test("getRunStatus reports whether a conversation is actively streaming", async 
 		conversationId: "manual:status",
 		running: true,
 		contextUsage: {
-			provider: "dashscope-coding",
-			model: "glm-5",
+			provider: "zhipu-glm",
+			model: "glm-5.1",
 			currentTokens: 45231,
 			contextWindow: 128000,
 			reserveTokens: 16384,
@@ -1225,8 +1225,8 @@ test("getRunStatus reports whether a conversation is actively streaming", async 
 		conversationId: "manual:status",
 		running: false,
 		contextUsage: {
-			provider: "dashscope-coding",
-			model: "glm-5",
+			provider: "zhipu-glm",
+			model: "glm-5.1",
 			currentTokens: 45236,
 			contextWindow: 128000,
 			reserveTokens: 16384,

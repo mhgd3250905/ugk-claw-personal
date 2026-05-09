@@ -134,8 +134,8 @@ test("openConversationSession reuses a stored session file and returns the skill
 test("resolveDefaultModelContext uses the session factory value or the standard fallback", () => {
 	const configuredFactory = new FakeSessionFactory(createSession());
 	configuredFactory.defaultModelContext = {
-		provider: "dashscope-coding",
-		model: "glm-5",
+		provider: "zhipu-glm",
+		model: "glm-5.1",
 		contextWindow: 128000,
 		maxResponseTokens: 32768,
 		reserveTokens: 16384,

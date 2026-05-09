@@ -106,7 +106,7 @@ test("buildSubagentCliArgs locks child pi to project-approved extensions and ski
 		projectRoot,
 		task: "Investigate session reuse",
 		systemPromptFile: promptFile,
-		model: "glm-5",
+		model: "glm-5.1",
 		tools: ["read", "grep", "find", "ls"],
 	});
 
@@ -121,7 +121,7 @@ test("buildSubagentCliArgs locks child pi to project-approved extensions and ski
 	assert.equal(args.includes("--append-system-prompt"), true);
 	assert.equal(args.includes(promptFile), true);
 	assert.equal(args.includes("--model"), true);
-	assert.equal(args.includes("glm-5"), true);
+	assert.equal(args.includes("glm-5.1"), true);
 	assert.equal(args.includes("--tools"), true);
 	assert.equal(args.includes("read,grep,find,ls"), true);
 	assert.equal(args.at(-1), "Task: Investigate session reuse");
@@ -133,8 +133,8 @@ test("buildSubagentCliArgs inherits default provider and model from the project 
 	await writeFile(
 		join(projectRoot, ".pi", "settings.json"),
 		JSON.stringify({
-			defaultProvider: "dashscope-coding",
-			defaultModel: "glm-5",
+			defaultProvider: "zhipu-glm",
+			defaultModel: "glm-5.1",
 		}),
 		"utf8",
 	);
@@ -149,8 +149,8 @@ test("buildSubagentCliArgs inherits default provider and model from the project 
 
 	assert.notEqual(providerIndex, -1);
 	assert.notEqual(modelIndex, -1);
-	assert.equal(args[providerIndex + 1], "dashscope-coding");
-	assert.equal(args[modelIndex + 1], "glm-5");
+	assert.equal(args[providerIndex + 1], "zhipu-glm");
+	assert.equal(args[modelIndex + 1], "glm-5.1");
 });
 
 test("buildSubagentCliArgs reads project model defaults from JSONC-style settings", async () => {

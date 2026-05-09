@@ -12,6 +12,12 @@
 
 ## 2026-05-09
 
+### 模型源移除阿里并新增智谱 GLM
+- 日期：2026-05-09
+- 主题：从模型源注册表移除阿里 DashScope `dashscope-coding / glm-5`，新增智谱 GLM Anthropic 兼容源 `zhipu-glm / glm-5.1`。
+- 影响范围：`GET /v1/model-config` 和 Playground / Conn 的模型源下拉不再展示阿里源；智谱源使用 `https://open.bigmodel.cn/api/anthropic`、`anthropic-messages` 和 `ANTHROPIC_AUTH_TOKEN` 环境变量。真实 token 仍只放运行态环境或 ignored 本地文件，不写入仓库；`.env.example` 只保留占位值。本地 `zhipu-api.txt` 兜底支持 `api-key: ...` 或 Claude 风格 JSON 的 `env.ANTHROPIC_AUTH_TOKEN`。
+- 对应入口：`runtime/pi-agent/models.json`、`src/config.ts`、`.env.example`、`.gitignore`、`docs/model-providers.md`、`README.md`、`test/model-config.test.ts`、`test/agent-session-factory.test.ts`、`test/config.test.ts`、`test/containerization.test.ts`
+
 ### 浏览器绑定策略模块化收口
 - 日期：2026-05-09
 - 主题：把 Agent / Conn 浏览器绑定写入闸门从路由文件里的重复逻辑收口到独立策略模块，保持“UI 手动设置、Agent 只消费参数”的架构边界。

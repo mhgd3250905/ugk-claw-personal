@@ -1,17 +1,17 @@
 {
   "providers": {
-    "dashscope-coding": {
-      "name": "Ali DashScope Coding",
-      "vendor": "ali",
+    "zhipu-glm": {
+      "name": "Zhipu GLM",
+      "vendor": "zhipu",
       "region": "cn",
       "priority": 10,
-      "baseUrl": "https://coding.dashscope.aliyuncs.com/v1",
-      "api": "openai-completions",
-      "apiKey": "DASHSCOPE_CODING_API_KEY",
+      "baseUrl": "https://open.bigmodel.cn/api/anthropic",
+      "api": "anthropic-messages",
+      "apiKey": "ANTHROPIC_AUTH_TOKEN",
       "models": [
         {
-          "id": "glm-5",
-          "name": "GLM-5 (DashScope Coding)"
+          "id": "glm-5.1",
+          "name": "GLM-5.1 (Zhipu)"
         }
       ]
     },

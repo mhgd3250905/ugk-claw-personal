@@ -187,8 +187,8 @@ export function getPlaygroundContextUsageControllerScript(): string {
 
 		function createFallbackContextUsage() {
 			return {
-				provider: "dashscope-coding",
-				model: "glm-5",
+				provider: "zhipu-glm",
+				model: "glm-5.1",
 				currentTokens: 0,
 				contextWindow: FALLBACK_CONTEXT_WINDOW,
 				reserveTokens: FALLBACK_RESERVE_TOKENS,

@@ -18,7 +18,7 @@ test("GET /v1/debug/runtime reports runtime checks without exposing secrets", as
 	process.env.PUBLIC_BASE_URL = "http://127.0.0.1:3000";
 	process.env.WEB_ACCESS_BROWSER_PROVIDER = "direct_cdp";
 	process.env.WEB_ACCESS_BROWSER_PUBLIC_BASE_URL = "http://ugk-pi:3000";
-	process.env.DASHSCOPE_CODING_API_KEY = "secret-key-that-must-not-leak";
+	process.env.ANTHROPIC_AUTH_TOKEN = "secret-key-that-must-not-leak";
 
 	const app = await buildRuntimeDebugApp(projectRoot);
 	try {

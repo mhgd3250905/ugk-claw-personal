@@ -243,13 +243,13 @@ test("default session factory refreshes cached skills when the fingerprint chang
 	);
 });
 
-test("project models.json exposes the checked-in dashscope-coding glm-5 provider", () => {
+test("project models.json exposes the checked-in Zhipu GLM provider", () => {
 	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(process.cwd()));
-	const model = registry.find("dashscope-coding", "glm-5");
+	const model = registry.find("zhipu-glm", "glm-5.1");
 
 	assert.notEqual(model, undefined);
-	assert.equal(model?.provider, "dashscope-coding");
-	assert.equal(model?.id, "glm-5");
+	assert.equal(model?.provider, "zhipu-glm");
+	assert.equal(model?.id, "glm-5.1");
 });
 
 test("project models.json exposes the checked-in DeepSeek provider", () => {
@@ -287,8 +287,8 @@ test("resolveProjectDefaultModelContext uses project defaults and reserve budget
 	await writeFile(
 		join(projectRoot, ".pi", "settings.json"),
 		JSON.stringify({
-			defaultProvider: "dashscope-coding",
-			defaultModel: "glm-5",
+			defaultProvider: "zhipu-glm",
+			defaultModel: "glm-5.1",
 			compaction: { reserveTokens: 16384 },
 		}),
 		"utf8",
@@ -297,8 +297,8 @@ test("resolveProjectDefaultModelContext uses project defaults and reserve budget
 		join(projectRoot, "runtime", "pi-agent", "models.json"),
 		JSON.stringify({
 			providers: {
-				"dashscope-coding": {
-					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
+				"zhipu-glm": {
+					models: [{ id: "glm-5.1", contextWindow: 128000, maxTokens: 16384 }],
 				},
 			},
 		}),
@@ -308,8 +308,8 @@ test("resolveProjectDefaultModelContext uses project defaults and reserve budget
 	const context = resolveProjectDefaultModelContext(projectRoot);
 
 	assert.deepEqual(context, {
-		provider: "dashscope-coding",
-		model: "glm-5",
+		provider: "zhipu-glm",
+		model: "glm-5.1",
 		contextWindow: 128000,
 		maxResponseTokens: 16384,
 		reserveTokens: 16384,
@@ -326,8 +326,8 @@ test("resolveProjectDefaultModelContext prefers runtime model settings when conf
 	await writeFile(
 		join(projectRoot, ".pi", "settings.json"),
 		JSON.stringify({
-			defaultProvider: "dashscope-coding",
-			defaultModel: "glm-5",
+			defaultProvider: "zhipu-glm",
+			defaultModel: "glm-5.1",
 			compaction: { reserveTokens: 16384 },
 		}),
 		"utf8",
@@ -345,8 +345,8 @@ test("resolveProjectDefaultModelContext prefers runtime model settings when conf
 		join(projectRoot, "runtime", "pi-agent", "models.json"),
 		JSON.stringify({
 			providers: {
-				"dashscope-coding": {
-					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
+				"zhipu-glm": {
+					models: [{ id: "glm-5.1", contextWindow: 128000, maxTokens: 16384 }],
 				},
 				deepseek: {
 					models: [{ id: "deepseek-v4-pro", contextWindow: 1000000, maxTokens: 384000 }],
@@ -420,7 +420,7 @@ test("resolveProjectDefaultModelContext ignores commented default model settings
 			"{",
 			'  // "defaultProvider": "deepseek-anthropic",',
 			'  // "defaultModel": "deepseek-v4-flash",',
-			'  "defaultModel": "glm-5"',
+			'  "defaultModel": "glm-5.1"',
 			"}",
 		].join("\n"),
 		"utf8",
@@ -429,8 +429,8 @@ test("resolveProjectDefaultModelContext ignores commented default model settings
 		join(projectRoot, "runtime", "pi-agent", "models.json"),
 		JSON.stringify({
 			providers: {
-				"dashscope-coding": {
-					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
+				"zhipu-glm": {
+					models: [{ id: "glm-5.1", contextWindow: 128000, maxTokens: 16384 }],
 				},
 				deepseek: {
 					models: [{ id: "deepseek-v4-pro", contextWindow: 1000000, maxTokens: 384000 }],
@@ -443,7 +443,7 @@ test("resolveProjectDefaultModelContext ignores commented default model settings
 	const context = resolveProjectDefaultModelContext(projectRoot);
 
 	assert.equal(context.provider, "unknown");
-	assert.equal(context.model, "glm-5");
+	assert.equal(context.model, "glm-5.1");
 });
 
 test("createProjectSettingsManager reads project defaults from commented JSON settings", async () => {
@@ -454,8 +454,8 @@ test("createProjectSettingsManager reads project defaults from commented JSON se
 		[
 			"{",
 			'  // "defaultProvider": "deepseek",',
-			'  "defaultProvider": "dashscope-coding",',
-			'  "defaultModel": "glm-5",',
+			'  "defaultProvider": "zhipu-glm",',
+			'  "defaultModel": "glm-5.1",',
 			'  "defaultThinkingLevel": "medium"',
 			"}",
 		].join("\n"),
@@ -464,8 +464,8 @@ test("createProjectSettingsManager reads project defaults from commented JSON se
 
 	const manager = createProjectSettingsManager(projectRoot);
 
-	assert.equal(manager.getDefaultProvider(), "dashscope-coding");
-	assert.equal(manager.getDefaultModel(), "glm-5");
+	assert.equal(manager.getDefaultProvider(), "zhipu-glm");
+	assert.equal(manager.getDefaultModel(), "glm-5.1");
 	assert.equal(manager.getDefaultThinkingLevel(), "medium");
 });
 
@@ -476,8 +476,8 @@ test("resolveProjectDefaultModelContext ignores nested default model settings", 
 	await writeFile(
 		join(projectRoot, ".pi", "settings.json"),
 		JSON.stringify({
-			defaultProvider: "dashscope-coding",
-			defaultModel: "glm-5",
+			defaultProvider: "zhipu-glm",
+			defaultModel: "glm-5.1",
 			nested: {
 				defaultProvider: "deepseek",
 				defaultModel: "deepseek-v4-pro",
@@ -490,8 +490,8 @@ test("resolveProjectDefaultModelContext ignores nested default model settings", 
 		join(projectRoot, "runtime", "pi-agent", "models.json"),
 		JSON.stringify({
 			providers: {
-				"dashscope-coding": {
-					models: [{ id: "glm-5", contextWindow: 128000, maxTokens: 16384 }],
+				"zhipu-glm": {
+					models: [{ id: "glm-5.1", contextWindow: 128000, maxTokens: 16384 }],
 				},
 				deepseek: {
 					models: [{ id: "deepseek-v4-pro", contextWindow: 1000000, maxTokens: 384000 }],
@@ -503,8 +503,8 @@ test("resolveProjectDefaultModelContext ignores nested default model settings", 
 
 	const context = resolveProjectDefaultModelContext(projectRoot);
 
-	assert.equal(context.provider, "dashscope-coding");
-	assert.equal(context.model, "glm-5");
+	assert.equal(context.provider, "zhipu-glm");
+	assert.equal(context.model, "glm-5.1");
 	assert.equal(context.reserveTokens, 20000);
 });
 
@@ -551,8 +551,8 @@ test("default session factory reflects model context changes after default model
 	await writeFile(
 		join(projectRoot, ".pi", "settings.json"),
 		JSON.stringify({
-			defaultProvider: "dashscope-coding",
-			defaultModel: "glm-5",
+			defaultProvider: "zhipu-glm",
+			defaultModel: "glm-5.1",
 			compaction: { reserveTokens: 16384 },
 		}),
 		"utf8",
@@ -561,14 +561,14 @@ test("default session factory reflects model context changes after default model
 		join(projectRoot, "runtime", "pi-agent", "models.json"),
 		JSON.stringify({
 			providers: {
-				"dashscope-coding": {
-					baseUrl: "https://coding.dashscope.aliyuncs.com/v1",
-					api: "openai-completions",
-					apiKey: "DASHSCOPE_CODING_API_KEY",
+				"zhipu-glm": {
+					baseUrl: "https://open.bigmodel.cn/api/anthropic",
+					api: "anthropic-messages",
+					apiKey: "ANTHROPIC_AUTH_TOKEN",
 					models: [
 						{
-							id: "glm-5",
-							name: "GLM-5",
+							id: "glm-5.1",
+							name: "GLM-5.1",
 							reasoning: true,
 							input: ["text"],
 							contextWindow: 128000,
