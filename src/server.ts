@@ -93,6 +93,7 @@ function createDefaultAgentService(assetStore: AssetStoreLike, profile?: AgentPr
 	});
 
 	return new AgentService({
+		agentId: profile?.agentId ?? DEFAULT_AGENT_ID,
 		conversationStore,
 		sessionFactory,
 		assetStore,

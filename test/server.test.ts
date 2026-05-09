@@ -7,6 +7,7 @@ import { NotificationHub } from "../src/agent/notification-hub.js";
 import { buildServer } from "../src/server.js";
 import { FeishuSettingsStore } from "../src/integrations/feishu/settings-store.js";
 import type { AgentService } from "../src/agent/agent-service.js";
+import { AgentBusyError } from "../src/agent/agent-errors.js";
 import { renderPlaygroundMarkdown } from "../src/ui/playground.js";
 import { createBrowserRegistry } from "../src/browser/browser-registry.js";
 import type {
@@ -27,6 +28,7 @@ function createAgentServiceStub(overrides?: {
 	queueMessage?: AgentService["queueMessage"];
 	interruptChat?: AgentService["interruptChat"];
 	resetConversation?: AgentService["resetConversation"];
+	getAgentRunStatus?: AgentService["getAgentRunStatus"];
 	getRunStatus?: (
 		conversationId: string,
 	) => Promise<{
@@ -208,6 +210,12 @@ function createAgentServiceStub(overrides?: {
 				conversationId,
 				running: false,
 				unsubscribe: () => undefined,
+			})),
+		getAgentRunStatus:
+			overrides?.getAgentRunStatus ??
+			(() => ({
+				agentId: "main",
+				status: "idle",
 			})),
 		getRunEvents:
 			overrides?.getRunEvents ??
@@ -6250,5 +6258,60 @@ test("POST /v1/chat returns 500 when agent service throws", async () => {
 			message: "boom",
 		},
 	});
+	await app.close();
+});
+
+test("POST /v1/chat returns 409 when the main agent is busy", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			chat: async () => {
+				throw new AgentBusyError("main", "manual:active");
+			},
+		}),
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/chat",
+		payload: {
+			conversationId: "manual:test-busy",
+			message: "trigger busy",
+		},
+	});
+
+	assert.equal(response.statusCode, 409);
+	assert.equal(response.json().error.code, "AGENT_BUSY");
+	assert.equal(response.json().error.message, "Agent main is currently busy");
+	assert.equal(response.json().error.agentId, "main");
+	assert.equal(response.json().error.activeConversationId, "manual:active");
+	assert.ok(Array.isArray(response.json().error.suggestedAgents));
+	await app.close();
+});
+
+test("POST /v1/chat/stream returns 409 before SSE hijack when the main agent is busy", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub({
+			getAgentRunStatus: () => ({
+				agentId: "main",
+				status: "busy",
+				activeConversationId: "manual:active",
+				activeSince: "2026-05-09T00:00:00.000Z",
+			}),
+		}),
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/chat/stream",
+		payload: {
+			conversationId: "manual:test-busy-stream",
+			message: "trigger busy",
+		},
+	});
+
+	assert.equal(response.statusCode, 409);
+	assert.equal(response.json().error.code, "AGENT_BUSY");
+	assert.equal(response.json().error.agentId, "main");
+	assert.equal(response.json().error.activeConversationId, "manual:active");
 	await app.close();
 });

@@ -31,6 +31,7 @@
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
 - 当前本地未发布变更：Agent / Conn 浏览器绑定边界已本地收口并通过测试，准备走服务器增量更新。浏览器绑定只能由用户在 Playground UI 手动设置；运行时 Agent 不能通过自然语言修改浏览器绑定；`web-access` 不再接受请求级 browserId 覆盖，run 环境只暴露当前绑定 Chrome 的单条实例配置。
 - 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
+- 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
 - 当前未跟踪文件：`runtime/xhs-extract.mjs` 来源不属于本轮 Chrome 工作台，继续不要提交、不要删除，除非用户明确说明它的归属。
 
 ## 2026-05-09 本地浏览器绑定隔离收口

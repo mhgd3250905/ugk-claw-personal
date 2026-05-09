@@ -14,6 +14,26 @@ export function sendInternalError(reply: FastifyReply, error: unknown): FastifyR
 	return sendErrorResponse(reply, 500, "INTERNAL_ERROR", message);
 }
 
+export function sendAgentBusyError(
+	reply: FastifyReply,
+	input: {
+		message: string;
+		agentId: string;
+		activeConversationId?: string;
+		suggestedAgents?: string[];
+	},
+): FastifyReply {
+	return reply.status(409).send({
+		error: {
+			code: "AGENT_BUSY",
+			message: input.message,
+			agentId: input.agentId,
+			...(input.activeConversationId ? { activeConversationId: input.activeConversationId } : {}),
+			...(input.suggestedAgents ? { suggestedAgents: input.suggestedAgents } : {}),
+		},
+	} satisfies ErrorResponseBody);
+}
+
 function sendErrorResponse(
 	reply: FastifyReply,
 	statusCode: 400 | 413 | 500,

@@ -10,6 +10,18 @@ import type { AgentService } from "../src/agent/agent-service.js";
 
 function createScopedAgentService(agentId: string, running = false): AgentService {
 	return {
+		getAgentRunStatus: () =>
+			running
+				? {
+						agentId,
+						status: "busy",
+						activeConversationId: `manual:${agentId}`,
+						activeSince: new Date(0).toISOString(),
+					}
+				: {
+						agentId,
+						status: "idle",
+					},
 		getAvailableSkills: async () => ({
 			skills: [{ name: `${agentId}-skill` }],
 			source: "fresh",
@@ -182,6 +194,46 @@ test("agent-scoped conversations are served from the requested agent service", a
 	assert.equal(searchCatalog.json().currentConversationId, "manual:search");
 	assert.equal(created.statusCode, 200);
 	assert.equal(created.json().conversationId, "manual:search:new");
+});
+
+test("GET /v1/agents/status returns all agent run statuses", async () => {
+	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
+	const app = buildServer({
+		agentService: createScopedAgentService("main"),
+		agentServiceRegistry: createTestRegistryForRoot(projectRoot, new Set(["search"])),
+		agentProfileProjectRoot: projectRoot,
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/v1/agents/status",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(
+		response.json().agents.map((agent: { agentId: string; status: string }) => ({
+			agentId: agent.agentId,
+			status: agent.status,
+		})),
+		[
+			{ agentId: "main", status: "idle" },
+			{ agentId: "search", status: "idle" },
+		],
+	);
+
+	await app.inject({
+		method: "GET",
+		url: "/v1/agents/search/debug/skills",
+	});
+	const afterSearchCreated = await app.inject({
+		method: "GET",
+		url: "/v1/agents/status",
+	});
+	const searchStatus = afterSearchCreated
+		.json()
+		.agents.find((agent: { agentId: string }) => agent.agentId === "search");
+	assert.equal(searchStatus.status, "busy");
+	assert.equal(searchStatus.activeConversationId, "manual:search");
 });
 
 test("POST /v1/agents creates a persisted custom agent profile", async () => {

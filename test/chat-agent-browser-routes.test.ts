@@ -13,6 +13,18 @@ import type { AgentService } from "../src/agent/agent-service.js";
 
 function createScopedAgentService(agentId: string, running = false): AgentService {
 	return {
+		getAgentRunStatus: () =>
+			running
+				? {
+						agentId,
+						status: "busy",
+						activeConversationId: `manual:${agentId}`,
+						activeSince: new Date(0).toISOString(),
+					}
+				: {
+						agentId,
+						status: "idle",
+					},
 		getConversationCatalog: async () => ({
 			currentConversationId: `manual:${agentId}`,
 			conversations: [

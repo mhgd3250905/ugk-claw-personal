@@ -13,6 +13,8 @@ import { ConnSqliteStore } from "../src/agent/conn-sqlite-store.js";
 import type { AssetRecord, AssetStoreLike, ChatAttachment, StoredAssetRecord } from "../src/agent/asset-store.js";
 import type { AgentSessionLike, RawAgentSessionEventLike } from "../src/agent/agent-session-factory.js";
 import type { AgentFileArtifact, AgentFileDraft } from "../src/agent/file-artifacts.js";
+import { getCurrentAgentScope } from "../src/agent/agent-scope-context.js";
+import { getCurrentBackgroundWorkspaceEnvironment } from "../src/agent/background-workspace-context.js";
 
 process.env.UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH = join(
 	tmpdir(),
@@ -81,7 +83,7 @@ class ScopeObservingSession extends FakeSession {
 	}
 
 	override async prompt(message: string): Promise<void> {
-		this.observedScope = process.env.CLAUDE_AGENT_ID;
+		this.observedScope = getCurrentAgentScope()?.scope;
 		await super.prompt(message);
 	}
 }
@@ -403,15 +405,16 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 		}
 
 		override async prompt(message: string): Promise<void> {
+			const workspaceEnv = getCurrentBackgroundWorkspaceEnvironment();
 			this.observedEnv = {
-				OUTPUT_DIR: process.env.OUTPUT_DIR,
-				CONN_SHARED_DIR: process.env.CONN_SHARED_DIR,
-				CONN_PUBLIC_DIR: process.env.CONN_PUBLIC_DIR,
-				CONN_PUBLIC_BASE_URL: process.env.CONN_PUBLIC_BASE_URL,
-				CONN_OUTPUT_BASE_URL: process.env.CONN_OUTPUT_BASE_URL,
-				SITE_PUBLIC_DIR: process.env.SITE_PUBLIC_DIR,
-				SITE_PUBLIC_BASE_URL: process.env.SITE_PUBLIC_BASE_URL,
-				ZHIHU_REPORT_BASE_URL: process.env.ZHIHU_REPORT_BASE_URL,
+				OUTPUT_DIR: workspaceEnv.OUTPUT_DIR,
+				CONN_SHARED_DIR: workspaceEnv.CONN_SHARED_DIR,
+				CONN_PUBLIC_DIR: workspaceEnv.CONN_PUBLIC_DIR,
+				CONN_PUBLIC_BASE_URL: workspaceEnv.CONN_PUBLIC_BASE_URL,
+				CONN_OUTPUT_BASE_URL: workspaceEnv.CONN_OUTPUT_BASE_URL,
+				SITE_PUBLIC_DIR: workspaceEnv.SITE_PUBLIC_DIR,
+				SITE_PUBLIC_BASE_URL: workspaceEnv.SITE_PUBLIC_BASE_URL,
+				ZHIHU_REPORT_BASE_URL: workspaceEnv.ZHIHU_REPORT_BASE_URL,
 			};
 			await super.prompt(message);
 		}
@@ -602,9 +605,10 @@ test("BackgroundAgentRunner scopes browser cleanup around background conn runs",
 	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
 	database.close();
 
-	assert.equal(session.observedScope, conn.connId);
+	const expectedScope = `${conn.connId}-${run.runId}`;
+	assert.equal(session.observedScope, expectedScope);
 	assert.equal(process.env.CLAUDE_AGENT_ID, undefined);
-	assert.deepEqual(cleanupScopes, [conn.connId, conn.connId]);
+	assert.deepEqual(cleanupScopes, [expectedScope, expectedScope]);
 });
 
 test("BackgroundAgentRunner uses conn browserId before the selected agent default browser", async () => {
@@ -658,11 +662,12 @@ test("BackgroundAgentRunner uses conn browserId before the selected agent defaul
 	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
 
 	const [sessionInput] = sessionFactory.createdInputs as Array<{ browserId?: string; browserScope?: string }>;
+	const expectedScope = `${conn.connId}-${run.runId}`;
 	assert.equal(sessionInput.browserId, "chrome-02");
-	assert.equal(sessionInput.browserScope, conn.connId);
+	assert.equal(sessionInput.browserScope, expectedScope);
 	assert.deepEqual(cleanupCalls, [
-		{ scope: conn.connId, browserId: "chrome-02" },
-		{ scope: conn.connId, browserId: "chrome-02" },
+		{ scope: expectedScope, browserId: "chrome-02" },
+		{ scope: expectedScope, browserId: "chrome-02" },
 	]);
 
 	database.close();
@@ -713,7 +718,7 @@ test("BackgroundAgentRunner falls back to the selected agent default browser", a
 
 	const [sessionInput] = sessionFactory.createdInputs as Array<{ browserId?: string; browserScope?: string }>;
 	assert.equal(sessionInput.browserId, "chrome-01");
-	assert.equal(sessionInput.browserScope, conn.connId);
+	assert.equal(sessionInput.browserScope, `${conn.connId}-${run.runId}`);
 
 	database.close();
 });
@@ -768,11 +773,12 @@ test("BackgroundAgentRunner pins the browser registry default when conn and agen
 	await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
 
 	const [sessionInput] = sessionFactory.createdInputs as Array<{ browserId?: string; browserScope?: string }>;
+	const expectedScope = `${conn.connId}-${run.runId}`;
 	assert.equal(sessionInput.browserId, "default");
-	assert.equal(sessionInput.browserScope, conn.connId);
+	assert.equal(sessionInput.browserScope, expectedScope);
 	assert.deepEqual(cleanupCalls, [
-		{ scope: conn.connId, browserId: "default" },
-		{ scope: conn.connId, browserId: "default" },
+		{ scope: expectedScope, browserId: "default" },
+		{ scope: expectedScope, browserId: "default" },
 	]);
 
 	database.close();

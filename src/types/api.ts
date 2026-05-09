@@ -262,6 +262,18 @@ export interface DebugSkillsResponseBody {
 	cachedAt: string;
 }
 
+export interface AgentRunStatusBody {
+	agentId: string;
+	name: string;
+	status: "idle" | "busy";
+	activeConversationId?: string;
+	activeSince?: string;
+}
+
+export interface AgentRunStatusListResponseBody {
+	agents: AgentRunStatusBody[];
+}
+
 export interface RuntimeDebugCheckBody {
 	name: string;
 	ok: boolean;
@@ -647,7 +659,10 @@ export type ChatStreamEvent =
 
 export interface ErrorResponseBody {
 	error: {
-		code: "BAD_REQUEST" | "PAYLOAD_TOO_LARGE" | "INTERNAL_ERROR";
+		code: "BAD_REQUEST" | "PAYLOAD_TOO_LARGE" | "INTERNAL_ERROR" | "AGENT_BUSY";
 		message: string;
+		agentId?: string;
+		activeConversationId?: string;
+		suggestedAgents?: string[];
 	};
 }

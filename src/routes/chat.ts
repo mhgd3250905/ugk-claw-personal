@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AgentService } from "../agent/agent-service.js";
 import type { AgentServiceRegistry } from "../agent/agent-service-registry.js";
+import { AgentBusyError } from "../agent/agent-errors.js";
 import type { BrowserRegistry } from "../browser/browser-registry.js";
 import {
 	normalizeBrowserBindingAuditValue,
@@ -36,7 +37,7 @@ import {
 	parseOptionalPositiveInteger,
 	parseQueueMessageBody,
 } from "./chat-route-parsers.js";
-import { sendBadRequest, sendInternalError } from "./http-errors.js";
+import { sendAgentBusyError, sendBadRequest, sendInternalError } from "./http-errors.js";
 import type {
 	ConversationCatalogResponseBody,
 	ChatHistoryResponseBody,
@@ -47,6 +48,7 @@ import type {
 	ChatStatusResponseBody,
 	ConversationStateResponseBody,
 	DebugSkillsResponseBody,
+	AgentRunStatusListResponseBody,
 	InterruptChatRequestBody,
 	InterruptChatResponseBody,
 	CreateConversationResponseBody,
@@ -235,6 +237,27 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		});
 	}
 
+	function sendAgentBusy(reply: FastifyReply, error: AgentBusyError): FastifyReply {
+		const suggestedAgents = deps.agentServiceRegistry
+			?.getAllRunStatus()
+			.filter((agent) => agent.status === "idle" && agent.agentId !== error.agentId)
+			.map((agent) => agent.agentId);
+		return sendAgentBusyError(reply, {
+			message: error.message,
+			agentId: error.agentId,
+			activeConversationId: error.activeConversationId,
+			suggestedAgents,
+		});
+	}
+
+	function sendBusyStatus(reply: FastifyReply, service: AgentService): FastifyReply | undefined {
+		const status = service.getAgentRunStatus();
+		if (status.status !== "busy") {
+			return undefined;
+		}
+		return sendAgentBusy(reply, new AgentBusyError(status.agentId, status.activeConversationId));
+	}
+
 	app.get("/v1/agents", async () => {
 		return {
 			agents: deps.agentServiceRegistry?.list().map(presentAgentSummary) ?? [
@@ -242,6 +265,18 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					agentId: "main",
 					name: "主 Agent",
 					description: "默认综合 agent，保持现有会话、技能和运行方式。",
+				},
+			],
+		};
+	});
+
+	app.get("/v1/agents/status", async (): Promise<AgentRunStatusListResponseBody> => {
+		return {
+			agents: deps.agentServiceRegistry?.getAllRunStatus() ?? [
+				{
+					agentId: "main",
+					name: "主 Agent",
+					status: "idle",
 				},
 			],
 		};
@@ -938,6 +973,9 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					...(body.assetRefs ? { assetRefs: body.assetRefs } : {}),
 				});
 			} catch (error) {
+				if (error instanceof AgentBusyError) {
+					return sendAgentBusy(reply, error);
+				}
 				return sendInternalError(reply, error);
 			}
 		},
@@ -964,6 +1002,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			const resolvedBrowser = resolveBrowserIdForRequest(reply, request.params?.agentId, body.browserId);
 			if (resolvedBrowser.response) {
 				return resolvedBrowser.response;
+			}
+			const busyResponse = sendBusyStatus(reply, service);
+			if (busyResponse) {
+				return busyResponse;
 			}
 			reply.hijack();
 			configureSseResponse(reply.raw);
@@ -1362,6 +1404,9 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 					...(body.assetRefs ? { assetRefs: body.assetRefs } : {}),
 				});
 			} catch (error) {
+				if (error instanceof AgentBusyError) {
+					return sendAgentBusy(reply, error);
+				}
 				return sendInternalError(reply, error);
 			}
 		},
@@ -1378,6 +1423,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			const resolvedBrowser = resolveBrowserIdForRequest(reply, undefined, body.browserId);
 			if (resolvedBrowser.response) {
 				return resolvedBrowser.response;
+			}
+			const busyResponse = sendBusyStatus(reply, deps.agentService);
+			if (busyResponse) {
+				return busyResponse;
 			}
 
 			reply.hijack();

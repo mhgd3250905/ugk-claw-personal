@@ -4,6 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AgentService } from "../src/agent/agent-service.js";
+import { AgentBusyError } from "../src/agent/agent-errors.js";
 import type {
 	AgentSessionFactory,
 	AgentSessionLike,
@@ -17,6 +18,7 @@ import type { AssetRecord, ChatAttachment } from "../src/agent/asset-store.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
 import { buildPromptWithAssetContext } from "../src/agent/file-artifacts.js";
 import { readBrowserScopeRoute } from "../src/browser/browser-scope-routes.js";
+import { getCurrentAgentScope } from "../src/agent/agent-scope-context.js";
 import type { ChatStreamEvent, ConversationStateResponseBody } from "../src/types/api.js";
 
 function restoreEnvValue(key: string, value: string | undefined): void {
@@ -206,7 +208,7 @@ class EnvAwareSession extends FakeSession {
 	public observedAgentScope?: string;
 
 	override async prompt(message: string, options?: PromptOptionsLike): Promise<void> {
-		this.observedAgentScope = process.env.CLAUDE_AGENT_ID;
+		this.observedAgentScope = getCurrentAgentScope()?.scope;
 		await super.prompt(message, options);
 	}
 }
@@ -577,7 +579,7 @@ test("chat closes scoped browser targets after the run finishes", async () => {
 		const store = await createStore();
 		const session = new EnvAwareSession("E:/sessions/browser-cleanup.jsonl", [textDelta("done")]);
 		const factory = new FakeAgentSessionFactory(() => session);
-		const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+		const service = new AgentService({ agentId: "search", conversationStore: store, sessionFactory: factory });
 
 		const result = await service.chat({
 			conversationId: "manual:browser-cleanup",
@@ -585,11 +587,11 @@ test("chat closes scoped browser targets after the run finishes", async () => {
 		});
 
 		assert.equal(result.text, "done");
-		assert.equal(session.observedAgentScope, "manual-browser-cleanup");
+		assert.equal(session.observedAgentScope, "search-manual-browser-cleanup");
 		assert.equal(cleanupCalls.length, 2);
 		assert.equal(
 			cleanupCalls[0]?.url,
-			"http://127.0.0.1:3456/session/close-all?metaAgentScope=manual-browser-cleanup",
+			"http://127.0.0.1:3456/session/close-all?metaAgentScope=search-manual-browser-cleanup",
 		);
 		assert.equal(
 			cleanupCalls[1]?.url,
@@ -2228,7 +2230,7 @@ test("streamChat blocks starting another conversation while one line is already 
 	const store = await createStore();
 	const activeSession = new DeferredSession("E:/sessions/line-1.jsonl");
 	const factory = new FakeAgentSessionFactory(() => activeSession);
-	const service = new AgentService({ conversationStore: store, sessionFactory: factory });
+	const service = new AgentService({ agentId: "main", conversationStore: store, sessionFactory: factory });
 
 	const run = service.streamChat(
 		{
@@ -2248,11 +2250,50 @@ test("streamChat blocks starting another conversation while one line is already 
 				},
 				() => undefined,
 			),
-		/Another conversation is already running/,
+		(error: unknown) =>
+			error instanceof AgentBusyError &&
+			error.agentId === "main" &&
+			error.activeConversationId === "manual:line-1",
 	);
 
 	activeSession.finish();
 	await run;
+});
+
+test("getAgentRunStatus reports idle and busy agent state", async () => {
+	const store = await createStore();
+	const activeSession = new DeferredSession("E:/sessions/agent-status.jsonl");
+	const factory = new FakeAgentSessionFactory(() => activeSession);
+	const service = new AgentService({ agentId: "search", conversationStore: store, sessionFactory: factory });
+
+	assert.deepEqual(service.getAgentRunStatus(), {
+		agentId: "search",
+		status: "idle",
+	});
+
+	const run = service.streamChat(
+		{
+			conversationId: "manual:agent-status",
+			message: "start",
+		},
+		() => undefined,
+	);
+	await activeSession.promptStarted;
+
+	const status = service.getAgentRunStatus();
+	assert.equal(status.agentId, "search");
+	assert.equal(status.status, "busy");
+	if (status.status === "busy") {
+		assert.equal(status.activeConversationId, "manual:agent-status");
+		assert.match(status.activeSince, /^\d{4}-\d{2}-\d{2}T/);
+	}
+
+	activeSession.finish();
+	await run;
+	assert.deepEqual(service.getAgentRunStatus(), {
+		agentId: "search",
+		status: "idle",
+	});
 });
 
 test("subscribeRunEvents replays buffered events and keeps streaming live active run updates", async () => {

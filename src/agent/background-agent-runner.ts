@@ -14,6 +14,10 @@ import {
 	createBrowserCleanupScope,
 	runWithScopedAgentEnvironment,
 } from "./agent-run-scope.js";
+import {
+	runWithBackgroundWorkspaceContext,
+	type BackgroundWorkspaceEnvironment,
+} from "./background-workspace-context.js";
 import { prependCurrentTimeContext } from "./file-artifacts.js";
 
 export interface BackgroundAgentSessionFactory {
@@ -52,7 +56,7 @@ export class BackgroundAgentRunner {
 		now: Date = new Date(),
 		signal?: AbortSignal,
 	): Promise<ConnRunRecord | undefined> {
-		const browserCleanupScope = createBrowserCleanupScope(conn.connId);
+		const browserCleanupScope = createBrowserCleanupScope(run.runId, conn.connId);
 		const closeBrowserTargets = this.options.closeBrowserTargetsForScope ?? closeBrowserTargetsForScope;
 		let effectiveBrowserId: string | undefined;
 		let unsubscribe: (() => void) | undefined;
@@ -362,28 +366,10 @@ function buildBackgroundWorkspaceEnvironment(
 }
 
 async function runWithBackgroundWorkspaceEnvironment<T>(
-	values: Record<string, string | undefined>,
+	values: BackgroundWorkspaceEnvironment,
 	operation: () => Promise<T>,
 ): Promise<T> {
-	const previousValues = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
-	for (const [key, value] of Object.entries(values)) {
-		if (value === undefined) {
-			delete process.env[key];
-			continue;
-		}
-		process.env[key] = value;
-	}
-	try {
-		return await operation();
-	} finally {
-		for (const [key, value] of Object.entries(previousValues)) {
-			if (value === undefined) {
-				delete process.env[key];
-				continue;
-			}
-			process.env[key] = value;
-		}
-	}
+	return await runWithBackgroundWorkspaceContext(values, operation);
 }
 
 function extractAssistantText(session: AgentSessionLike): string {

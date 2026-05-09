@@ -1,5 +1,6 @@
 import { closeBrowserTargetsForScope } from "./browser-cleanup.js";
 import { ConversationStore } from "./conversation-store.js";
+import { AgentBusyError } from "./agent-errors.js";
 import { createActiveRunView } from "./agent-active-run-view.js";
 import {
 	buildConversationHistoryMessages,
@@ -139,6 +140,18 @@ export interface RunStatusResult {
 	contextUsage: ChatContextUsageBody;
 }
 
+export type AgentRunStatusResult =
+	| {
+			agentId: string;
+			status: "idle";
+	  }
+	| {
+			agentId: string;
+			status: "busy";
+			activeConversationId: string;
+			activeSince: string;
+	  };
+
 export interface ConversationCatalogItem {
 	conversationId: string;
 	title: string;
@@ -210,6 +223,7 @@ export interface RunEventSubscription {
 }
 
 export interface AgentServiceOptions {
+	agentId?: string;
 	conversationStore: ConversationStore;
 	sessionFactory: AgentSessionFactory;
 	assetStore?: AssetStoreLike;
@@ -238,6 +252,10 @@ export class AgentService {
 	private readonly terminalRuns = new Map<string, TerminalRunState>();
 
 	constructor(private readonly options: AgentServiceOptions) {}
+
+	private get agentId(): string {
+		return this.options.agentId ?? "main";
+	}
 
 	async chat(input: ChatInput): Promise<ChatResult> {
 		return await this.runChat(input);
@@ -415,6 +433,23 @@ export class AgentService {
 		};
 	}
 
+	getAgentRunStatus(): AgentRunStatusResult {
+		const activeRunEntry = this.activeRuns.entries().next().value as [string, ActiveRunState] | undefined;
+		if (!activeRunEntry) {
+			return {
+				agentId: this.agentId,
+				status: "idle",
+			};
+		}
+		const [activeConversationId, activeRun] = activeRunEntry;
+		return {
+			agentId: this.agentId,
+			status: "busy",
+			activeConversationId,
+			activeSince: activeRun.view.startedAt,
+		};
+	}
+
 	async getConversationHistory(
 		conversationId: string,
 		options?: ConversationHistoryPageOptions,
@@ -548,12 +583,12 @@ export class AgentService {
 		const conversationId = input.conversationId ?? await createEmptyConversation({
 			conversationStore: this.options.conversationStore,
 		});
-		const browserCleanupScope = createBrowserCleanupScope(conversationId);
+		const browserCleanupScope = createBrowserCleanupScope(conversationId, this.options.agentId);
 		if (this.activeRuns.has(conversationId)) {
 			throw new Error(`Conversation ${conversationId} is already running`);
 		}
 		if (this.activeRuns.size > 0) {
-			throw new Error("Another conversation is already running");
+			throw new AgentBusyError(this.agentId, this.activeRuns.keys().next().value);
 		}
 		const { session, skillFingerprint } = await this.openSession(conversationId, browserCleanupScope, input.browserId);
 		const preparedAssets = await preparePromptAssets({

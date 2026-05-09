@@ -12,6 +12,13 @@
 
 ## 2026-05-09
 
+### 多 Agent 并行运行加固
+- 日期：2026-05-09
+- 主题：收口单进程多 agent / conn run 并行时的共享状态串扰，并补充 agent 忙闲可见性。
+- 影响范围：前台 Agent run scope 改为 `AsyncLocalStorage`，不再通过全局 `process.env.CLAUDE_AGENT_ID` / `CLAUDE_HOOK_AGENT_ID` / `agent_id` 传递；子进程仍由 run 级 Bash 环境显式注入 scope。后台 Conn workspace env 同样改为 async context，并在真实 Bash spawn 时显式合并，避免并行任务串写 `OUTPUT_DIR` / `CONN_*`。浏览器 cleanup scope 纳入 `agentId + conversationId` 或 `connId + runId`，降低共享浏览器时误关其他 run 页面风险。新增 `GET /v1/agents/status` 返回 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检并返回 409。
+- 特别说明：本轮没有按外部报告修改普通 `ModelRegistry.create()`，因为当前上游实现里 `create()` 只是构造 registry，`resetApiProviders()` 位于 `refresh()` / session reload 路径，不在普通会话创建路径。
+- 对应入口：`src/agent/agent-scope-context.ts`、`src/agent/background-workspace-context.ts`、`src/agent/agent-errors.ts`、`src/agent/agent-run-scope.ts`、`src/agent/agent-service.ts`、`src/agent/background-agent-runner.ts`、`src/agent/agent-service-registry.ts`、`src/routes/chat.ts`、`src/workers/conn-worker.ts`、`test/agent-run-scope.test.ts`、`test/background-agent-runner.test.ts`、`test/server.test.ts`
+
 ### 模型源移除阿里并新增智谱 GLM
 - 日期：2026-05-09
 - 主题：从模型源注册表移除阿里 DashScope `dashscope-coding / glm-5`，新增智谱 GLM Anthropic 兼容源 `zhipu-glm / glm-5.1`。

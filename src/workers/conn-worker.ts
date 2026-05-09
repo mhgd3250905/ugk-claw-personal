@@ -10,6 +10,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { getAppConfig } from "../config.js";
 import { prepareBrowserBoundBashEnvironment } from "../browser/browser-bound-bash.js";
+import { getCurrentBackgroundWorkspaceEnvironment } from "../agent/background-workspace-context.js";
 import { createBrowserRegistryFromEnv } from "../browser/browser-registry.js";
 import {
 	createSkillRestrictedResourceLoader,
@@ -476,6 +477,7 @@ class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
 						...context,
 						env: {
 							...context.env,
+							...getCurrentBackgroundWorkspaceEnvironment(),
 							...browserEnv,
 						},
 					}),

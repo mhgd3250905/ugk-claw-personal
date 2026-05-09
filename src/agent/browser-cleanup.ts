@@ -1,3 +1,5 @@
+import { getCurrentAgentScope } from "./agent-scope-context.js";
+
 type BrowserCleanupEnv = Record<string, string | undefined>;
 
 export interface BrowserCleanupOptions {
@@ -18,6 +20,10 @@ const SCOPE_ENV_NAMES = [
 ] as const;
 
 export function resolveBrowserCleanupAgentScope(env: BrowserCleanupEnv = process.env): string | undefined {
+	const currentScope = getCurrentAgentScope()?.scope.trim();
+	if (currentScope) {
+		return currentScope;
+	}
 	for (const name of SCOPE_ENV_NAMES) {
 		const trimmed = env[name]?.trim();
 		if (trimmed) {

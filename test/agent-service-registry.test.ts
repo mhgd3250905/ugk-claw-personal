@@ -55,3 +55,42 @@ test("AgentServiceRegistry lists public agent summaries", () => {
 		},
 	]);
 });
+
+test("AgentServiceRegistry reports run status without creating idle services", () => {
+	const profiles = createDefaultAgentProfiles("E:/AII/ugk-pi");
+	const createdFor: string[] = [];
+	const registry = new AgentServiceRegistry({
+		profiles,
+		createService: (profile) => {
+			createdFor.push(profile.agentId);
+			return {
+				agentId: profile.agentId,
+				getAgentRunStatus: () => ({
+					agentId: profile.agentId,
+					status: "busy" as const,
+					activeConversationId: `manual:${profile.agentId}`,
+					activeSince: new Date(0).toISOString(),
+				}),
+			};
+		},
+	});
+
+	registry.get("main");
+	const statuses = registry.getAllRunStatus();
+
+	assert.deepEqual(createdFor, ["main"]);
+	assert.deepEqual(statuses, [
+		{
+			agentId: "main",
+			name: "主 Agent",
+			status: "busy",
+			activeConversationId: "manual:main",
+			activeSince: "1970-01-01T00:00:00.000Z",
+		},
+		{
+			agentId: "search",
+			name: "搜索 Agent",
+			status: "idle",
+		},
+	]);
+});

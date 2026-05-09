@@ -10,6 +10,26 @@ export interface AgentSummary {
 	defaultBrowserId?: string;
 }
 
+export type AgentRegistryRunStatus =
+	| {
+			agentId: string;
+			name: string;
+			status: "idle";
+	  }
+	| {
+			agentId: string;
+			name: string;
+			status: "busy";
+			activeConversationId: string;
+			activeSince: string;
+	  };
+
+interface AgentRunStatusLike {
+	getAgentRunStatus?():
+		| { agentId: string; status: "idle" }
+		| { agentId: string; status: "busy"; activeConversationId: string; activeSince: string };
+}
+
 export interface AgentServiceRegistryOptions<TService> {
 	profiles: AgentProfile[];
 	createService: (profile: AgentProfile) => TService;
@@ -32,6 +52,21 @@ export class AgentServiceRegistry<TService> {
 			description: profile.description,
 			...(profile.defaultBrowserId ? { defaultBrowserId: profile.defaultBrowserId } : {}),
 		}));
+	}
+
+	getAllRunStatus(): AgentRegistryRunStatus[] {
+		return Array.from(this.profiles.values()).map((profile) => {
+			const service = this.services.get(profile.agentId) as (TService & AgentRunStatusLike) | undefined;
+			const runStatus = service?.getAgentRunStatus?.() ?? {
+				agentId: profile.agentId,
+				status: "idle" as const,
+			};
+			return {
+				...runStatus,
+				agentId: profile.agentId,
+				name: profile.name,
+			};
+		});
 	}
 
 	getProfile(agentId: string | undefined): AgentProfile | undefined {

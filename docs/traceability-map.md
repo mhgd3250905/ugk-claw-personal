@@ -95,6 +95,7 @@
 重点接口：
 
 - `GET /v1/chat/status`
+- `GET /v1/agents/status`
 - `GET /v1/chat/state`
 - `GET /v1/chat/events`
 - `GET /v1/chat/conversations`
@@ -107,6 +108,8 @@
 - `POST /v1/chat/stream`
 - `POST /v1/chat/queue`
 - `POST /v1/chat/interrupt`
+
+多 agent 并行排查时，先用 `GET /v1/agents/status` 看 agent profile 级 `idle / busy`；单个 conversation 的上下文用量和 running 状态仍看 `GET /v1/chat/status` 或 `GET /v1/agents/:agentId/chat/status`。同一 agent 忙时，非流式 chat 会返回 `409 AGENT_BUSY`；流式 chat 会在 SSE hijack 前做同样预检。
 
 ## C. Playground 页面、消息气泡、过程区
 
