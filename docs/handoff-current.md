@@ -12,9 +12,9 @@
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
 - 当前本地最新提交：本文件所在 HEAD，提交主题为 `Lock browser bindings to Playground UI`；具体 hash 以 `git log -1 --oneline` 为准。
-- 当前 `origin/main` / `gitee/main`：均已推送到 `e92da82 Add Chrome workbench`。
-- 腾讯云生产运行代码提交：已增量更新并验证到 `e92da82 Add Chrome workbench`。
-- 阿里云生产运行代码提交：已增量更新并验证到 `e92da82 Add Chrome workbench`。
+- 当前 `origin/main` / `gitee/main`：本轮浏览器绑定收口提交已推送；具体 hash 以 `git ls-remote <remote> refs/heads/main` 为准。
+- 腾讯云生产运行代码提交：本轮增量更新前为 `e92da82 Add Chrome workbench`；浏览器绑定收口发布后以服务器 `git log -1 --oneline` 和 `server:ops verify` 为准。
+- 阿里云生产运行代码提交：本轮增量更新前为 `e92da82 Add Chrome workbench`；浏览器绑定收口发布后以服务器 `git log -1 --oneline` 和 `server:ops verify` 为准。
 - 本轮稳定版主线：Playground 会话菜单、任务消息重设计、Markdown 代码块宽度约束、浅色主题 / 后台任务 / Agent 设置页面视觉一致性收口、UI 层级清理，以及 conn 长期公开目录 / 站点级公开目录契约。
 - 验收结论：双云已完成 conn 公共目录契约增量更新与运行态检查；`v1.2.0` release commit 只变更 `package.json`、`package-lock.json` 和 `docs/change-log.md`，已通过 `git diff --check`，并确认 tag 指向当前 HEAD。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
