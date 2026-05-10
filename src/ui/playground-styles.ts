@@ -1699,6 +1699,17 @@ export function getPlaygroundStyles(): string {
 		.message.user .message-content {
 			text-align: left;
 		}
+		.message.user .message-copy-button,
+		.message.user .message-image-export-button {
+			color: rgba(0, 0, 0, 0.35);
+		}
+
+		.message.user .message-copy-button:hover:not(:disabled),
+		.message.user .message-copy-button:focus-visible,
+		.message.user .message-image-export-button:hover:not(:disabled),
+		.message.user .message-image-export-button:focus-visible {
+			color: rgba(0, 0, 0, 0.65);
+		}
 
 		.message.assistant {
 			justify-items: stretch;
