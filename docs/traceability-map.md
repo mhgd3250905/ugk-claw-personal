@@ -352,3 +352,26 @@
 - SSE 断线后页面不重连
 - 当前会话和非当前会话的提示表现不一致
 - conn 结果已经完成，但切换会话后只能靠任务消息页找到
+
+## G2. Conn 独立工作台页面
+
+先看：
+
+1. [src/ui/conn-page.ts](/E:/AII/ugk-pi/src/ui/conn-page.ts)
+2. [src/ui/conn-page-css.ts](/E:/AII/ugk-pi/src/ui/conn-page-css.ts)
+3. [src/ui/conn-page-js.ts](/E:/AII/ugk-pi/src/ui/conn-page-js.ts)
+4. [src/ui/standalone-page-shared.ts](/E:/AII/ugk-pi/src/ui/standalone-page-shared.ts)
+5. [src/ui/playground-transcript-renderer.ts](/E:/AII/ugk-pi/src/ui/playground-transcript-renderer.ts)
+6. [src/agent/conn-run-store.ts](/E:/AII/ugk-pi/src/agent/conn-run-store.ts)
+7. [src/agent/conn-db.ts](/E:/AII/ugk-pi/src/agent/conn-db.ts)
+8. [src/routes/conns.ts](/E:/AII/ugk-pi/src/routes/conns.ts)
+9. [src/routes/conn-route-presenters.ts](/E:/AII/ugk-pi/src/routes/conn-route-presenters.ts)
+
+适用问题：
+
+- conn 页面未读 stat card / 列表徽章 / 时间线红点不显示或不更新
+- `read_at` 字段、`POST .../runs/:runId/read` 标记已读不生效
+- Markdown 渲染（共享 `renderMessageMarkdown`）渲染异常
+- Conn 页面布局、卡片背景、徽章样式等 UI 问题
+- "新建任务"按钮不清除选中状态
+- Playground 桌面端 conn 管理按钮徽章或新标签页打开异常

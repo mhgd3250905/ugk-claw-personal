@@ -12,6 +12,38 @@
 
 ## 2026-05-10
 
+### Conn 运行结果未读标记
+- 日期：2026-05-10
+- 主题：conn_runs 表加 `read_at` 字段，conn 页面加"未读结果"stat card、列表卡片未读徽章、运行历史未读指示点，展开 run 时自动标记已读。
+- 影响范围：
+  - SQLite schema `user_version` 从 8 升到 9；`conn_runs` 表新增 `read_at TEXT` 列和 `idx_conn_runs_unread` 索引。
+  - `ConnRunStore` 新增 `markRunRead()`、`getUnreadCountsByConn()`、`getTotalUnreadCount()` 三个方法。
+  - `GET /v1/conns` 返回体新增 `unreadRunCountsByConnId` 和 `totalUnreadRuns`；新增 `POST /v1/conns/:connId/runs/:runId/read` 标记已读路由。
+  - Conn 独立页面新增第 5 个紫色"未读结果"stat card；列表卡片在右侧展示红色未读条数徽章；运行历史时间线中已完成/失败的未读 run 显示红色圆点。
+  - 点击展开 run detail 时自动调用 `POST .../read`，更新全局未读数并刷新 stat card 和列表徽章。
+- 对应入口：`src/agent/conn-db.ts`、`src/agent/conn-run-store.ts`、`src/types/api.ts`、`src/routes/conns.ts`、`src/routes/conn-route-presenters.ts`、`src/ui/conn-page.ts`、`src/ui/conn-page-css.ts`、`src/ui/conn-page-js.ts`、`test/conn-db.test.ts`
+
+### Conn 独立页面 UI 优化与共享 Markdown 渲染
+- 日期：2026-05-10
+- 主题：优化 conn 独立工作台的视觉细节，将任务结果从代码框样式改为 Markdown 渲染，复用 Playground 的 `renderMessageMarkdown` 公共方法。
+- 影响范围：
+  - 列表卡片背景从透明改为深蓝色 `#161E35`，hover 时 `#1A2440`，增强卡片与底色的区分度。
+  - 未读徽章改为红色药丸样式（`var(--danger)` 背景，白色文字），与 stat card 风格一致。
+  - 运行历史时间线未读指示改为红色圆点和红色边框卡片。
+  - 任务结果展示从 `<pre><code>` 代码框改为 Markdown 渲染：引入 `marked` CDN 库，复用 `getBrowserMarkdownRendererScript()` 共享渲染方法，支持标题、表格、代码块、引用等完整 Markdown 语法。
+  - "新建任务"按钮现在会清除已选卡片，避免同时显示编辑器和保存/取消按钮。
+- 对应入口：`src/ui/conn-page-css.ts`、`src/ui/conn-page-js.ts`、`src/ui/conn-page.ts`
+
+### Playground 桌面端消息按钮收口
+- 日期：2026-05-10
+- 主题：Playground 桌面端隐藏消息中心（inbox）按钮，将未读计数徽章迁移到后台任务管理按钮；点击后台任务按钮改为在新标签页打开 conn 独立页面。
+- 影响范围：
+  - 桌面端 inbox 按钮通过 `style="display:none"` 隐藏（仅桌面，不影响移动端）。
+  - 后台任务管理按钮增加 `telemetry-action-with-badge` class 和 `<span id="conn-manager-unread-badge">` 子元素，同步显示未读任务结果数。
+  - 点击后台任务按钮从嵌入式 workspace panel 改为 `window.open("/playground/conn", "_blank")`。
+  - `playground-task-inbox.ts` 的 `renderTaskInboxToggleState()` 同步更新 conn manager badge 的显隐和数值。
+- 对应入口：`src/ui/playground-page-shell.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground-task-inbox.ts`
+
 ### 本地 Docker 与运行态防踩坑文档
 - 日期：2026-05-10
 - 主题：新增本地 Docker 启动、重建、端口、SQLite、技能加载和运行态目录边界的专题防踩坑文档，并在 `AGENTS.md` 建立索引入口。
