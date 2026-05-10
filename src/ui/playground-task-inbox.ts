@@ -640,6 +640,10 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 					unreadCount > 0 ? entry.baseLabel + "，未读 " + unreadCount : entry.baseLabel,
 				);
 			}
+			if (typeof connManagerUnreadBadge !== "undefined" && connManagerUnreadBadge) {
+				connManagerUnreadBadge.hidden = unreadCount < 1;
+				connManagerUnreadBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+			}
 			if (mobileOverflowMenuButton && mobileOverflowTaskInboxBadge) {
 				mobileOverflowTaskInboxBadge.hidden = unreadCount < 1;
 				mobileOverflowTaskInboxBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);

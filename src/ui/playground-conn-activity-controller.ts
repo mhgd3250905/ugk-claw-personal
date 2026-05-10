@@ -34,6 +34,7 @@ export function getConnActivityElementRefsScript(): string {
 		const closeTaskInboxButton = document.getElementById("close-task-inbox-button");
 		const refreshTaskInboxButton = document.getElementById("refresh-task-inbox-button");
 		const openConnManagerButton = document.getElementById("open-conn-manager-button");
+		const connManagerUnreadBadge = document.getElementById("conn-manager-unread-badge");
 		const connManagerDialog = document.getElementById("conn-manager-dialog");
 		const connManagerNotice = document.getElementById("conn-manager-notice");
 		const connManagerFilter = document.getElementById("conn-manager-filter");
@@ -2094,11 +2095,7 @@ export function getConnActivityEventHandlersScript(): string {
 		});
 
 		openConnManagerButton.addEventListener("click", () => {
-			toggleWorkspacePanel(
-				"conn",
-				() => openConnManager(openConnManagerButton, { mode: "workspace" }),
-				closeConnManager,
-			);
+			window.open("/playground/conn", "_blank");
 		});
 
 		openConnEditorButton.addEventListener("click", () => {

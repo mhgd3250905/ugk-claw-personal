@@ -86,11 +86,12 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span>这里不是垃圾堆</span>
 						<strong>文件库</strong>
 					</button>
-					<button id="open-conn-manager-button" class="telemetry-card telemetry-action" type="button" data-tooltip-title="任务管理" data-tooltip-desc="管理定时和后台运行的 conn 任务。">
+					<button id="open-conn-manager-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" data-tooltip-title="任务管理" data-tooltip-desc="管理定时和后台运行的 conn 任务。">
 						<span>后台自己干，前台别被绑架</span>
 						<strong>后台任务</strong>
+						<span id="conn-manager-unread-badge" class="telemetry-action-badge" hidden>0</span>
 					</button>
-					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false" data-tooltip-title="消息" data-tooltip-desc="查看后台任务投递的结果。">
+					<button id="open-task-inbox-button" class="telemetry-card telemetry-action telemetry-action-with-badge" type="button" aria-pressed="false" data-tooltip-title="消息" data-tooltip-desc="查看后台任务投递的结果。" style="display:none">
 						<span>&#21518;&#21488;&#20219;&#21153;&#32467;&#26524;&#32479;&#19968;&#25910;&#20214;&#31665;</span>
 						<strong>消息</strong>
 						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
