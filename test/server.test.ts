@@ -879,7 +879,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /if \(activeMode !== "task" && state\.taskInboxOpen\)/);
 	assert.match(response.body, /openAssetLibrary\(openAssetLibraryButton, \{ mode: "workspace" \}\)/);
 	assert.match(response.body, /openTaskInbox\(openTaskInboxButton, \{ mode: "workspace" \}\)/);
-	assert.match(response.body, /openConnManager\(openConnManagerButton, \{ mode: "workspace" \}\)/);
+	assert.match(response.body, /window\.open\("\/playground\/conn", "_blank"\)/);
 	assert.doesNotMatch(response.body, /function loadAssetLibrary\(/);
 	assert.doesNotMatch(response.body, /state\.assetItems/);
 	assert.doesNotMatch(response.body, /data-primary-view="chat"/);
