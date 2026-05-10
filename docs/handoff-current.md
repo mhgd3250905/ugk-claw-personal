@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-10`
+更新时间：`2026-05-11`
 
 这份文档给下一位全新接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
@@ -12,9 +12,9 @@
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
 - 当前本地最新提交：本文件所在 HEAD；具体 hash 以 `git log -1 --oneline` 为准。
-- 当前 `origin/main` / `gitee/main`：准备推送本轮 conn 维护、CDP scope 默认保护、本地 Docker 防踩坑文档和 SQLite WAL 降级补强；具体 hash 以 `git ls-remote <remote> refs/heads/main` 为准。
-- 腾讯云生产运行代码提交：本轮增量更新前为 `e92da82 Add Chrome workbench`；浏览器绑定收口发布后以服务器 `git log -1 --oneline` 和 `server:ops verify` 为准。
-- 阿里云生产运行代码提交：本轮增量更新前为 `e92da82 Add Chrome workbench`；浏览器绑定收口发布后以服务器 `git log -1 --oneline` 和 `server:ops verify` 为准。
+- 当前 `origin/main` / `gitee/main`：`870fce7`，双云已增量更新到该提交。
+- 腾讯云生产运行代码提交：`870fce7 fix: update server test to match conn button new-tab behavior`，已通过 `npm run server:ops -- tencent verify`。
+- 阿里云生产运行代码提交：`870fce7 fix: update server test to match conn button new-tab behavior`，已通过 `npm run server:ops -- aliyun verify`。
 - 本轮稳定版主线：Conn 运行结果未读标记（DB + API + UI 全链路）、Conn 独立页面 UI 优化与共享 Markdown 渲染、Playground 桌面端消息按钮收口与未读徽章迁移。前序仍包括：Playground 会话菜单、任务消息重设计、Markdown 代码块宽度约束、浅色主题 / 后台任务 / Agent 设置页面视觉一致性收口、UI 层级清理，以及 conn 长期公开目录 / 站点级公开目录契约。
 - 验收结论：双云已完成 conn 公共目录契约增量更新与运行态检查；`v1.2.0` release commit 只变更 `package.json`、`package-lock.json` 和 `docs/change-log.md`，已通过 `git diff --check`，并确认 tag 指向当前 HEAD。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
@@ -29,7 +29,7 @@
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
-- 当前本地未发布变更：准备提交并增量更新的主线包括：conn 运行结果未读标记（`read_at` 字段、`markRunRead` / `getUnreadCountsByConn` / `getTotalUnreadCount` Store 方法、`POST .../runs/:runId/read` API、conn 独立页面 stat card + 列表徽章 + 时间线红点 + 自动标记已读）、共享 Markdown 渲染（`marked` CDN + `getBrowserMarkdownRendererScript()`）、Playground 桌面端 inbox 按钮隐藏与未读徽章迁移到 conn 按钮、`cdp-proxy` 默认拒绝无 `metaAgentScope` 的浏览器变更请求、conn run 事件库跳过纯文本增量、`maintain-conn-db.mjs` 提供旧事件 dry-run / 清理入口、`.pi/skills/conn-maintenance` 让运行时 Agent 安全协助诊断和清理、`ConnDatabase` 对 Windows / Docker bind mount 下 WAL `SQLITE_CANTOPEN` 降级，以及 `docs/docker-local-ops.md` 本地 Docker / 运行态防踩坑文档。浏览器绑定仍只能由用户在 Playground UI 手动设置；运行时 Agent 不能通过自然语言修改浏览器绑定。
+- 当前本地未发布变更：无。本轮所有改动已提交并推送到 `origin` 和 `gitee`，双云已完成增量更新。
 - 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
 - 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
 - 当前未跟踪禁区：`.claude/`、`runtime/xhs-extract.mjs`、`public/ptt-slide*.html`、`public/slide*.png`、`runtime/*.cjs`、奇怪的 `Eapp...jsonl` 路径等运行产物 / 本地文件不属于本轮增量提交，继续不要提交、不要删除，除非用户明确说明它们的归属。
