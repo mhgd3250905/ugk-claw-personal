@@ -92,7 +92,7 @@ export function getConnPageCss(): string {
       border: 1px solid var(--border);
       transition: border-color 0.2s, box-shadow 0.2s;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 16px;
       min-height: 104px;
@@ -334,6 +334,49 @@ export function getConnPageCss(): string {
       white-space: nowrap;
     }
 
+    /* ── List item editor actions ── */
+
+    .conn-list-item-editor-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .conn-list-editor-btn {
+      flex: 1;
+      height: 32px;
+      border-radius: var(--radius-btn);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .conn-list-editor-btn--primary {
+      background: linear-gradient(135deg, var(--primary), var(--accent-violet));
+      color: #fff;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .conn-list-editor-btn--primary:hover {
+      filter: brightness(1.1);
+    }
+
+    .conn-list-editor-btn--cancel {
+      background: transparent;
+      color: var(--fg-secondary);
+      border-color: var(--border);
+    }
+
+    .conn-list-editor-btn--cancel:hover {
+      background: var(--surface-elevated);
+      border-color: var(--border-strong);
+    }
+
     .conn-list-footer {
       padding: 10px 16px;
       border-top: 1px solid var(--border);
@@ -526,7 +569,11 @@ export function getConnPageCss(): string {
     }
 
     .conn-card + .conn-card {
-      margin-top: 16px;
+      margin-top: 20px;
+    }
+
+    .conn-status-cards + .conn-card {
+      margin-top: 20px;
     }
 
     .conn-card-title {
@@ -783,13 +830,6 @@ export function getConnPageCss(): string {
 
     /* ── Prompt block ── */
 
-    .conn-prompt-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
     .conn-prompt-block {
       background: var(--bg-input);
       border: 1px solid var(--border);
@@ -902,8 +942,9 @@ export function getConnPageCss(): string {
 
     .conn-run-tl-dot {
       position: absolute;
-      left: -20px;
-      top: 14px;
+      left: -22px;
+      top: 50%;
+      transform: translateY(-50%);
       width: 12px;
       height: 12px;
       border-radius: 999px;
@@ -1228,6 +1269,7 @@ export function getConnPageCss(): string {
     }
 
     .conn-editor-field input:hover,
+    .conn-editor-field input.flatpickr-input:hover,
     .conn-editor-field select:hover,
     .conn-editor-field textarea:hover {
       border-color: var(--border-strong);
@@ -1348,6 +1390,110 @@ export function getConnPageCss(): string {
     .conn-editor-actions button#editor-cancel:hover {
       border-color: var(--border-strong);
       background: var(--surface);
+    }
+
+    /* ── Flatpickr dark theme override ── */
+
+    .flatpickr-calendar {
+      background: var(--surface-elevated) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+      color: var(--fg) !important;
+      padding: 8px !important;
+    }
+
+    .flatpickr-months .flatpickr-month,
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+      color: var(--fg) !important;
+      fill: var(--fg) !important;
+      font-weight: 700 !important;
+    }
+
+    .flatpickr-current-month input.cur-year {
+      color: var(--fg) !important;
+      font-weight: 700 !important;
+    }
+
+    span.flatpickr-weekday {
+      color: var(--muted) !important;
+      font-weight: 600 !important;
+      font-size: 11px !important;
+    }
+
+    .flatpickr-day {
+      color: var(--fg-secondary) !important;
+      border-radius: 8px !important;
+      transition: all 0.15s !important;
+    }
+
+    .flatpickr-day:hover {
+      background: var(--primary-soft) !important;
+      color: var(--fg) !important;
+    }
+
+    .flatpickr-day.selected,
+    .flatpickr-day.startRange,
+    .flatpickr-day.endRange,
+    .flatpickr-day.selected.inRange {
+      background: var(--primary) !important;
+      color: #fff !important;
+      border-color: var(--primary) !important;
+    }
+
+    .flatpickr-day.inRange {
+      background: var(--primary-soft) !important;
+      border-color: var(--primary-soft) !important;
+    }
+
+    .flatpickr-day.flatpickr-disabled {
+      color: var(--muted) !important;
+      opacity: 0.3;
+    }
+
+    .flatpickr-day.prevMonthDay,
+    .flatpickr-day.nextMonthDay {
+      color: var(--muted) !important;
+    }
+
+    .flatpickr-months .flatpickr-prev-month,
+    .flatpickr-months .flatpickr-next-month {
+      fill: var(--muted) !important;
+      color: var(--muted) !important;
+    }
+
+    .flatpickr-months .flatpickr-prev-month:hover,
+    .flatpickr-months .flatpickr-next-month:hover {
+      fill: var(--fg-secondary) !important;
+      color: var(--fg-secondary) !important;
+    }
+
+    .flatpickr-time {
+      border-top: 1px solid var(--border) !important;
+    }
+
+    .flatpickr-time input,
+    .flatpickr-time .flatpickr-time-separator {
+      color: var(--fg) !important;
+      font-weight: 600 !important;
+    }
+
+    .flatpickr-time input:hover,
+    .flatpickr-time input:focus {
+      background: var(--primary-soft) !important;
+    }
+
+    .flatpickr-time .flatpickr-am-pm {
+      color: var(--fg-secondary) !important;
+    }
+
+    .flatpickr-time .flatpickr-am-pm:hover {
+      background: var(--primary-soft) !important;
+    }
+
+    .flatpickr-monthDropdown-month {
+      background: var(--surface-elevated) !important;
+      color: var(--fg) !important;
     }
 
     /* ── Mobile responsive ── */

@@ -111,7 +111,7 @@ function getAgentsPageCss(): string {
 			background: var(--surface);
 			border: 1px solid var(--border);
 			display: flex;
-			align-items: flex-start;
+			align-items: center;
 			justify-content: space-between;
 			gap: 16px;
 			min-height: 96px;

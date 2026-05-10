@@ -16,6 +16,7 @@ export function renderConnPage(): string {
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>后台任务工作台 - UGK Claw</title>
 	<link rel="icon" href="${STANDALONE_FAVICON}" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css" />
 	<style>${css}</style>
 </head>
 <body>
@@ -98,6 +99,8 @@ export function renderConnPage(): string {
 	${renderStandaloneConfirmDialog()}
 	${renderStandaloneToastContainer()}
 
+		<script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/zh.js"></script>
 	<script>${js}</script>
 </body>
 </html>`;

@@ -279,6 +279,19 @@ function renderList() {
   }
 
   container.innerHTML = "";
+
+  // When creating a new task, show a virtual "new task" item at the top
+  if (state.editorOpen && state.editorMode === "create") {
+    const newItem = document.createElement("button");
+    newItem.className = "conn-list-item is-selected";
+    newItem.innerHTML = '<div class="conn-list-item-row"><span class="conn-list-item-dot conn-list-item-dot--active"></span><span class="conn-list-item-title">新建任务</span><span class="conn-list-item-badge conn-list-item-badge--active">新建</span></div>';
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "conn-list-item-editor-actions";
+    actionsDiv.innerHTML = '<button id="editor-submit" class="conn-list-editor-btn conn-list-editor-btn--primary" type="button"' + (state.editorSaving ? ' disabled' : '') + '>保存任务</button><button id="editor-cancel" class="conn-list-editor-btn conn-list-editor-btn--cancel" type="button"' + (state.editorSaving ? ' disabled' : '') + '>取消</button>';
+    newItem.appendChild(actionsDiv);
+    container.appendChild(newItem);
+  }
+
   for (const conn of conns) {
     const item = document.createElement("button");
     item.className = "conn-list-item" + (state.selectedId === conn.connId ? " is-selected" : "");
@@ -291,6 +304,15 @@ function renderList() {
     const metaText = (conn.profileId || "main") + (conn.modelProvider ? (" · " + conn.modelProvider) : "");
 
     item.innerHTML = '<div class="conn-list-item-row"><span class="conn-list-item-dot ' + dotClass + '"></span><span class="conn-list-item-title">' + escapeHtml(conn.title || conn.connId) + '</span><span class="conn-list-item-badge ' + badgeClass + '">' + statusLabel + '</span></div><div class="conn-list-item-schedule">' + escapeHtml(schedSummary) + '</div><div class="conn-list-item-meta">' + escapeHtml(metaText) + '</div>';
+
+    // Show editor action buttons on the selected item when editing
+    if (state.editorOpen && state.selectedId === conn.connId) {
+      const isEdit = state.editorMode === "edit";
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = "conn-list-item-editor-actions";
+      actionsDiv.innerHTML = '<button id="editor-submit" class="conn-list-editor-btn conn-list-editor-btn--primary" type="button"' + (state.editorSaving ? ' disabled' : '') + '>' + (isEdit ? "保存修改" : "保存任务") + '</button><button id="editor-cancel" class="conn-list-editor-btn conn-list-editor-btn--cancel" type="button"' + (state.editorSaving ? ' disabled' : '') + '>取消</button>';
+      item.appendChild(actionsDiv);
+    }
 
     item.addEventListener("click", () => handleConnSelect(conn.connId));
     container.appendChild(item);
@@ -388,8 +410,7 @@ function renderDetail() {
   const promptText = (conn.prompt || "").trim();
   if (promptText) {
     html += '<div class="conn-card">';
-    html += '  <div class="conn-card-title"><span class="conn-card-title-icon" style="background:rgba(244,114,182,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#F472B6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>Prompt</div>';
-    html += '  <div class="conn-prompt-header"><span></span><button class="conn-copy-btn" data-copy-prompt="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>复制</button></div>';
+    html += '  <div class="conn-card-title"><span class="conn-card-title-icon" style="background:rgba(244,114,182,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#F472B6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>Prompt' + '<button class="conn-copy-btn" data-copy-prompt="1" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>复制</button></div>';
     html += '  <div class="conn-prompt-block">' + escapeHtml(promptText) + '</div>';
     html += '</div>';
   }
@@ -627,6 +648,7 @@ function openEditor(mode, conn) {
   state.editorMode = mode || "create";
   state.editorConnId = conn ? conn.connId : null;
   state.editorSaving = false;
+  renderList();
   renderDetail();
 }
 
@@ -635,6 +657,7 @@ function closeEditor() {
   state.editorMode = null;
   state.editorConnId = null;
   state.editorSaving = false;
+  renderList();
   renderDetail();
 }
 
@@ -832,6 +855,7 @@ async function submitEditor() {
   }
 
   state.editorSaving = true;
+  renderList();
   renderDetail();
 
   try {
@@ -849,6 +873,7 @@ async function submitEditor() {
     if (errorEl) { errorEl.textContent = err instanceof Error ? err.message : "保存失败"; errorEl.hidden = false; }
   } finally {
     state.editorSaving = false;
+    renderList();
     renderDetail();
   }
 }
@@ -1024,14 +1049,6 @@ function renderEditorForm(body, titleEl, actionsEl) {
       <div id="editor-asset-chips" class="conn-editor-asset-chips"></div>
       <textarea id="editor-asset-refs" hidden></textarea>
 
-      <!-- Action bar -->
-      <div class="conn-editor-actions">
-        <div class="conn-editor-actions-left">
-          <button id="editor-submit" type="button">\${isEdit ? "保存修改" : "保存任务"}</button>
-          <button id="editor-cancel" type="button">取消</button>
-        </div>
-        <div class="conn-editor-actions-right">任务将保存到后台系统，便于后续管理与执行</div>
-      </div>
     </div>
   \`;
 
@@ -1183,16 +1200,20 @@ function syncTargetVisibility() {
 
 function initializeFlatpickr() {
   if (typeof window.flatpickr !== "function") return;
+  const locale = (window.flatpickr && window.flatpickr.l10ns && window.flatpickr.l10ns.zh) ? { locale: "zh" } : {};
   const inputs = [$("editor-once-at"), $("editor-interval-start")].filter(Boolean);
   for (const input of inputs) {
     if (input._flatpickr) continue;
     window.flatpickr(input, {
       enableTime: true,
-      dateFormat: "Y-m-d\\TH:i",
+      dateFormat: "Y-m-d H:i",
+      altInput: true,
+      altFormat: "Y/m/d H:i",
       time_24hr: true,
       minuteIncrement: 5,
       minDate: "today",
       allowInput: true,
+      ...locale,
     });
   }
 }
@@ -1203,7 +1224,7 @@ function formatDateTimeLocal(value) {
   if (!value) return "";
   const d = new Date(value);
   if (isNaN(d.getTime())) return "";
-  return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
 }
 
 function parseDateTimeLocal(value) {
