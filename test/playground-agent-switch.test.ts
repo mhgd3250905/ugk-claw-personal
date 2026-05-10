@@ -10,11 +10,7 @@ test("playground renders an agent selector for switching operation windows", () 
 
 	assert.ok(settingsStart >= 0);
 	assert.ok(contextSlotStart >= 0);
-	assert.match(html, /id="agent-selector"/);
-	assert.match(html, /value="main"/);
-	assert.match(html, /value="search"/);
 	assert.match(html, /id="agent-selector-status"/);
-	assert.ok(html.indexOf('id="agent-selector"') > settingsStart);
 	assert.ok(html.indexOf('id="agent-selector-status"') > contextSlotStart);
 	assert.match(html, /class="topbar-agent-label"/);
 	assert.match(html, /aria-label="打开 Agent 管理"/);

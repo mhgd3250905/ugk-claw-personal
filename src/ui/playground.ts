@@ -370,7 +370,6 @@ function getPlaygroundScript(): string {
 		const sendButton = document.getElementById("send-button");
 		const interruptButton = document.getElementById("interrupt-button");
 		const newConversationButton = document.getElementById("new-conversation-button");
-		const agentSelector = document.getElementById("agent-selector");
 		const agentSelectorStatus = document.getElementById("agent-selector-status");
 		const agentSwitcherLabel = agentSelectorStatus ? agentSelectorStatus.querySelector(".agent-switcher-label") : null;
 		const agentSwitcherMeta = document.getElementById("agent-switcher-meta");
@@ -443,21 +442,6 @@ function getPlaygroundScript(): string {
 			const currentAgentId = getCurrentAgentId();
 			if (currentAgentId && !knownAgents.some((agent) => String(agent?.agentId || "").trim() === currentAgentId)) {
 				knownAgents.push({ agentId: currentAgentId, name: currentAgentId });
-			}
-
-			if (agentSelector) {
-				agentSelector.innerHTML = "";
-				for (const agent of knownAgents) {
-					const agentId = String(agent?.agentId || "").trim();
-					if (!agentId) {
-						continue;
-					}
-					const option = document.createElement("option");
-					option.value = agentId;
-					option.textContent = String(agent?.name || agentId);
-					agentSelector.appendChild(option);
-				}
-				agentSelector.value = currentAgentId;
 			}
 
 			if (agentSwitcherLabel) {
@@ -1178,10 +1162,6 @@ function getPlaygroundScript(): string {
 			interruptButton.addEventListener("click", () => {
 				void interruptRun();
 			});
-			agentSelector?.addEventListener("change", () => {
-				void switchAgent(agentSelector.value);
-			});
-
 			if (agentSelectorStatus) {
 				agentSelectorStatus.addEventListener("mouseenter", () => {
 					openAgentSwitcher();

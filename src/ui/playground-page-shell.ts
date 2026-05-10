@@ -263,13 +263,6 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span>设置</span>
 					</button>
 					<div class="desktop-rail-settings-menu" role="menu" aria-label="桌面设置">
-						<label class="agent-switcher" for="agent-selector">
-							<span>当前 Agent</span>
-							<select id="agent-selector" aria-label="切换 Agent">
-								<option value="main">主 Agent</option>
-								<option value="search">搜索 Agent</option>
-							</select>
-						</label>
 						<button id="open-model-config-button" class="telemetry-card telemetry-action" type="button" role="menuitem">
 							<span>换源前先验货</span>
 							<strong>模型源</strong>

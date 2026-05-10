@@ -3973,9 +3973,6 @@ export function getPlaygroundStyles(): string {
 			min-height: 34px;
 		}
 
-		.desktop-rail-settings-menu .agent-switcher {
-			margin-bottom: 2px;
-		}
 
 		.desktop-conversation-list::-webkit-scrollbar {
 			width: 0;
