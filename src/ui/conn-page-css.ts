@@ -29,10 +29,10 @@ export function getConnPageCss(): string {
       --cyan-soft: rgba(6, 182, 212, 0.14);
       --pink: #F472B6;
       --pink-soft: rgba(244, 114, 182, 0.14);
-      --radius-card: 16px;
-      --radius-card-sm: 14px;
-      --radius-btn: 10px;
-      --radius-input: 10px;
+      --radius-card: 8px;
+      --radius-card-sm: 8px;
+      --radius-btn: 8px;
+      --radius-input: 8px;
     }
 
     /* ── Scrollbar ── */
@@ -132,7 +132,7 @@ export function getConnPageCss(): string {
     .conn-stat-icon {
       width: 44px;
       height: 44px;
-      border-radius: 12px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -160,11 +160,19 @@ export function getConnPageCss(): string {
 
     .conn-main {
       display: grid;
-      grid-template-columns: 320px minmax(0, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       min-height: 0;
       overflow: hidden;
       padding: 0 24px 24px;
       gap: 16px;
+    }
+
+    .conn-list {
+      grid-column: 1 / 2;
+    }
+
+    .conn-detail {
+      grid-column: 2 / 5;
     }
 
     /* ── Left sidebar ── */
@@ -397,7 +405,7 @@ export function getConnPageCss(): string {
       width: 48px;
       height: 48px;
       margin: 0 auto 12px;
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--surface);
       display: flex;
       align-items: center;
@@ -428,6 +436,34 @@ export function getConnPageCss(): string {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-card);
+    }
+
+    .conn-detail-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-auto-rows: 1fr;
+      gap: 12px;
+      margin-top: 20px;
+      align-items: stretch;
+    }
+
+    .conn-detail-row > .conn-detail-row-config {
+      grid-column: 1 / 3;
+    }
+
+    .conn-detail-row > .conn-card:nth-child(2) {
+      grid-column: 3 / 5;
+    }
+
+    .conn-detail-row > .conn-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      box-sizing: border-box;
+    }
+
+    .conn-detail-row > .conn-card > .conn-prompt-block {
+      flex: 1;
     }
 
     .conn-detail-head {
@@ -531,7 +567,7 @@ export function getConnPageCss(): string {
       width: 56px;
       height: 56px;
       margin: 0 auto 16px;
-      border-radius: 14px;
+      border-radius: 8px;
       background: var(--surface-elevated);
       display: flex;
       align-items: center;
@@ -569,6 +605,15 @@ export function getConnPageCss(): string {
     }
 
     .conn-card + .conn-card {
+      margin-top: 20px;
+    }
+
+    .conn-detail-row > .conn-card + .conn-card {
+      margin-top: 0;
+    }
+
+    .conn-detail-row + .conn-card,
+    .conn-card + .conn-detail-row {
       margin-top: 20px;
     }
 
@@ -622,7 +667,7 @@ export function getConnPageCss(): string {
     .conn-detail-task-icon {
       width: 44px;
       height: 44px;
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--primary-soft);
       display: flex;
       align-items: center;
@@ -720,12 +765,13 @@ export function getConnPageCss(): string {
       align-items: center;
       gap: 14px;
       min-height: 88px;
+      min-width: 0;
     }
 
     .conn-status-mini-icon {
       width: 36px;
       height: 36px;
-      border-radius: 10px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -751,6 +797,7 @@ export function getConnPageCss(): string {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      min-width: 0;
     }
 
     .conn-status-mini-value code {
@@ -762,8 +809,8 @@ export function getConnPageCss(): string {
 
     .conn-config-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      grid-template-columns: 1fr;
+      gap: 12px;
     }
 
     .conn-config-item {
@@ -793,7 +840,7 @@ export function getConnPageCss(): string {
       color: var(--primary);
       background: var(--bg-input);
       padding: 3px 10px;
-      border-radius: 6px;
+      border-radius: 8px;
       border: 1px solid var(--border);
     }
 
@@ -801,7 +848,7 @@ export function getConnPageCss(): string {
     .conn-copy-btn {
       background: none;
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 8px;
       color: var(--muted);
       cursor: pointer;
       padding: 3px 8px;
@@ -833,7 +880,7 @@ export function getConnPageCss(): string {
     .conn-prompt-block {
       background: var(--bg-input);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 16px 18px;
       font-family: var(--font-mono);
       font-size: 13px;
@@ -841,7 +888,7 @@ export function getConnPageCss(): string {
       color: var(--fg-secondary);
       white-space: pre-wrap;
       word-break: break-word;
-      max-height: 220px;
+      max-height: 400px;
       overflow-y: auto;
     }
 
@@ -886,7 +933,7 @@ export function getConnPageCss(): string {
       width: 44px;
       height: 44px;
       margin: 0 auto 12px;
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--surface);
       display: flex;
       align-items: center;
@@ -961,7 +1008,7 @@ export function getConnPageCss(): string {
     .conn-run-tl-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 8px;
       overflow: hidden;
       transition: border-color 0.15s;
       cursor: pointer;
@@ -1013,6 +1060,33 @@ export function getConnPageCss(): string {
       padding-top: 12px;
     }
 
+    .conn-run-id-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .conn-run-id-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface-elevated);
+      padding: 3px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+      min-width: 270px;
+      text-align: center;
+    }
+
+    .conn-run-id-label:hover {
+      color: var(--primary);
+    }
+
+    .conn-run-id-label.is-copied {
+      color: var(--success);
+    }
+
     /* ── Run lifecycle ── */
 
     .conn-run-lifecycle {
@@ -1024,7 +1098,7 @@ export function getConnPageCss(): string {
 
     .conn-run-lifecycle-step {
       padding: 4px 10px;
-      border-radius: 6px;
+      border-radius: 8px;
       background: var(--surface-elevated);
       color: var(--muted);
       font-weight: 600;
@@ -1040,7 +1114,7 @@ export function getConnPageCss(): string {
 
     .conn-run-result {
       padding: 14px 16px;
-      border-radius: 12px;
+      border-radius: 8px;
       background: var(--bg-input);
       border: 1px solid var(--border);
       font-family: var(--font-mono);
@@ -1159,7 +1233,7 @@ export function getConnPageCss(): string {
     .conn-editor-header-icon {
       width: 48px;
       height: 48px;
-      border-radius: 12px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1336,7 +1410,7 @@ export function getConnPageCss(): string {
       font-size: 11px;
       font-weight: 600;
       padding: 2px 8px;
-      border-radius: 6px;
+      border-radius: 8px;
       background: rgba(34, 197, 94, 0.12);
       color: var(--success);
       font-family: var(--font-mono);
@@ -1358,7 +1432,7 @@ export function getConnPageCss(): string {
     .conn-editor-actions button {
       height: 40px;
       padding: 0 22px;
-      border-radius: 12px;
+      border-radius: 8px;
       font-family: var(--font-sans);
       font-size: 13px;
       font-weight: 600;
@@ -1497,6 +1571,13 @@ export function getConnPageCss(): string {
     }
 
     /* ── Mobile responsive ── */
+
+    @media (max-width: 1024px) {
+      .conn-detail-row {
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 20px;
+      }
+    }
 
     @media (max-width: 768px) {
       .conn-stats {

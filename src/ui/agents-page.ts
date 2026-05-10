@@ -35,10 +35,10 @@ function getAgentsPageCss(): string {
 			--warning-soft: rgba(245, 158, 11, 0.14);
 			--info: #38BDF8;
 			--info-soft: rgba(56, 189, 248, 0.14);
-			--radius-card: 16px;
-			--radius-card-sm: 14px;
-			--radius-btn: 10px;
-			--radius-input: 10px;
+			--radius-card: 8px;
+			--radius-card-sm: 8px;
+			--radius-btn: 8px;
+			--radius-input: 8px;
 		}
 
 		html, body { background: var(--bg); }
@@ -124,7 +124,7 @@ function getAgentsPageCss(): string {
 		.ag-stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
 		.ag-stat-icon {
 			width: 42px; height: 42px;
-			border-radius: 12px;
+			border-radius: 8px;
 			display: flex; align-items: center; justify-content: center;
 			flex-shrink: 0;
 		}
@@ -223,7 +223,7 @@ function getAgentsPageCss(): string {
 			box-shadow: 0 0 0 1px rgba(99,102,241,0.1), 0 4px 16px rgba(0,0,0,0.15);
 		}
 		.ag-agent-icon-wrap {
-			width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+			width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;
 			display: flex; align-items: center; justify-content: center;
 			background: var(--primary-soft); color: var(--primary-hover);
 		}
@@ -265,7 +265,7 @@ function getAgentsPageCss(): string {
 			background: var(--surface);
 		}
 		.ag-header-icon {
-			width: 52px; height: 52px; border-radius: 14px;
+			width: 52px; height: 52px; border-radius: 8px;
 			background: var(--primary-soft);
 			color: var(--primary-hover);
 			display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -352,7 +352,7 @@ function getAgentsPageCss(): string {
 		.ag-field-block {
 			display: grid; gap: 4px;
 			padding: 12px 14px;
-			border-radius: 12px;
+			border-radius: 8px;
 			background: var(--surface-elevated);
 			border: 1px solid var(--border);
 		}
@@ -364,7 +364,7 @@ function getAgentsPageCss(): string {
 		}
 		.ag-field-copy {
 			background: none; border: none; cursor: pointer;
-			padding: 2px; border-radius: 4px; color: var(--muted);
+			padding: 2px; border-radius: 8px; color: var(--muted);
 			display: flex; align-items: center;
 			transition: color .15s, background .15s; flex-shrink: 0;
 		}
@@ -375,14 +375,14 @@ function getAgentsPageCss(): string {
 		.ag-file-card {
 			display: flex; align-items: center; gap: 14px;
 			padding: 14px 16px;
-			border-radius: 12px;
+			border-radius: 8px;
 			border: 1px solid var(--border);
 			background: var(--surface-elevated);
 			transition: border-color .15s;
 		}
 		.ag-file-card:hover { border-color: var(--border-hover); }
 		.ag-file-icon {
-			width: 38px; height: 38px; border-radius: 10px;
+			width: 38px; height: 38px; border-radius: 8px;
 			background: var(--warning-soft); color: var(--warning);
 			display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 		}
@@ -398,7 +398,7 @@ function getAgentsPageCss(): string {
 			gap: 12px;
 		}
 		.ag-runtime-item {
-			padding: 14px; border-radius: 12px;
+			padding: 14px; border-radius: 8px;
 			background: var(--surface-elevated); border: 1px solid var(--border);
 			text-align: center;
 		}
@@ -429,14 +429,14 @@ function getAgentsPageCss(): string {
 			display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
 			align-items: center; gap: 14px;
 			padding: 14px 16px;
-			border-radius: 12px;
+			border-radius: 8px;
 			border: 1px solid var(--border);
 			background: var(--surface-elevated);
 			transition: border-color .15s;
 		}
 		.ag-skill-item:hover { border-color: var(--border-hover); }
 		.ag-skill-icon {
-			width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+			width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
 			display: flex; align-items: center; justify-content: center;
 			background: var(--primary-soft); color: var(--primary-hover);
 		}
@@ -451,7 +451,7 @@ function getAgentsPageCss(): string {
 			color: var(--muted); font-size: 13px; line-height: 1.6;
 		}
 		.ag-empty-icon {
-			width: 52px; height: 52px; border-radius: 14px;
+			width: 52px; height: 52px; border-radius: 8px;
 			background: var(--primary-soft); color: var(--muted);
 			display: inline-flex; align-items: center; justify-content: center;
 			margin-bottom: 14px;

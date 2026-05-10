@@ -72,7 +72,7 @@ const SHARED_TOPBAR_CSS = `
 		width: 30px;
 		height: 30px;
 		border: 1px solid var(--line);
-		border-radius: 4px;
+		border-radius: 8px;
 		background: transparent;
 		color: var(--muted);
 		text-decoration: none;
@@ -112,7 +112,7 @@ const SHARED_TOPBAR_CSS = `
 		height: 30px;
 		padding: 0 12px;
 		border: 1px solid var(--line);
-		border-radius: 4px;
+		border-radius: 8px;
 		background: transparent;
 		color: var(--muted);
 		font-size: 11px;
@@ -152,7 +152,7 @@ const SHARED_OVERLAY_CSS = `
 	.sp-panel {
 		background: var(--bg-panel);
 		border: 1px solid var(--line);
-		border-radius: 4px;
+		border-radius: 8px;
 		width: min(680px, 92vw);
 		max-height: 85vh;
 		display: grid;
@@ -193,7 +193,7 @@ const SHARED_BADGE_CSS = `
 		display: inline-flex;
 		align-items: center;
 		padding: 2px 8px;
-		border-radius: 4px;
+		border-radius: 8px;
 		font-size: 10px;
 		font-weight: 600;
 		letter-spacing: 0.04em;
@@ -225,7 +225,7 @@ const SHARED_TOAST_CSS = `
 
 	.sp-toast {
 		padding: 10px 14px;
-		border-radius: 4px;
+		border-radius: 8px;
 		background: var(--bg-panel-2);
 		border: 1px solid var(--line);
 		color: var(--fg);
@@ -270,7 +270,7 @@ const SHARED_FORM_CSS = `
 		width: 100%;
 		padding: 8px 10px;
 		border: 1px solid var(--line);
-		border-radius: 4px;
+		border-radius: 8px;
 		background: var(--bg);
 		color: var(--fg);
 		font-family: var(--font-sans);
@@ -300,7 +300,7 @@ const SHARED_FORM_CSS = `
 
 	.sp-error {
 		padding: 8px 12px;
-		border-radius: 4px;
+		border-radius: 8px;
 		background: rgba(255, 113, 136, 0.1);
 		border: 1px solid rgba(255, 113, 136, 0.2);
 		color: var(--danger);
@@ -317,7 +317,7 @@ const SHARED_FORM_CSS = `
 		height: 32px;
 		padding: 0 14px;
 		border: 1px solid var(--line);
-		border-radius: 4px;
+		border-radius: 8px;
 		background: transparent;
 		color: var(--muted);
 		font-size: 11px;
@@ -362,7 +362,7 @@ const SHARED_FLATPICKR_CSS = `
 	.flatpickr-calendar {
 		background: var(--bg-panel) !important;
 		border: 1px solid var(--line) !important;
-		border-radius: 4px !important;
+		border-radius: 8px !important;
 		box-shadow: none !important;
 		color: var(--fg) !important;
 	}
@@ -375,7 +375,7 @@ const SHARED_FLATPICKR_CSS = `
 
 	.flatpickr-day {
 		color: var(--fg) !important;
-		border-radius: 4px !important;
+		border-radius: 8px !important;
 	}
 
 	.flatpickr-day.selected,

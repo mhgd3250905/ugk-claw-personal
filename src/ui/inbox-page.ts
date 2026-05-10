@@ -34,10 +34,10 @@ function getInboxPageCss(): string {
 			--warning-soft: rgba(245, 158, 11, 0.14);
 			--info: #38BDF8;
 			--info-soft: rgba(56, 189, 248, 0.14);
-			--radius-card: 16px;
-			--radius-card-sm: 14px;
-			--radius-btn: 10px;
-			--radius-input: 10px;
+			--radius-card: 8px;
+			--radius-card-sm: 8px;
+			--radius-btn: 8px;
+			--radius-input: 8px;
 		}
 
 		html, body { background: var(--bg); }
@@ -123,7 +123,7 @@ function getInboxPageCss(): string {
 		.ib-stat-icon {
 			width: 42px;
 			height: 42px;
-			border-radius: 12px;
+			border-radius: 8px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
@@ -420,7 +420,7 @@ function getInboxPageCss(): string {
 		.ib-detail-status-icon {
 			width: 48px;
 			height: 48px;
-			border-radius: 14px;
+			border-radius: 8px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
@@ -518,7 +518,7 @@ function getInboxPageCss(): string {
 		}
 		.ib-source-field {
 			padding: 12px 14px;
-			border-radius: 12px;
+			border-radius: 8px;
 			background: var(--surface-elevated);
 			border: 1px solid var(--border);
 		}
@@ -544,7 +544,7 @@ function getInboxPageCss(): string {
 		.ib-content-block {
 			background: var(--bg-input);
 			border: 1px solid var(--border);
-			border-radius: 12px;
+			border-radius: 8px;
 			padding: 16px;
 			max-height: 400px;
 			overflow-y: auto;
@@ -581,7 +581,7 @@ function getInboxPageCss(): string {
 			align-items: center;
 			gap: 14px;
 			padding: 14px 16px;
-			border-radius: 12px;
+			border-radius: 8px;
 			border: 1px solid var(--border);
 			background: var(--surface-elevated);
 			transition: border-color 0.15s;
@@ -591,7 +591,7 @@ function getInboxPageCss(): string {
 		.ib-attach-icon {
 			width: 36px;
 			height: 36px;
-			border-radius: 10px;
+			border-radius: 8px;
 			background: var(--primary-soft);
 			color: var(--primary);
 			display: flex;
@@ -673,7 +673,7 @@ function getInboxPageCss(): string {
 		.ib-empty-icon {
 			width: 52px;
 			height: 52px;
-			border-radius: 14px;
+			border-radius: 8px;
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;

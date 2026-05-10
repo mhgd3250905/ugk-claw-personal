@@ -366,7 +366,7 @@ function renderDetail() {
 
   const statusLabel = STATUS_LABELS[conn.status] || conn.status || "未知";
   const schedSummary = describeSchedule(conn.schedule);
-  const modelText = (conn.modelProvider && conn.modelId) ? conn.modelProvider + " / " + conn.modelId : "跟随默认";
+  const modelText = conn.modelId || "跟随默认";
   const nextRun = conn.nextRunAt ? formatTimestamp(conn.nextRunAt) : (conn.status === "completed" ? "已完成" : "待定");
   const lastRun = conn.lastRunAt ? formatTimestamp(conn.lastRunAt) : "无";
 
@@ -395,8 +395,9 @@ function renderDetail() {
   html += '  <div class="conn-status-mini"><div class="conn-status-mini-icon" style="background:rgba(245,158,11,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div><div><div class="conn-status-mini-label">模型</div><div class="conn-status-mini-value">' + escapeHtml(modelText) + '</div></div></div>';
   html += '</div>';
 
-  // ── 3. Config card with copy button ──
-  html += '<div class="conn-card">';
+  // ── 3. Config + Prompt side by side ──
+  html += '<div class="conn-detail-row">';
+  html += '<div class="conn-card conn-detail-row-config">';
   html += '  <div class="conn-card-title"><span class="conn-card-title-icon" style="background:rgba(6,182,212,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>任务配置</div>';
   html += '  <div class="conn-config-grid">';
   html += '    <div class="conn-config-item"><div class="conn-config-label">ID</div><div class="conn-config-value"><code>' + escapeHtml(conn.connId || "") + '</code><button class="conn-copy-btn" data-copy="' + escapeHtml(conn.connId || "") + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>复制</button></div></div>';
@@ -414,6 +415,7 @@ function renderDetail() {
     html += '  <div class="conn-prompt-block">' + escapeHtml(promptText) + '</div>';
     html += '</div>';
   }
+  html += '</div>'; // close conn-detail-row
 
   // ── 5. Run history card ──
   html += '<div class="conn-card conn-runs-section">';
@@ -501,7 +503,10 @@ function renderRunHistory(conn) {
       card.appendChild(detailDiv);
 
       apiFetchRunDetail(conn.connId, run.runId).then(detail => {
-        renderRunDetail(detailDiv, detail, state.runDetailFiles[run.runId] || [], state.runDetailEvents[run.runId] || []);
+        var r = detail.run || {};
+        var f = detail.files || state.runDetailFiles[run.runId] || [];
+        state.runDetailFiles[run.runId] = f;
+        renderRunDetail(detailDiv, r, f, state.runDetailEvents[run.runId] || []);
       });
     }
 
@@ -516,6 +521,28 @@ function renderRunHistory(conn) {
 
 function renderRunDetail(container, run, files, events) {
   container.innerHTML = "";
+
+  // Run ID (click to copy)
+  var idRow = document.createElement("div");
+  idRow.className = "conn-run-id-row";
+  var idLabel = document.createElement("span");
+  idLabel.className = "conn-run-id-label";
+  idLabel.textContent = run.runId;
+  idLabel.title = "点击复制 Run ID";
+  idLabel.addEventListener("click", function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    navigator.clipboard.writeText(run.runId).then(function() {
+      idLabel.textContent = "已复制";
+      idLabel.classList.add("is-copied");
+      setTimeout(function() {
+        idLabel.textContent = run.runId;
+        idLabel.classList.remove("is-copied");
+      }, 1200);
+    });
+  });
+  idRow.appendChild(idLabel);
+  container.appendChild(idRow);
 
   // Lifecycle timeline
   const lifecycle = document.createElement("div");

@@ -33,7 +33,7 @@ services:
       - /app/node_modules
       - ugk-pi-conn-db:/var/lib/ugk-pi/conn
       - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
-    command: npm run dev
+    command: npm start
     networks:
       - ugk-pi-net
   ugk-pi-conn-worker:
