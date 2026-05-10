@@ -11,6 +11,12 @@ npx tsc --noEmit         # Type-check without emitting
 npm run design:lint      # Validate DESIGN.md token/component definitions
 ```
 
+Single test / filtered tests:
+```bash
+node --import tsx test/server.test.ts                          # Run one test file
+node --import tsx test/**/*.test.ts --test-name-pattern "foo"  # Run tests matching name
+```
+
 Docker (local dev):
 ```bash
 docker compose up -d              # Start full local stack
@@ -38,7 +44,7 @@ npm run worker:feishu     # Feishu WebSocket subscription worker
 
 ## Architecture
 
-UGK CLAW is a self-hosted HTTP agent workbench. A Fastify server wraps `@mariozechner/pi-coding-agent` sessions behind REST + SSE APIs, serving a single-page Playground UI for long-running agent conversations.
+UGK CLAW is a self-hosted HTTP agent workbench. A Fastify server wraps `@mariozechner/pi-coding-agent` sessions behind REST + SSE APIs, serving a single-page Playground UI for long-running agent conversations. The project uses ESM (`"type": "module"` in package.json) — all imports use `.js` extensions for NodeNext module resolution.
 
 ### Layer Map
 
@@ -46,9 +52,10 @@ UGK CLAW is a self-hosted HTTP agent workbench. A Fastify server wraps `@marioze
 Browser/Client
   ↓ HTTP + SSE
 Fastify Server (src/server.ts)
-  ├─ Routes (src/routes/) — HTTP handlers for chat, files, assets, conns, feishu, model-config, debug
+  ├─ Routes (src/routes/) — HTTP handlers, each exports register*Routes(app, opts)
   ├─ Agent Layer (src/agent/) — session lifecycle, conversation state, asset store, conn backend
-  ├─ UI Layer (src/ui/) — server-rendered Playground SPA (HTML template + inline CSS/JS)
+  ├─ Browser Layer (src/browser/) — Chrome sidecar registry, CDP control, target management
+  ├─ UI Layer (src/ui/) — vanilla TypeScript SPA, controller-per-feature, no framework
   ├─ Integrations (src/integrations/feishu/) — Feishu IM bridge
   └─ Workers (src/workers/) — conn-worker, feishu-worker (separate Node processes)
 ```
@@ -59,15 +66,32 @@ Fastify Server (src/server.ts)
 
 **Session Factory** (`src/agent/agent-session-factory.ts`): Creates `pi-coding-agent` sessions wired to the project's skills (`.pi/skills/`), extensions (`.pi/extensions/`), prompts (`.pi/prompts/`), and model settings (`.pi/settings.json`). Each agent profile can have its own session directory and rules file.
 
+**Multi-Agent Profiles** (`src/agent/agent-profile.ts`): The system supports multiple agent profiles (e.g., default, scout, planner, reviewer, worker). Each profile has isolated sessions, conversations, assets, and optional browser bindings. Profiles are defined in `.pi/agents/` as markdown files. `AgentTemplateRegistry` manages profile-to-service mapping.
+
 **Conversation Lifecycle**: One global "current conversation" + many historical conversations. State is stored as JSON files under `.data/agent/sessions/`. `ConversationStore` (`src/agent/conversation-store.ts`) manages the catalog index with atomic writes. Switching, creating, and deleting conversations goes through command helpers in `src/agent/agent-conversation-commands.ts`.
 
 **Streaming**: `POST /v1/chat/stream` returns SSE. `AgentService` buffers events per active run so reconnecting clients can catch up via `GET /v1/chat/events`. The Playground uses `playground-stream-controller.ts` to manage SSE connections and auto-reconnect.
 
 **File & Asset System**: User uploads become assets stored in `.data/agent/assets/`. `AssetStore` (`src/agent/asset-store.ts`) manages blobs + index. `file-artifacts.ts` injects a file delivery protocol into agent prompts: local artifact paths get rewritten to `GET /v1/local-file?path=...` URLs. Real file delivery uses `send_file` extension (`.pi/extensions/send-file.ts`).
 
-**Conn (Background Tasks)**: SQLite-backed job queue. `ConnSqliteStore`/`ConnDatabase` manage conn definitions, `ConnRunStore` tracks runs. `conn-worker.ts` polls for due jobs and executes them via `BackgroundAgentRunner`. Results delivered to task inbox, conversations, or Feishu.
+**Conn (Background Tasks)**: SQLite-backed job queue. `ConnSqliteStore`/`ConnDatabase` manage conn definitions, `ConnRunStore` tracks runs. `conn-worker.ts` polls for due jobs and executes them via `BackgroundAgentRunner`. Each conn run gets an isolated workspace (`BackgroundWorkspace` in `src/agent/background-workspace.ts`) with input/work/output/logs/session directories under `.data/agent/background/`. `AgentTemplateRegistry` (`src/agent/agent-template-registry.ts`) caches resolved agent profiles for conn tasks so the worker doesn't re-resolve on every run. Results delivered to task inbox, conversations, or Feishu.
 
-**Browser Integration**: Agent browser automation uses Docker Chrome sidecar via CDP (`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` → `172.31.250.10:9223`). `browser-cleanup.ts` closes browser targets after each agent run. Sidecar profile persists in `.data/chrome-sidecar/` for login-state retention.
+**Browser Integration**: Agent browser automation uses Docker Chrome sidecar via CDP (`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` → `172.31.250.10:9223`). `browser-cleanup.ts` closes browser targets after each agent run. Sidecar profile persists in `.data/chrome-sidecar/` for login-state retention. The browser layer (`src/browser/`) provides `BrowserRegistry` for multi-instance management and `browser-control.ts` for start/restart/close operations.
+
+**Search (SearXNG)**: Web search uses a self-hosted SearXNG sidecar (`SEARXNG_BASE_URL`). The search skill calls SearXNG's JSON API and returns results to the agent. Config lives in `deploy/searxng/` with persistent cache at `.data/searxng/`.
+
+**Playground UI** (`src/ui/`): Vanilla TypeScript single-page application with no framework. Follows a controller-per-feature pattern — each `playground-*-controller.ts` manages one UI concern (streaming, conversations, assets, status, layout, theme, etc.). The design system is codified in `DESIGN.md` (dark theme primary, no shadows/gradients, two-column "cockpit" layout). HTML is server-rendered from `src/ui/playground.ts`.
+
+**Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`. To add a new route group, create the file and call its register function in `buildServer()`.
+
+### `.pi/` Directory
+
+The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessions/`):
+- **agents/** — Multi-agent profile definitions (`scout.md`, `planner.md`, `reviewer.md`, `worker.md`)
+- **prompts/** — Reusable prompt templates (`implement.md`, `scout-and-plan.md`, etc.)
+- **skills/** — Agent skill library (includes `superpowers/`, `anthropics/`, `vercel-labs/`, and project-specific skills)
+- **extensions/** — Agent extensions (`subagent/`, `send-file`, `asset-store`, `project-guard`, `conn`)
+- **settings.json** — Default provider/model, compaction, retry, and feature flags
 
 ### Key Files
 
@@ -75,11 +99,14 @@ Fastify Server (src/server.ts)
 |------|-----------|
 | Server assembly | `src/server.ts` |
 | App config (paths, env) | `src/config.ts` |
-| API types | `src/types/api.ts` |
+| API types (entire REST/SSE contract) | `src/types/api.ts` |
 | Chat route (largest route file) | `src/routes/chat.ts` |
+| Conn routes (scheduled tasks) | `src/routes/conns.ts` |
+| Conn workspace & template cache | `src/agent/background-workspace.ts`, `src/agent/agent-template-registry.ts` |
 | Playground UI shell | `src/ui/playground.ts` |
-| Design tokens | `DESIGN.md` |
+| Design system tokens & components | `DESIGN.md` |
 | pi-coding-agent settings | `.pi/settings.json` |
+| Multi-agent profile definitions | `.pi/agents/` |
 
 ### Configuration
 
@@ -93,7 +120,7 @@ Model source selection persists at `.data/agent/model-settings.json` and can be 
 
 ### Testing
 
-Uses Node.js native test runner (`node:test` + `node:assert/strict`). Tests import from `../src/` directly via tsx. The server test (`test/server.test.ts`) uses Fastify's `inject()` for HTTP-level testing against a `buildServer()` instance with stubbed services. Test isolation is achieved by passing stub services and using temp directories.
+Uses Node.js native test runner (`node:test` + `node:assert/strict`). Tests import from `../src/` directly via tsx. 86 test files in a flat `test/` directory covering all major modules. The server test (`test/server.test.ts`) uses Fastify's `inject()` for HTTP-level testing against a `buildServer()` instance with stubbed services. Test isolation is achieved by passing stub services and using temp directories.
 
 ### Data Directory Layout
 

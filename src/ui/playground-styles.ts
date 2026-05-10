@@ -3442,6 +3442,159 @@ export function getPlaygroundStyles(): string {
 			padding: 6px 96px 6px 8px;
 		}
 
+		/* Hide landing-screen when NOT in home mode */
+		.shell[data-home="false"] .landing-screen {
+			display: none !important;
+		}
+
+		/* ===== Agent Home Page (data-home) ===== */
+		.shell[data-home="true"] {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			width: 100% !important;
+			height: 100vh !important;
+			grid-template-columns: unset !important;
+			grid-template-rows: unset !important;
+			column-gap: unset !important;
+		}
+
+		.shell[data-home="true"] > .topbar,
+		.shell[data-home="true"] > .desktop-conversation-rail {
+			display: none !important;
+		}
+
+		.shell[data-home="true"] > .chat-stage {
+			grid-column: unset;
+			width: 100%;
+			height: 100%;
+			border: none;
+		}
+
+		.shell[data-home="true"] .landing-screen {
+			display: flex !important;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			height: 100%;
+		}
+
+		.shell[data-home="true"] .landing-grid {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			height: 100%;
+		}
+
+		.shell[data-home="true"] .chat-stage-watermark,
+		.shell[data-home="true"] .stream-layout,
+		.shell[data-home="true"] .command-deck {
+			display: none !important;
+		}
+
+		.landing-header {
+			text-align: center;
+			margin-bottom: 24px;
+		}
+
+		.landing-title {
+			font-size: 24px;
+			font-weight: 700;
+			letter-spacing: 0.08em;
+			color: var(--text-primary);
+			margin: 0 0 8px;
+		}
+
+		.landing-subtitle {
+			font-size: 13px;
+			color: var(--text-muted);
+			margin: 0;
+		}
+
+		.landing-agent-cards {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+			gap: 16px;
+			padding: 0 32px;
+			max-width: 960px;
+			width: 100%;
+		}
+
+		.landing-agent-card {
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+			padding: 16px;
+			border: 1px solid var(--line);
+			border-radius: 6px;
+			background: rgba(16, 24, 44, 0.5);
+			cursor: pointer;
+			text-align: left;
+			color: inherit;
+			font-family: inherit;
+			font-size: inherit;
+			line-height: inherit;
+			box-shadow: none;
+			transition: border-color 0.15s ease;
+		}
+
+		.landing-agent-card:hover,
+		.landing-agent-card:focus-visible {
+			border-color: rgba(201, 210, 255, 0.24);
+			background: rgba(201, 210, 255, 0.07);
+		}
+
+		.landing-agent-card.is-busy {
+			opacity: 0.7;
+		}
+
+		.landing-agent-status-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			flex-shrink: 0;
+		}
+
+		.landing-agent-status-dot.idle { background: #4ade80; }
+		.landing-agent-status-dot.busy { background: #f87171; animation: pulse-busy 1.5s infinite; }
+
+		@keyframes pulse-busy {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.4; }
+		}
+
+		.landing-agent-name {
+			font-size: 14px;
+			font-weight: 600;
+			color: var(--text-primary);
+		}
+
+		.landing-agent-id {
+			font-family: monospace;
+			font-size: 11px;
+			color: var(--text-muted);
+		}
+
+		.landing-agent-desc {
+			font-size: 12px;
+			color: var(--text-secondary);
+			line-height: 1.4;
+		}
+
+		.landing-agent-status-text {
+			font-size: 11px;
+			margin-top: 4px;
+			color: var(--text-muted);
+		}
+
+		.landing-agent-card .landing-agent-header {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
 		.telemetry-card {
 			display: inline-flex;
 			align-items: center;
@@ -3986,6 +4139,61 @@ export function getPlaygroundStyles(): string {
 				gap: 0;
 				--transcript-bottom-scroll-buffer: calc(112px + env(safe-area-inset-bottom));
 			}
+			/* Mobile home page */
+			.shell[data-home="true"] {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				width: 100vw;
+				height: 100vh;
+				grid-template-columns: unset !important;
+				grid-template-rows: unset !important;
+			}
+
+			.shell[data-home="true"] > .topbar,
+			.shell[data-home="true"] > .desktop-conversation-rail {
+				display: none !important;
+			}
+
+			.shell[data-home="true"] > .chat-stage {
+				grid-column: unset;
+				width: 100%;
+				height: 100%;
+			}
+
+			.shell[data-home="true"] .landing-screen {
+				display: flex !important;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				height: 100%;
+			}
+
+			.shell[data-home="true"] .landing-grid {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				height: 100%;
+			}
+
+			.shell[data-home="true"] .chat-stage-watermark,
+			.shell[data-home="true"] .stream-layout,
+			.shell[data-home="true"] .command-deck {
+				display: none !important;
+			}
+
+			.landing-agent-cards {
+				grid-template-columns: 1fr;
+				padding: 0 16px;
+				gap: 12px;
+			}
+
+			.landing-title {
+				font-size: 20px;
+			}
+
 
 			.topbar {
 				grid-column: 1;

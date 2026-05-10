@@ -16,6 +16,35 @@ export interface ConnDatabaseOptions {
 	legacyDbPath?: string;
 }
 
+function isWalIoError(error: unknown): boolean {
+	if (typeof error !== "object" || error === null || !("errcode" in error)) return false;
+	const code = Number((error as { errcode: unknown }).errcode);
+	// SQLITE_IOERR base=10, extended codes = 10 + N*256 (N=0..18, max=4618)
+	return code >= 10 && code <= 4618 && (code - 10) % 256 === 0;
+}
+
+function configureJournalMode(db: DatabaseSync, dbPath: string): void {
+	try {
+		const row = db.prepare("PRAGMA journal_mode = WAL").get() as { journal_mode: string } | undefined;
+		if (row?.journal_mode === "wal") return;
+		// Succeeded but mode isn't wal — unusual, log and keep going
+		console.warn("[conn-db] WAL requested but mode is:", row?.journal_mode, { dbPath });
+		return;
+	} catch (error) {
+		if (!isWalIoError(error)) throw error;
+		console.warn("[conn-db] WAL unavailable (I/O error, likely NTFS bind mount); falling back to DELETE", {
+			dbPath,
+			errcode: (error as { errcode?: unknown }).errcode,
+			errstr: (error as { errstr?: unknown }).errstr,
+		});
+	}
+
+	const fallback = db.prepare("PRAGMA journal_mode = DELETE").get() as { journal_mode: string } | undefined;
+	if (fallback?.journal_mode !== "delete") {
+		console.warn("[conn-db] Fallback DELETE mode not confirmed, actual mode:", fallback?.journal_mode, { dbPath });
+	}
+}
+
 export class ConnDatabase {
 	private db?: DatabaseSync;
 
@@ -76,7 +105,7 @@ export class ConnDatabase {
 	private open(): DatabaseSync {
 		if (!this.db) {
 			this.db = new DatabaseSync(this.options.dbPath);
-			this.db.exec("PRAGMA journal_mode = WAL");
+			configureJournalMode(this.db, this.options.dbPath);
 			this.db.exec("PRAGMA synchronous = NORMAL");
 			this.db.exec("PRAGMA foreign_keys = ON");
 			this.db.exec("PRAGMA busy_timeout = 5000");

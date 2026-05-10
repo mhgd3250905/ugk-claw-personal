@@ -324,6 +324,11 @@ ${input.playgroundScript ?? ""}</script>`;
 
 				<section id="landing-screen" class="landing-screen" aria-hidden="false">
 					<div class="landing-grid">
+						<header class="landing-header">
+							<h1 class="landing-title">UGK CLAW</h1>
+							<p class="landing-subtitle">选择一个 Agent 开始工作</p>
+						</header>
+						<div class="landing-agent-cards" id="landing-agent-cards"></div>
 					</div>
 				</section>
 

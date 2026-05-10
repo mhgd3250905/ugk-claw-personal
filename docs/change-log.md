@@ -10,6 +10,17 @@
 
 ---
 
+## 2026-05-10
+
+### Agent 首页卡片与 SQLite 兼容性修复
+- 日期：2026-05-10
+- 主题：Playground 新增 Agent 首页（全屏卡片网格展示所有 agent 及忙闲状态），修复 Docker 生产环境 SQLite 启动崩溃。
+- 影响范围：
+  - **Agent 首页**：每次打开 Playground 先展示全屏首页，以卡片网格列出所有 agent（名称、描述、忙闲状态指示灯）。点击卡片进入对应 agent 的对话界面，对话界面与旧版完全一致。Agent switcher 下拉列表顶部新增"返回首页"入口。移动端适配。首页使用独立的 `data-home` 属性控制显示/隐藏，不触碰原有的 `data-stage-mode` CSS 规则，避免影响对话页面样式。
+  - **SQLite WAL 兼容性**：`ConnDatabase.open()` 新增 `configureJournalMode()` 函数，优先 WAL 模式；仅在捕获到 `SQLITE_IOERR` 系列错误码（NTFS bind mount 共享内存文件不支持的典型表现）时降级到 DELETE 模式并记录 warning 日志（含 dbPath、errcode、errstr）。其他错误（权限、磁盘满、损坏）直接抛出不降级。降级后确认最终 journal_mode 并二次记录。Linux 生产环境保持 WAL 不受影响。
+  - **CLAUDE.md 文档**：补充 ESM 模块解析规则、Multi-Agent Profiles、Browser Integration、SearXNG、Playground UI、Route Pattern 等子系统描述；新增 `.pi/` 目录结构说明和单文件/过滤测试命令。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-styles.ts`、`src/agent/conn-db.ts`、`CLAUDE.md`
+
 ## 2026-05-09
 
 ### 多 Agent 并行运行加固

@@ -491,6 +491,20 @@ function getPlaygroundScript(): string {
 			agentSwitcherMeta.innerHTML = "";
 			const list = document.createElement("div");
 			list.className = "agent-switcher-list";
+
+			if (shell.dataset.home !== "true") {
+				const homeItem = document.createElement("button");
+				homeItem.type = "button";
+				homeItem.className = "agent-switcher-item";
+				homeItem.innerHTML = '<span class="agent-switcher-item-name">返回首页</span>';
+				homeItem.addEventListener("click", (event) => {
+					event.stopPropagation();
+					closeAgentSwitcher();
+					backToLanding();
+				});
+				list.appendChild(homeItem);
+			}
+
 			for (const agent of agents) {
 				const agentId = String(agent?.agentId || "").trim();
 				if (!agentId) {
@@ -553,7 +567,102 @@ function getPlaygroundScript(): string {
 			renderAgentSelector();
 		}
 
-		async function switchAgent(agentId) {
+		async function loadAgentStatusAndRenderCards() {
+				const container = document.getElementById("landing-agent-cards");
+				if (!container) return;
+				try {
+					const [agentsRes, statusRes] = await Promise.all([
+						fetch("/v1/agents", { headers: { accept: "application/json" } }),
+						fetch("/v1/agents/status", { headers: { accept: "application/json" } }),
+					]);
+					const agentsPayload = await agentsRes.json().catch(() => ({}));
+					const statusPayload = await statusRes.json().catch(() => ({}));
+					const agents = Array.isArray(agentsPayload?.agents) ? agentsPayload.agents : [];
+					const statuses = Array.isArray(statusPayload?.agents) ? statusPayload.agents : [];
+					state.agentCatalog = agents;
+					state.agentCatalogReliable = agentsRes.ok;
+
+					const statusMap = new Map(statuses.map((s) => [s.agentId, s]));
+					container.innerHTML = "";
+					for (const agent of agents) {
+						const agentId = String(agent?.agentId || "").trim();
+						if (!agentId) continue;
+						const status = statusMap.get(agentId);
+						const isBusy = status?.status === "busy";
+						const card = document.createElement("button");
+						card.type = "button";
+						card.className = "landing-agent-card" + (isBusy ? " is-busy" : "");
+
+						const header = document.createElement("div");
+						header.className = "landing-agent-header";
+						const dot = document.createElement("span");
+						dot.className = "landing-agent-status-dot " + (isBusy ? "busy" : "idle");
+						const nameEl = document.createElement("strong");
+						nameEl.className = "landing-agent-name";
+						nameEl.textContent = agent.name || agentId;
+						header.appendChild(dot);
+						header.appendChild(nameEl);
+
+						const idEl = document.createElement("span");
+						idEl.className = "landing-agent-id";
+						idEl.textContent = agentId;
+
+						const descEl = document.createElement("span");
+						descEl.className = "landing-agent-desc";
+						descEl.textContent = agent.description || "";
+
+						const statusText = document.createElement("span");
+						statusText.className = "landing-agent-status-text";
+						statusText.textContent = isBusy ? "正在运行" : "空闲";
+
+						card.appendChild(header);
+						card.appendChild(idEl);
+						card.appendChild(descEl);
+						card.appendChild(statusText);
+						card.addEventListener("click", () => {
+							void enterAgentFromLanding(agentId);
+						});
+						container.appendChild(card);
+					}
+					renderAgentSelector();
+				} catch {
+					container.innerHTML = '<span style="color:var(--text-muted)">无法加载 agent 列表</span>';
+				}
+			}
+
+			async function enterAgentFromLanding(agentId) {
+				shell.dataset.home = "false";
+				await switchAgent(agentId);
+			}
+
+			function backToLanding() {
+				if (state.loading) {
+					showError("当前 agent 仍在运行，无法返回首页。");
+					return;
+				}
+				stopActiveRunEventStream();
+				abortConversationStateSync();
+				state.conversationId = "";
+				state.conversationCatalog = [];
+				state.conversationCatalogSyncedAt = 0;
+				state.conversationCatalogSyncPromise = null;
+				state.conversationHistory = [];
+				state.conversationState = null;
+				state.renderedConversationId = "";
+				state.renderedConversationStateSignature = "";
+				state.historyHasMore = false;
+				state.historyNextBefore = "";
+				conversationInput.value = "";
+				clearRenderedTranscript();
+				resetStreamingState();
+				setTranscriptState("idle");
+				renderAgentSelector();
+				clearError();
+				shell.dataset.home = "true";
+				void loadAgentStatusAndRenderCards();
+			}
+
+			async function switchAgent(agentId) {
 			const nextAgentId = String(agentId || "").trim();
 			if (!nextAgentId || nextAgentId === getCurrentAgentId()) {
 				renderAgentSelector();
@@ -1246,6 +1355,7 @@ function getPlaygroundScript(): string {
 		function initializePlaygroundAssembler() {
 			conversationInput.value = state.conversationId;
 			setStageMode("landing");
+			shell.dataset.home = "true";
 			setTranscriptState("idle");
 			setCommandStatus("STANDBY");
 			renderContextUsageBar();
@@ -1256,11 +1366,10 @@ function getPlaygroundScript(): string {
 			renderConnManager();
 			void loadAssets(true);
 			void syncTaskInboxSummary({ silent: true });
-			void loadAgentCatalog();
+			void loadAgentStatusAndRenderCards();
 
 			resetStreamingState();
 			clearError();
-			void ensureCurrentConversation({ silent: true });
 			bindPlaygroundLayoutController();
 			bindPlaygroundTranscriptRenderer();
 			bindPlaygroundStreamController();
