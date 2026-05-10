@@ -1,4 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { renderConnPage } from "../ui/conn-page.js";
+import { renderInboxPage } from "../ui/inbox-page.js";
+import { renderAgentsPage } from "../ui/agents-page.js";
 import { renderPlaygroundPage } from "../ui/playground.js";
 import {
 	isPlaygroundExternalizedEnabled,
@@ -23,6 +26,30 @@ export function registerPlaygroundRoute(app: FastifyInstance, options: Playgroun
 			return await readPlaygroundRuntimeIndex(options.projectRoot);
 		}
 		return renderPlaygroundPage();
+	});
+
+	app.get("/playground/conn", async (_request, reply) => {
+		reply.type("text/html; charset=utf-8");
+		reply.header("cache-control", "no-store, no-cache, must-revalidate");
+		reply.header("pragma", "no-cache");
+		reply.header("expires", "0");
+		return renderConnPage();
+	});
+
+	app.get("/playground/inbox", async (_request, reply) => {
+		reply.type("text/html; charset=utf-8");
+		reply.header("cache-control", "no-store, no-cache, must-revalidate");
+		reply.header("pragma", "no-cache");
+		reply.header("expires", "0");
+		return renderInboxPage();
+	});
+
+	app.get("/playground/agents", async (_request, reply) => {
+		reply.type("text/html; charset=utf-8");
+		reply.header("cache-control", "no-store, no-cache, must-revalidate");
+		reply.header("pragma", "no-cache");
+		reply.header("expires", "0");
+		return renderAgentsPage();
 	});
 
 	app.get("/playground/:fileName", async (request, reply) => {

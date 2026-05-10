@@ -1,0 +1,1517 @@
+export function getConnPageJs(): string {
+	return `
+// ── Constants ──────────────────────────────────────────────────────────────
+
+const STATUS_LABELS = { active: "运行中", paused: "已暂停", completed: "已完成" };
+const RUN_STATUS_LABELS = { pending: "待执行", running: "执行中", succeeded: "成功", failed: "失败", cancelled: "已取消" };
+
+// ── State ──────────────────────────────────────────────────────────────────
+
+const state = {
+  conns: [],
+  selectedId: null,
+  filter: "all",
+  search: "",
+  runsByConnId: {},
+  expandedRunId: null,
+  editorOpen: false,
+  editorMode: null,
+  editorConnId: null,
+  editorSaving: false,
+  agentCatalog: [],
+  browserCatalog: [],
+  modelConfig: null,
+  modelProviders: [],
+  modelOptions: [],
+  editorSelectedAssets: [],
+  runDetailEvents: {},
+  runDetailEventsHasMore: {},
+  runDetailEventsNextBefore: {},
+  runDetailFiles: {},
+  sseSource: null,
+};
+
+// ── Helper: Element refs ───────────────────────────────────────────────────
+
+function $(id) { return document.getElementById(id); }
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(function() { showToast("已复制", "success"); }).catch(function() {});
+}
+
+// ── API Functions ──────────────────────────────────────────────────────────
+
+async function apiFetchConns() {
+  const data = await fetchJson("/v1/conns");
+  return data.conns || [];
+}
+
+async function apiFetchRuns(connId) {
+  const data = await fetchJson("/v1/conns/" + encodeURIComponent(connId) + "/runs");
+  return data.runs || [];
+}
+
+async function apiFetchRunDetail(connId, runId) {
+  return await fetchJson("/v1/conns/" + encodeURIComponent(connId) + "/runs/" + encodeURIComponent(runId));
+}
+
+async function apiFetchRunEvents(connId, runId, before) {
+  const params = new URLSearchParams({ limit: "10" });
+  if (before) { params.set("before", String(before)); }
+  return await fetchJson(
+    "/v1/conns/" + encodeURIComponent(connId) + "/runs/" + encodeURIComponent(runId) + "/events?" + params.toString()
+  );
+}
+
+async function apiCreateConn(payload) {
+  const resp = await fetch("/v1/conns", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || data?.message || "创建失败");
+  return data;
+}
+
+async function apiUpdateConn(connId, payload, headers) {
+  const resp = await fetch("/v1/conns/" + encodeURIComponent(connId), {
+    method: "PATCH",
+    headers: { "content-type": "application/json", accept: "application/json", ...headers },
+    body: JSON.stringify(payload),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || data?.message || "更新失败");
+  return data;
+}
+
+async function apiDeleteConn(connId) {
+  const resp = await fetch("/v1/conns/" + encodeURIComponent(connId), {
+    method: "DELETE",
+    headers: { accept: "application/json" },
+  });
+  if (!resp.ok && resp.status !== 204) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data?.error?.message || data?.message || "删除失败");
+  }
+}
+
+async function apiBulkDeleteConns(ids) {
+  const resp = await fetch("/v1/conns/bulk-delete", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ connIds: ids }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || data?.message || "批量删除失败");
+  return data;
+}
+
+async function apiPauseConn(connId) {
+  const resp = await fetch("/v1/conns/" + encodeURIComponent(connId) + "/pause", {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || data?.message || "暂停失败");
+  return data;
+}
+
+async function apiResumeConn(connId) {
+  const resp = await fetch("/v1/conns/" + encodeURIComponent(connId) + "/resume", {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || data?.message || "恢复失败");
+  return data;
+}
+
+async function apiRunNow(connId) {
+  const resp = await fetch("/v1/conns/" + encodeURIComponent(connId) + "/run", {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || data?.message || "执行失败");
+  return data;
+}
+
+async function apiFetchAgentCatalog() {
+  try {
+    const data = await fetchJson("/v1/agents");
+    return data.agents || [];
+  } catch { return []; }
+}
+
+async function apiFetchBrowserCatalog() {
+  try {
+    const data = await fetchJson("/v1/browsers");
+    return data.browsers || [];
+  } catch { return []; }
+}
+
+async function apiFetchModelConfig() {
+  try {
+    return await fetchJson("/v1/model-config");
+  } catch { return null; }
+}
+
+async function apiUploadAssets(files, connId) {
+  const formData = new FormData();
+  for (const file of files) { formData.append("files", file); }
+  if (connId) { formData.append("conversationId", "conn:" + connId); }
+  const resp = await fetch("/v1/assets/upload", { method: "POST", body: formData });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || data?.message || "上传失败");
+  return data.assets || data || [];
+}
+
+// ── Schedule / Target helpers ──────────────────────────────────────────────
+
+function pad2(n) { return String(n).padStart(2, "0"); }
+
+function formatDuration(start, end) {
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + "s";
+  const m = Math.floor(s / 60);
+  const rs = s % 60;
+  if (m < 60) return pad2(m) + ":" + pad2(rs);
+  const h = Math.floor(m / 60);
+  return pad2(h) + ":" + pad2(m % 60) + ":" + pad2(rs);
+}
+
+function describeSchedule(schedule) {
+  if (!schedule || typeof schedule !== "object") return "未配置";
+  if (schedule.kind === "once") {
+    const d = schedule.at ? new Date(schedule.at) : null;
+    return "定时执行" + (d && !isNaN(d.getTime()) ? " · " + d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) : "");
+  }
+  if (schedule.kind === "interval") {
+    const mins = Math.round((schedule.everyMs || 0) / 60000);
+    return "间隔执行 · 每" + (mins >= 60 ? (mins/60) + "小时" : mins + "分钟");
+  }
+  if (schedule.kind === "cron") {
+    return "Cron · " + (schedule.expression || "");
+  }
+  return String(schedule.kind || "未配置");
+}
+
+function describeTarget(target) {
+  if (!target || typeof target !== "object") return "任务消息";
+  if (target.type === "feishu_chat") return "飞书群 · " + (target.chatId || "");
+  if (target.type === "feishu_user") return "飞书用户 · " + (target.openId || "");
+  return "任务消息";
+}
+
+function describeTiming(conn) {
+  const parts = [];
+  if (conn.nextRunAt) {
+    const d = new Date(conn.nextRunAt);
+    parts.push("下次 " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()));
+  }
+  if (conn.lastRunAt) {
+    const d = new Date(conn.lastRunAt);
+    parts.push("上次 " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()));
+  }
+  if (conn.maxRunMs) {
+    const sec = Math.round(conn.maxRunMs / 1000);
+    parts.push("最长 " + sec + "秒");
+  }
+  return parts.join(" · ") || "待定";
+}
+
+// ── Rendering ──────────────────────────────────────────────────────────────
+
+function renderAll() {
+  renderStats();
+  renderList();
+  renderDetail();
+}
+
+function renderStats() {
+  const total = state.conns.length;
+  const active = state.conns.filter(c => c.status === "active").length;
+  const paused = state.conns.filter(c => c.status === "paused").length;
+  const dayAgo = Date.now() - 24 * 3600 * 1000;
+  const failed = state.conns.filter(c => {
+    const lr = c.latestRun;
+    return lr && lr.status === "failed" && new Date(lr.finishedAt || lr.createdAt || 0).getTime() > dayAgo;
+  }).length;
+
+  const elTotal = $("stat-total");
+  const elActive = $("stat-active");
+  const elPaused = $("stat-paused");
+  const elFailed = $("stat-failed");
+  if (elTotal) elTotal.textContent = total;
+  if (elActive) elActive.textContent = active;
+  if (elPaused) elPaused.textContent = paused;
+  if (elFailed) elFailed.textContent = failed;
+}
+
+function getFilteredConns() {
+  let list = state.conns;
+  if (state.filter !== "all") {
+    list = list.filter(c => c.status === state.filter);
+  }
+  if (state.search) {
+    const q = state.search.toLowerCase();
+    list = list.filter(c =>
+      (c.title || "").toLowerCase().includes(q) ||
+      (c.connId || "").toLowerCase().includes(q) ||
+      (c.prompt || "").toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+
+function renderList() {
+  const container = $("conn-list-items");
+  if (!container) return;
+  const conns = getFilteredConns();
+
+  if (conns.length === 0) {
+    container.innerHTML = '<div class="conn-list-empty"><div class="conn-list-empty-icon"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h4"/></svg></div><div class="conn-list-empty-title">暂无任务</div><div>创建你的第一个后台任务</div></div>';
+    const footer = document.querySelector(".conn-list-footer");
+    if (footer) footer.remove();
+    return;
+  }
+
+  container.innerHTML = "";
+  for (const conn of conns) {
+    const item = document.createElement("button");
+    item.className = "conn-list-item" + (state.selectedId === conn.connId ? " is-selected" : "");
+    item.dataset.connId = conn.connId;
+
+    const dotClass = "conn-list-item-dot--" + (conn.status || "unknown");
+    const badgeClass = "conn-list-item-badge--" + (conn.status || "unknown");
+    const statusLabel = STATUS_LABELS[conn.status] || conn.status || "未知";
+    const schedSummary = describeSchedule(conn.schedule);
+    const metaText = (conn.profileId || "main") + (conn.modelProvider ? (" · " + conn.modelProvider) : "");
+
+    item.innerHTML = '<div class="conn-list-item-row"><span class="conn-list-item-dot ' + dotClass + '"></span><span class="conn-list-item-title">' + escapeHtml(conn.title || conn.connId) + '</span><span class="conn-list-item-badge ' + badgeClass + '">' + statusLabel + '</span></div><div class="conn-list-item-schedule">' + escapeHtml(schedSummary) + '</div><div class="conn-list-item-meta">' + escapeHtml(metaText) + '</div>';
+
+    item.addEventListener("click", () => handleConnSelect(conn.connId));
+    container.appendChild(item);
+  }
+
+  let footer = document.querySelector(".conn-list-footer");
+  if (!footer) {
+    const list = document.querySelector(".conn-list");
+    if (list) {
+      footer = document.createElement("div");
+      footer.className = "conn-list-footer";
+      list.appendChild(footer);
+    }
+  }
+  if (footer) footer.textContent = "共 " + state.conns.length + " 个任务";
+}
+
+function renderDetail() {
+  const body = $("conn-detail-body");
+  const titleEl = $("conn-detail-title");
+  const actionsEl = $("conn-detail-actions");
+  const head = document.querySelector(".conn-detail-head");
+  if (!body) return;
+
+  function hideHead() {
+    if (head) head.style.display = "none";
+    if (titleEl) titleEl.textContent = "";
+    if (actionsEl) actionsEl.innerHTML = "";
+  }
+
+  if (state.editorOpen) {
+    hideHead();
+    renderEditorForm(body, titleEl, actionsEl);
+    return;
+  }
+
+  if (!state.selectedId) {
+    hideHead();
+    body.innerHTML = '<div class="conn-detail-empty"><div class="conn-detail-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><rect x="9" y="1" width="6" height="4" rx="1"/></svg></div><h3>请选择一个任务</h3><p>从左侧任务列表中选择任务查看详情</p></div>';
+    return;
+  }
+
+  const conn = state.conns.find(c => c.connId === state.selectedId);
+  if (!conn) {
+    hideHead();
+    body.innerHTML = '<div class="conn-detail-empty">未找到该任务</div>';
+    return;
+  }
+
+  hideHead();
+
+  const statusLabel = STATUS_LABELS[conn.status] || conn.status || "未知";
+  const schedSummary = describeSchedule(conn.schedule);
+  const modelText = (conn.modelProvider && conn.modelId) ? conn.modelProvider + " / " + conn.modelId : "跟随默认";
+  const nextRun = conn.nextRunAt ? formatTimestamp(conn.nextRunAt) : (conn.status === "completed" ? "已完成" : "待定");
+  const lastRun = conn.lastRunAt ? formatTimestamp(conn.lastRunAt) : "无";
+
+  let html = "";
+
+  // ── 1. Header card ──
+  html += '<div class="conn-card conn-detail-header">';
+  html += '  <div class="conn-detail-header-left">';
+  html += '    <div class="conn-detail-task-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>';
+  html += '    <div class="conn-detail-task-info">';
+  html += '      <h2 class="conn-detail-task-name">' + escapeHtml(conn.title || conn.connId) + '</h2>';
+  html += '      <div class="conn-detail-meta">';
+  html += '        <span class="conn-badge conn-badge--' + (conn.status || 'unknown') + '">' + statusLabel + '</span>';
+  html += '        <span class="conn-detail-schedule-summary">' + escapeHtml(schedSummary) + '</span>';
+  html += '      </div>';
+  html += '    </div>';
+  html += '  </div>';
+  html += '  <div class="conn-detail-header-actions" id="conn-detail-header-actions"></div>';
+  html += '</div>';
+
+  // ── 2. Status mini-cards ──
+  html += '<div class="conn-status-cards">';
+  html += '  <div class="conn-status-mini"><div class="conn-status-mini-icon" style="background:rgba(109,125,255,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#6D7DFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><div><div class="conn-status-mini-label">状态</div><div class="conn-status-mini-value"><span class="conn-badge conn-badge--' + (conn.status || 'unknown') + '">' + statusLabel + '</span></div></div></div>';
+  html += '  <div class="conn-status-mini"><div class="conn-status-mini-icon" style="background:rgba(139,92,246,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><div><div class="conn-status-mini-label">下次执行</div><div class="conn-status-mini-value">' + escapeHtml(nextRun) + '</div></div></div>';
+  html += '  <div class="conn-status-mini"><div class="conn-status-mini-icon" style="background:rgba(34,197,94,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div><div><div class="conn-status-mini-label">上次执行</div><div class="conn-status-mini-value">' + escapeHtml(lastRun) + '</div></div></div>';
+  html += '  <div class="conn-status-mini"><div class="conn-status-mini-icon" style="background:rgba(245,158,11,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div><div><div class="conn-status-mini-label">模型</div><div class="conn-status-mini-value">' + escapeHtml(modelText) + '</div></div></div>';
+  html += '</div>';
+
+  // ── 3. Config card with copy button ──
+  html += '<div class="conn-card">';
+  html += '  <div class="conn-card-title"><span class="conn-card-title-icon" style="background:rgba(6,182,212,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>任务配置</div>';
+  html += '  <div class="conn-config-grid">';
+  html += '    <div class="conn-config-item"><div class="conn-config-label">ID</div><div class="conn-config-value"><code>' + escapeHtml(conn.connId || "") + '</code><button class="conn-copy-btn" data-copy="' + escapeHtml(conn.connId || "") + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>复制</button></div></div>';
+  html += '    <div class="conn-config-item"><div class="conn-config-label">Agent</div><div class="conn-config-value">' + escapeHtml(conn.profileId || "main") + '</div></div>';
+  html += '    <div class="conn-config-item"><div class="conn-config-label">浏览器</div><div class="conn-config-value">' + escapeHtml(conn.browserId || "跟随 Agent") + '</div></div>';
+  html += '    <div class="conn-config-item"><div class="conn-config-label">投递目标</div><div class="conn-config-value">' + escapeHtml(describeTarget(conn.target)) + '</div></div>';
+  html += '  </div>';
+  html += '</div>';
+
+  // ── 4. Prompt card with copy button ──
+  const promptText = (conn.prompt || "").trim();
+  if (promptText) {
+    html += '<div class="conn-card">';
+    html += '  <div class="conn-card-title"><span class="conn-card-title-icon" style="background:rgba(244,114,182,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#F472B6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>Prompt</div>';
+    html += '  <div class="conn-prompt-header"><span></span><button class="conn-copy-btn" data-copy-prompt="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>复制</button></div>';
+    html += '  <div class="conn-prompt-block">' + escapeHtml(promptText) + '</div>';
+    html += '</div>';
+  }
+
+  // ── 5. Run history card ──
+  html += '<div class="conn-card conn-runs-section">';
+  html += '  <div class="conn-card-title"><span class="conn-card-title-icon" style="background:rgba(139,92,246,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>运行历史</div>';
+  html += '  <div id="conn-run-history-list"></div>';
+  html += '</div>';
+
+  body.innerHTML = html;
+
+  // Bind copy buttons via data attributes
+  body.querySelectorAll("[data-copy]").forEach(btn => {
+    btn.addEventListener("click", () => copyToClipboard(btn.getAttribute("data-copy")));
+  });
+  const promptCopyBtn = body.querySelector("[data-copy-prompt]");
+  if (promptCopyBtn) promptCopyBtn.addEventListener("click", () => copyToClipboard(promptText));
+
+  // Render action buttons inside header card
+  const headerActions = $("conn-detail-header-actions");
+  renderActions(headerActions, conn);
+
+  renderRunHistory(conn);
+}
+
+function renderActions(container, conn) {
+  if (!container) return;
+  container.innerHTML = "";
+  const isActing = state.editorSaving;
+
+  const actions = [];
+  actions.push({ label: '编辑', icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M11.5 1.5a2.121 2.121 0 013 3L5 14l-4 1 1-4z"/></svg>', handler: () => openEditor("edit", conn), cls: "conn-btn conn-btn--outline" });
+
+  if (conn.status === "active") {
+    actions.push({ label: "暂停", icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:13px;height:13px"><rect x="4" y="3" width="3" height="10" rx="0.5"/><rect x="9" y="3" width="3" height="10" rx="0.5"/></svg>', handler: () => handlePause(conn.connId), cls: "conn-btn conn-btn--outline" });
+  }
+  if (conn.status === "paused") {
+    actions.push({ label: "恢复", icon: '<svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M4 3l9 5-9 5z"/></svg>', handler: () => handleResume(conn.connId), cls: "conn-btn conn-btn--outline" });
+  }
+  actions.push({ label: "立即执行", icon: '<svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M4 3l9 5-9 5z"/></svg>', handler: () => handleRunNow(conn.connId), cls: "conn-btn conn-btn--primary" });
+  actions.push({ label: "删除", icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4"/></svg>', handler: () => handleDelete(conn.connId), cls: "conn-btn conn-btn--danger" });
+
+  for (const action of actions) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.innerHTML = action.icon + " " + action.label;
+    btn.disabled = isActing;
+    btn.className = action.cls;
+    btn.addEventListener("click", action.handler);
+    container.appendChild(btn);
+  }
+}
+
+function renderRunHistory(conn) {
+  const container = $("conn-run-history-list");
+  if (!container) return;
+
+  const runs = state.runsByConnId[conn.connId] || [];
+  if (runs.length === 0) {
+    container.innerHTML = '<div class="conn-run-empty"><div class="conn-run-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><h4>暂无运行历史</h4><p>任务执行后将在这里展示结果和日志</p></div>';
+    return;
+  }
+
+  const display = runs.slice(0, 10);
+  container.innerHTML = '<div class="conn-run-timeline"></div>';
+  const timeline = container.querySelector(".conn-run-timeline");
+
+  for (const run of display) {
+    const isExpanded = state.expandedRunId === run.runId;
+    const runStatusLabel = RUN_STATUS_LABELS[run.status] || run.status || "未知";
+    const dotClass = "conn-run-tl-dot--" + (run.status || "unknown");
+
+    const time = run.startedAt ? formatTimestamp(run.startedAt) : "—";
+    const summary = run.resultText ? run.resultText.substring(0, 80) : runStatusLabel;
+    const duration = run.startedAt && run.finishedAt ? formatDuration(run.startedAt, run.finishedAt) : "";
+
+    const item = document.createElement("div");
+    item.className = "conn-run-tl-item";
+    item.innerHTML = '<div class="conn-run-tl-dot ' + dotClass + '"></div><div class="conn-run-tl-card' + (isExpanded ? ' is-expanded' : '') + '"><div class="conn-run-tl-header"><span class="conn-run-tl-time">' + escapeHtml(time) + '</span><span class="conn-badge conn-badge--' + (run.status || 'unknown') + '">' + runStatusLabel + '</span>' + (duration ? '<span class="conn-run-tl-duration">' + escapeHtml(duration) + '</span>' : '') + '<span class="conn-run-tl-summary">' + escapeHtml(summary) + '</span></div></div>';
+
+    const card = item.querySelector(".conn-run-tl-card");
+
+    if (isExpanded) {
+      const detailDiv = document.createElement("div");
+      detailDiv.className = "conn-run-tl-detail";
+      detailDiv.innerHTML = '<div style="color:var(--muted);font-size:12px">加载中...</div>';
+      card.appendChild(detailDiv);
+
+      apiFetchRunDetail(conn.connId, run.runId).then(detail => {
+        renderRunDetail(detailDiv, detail, state.runDetailFiles[run.runId] || [], state.runDetailEvents[run.runId] || []);
+      });
+    }
+
+    card.querySelector(".conn-run-tl-header").addEventListener("click", () => {
+      state.expandedRunId = state.expandedRunId === run.runId ? null : run.runId;
+      renderRunHistory(conn);
+    });
+
+    timeline.appendChild(item);
+  }
+}
+
+function renderRunDetail(container, run, files, events) {
+  container.innerHTML = "";
+
+  // Lifecycle timeline
+  const lifecycle = document.createElement("div");
+  lifecycle.className = "conn-run-lifecycle";
+  const steps = [
+    { label: "计划", value: run.scheduledAt, done: true },
+    { label: "认领", value: run.claimedAt, done: !!run.claimedAt },
+    { label: "开始", value: run.startedAt, done: !!run.startedAt },
+    { label: "完成", value: run.finishedAt, done: !!run.finishedAt },
+  ];
+  for (const step of steps) {
+    const el = document.createElement("span");
+    el.className = "conn-run-lifecycle-step" + (step.done ? " is-done" : "") + (step.value && !steps[steps.indexOf(step) + 1]?.done ? " is-current" : "");
+    el.textContent = step.label;
+    lifecycle.appendChild(el);
+    if (steps.indexOf(step) < steps.length - 1) {
+      const arrow = document.createElement("span");
+      arrow.className = "conn-run-lifecycle-arrow";
+      arrow.textContent = "→";
+      lifecycle.appendChild(arrow);
+    }
+  }
+  container.appendChild(lifecycle);
+
+  // Health label
+  const health = resolveRunHealth(run, events);
+  if (health) {
+    const healthEl = document.createElement("div");
+    healthEl.className = "conn-run-health";
+    healthEl.textContent = health;
+    container.appendChild(healthEl);
+  }
+
+  // Result text
+  const resultText = run.errorText || run.resultText || run.resultSummary;
+  if (resultText) {
+    const result = document.createElement("div");
+    result.className = "conn-run-result";
+    result.textContent = resultText;
+    container.appendChild(result);
+  }
+
+  // Output files
+  if (files && files.length > 0) {
+    const fileList = document.createElement("div");
+    fileList.className = "conn-run-files";
+    const heading = document.createElement("span");
+    heading.className = "conn-run-files-heading";
+    heading.textContent = "输出文件";
+    fileList.appendChild(heading);
+    for (const file of files) {
+      const link = document.createElement("a");
+      link.className = "conn-run-file-link";
+      link.href = file.url || "#";
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.textContent = file.fileName || file.relativePath || "file";
+      fileList.appendChild(link);
+      if (file.latestUrl) {
+        const latest = document.createElement("a");
+        latest.className = "conn-run-file-link conn-run-file-link-secondary";
+        latest.href = file.latestUrl;
+        latest.target = "_blank";
+        latest.rel = "noreferrer";
+        latest.textContent = "最新入口";
+        fileList.appendChild(latest);
+      }
+    }
+    container.appendChild(fileList);
+  }
+
+  // Events
+  if (events && events.length > 0) {
+    const eventSection = document.createElement("div");
+    eventSection.className = "conn-run-events";
+    const evHeading = document.createElement("span");
+    evHeading.className = "conn-run-events-heading";
+    evHeading.textContent = "事件记录";
+    eventSection.appendChild(evHeading);
+
+    for (const event of events) {
+      const ev = document.createElement("div");
+      ev.className = "conn-run-event";
+      const evTitle = document.createElement("code");
+      evTitle.textContent = "#" + event.seq + " " + event.eventType;
+      const evTime = document.createElement("span");
+      evTime.className = "conn-run-event-time";
+      evTime.textContent = event.createdAt ? formatTimestamp(event.createdAt) : "";
+      const evBody = document.createElement("span");
+      evBody.className = "conn-run-event-body";
+      evBody.textContent = JSON.stringify(event.event || {}).slice(0, 300);
+      ev.appendChild(evTitle);
+      ev.appendChild(evTime);
+      ev.appendChild(evBody);
+      eventSection.appendChild(ev);
+    }
+
+    const hasMore = state.runDetailEventsHasMore[run.runId];
+    if (hasMore) {
+      const moreBtn = document.createElement("button");
+      moreBtn.type = "button";
+      moreBtn.className = "conn-run-load-more";
+      moreBtn.textContent = "加载更多事件";
+      moreBtn.addEventListener("click", () => handleLoadMoreEvents(run.connId, run.runId));
+      eventSection.appendChild(moreBtn);
+    }
+
+    container.appendChild(eventSection);
+  }
+}
+
+function resolveRunHealth(run, events) {
+  if (!run || typeof run !== "object") return "";
+  if (run.status === "failed") {
+    const hasTimeout = Array.isArray(events) && events.some(e => e.eventType === "run_timed_out");
+    if (hasTimeout || /exceeded maxRunMs/i.test(run.errorText || "")) return "超时失败";
+    return "";
+  }
+  if (run.status !== "running") return "";
+  if (!run.leaseUntil) return "租约未知";
+  const until = new Date(run.leaseUntil).getTime();
+  if (isNaN(until)) return "租约未知";
+  return until <= Date.now() ? "疑似僵死" : "租约活跃";
+}
+
+// ── Editor ─────────────────────────────────────────────────────────────────
+
+function openEditor(mode, conn) {
+  state.editorOpen = true;
+  state.editorMode = mode || "create";
+  state.editorConnId = conn ? conn.connId : null;
+  state.editorSaving = false;
+  renderDetail();
+}
+
+function closeEditor() {
+  state.editorOpen = false;
+  state.editorMode = null;
+  state.editorConnId = null;
+  state.editorSaving = false;
+  renderDetail();
+}
+
+function fillEditorForm(conn) {
+  const titleInput = $("editor-title-input");
+  const promptEl = $("editor-prompt");
+  const schedKind = $("editor-schedule-kind");
+  const onceAt = $("editor-once-at");
+  const intervalStart = $("editor-interval-start");
+  const intervalMins = $("editor-interval-minutes");
+  const targetType = $("editor-target-type");
+  const targetId = $("editor-target-id");
+  const profileId = $("editor-profile-id");
+  const browserId = $("editor-browser-id");
+  const modelProvider = $("editor-model-provider");
+  const modelId = $("editor-model-id");
+  const maxRunSec = $("editor-max-run-seconds");
+  const upgradePolicy = $("editor-upgrade-policy");
+  const agentSpecId = $("editor-agent-spec-id");
+  const skillSetId = $("editor-skill-set-id");
+
+  if (titleInput) titleInput.value = conn.title || "";
+  if (promptEl) promptEl.value = conn.prompt || "";
+
+  const sched = conn.schedule || {};
+  if (schedKind) {
+    if (sched.kind === "interval") schedKind.value = "interval";
+    else if (sched.kind === "cron") schedKind.value = "daily";
+    else schedKind.value = "once";
+  }
+
+  if (sched.kind === "once" && onceAt) onceAt.value = sched.at ? formatDateTimeLocal(sched.at) : "";
+  if (sched.kind === "interval") {
+    if (intervalStart) intervalStart.value = sched.startAt ? formatDateTimeLocal(sched.startAt) : "";
+    if (intervalMins) intervalMins.value = sched.everyMs ? Math.round(sched.everyMs / 60000) : 60;
+  }
+
+  const tgt = conn.target || {};
+  if (targetType) {
+    if (tgt.type === "feishu_chat") targetType.value = "feishu_chat";
+    else if (tgt.type === "feishu_user") targetType.value = "feishu_user";
+    else targetType.value = "task_inbox";
+  }
+  if (targetId) {
+    targetId.value = tgt.chatId || tgt.openId || "";
+  }
+
+  if (profileId) profileId.value = conn.profileId || "main";
+  if (browserId) browserId.value = conn.browserId || "";
+  if (modelProvider) modelProvider.value = conn.modelProvider || "";
+  if (modelId) modelId.value = conn.modelId || "";
+  if (maxRunSec) maxRunSec.value = conn.maxRunMs ? Math.round(conn.maxRunMs / 1000) : "";
+  if (upgradePolicy) upgradePolicy.value = conn.upgradePolicy || "latest";
+  if (agentSpecId) agentSpecId.value = conn.agentSpecId || "";
+  if (skillSetId) skillSetId.value = conn.skillSetId || "";
+}
+
+function clearEditorForm() {
+  const ids = [
+    "editor-title-input", "editor-prompt", "editor-once-at",
+    "editor-interval-start", "editor-target-id",
+    "editor-max-run-seconds", "editor-agent-spec-id", "editor-skill-set-id",
+  ];
+  for (const id of ids) {
+    const el = $(id);
+    if (el) el.value = "";
+  }
+  const intervalMins = $("editor-interval-minutes");
+  if (intervalMins) intervalMins.value = "60";
+  const schedKind = $("editor-schedule-kind");
+  if (schedKind) schedKind.value = "once";
+  const targetType = $("editor-target-type");
+  if (targetType) targetType.value = "task_inbox";
+  const profileId = $("editor-profile-id");
+  if (profileId) profileId.value = "main";
+  const browserId = $("editor-browser-id");
+  if (browserId) browserId.value = "";
+  const upgradePolicy = $("editor-upgrade-policy");
+  if (upgradePolicy) upgradePolicy.value = "latest";
+  const modelProvider = $("editor-model-provider");
+  const modelId = $("editor-model-id");
+  if (modelProvider && state.modelConfig?.providers?.length) modelProvider.value = state.modelConfig.providers[0].id;
+  if (modelId && state.modelConfig?.providers?.[0]?.models?.length) modelId.value = state.modelConfig.providers[0].models[0].id;
+}
+
+function readEditorPayload() {
+  const errorEl = $("editor-error");
+  const showError = (msg) => { if (errorEl) { errorEl.textContent = msg; errorEl.hidden = false; } };
+
+  const title = (($("editor-title-input") || {}).value || "").trim();
+  const prompt = (($("editor-prompt") || {}).value || "").trim();
+
+  if (!title) { showError("请填写标题"); return null; }
+  if (!prompt) { showError("请填写 Prompt"); return null; }
+
+  const payload = { title, prompt };
+
+  // Schedule
+  const schedKind = (($("editor-schedule-kind") || {}).value || "once");
+  if (schedKind === "once") {
+    const at = parseDateTimeLocal(($("editor-once-at") || {}).value);
+    if (!at) { showError("请填写执行时间"); return null; }
+    payload.schedule = { kind: "once", at };
+  } else if (schedKind === "interval") {
+    const mins = parseInt(($("editor-interval-minutes") || {}).value, 10);
+    const startAt = parseDateTimeLocal(($("editor-interval-start") || {}).value);
+    if (!mins || mins < 1) { showError("间隔分钟必须大于 0"); return null; }
+    if (!startAt) { showError("请填写首次执行时间"); return null; }
+    payload.schedule = { kind: "interval", everyMs: mins * 60 * 1000, startAt };
+  } else if (schedKind === "daily") {
+    const timeInput = $("editor-time-of-day") || $("editor-once-at");
+    const timeVal = (timeInput || {}).value || "";
+    const match = timeVal.match(/^(\\d{1,2}):(\\d{2})/);
+    if (!match) { showError("请填写每日执行时间"); return null; }
+    const expr = match[2] + " " + match[1] + " * * *";
+    payload.schedule = { kind: "cron", expression: expr };
+  }
+
+  // Target
+  const targetType = (($("editor-target-type") || {}).value || "task_inbox");
+  if (targetType === "task_inbox") {
+    payload.target = { type: "task_inbox" };
+  } else if (targetType === "feishu_chat") {
+    const chatId = (($("editor-target-id") || {}).value || "").trim();
+    if (!chatId) { showError("请填写飞书群 ID"); return null; }
+    payload.target = { type: "feishu_chat", chatId };
+  } else if (targetType === "feishu_user") {
+    const openId = (($("editor-target-id") || {}).value || "").trim();
+    if (!openId) { showError("请填写飞书用户 ID"); return null; }
+    payload.target = { type: "feishu_user", openId };
+  }
+
+  // Optional fields
+  const profileId = (($("editor-profile-id") || {}).value || "").trim();
+  if (profileId) payload.profileId = profileId;
+
+  const browserId = (($("editor-browser-id") || {}).value || "").trim();
+  if (browserId || state.editorMode === "edit") payload.browserId = browserId || null;
+
+  const modelProvider = (($("editor-model-provider") || {}).value || "").trim();
+  const modelId = (($("editor-model-id") || {}).value || "").trim();
+  if (modelProvider) payload.modelProvider = modelProvider;
+  if (modelId) payload.modelId = modelId;
+
+  const maxRunSec = (($("editor-max-run-seconds") || {}).value || "").trim();
+  if (maxRunSec) {
+    const sec = parseInt(maxRunSec, 10);
+    if (sec > 0) payload.maxRunMs = sec * 1000;
+  }
+
+  const upgradePolicy = (($("editor-upgrade-policy") || {}).value || "").trim();
+  if (upgradePolicy) payload.upgradePolicy = upgradePolicy;
+
+  const agentSpecId = (($("editor-agent-spec-id") || {}).value || "").trim();
+  if (agentSpecId) payload.agentSpecId = agentSpecId;
+
+  const skillSetId = (($("editor-skill-set-id") || {}).value || "").trim();
+  if (skillSetId) payload.skillSetId = skillSetId;
+
+  const assetRefs = state.editorSelectedAssets || [];
+  if (assetRefs.length > 0) payload.assetRefs = assetRefs;
+
+  if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
+  return payload;
+}
+
+async function submitEditor() {
+  const payload = readEditorPayload();
+  if (!payload) return;
+
+  const isEditing = state.editorMode === "edit" && state.editorConnId;
+
+  // Check if browser/profile binding changed
+  let extraHeaders = {};
+  if (isEditing) {
+    const orig = state.conns.find(c => c.connId === state.editorConnId);
+    if (orig) {
+      const profileChanged = (orig.profileId || "main") !== (payload.profileId || "main");
+      const browserChanged = (orig.browserId || "") !== (payload.browserId || "");
+      if (profileChanged || browserChanged) {
+        const confirmed = await openConfirmDialog({
+          title: "确认执行绑定变更",
+          description: "即将更改 Agent 或浏览器绑定，后续运行将使用新的执行环境。",
+          confirmText: "确认变更",
+          cancelText: "取消",
+          tone: "danger",
+        });
+        if (!confirmed) return;
+        extraHeaders = {
+          "x-ugk-browser-binding-confirmed": "true",
+          "x-ugk-browser-binding-source": "playground",
+        };
+      }
+    }
+  }
+
+  state.editorSaving = true;
+  renderDetail();
+
+  try {
+    if (isEditing) {
+      await apiUpdateConn(state.editorConnId, payload, extraHeaders);
+      showToast("任务已更新", "success");
+    } else {
+      await apiCreateConn(payload);
+      showToast("任务已创建", "success");
+    }
+    closeEditor();
+    await loadData();
+  } catch (err) {
+    const errorEl = $("editor-error");
+    if (errorEl) { errorEl.textContent = err instanceof Error ? err.message : "保存失败"; errorEl.hidden = false; }
+  } finally {
+    state.editorSaving = false;
+    renderDetail();
+  }
+}
+
+function renderEditorForm(body, titleEl, actionsEl) {
+  if (titleEl) titleEl.textContent = "";
+  if (actionsEl) actionsEl.innerHTML = "";
+
+  const isEdit = state.editorMode === "edit";
+  const pageTitle = isEdit ? "编辑任务" : "新建任务";
+  const pageSub = isEdit ? "修改任务配置与执行方式" : "配置任务信息与执行方式";
+
+  body.innerHTML = \`
+    <div class="conn-editor-root">
+      <div id="editor-error" class="conn-editor-error" role="alert" hidden></div>
+
+      <!-- Header -->
+      <div class="conn-editor-header">
+        <div class="conn-editor-header-icon" style="background:rgba(109,125,255,0.14)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="conn-editor-header-text">
+          <div class="conn-editor-header-title">\${pageTitle}</div>
+          <div class="conn-editor-header-sub">\${pageSub}</div>
+        </div>
+      </div>
+
+      <!-- Row 1: Basic Info + Schedule side by side -->
+      <div class="conn-editor-form-grid">
+        <!-- Basic Info -->
+        <div class="conn-editor-section-card">
+          <div class="conn-editor-section-head">
+            <div class="conn-editor-section-icon" style="background:rgba(244,114,182,0.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#F472B6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </div>
+            <div class="conn-editor-section-title">基本信息</div>
+          </div>
+          <div class="conn-editor-section-body">
+            <label class="conn-editor-field">
+              <span>标题 <span class="required">*</span></span>
+              <input id="editor-title-input" autocomplete="off" required placeholder="请输入任务标题" />
+            </label>
+            <label class="conn-editor-field">
+              <span>PROMPT <span class="required">*</span></span>
+              <textarea id="editor-prompt" rows="6" required placeholder="请输入 Prompt 内容，支持多行输入..."></textarea>
+              <span class="field-helper">支持 Markdown 与代码语法</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Schedule + Target -->
+        <div class="conn-editor-section-card">
+          <div class="conn-editor-section-head">
+            <div class="conn-editor-section-icon" style="background:rgba(139,92,246,0.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </div>
+            <div class="conn-editor-section-title">执行与调度</div>
+          </div>
+          <div class="conn-editor-section-body">
+            <div class="conn-editor-form-grid">
+              <label class="conn-editor-field">
+                <span>执行方式 <span class="required">*</span></span>
+                <select id="editor-schedule-kind">
+                  <option value="once">定时执行</option>
+                  <option value="interval">间隔执行</option>
+                  <option value="daily">每日执行</option>
+                </select>
+              </label>
+              <label class="conn-editor-field">
+                <span>执行时间 <span class="required">*</span></span>
+                <input id="editor-once-at" type="datetime-local" autocomplete="off" placeholder="yyyy/mm/dd --:--" />
+              </label>
+            </div>
+            <div id="editor-schedule-interval" class="conn-editor-schedule-block" hidden>
+              <div class="conn-editor-form-grid">
+                <label class="conn-editor-field">
+                  <span>首次执行时间</span>
+                  <input id="editor-interval-start" type="datetime-local" autocomplete="off" />
+                </label>
+                <label class="conn-editor-field">
+                  <span>间隔（分钟）</span>
+                  <input id="editor-interval-minutes" type="number" min="1" step="1" value="60" />
+                </label>
+              </div>
+            </div>
+            <label class="conn-editor-field">
+              <span>目标类型</span>
+              <select id="editor-target-type">
+                <option value="task_inbox">任务消息</option>
+                <option value="feishu_chat">飞书群</option>
+                <option value="feishu_user">飞书用户</option>
+              </select>
+            </label>
+            <div id="editor-target-id-row" class="conn-editor-target-block" hidden>
+              <label class="conn-editor-field">
+                <span>目标 ID</span>
+                <input id="editor-target-id" autocomplete="off" placeholder="chat_id 或 open_id" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Runtime Config (full width) -->
+      <div class="conn-editor-section-card">
+        <div class="conn-editor-section-head">
+          <div class="conn-editor-section-icon" style="background:rgba(6,182,212,0.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          </div>
+          <div class="conn-editor-section-title">运行配置</div>
+        </div>
+        <div class="conn-editor-section-body">
+          <div class="conn-editor-form-grid">
+            <label class="conn-editor-field">
+              <span>AGENT <span class="required">*</span></span>
+              <select id="editor-profile-id"></select>
+            </label>
+            <label class="conn-editor-field">
+              <span>浏览器</span>
+              <select id="editor-browser-id"></select>
+            </label>
+            <label class="conn-editor-field">
+              <span>模型源</span>
+              <select id="editor-model-provider"></select>
+            </label>
+            <label class="conn-editor-field">
+              <span>模型</span>
+              <select id="editor-model-id"></select>
+            </label>
+          </div>
+          <span id="editor-model-auth" class="conn-editor-hint"></span>
+        </div>
+      </div>
+
+      <!-- Row 3: Advanced Settings (full width) -->
+      <div class="conn-editor-section-card">
+        <div class="conn-editor-section-head">
+          <div class="conn-editor-section-icon" style="background:rgba(245,158,11,0.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </div>
+          <div class="conn-editor-section-title">高级设置</div>
+        </div>
+        <div class="conn-editor-section-body">
+          <div id="editor-model-auth-row" class="conn-editor-key-status">
+            <span>密钥已配置</span>
+            <span class="key-badge" id="editor-key-name">—</span>
+          </div>
+          <div class="conn-editor-form-grid">
+            <label class="conn-editor-field">
+              <span>最长等待（秒）</span>
+              <input id="editor-max-run-seconds" type="number" min="1" step="1" placeholder="0 = 不限" />
+            </label>
+            <label class="conn-editor-field">
+              <span>版本策略</span>
+              <select id="editor-upgrade-policy">
+                <option value="latest">跟随默认</option>
+                <option value="pinned">固定当前</option>
+                <option value="manual">手动控制</option>
+              </select>
+            </label>
+            <label class="conn-editor-field">
+              <span>执行模板</span>
+              <input id="editor-agent-spec-id" autocomplete="off" placeholder="可选" />
+            </label>
+            <label class="conn-editor-field">
+              <span>能力包</span>
+              <input id="editor-skill-set-id" autocomplete="off" placeholder="可选" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div id="editor-asset-chips" class="conn-editor-asset-chips"></div>
+      <textarea id="editor-asset-refs" hidden></textarea>
+
+      <!-- Action bar -->
+      <div class="conn-editor-actions">
+        <div class="conn-editor-actions-left">
+          <button id="editor-submit" type="button">\${isEdit ? "保存修改" : "保存任务"}</button>
+          <button id="editor-cancel" type="button">取消</button>
+        </div>
+        <div class="conn-editor-actions-right">任务将保存到后台系统，便于后续管理与执行</div>
+      </div>
+    </div>
+  \`;
+
+  // Fill form if editing
+  if (isEdit && state.editorConnId) {
+    const conn = state.conns.find(c => c.connId === state.editorConnId);
+    if (conn) fillEditorForm(conn);
+  } else {
+    clearEditorForm();
+  }
+
+  renderEditorAgentOptions();
+  renderEditorBrowserOptions();
+  renderEditorModelOptions();
+  syncScheduleVisibility();
+  syncTargetVisibility();
+  initializeFlatpickr();
+
+  // Bind events
+  const schedKindEl = $("editor-schedule-kind");
+  if (schedKindEl) schedKindEl.addEventListener("change", syncScheduleVisibility);
+  const targetEl = $("editor-target-type");
+  if (targetEl) targetEl.addEventListener("change", syncTargetVisibility);
+  const modelProvEl = $("editor-model-provider");
+  if (modelProvEl) modelProvEl.addEventListener("change", () => { renderEditorModelOptions(); });
+  const submitBtn = $("editor-submit");
+  if (submitBtn) submitBtn.addEventListener("click", () => { submitEditor(); });
+  const cancelBtn = $("editor-cancel");
+  if (cancelBtn) cancelBtn.addEventListener("click", closeEditor);
+}
+
+
+function renderEditorAgentOptions() {
+  const sel = $("editor-profile-id");
+  if (!sel) return;
+  const current = sel.value || "main";
+  sel.innerHTML = "";
+  const agents = state.agentCatalog.length > 0 ? state.agentCatalog : [{ agentId: "main", name: "主 Agent" }];
+  for (const a of agents) {
+    const opt = document.createElement("option");
+    opt.value = a.agentId || "main";
+    opt.textContent = a.name || a.agentId || "main";
+    sel.appendChild(opt);
+  }
+  if (!agents.some(a => (a.agentId || "main") === current)) {
+    const opt = document.createElement("option");
+    opt.value = current;
+    opt.textContent = current + "（不可用）";
+    sel.appendChild(opt);
+  }
+  sel.value = current;
+}
+
+function renderEditorBrowserOptions() {
+  const sel = $("editor-browser-id");
+  if (!sel) return;
+  const current = sel.value || "";
+  sel.innerHTML = "";
+  const followOpt = document.createElement("option");
+  followOpt.value = "";
+  followOpt.textContent = "跟随执行 Agent";
+  sel.appendChild(followOpt);
+  const browsers = state.browserCatalog.length > 0 ? state.browserCatalog : [];
+  for (const b of browsers) {
+    const opt = document.createElement("option");
+    opt.value = b.browserId || "";
+    opt.textContent = (b.name || b.browserId || "") + " · " + (b.browserId || "");
+    sel.appendChild(opt);
+  }
+  if (current && !browsers.some(b => b.browserId === current)) {
+    const opt = document.createElement("option");
+    opt.value = current;
+    opt.textContent = current + "（未找到）";
+    sel.appendChild(opt);
+  }
+  sel.value = current;
+}
+
+function renderEditorModelOptions() {
+  const provSel = $("editor-model-provider");
+  const modelSel = $("editor-model-id");
+  const authHint = $("editor-model-auth");
+  if (!provSel || !modelSel) return;
+
+  const providers = state.modelConfig?.providers || [];
+  const pendingProvider = provSel.dataset.pendingValue || provSel.value || state.modelConfig?.current?.provider || "";
+  const pendingModel = modelSel.dataset.pendingValue || modelSel.value || state.modelConfig?.current?.model || "";
+
+  provSel.innerHTML = "";
+  if (providers.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "暂无可用模型源";
+    provSel.appendChild(opt);
+    provSel.disabled = true;
+    modelSel.innerHTML = "";
+    modelSel.disabled = true;
+    if (authHint) authHint.textContent = "模型源不可用";
+    return;
+  }
+
+  provSel.disabled = false;
+  for (const p of providers) {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name || p.id;
+    provSel.appendChild(opt);
+  }
+  if (providers.some(p => p.id === pendingProvider)) provSel.value = pendingProvider;
+  if (!provSel.value && providers[0]) provSel.value = providers[0].id;
+
+  const provider = providers.find(p => p.id === provSel.value);
+  const models = provider?.models || [];
+  modelSel.innerHTML = "";
+  modelSel.disabled = false;
+  for (const m of models) {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.name || m.id;
+    modelSel.appendChild(opt);
+  }
+  if (models.some(m => m.id === pendingModel)) modelSel.value = pendingModel;
+  if (!modelSel.value && models[0]) modelSel.value = models[0].id;
+
+  if (authHint) {
+    const auth = provider?.auth || {};
+    authHint.textContent = provider ? ((auth.configured ? "密钥已配置" : "密钥未配置") + (auth.envVar ? " · " + auth.envVar : "")) : "";
+  }
+
+  delete provSel.dataset.pendingValue;
+  delete modelSel.dataset.pendingValue;
+}
+
+function syncScheduleVisibility() {
+  const kind = (($("editor-schedule-kind") || {}).value || "once");
+  const oncePanel = $("editor-schedule-once");
+  const intervalPanel = $("editor-schedule-interval");
+  if (oncePanel) oncePanel.hidden = kind !== "once";
+  if (intervalPanel) intervalPanel.hidden = kind !== "interval";
+}
+
+function syncTargetVisibility() {
+  const type = (($("editor-target-type") || {}).value || "task_inbox");
+  const idRow = $("editor-target-id-row");
+  if (idRow) idRow.hidden = type === "task_inbox";
+}
+
+// ── Flatpickr ──────────────────────────────────────────────────────────────
+
+function initializeFlatpickr() {
+  if (typeof window.flatpickr !== "function") return;
+  const inputs = [$("editor-once-at"), $("editor-interval-start")].filter(Boolean);
+  for (const input of inputs) {
+    if (input._flatpickr) continue;
+    window.flatpickr(input, {
+      enableTime: true,
+      dateFormat: "Y-m-d\\TH:i",
+      time_24hr: true,
+      minuteIncrement: 5,
+      minDate: "today",
+      allowInput: true,
+    });
+  }
+}
+
+// ── DateTime helpers ──────────────────────────────────────────────────────
+
+function formatDateTimeLocal(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+}
+
+function parseDateTimeLocal(value) {
+  const text = (value || "").trim();
+  if (!text) return "";
+  const d = new Date(text);
+  if (isNaN(d.getTime())) return "";
+  return d.toISOString();
+}
+
+// ── Event handlers ─────────────────────────────────────────────────────────
+
+async function handleConnSelect(connId) {
+  state.selectedId = connId;
+  state.expandedRunId = null;
+
+  // Load runs if not cached
+  if (!state.runsByConnId[connId]) {
+    try {
+      state.runsByConnId[connId] = await apiFetchRuns(connId);
+    } catch {
+      state.runsByConnId[connId] = [];
+    }
+  }
+
+  renderDetail();
+  renderList(); // update selection highlight
+
+  // On mobile, show detail panel
+  const listPanel = document.querySelector(".conn-list");
+  const detailPanel = document.querySelector(".conn-detail");
+  if (listPanel && detailPanel && window.innerWidth < 768) {
+    listPanel.classList.add("is-hidden-mobile");
+    detailPanel.classList.remove("is-hidden-mobile");
+  }
+}
+
+function handleFilterChange(filter) {
+  state.filter = filter;
+  renderList();
+}
+
+function handleSearchInput(value) {
+  state.search = value;
+  renderList();
+}
+
+async function handlePause(connId) {
+  try {
+    const data = await apiPauseConn(connId);
+    const updated = data.conn;
+    if (updated) updateConnInState(updated);
+    showToast("已暂停", "success");
+    renderAll();
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : "暂停失败", "error");
+  }
+}
+
+async function handleResume(connId) {
+  try {
+    const data = await apiResumeConn(connId);
+    const updated = data.conn;
+    if (updated) updateConnInState(updated);
+    showToast("已恢复", "success");
+    renderAll();
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : "恢复失败", "error");
+  }
+}
+
+async function handleRunNow(connId) {
+  try {
+    const data = await apiRunNow(connId);
+    const newRun = data.run;
+    if (newRun) {
+      const runs = state.runsByConnId[connId] || [];
+      state.runsByConnId[connId] = [newRun, ...runs];
+    }
+    showToast("已触发执行", "success");
+    renderDetail();
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : "执行失败", "error");
+  }
+}
+
+async function handleDelete(connId) {
+  const conn = state.conns.find(c => c.connId === connId);
+  const confirmed = await openConfirmDialog({
+    title: "删除后台任务？",
+    description: "任务：" + (conn?.title || connId) + "\\n\\n删除后不可恢复。",
+    confirmText: "删除",
+    cancelText: "取消",
+    tone: "danger",
+  });
+  if (!confirmed) return;
+
+  try {
+    await apiDeleteConn(connId);
+    state.conns = state.conns.filter(c => c.connId !== connId);
+    delete state.runsByConnId[connId];
+    if (state.selectedId === connId) state.selectedId = null;
+    showToast("已删除", "success");
+    renderAll();
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : "删除失败", "error");
+  }
+}
+
+async function handleBulkDelete() {
+  const filtered = getFilteredConns();
+  const ids = filtered.map(c => c.connId);
+  if (ids.length === 0) {
+    showToast("没有可删除的任务", "info");
+    return;
+  }
+
+  const confirmed = await openConfirmDialog({
+    title: "批量删除？",
+    description: "将删除当前筛选下的 " + ids.length + " 个任务。此操作不可恢复。",
+    confirmText: "批量删除",
+    cancelText: "取消",
+    tone: "danger",
+  });
+  if (!confirmed) return;
+
+  try {
+    await apiBulkDeleteConns(ids);
+    const deletedSet = new Set(ids);
+    state.conns = state.conns.filter(c => !deletedSet.has(c.connId));
+    for (const id of ids) delete state.runsByConnId[id];
+    if (deletedSet.has(state.selectedId)) state.selectedId = null;
+    showToast("已删除 " + ids.length + " 个任务", "success");
+    renderAll();
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : "批量删除失败", "error");
+  }
+}
+
+async function handleRunToggle(connId, runId) {
+  if (state.expandedRunId === runId) {
+    state.expandedRunId = null;
+    renderDetail();
+    return;
+  }
+
+  state.expandedRunId = runId;
+  renderDetail();
+
+  // Load detail if not cached
+  if (!state.runDetailEvents[runId]) {
+    const container = $("conn-run-detail-" + runId);
+    if (container) container.textContent = "加载中...";
+    await loadRunDetail(connId, runId, null);
+  }
+}
+
+async function loadRunDetail(connId, runId, container) {
+  try {
+    const [detail, eventsPayload] = await Promise.all([
+      apiFetchRunDetail(connId, runId),
+      apiFetchRunEvents(connId, runId),
+    ]);
+
+    const run = detail.run || {};
+    const files = detail.files || [];
+    const events = eventsPayload.events || [];
+
+    state.runDetailEvents[runId] = events;
+    state.runDetailFiles[runId] = files;
+    state.runDetailEventsHasMore[runId] = Boolean(eventsPayload.hasMore);
+    state.runDetailEventsNextBefore[runId] = eventsPayload.nextBefore || "";
+
+    const target = container || $("conn-run-detail-" + runId);
+    if (target) renderRunDetail(target, run, files, events);
+  } catch (err) {
+    const target = container || $("conn-run-detail-" + runId);
+    if (target) target.textContent = err instanceof Error ? err.message : "加载详情失败";
+  }
+}
+
+async function handleLoadMoreEvents(connId, runId) {
+  const before = state.runDetailEventsNextBefore[runId];
+  if (!before) return;
+
+  try {
+    const payload = await apiFetchRunEvents(connId, runId, before);
+    const events = payload.events || [];
+    const existing = state.runDetailEvents[runId] || [];
+    state.runDetailEvents[runId] = [...existing, ...events];
+    state.runDetailEventsHasMore[runId] = Boolean(payload.hasMore);
+    state.runDetailEventsNextBefore[runId] = payload.nextBefore || "";
+
+    // Re-render the detail
+    const runs = state.runsByConnId[connId] || [];
+    const run = runs.find(r => r.runId === runId);
+    if (run) {
+      const container = $("conn-run-detail-" + runId);
+      if (container) renderRunDetail(container, run, state.runDetailFiles[runId] || [], state.runDetailEvents[runId]);
+    }
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : "加载更多事件失败", "error");
+  }
+}
+
+function handleMobileBack() {
+  const listPanel = document.querySelector(".conn-list");
+  const detailPanel = document.querySelector(".conn-detail");
+  if (listPanel) listPanel.classList.remove("is-hidden-mobile");
+  if (detailPanel) detailPanel.classList.add("is-hidden-mobile");
+}
+
+function updateConnInState(updated) {
+  state.conns = state.conns.map(c => c.connId === updated.connId ? { ...c, ...updated } : c);
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────
+
+async function loadData() {
+  try {
+    const [conns, agents, browsers, modelConfig] = await Promise.all([
+      apiFetchConns(),
+      apiFetchAgentCatalog(),
+      apiFetchBrowserCatalog(),
+      apiFetchModelConfig(),
+    ]);
+    state.conns = conns;
+    state.agentCatalog = agents;
+    state.browserCatalog = browsers;
+    state.modelConfig = modelConfig;
+    state.modelProviders = modelConfig?.providers || [];
+    renderAll();
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : "加载数据失败", "error");
+  }
+}
+
+// ── SSE ────────────────────────────────────────────────────────────────────
+
+function connectSSE() {
+  if (state.sseSource) {
+    try { state.sseSource.close(); } catch {}
+  }
+  try {
+    const es = new EventSource("/v1/notifications/stream");
+    es.addEventListener("message", () => {
+      loadData();
+    });
+    es.addEventListener("error", () => {
+      // Auto-reconnect is handled by EventSource
+    });
+    state.sseSource = es;
+  } catch {}
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+
+function init() {
+  applyTheme(readStoredTheme());
+
+  // Search
+  const searchInput = $("conn-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce((e) => {
+      handleSearchInput(e.target.value);
+    }, 200));
+  }
+
+  // Filter tabs
+  document.querySelectorAll("[data-filter]").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll("[data-filter]").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      handleFilterChange(tab.getAttribute("data-filter"));
+    });
+  });
+
+  // New task button
+  const newBtn = $("btn-new-conn");
+  if (newBtn) newBtn.addEventListener("click", () => openEditor("create"));
+
+  // Refresh button
+  const refreshBtn = $("btn-refresh");
+  if (refreshBtn) refreshBtn.addEventListener("click", () => loadData());
+
+  // Bulk read-all / delete
+  const readAllBtn = $("btn-read-all");
+  if (readAllBtn) readAllBtn.addEventListener("click", handleBulkDelete);
+
+  // Theme toggle
+  document.querySelectorAll("[data-action='toggle-theme']").forEach(btn => {
+    btn.addEventListener("click", toggleTheme);
+  });
+
+  // Mobile back
+  const mobileBack = $("mobile-back-btn");
+  if (mobileBack) mobileBack.addEventListener("click", handleMobileBack);
+
+  // Load data
+  loadData().then(() => {
+    // Auto-select first conn
+    if (state.conns.length > 0 && !state.selectedId) {
+      handleConnSelect(state.conns[0].connId);
+    }
+    connectSSE();
+  });
+}
+
+init();
+`;
+}

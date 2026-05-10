@@ -1068,6 +1068,7 @@ export function getPlaygroundThemeStyles(): string {
 			background: #eaf8f0;
 		}
 
+
 		:root[data-theme="light"] .file-chip-badge {
 			background: #e8f0ff;
 			color: #1d4f9a;

@@ -72,14 +72,18 @@ export function getPlaygroundWorkspaceControllerScript(): string {
 				return;
 			}
 			panel.dataset.workspacePanel = mode;
-			const contained = isDesktopWorkspaceMode() && state.workspaceMode === mode;
-			panel.classList.toggle("workspace-contained", contained);
-			if (contained) {
+			const isDesktop = isDesktopWorkspaceMode();
+			const isActive = state.workspaceMode === mode;
+
+			if (isDesktop && isActive) {
+				panel.classList.add("workspace-contained");
 				if (panel.parentElement !== chatStage) {
 					chatStage.appendChild(panel);
 				}
 				return;
 			}
+
+			panel.classList.remove("workspace-contained");
 			restoreWorkspacePanelToBody(panel);
 		}
 
@@ -137,7 +141,7 @@ export function getPlaygroundWorkspaceControllerScript(): string {
 			openPanel();
 		}
 
-		
+
 			const BACK_TO_CHAT_LABEL = "回到会话";
 			const BACK_TO_CHAT_SUBTITLE = "返回对话";
 			const BACK_TO_CHAT_TITLE = "回到会话";
@@ -181,6 +185,7 @@ export function getPlaygroundWorkspaceControllerScript(): string {
 			function handleBackToChatClick() {
 				if (state.workspaceMode !== "chat") {
 					setWorkspaceMode("chat");
+					syncWorkspacePanelPlacement();
 					return;
 				}
 				void startNewConversation().then(function(created) {

@@ -51,6 +51,14 @@ export function getPlaygroundAssetBaseStyles(): string {
 			display: grid;
 			gap: 6px;
 		}
+	.asset-date-group-header {
+			font-size: 10px;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+			color: var(--muted);
+			padding: 10px 2px 2px;
+			margin-top: 4px;
+		}
 
 		.file-download,
 		.asset-pill {

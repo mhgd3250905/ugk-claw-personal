@@ -438,7 +438,20 @@ export function getPlaygroundAssetControllerScript(): string {
 				return;
 			}
 
+			const today = new Date().toISOString().slice(0, 10);
+			const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+			let currentDateGroup = "";
+
 			for (const asset of state.recentAssets) {
+				const assetDate = asset.createdAt ? asset.createdAt.slice(0, 10) : "";
+				if (assetDate && assetDate !== currentDateGroup) {
+					currentDateGroup = assetDate;
+					const header = document.createElement("div");
+					header.className = "asset-date-group-header";
+					header.textContent = assetDate === today ? "今天" : assetDate === yesterday ? "昨天" : assetDate;
+					assetModalList.appendChild(header);
+				}
+
 				const item = document.createElement("div");
 				item.className = "asset-pill" + (selectedAssetRefs.includes(asset.assetId) ? " active" : "");
 				item.innerHTML = "<div><strong></strong><span></span></div><button type=\\"button\\"></button>";
