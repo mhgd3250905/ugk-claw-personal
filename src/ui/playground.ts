@@ -632,6 +632,11 @@ function getPlaygroundScript(): string {
 
 			async function enterAgentFromLanding(agentId) {
 				shell.dataset.home = "false";
+				if (String(agentId || "").trim() === getCurrentAgentId()) {
+					renderAgentSelector();
+					await ensureCurrentConversation({ silent: true });
+					return;
+				}
 				await switchAgent(agentId);
 			}
 
