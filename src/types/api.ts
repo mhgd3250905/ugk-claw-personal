@@ -124,6 +124,8 @@ export interface ConnBody {
 
 export interface ConnListResponseBody {
 	conns: ConnBody[];
+	unreadRunCountsByConnId: Record<string, number>;
+	totalUnreadRuns: number;
 }
 
 export interface ConnDetailResponseBody {
@@ -159,6 +161,7 @@ export interface ConnRunBody {
 	retryOfRunId?: string;
 	createdAt: string;
 	updatedAt: string;
+	readAt?: string;
 }
 
 export interface ConnRunDetailResponseBody {

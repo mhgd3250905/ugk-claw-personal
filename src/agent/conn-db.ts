@@ -118,7 +118,7 @@ export class ConnDatabase {
 		const db = this.open();
 		db.exec(SCHEMA_SQL);
 		this.applyMigrations(db);
-		db.exec("PRAGMA user_version = 8");
+		db.exec("PRAGMA user_version = 9");
 	}
 
 	private async prepareDatabasePath(): Promise<void> {
@@ -192,6 +192,10 @@ export class ConnDatabase {
 		if (userVersion < 8 && !this.hasColumn("conns", "browser_id")) {
 			db.exec("ALTER TABLE conns ADD COLUMN browser_id TEXT");
 		}
+		if (userVersion < 9 && !this.hasColumn("conn_runs", "read_at")) {
+			db.exec("ALTER TABLE conn_runs ADD COLUMN read_at TEXT");
+				db.exec("CREATE INDEX IF NOT EXISTS idx_conn_runs_unread ON conn_runs(conn_id, status, read_at)");
+		}
 		db.exec("CREATE INDEX IF NOT EXISTS idx_conns_deleted_at ON conns(deleted_at, created_at DESC)");
 		if (userVersion < 3) {
 			db.exec(
@@ -214,6 +218,7 @@ export class ConnDatabase {
 				"WHERE run_id IS NOT NULL",
 			].join(" "),
 		);
+			db.exec("CREATE INDEX IF NOT EXISTS idx_conn_runs_unread ON conn_runs(conn_id, status, read_at)");
 	}
 
 	private hasColumn(tableName: string, columnName: string): boolean {
@@ -280,6 +285,7 @@ CREATE TABLE IF NOT EXISTS conn_runs (
 	retry_of_run_id TEXT,
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL,
+		read_at TEXT,
 	FOREIGN KEY (conn_id) REFERENCES conns(conn_id) ON DELETE CASCADE
 );
 

@@ -112,6 +112,9 @@ interface ConnRunStoreLike {
 	getRun(runId: string): Promise<ConnRunRecord | undefined>;
 	listEvents(runId: string, options?: ListConnRunEventsOptions): Promise<ConnRunEventRecord[]>;
 	listFiles(runId: string): Promise<ConnRunFileRecord[]>;
+	markRunRead(runId: string): Promise<boolean>;
+	getUnreadCountsByConn(connIds: readonly string[]): Promise<Record<string, number>>;
+	getTotalUnreadCount(): Promise<number>;
 }
 
 const RUN_EVENT_PAGE_SIZE = 2;
@@ -320,11 +323,18 @@ function validateConnBrowserId(
 export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptions): void {
 	app.get("/v1/conns", async (): Promise<ConnListResponseBody> => {
 		const conns = await options.connStore.list();
-		const latestRunsByConnId = options.connRunStore.listLatestRunsForConns
-			? await options.connRunStore.listLatestRunsForConns(conns.map((conn) => conn.connId))
-			: undefined;
+		const connIds = conns.map((conn) => conn.connId);
+		const [latestRunsByConnId, unreadRunCountsByConnId, totalUnreadRuns] = await Promise.all([
+			options.connRunStore.listLatestRunsForConns
+				? options.connRunStore.listLatestRunsForConns(connIds)
+				: Promise.resolve(undefined),
+			options.connRunStore.getUnreadCountsByConn(connIds),
+			options.connRunStore.getTotalUnreadCount(),
+		]);
 		return {
 			conns: conns.map((conn) => toConnListBody(conn, latestRunsByConnId)),
+			unreadRunCountsByConnId,
+			totalUnreadRuns,
 		};
 	});
 
@@ -363,6 +373,21 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 			),
 		};
 	});
+
+		app.post("/v1/conns/:connId/runs/:runId/read", async (request, reply) => {
+			const { connId, runId } = request.params as { connId: string; runId: string };
+			const run = await options.connRunStore.getRun(runId);
+			if (!run || run.connId !== connId) {
+				return reply.status(404).send();
+			}
+			await options.connRunStore.markRunRead(runId);
+			const updatedRun = await options.connRunStore.getRun(runId);
+			const totalUnread = await options.connRunStore.getTotalUnreadCount();
+			return {
+				run: toConnRunBody(updatedRun ?? run),
+				totalUnreadRuns: totalUnread,
+			};
+		});
 
 	app.get(
 		"/v1/conns/:connId/runs/:runId/output/*",

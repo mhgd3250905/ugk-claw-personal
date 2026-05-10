@@ -24,6 +24,7 @@ export interface ConnRunRecord {
 	retryOfRunId?: string;
 	createdAt: string;
 	updatedAt: string;
+	readAt?: string;
 }
 
 export interface ConnRunEventRecord {
@@ -144,6 +145,7 @@ interface ConnRunRow {
 	retry_of_run_id?: string | null;
 	created_at: string;
 	updated_at: string;
+	read_at?: string | null;
 }
 
 interface ConnRunEventRow {
@@ -589,6 +591,42 @@ export class ConnRunStore {
 		return await this.getRun(input.runId);
 	}
 
+	async markRunRead(runId: string, now: Date = new Date()): Promise<boolean> {
+		const existing = this.options.database.get<Pick<ConnRunRow, "run_id">>(
+			"SELECT run_id FROM conn_runs WHERE run_id = ?",
+			runId,
+		);
+		if (!existing) return false;
+		this.options.database.run(
+			"UPDATE conn_runs SET read_at = ?, updated_at = ? WHERE run_id = ?",
+			now.toISOString(),
+			now.toISOString(),
+			runId,
+		);
+		return true;
+	}
+
+	async getUnreadCountsByConn(connIds: readonly string[]): Promise<Record<string, number>> {
+		if (connIds.length === 0) return {};
+		const placeholders = connIds.map(() => "?").join(", ");
+		const rows = this.options.database.all<{ conn_id: string; cnt: number }>(
+			`SELECT conn_id, COUNT(*) AS cnt FROM conn_runs WHERE conn_id IN (${placeholders}) AND status IN ('succeeded', 'failed') AND read_at IS NULL GROUP BY conn_id`,
+			...connIds,
+		);
+		const result: Record<string, number> = {};
+		for (const row of rows) {
+			result[row.conn_id] = Number(row.cnt);
+		}
+		return result;
+	}
+
+	async getTotalUnreadCount(): Promise<number> {
+		const row = this.options.database.get<{ cnt: number }>(
+			"SELECT COUNT(*) AS cnt FROM conn_runs WHERE status IN ('succeeded', 'failed') AND read_at IS NULL",
+		);
+		return Number.isFinite(row?.cnt) ? Number(row!.cnt) : 0;
+	}
+
 	private updateOwningConnAfterRun(connId: string, runId: string, finishedAt: Date): void {
 		const conn = this.options.database.get<ConnScheduleRow>(
 			"SELECT conn_id, schedule_json, status FROM conns WHERE conn_id = ?",
@@ -668,6 +706,7 @@ function rowToRun(row: ConnRunRow): ConnRunRecord {
 		...(row.retry_of_run_id ? { retryOfRunId: row.retry_of_run_id } : {}),
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
+		...(row.read_at ? { readAt: row.read_at } : {}),
 	};
 }
 

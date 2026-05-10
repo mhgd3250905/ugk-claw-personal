@@ -1,6 +1,7 @@
 import { getStandaloneBaseCss, getStandaloneBaseJs, STANDALONE_FAVICON, renderStandaloneConfirmDialog, renderStandaloneToastContainer, renderStandaloneTopbar } from "./standalone-page-shared.js";
 import { getConnPageCss } from "./conn-page-css.js";
 import { getConnPageJs } from "./conn-page-js.js";
+import { getBrowserMarkdownRendererScript } from "./playground-transcript-renderer.js";
 
 export { getConnPageCss } from "./conn-page-css.js";
 export { getConnPageJs } from "./conn-page-js.js";
@@ -67,6 +68,15 @@ export function renderConnPage(): string {
 					<svg viewBox="0 0 24 24" fill="none" stroke="#FF4D6D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
 				</div>
 			</div>
+		<div class="conn-stat-card conn-stat-card--violet">
+				<div class="conn-stat-card-body">
+					<div class="label">未读结果</div>
+					<div class="value" id="stat-unread">0</div>
+				</div>
+				<div class="conn-stat-icon">
+					<svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+				</div>
+			</div>
 		</section>
 
 		<div class="conn-main">
@@ -101,6 +111,8 @@ export function renderConnPage(): string {
 
 		<script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/zh.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+	<script>${getBrowserMarkdownRendererScript()}</script>
 	<script>${js}</script>
 </body>
 </html>`;

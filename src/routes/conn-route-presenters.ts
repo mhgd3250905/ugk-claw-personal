@@ -34,6 +34,7 @@ export function toConnRunBody(run: ConnRunRecord): ConnRunDetailResponseBody["ru
 		...(run.retryOfRunId ? { retryOfRunId: run.retryOfRunId } : {}),
 		createdAt: run.createdAt,
 		updatedAt: run.updatedAt,
+		...(run.readAt ? { readAt: run.readAt } : {}),
 	};
 }
 

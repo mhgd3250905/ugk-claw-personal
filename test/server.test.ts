@@ -1455,6 +1455,9 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -1588,6 +1591,9 @@ test("POST /v1/conns defaults target to the task inbox when target is omitted", 
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -1676,6 +1682,9 @@ test("POST /v1/conns validates browserId against the browser registry", async ()
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -1734,6 +1743,9 @@ test("POST /v1/conns returns 400 when the once schedule is already in the past",
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -1803,6 +1815,9 @@ test("PATCH /v1/conns/:connId rejects a blank title when the field is provided",
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -1864,6 +1879,9 @@ test("PATCH /v1/conns/:connId trims and forwards editable conn fields", async ()
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -4277,6 +4295,9 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -4313,6 +4334,8 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 				},
 			},
 		],
+		totalUnreadRuns: 0,
+		unreadRunCountsByConnId: {},
 	});
 	assert.deepEqual(latestRunCalls, [["conn-1"]]);
 	assert.deepEqual(runHistoryCalls, []);
@@ -4345,6 +4368,9 @@ test("DELETE /v1/conns/:connId deletes a scheduled conn task", async () => {
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -4391,6 +4417,9 @@ test("POST /v1/conns/bulk-delete deletes multiple scheduled conn tasks", async (
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -4461,6 +4490,9 @@ test("POST /v1/conns/:connId/run enqueues a background run without invoking the 
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 		backgroundDataDir: "E:/AII/ugk-pi/.data/agent/background",
 	});
@@ -4539,6 +4571,9 @@ test("GET /v1/conns/:connId/runs returns background run history for the conn", a
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -4643,6 +4678,9 @@ test("GET /v1/conns/:connId/runs/:runId returns run detail with output files", a
 							},
 						]
 					: [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -4753,6 +4791,9 @@ test("GET /v1/conns/:connId/runs/:runId/output/* serves indexed conn output file
 					createdAt: "2026-04-21T09:00:30.000Z",
 				},
 			],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -4854,6 +4895,9 @@ test("GET /v1/conns/:connId/output/latest/* serves the newest run output matchin
 					createdAt: "2026-04-21T10:00:30.000Z",
 				},
 			],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -4911,6 +4955,9 @@ test("GET /v1/conns/:connId/public/* serves only conn public shared files", asyn
 			getRun: async () => undefined,
 			listEvents: async () => [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 
@@ -5017,6 +5064,9 @@ test("GET /v1/conns/:connId/runs/:runId/events returns ordered run events", asyn
 						]
 					: [],
 			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
 		} as never,
 	});
 

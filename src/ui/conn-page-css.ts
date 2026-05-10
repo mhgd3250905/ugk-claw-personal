@@ -80,7 +80,7 @@ export function getConnPageCss(): string {
 
     .conn-stats {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 16px;
       padding: 20px 24px;
     }
@@ -155,12 +155,14 @@ export function getConnPageCss(): string {
 
     .conn-stat-card--red .conn-stat-icon { background: var(--danger-soft); }
     .conn-stat-card--red .value { color: var(--danger); }
+    .conn-stat-card--violet .conn-stat-icon { background: rgba(139, 92, 246, 0.12); }
+    .conn-stat-card--violet .value { color: #8B5CF6; }
 
     /* ── Main split ── */
 
     .conn-main {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       min-height: 0;
       overflow: hidden;
       padding: 0 24px 24px;
@@ -172,7 +174,7 @@ export function getConnPageCss(): string {
     }
 
     .conn-detail {
-      grid-column: 2 / 5;
+      grid-column: 2 / 6;
     }
 
     /* ── Left sidebar ── */
@@ -262,7 +264,7 @@ export function getConnPageCss(): string {
       padding: 14px 14px 14px 16px;
       border: 1px solid transparent;
       border-radius: var(--radius-card-sm);
-      background: transparent;
+      background: #161E35;
       text-align: left;
       cursor: pointer;
       margin-bottom: 4px;
@@ -271,8 +273,7 @@ export function getConnPageCss(): string {
     }
 
     .conn-list-item:hover {
-      background: var(--surface);
-      border-color: var(--border);
+      background: #1A2440;
     }
 
     .conn-list-item.is-selected {
@@ -325,6 +326,24 @@ export function getConnPageCss(): string {
     .conn-list-item-badge--paused { background: var(--warning-soft); color: var(--warning); }
     .conn-list-item-badge--completed { background: var(--success-soft); color: var(--success); }
     .conn-list-item-badge--unknown { background: rgba(100,116,139,0.15); color: var(--muted); }
+    /* Unread badge on list items */
+    .conn-list-item-unread {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 999px;
+      white-space: nowrap;
+      background: var(--danger);
+      color: #fff;
+      justify-content: center;
+    }
+    .conn-list-item.is-selected .conn-list-item-unread {
+      background: rgba(255,77,109,0.7);
+    }
 
     .conn-list-item-schedule {
       font-size: 11px;
@@ -1005,6 +1024,16 @@ export function getConnPageCss(): string {
     .conn-run-tl-dot--running { border-color: var(--primary); background: var(--primary); animation: conn-pulse 2s ease-in-out infinite; }
     .conn-run-tl-dot--pending { border-color: var(--muted); }
 
+    /* Unread timeline items: red dot */
+    .conn-run-tl-item.is-unread .conn-run-tl-dot {
+      border-color: var(--danger);
+      background: var(--danger);
+      z-index: 2;
+    }
+    .conn-run-tl-item.is-unread .conn-run-tl-card {
+      border-color: rgba(255,77,109,0.4);
+    }
+
     .conn-run-tl-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -1113,19 +1142,63 @@ export function getConnPageCss(): string {
     /* ── Run result ── */
 
     .conn-run-result {
-      padding: 14px 16px;
-      border-radius: 8px;
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      font-family: var(--font-mono);
       font-size: 12px;
       line-height: 1.7;
-      white-space: pre-wrap;
       word-break: break-word;
       max-height: 300px;
       overflow-y: auto;
       color: var(--fg-secondary);
     }
+    .conn-run-result > :first-child { margin-top: 0; }
+    .conn-run-result > :last-child { margin-bottom: 0; }
+    .conn-run-result h1, .conn-run-result h2, .conn-run-result h3,
+    .conn-run-result h4, .conn-run-result h5, .conn-run-result h6 {
+      color: var(--fg);
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      margin: 12px 0 6px;
+    }
+    .conn-run-result h1 { font-size: 18px; }
+    .conn-run-result h2 { font-size: 15px; }
+    .conn-run-result h3 { font-size: 13px; }
+    .conn-run-result h4, .conn-run-result h5, .conn-run-result h6 { font-size: 12px; }
+    .conn-run-result p { margin: 0 0 8px; }
+    .conn-run-result ul, .conn-run-result ol { padding-left: 18px; margin: 0 0 8px; }
+    .conn-run-result li + li { margin-top: 4px; }
+    .conn-run-result strong { color: var(--fg); font-weight: 600; }
+    .conn-run-result code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(201,210,255,0.08);
+    }
+    .conn-run-result pre {
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: rgba(4,8,18,0.7);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      margin: 0 0 8px;
+    }
+    .conn-run-result pre code { padding: 0; background: none; }
+    .conn-run-result blockquote {
+      margin: 0 0 8px;
+      padding: 8px 12px;
+      border-left: 3px solid var(--primary);
+      background: rgba(201,210,255,0.04);
+      color: var(--fg-secondary);
+    }
+    .conn-run-result table { width: 100%; border-collapse: collapse; margin: 0 0 8px; }
+    .conn-run-result th, .conn-run-result td {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      text-align: left;
+      font-size: 11px;
+    }
+    .conn-run-result th { background: rgba(201,210,255,0.06); font-weight: 600; color: var(--fg); }
+    .conn-run-result a { color: var(--primary); text-decoration: none; }
+    .conn-run-result a:hover { text-decoration: underline; }
 
     /* ── Run files ── */
 

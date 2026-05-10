@@ -84,23 +84,24 @@ function getInboxPageCss(): string {
 		.ib-stats {
 			display: grid;
 			grid-template-columns: repeat(5, 1fr);
-			gap: 14px;
+			gap: 16px;
 			padding: 20px 24px;
 		}
 		.ib-stat-card {
-			padding: 18px 20px;
+			padding: 20px;
 			border-radius: var(--radius-card);
 			background: var(--surface);
 			border: 1px solid var(--border);
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			gap: 14px;
-			min-height: 96px;
-			transition: border-color 0.2s;
+			gap: 16px;
+			min-height: 104px;
+			transition: border-color 0.2s, box-shadow 0.2s;
 		}
 		.ib-stat-card:hover {
 			border-color: var(--border-hover);
+			box-shadow: 0 0 20px rgba(99, 102, 241, 0.06);
 		}
 		.ib-stat-body { flex: 1; min-width: 0; }
 		.ib-stat-label {
@@ -121,15 +122,15 @@ function getInboxPageCss(): string {
 			margin-top: 4px;
 		}
 		.ib-stat-icon {
-			width: 42px;
-			height: 42px;
+			width: 44px;
+			height: 44px;
 			border-radius: 8px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			flex-shrink: 0;
 		}
-		.ib-stat-icon svg { width: 20px; height: 20px; }
+		.ib-stat-icon svg { width: 22px; height: 22px; }
 
 		.ib-stat-card--primary .ib-stat-icon { background: var(--primary-soft); }
 		.ib-stat-card--primary .ib-stat-value { color: var(--primary); }
@@ -145,7 +146,7 @@ function getInboxPageCss(): string {
 		/* ── Main split ── */
 		.ib-main {
 			display: grid;
-			grid-template-columns: 380px minmax(0, 1fr);
+			grid-template-columns: repeat(5, 1fr);
 			min-height: 0;
 			overflow: hidden;
 			padding: 0 24px 24px;
@@ -160,6 +161,7 @@ function getInboxPageCss(): string {
 			border: 1px solid var(--border);
 			border-radius: var(--radius-card);
 			overflow: hidden;
+			grid-column: 1 / 3;
 		}
 		.ib-list-toolbar {
 			padding: 16px 16px 0;
@@ -195,34 +197,31 @@ function getInboxPageCss(): string {
 			overflow-x: auto;
 			scrollbar-width: none;
 		}
-		.ib-filter-tabs::-webkit-scrollbar { display: none; }
-		.ib-filter-tab {
-			height: 30px;
-			padding: 0 14px;
-			border-radius: 999px;
-			border: 1px solid var(--border);
-			background: transparent;
-			color: var(--muted);
-			font-size: 12px;
-			font-family: var(--font-sans);
-			cursor: pointer;
-			white-space: nowrap;
-			flex-shrink: 0;
-			transition: all 0.15s;
-			display: inline-flex;
-			align-items: center;
+			.ib-filter-tab {
+				padding: 6px 14px;
+				border-radius: 999px;
+				background: transparent;
+				color: var(--muted);
+				font-family: var(--font-sans);
+				font-size: 12px;
+				font-weight: 600;
+				border: none;
+				cursor: pointer;
+				transition: all 0.15s;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+			}
 			gap: 6px;
 		}
 		.ib-filter-tab:hover {
-			background: rgba(99,102,241,0.08);
+			background: var(--surface);
 			color: var(--fg-secondary);
 		}
-		.ib-filter-tab.active {
-			border-color: var(--primary);
-			background: var(--primary-soft);
-			color: var(--primary-hover);
-			font-weight: 600;
-		}
+			.ib-filter-tab.active {
+				background: var(--primary);
+				color: #fff;
+			}
 		.ib-filter-count {
 			font-size: 10px;
 			padding: 0 5px;
@@ -232,7 +231,8 @@ function getInboxPageCss(): string {
 			font-weight: 600;
 		}
 		.ib-filter-tab.active .ib-filter-count {
-			background: rgba(99,102,241,0.3);
+			background: rgba(255, 255, 255, 0.25);
+			color: #fff;
 		}
 
 		/* ── Sort toolbar ── */
@@ -315,10 +315,11 @@ function getInboxPageCss(): string {
 			border-color: var(--border);
 		}
 		.ib-msg-item.selected {
-			background: var(--surface-elevated);
+			background: var(--primary-soft);
 			border-color: var(--primary);
 			border-left: 3px solid var(--primary);
-			box-shadow: 0 0 0 1px rgba(99,102,241,0.1), 0 4px 16px rgba(0,0,0,0.15);
+			padding-left: 13px;
+			box-shadow: 0 0 16px rgba(99, 102, 241, 0.08);
 		}
 		.ib-msg-dot {
 			width: 8px;
@@ -405,6 +406,7 @@ function getInboxPageCss(): string {
 			gap: 16px;
 			align-content: start;
 			padding-right: 4px;
+			grid-column: 3 / 6;
 		}
 
 		/* Detail header */
@@ -540,28 +542,46 @@ function getInboxPageCss(): string {
 			font-size: 12px;
 		}
 
-		/* Content block */
+		/* Content block - markdown prose */
 		.ib-content-block {
-			background: var(--bg-input);
-			border: 1px solid var(--border);
-			border-radius: 8px;
-			padding: 16px;
-			max-height: 400px;
-			overflow-y: auto;
-			font-size: 13px;
-			line-height: 1.7;
+			font-size: 13.5px;
+			line-height: 1.75;
 			color: var(--fg-secondary);
-			white-space: pre-wrap;
 			word-break: break-word;
 			position: relative;
 		}
+		.ib-content-block p { margin: 0 0 10px; }
+		.ib-content-block p:last-child { margin-bottom: 0; }
+		.ib-content-block h1, .ib-content-block h2, .ib-content-block h3,
+		.ib-content-block h4, .ib-content-block h5, .ib-content-block h6 {
+			color: var(--fg); font-weight: 600; margin: 16px 0 8px; line-height: 1.3;
+		}
+		.ib-content-block h1 { font-size: 18px; }
+		.ib-content-block h2 { font-size: 16px; }
+		.ib-content-block h3 { font-size: 15px; }
+		.ib-content-block h4, .ib-content-block h5, .ib-content-block h6 { font-size: 14px; }
+		.ib-content-block ul, .ib-content-block ol { margin: 8px 0; padding-left: 22px; }
+		.ib-content-block li { margin: 3px 0; }
+		.ib-content-block code {
+			font-family: var(--font-mono); font-size: 12px;
+			background: var(--surface); border: 1px solid var(--border);
+			border-radius: 4px; padding: 1px 5px;
+		}
+		.ib-content-block pre {
+			background: var(--surface); border: 1px solid var(--border);
+			border-radius: 8px; padding: 12px 14px;
+			overflow-x: auto; margin: 10px 0;
+		}
+		.ib-content-block pre code { background: none; border: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+		.ib-content-block blockquote { border-left: 3px solid var(--primary); margin: 10px 0; padding: 6px 14px; color: var(--muted); }
+		.ib-content-block a { color: var(--primary); text-decoration: none; }
+		.ib-content-block a:hover { text-decoration: underline; }
+		.ib-content-block strong { color: var(--fg); font-weight: 600; }
+		.ib-content-block hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 		.ib-copy-btn {
-			position: absolute;
-			top: 10px;
-			right: 10px;
-			width: 30px;
-			height: 30px;
-			border-radius: 8px;
+			width: 28px;
+			height: 28px;
+			border-radius: 6px;
 			border: 1px solid var(--border);
 			background: var(--surface);
 			color: var(--muted);
@@ -570,16 +590,32 @@ function getInboxPageCss(): string {
 			align-items: center;
 			justify-content: center;
 			transition: all 0.15s;
-			z-index: 1;
+			margin-left: auto;
+			flex-shrink: 0;
 		}
 		.ib-copy-btn:hover { color: var(--primary); border-color: var(--primary); }
 		.ib-copy-btn svg { width: 14px; height: 14px; }
+
+		/* Copyable ID */
+		.ib-id-copyable {
+			font-family: var(--font-mono);
+			font-size: 12px;
+			color: var(--muted);
+			background: var(--surface);
+			padding: 3px 8px;
+			border-radius: 6px;
+			cursor: pointer;
+			user-select: none;
+			transition: color 0.15s;
+		}
+		.ib-id-copyable:hover { color: var(--primary); }
+		.ib-id-copyable.is-copied { color: var(--success); }
 
 		/* Attachments */
 		.ib-attach-item {
 			display: flex;
 			align-items: center;
-			gap: 14px;
+			gap: 16px;
 			padding: 14px 16px;
 			border-radius: 8px;
 			border: 1px solid var(--border);
@@ -700,15 +736,15 @@ function getInboxPageCss(): string {
 
 		@media (max-width: 1024px) {
 			.ib-stats { grid-template-columns: repeat(3, 1fr); }
-			.ib-main { grid-template-columns: 320px minmax(0, 1fr); }
+			.ib-main { grid-template-columns: repeat(5, 1fr); }
 		}
 
 		@media (max-width: 768px) {
 			.ib-stats { grid-template-columns: repeat(2, 1fr); padding: 12px; gap: 10px; }
 			.ib-main { grid-template-columns: minmax(0, 1fr); padding: 0 12px 12px; }
-			.ib-list { display: none; }
+			.ib-list { display: none; grid-column: auto; }
 			.ib-list.mobile-visible { display: grid; }
-			.ib-detail { display: none; }
+			.ib-detail { display: none; grid-column: auto; }
 			.ib-detail.mobile-visible { display: grid; }
 			.ib-mobile-back { display: inline-flex !important; }
 			.ib-detail-header { flex-direction: column; gap: 14px; }
@@ -753,6 +789,67 @@ function getInboxPageJs(): string {
 			sortOrder: "desc",
 		};
 
+
+
+
+		/* ── Lightweight markdown renderer ── */
+		function renderMd(src) {
+			if (!src) return "";
+			var BQ = String.fromCharCode(96);
+			var NL = String.fromCharCode(10);
+			var ST = String.fromCharCode(42);
+			var escStar = String.fromCharCode(92) + ST;  // backslash + star = "\\*" in regex
+			var s = String(src)
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;");
+
+			// Code blocks (triple backtick)
+			var reCB = new RegExp(BQ+BQ+BQ+"(["+NL+"]*?)"+BQ+BQ+BQ, "g");
+			s = s.replace(reCB, function(_, code) {
+				return "<pre><code>" + code + "<"+"/code><"+"/pre>";
+			});
+
+			// Inline code
+			var reIC = new RegExp(BQ+"([^"+NL+"]+?)"+BQ, "g");
+			s = s.replace(reIC, "<code>$1<"+"/code>");
+
+			// Headers
+			s = s.replace(/^### (.+)$/gm, "<h3>$1<"+"/h3>");
+			s = s.replace(/^## (.+)$/gm, "<h2>$1<"+"/h2>");
+			s = s.replace(/^# (.+)$/gm, "<h1>$1<"+"/h1>");
+
+			// Bold
+			var reB = new RegExp(escStar+escStar+"(.+?)"+escStar+escStar, "g");
+			s = s.replace(reB, "<strong>$1<"+"/strong>");
+
+			// Italic
+			var reI = new RegExp(escStar+"(.+?)"+escStar, "g");
+			s = s.replace(reI, "<em>$1<"+"/em>");
+
+			// List items
+			var reLI = new RegExp("^"+escStar+" (.+)$", "gm");
+			s = s.replace(reLI, "<li>$1<"+"/li>");
+
+			// Wrap consecutive <li> in <ul>
+			var reUL = new RegExp("(<li>.*<"+"/li>"+NL+"?)+", "g");
+			s = s.replace(reUL, "<ul>$&<"+"/ul>");
+
+			// Blockquote
+			s = s.replace(/^&gt; (.+)$/gm, "<blockquote>$1<"+"/blockquote>");
+
+			// Paragraphs
+			var reNL = new RegExp(NL+NL+"+", "g");
+			s = s.replace(reNL, "<"+"/p><p>");
+			s = "<p>" + s + "<"+"/p>";
+
+			// Clean up empty <p> wrappers around block elements
+			s = s.replace(new RegExp("<p><"+"/(h[1-6]|pre|ul|ol|blockquote)", "g"), "<$1");
+			s = s.replace(new RegExp("<"+"/(h[1-6]|pre|ul|ol|blockquote)><"+"/p>", "g"), "<"+"/$1>");
+			s = s.replace(new RegExp("<p><"+"/p>", "g"), "");
+
+			return s;
+		}
 		/* ── API ── */
 		async function apiFetchActivity(params) {
 			const query = new URLSearchParams();
@@ -1015,7 +1112,7 @@ function getInboxPageJs(): string {
 			html += '<span class="ib-status-badge ' + (isUnread ? 'ib-status-badge--unread' : 'ib-status-badge--read') + '">' + (isUnread ? '未读' : '已读') + '</span>';
 			html += '<span class="ib-msg-badge ' + badgeCls + '">' + escapeHtml(sourceLabel) + '</span>';
 			html += '<span class="ib-detail-sub-item"><svg viewBox="0 0 24 24" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + formatRelativeTime(item.createdAt) + '</span>';
-			html += '<span class="ib-detail-sub-item"><svg viewBox="0 0 24 24" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>' + (item.activityId || "").slice(0, 12) + '</span>';
+html += '<span class="ib-id-copyable" data-copy-id="' + escapeHtml(item.activityId || '') + '" title="点击复制 ID">' + (item.activityId || "").slice(0, 12) + '…</span>';
 			html += '</div></div>';
 			html += '<div class="ib-detail-actions">';
 			if (isUnread) {
@@ -1037,7 +1134,7 @@ function getInboxPageJs(): string {
 			html += '<div class="ib-source-grid">';
 			html += makeInfoField("消息来源", sourceLabel, false);
 			html += makeInfoField("创建时间", formatTimestamp(item.createdAt), false);
-			html += makeInfoField("消息 ID", item.activityId || "-", true);
+html += '<div class="ib-source-field"><div class="ib-source-label">消息 ID</div><span class="ib-id-copyable" data-copy-id="' + escapeHtml(item.activityId || '') + '" title="点击复制 ID">' + escapeHtml(item.activityId || '-') + '</span></div>';
 			html += makeInfoField("状态", isUnread ? "未读" : "已读", false);
 			html += '</div></div></div>';
 
@@ -1049,11 +1146,11 @@ function getInboxPageJs(): string {
 				html += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
 				html += '</div>';
 				html += '<span class="ib-detail-card-title">消息内容</span>';
+				html += '<button class="ib-copy-btn" type="button" data-copy-ib-content title="复制"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>';
 				html += '</div>';
 				html += '<div class="ib-detail-card-body">';
 				html += '<div class="ib-content-block">';
-				html += '<button class="ib-copy-btn" type="button" data-copy-ib-content title="复制"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>';
-				html += escapeHtml(item.text);
+				html += renderMd(item.text);
 				html += '</div></div></div>';
 			}
 
@@ -1097,6 +1194,15 @@ function getInboxPageJs(): string {
 				});
 			}
 			var contentCopyBtn = body.querySelector('[data-copy-ib-content]');
+			body.querySelectorAll('.ib-id-copyable').forEach(function(el) {
+				el.addEventListener('click', function() {
+					var id = el.getAttribute('data-copy-id');
+					if (id) navigator.clipboard.writeText(id).then(function() {
+						el.classList.add('is-copied');
+						setTimeout(function() { el.classList.remove('is-copied'); }, 1200);
+					});
+				});
+			});
 			if (contentCopyBtn) {
 				contentCopyBtn.addEventListener("click", function() {
 					copyToClipboard(item.text || "");
@@ -1260,7 +1366,7 @@ export function renderInboxPage(): string {
 <body>
 	<div id="app">
 		${renderStandaloneTopbar("消息中心", "/playground")}
-		<button id="btn-read-all" class="sp-topbar-btn" type="button" style="position:absolute;right:120px;top:11px">
+		<button id="btn-read-all" class="sp-topbar-btn" type="button" style="position:absolute;right:160px;top:11px">
 			<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
 			全部已读
 		</button>

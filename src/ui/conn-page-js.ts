@@ -29,6 +29,8 @@ const state = {
   runDetailEventsNextBefore: {},
   runDetailFiles: {},
   sseSource: null,
+  unreadCountsByConnId: {},
+  totalUnreadRuns: 0,
 };
 
 // ── Helper: Element refs ───────────────────────────────────────────────────
@@ -43,7 +45,11 @@ function copyToClipboard(text) {
 
 async function apiFetchConns() {
   const data = await fetchJson("/v1/conns");
-  return data.conns || [];
+  return {
+    conns: data.conns || [],
+    unreadCountsByConnId: data.unreadRunCountsByConnId || {},
+    totalUnreadRuns: data.totalUnreadRuns || 0,
+  };
 }
 
 async function apiFetchRuns(connId) {
@@ -61,6 +67,16 @@ async function apiFetchRunEvents(connId, runId, before) {
   return await fetchJson(
     "/v1/conns/" + encodeURIComponent(connId) + "/runs/" + encodeURIComponent(runId) + "/events?" + params.toString()
   );
+}
+
+async function apiMarkRunRead(connId, runId) {
+  const resp = await fetch("/v1/conns/" + encodeURIComponent(connId) + "/runs/" + encodeURIComponent(runId) + "/read", {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || "标记已读失败");
+  return data;
 }
 
 async function apiCreateConn(payload) {
@@ -248,6 +264,8 @@ function renderStats() {
   if (elActive) elActive.textContent = active;
   if (elPaused) elPaused.textContent = paused;
   if (elFailed) elFailed.textContent = failed;
+  const elUnread = $("stat-unread");
+  if (elUnread) elUnread.textContent = state.totalUnreadRuns || 0;
 }
 
 function getFilteredConns() {
@@ -303,7 +321,9 @@ function renderList() {
     const schedSummary = describeSchedule(conn.schedule);
     const metaText = (conn.profileId || "main") + (conn.modelProvider ? (" · " + conn.modelProvider) : "");
 
-    item.innerHTML = '<div class="conn-list-item-row"><span class="conn-list-item-dot ' + dotClass + '"></span><span class="conn-list-item-title">' + escapeHtml(conn.title || conn.connId) + '</span><span class="conn-list-item-badge ' + badgeClass + '">' + statusLabel + '</span></div><div class="conn-list-item-schedule">' + escapeHtml(schedSummary) + '</div><div class="conn-list-item-meta">' + escapeHtml(metaText) + '</div>';
+    var unreadCount = state.unreadCountsByConnId[conn.connId] || 0;
+    var unreadHtml = unreadCount > 0 ? '<div class="conn-list-item-unread">' + (unreadCount > 99 ? "99+" : String(unreadCount)) + '条未读</div>' : '';
+    item.innerHTML = '<div class="conn-list-item-row"><span class="conn-list-item-dot ' + dotClass + '"></span><span class="conn-list-item-title">' + escapeHtml(conn.title || conn.connId) + '</span><span class="conn-list-item-badge ' + badgeClass + '">' + statusLabel + '</span></div><div class="conn-list-item-schedule">' + escapeHtml(schedSummary) + '</div><div class="conn-list-item-meta">' + escapeHtml(metaText) + '</div>' + unreadHtml;
 
     // Show editor action buttons on the selected item when editing
     if (state.editorOpen && state.selectedId === conn.connId) {
@@ -491,7 +511,8 @@ function renderRunHistory(conn) {
     const duration = run.startedAt && run.finishedAt ? formatDuration(run.startedAt, run.finishedAt) : "";
 
     const item = document.createElement("div");
-    item.className = "conn-run-tl-item";
+    var isUnread = (run.status === "succeeded" || run.status === "failed") && !run.readAt;
+    item.className = "conn-run-tl-item" + (isUnread ? " is-unread" : "");
     item.innerHTML = '<div class="conn-run-tl-dot ' + dotClass + '"></div><div class="conn-run-tl-card' + (isExpanded ? ' is-expanded' : '') + '"><div class="conn-run-tl-header"><span class="conn-run-tl-time">' + escapeHtml(time) + '</span><span class="conn-badge conn-badge--' + (run.status || 'unknown') + '">' + runStatusLabel + '</span>' + (duration ? '<span class="conn-run-tl-duration">' + escapeHtml(duration) + '</span>' : '') + '<span class="conn-run-tl-summary">' + escapeHtml(summary) + '</span></div></div>';
 
     const card = item.querySelector(".conn-run-tl-card");
@@ -508,6 +529,20 @@ function renderRunHistory(conn) {
         state.runDetailFiles[run.runId] = f;
         renderRunDetail(detailDiv, r, f, state.runDetailEvents[run.runId] || []);
       });
+
+        // Mark as read when expanded
+        if (isUnread) {
+          apiMarkRunRead(conn.connId, run.runId).then(function(result) {
+            state.totalUnreadRuns = result.totalUnreadRuns || 0;
+            var runs = state.runsByConnId[conn.connId] || [];
+            var idx = runs.findIndex(function(r) { return r.runId === run.runId; });
+            if (idx >= 0) runs[idx].readAt = new Date().toISOString();
+            var count = state.unreadCountsByConnId[conn.connId] || 0;
+            if (count > 0) state.unreadCountsByConnId[conn.connId] = count - 1;
+            renderStats();
+            renderList();
+          }).catch(function() {});
+        }
     }
 
     card.querySelector(".conn-run-tl-header").addEventListener("click", () => {
@@ -581,7 +616,7 @@ function renderRunDetail(container, run, files, events) {
   if (resultText) {
     const result = document.createElement("div");
     result.className = "conn-run-result";
-    result.textContent = resultText;
+    result.innerHTML = typeof renderMessageMarkdown === "function" ? renderMessageMarkdown(resultText) : escapeHtml(resultText);
     container.appendChild(result);
   }
 
@@ -675,6 +710,7 @@ function openEditor(mode, conn) {
   state.editorMode = mode || "create";
   state.editorConnId = conn ? conn.connId : null;
   state.editorSaving = false;
+  if (mode === "create") state.selectedId = null;
   renderList();
   renderDetail();
 }
@@ -1478,7 +1514,9 @@ async function loadData() {
       apiFetchBrowserCatalog(),
       apiFetchModelConfig(),
     ]);
-    state.conns = conns;
+    state.conns = conns.conns || conns;
+    state.unreadCountsByConnId = conns.unreadCountsByConnId || {};
+    state.totalUnreadRuns = conns.totalUnreadRuns || 0;
     state.agentCatalog = agents;
     state.browserCatalog = browsers;
     state.modelConfig = modelConfig;
