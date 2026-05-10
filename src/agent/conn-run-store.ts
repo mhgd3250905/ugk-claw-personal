@@ -394,6 +394,9 @@ export class ConnRunStore {
 	}
 
 	async appendEvent(input: AppendConnRunEventInput): Promise<ConnRunEventRecord | undefined> {
+		if (isNoisyRunEvent(input.eventType, input.event)) {
+			return undefined;
+		}
 		const createdAt = (input.createdAt ?? new Date()).toISOString();
 		try {
 			this.options.database.exec("BEGIN IMMEDIATE");
@@ -708,6 +711,20 @@ function serializeRunEvent(event: Record<string, unknown>): string {
 		originalJsonChars: json.length,
 		preview: json.slice(0, MAX_EVENT_STRING_CHARS),
 	});
+}
+
+function isNoisyRunEvent(eventType: string, event: Record<string, unknown>): boolean {
+	if (eventType === "text_delta") {
+		return true;
+	}
+	if (eventType !== "message_update") {
+		return false;
+	}
+	const assistantMessageEvent = event.assistantMessageEvent;
+	if (!assistantMessageEvent || typeof assistantMessageEvent !== "object") {
+		return false;
+	}
+	return (assistantMessageEvent as { type?: unknown }).type === "text_delta";
 }
 
 function sanitizeRunEventForStorage(event: Record<string, unknown>): Record<string, unknown> {

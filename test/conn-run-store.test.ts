@@ -570,6 +570,58 @@ test("ConnRunStore appends ordered run events and output file records", async ()
 	database.close();
 });
 
+test("ConnRunStore skips pure text delta message_update events", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "chatty digest",
+		prompt: "summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-text-delta",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	const skipped = await runStore.appendEvent({
+		runId: run.runId,
+		eventType: "message_update",
+		event: {
+			type: "message_update",
+			assistantMessageEvent: {
+				type: "text_delta",
+				delta: "hello",
+			},
+		},
+		createdAt: new Date("2026-04-21T10:01:00.000Z"),
+	});
+	const toolUpdate = await runStore.appendEvent({
+		runId: run.runId,
+		eventType: "tool_execution_update",
+		event: {
+			type: "tool_execution_update",
+			toolCallId: "call-1",
+			partialResult: "started",
+		},
+		createdAt: new Date("2026-04-21T10:01:01.000Z"),
+	});
+
+	assert.equal(skipped, undefined);
+	assert.ok(toolUpdate);
+	assert.deepEqual(await runStore.listEvents(run.runId), [toolUpdate]);
+
+	database.close();
+});
+
 test("ConnRunStore truncates oversized run events before storing them", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const conn = await connStore.create({

@@ -12,6 +12,49 @@
 
 ## 2026-05-10
 
+### 本地 Docker 与运行态防踩坑文档
+- 日期：2026-05-10
+- 主题：新增本地 Docker 启动、重建、端口、SQLite、技能加载和运行态目录边界的专题防踩坑文档，并在 `AGENTS.md` 建立索引入口。
+- 影响范围：
+  - 后续 coding agent 在本地重启或重建 `ugk-pi` 前，应先区分本地 bind mount、生产镜像、端口 3000、orphan nginx 和 worker 重启范围。
+  - 文档明确容器 `healthy` 不等于宿主入口可用，要求验证 `/healthz`、`/v1/debug/runtime`、`/v1/debug/skills`；新增技能要以 debug skills 为准。
+  - 文档补充 conn SQLite、运行态目录、浏览器绑定、模型源 key、本地 / 生产命令边界，避免把生产 shared、Chrome profile、`.data` 或 key 文件卷进本地调试。
+  - `docs/handoff-current.md` 和 `docs/traceability-map.md` 同步加入本轮增量更新接手口径。
+- 对应入口：`docs/docker-local-ops.md`、`AGENTS.md`、`docs/handoff-current.md`、`docs/traceability-map.md`
+
+### Conn 维护系统技能
+- 日期：2026-05-10
+- 主题：新增 `conn-maintenance` 系统技能，让运行时 Agent 能按安全流程协助诊断 conn 变慢、预估旧事件日志清理量，并在用户确认后引导执行维护。
+- 影响范围：
+  - 新技能要求先读取 `/v1/debug/runtime`、`/v1/conns`、conn run 详情等事实源，再执行 `scripts/maintain-conn-db.mjs --dry-run --json` 预估影响。
+  - 正式清理前必须向用户汇报保留策略、预计清理 run 数和事件行数，并等待确认；技能明确禁止删除 `conn.sqlite`、`conn_runs`、`conn_run_files` 或手工改表。
+  - 技能内置阿里云、腾讯云和本地 Docker 的维护窗口命令口径，强调停 `ugk-pi` / `ugk-pi-conn-worker` 后先备份 shared conn 目录，再清理；维护脚本默认执行 `VACUUM` / WAL checkpoint，完成后跑 verify。
+- 对应入口：`.pi/skills/conn-maintenance/SKILL.md`、`test/conn-maintenance-skill.test.ts`
+
+### Conn SQLite WAL 降级兼容补强
+- 日期：2026-05-10
+- 主题：修复本地 Docker / Windows bind mount 上 `PRAGMA journal_mode = WAL` 抛 `SQLITE_CANTOPEN` 时 app 启动循环的问题。
+- 影响范围：`ConnDatabase` 的 WAL 降级判定除 `SQLITE_IOERR` 系列外，也把 `errcode=14` 视为可降级的 WAL 不可用场景，回退到 DELETE journal mode；只影响 WAL 初始化失败路径，不改变正常 Linux / named volume 下的 WAL 默认行为。
+- 对应入口：`src/agent/conn-db.ts`、`test/conn-db.test.ts`
+
+### CDP 代理默认拒绝无 scope 浏览器变更
+- 日期：2026-05-10
+- 主题：修复后台脚本直接调用 `127.0.0.1:3456` 时可能绕过 Agent / Conn 浏览器绑定的问题。
+- 影响范围：
+  - `cdp-proxy` 默认要求 `/new`、`/navigate` 和 `/session/*` 这类会创建、复用、导航或清理浏览器 target 的请求必须带 `metaAgentScope`。
+  - 旧脚本如果裸调 `http://127.0.0.1:3456/session/navigate` 或 `/new`，现在会返回 `400 missing_agent_scope`，由运行中的 agent 根据错误修正脚本参数，而不是静默落到长驻代理进程的旧浏览器环境。
+  - 保留 `UGK_ALLOW_UNSCOPED_BROWSER_PROXY=true` 作为显式 legacy 调试开关；正常 Agent / Conn run 不应开启。
+- 对应入口：`runtime/skills-user/web-access/scripts/cdp-proxy.mjs`、`test/web-access-proxy.test.ts`
+
+### Conn 事件日志瘦身与维护脚本
+- 日期：2026-05-10
+- 主题：降低后台 conn 任务事件库膨胀风险，并提供生产 SQLite 事件维护入口。
+- 影响范围：
+  - `ConnRunStore.appendEvent()` 不再持久化纯文本增量类 `message_update/text_delta` 事件；最终输出仍由 `conn_runs.result_text/result_summary` 保存，工具调用、生命周期和终态事件继续保留。
+  - 新增 `scripts/maintain-conn-db.mjs`，可按 `--keep-days` 清理旧 run 的 `conn_run_events`，并用 `--keep-latest-runs-per-conn` 为每个 conn 保底保留最近若干 run 的详细事件；支持 `--dry-run`、`--json`、`--no-vacuum`。
+  - 生产建议先 dry-run 看预计删除事件数，再停 `ugk-pi` / `ugk-pi-conn-worker`，用一次性容器执行清理和 `VACUUM`，最后重启并 verify。
+- 对应入口：`src/agent/conn-run-store.ts`、`scripts/maintain-conn-db.mjs`、`test/conn-run-store.test.ts`、`test/conn-db-maintenance-script.test.ts`
+
 ### Agent 首页卡片与 SQLite 兼容性修复
 - 日期：2026-05-10
 - 主题：Playground 新增 Agent 首页（全屏卡片网格展示所有 agent 及忙闲状态），修复 Docker 生产环境 SQLite 启动崩溃。

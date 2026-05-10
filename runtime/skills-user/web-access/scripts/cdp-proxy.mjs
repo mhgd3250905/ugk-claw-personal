@@ -133,7 +133,7 @@ function buildRequestMeta(parsed, req, defaults = {}) {
 }
 
 function requiresScopedBrowserProxy() {
-  return String(process.env.UGK_REQUIRE_SCOPED_BROWSER_PROXY || '').trim().toLowerCase() === 'true';
+  return String(process.env.UGK_ALLOW_UNSCOPED_BROWSER_PROXY || '').trim().toLowerCase() !== 'true';
 }
 
 function shouldRequireAgentScope(pathname, method) {

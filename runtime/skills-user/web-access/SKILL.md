@@ -150,6 +150,8 @@ Do not use page JavaScript `fetch()` as the upload transport for third-party cre
 
 When `check-deps.mjs` passes, a compatibility proxy is available at `http://127.0.0.1:3456` inside the app container.
 
+Browser-changing proxy calls require `metaAgentScope`. This is intentionally enforced at the proxy boundary so scripts cannot silently fall back to a stale long-lived browser process. If a script receives `missing_agent_scope`, read the current scope from `CLAUDE_AGENT_ID`, `CLAUDE_HOOK_AGENT_ID`, or `agent_id`, then add `metaAgentScope=<scope>` to the proxy URL.
+
 Common endpoints:
 
 ```bash

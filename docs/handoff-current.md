@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-09`
+更新时间：`2026-05-10`
 
 这份文档给下一位全新接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
@@ -11,8 +11,8 @@
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
-- 当前本地最新提交：本文件所在 HEAD，提交主题为 `Lock browser bindings to Playground UI`；具体 hash 以 `git log -1 --oneline` 为准。
-- 当前 `origin/main` / `gitee/main`：本轮浏览器绑定收口提交已推送；具体 hash 以 `git ls-remote <remote> refs/heads/main` 为准。
+- 当前本地最新提交：本文件所在 HEAD；具体 hash 以 `git log -1 --oneline` 为准。
+- 当前 `origin/main` / `gitee/main`：准备推送本轮 conn 维护、CDP scope 默认保护、本地 Docker 防踩坑文档和 SQLite WAL 降级补强；具体 hash 以 `git ls-remote <remote> refs/heads/main` 为准。
 - 腾讯云生产运行代码提交：本轮增量更新前为 `e92da82 Add Chrome workbench`；浏览器绑定收口发布后以服务器 `git log -1 --oneline` 和 `server:ops verify` 为准。
 - 阿里云生产运行代码提交：本轮增量更新前为 `e92da82 Add Chrome workbench`；浏览器绑定收口发布后以服务器 `git log -1 --oneline` 和 `server:ops verify` 为准。
 - 本轮稳定版主线：Playground 会话菜单、任务消息重设计、Markdown 代码块宽度约束、浅色主题 / 后台任务 / Agent 设置页面视觉一致性收口、UI 层级清理，以及 conn 长期公开目录 / 站点级公开目录契约。
@@ -29,10 +29,29 @@
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
-- 当前本地未发布变更：Agent / Conn 浏览器绑定边界已本地收口并通过测试，准备走服务器增量更新。浏览器绑定只能由用户在 Playground UI 手动设置；运行时 Agent 不能通过自然语言修改浏览器绑定；`web-access` 不再接受请求级 browserId 覆盖，run 环境只暴露当前绑定 Chrome 的单条实例配置。
+- 当前本地未发布变更：准备提交并增量更新的主线包括：`cdp-proxy` 默认拒绝无 `metaAgentScope` 的浏览器变更请求、conn run 事件库跳过纯文本增量、`maintain-conn-db.mjs` 提供旧事件 dry-run / 清理入口、`.pi/skills/conn-maintenance` 让运行时 Agent 安全协助诊断和清理、`ConnDatabase` 对 Windows / Docker bind mount 下 WAL `SQLITE_CANTOPEN` 降级，以及 `docs/docker-local-ops.md` 本地 Docker / 运行态防踩坑文档。浏览器绑定仍只能由用户在 Playground UI 手动设置；运行时 Agent 不能通过自然语言修改浏览器绑定。
 - 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
 - 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
-- 当前未跟踪文件：`runtime/xhs-extract.mjs` 来源不属于本轮 Chrome 工作台，继续不要提交、不要删除，除非用户明确说明它的归属。
+- 当前未跟踪禁区：`.claude/`、`runtime/xhs-extract.mjs`、`public/ptt-slide*.html`、`public/slide*.png`、`runtime/*.cjs`、奇怪的 `Eapp...jsonl` 路径等运行产物 / 本地文件不属于本轮增量提交，继续不要提交、不要删除，除非用户明确说明它们的归属。
+
+## 2026-05-10 Conn 维护与本地 Docker 防踩坑收口
+
+本轮准备增量更新的核心不是 UI 新功能，而是把后台任务维护和浏览器 scope 保护补齐：
+
+- CDP 代理默认强制 `metaAgentScope`：`/new`、`/navigate`、`/session/*` 这类浏览器变更请求缺 scope 时返回 `400 missing_agent_scope`，避免旧脚本裸调 `127.0.0.1:3456` 静默落到旧 Chrome。
+- Conn 事件日志瘦身：`ConnRunStore.appendEvent()` 不再持久化纯文本增量 `text_delta` / `message_update text_delta`，最终结果仍保留在 `conn_runs.result_text/result_summary`。
+- Conn SQLite 维护入口：`scripts/maintain-conn-db.mjs` 支持 `--dry-run`、`--json`、`--keep-days`、`--keep-latest-runs-per-conn`，只清旧 run 的 `conn_run_events`，不删任务、run 记录、结果摘要或输出文件。
+- 运行时系统技能：`.pi/skills/conn-maintenance/SKILL.md` 教 Agent 先读事实源、先 dry-run、汇报影响、等待用户确认，再在维护窗口清理；生产清理前应备份 shared conn 目录，脚本默认执行 `VACUUM` / WAL checkpoint。
+- SQLite WAL 降级补强：`ConnDatabase` 现在把 `errcode=14` (`SQLITE_CANTOPEN`) 也视为 WAL 不可用场景并回退 DELETE journal mode，解决本地 Docker / Windows bind mount 重启循环。
+- 本地 Docker 防踩坑：`docs/docker-local-ops.md` 记录本地 bind mount、`restart` vs `up --build`、orphan nginx、端口 3000、技能加载验证、运行态目录和本地 / 生产命令边界。
+
+本轮关键验证：
+
+- `npx tsc --noEmit`
+- `npm test`：`624 pass / 0 fail`
+- `npx tsx --test test\conn-db.test.ts test\conn-maintenance-skill.test.ts test\conn-db-maintenance-script.test.ts`
+- `npx tsx --test test\background-agent-runner.test.ts test\conn-run-store.test.ts test\conn-db-maintenance-script.test.ts test\web-access-proxy.test.ts`
+- 本地 Docker 重建后 `http://127.0.0.1:3000/healthz` 返回 `ok=true`，`/v1/debug/skills` 可见 `conn-maintenance`。
 
 ## 2026-05-09 本地浏览器绑定隔离收口
 

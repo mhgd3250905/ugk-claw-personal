@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { ConnDatabase, CONN_DATABASE_TABLES } from "../src/agent/conn-db.js";
+import { ConnDatabase, CONN_DATABASE_TABLES, isWalUnavailableError } from "../src/agent/conn-db.js";
 
 async function createTempDbPath(): Promise<string> {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-conn-db-"));
@@ -62,6 +62,12 @@ test("ConnDatabase enables WAL mode and busy timeout for worker-safe multi-proce
 	assert.equal(busyTimeout?.timeout, 5000);
 
 	database.close();
+});
+
+test("ConnDatabase treats WAL CANTOPEN errors as fallback-safe on Windows bind mounts", () => {
+	assert.equal(isWalUnavailableError({ errcode: 14, errstr: "unable to open database file" }), true);
+	assert.equal(isWalUnavailableError({ errcode: 4618, errstr: "disk I/O error" }), true);
+	assert.equal(isWalUnavailableError({ errcode: 8, errstr: "attempt to write a readonly database" }), false);
 });
 
 test("ConnDatabase initializes the agent activity timeline schema", async () => {

@@ -305,7 +305,7 @@ test("BackgroundAgentRunner executes a conn run in an isolated workspace and rec
 	const events = await runStore.listEvents(run.runId);
 	assert.deepEqual(
 		events.map((event) => event.eventType),
-		["workspace_created", "snapshot_resolved", "message_update", "run_succeeded"],
+		["workspace_created", "snapshot_resolved", "run_succeeded"],
 	);
 	const snapshotEvent = events.find((event) => event.eventType === "snapshot_resolved")?.event as
 		| { templateVersion?: string; templateBuiltAt?: string; templateSource?: string }
@@ -561,7 +561,7 @@ test("BackgroundAgentRunner records fallback events when the requested agent is 
 	assert.equal(completed?.status, "succeeded");
 	assert.deepEqual(
 		events.map((event) => event.eventType),
-		["workspace_created", "snapshot_resolved", "agent_profile_fallback", "message_update", "run_succeeded"],
+		["workspace_created", "snapshot_resolved", "agent_profile_fallback", "run_succeeded"],
 	);
 	assert.deepEqual(events.find((event) => event.eventType === "agent_profile_fallback")?.event, {
 		requestedProfileId: "missing-agent",
@@ -815,7 +815,7 @@ test("BackgroundAgentRunner records failed runs without throwing into the foregr
 	assert.equal(failed?.errorText, "model failed");
 	assert.deepEqual(
 		(await runStore.listEvents(run.runId)).map((event) => event.eventType),
-		["workspace_created", "snapshot_resolved", "message_update", "run_failed"],
+		["workspace_created", "snapshot_resolved", "run_failed"],
 	);
 
 	database.close();

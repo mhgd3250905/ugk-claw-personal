@@ -16,9 +16,10 @@ export interface ConnDatabaseOptions {
 	legacyDbPath?: string;
 }
 
-function isWalIoError(error: unknown): boolean {
+export function isWalUnavailableError(error: unknown): boolean {
 	if (typeof error !== "object" || error === null || !("errcode" in error)) return false;
 	const code = Number((error as { errcode: unknown }).errcode);
+	if (code === 14) return true;
 	// SQLITE_IOERR base=10, extended codes = 10 + N*256 (N=0..18, max=4618)
 	return code >= 10 && code <= 4618 && (code - 10) % 256 === 0;
 }
@@ -31,8 +32,8 @@ function configureJournalMode(db: DatabaseSync, dbPath: string): void {
 		console.warn("[conn-db] WAL requested but mode is:", row?.journal_mode, { dbPath });
 		return;
 	} catch (error) {
-		if (!isWalIoError(error)) throw error;
-		console.warn("[conn-db] WAL unavailable (I/O error, likely NTFS bind mount); falling back to DELETE", {
+		if (!isWalUnavailableError(error)) throw error;
+		console.warn("[conn-db] WAL unavailable (likely NTFS bind mount); falling back to DELETE", {
 			dbPath,
 			errcode: (error as { errcode?: unknown }).errcode,
 			errstr: (error as { errstr?: unknown }).errstr,

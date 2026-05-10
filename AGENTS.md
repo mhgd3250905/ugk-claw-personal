@@ -10,6 +10,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 架构治理 / 重构评估：先读 `docs/architecture-governance-guide.md`，再按它指向的治理地图和测试矩阵展开。
 - 功能完成 / 换 coding agent 前收尾：先读 `.codex/skills/feature-handoff/SKILL.md`，再补记录、验证结果、提交边界和交接说明。
 - 云服务器增量更新：只读 `3.1` 的生产状态边界、`8.2`，然后进入 `docs/server-ops.md`；需要命令速查再看 `docs/server-ops-quick-reference.md`，只有迁移、回滚或异常排障才展开单云长手册。
+- 本地 Docker 启动 / 重建 / 端口 / 运行态排障：先读 `docs/docker-local-ops.md`，再决定 `restart`、`up --build`、处理 orphan nginx 或检查 SQLite。
 - Playground 前端修改：先读 `docs/playground-current.md` 和 `DESIGN.md`，再看第 `6.C` 场景文件；手机端不要按桌面压缩版推断。
 - conn / Feishu / 后台任务：先看第 `6.G` 场景文件和 `docs/runtime-assets-conn-feishu.md`，不要先翻部署手册。
 - Agent profile / 自定义 Agent：先看第 `6.F` 场景，运行态以 API 和 `/app/.data/agents` 挂载为准，不要手写 `profiles.json`。
@@ -26,6 +27,7 @@ This file provides the highest-level working rules for AI coding agents in this 
   - 开发任务收尾 / 换 agent 交接：`.codex/skills/feature-handoff/SKILL.md`
   - Playground 当前 UI：`docs/playground-current.md`
   - Conn / Activity / Feishu：`docs/runtime-assets-conn-feishu.md`
+  - 本地 Docker / 运行态防踩坑：`docs/docker-local-ops.md`
   - 生产部署：`docs/server-ops.md` 和对应云手册
   - 按场景找代码：`docs/traceability-map.md`
 - **新增规则门槛：** 只有跨多次任务、影响后续 agent 行为、或会造成高风险误操作的规则，才进 `AGENTS.md`。
@@ -166,6 +168,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 固定本地入口：`http://127.0.0.1:3000/playground`
 - 健康检查：`http://127.0.0.1:3000/healthz`
 - 默认开发方式：`docker compose up -d`
+- 本地 Docker 启动、重建、端口 3000、orphan nginx、运行态目录和 SQLite 排障先看 `docs/docker-local-ops.md`；不要把本地 compose、生产 compose 和旧 nginx 入口混用。
 - 代码已挂载到容器 `/app`，多数改动后只需要：
   - `docker compose restart ugk-pi`
 - agent 内部可以继续使用 `/app/...` 或 `file:///app/...` 这类本地 artifact 路径做浏览器操作；运行时会按浏览器所在网络自动桥接成 HTTP：
@@ -206,6 +209,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 报告截图脚本：`runtime/screenshot.mjs`
 - 移动报告截图脚本：`runtime/screenshot-mobile.mjs`
 - web-access 浏览器桥接：`docs/web-access-browser-bridge.md`
+- 本地 Docker / 运行态防踩坑：`docs/docker-local-ops.md`
 - 服务器运维唯一入口：`docs/server-ops.md`
 - 腾讯云新加坡部署运行手册：`docs/tencent-cloud-singapore-deploy.md`
 - 阿里云 ECS 部署运行手册：`docs/aliyun-ecs-deploy.md`
@@ -371,6 +375,8 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 - `AGENTS.md`
   - 只放行为准则、项目边界与阶段快照、固定运行口径、关键路径、场景索引、文档分层和项目运行规范
+- `docs/docker-local-ops.md`
+  - 本地 Docker 启动 / 重建 / 端口 3000 / orphan nginx / SQLite / 运行态目录 / 技能加载排障口径
 - `README.md`
   - 对外入口、运行方式、能力概览、文档导航
 - `docs/traceability-map.md`

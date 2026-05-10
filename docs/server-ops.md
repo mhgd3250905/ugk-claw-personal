@@ -99,6 +99,34 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 
 如果 web-access 或 sidecar 异常，优先跑脚本自带的 CDP 检查。`/healthz` 只能证明 app 进程活着，不能证明 Chrome sidecar、CDP 转发、shared data 和 skills 都在正确位置。把 `200` 当全身健康证明，这种偷懒很快会反噬。
 
+如果阿里云或腾讯云后台任务页面、conn 列表或 run 详情明显变慢，先查 conn SQLite 事件库是否膨胀。典型症状是 `conn.sqlite` 很大、`conn_run_events` / `message_update` 很多、`freelist_count` 很高。标准处理是先 dry-run，再停服务清理旧事件并 `VACUUM`。
+
+阿里云示例：
+
+```bash
+cd /root/ugk-claw-repo
+COMPOSE="docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml"
+
+# 只读预估：保留最近 7 天详细事件，并为每个 conn 至少保留最近 3 次 run 的事件
+$COMPOSE exec -T ugk-pi node scripts/maintain-conn-db.mjs \
+  --db /app/.data/agent/conn/conn.sqlite \
+  --keep-days 7 \
+  --keep-latest-runs-per-conn 3 \
+  --dry-run \
+  --json
+
+# 正式维护：先停写入方，再用一次性容器执行清理和 VACUUM
+$COMPOSE stop ugk-pi ugk-pi-conn-worker
+$COMPOSE run --rm --no-deps ugk-pi node scripts/maintain-conn-db.mjs \
+  --db /app/.data/agent/conn/conn.sqlite \
+  --keep-days 7 \
+  --keep-latest-runs-per-conn 3
+$COMPOSE up -d ugk-pi ugk-pi-conn-worker
+npm run server:ops -- aliyun verify
+```
+
+腾讯云把 shared 路径换成 `/home/ubuntu/ugk-claw-shared`，最后 verify 换成 `npm run server:ops -- tencent verify`。不要直接删 `conn.sqlite`，也不要清 `conn_runs` 或 `conn_run_files`；维护脚本只清旧 run 的过程事件，保留 run 结果摘要和产物索引。
+
 如果脚本提示 `browser memory limit` 或 `Chrome V8 old space limit` 失败，先查：
 
 ```bash

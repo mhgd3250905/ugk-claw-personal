@@ -211,3 +211,32 @@ test("cdp proxy rejects unscoped browser-changing requests in agent-run mode", a
 		restoreEnvValue("UGK_REQUIRE_SCOPED_BROWSER_PROXY", originalRequireScoped);
 	}
 });
+
+test("cdp proxy rejects unscoped browser-changing requests by default", async () => {
+	const calls: Array<{ command: Record<string, unknown>; meta?: Record<string, unknown> }> = [];
+	const server = createProxyServer({
+		requestHostBrowser: async (command: Record<string, unknown>, options: { meta?: Record<string, unknown> }) => {
+			calls.push({ command, meta: options.meta });
+			return { ok: true };
+		},
+	});
+
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as AddressInfo;
+
+	try {
+		const rejected = await fetch(`http://127.0.0.1:${port}/session/navigate?url=https%3A%2F%2Fexample.com`, {
+			method: "POST",
+		});
+		assert.equal(rejected.status, 400);
+		assert.deepEqual(await rejected.json(), {
+			ok: false,
+			error: "missing_agent_scope",
+			message: "Browser proxy requests from agent runs must include metaAgentScope.",
+		});
+		assert.equal(calls.length, 0);
+	} finally {
+		server.close();
+		await once(server, "close");
+	}
+});
