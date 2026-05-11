@@ -6,6 +6,28 @@
 
 如果你只想做后续发布，不要从历史记录里捞命令。固定流程看 [docs/server-ops.md](./server-ops.md)；阿里云当前固定口径已经切换为 Git 工作目录更新，默认 `git pull --ff-only gitee main`，只有 Gitee 不通且确认 GitHub 可用时才走 `git pull --ff-only origin main`。archive 小包只作为双远端都不可用时的兜底。
 
+## 2026-05-11 Conn 立即执行反馈与文件库/Agent/未读统计发布记录
+
+本次阿里云从 `f11a3e6` fast-forward 到 `c376327 Improve conn run-now feedback`。发布走 `gitee/main` 增量更新，没有整目录覆盖，没有触碰 `/root/ugk-claw-shared`、Chrome profile、用户 skills、自定义 agent profile 或 conn SQLite 运行态。
+
+本次随阿里云一起落地的功能：
+- 文件库支持删除指定文件，文件列表可继续展示并复用上传 / 生成产物。
+- 对话页 Agent 按钮改为直接打开独立 `/playground/agents` 页面，不再展示旧内嵌 agent 区域；行为与后台任务入口保持一致。
+- Conn 顶部右侧未读数量收口为 conn run 未读结果统计，不再混用旧消息区域概念。
+- Conn “立即执行”补齐前端反馈：入队时显示“入队中”，存在 `pending/running` run 时显示“执行中”并禁用按钮，入队后短轮询刷新运行历史，避免用户因为界面没反应而连续点击。
+
+本次排查结论：
+- 用户反馈的“刷新很久加载不进去”大概率撞上发布 / 容器重建窗口。nginx 日志在北京时间 `2026-05-11 13:22` 和 `13:31` 附近出现 upstream `connect() failed (111: Connection refused)`，属于 app/nginx 重建期间的短暂不可用，不是持续资源瓶颈。
+- 用户点击后台任务立即执行后“挂起”的真实后端状态不是卡死。Conn `ffa38585-ea08-417c-9544-482f42eae57e` 在北京时间 `15:30:02` 附近创建了两条手动 run：`20aa32cd-b438-4474-aced-25194513f530` 与 `3d0a9d45-92a8-4347-b568-800e1b883163`，worker 在 `15:30:09` 领取，分别于 `15:30:28` / `15:30:29` 成功完成。
+- 根因是前端反馈过弱且未禁用重复点击，用户看到“没反应”后多点了几次。别把这种体验问题甩锅给 worker，worker 这次没背锅。
+
+发布与验证结果：
+1. `npm run server:ops -- aliyun preflight` 通过，服务器工作区和运行态挂载检查正常。
+2. `npm run server:ops -- aliyun deploy` 通过，重建并重启 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`，nginx 已重启。
+3. `npm run server:ops -- aliyun verify` 通过。
+4. 公网验证通过：`/playground`、`/playground/conn`、`/v1/conns` 均返回 `200`；页面脚本 marker 确认 `app_has_run_feedback=True`、`conn_has_run_feedback=True`。
+5. 服务器 `/root/ugk-claw-repo` 最终运行提交为 `c376327`，`git status --short` 为空。
+
 ## 2026-05-06 文件库桌面 UI 细化发布记录
 
 阿里云从 `538265b` fast-forward 到 `425227e`。浅色主题面板去背景、header 无边框。用户自定义技能（zhihu-helper、card-creator 等）未触碰。

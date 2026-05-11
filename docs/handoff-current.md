@@ -12,10 +12,11 @@
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
 - 当前本地最新提交：本文件所在 HEAD；具体 hash 以 `git log -1 --oneline` 为准。
-- 当前 `origin/main` / `gitee/main`：`f11a3e6`，双云已增量更新到该提交。
+- 当前 `gitee/main`：至少 `c376327 Improve conn run-now feedback`，阿里云已增量更新到该提交；本轮文档提交如果在它之后，只是文档落盘，生产运行代码仍以 `c376327` 为准。
+- 当前 `origin/main`：本轮未推送 `c376327` 之后的变更；腾讯云默认仍按 GitHub `origin/main` 发布，后续要同步腾讯云前先确认并推送 `origin`。
 - 腾讯云生产运行代码提交：`f11a3e6 docs: document playground theming and routing architecture`，已通过 `npm run server:ops -- tencent deploy`。
-- 阿里云生产运行代码提交：`f11a3e6 docs: document playground theming and routing architecture`，已通过 `npm run server:ops -- aliyun deploy`。
-- 本轮稳定版主线：Agents 页面重写（inline 编辑器、对齐设计）、Conn 运行一键全部已读按钮 + topbar 布局修复、Conn/Agents 独立页面浅色主题支持、Playground 刷新闪屏修复（`data-home` 路由架构清理）、`setStageMode` 死代码移除。
+- 阿里云生产运行代码提交：`c376327 Improve conn run-now feedback`，已通过 `npm run server:ops -- aliyun deploy` 和 `npm run server:ops -- aliyun verify`。
+- 本轮稳定版主线：Agents 页面重写（inline 编辑器、对齐设计）、文件库指定文件删除、对话页 Agent 按钮直达独立 Agents 页面、Conn 未读统计收口、Conn 立即执行反馈防重复、Conn 运行一键全部已读按钮 + topbar 布局修复、Conn/Agents 独立页面浅色主题支持、Playground 刷新闪屏修复（`data-home` 路由架构清理）、`setStageMode` 死代码移除。
 - 验收结论：双云已完成 conn 公共目录契约增量更新与运行态检查；`v1.2.0` release commit 只变更 `package.json`、`package-lock.json` 和 `docs/change-log.md`，已通过 `git diff --check`，并确认 tag 指向当前 HEAD。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
 - 腾讯云健康检查：`http://43.134.167.179:3000/healthz`
@@ -29,12 +30,38 @@
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
-- 当前本地未发布变更：无。本轮所有改动已提交并推送到 `origin` 和 `gitee`，双云已完成增量更新。
-- 双云部署注意：腾讯云从 `origin`（GitHub）拉代码，阿里云从 `gitee` 拉代码。每次部署前务必同时推送两个 remote：`git push && git push gitee main`。
+- 当前本地未发布变更：运行功能改动已提交、推送到 `gitee` 并部署阿里云；文档-only 提交不需要触发生产重启。未跟踪运行产物仍不属于发布内容。
+- 双云部署注意：腾讯云从 `origin`（GitHub）拉代码，阿里云从 `gitee` 拉代码。要让双云完全同版，发布前务必同时推送两个 remote：`git push && git push gitee main`；只修阿里云时也要在文档里写清楚腾讯云没有同步，别让下个 agent 脑补。
 - Playground UI 架构：`data-home="true"/"false"` 是唯一路由开关（agent 列表 vs 对话视图）。`data-stage-mode="landing"` 是永久 CSS-only hook，运行时不变。主题系统用 `[data-theme="dark"]` / `[data-theme="light"]`，token 选择器不能包含 `body`。独立页面（conn、agents）用 `standalone-page-shared.ts` 作共享 CSS base，各自内嵌 token 覆盖块。
 - 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
 - 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
 - 当前未跟踪禁区：`.claude/`、`runtime/xhs-extract.mjs`、`public/ptt-slide*.html`、`public/slide*.png`、`runtime/*.cjs`、奇怪的 `Eapp...jsonl` 路径等运行产物 / 本地文件不属于本轮增量提交，继续不要提交、不要删除，除非用户明确说明它们的归属。
+
+## 2026-05-11 阿里云 Conn 立即执行反馈排查与发布
+
+关键提交：`c376327 Improve conn run-now feedback`
+
+本轮阿里云排查的重点是用户反馈“点击后台任务立即执行一直挂起，刷新页面很久加载不进去”。结论分两段：
+
+- 刷新慢：nginx 日志显示北京时间 `2026-05-11 13:22` 和 `13:31` 附近有 app/nginx 重建窗口，期间出现 upstream `connect() failed (111: Connection refused)`，所以页面加载慢大概率撞上发布短暂不可用窗口。
+- 立即执行：Conn `ffa38585-ea08-417c-9544-482f42eae57e` 在 `15:30:02` 左右产生了两条手动 run，worker 在 `15:30:09` 领取，`15:30:28` / `15:30:29` 均成功完成。后端没卡死，前端反馈太弱导致用户重复点击。
+
+已修复：
+
+- `src/ui/conn-page-js.ts`：独立 Conn 页面新增 `actionConnId`、run 短轮询、pending/running 判定；立即执行入队时显示“入队中”，执行中显示“执行中”并禁用按钮。
+- `src/ui/playground-conn-activity-controller.ts`：Playground 内嵌后台任务入口同步相同行为，入队后展开运行历史并短轮询刷新。
+- `src/ui/playground.ts`：补齐 `connManagerRunRefreshTimers` 状态。
+- `test/server.test.ts`：补充独立 Conn 页和 Playground 脚本断言。
+
+验证记录：
+
+- `node --test --import tsx test/server.test.ts`：`119 pass`
+- `npx tsc --noEmit`
+- `git diff --check`
+- `npm run server:ops -- aliyun preflight`
+- `npm run server:ops -- aliyun deploy`
+- `npm run server:ops -- aliyun verify`
+- 公网验证：`/playground`、`/playground/conn`、`/v1/conns` 返回 `200`；脚本 marker 为 `app_has_run_feedback=True`、`conn_has_run_feedback=True`。
 
 ## 2026-05-11 独立页面浅色主题 + Agents 重写 + 路由架构清理
 
