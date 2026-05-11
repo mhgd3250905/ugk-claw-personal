@@ -21,6 +21,7 @@ import {
 	archiveStoredAgentProfile,
 	createStoredAgentProfile,
 	installStoredAgentProfileSkill,
+	normalizeOptionalModelSelection,
 	removeStoredAgentProfileSkill,
 	updateStoredAgentProfile,
 } from "../agent/agent-profile-catalog.js";
@@ -38,6 +39,7 @@ import {
 	parseQueueMessageBody,
 } from "./chat-route-parsers.js";
 import { sendAgentBusyError, sendBadRequest, sendInternalError } from "./http-errors.js";
+import type { ModelConfigStore, ModelSelectionValidator } from "../agent/model-config.js";
 import type {
 	ConversationCatalogResponseBody,
 	ChatHistoryResponseBody,
@@ -150,6 +152,8 @@ interface ChatRouteDependencies {
 	browserBindingAuditLog?: BrowserBindingAuditLog;
 	agentTemplateRegistry?: { invalidate(profileId?: string): void };
 	projectRoot?: string;
+	modelConfigStore?: ModelConfigStore;
+	modelSelectionValidator?: ModelSelectionValidator;
 }
 
 export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependencies): void {
@@ -216,17 +220,22 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		};
 	}
 
-	function presentAgentSummary(agent: { agentId: string; name: string; description: string; defaultBrowserId?: string }): {
+	function presentAgentSummary(agent: { agentId: string; name: string; description: string; defaultBrowserId?: string; defaultModelProvider?: string; defaultModelId?: string }): {
 		agentId: string;
 		name: string;
 		description: string;
 		defaultBrowserId?: string;
+		defaultModelProvider?: string;
+		defaultModelId?: string;
 	} {
 		return {
 			agentId: agent.agentId,
 			name: agent.name,
 			description: agent.description,
 			...(agent.defaultBrowserId ? { defaultBrowserId: agent.defaultBrowserId } : {}),
+			...(agent.defaultModelProvider && agent.defaultModelId
+				? { defaultModelProvider: agent.defaultModelProvider, defaultModelId: agent.defaultModelId }
+				: {}),
 		};
 	}
 
@@ -235,6 +244,55 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			error: "CONFLICT",
 			message: `Agent ${agentId} has a running conversation. Stop the current run before changing its default browser.`,
 		});
+	}
+
+	function sendRunningModelBindingChange(reply: FastifyReply, agentId: string): FastifyReply {
+		return reply.status(409).send({
+			error: "CONFLICT",
+			message: `Agent ${agentId} has a running conversation. Stop the current run before changing its default model.`,
+		});
+	}
+
+	function hasModelSelectionPatch(body: Record<string, unknown>): boolean {
+		return Object.hasOwn(body, "defaultModelProvider") || Object.hasOwn(body, "defaultModelId");
+	}
+
+	async function validateAgentModelSelectionOrSend(
+		reply: FastifyReply,
+		selection: { defaultModelProvider?: string; defaultModelId?: string },
+	): Promise<FastifyReply | undefined> {
+		if (!selection.defaultModelProvider && !selection.defaultModelId) {
+			return undefined;
+		}
+
+		if (!deps.modelConfigStore || !deps.modelSelectionValidator) {
+			return reply.status(501).send({
+				error: "NOT_IMPLEMENTED",
+				message: "Model config validator is not available.",
+			});
+		}
+
+		const modelSelection = {
+			provider: selection.defaultModelProvider!,
+			model: selection.defaultModelId!,
+		};
+
+		if (!(await deps.modelConfigStore.hasModel(modelSelection))) {
+			return reply.status(400).send({
+				error: "BAD_REQUEST",
+				message: `Model not found: ${modelSelection.provider}/${modelSelection.model}`,
+			});
+		}
+
+		const validation = await deps.modelSelectionValidator(modelSelection);
+		if (!validation.ok) {
+			return reply.status(400).send({
+				error: "BAD_REQUEST",
+				message: validation.message,
+			});
+		}
+
+		return undefined;
 	}
 
 	function sendAgentBusy(reply: FastifyReply, error: AgentBusyError): FastifyReply {
@@ -286,10 +344,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		"/v1/agents",
 		async (
 			request: FastifyRequest<{
-				Body: { agentId?: string; name?: string; description?: string; defaultBrowserId?: string; initialSystemSkillNames?: string[] };
+				Body: { agentId?: string; name?: string; description?: string; defaultBrowserId?: string; defaultModelProvider?: string; defaultModelId?: string; initialSystemSkillNames?: string[] };
 			}>,
 			reply,
-		): Promise<{ agent: { agentId: string; name: string; description: string; defaultBrowserId?: string } } | FastifyReply> => {
+		): Promise<{ agent: { agentId: string; name: string; description: string; defaultBrowserId?: string; defaultModelProvider?: string; defaultModelId?: string } } | FastifyReply> => {
 			if (!deps.projectRoot || !deps.agentServiceRegistry) {
 				return reply.status(501).send({
 					error: "NOT_IMPLEMENTED",
@@ -302,11 +360,23 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 				if (browserValidation) {
 					return browserValidation;
 				}
+				let modelSelection: { defaultModelProvider?: string; defaultModelId?: string } = {};
+				if (body.defaultModelProvider !== undefined || body.defaultModelId !== undefined) {
+					modelSelection = normalizeOptionalModelSelection({
+						defaultModelProvider: body.defaultModelProvider,
+						defaultModelId: body.defaultModelId,
+					});
+				}
+				const modelValidation = await validateAgentModelSelectionOrSend(reply, modelSelection);
+				if (modelValidation) {
+					return modelValidation;
+				}
 				const profile = await createStoredAgentProfile(deps.projectRoot, {
 					agentId: body.agentId ?? "",
 					name: body.name,
 					description: body.description,
 					defaultBrowserId: body.defaultBrowserId,
+					...modelSelection,
 					initialSystemSkillNames: body.initialSystemSkillNames,
 				});
 				deps.agentServiceRegistry.add(profile);
@@ -328,10 +398,10 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		async (
 			request: FastifyRequest<{
 				Params: { agentId?: string };
-				Body: { name?: string; description?: string; defaultBrowserId?: string | null };
+				Body: { name?: string; description?: string; defaultBrowserId?: string | null; defaultModelProvider?: string | null; defaultModelId?: string | null };
 			}>,
 			reply,
-		): Promise<{ agent: { agentId: string; name: string; description: string; defaultBrowserId?: string } } | FastifyReply> => {
+		): Promise<{ agent: { agentId: string; name: string; description: string; defaultBrowserId?: string; defaultModelProvider?: string; defaultModelId?: string } } | FastifyReply> => {
 			const { agentId } = request.params ?? {};
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
@@ -396,10 +466,26 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 						return sendRunningBrowserBindingChange(reply, agentId);
 					}
 				}
+				let modelSelection: { defaultModelProvider?: string; defaultModelId?: string } | undefined;
+				if (hasModelSelectionPatch(body)) {
+					modelSelection = normalizeOptionalModelSelection({
+						defaultModelProvider: body.defaultModelProvider,
+						defaultModelId: body.defaultModelId,
+					});
+					const modelValidation = await validateAgentModelSelectionOrSend(reply, modelSelection);
+					if (modelValidation) {
+						return modelValidation;
+					}
+					const catalog = await service.getConversationCatalog();
+					if (catalog.conversations.some((conversation) => conversation.running)) {
+						return sendRunningModelBindingChange(reply, agentId);
+					}
+				}
 				const profile = await updateStoredAgentProfile(deps.projectRoot, agentId, {
 					name: body.name,
 					description: body.description,
 					...(Object.hasOwn(body, "defaultBrowserId") ? { defaultBrowserId: body.defaultBrowserId } : {}),
+					...(modelSelection !== undefined ? { defaultModelProvider: modelSelection.defaultModelProvider ?? null, defaultModelId: modelSelection.defaultModelId ?? null } : {}),
 				});
 				deps.agentServiceRegistry.updateProfile(profile);
 				deps.agentTemplateRegistry?.invalidate(profile.agentId);

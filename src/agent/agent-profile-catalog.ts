@@ -25,6 +25,8 @@ export interface CreateAgentProfileInput {
 	name?: string;
 	description?: string;
 	defaultBrowserId?: string;
+	defaultModelProvider?: string;
+	defaultModelId?: string;
 	initialSystemSkillNames?: string[];
 }
 
@@ -37,6 +39,8 @@ export interface UpdateAgentProfileInput {
 	name?: string;
 	description?: string;
 	defaultBrowserId?: string | null;
+	defaultModelProvider?: string | null;
+	defaultModelId?: string | null;
 }
 
 export interface AgentProfileSkillChangeResult {
@@ -78,6 +82,32 @@ function normalizeOptionalBrowserId(browserId: unknown): string | undefined {
 	return normalized;
 }
 
+export function normalizeOptionalModelSelection(input: {
+	defaultModelProvider?: unknown;
+	defaultModelId?: unknown;
+}): { defaultModelProvider?: string; defaultModelId?: string } {
+	const providerRaw = input.defaultModelProvider;
+	const modelRaw = input.defaultModelId;
+
+	const provider = providerRaw === undefined || providerRaw === null
+		? ""
+		: String(providerRaw).trim();
+	const model = modelRaw === undefined || modelRaw === null
+		? ""
+		: String(modelRaw).trim();
+
+	if (!provider && !model) {
+		return {};
+	}
+	if (!provider || !model) {
+		throw new Error("defaultModelProvider and defaultModelId must be provided together");
+	}
+	return {
+		defaultModelProvider: provider,
+		defaultModelId: model,
+	};
+}
+
 function normalizeInitialSystemSkillNames(skillNames: unknown): string[] {
 	if (!Array.isArray(skillNames)) {
 		return [];
@@ -114,6 +144,10 @@ export function normalizeAgentProfileInput(input: CreateAgentProfileInput): Agen
 	if (agentId === DEFAULT_AGENT_ID || agentId === SEARCH_AGENT_ID) {
 		throw new Error(`agentId ${agentId} is reserved`);
 	}
+	const modelSelection = normalizeOptionalModelSelection({
+		defaultModelProvider: input.defaultModelProvider,
+		defaultModelId: input.defaultModelId,
+	});
 	return {
 		agentId,
 		name: normalizeAgentName(agentId, input.name),
@@ -121,6 +155,7 @@ export function normalizeAgentProfileInput(input: CreateAgentProfileInput): Agen
 		...(normalizeOptionalBrowserId(input.defaultBrowserId)
 			? { defaultBrowserId: normalizeOptionalBrowserId(input.defaultBrowserId) }
 			: {}),
+		...modelSelection,
 	};
 }
 
@@ -462,7 +497,18 @@ export async function updateStoredAgentProfile(
 		if (!currentProfile) {
 			throw new Error(`agent ${agentId} does not exist`);
 		}
-		const updatedSummary: AgentProfileSummaryInput = {
+		const hasModelPatch =
+				Object.hasOwn(input, "defaultModelProvider") ||
+				Object.hasOwn(input, "defaultModelId");
+			const nextModelSelection = hasModelPatch
+				? normalizeOptionalModelSelection(input)
+				: currentProfile.defaultModelProvider && currentProfile.defaultModelId
+					? {
+							defaultModelProvider: currentProfile.defaultModelProvider,
+							defaultModelId: currentProfile.defaultModelId,
+						}
+					: {};
+			const updatedSummary: AgentProfileSummaryInput = {
 			agentId,
 			name: normalizeAgentName(agentId, input.name ?? currentProfile.name),
 			description: normalizeAgentDescription(input.description ?? currentProfile.description),
@@ -473,6 +519,7 @@ export async function updateStoredAgentProfile(
 				: currentProfile.defaultBrowserId
 					? { defaultBrowserId: currentProfile.defaultBrowserId }
 					: {}),
+			...nextModelSelection,
 		};
 		return {
 			catalog: {
