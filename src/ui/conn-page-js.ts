@@ -18,6 +18,8 @@ const state = {
   editorMode: null,
   editorConnId: null,
   editorSaving: false,
+  actionConnId: "",
+  runRefreshTimers: {},
   agentCatalog: [],
   browserCatalog: [],
   modelConfig: null,
@@ -170,6 +172,43 @@ async function apiFetchModelConfig() {
   try {
     return await fetchJson("/v1/model-config");
   } catch { return null; }
+}
+
+function isRunInFlight(run) {
+  return run?.status === "pending" || run?.status === "running";
+}
+
+function hasActiveRunForConn(connId) {
+  const runs = state.runsByConnId[connId] || [];
+  if (runs.some(isRunInFlight)) return true;
+  const conn = state.conns.find(c => c.connId === connId);
+  return isRunInFlight(conn?.latestRun);
+}
+
+function upsertRunForConn(connId, run) {
+  if (!connId || !run) return;
+  const runs = state.runsByConnId[connId] || [];
+  state.runsByConnId[connId] = [run, ...runs.filter(current => current?.runId !== run.runId)];
+}
+
+async function refreshRunsForConn(connId) {
+  if (!connId) return;
+  state.runsByConnId[connId] = await apiFetchRuns(connId);
+  renderDetail();
+  renderList();
+}
+
+function scheduleRunRefresh(connId, attempt) {
+  if (!connId || attempt >= 10) return;
+  if (state.runRefreshTimers[connId]) clearTimeout(state.runRefreshTimers[connId]);
+  state.runRefreshTimers[connId] = setTimeout(async function() {
+    try {
+      await refreshRunsForConn(connId);
+      if (hasActiveRunForConn(connId)) {
+        scheduleRunRefresh(connId, attempt + 1);
+      }
+    } catch {}
+  }, 3000);
 }
 
 async function apiUploadAssets(files, connId) {
@@ -473,7 +512,9 @@ function renderDetail() {
 function renderActions(container, conn) {
   if (!container) return;
   container.innerHTML = "";
-  const isActing = state.editorSaving;
+  const isActing = state.editorSaving || state.actionConnId === conn.connId;
+  const hasRunInFlight = hasActiveRunForConn(conn.connId);
+  const runLabel = isActing ? "入队中" : hasRunInFlight ? "执行中" : "立即执行";
 
   const actions = [];
   actions.push({ label: '编辑', icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M11.5 1.5a2.121 2.121 0 013 3L5 14l-4 1 1-4z"/></svg>', handler: () => openEditor("edit", conn), cls: "conn-btn conn-btn--outline" });
@@ -484,14 +525,14 @@ function renderActions(container, conn) {
   if (conn.status === "paused") {
     actions.push({ label: "恢复", icon: '<svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M4 3l9 5-9 5z"/></svg>', handler: () => handleResume(conn.connId), cls: "conn-btn conn-btn--outline" });
   }
-  actions.push({ label: "立即执行", icon: '<svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M4 3l9 5-9 5z"/></svg>', handler: () => handleRunNow(conn.connId), cls: "conn-btn conn-btn--primary" });
+  actions.push({ label: runLabel, icon: '<svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M4 3l9 5-9 5z"/></svg>', handler: () => handleRunNow(conn.connId), cls: "conn-btn conn-btn--primary", disabled: hasRunInFlight });
   actions.push({ label: "删除", icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4"/></svg>', handler: () => handleDelete(conn.connId), cls: "conn-btn conn-btn--danger" });
 
   for (const action of actions) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.innerHTML = action.icon + " " + action.label;
-    btn.disabled = isActing;
+    btn.disabled = isActing || Boolean(action.disabled);
     btn.className = action.cls;
     btn.addEventListener("click", action.handler);
     container.appendChild(btn);
@@ -1371,17 +1412,26 @@ async function handleResume(connId) {
 }
 
 async function handleRunNow(connId) {
+  if (state.actionConnId || hasActiveRunForConn(connId)) {
+    showToast("已有一次执行在进行中，请稍等刷新结果", "info");
+    return;
+  }
+  state.actionConnId = connId;
+  renderDetail();
+  renderList();
   try {
     const data = await apiRunNow(connId);
-    const newRun = data.run;
-    if (newRun) {
-      const runs = state.runsByConnId[connId] || [];
-      state.runsByConnId[connId] = [newRun, ...runs];
-    }
-    showToast("已触发执行", "success");
+    upsertRunForConn(connId, data.run);
+    showToast("已触发执行，正在后台运行", "success");
     renderDetail();
+    renderList();
+    scheduleRunRefresh(connId, 0);
   } catch (err) {
     showToast(err instanceof Error ? err.message : "执行失败", "error");
+  } finally {
+    state.actionConnId = "";
+    renderDetail();
+    renderList();
   }
 }
 

@@ -2,6 +2,13 @@
 
 更新时间：`2026-05-11`
 
+## 2026-05-11 Conn 立即执行反馈
+
+- 后台任务“立即执行”不是无反馈按钮：点击后当前任务按钮必须立刻切到“入队中”，创建 run 成功后显示“已触发执行，正在后台运行”，并把新 run 插到运行历史顶部。
+- 只要该任务存在 `pending` 或 `running` run，“立即执行”按钮必须显示“执行中”并禁用，避免用户因为页面看起来没反应而连续点击出多条手动 run。
+- `/playground/conn` 独立页面和 Playground 内嵌后台任务入口使用同一口径：入队后短轮询刷新 run 历史，终态回来后再恢复按钮。
+- 相关源码：`src/ui/conn-page-js.ts`、`src/ui/playground-conn-activity-controller.ts`
+
 ## 2026-05-11 Conn 未读结果统计
 
 - `/playground/conn` 顶部右侧“未读结果”统计的是后台 run 结果，不是任务消息页的 `agent_activity_items` 未读消息数。

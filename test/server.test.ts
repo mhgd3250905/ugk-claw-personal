@@ -735,6 +735,10 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function hydrateConnManagerRunsFromList\(/);
 	assert.match(response.body, /function renderConnManager\(/);
 	assert.match(response.body, /function runConnNow\(/);
+	assert.match(response.body, /function hasConnManagerRunInFlight\(connId\)/);
+	assert.match(response.body, /state\.connManagerActionConnId === conn\.connId \? "入队中" : hasRunInFlight \? "执行中" : "立即执行"/);
+	assert.match(response.body, /setConnManagerNotice\("已触发执行，正在后台运行："/);
+	assert.match(response.body, /scheduleConnManagerRunRefresh\(conn\.connId, 0\)/);
 	assert.match(response.body, /function toggleConnPaused\(/);
 	assert.match(response.body, /function deleteConn\(conn\)/);
 	assert.doesNotMatch(response.body, /conns\.map\(async \(conn\)/);
@@ -1160,6 +1164,18 @@ test("standalone conn page keeps the new-task card visible when the task list is
 	assert.ok(createEmptyEditorBranch < emptyListBranch);
 	assert.match(response, /function appendNewConnEditorItem\(\)/);
 	assert.match(response, /id="editor-submit"[\s\S]*保存任务[\s\S]*id="editor-cancel"[\s\S]*取消/);
+});
+
+test("standalone conn page disables run-now while a run is pending or running", () => {
+	const response = renderConnPage();
+
+	assert.match(response, /actionConnId:\s*""/);
+	assert.match(response, /function isRunInFlight\(run\)[\s\S]*run\?\.status === "pending"[\s\S]*run\?\.status === "running"/);
+	assert.match(response, /function hasActiveRunForConn\(connId\)/);
+	assert.match(response, /hasRunInFlight \? "执行中" : "立即执行"/);
+	assert.match(response, /btn\.disabled = isActing \|\| Boolean\(action\.disabled\)/);
+	assert.match(response, /showToast\("已触发执行，正在后台运行", "success"\)/);
+	assert.match(response, /scheduleRunRefresh\(connId, 0\)/);
 });
 
 test("GET /playground defaults runtime append behavior to steer", async () => {

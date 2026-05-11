@@ -214,6 +214,7 @@ function getPlaygroundScript(): string {
 			connManagerRunsByConnId: {},
 			connManagerRunsLoadedByConnId: {},
 			connManagerRunsLoadingByConnId: {},
+			connManagerRunRefreshTimers: {},
 			connManagerExpandedRunConnIds: [],
 			connManagerActionConnId: "",
 			connManagerNotice: "",

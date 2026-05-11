@@ -1318,6 +1318,74 @@ export function getConnActivityRendererScript(): string {
 			return button;
 		}
 
+		function isConnRunInFlight(run) {
+			return run?.status === "pending" || run?.status === "running";
+		}
+
+		function hasConnManagerRunInFlight(connId) {
+			const runs = Array.isArray(state.connManagerRunsByConnId[connId])
+				? state.connManagerRunsByConnId[connId]
+				: [];
+			if (runs.some(isConnRunInFlight)) {
+				return true;
+			}
+			const conn = Array.isArray(state.connManagerItems)
+				? state.connManagerItems.find((item) => item?.connId === connId)
+				: null;
+			return isConnRunInFlight(conn?.latestRun);
+		}
+
+		async function refreshConnManagerRuns(connId) {
+			const conn = Array.isArray(state.connManagerItems)
+				? state.connManagerItems.find((item) => item?.connId === connId)
+				: null;
+			if (!conn) {
+				return;
+			}
+			state.connManagerRunsLoadingByConnId = {
+				...state.connManagerRunsLoadingByConnId,
+				[connId]: true,
+			};
+			try {
+				const runs = await fetchConnRunsForConn(conn);
+				state.connManagerRunsByConnId = {
+					...state.connManagerRunsByConnId,
+					[connId]: runs,
+				};
+				state.connManagerRunsLoadedByConnId = {
+					...state.connManagerRunsLoadedByConnId,
+					[connId]: true,
+				};
+			} finally {
+				const nextLoading = { ...state.connManagerRunsLoadingByConnId };
+				delete nextLoading[connId];
+				state.connManagerRunsLoadingByConnId = nextLoading;
+				if (state.connManagerOpen) {
+					renderConnManager();
+				}
+			}
+		}
+
+		function scheduleConnManagerRunRefresh(connId, attempt) {
+			if (!connId || attempt >= 10) {
+				return;
+			}
+			if (state.connManagerRunRefreshTimers[connId]) {
+				clearTimeout(state.connManagerRunRefreshTimers[connId]);
+			}
+			state.connManagerRunRefreshTimers[connId] = setTimeout(async () => {
+				try {
+					await refreshConnManagerRuns(connId);
+					if (hasConnManagerRunInFlight(connId)) {
+						scheduleConnManagerRunRefresh(connId, attempt + 1);
+					}
+				} catch (error) {
+					const messageText = error instanceof Error ? error.message : "无法刷新后台运行状态";
+					showError(messageText);
+				}
+			}, 3000);
+		}
+
 		function setConnManagerNotice(message, connId) {
 			state.connManagerNotice = String(message || "").trim();
 			state.connManagerHighlightedConnId = String(connId || "").trim();
@@ -1659,12 +1727,13 @@ export function getConnActivityRendererScript(): string {
 				const actions = document.createElement("div");
 				actions.className = "conn-manager-actions";
 				const isActing = isBulkAction || state.connManagerActionConnId === conn.connId;
+				const hasRunInFlight = hasConnManagerRunInFlight(conn.connId);
 				const runButton = createConnActionButton(
-					"立即执行",
+					state.connManagerActionConnId === conn.connId ? "入队中" : hasRunInFlight ? "执行中" : "立即执行",
 					() => {
 						void runConnNow(conn);
 					},
-					{ disabled: isActing },
+					{ disabled: isActing || hasRunInFlight },
 				);
 				const editButton = createConnActionButton(
 					"编辑",
@@ -1702,6 +1771,11 @@ export function getConnActivityRendererScript(): string {
 			if (!conn?.connId || state.connManagerActionConnId) {
 				return;
 			}
+			if (hasConnManagerRunInFlight(conn.connId)) {
+				setConnManagerNotice("已有一次执行在进行中，请稍等刷新结果", conn.connId);
+				renderConnManager();
+				return;
+			}
 			state.connManagerActionConnId = conn.connId;
 			renderConnManager();
 			try {
@@ -1714,6 +1788,11 @@ export function getConnActivityRendererScript(): string {
 					throw new Error(payload?.error?.message || payload?.message || "无法创建后台运行");
 				}
 				prependConnManagerRun(conn.connId, payload?.run);
+				state.connManagerExpandedRunConnIds = Array.from(
+					new Set([...(Array.isArray(state.connManagerExpandedRunConnIds) ? state.connManagerExpandedRunConnIds : []), conn.connId]),
+				);
+				setConnManagerNotice("已触发执行，正在后台运行：" + (conn.title || conn.connId), conn.connId);
+				scheduleConnManagerRunRefresh(conn.connId, 0);
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "无法创建后台运行";
 				showError(messageText);
