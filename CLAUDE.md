@@ -150,6 +150,6 @@ Uses Node.js native test runner (`node:test` + `node:assert/strict`). Tests impo
 - **Never commit** `.env`, `.data/`, deployment tarballs, runtime screenshots, or generated reports.
 - Tencent Cloud: `ssh ugk-claw-prod`, repo at `~/ugk-claw-repo`, shared state at `~/ugk-claw-shared/`.
 - Aliyun ECS: `root@101.37.209.54`, repo at `/root/ugk-claw-repo`, shared state at `/root/ugk-claw-shared/`.
-- Production updates use `git pull` (fast-forward), not tarball replacement. Tencent pulls from `origin` (GitHub), Aliyun from `gitee`.
+- Production updates use `git pull` (fast-forward), not tarball replacement. Tencent pulls from `origin` (GitHub), Aliyun from `gitee`. Always push both remotes before deploying: `git push && git push gitee main`.
 - When Dockerfile, dependencies, or system packages change, use `docker compose up --build -d`; plain code changes only need `restart`.
 - Browser profile, agent data, and user skills are external mounts — updating the git tree must not wipe them.

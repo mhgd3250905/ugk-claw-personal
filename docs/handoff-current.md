@@ -12,10 +12,10 @@
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
 - 当前本地最新提交：本文件所在 HEAD；具体 hash 以 `git log -1 --oneline` 为准。
-- 当前 `origin/main` / `gitee/main`：`870fce7`，双云已增量更新到该提交。
-- 腾讯云生产运行代码提交：`870fce7 fix: update server test to match conn button new-tab behavior`，已通过 `npm run server:ops -- tencent verify`。
-- 阿里云生产运行代码提交：`870fce7 fix: update server test to match conn button new-tab behavior`，已通过 `npm run server:ops -- aliyun verify`。
-- 本轮稳定版主线：Conn 运行结果未读标记（DB + API + UI 全链路）、Conn 独立页面 UI 优化与共享 Markdown 渲染、Playground 桌面端消息按钮收口与未读徽章迁移。前序仍包括：Playground 会话菜单、任务消息重设计、Markdown 代码块宽度约束、浅色主题 / 后台任务 / Agent 设置页面视觉一致性收口、UI 层级清理，以及 conn 长期公开目录 / 站点级公开目录契约。
+- 当前 `origin/main` / `gitee/main`：`f11a3e6`，双云已增量更新到该提交。
+- 腾讯云生产运行代码提交：`f11a3e6 docs: document playground theming and routing architecture`，已通过 `npm run server:ops -- tencent deploy`。
+- 阿里云生产运行代码提交：`f11a3e6 docs: document playground theming and routing architecture`，已通过 `npm run server:ops -- aliyun deploy`。
+- 本轮稳定版主线：Agents 页面重写（inline 编辑器、对齐设计）、Conn 运行一键全部已读按钮 + topbar 布局修复、Conn/Agents 独立页面浅色主题支持、Playground 刷新闪屏修复（`data-home` 路由架构清理）、`setStageMode` 死代码移除。
 - 验收结论：双云已完成 conn 公共目录契约增量更新与运行态检查；`v1.2.0` release commit 只变更 `package.json`、`package-lock.json` 和 `docs/change-log.md`，已通过 `git diff --check`，并确认 tag 指向当前 HEAD。
 - 腾讯云正式入口：`http://43.134.167.179:3000/playground`
 - 腾讯云健康检查：`http://43.134.167.179:3000/healthz`
@@ -30,9 +30,41 @@
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
 - 当前本地未发布变更：无。本轮所有改动已提交并推送到 `origin` 和 `gitee`，双云已完成增量更新。
+- 双云部署注意：腾讯云从 `origin`（GitHub）拉代码，阿里云从 `gitee` 拉代码。每次部署前务必同时推送两个 remote：`git push && git push gitee main`。
+- Playground UI 架构：`data-home="true"/"false"` 是唯一路由开关（agent 列表 vs 对话视图）。`data-stage-mode="landing"` 是永久 CSS-only hook，运行时不变。主题系统用 `[data-theme="dark"]` / `[data-theme="light"]`，token 选择器不能包含 `body`。独立页面（conn、agents）用 `standalone-page-shared.ts` 作共享 CSS base，各自内嵌 token 覆盖块。
 - 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
 - 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
 - 当前未跟踪禁区：`.claude/`、`runtime/xhs-extract.mjs`、`public/ptt-slide*.html`、`public/slide*.png`、`runtime/*.cjs`、奇怪的 `Eapp...jsonl` 路径等运行产物 / 本地文件不属于本轮增量提交，继续不要提交、不要删除，除非用户明确说明它们的归属。
+
+## 2026-05-11 独立页面浅色主题 + Agents 重写 + 路由架构清理
+
+关键提交：`bb434f0` → `e37532e` → `d40c91d` → `d078b53` → `cebc6c0` → `f11a3e6`
+
+### Agents 页面重写
+
+- 全新的 inline 编辑器：点击 agent 卡片直接在原位展开编辑表单，不再跳转独立编辑页面。
+- 与 conn 页面设计语言对齐：stat card 布局、配色、交互模式一致。
+- `src/ui/agents-page.ts` 大幅重写（+800/-400 行）。
+
+### Conn 页面增强
+
+- 运行结果一键全部已读：`ConnRunStore.markAllRunsRead()` + `POST /v1/conns/:connId/runs/read-all`。
+- Topbar 布局修复：按钮对齐、间距统一。
+
+### 独立页面浅色主题
+
+- Conn 页面（`src/ui/conn-page-css.ts`）和 Agents 页面（`src/ui/agents-page.ts`）补全 `[data-theme="light"]` token 块。
+- 硬编码颜色覆盖：SVG data URI、scrollbar、列表项、stat card、markdown 渲染等浅色适配。
+- 共享 CSS base：`src/ui/standalone-page-shared.ts` 提供两个页面共用的 token 和组件样式。
+- 关键陷阱：token 选择器不能包含 `body`，否则 `body` 永远匹配会覆盖浅色 token。
+
+### Playground 路由架构清理
+
+- `data-home="true"/"false"` 是唯一路由开关。`data-stage-mode="landing"` 降级为永久 CSS-only hook。
+- 删除 `setStageMode()` 函数和 `state.stageMode` 属性（死代码）。
+- `aria-hidden` 逻辑迁移到 `backToLanding()`。
+- HTML 模板添加 `data-home="true"` 防止页面刷新时对话视图闪现。
+- CSS 规则分两层：`[data-home="true"]` 控制可见性（隐藏 topbar/rail/stream/command-deck），`[data-stage-mode="landing"]` 控制布局样式（composer/textarea/stream-layout 定位）。
 
 ## 2026-05-10 Conn 未读标记与 UI 收口
 
