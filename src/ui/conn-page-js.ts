@@ -4,6 +4,8 @@ export function getConnPageJs(): string {
 
 const STATUS_LABELS = { active: "运行中", paused: "已暂停", completed: "已完成" };
 const RUN_STATUS_LABELS = { pending: "待执行", running: "执行中", succeeded: "成功", failed: "失败", cancelled: "已取消" };
+const RUN_REFRESH_DELAY_MS = 3000;
+const RUN_REFRESH_MAX_ATTEMPTS = 120;
 
 // ── State ──────────────────────────────────────────────────────────────────
 
@@ -199,16 +201,26 @@ async function refreshRunsForConn(connId) {
 }
 
 function scheduleRunRefresh(connId, attempt) {
-  if (!connId || attempt >= 10) return;
+  if (!connId || attempt >= RUN_REFRESH_MAX_ATTEMPTS) {
+    if (connId && state.runRefreshTimers[connId]) {
+      clearTimeout(state.runRefreshTimers[connId]);
+      delete state.runRefreshTimers[connId];
+    }
+    return;
+  }
   if (state.runRefreshTimers[connId]) clearTimeout(state.runRefreshTimers[connId]);
   state.runRefreshTimers[connId] = setTimeout(async function() {
     try {
       await refreshRunsForConn(connId);
       if (hasActiveRunForConn(connId)) {
         scheduleRunRefresh(connId, attempt + 1);
+      } else {
+        delete state.runRefreshTimers[connId];
       }
-    } catch {}
-  }, 3000);
+    } catch {
+      scheduleRunRefresh(connId, attempt + 1);
+    }
+  }, RUN_REFRESH_DELAY_MS);
 }
 
 async function apiUploadAssets(files, connId) {

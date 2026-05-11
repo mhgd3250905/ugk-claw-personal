@@ -62,6 +62,11 @@ export interface CreateConnRunInput {
 	now?: Date;
 }
 
+export interface CreateConnRunUnlessActiveResult {
+	run: ConnRunRecord;
+	reused: boolean;
+}
+
 export interface ClaimConnRunInput {
 	workerId: string;
 	now?: Date;
@@ -185,41 +190,36 @@ export class ConnRunStore {
 	constructor(private readonly options: ConnRunStoreOptions) {}
 
 	async createRun(input: CreateConnRunInput): Promise<ConnRunRecord> {
-		const now = input.now ?? new Date();
-		const createdAt = now.toISOString();
-		const run: ConnRunRecord = {
-			runId: input.runId ?? randomUUID(),
-			connId: input.connId,
-			status: "pending",
-			scheduledAt: new Date(input.scheduledAt).toISOString(),
-			workspacePath: input.workspacePath,
-			...(input.sessionFile ? { sessionFile: input.sessionFile } : {}),
-			...(input.resolvedSnapshot ? { resolvedSnapshot: input.resolvedSnapshot } : {}),
-			...(input.retryOfRunId ? { retryOfRunId: input.retryOfRunId } : {}),
-			createdAt,
-			updatedAt: createdAt,
-		};
-
-		this.options.database.run(
-			[
-				"INSERT INTO conn_runs (",
-				"run_id, conn_id, status, scheduled_at, workspace_path, session_file, resolved_snapshot_json,",
-				"retry_of_run_id, created_at, updated_at",
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			].join(" "),
-			run.runId,
-			run.connId,
-			run.status,
-			run.scheduledAt,
-			run.workspacePath,
-			run.sessionFile,
-			serializeOptionalJson(run.resolvedSnapshot),
-			run.retryOfRunId,
-			run.createdAt,
-			run.updatedAt,
-		);
-
+		const run = this.buildPendingRun(input);
+		this.insertRun(run);
 		return run;
+	}
+
+	async createRunUnlessActive(input: CreateConnRunInput): Promise<CreateConnRunUnlessActiveResult> {
+		try {
+			this.options.database.exec("BEGIN IMMEDIATE");
+			const activeRow = this.options.database.get<ConnRunRow>(
+				[
+					"SELECT * FROM conn_runs",
+					"WHERE conn_id = ? AND status IN ('pending', 'running')",
+					"ORDER BY scheduled_at DESC, created_at DESC, run_id DESC",
+					"LIMIT 1",
+				].join(" "),
+				String(input.connId || "").trim(),
+			);
+			if (activeRow) {
+				this.options.database.exec("COMMIT");
+				return { run: rowToRun(activeRow), reused: true };
+			}
+
+			const run = this.buildPendingRun(input);
+			this.insertRun(run);
+			this.options.database.exec("COMMIT");
+			return { run, reused: false };
+		} catch (error) {
+			this.rollbackQuietly();
+			throw error;
+		}
 	}
 
 	async getRun(runId: string): Promise<ConnRunRecord | undefined> {
@@ -236,6 +236,23 @@ export class ConnRunStore {
 			connId,
 		);
 		return rows.map(rowToRun);
+	}
+
+	async getActiveRunForConn(connId: string): Promise<ConnRunRecord | undefined> {
+		const normalizedConnId = String(connId || "").trim();
+		if (!normalizedConnId) {
+			return undefined;
+		}
+		const row = this.options.database.get<ConnRunRow>(
+			[
+				"SELECT * FROM conn_runs",
+				"WHERE conn_id = ? AND status IN ('pending', 'running')",
+				"ORDER BY scheduled_at DESC, created_at DESC, run_id DESC",
+				"LIMIT 1",
+			].join(" "),
+			normalizedConnId,
+		);
+		return row ? rowToRun(row) : undefined;
 	}
 
 	async listLatestRunsForConns(connIds: readonly string[]): Promise<Record<string, ConnRunRecord | undefined>> {
@@ -688,6 +705,44 @@ export class ConnRunStore {
 		} catch {
 			// The transaction may already be closed by SQLite.
 		}
+	}
+
+	private buildPendingRun(input: CreateConnRunInput): ConnRunRecord {
+		const now = input.now ?? new Date();
+		const createdAt = now.toISOString();
+		return {
+			runId: input.runId ?? randomUUID(),
+			connId: input.connId,
+			status: "pending",
+			scheduledAt: new Date(input.scheduledAt).toISOString(),
+			workspacePath: input.workspacePath,
+			...(input.sessionFile ? { sessionFile: input.sessionFile } : {}),
+			...(input.resolvedSnapshot ? { resolvedSnapshot: input.resolvedSnapshot } : {}),
+			...(input.retryOfRunId ? { retryOfRunId: input.retryOfRunId } : {}),
+			createdAt,
+			updatedAt: createdAt,
+		};
+	}
+
+	private insertRun(run: ConnRunRecord): void {
+		this.options.database.run(
+			[
+				"INSERT INTO conn_runs (",
+				"run_id, conn_id, status, scheduled_at, workspace_path, session_file, resolved_snapshot_json,",
+				"retry_of_run_id, created_at, updated_at",
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			].join(" "),
+			run.runId,
+			run.connId,
+			run.status,
+			run.scheduledAt,
+			run.workspacePath,
+			run.sessionFile,
+			serializeOptionalJson(run.resolvedSnapshot),
+			run.retryOfRunId,
+			run.createdAt,
+			run.updatedAt,
+		);
 	}
 
 	private isCurrentLeaseOwner(runId: string, leaseOwner: string | undefined): boolean {

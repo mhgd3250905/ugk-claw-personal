@@ -107,6 +107,13 @@ interface ConnRunStoreLike {
 		scheduledAt: string;
 		workspacePath: string;
 	}): Promise<ConnRunRecord>;
+	createRunUnlessActive?(input: {
+		runId?: string;
+		connId: string;
+		scheduledAt: string;
+		workspacePath: string;
+	}): Promise<{ run: ConnRunRecord; reused: boolean }>;
+	getActiveRunForConn?(connId: string): Promise<ConnRunRecord | undefined>;
 	listRunsForConn(connId: string): Promise<ConnRunRecord[]>;
 	listLatestRunsForConns?(connIds: readonly string[]): Promise<Record<string, ConnRunRecord | undefined>>;
 	getRun(runId: string): Promise<ConnRunRecord | undefined>;
@@ -731,6 +738,27 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 			}
 			const scheduledAt = new Date().toISOString();
 			const runId = randomUUID();
+			if (options.connRunStore.createRunUnlessActive) {
+				const result = await options.connRunStore.createRunUnlessActive({
+					runId,
+					connId,
+					scheduledAt,
+					workspacePath: join(options.backgroundDataDir, "runs", runId),
+				});
+				return reply.status(202).send({
+					run: toConnRunBody(result.run),
+					...(result.reused ? { reused: true } : {}),
+				} satisfies ConnRunDetailResponseBody);
+			}
+			const activeRun = options.connRunStore.getActiveRunForConn
+				? await options.connRunStore.getActiveRunForConn(connId)
+				: (await options.connRunStore.listRunsForConn(connId)).find((run) => run.status === "pending" || run.status === "running");
+			if (activeRun) {
+				return reply.status(202).send({
+					run: toConnRunBody(activeRun),
+					reused: true,
+				} satisfies ConnRunDetailResponseBody);
+			}
 			const run = await options.connRunStore.createRun({
 				runId,
 				connId,

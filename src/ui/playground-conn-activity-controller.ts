@@ -18,6 +18,8 @@ export function getConnActivityConstantsScript(): string {
 			notification: "通知",
 			agent: "助手",
 		};
+		const CONN_RUN_REFRESH_DELAY_MS = 3000;
+		const CONN_RUN_REFRESH_MAX_ATTEMPTS = 120;
 
 	`;
 }
@@ -1367,7 +1369,11 @@ export function getConnActivityRendererScript(): string {
 		}
 
 		function scheduleConnManagerRunRefresh(connId, attempt) {
-			if (!connId || attempt >= 10) {
+			if (!connId || attempt >= CONN_RUN_REFRESH_MAX_ATTEMPTS) {
+				if (connId && state.connManagerRunRefreshTimers[connId]) {
+					clearTimeout(state.connManagerRunRefreshTimers[connId]);
+					delete state.connManagerRunRefreshTimers[connId];
+				}
 				return;
 			}
 			if (state.connManagerRunRefreshTimers[connId]) {
@@ -1378,12 +1384,15 @@ export function getConnActivityRendererScript(): string {
 					await refreshConnManagerRuns(connId);
 					if (hasConnManagerRunInFlight(connId)) {
 						scheduleConnManagerRunRefresh(connId, attempt + 1);
+					} else {
+						delete state.connManagerRunRefreshTimers[connId];
 					}
 				} catch (error) {
 					const messageText = error instanceof Error ? error.message : "无法刷新后台运行状态";
 					showError(messageText);
+					scheduleConnManagerRunRefresh(connId, attempt + 1);
 				}
-			}, 3000);
+			}, CONN_RUN_REFRESH_DELAY_MS);
 		}
 
 		function setConnManagerNotice(message, connId) {

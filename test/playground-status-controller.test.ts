@@ -5,7 +5,7 @@ import { getPlaygroundStatusControllerScript } from "../src/ui/playground-status
 test("status controller exposes loading, error, and command status helpers", () => {
 	const script = getPlaygroundStatusControllerScript();
 
-	assert.match(script, /function setStageMode\(next\)/);
+	assert.doesNotMatch(script, /function setStageMode\(next\)/);
 	assert.match(script, /function setCommandStatus\(next\)/);
 	assert.match(script, /function setLoading\(next\)/);
 	assert.match(script, /function showError\(message\)/);

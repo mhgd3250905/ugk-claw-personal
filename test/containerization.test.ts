@@ -97,7 +97,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /ensure-sidecar-chrome\.sh/);
 	assert.match(compose, /condition:\s*service_healthy/);
 	assert.match(compose, /TCP-LISTEN:9223,fork,bind=0\.0\.0\.0,reuseaddr/);
-	assert.match(compose, /npm run dev/);
+	assert.match(compose, /command:\s*npm start/);
 	assert.match(compose, /npm run worker:conn/);
 	assert.match(compose, /ugk-pi-conn-db:\/var\/lib\/ugk-pi\/conn/);
 	assert.match(compose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/app\/\.data\/browser-upload/);

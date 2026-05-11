@@ -12,6 +12,17 @@
 
 ## 2026-05-11
 
+### Conn 立即执行后端幂等与 Docker 启动口径加固
+- 日期：2026-05-11
+- 主题：补齐后台任务“立即执行”的服务端防重复，并修正近期重构后过期的测试契约；同时明确本项目标准启动方式是 Docker Compose。
+- 影响范围：
+  - `POST /v1/conns/:connId/run` 创建 run 前先复用当前 conn 已存在的 `pending / running` run，返回体增加 `reused: true` 标记，避免多标签、脚本调用或网络重试绕过前端按钮禁用后继续重复入队。
+  - `ConnRunStore` 新增 `getActiveRunForConn(connId)` 和事务级 `createRunUnlessActive()`，按 `scheduled_at / created_at / run_id` 返回最新 active run，并用 `BEGIN IMMEDIATE` 把“查 active + 插入”收成一次 SQLite 写事务。
+  - Conn 独立页面和 Playground 内嵌后台任务入口的 run 状态短轮询从最多 30 秒调整为最多 6 分钟，并在终态后清理 timer。
+  - `containerization` 和 `playground-status-controller` 测试同步当前事实：compose app 命令是 `npm start`，`setStageMode` 已移除。
+  - `README.md` 与 `docs/docker-local-ops.md` 明确不要把宿主机 `npm start` / `npm run dev` 当作正规启动方式，日常运行统一走 `docker compose`。
+- 对应入口：`src/agent/conn-run-store.ts`、`src/routes/conns.ts`、`src/types/api.ts`、`src/ui/conn-page-js.ts`、`src/ui/playground-conn-activity-controller.ts`、`test/conn-run-store.test.ts`、`test/server.test.ts`、`test/containerization.test.ts`、`test/playground-status-controller.test.ts`、`README.md`、`docs/docker-local-ops.md`
+
 ### Conn 立即执行交互反馈防重复
 - 日期：2026-05-11
 - 主题：修复后台任务“立即执行”点击后前端反馈不明显，用户容易连续点击并创建多条手动 run 的问题。

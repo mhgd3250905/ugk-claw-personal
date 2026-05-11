@@ -61,6 +61,8 @@
 
 ## ⚡ 三分钟跑起来
 
+> **本项目标准启动方式是 Docker Compose。** 不要在宿主机直接 `npm start` / `npm run dev` 当作日常运行入口；浏览器 sidecar、SQLite 挂载、worker、公开 URL 和运行态目录都依赖 compose 编排。宿主机 `npm` 命令主要用于安装依赖、跑测试和构建，不负责启动完整工作台。
+
 ```bash
 git clone https://github.com/mhgd3250905/ugk-claw-personal.git
 cd ugk-claw-personal

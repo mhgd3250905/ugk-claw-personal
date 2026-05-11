@@ -172,6 +172,7 @@ export interface ConnRunBody {
 export interface ConnRunDetailResponseBody {
 	run: ConnRunBody;
 	files?: ConnRunFileBody[];
+	reused?: boolean;
 }
 
 export interface ConnRunListResponseBody {

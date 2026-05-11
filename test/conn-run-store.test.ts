@@ -202,6 +202,81 @@ test("ConnRunStore lists the latest run for each requested conn in one batch", a
 	database.close();
 });
 
+test("ConnRunStore returns the newest active run for a conn", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "active digest",
+		prompt: "summarize active",
+		target: { type: "task_inbox" },
+		schedule: { kind: "interval", everyMs: 60_000 },
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-pending-old",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-pending-old",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-pending-new",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:02:00.000Z",
+		workspacePath: "/tmp/conn/run-pending-new",
+		now: new Date("2026-04-21T10:01:59.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-finished",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:03:00.000Z",
+		workspacePath: "/tmp/conn/run-finished",
+		now: new Date("2026-04-21T10:02:59.000Z"),
+	});
+	database.run("UPDATE conn_runs SET status = ?, finished_at = ? WHERE run_id = ?", "succeeded", "2026-04-21T10:04:00.000Z", "run-finished");
+
+	assert.equal((await runStore.getActiveRunForConn(conn.connId))?.runId, "run-pending-new");
+	assert.equal(await runStore.getActiveRunForConn("missing-conn"), undefined);
+
+	database.close();
+});
+
+test("ConnRunStore atomically reuses an active run when creating manually", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const conn = await connStore.create({
+		title: "manual digest",
+		prompt: "summarize manual",
+		target: { type: "task_inbox" },
+		schedule: { kind: "interval", everyMs: 60_000 },
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+
+	const first = await runStore.createRunUnlessActive({
+		runId: "run-first",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-first",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	const second = await runStore.createRunUnlessActive({
+		runId: "run-second",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:02:00.000Z",
+		workspacePath: "/tmp/conn/run-second",
+		now: new Date("2026-04-21T10:01:59.000Z"),
+	});
+
+	assert.equal(first.reused, false);
+	assert.equal(first.run.runId, "run-first");
+	assert.equal(second.reused, true);
+	assert.equal(second.run.runId, "run-first");
+	assert.deepEqual(
+		(await runStore.listRunsForConn(conn.connId)).map((run) => run.runId),
+		["run-first"],
+	);
+
+	database.close();
+});
+
 test("ConnRunStore scopes total unread counts and mark-all-read to requested conns", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const visibleConn = await connStore.create({

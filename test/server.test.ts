@@ -736,6 +736,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function renderConnManager\(/);
 	assert.match(response.body, /function runConnNow\(/);
 	assert.match(response.body, /function hasConnManagerRunInFlight\(connId\)/);
+	assert.match(response.body, /const CONN_RUN_REFRESH_MAX_ATTEMPTS = 120/);
 	assert.match(response.body, /state\.connManagerActionConnId === conn\.connId \? "入队中" : hasRunInFlight \? "执行中" : "立即执行"/);
 	assert.match(response.body, /setConnManagerNotice\("已触发执行，正在后台运行："/);
 	assert.match(response.body, /scheduleConnManagerRunRefresh\(conn\.connId, 0\)/);
@@ -1170,6 +1171,7 @@ test("standalone conn page disables run-now while a run is pending or running", 
 	const response = renderConnPage();
 
 	assert.match(response, /actionConnId:\s*""/);
+	assert.match(response, /const RUN_REFRESH_MAX_ATTEMPTS = 120/);
 	assert.match(response, /function isRunInFlight\(run\)[\s\S]*run\?\.status === "pending"[\s\S]*run\?\.status === "running"/);
 	assert.match(response, /function hasActiveRunForConn\(connId\)/);
 	assert.match(response, /hasRunInFlight \? "执行中" : "立即执行"/);
@@ -4590,6 +4592,75 @@ test("POST /v1/conns/:connId/run enqueues a background run without invoking the 
 			workspacePath: body.run.workspacePath,
 		},
 	]);
+	await app.close();
+});
+
+test("POST /v1/conns/:connId/run reuses an active run instead of creating duplicates", async () => {
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		connStore: {
+			list: async () => [],
+			get: async (connId: string) =>
+				connId === "conn-1"
+					? {
+							connId: "conn-1",
+							title: "digest",
+							prompt: "summarize",
+							target: { type: "task_inbox" },
+							schedule: { kind: "interval", everyMs: 60000 },
+							assetRefs: [],
+							status: "active",
+							createdAt: "2026-04-18T00:00:00.000Z",
+							updatedAt: "2026-04-18T00:00:00.000Z",
+						}
+					: undefined,
+			create: async () => {
+				throw new Error("not used");
+			},
+			update: async () => undefined,
+			delete: async () => false,
+			pause: async () => undefined,
+			resume: async () => undefined,
+		} as never,
+		connRunStore: {
+			createRun: async () => {
+				throw new Error("duplicate run should not be created");
+			},
+			getActiveRunForConn: async (connId: string) =>
+				connId === "conn-1"
+					? {
+							runId: "run-active",
+							connId: "conn-1",
+							status: "running",
+							scheduledAt: "2026-05-11T07:30:02.000Z",
+							claimedAt: "2026-05-11T07:30:09.000Z",
+							startedAt: "2026-05-11T07:30:09.000Z",
+							workspacePath: "E:/AII/ugk-pi/.data/agent/background/runs/run-active",
+							createdAt: "2026-05-11T07:30:02.000Z",
+							updatedAt: "2026-05-11T07:30:09.000Z",
+						}
+					: undefined,
+			listRunsForConn: async () => [],
+			getRun: async () => undefined,
+			listEvents: async () => [],
+			listFiles: async () => [],
+			getUnreadCountsByConn: async () => ({}),
+			getTotalUnreadCount: async () => 0,
+			markRunRead: async () => true,
+		} as never,
+		backgroundDataDir: "E:/AII/ugk-pi/.data/agent/background",
+	});
+
+	const response = await app.inject({
+		method: "POST",
+		url: "/v1/conns/conn-1/run",
+	});
+
+	assert.equal(response.statusCode, 202);
+	const body = response.json();
+	assert.equal(body.run.runId, "run-active");
+	assert.equal(body.run.status, "running");
+	assert.equal(body.reused, true);
 	await app.close();
 });
 

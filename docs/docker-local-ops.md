@@ -2,7 +2,27 @@
 
 这份文档给本地开发和排障用。目标不是把所有 Docker 命令背一遍，而是避免在 `ugk-pi` 这个项目里反复踩同几个坑。
 
-如果你只记一句：先确认当前 compose、端口和挂载，再决定是 `restart`、`up --build` 还是重建容器。别凭感觉拧开关。
+如果你只记一句：本项目本地标准启动方式是 `docker compose up -d`，先确认当前 compose、端口和挂载，再决定是 `restart`、`up --build` 还是重建容器。别凭感觉拧开关。
+
+## 不要用宿主机 npm 当标准启动入口
+
+`npm start` / `npm run dev` 可以作为非常短的源码排障手段，但不是本项目的正规运行方式。直接在 Windows 宿主机用 npm 启服务，很容易绕过这些真实运行条件：
+
+- Docker Chrome sidecar 与 CDP 端口。
+- `ugk-pi-conn-worker` / `ugk-pi-feishu-worker`。
+- `/var/lib/ugk-pi/conn/conn.sqlite` 和 `.data/` 运行态挂载。
+- `PUBLIC_BASE_URL`、`WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`、`WEB_ACCESS_CDP_HOST` 等 compose 环境变量。
+- 容器内 `/app` 路径、upload 桥和浏览器共享目录。
+
+所以本地验证默认只认：
+
+```bash
+docker compose up -d
+docker compose restart ugk-pi
+docker compose restart ugk-pi ugk-pi-conn-worker ugk-pi-feishu-worker
+```
+
+宿主机 `npm` 命令用于 `npm install`、`npm test`、`npm run build`、`npx tsc --noEmit` 这类开发检查。拿它长期启动服务，环境异常是迟早的事，不是玄学。
 
 ## 先确认你在哪种运行模式
 
