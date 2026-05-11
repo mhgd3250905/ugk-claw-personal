@@ -680,6 +680,7 @@ function getAgentsPageJs(): string {
 			gallerySkills: [],
 			editorMode: null,
 			browserList: [],
+			modelConfig: null,
 		};
 
 		const FILTER_TABS = [
@@ -948,6 +949,7 @@ function getAgentsPageJs(): string {
 			html += buildConfigItem("Agent ID", '<code>' + escapeHtml(agent.agentId) + '</code>', true);
 			html += buildConfigItem("名称", escapeHtml(agent.name || "-"), false);
 			html += buildConfigItem("默认浏览器", escapeHtml(agent.defaultBrowserId || "跟随系统默认"), false);
+			html += buildConfigItem("默认模型", escapeHtml(agent.defaultModelProvider && agent.defaultModelId ? agent.defaultModelProvider + "/" + agent.defaultModelId : "跟随全局默认"), false);
 			html += buildConfigItem("会话接口", '<code>/v1/agents/' + escapeHtml(agent.agentId) + '/chat/*</code>', true);
 			html += '</div></div>';
 			// Rules card
@@ -1208,6 +1210,25 @@ function getAgentsPageJs(): string {
 				return '<option value="' + escapeHtml(b.browserId) + '"' + (isEdit && agent.defaultBrowserId === b.browserId ? ' selected' : '') + '>' + escapeHtml(b.browserId) + '</option>';
 			}).join("");
 
+
+			var isMainAgent = isEdit && agent.agentId === "main";
+			var modelProviderOpts = "";
+			var modelModelOpts = "";
+			if (!isMainAgent && state.modelConfig) {
+				var curProvider = isEdit && agent.defaultModelProvider ? agent.defaultModelProvider : '';
+				var curModel = isEdit && agent.defaultModelId ? agent.defaultModelId : '';
+				modelProviderOpts = '<option value="">跟随全局默认</option>';
+				state.modelConfig.providers.forEach(function(p) {
+					modelProviderOpts += '<option value="' + escapeHtml(p.id) + '"' + (curProvider === p.id ? ' selected' : '') + '>' + escapeHtml(p.name || p.id) + '</option>';
+				});
+				var selProv = curProvider ? state.modelConfig.providers.find(function(p) { return p.id === curProvider; }) : null;
+				modelModelOpts = '<option value="">跟随全局默认</option>';
+				if (selProv) {
+					selProv.models.forEach(function(m) {
+						modelModelOpts += '<option value="' + escapeHtml(m.id) + '"' + (curModel === m.id ? ' selected' : '') + '>' + escapeHtml(m.name || m.id) + '</option>';
+					});
+				}
+			}
 			var idField = isEdit ? ""
 				: '<div class="ag-editor-form-grid">'
 				+ '<label class="ag-editor-field"><span>名称 <span class="required">*</span></span><input id="ed-name" autocomplete="off" placeholder="例如：代码审查员" /></label>'
@@ -1227,6 +1248,8 @@ function getAgentsPageJs(): string {
 				+ idField + nameField
 				+ '<label class="ag-editor-field"><span>描述</span><textarea id="ed-desc" rows="3" placeholder="描述 Agent 的职责...">' + (isEdit ? escapeHtml(agent.description || "") : "") + '</textarea></label>'
 				+ '<label class="ag-editor-field"><span>默认浏览器</span><select id="ed-browser"><option value="">跟随系统默认</option>' + browserOptions + '</select></label>'
+				+ '<label class="ag-editor-field"' + (isMainAgent ? ' style="display:none"' : '') + '><span>默认模型提供商</span><select id="ed-model-provider">' + modelProviderOpts + '</select></label>'
+				+ '<label class="ag-editor-field"' + (isMainAgent ? ' style="display:none"' : '') + '><span>默认模型</span><select id="ed-model-model">' + modelModelOpts + '</select></label>'
 				+ '</div></div>'
 				+ '<div class="ag-editor-actions"><div><button id="ed-submit" class="ag-btn ag-btn--primary" type="button">' + (isEdit ? "保存修改" : "创建 Agent") + '</button> <button id="ed-cancel" class="ag-btn ag-btn--outline" type="button">取消</button></div><div class="ag-editor-actions-right">' + (isEdit ? "agentId: " + escapeHtml(agent.agentId) : "") + '</div></div>'
 				+ '</div>';
@@ -1243,6 +1266,28 @@ function getAgentsPageJs(): string {
 					});
 					idInput.addEventListener("input", function() { idInput.dataset.touched = "1"; });
 				}
+
+			if (!isMainAgent && state.modelConfig) {
+				var providerSel = document.getElementById("ed-model-provider");
+				var modelSel = document.getElementById("ed-model-model");
+				if (providerSel && modelSel) {
+					providerSel.addEventListener("change", function() {
+						var pid = providerSel.value;
+						modelSel.innerHTML = '<option value="">跟随全局默认</option>';
+						if (pid && state.modelConfig) {
+							var prov = state.modelConfig.providers.find(function(p) { return p.id === pid; });
+							if (prov) {
+								prov.models.forEach(function(m) {
+									var opt = document.createElement('option');
+									opt.value = m.id;
+									opt.textContent = m.name || m.id;
+									modelSel.appendChild(opt);
+								});
+							}
+						}
+					});
+				}
+			}
 			}
 		}
 
@@ -1256,6 +1301,8 @@ function getAgentsPageJs(): string {
 			var id = (document.getElementById("ed-id") || {}).value || slugify(name);
 			var desc = (document.getElementById("ed-desc") || {}).value || "";
 			var browser = (document.getElementById("ed-browser") || {}).value || "";
+			var modelProvider = (document.getElementById("ed-model-provider") || {}).value || "";
+			var modelModel = (document.getElementById("ed-model-model") || {}).value || "";
 			if (!name.trim()) { showEditorError("名称不能为空"); return; }
 			if (!id.trim() || !/^[a-z][a-z0-9-]*$/.test(id)) { showEditorError("Agent ID 格式不正确（小写字母开头，仅含小写字母、数字、连字符）"); return; }
 			if (["main","search"].indexOf(id) !== -1) { showEditorError("该 Agent ID 已被系统保留"); return; }
@@ -1265,7 +1312,7 @@ function getAgentsPageJs(): string {
 				await fetchJson("/v1/agents", {
 					method: "POST",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ agentId: id, name: name, description: desc, defaultBrowserId: browser || undefined }),
+					body: JSON.stringify({ agentId: id, name: name, description: desc, defaultBrowserId: browser || undefined, defaultModelProvider: modelProvider || undefined, defaultModelId: modelModel || undefined }),
 				});
 				state.editorMode = null;
 				await apiFetchAgents();
@@ -1286,6 +1333,8 @@ function getAgentsPageJs(): string {
 			var name = (document.getElementById("ed-name") || {}).value || "";
 			var desc = (document.getElementById("ed-desc") || {}).value || "";
 			var browser = (document.getElementById("ed-browser") || {}).value || "";
+			var modelProvider = (document.getElementById("ed-model-provider") || {}).value || "";
+			var modelModel = (document.getElementById("ed-model-model") || {}).value || "";
 			if (!name.trim()) { showEditorError("名称不能为空"); return; }
 			var submitBtn = document.getElementById("ed-submit");
 			if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "保存中..."; }
@@ -1293,7 +1342,7 @@ function getAgentsPageJs(): string {
 				await fetchJson("/v1/agents/" + agent.agentId, {
 					method: "PATCH",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ name: name, description: desc, defaultBrowserId: browser || null }),
+					body: JSON.stringify({ name: name, description: desc, defaultBrowserId: browser || null, defaultModelProvider: modelProvider || null, defaultModelId: modelModel || null }),
 				});
 				state.editorMode = null;
 				await apiFetchAgents();
@@ -1354,6 +1403,10 @@ function getAgentsPageJs(): string {
 
 			var browserResult = await fetchJson("/v1/browsers");
 			state.browserList = Array.isArray(browserResult.browsers) ? browserResult.browsers : [];
+			try {
+				var mcResult = await fetchJson("/v1/model-config");
+				state.modelConfig = mcResult || null;
+			} catch(e) { state.modelConfig = null; }
 			await Promise.all([apiFetchAgents(), apiFetchGallerySkills()]);
 			renderFilterTabs();
 			renderAgentList();

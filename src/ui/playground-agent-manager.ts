@@ -781,6 +781,14 @@ export function getPlaygroundAgentManagerDialogs(): string {
 							<span>默认浏览器</span>
 							<select id="agent-editor-browser-select" name="defaultBrowserId"></select>
 						</label>
+				<label class="agent-editor-field">
+					<span>默认模型提供商</span>
+					<select id="agent-editor-model-provider-select" name="defaultModelProvider"></select>
+				</label>
+				<label class="agent-editor-field">
+					<span>默认模型</span>
+					<select id="agent-editor-model-select" name="defaultModelId"></select>
+				</label>
 					</div>
 				</form>
 			</section>
@@ -830,6 +838,8 @@ export function getPlaygroundAgentManagerScript(): string {
 		const agentEditorNameInput = document.getElementById("agent-editor-name-input");
 		const agentEditorDescriptionInput = document.getElementById("agent-editor-description-input");
 		const agentEditorBrowserSelect = document.getElementById("agent-editor-browser-select");
+			const agentEditorModelProviderSelect = document.getElementById("agent-editor-model-provider-select");
+			const agentEditorModelSelect = document.getElementById("agent-editor-model-select");
 		const saveAgentEditorButton = document.getElementById("save-agent-editor-button");
 		const cancelAgentEditorButton = document.getElementById("cancel-agent-editor-button");
 		const closeAgentEditorButton = document.getElementById("close-agent-editor-button");
@@ -849,6 +859,59 @@ export function getPlaygroundAgentManagerScript(): string {
 		function isMainAgent(agent) {
 			return agent?.agentId === "main";
 		}
+
+			function renderModelEditorOptions(agent) {
+				const providerSelect = agentEditorModelProviderSelect;
+				const modelSelect = agentEditorModelSelect;
+				if (!providerSelect || !modelSelect) return;
+				const isCore = isMainAgent(agent);
+				providerSelect.innerHTML = "";
+				modelSelect.innerHTML = "";
+				providerSelect.disabled = isCore;
+				modelSelect.disabled = isCore;
+				if (isCore || !state.modelConfig) {
+					const opt = document.createElement("option");
+					opt.value = "";
+					opt.textContent = "跟随全局默认";
+					providerSelect.appendChild(opt);
+					modelSelect.appendChild(opt.cloneNode(true));
+					return;
+				}
+				const curProvider = agent?.defaultModelProvider || "";
+				const curModel = agent?.defaultModelId || "";
+				const defaultOpt = document.createElement("option");
+				defaultOpt.value = "";
+				defaultOpt.textContent = "跟随全局默认";
+				providerSelect.appendChild(defaultOpt);
+				for (const prov of state.modelConfig.providers || []) {
+					const option = document.createElement("option");
+					option.value = prov.id || "";
+					option.textContent = prov.name || prov.id || "";
+					if (curProvider === prov.id) option.selected = true;
+					providerSelect.appendChild(option);
+				}
+				renderModelSelectForProvider(curProvider, curModel);
+			}
+
+			function renderModelSelectForProvider(providerId, selectedModelId) {
+				const modelSelect = agentEditorModelSelect;
+				if (!modelSelect || !state.modelConfig) return;
+				modelSelect.innerHTML = "";
+				const defaultOpt = document.createElement("option");
+				defaultOpt.value = "";
+				defaultOpt.textContent = "跟随全局默认";
+				modelSelect.appendChild(defaultOpt);
+				if (!providerId) return;
+				const prov = (state.modelConfig.providers || []).find((p) => p.id === providerId);
+				if (!prov) return;
+				for (const m of prov.models || []) {
+					const option = document.createElement("option");
+					option.value = m.id || "";
+					option.textContent = m.name || m.id || "";
+					if (selectedModelId === m.id) option.selected = true;
+					modelSelect.appendChild(option);
+				}
+			}
 
 		function getBrowserCatalog() {
 			return Array.isArray(state.browserCatalog) ? state.browserCatalog : [];
@@ -1023,6 +1086,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			agentEditorNameInput.value = editing ? agent.name || "" : "";
 			agentEditorDescriptionInput.value = editing ? agent.description || "" : "";
 			renderBrowserOptions(agentEditorBrowserSelect, editing ? agent.defaultBrowserId || "" : "");
+				renderModelEditorOptions(agent);
 			renderAgentEditor();
 			agentEditorDialog.hidden = false;
 			agentEditorDialog.classList.add("open");
@@ -1036,6 +1100,8 @@ export function getPlaygroundAgentManagerScript(): string {
 			state.agentCreateName = "";
 			state.agentCreateDescription = "";
 			state.agentCreateDefaultBrowserId = "";
+				state.agentCreateDefaultModelProvider = "";
+				state.agentCreateDefaultModelId = "";
 			state.agentCreateSelectedSkillNames = [];
 			setAgentEditorError("");
 			renderAgentManager();
@@ -1065,6 +1131,8 @@ export function getPlaygroundAgentManagerScript(): string {
 			agentEditorNameInput.disabled = saving;
 			agentEditorDescriptionInput.disabled = saving;
 			agentEditorBrowserSelect.disabled = saving;
+				if (agentEditorModelProviderSelect) agentEditorModelProviderSelect.disabled = saving;
+				if (agentEditorModelSelect) agentEditorModelSelect.disabled = saving;
 			saveAgentEditorButton.disabled = saving;
 			saveAgentEditorButton.textContent = saving ? "保存中" : "保存";
 		}
@@ -1090,6 +1158,22 @@ export function getPlaygroundAgentManagerScript(): string {
 				state.browserCatalogReliable = false;
 			}
 		}
+
+			async function loadModelConfig() {
+				try {
+					const response = await fetch("/v1/model-config", {
+						method: "GET",
+						headers: { accept: "application/json" },
+					});
+					const payload = await response.json().catch(() => ({}));
+					if (!response.ok) {
+						throw new Error(payload?.message || "无法读取模型配置");
+					}
+					state.modelConfig = payload || null;
+				} catch {
+					state.modelConfig = null;
+				}
+			}
 
 		async function openAgentRulesEditor(agent, restoreFocusElement) {
 			if (!agent?.agentId || state.agentRulesEditorSaving) {
@@ -1253,6 +1337,7 @@ export function getPlaygroundAgentManagerScript(): string {
 				["Agent ID", agent.agentId],
 				["状态", agent.agentId === getCurrentAgentId() ? "当前激活" : (isCoreAgent ? "核心 Agent" : "可切换")],
 				["默认浏览器", getBrowserLabel(agent.defaultBrowserId || "")],
+					["默认模型", agent.defaultModelProvider && agent.defaultModelId ? agent.defaultModelProvider + "/" + agent.defaultModelId : "跟随全局默认"],
 				["会话接口", "/v1/agents/" + agent.agentId + "/chat/*"],
 				["技能接口", "/v1/agents/" + agent.agentId + "/debug/skills"],
 				["规则文件", "AGENTS.md"],
@@ -1325,6 +1410,8 @@ export function getPlaygroundAgentManagerScript(): string {
 			form.appendChild(idField);
 			form.appendChild(descriptionField);
 			form.appendChild(browserField);
+				const modelField = renderAgentCreateModelField();
+				form.appendChild(modelField);
 
 			const skillsSection = renderAgentCreateSkillsSection();
 			const rulesSection = document.createElement("section");
@@ -1394,6 +1481,65 @@ export function getPlaygroundAgentManagerScript(): string {
 			field.appendChild(select);
 			return field;
 		}
+
+			function renderAgentCreateModelField() {
+				const field = document.createElement("div");
+				field.className = "agent-manager-create-grid";
+				field.style.gridTemplateColumns = "1fr 1fr";
+				const providerField = document.createElement("label");
+				providerField.className = "agent-editor-field";
+				const providerLabel = document.createElement("span");
+				providerLabel.textContent = "默认模型提供商";
+				const providerSelect = document.createElement("select");
+				const providerDefault = document.createElement("option");
+				providerDefault.value = "";
+				providerDefault.textContent = "跟随全局默认";
+				providerSelect.appendChild(providerDefault);
+				if (state.modelConfig?.providers) {
+					for (const prov of state.modelConfig.providers) {
+						const opt = document.createElement("option");
+						opt.value = prov.id || "";
+						opt.textContent = prov.name || prov.id || "";
+						providerSelect.appendChild(opt);
+					}
+				}
+				const modelField = document.createElement("label");
+				modelField.className = "agent-editor-field";
+				const modelLabel = document.createElement("span");
+				modelLabel.textContent = "默认模型";
+				const modelSelect = document.createElement("select");
+				const modelDefault = document.createElement("option");
+				modelDefault.value = "";
+				modelDefault.textContent = "跟随全局默认";
+				modelSelect.appendChild(modelDefault);
+				providerSelect.addEventListener("change", () => {
+					modelSelect.innerHTML = "";
+					modelSelect.appendChild(modelDefault.cloneNode(true));
+					state.agentCreateDefaultModelProvider = providerSelect.value;
+					state.agentCreateDefaultModelId = "";
+					if (providerSelect.value && state.modelConfig?.providers) {
+						const prov = state.modelConfig.providers.find((p) => p.id === providerSelect.value);
+						if (prov) {
+							for (const m of prov.models || []) {
+								const opt = document.createElement("option");
+								opt.value = m.id || "";
+								opt.textContent = m.name || m.id || "";
+								modelSelect.appendChild(opt);
+							}
+						}
+					}
+				});
+				modelSelect.addEventListener("change", () => {
+					state.agentCreateDefaultModelId = modelSelect.value;
+				});
+				providerField.appendChild(providerLabel);
+				providerField.appendChild(providerSelect);
+				modelField.appendChild(modelLabel);
+				modelField.appendChild(modelSelect);
+				field.appendChild(providerField);
+				field.appendChild(modelField);
+				return field;
+			}
 
 		function renderAgentCreateSkillsSection() {
 			const section = document.createElement("section");
@@ -1595,7 +1741,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			refreshAgentManagerButton.disabled = true;
 			agentManagerList.setAttribute("aria-busy", "true");
 			try {
-				await Promise.all([loadAgentCatalog(), loadBrowserCatalog()]);
+				await Promise.all([loadAgentCatalog(), loadBrowserCatalog(), loadModelConfig()]);
 				const selected = getSelectedAgentForManager();
 				if (selected) {
 					state.agentManagerSelectedAgentId = selected.agentId;
@@ -1729,6 +1875,9 @@ export function getPlaygroundAgentManagerScript(): string {
 							name,
 							description,
 							...(editing || defaultBrowserId ? { defaultBrowserId: defaultBrowserId || null } : {}),
+							...(agentEditorModelProviderSelect?.value && agentEditorModelSelect?.value
+								? { defaultModelProvider: agentEditorModelProviderSelect.value, defaultModelId: agentEditorModelSelect.value }
+								: editing ? { defaultModelProvider: null, defaultModelId: null } : {}),
 						}),
 					},
 				);
@@ -1787,6 +1936,8 @@ export function getPlaygroundAgentManagerScript(): string {
 						description,
 						...(state.agentCreateDefaultBrowserId ? { defaultBrowserId: state.agentCreateDefaultBrowserId } : {}),
 						initialSystemSkillNames: state.agentCreateSelectedSkillNames || [],
+						...(state.agentCreateDefaultModelProvider && state.agentCreateDefaultModelId
+							? { defaultModelProvider: state.agentCreateDefaultModelProvider, defaultModelId: state.agentCreateDefaultModelId } : {}),
 					}),
 				});
 				const payload = await response.json().catch(() => ({}));
@@ -1799,6 +1950,8 @@ export function getPlaygroundAgentManagerScript(): string {
 				state.agentCreateName = "";
 				state.agentCreateDescription = "";
 				state.agentCreateDefaultBrowserId = "";
+					state.agentCreateDefaultModelProvider = "";
+					state.agentCreateDefaultModelId = "";
 				state.agentCreateSelectedSkillNames = [];
 				renderAgentSelector();
 				renderAgentManager();
@@ -2107,6 +2260,11 @@ export function getPlaygroundAgentManagerScript(): string {
 					closeAgentManager();
 				}
 			});
+				if (agentEditorModelProviderSelect) {
+					agentEditorModelProviderSelect.addEventListener("change", () => {
+						renderModelSelectForProvider(agentEditorModelProviderSelect.value, "");
+					});
+				}
 			agentEditorForm.addEventListener("submit", (event) => {
 				event.preventDefault();
 				void saveAgentEditor();
