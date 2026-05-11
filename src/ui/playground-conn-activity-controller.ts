@@ -1068,7 +1068,25 @@ export function getConnActivityApiScript(): string {
 				const errorMessage = payload?.error?.message || payload?.message || "无法读取后台任务列表";
 				throw new Error(errorMessage);
 			}
+			applyConnManagerUnreadCount(payload);
 			return Array.isArray(payload?.conns) ? payload.conns : [];
+		}
+
+		function applyConnManagerUnreadCount(payload) {
+			state.connManagerUnreadCount = Math.max(0, Number(payload?.totalUnreadRuns) || 0);
+			renderTaskInboxToggleState();
+			return state.connManagerUnreadCount;
+		}
+
+		async function syncConnManagerUnreadSummary(options) {
+			try {
+				await fetchConnList();
+			} catch (error) {
+				if (!options?.silent) {
+					const messageText = error instanceof Error ? error.message : "无法读取后台任务未读数";
+					showError(messageText);
+				}
+			}
 		}
 
 		async function hydrateConnManagerRunsFromList(conns) {

@@ -12,6 +12,15 @@
 
 ## 2026-05-11
 
+### Playground 后台任务入口未读徽章对齐 Conn 口径
+- 日期：2026-05-11
+- 主题：修正对话页顶部“后台任务”按钮数字徽章的数据源，让它和 `/playground/conn` 页面顶部“未读结果”保持一致。
+- 影响范围：
+  - Playground 新增 `connManagerUnreadCount` 状态，后台任务入口徽章改用 `/v1/conns` 返回的 `totalUnreadRuns`，不再复用任务消息 `/v1/activity/summary` 的未读数。
+  - 页面初始化、窗口重新聚焦、标签页重新可见以及后台实时通知到达时都会刷新 conn 未读摘要，避免用户在 conn 页面点掉未读后，对话页刷新仍显示旧数字。
+  - 任务消息入口仍继续使用 `agent_activity_items` 未读数；后台任务入口只表达 conn run 未读结果，两套读模型不再互相串台。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground-task-inbox.ts`、`src/ui/playground-stream-controller.ts`、`test/server.test.ts`
+
 ### Conn 立即执行后端幂等与 Docker 启动口径加固
 - 日期：2026-05-11
 - 主题：补齐后台任务“立即执行”的服务端防重复，并修正近期重构后过期的测试契约；同时明确本项目标准启动方式是 Docker Compose。

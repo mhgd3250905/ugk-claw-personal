@@ -210,6 +210,7 @@ function getPlaygroundScript(): string {
 			taskInboxNextBefore: "",
 			taskInboxLoadingMore: false,
 			connManagerOpen: false,
+			connManagerUnreadCount: 0,
 			connManagerItems: [],
 			connManagerRunsByConnId: {},
 			connManagerRunsLoadedByConnId: {},
@@ -1155,6 +1156,14 @@ function getPlaygroundScript(): string {
 				flushConversationHistoryPersist();
 				disconnectNotificationStream();
 			});
+			window.addEventListener("focus", () => {
+				void syncConnManagerUnreadSummary({ silent: true });
+			});
+			document.addEventListener("visibilitychange", () => {
+				if (!document.hidden) {
+					void syncConnManagerUnreadSummary({ silent: true });
+				}
+			});
 			${getPlaygroundAssetEventHandlersScript()}
 
 			sendButton.addEventListener("click", () => {
@@ -1352,6 +1361,7 @@ function getPlaygroundScript(): string {
 			renderConnManager();
 			void loadAssets(true);
 			void syncTaskInboxSummary({ silent: true });
+			void syncConnManagerUnreadSummary({ silent: true });
 			void loadAgentStatusAndRenderCards();
 
 			resetStreamingState();

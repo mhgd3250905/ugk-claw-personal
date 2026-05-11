@@ -40,6 +40,7 @@ export function getPlaygroundStreamControllerScript(): string {
 			}
 			showNotificationToast(event);
 			void loadTaskInbox({ silent: true });
+			void syncConnManagerUnreadSummary({ silent: true });
 		}
 
 		function connectNotificationStream() {

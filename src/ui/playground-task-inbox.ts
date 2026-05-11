@@ -621,6 +621,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 	return `
 		function renderTaskInboxToggleState() {
 			const unreadCount = Math.max(0, Number(state.taskInboxUnreadCount) || 0);
+			const connUnreadCount = Math.max(0, Number(state.connManagerUnreadCount) || 0);
 			const isTasksView = Boolean(state.taskInboxOpen);
 			const entries = [
 				{ button: openTaskInboxButton, badge: taskInboxUnreadBadge, baseLabel: "任务消息" },
@@ -641,8 +642,8 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				);
 			}
 			if (typeof connManagerUnreadBadge !== "undefined" && connManagerUnreadBadge) {
-				connManagerUnreadBadge.hidden = unreadCount < 1;
-				connManagerUnreadBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+				connManagerUnreadBadge.hidden = connUnreadCount < 1;
+				connManagerUnreadBadge.textContent = connUnreadCount > 99 ? "99+" : String(connUnreadCount);
 			}
 			if (mobileOverflowMenuButton && mobileOverflowTaskInboxBadge) {
 				mobileOverflowTaskInboxBadge.hidden = unreadCount < 1;

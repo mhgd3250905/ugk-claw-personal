@@ -973,13 +973,17 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /state\.taskInboxExpandedActivityIds = \[\]/);
 	assert.match(response.body, /params\.set\("before", state\.taskInboxNextBefore\)/);
 	assert.match(response.body, /function applyTaskInboxUnreadCount\(payload\)\s*\{/);
+	assert.match(response.body, /function applyConnManagerUnreadCount\(payload\)\s*\{/);
 	assert.match(response.body, /state\.taskInboxUnreadCount = page\.unreadCount/);
 	assert.match(response.body, /state\.taskInboxUnreadCount = Math\.max\(0, Number\(payload\?\.unreadCount\) \|\| 0\)/);
+	assert.match(response.body, /state\.connManagerUnreadCount = Math\.max\(0, Number\(payload\?\.totalUnreadRuns\) \|\| 0\)/);
 	assert.match(response.body, /\/v1\/activity\/summary/);
+	assert.match(response.body, /\/v1\/conns/);
 	assert.match(response.body, /\/v1\/activity\/read-all/);
 	assert.match(response.body, /const markAllTaskInboxReadButton = document\.getElementById\("mark-all-task-inbox-read-button"\)/);
 	assert.match(response.body, /const mobileOverflowTaskInboxBadge = document\.getElementById\("mobile-overflow-task-inbox-badge"\)/);
 	assert.match(response.body, /mobileOverflowTaskInboxBadge\.hidden = unreadCount < 1/);
+	assert.match(response.body, /connManagerUnreadBadge\.hidden = connUnreadCount < 1/);
 	assert.match(response.body, /mobileOverflowTaskInboxBadge\.textContent = unreadCount > 99 \? "99\+" : String\(unreadCount\)/);
 	assert.doesNotMatch(response.body, /markVisibleTaskInboxItemsRead/);
 	assert.doesNotMatch(
