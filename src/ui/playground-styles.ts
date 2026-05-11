@@ -67,9 +67,9 @@ export function getPlaygroundStyles(): string {
 			margin: 0;
 			height: 100%;
 			background:
-				radial-gradient(circle at 18% 14%, rgba(121, 105, 214, 0.14), transparent 0 18%),
-				radial-gradient(circle at 78% 10%, rgba(255, 255, 255, 0.05), transparent 0 14%),
-				linear-gradient(180deg, #02030a 0%, #04050d 38%, #090611 100%);
+				radial-gradient(circle at 18% 14%, rgba(51, 131, 255, 0.10), transparent 0 20%),
+				radial-gradient(circle at 78% 10%, rgba(81, 255, 194, 0.04), transparent 0 16%),
+				linear-gradient(180deg, #020611 0%, #040812 38%, #050817 100%);
 			background-size: auto;
 			color: var(--fg);
 			font-family: var(--font-sans);
@@ -2314,7 +2314,7 @@ export function getPlaygroundStyles(): string {
 			padding: 12px 0 14px;
 			border: 0;
 			border-radius: 4px;
-			background: rgba(102, 93, 138, 0.16);
+			background: rgba(9, 12, 22, 0.96);
 			outline: 1px solid transparent;
 			outline-offset: 2px;
 			box-shadow: none;
@@ -2328,7 +2328,7 @@ export function getPlaygroundStyles(): string {
 
 		.composer:focus-within {
 			border-color: rgba(201, 210, 255, 0.34);
-			background: rgba(102, 93, 138, 0.2);
+			background: rgba(14, 18, 32, 0.98);
 			outline: none;
 			box-shadow: inset 0 0 0 1px var(--accent);
 		}
@@ -3318,26 +3318,45 @@ export function getPlaygroundStyles(): string {
 		body::before {
 			content: "";
 			position: fixed;
-			inset: 0;
-			background:
-				linear-gradient(rgba(201, 210, 255, 0.024) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(201, 210, 255, 0.02) 1px, transparent 1px),
-				linear-gradient(135deg, transparent 0 48%, rgba(101, 209, 255, 0.035) 49% 51%, transparent 52% 100%),
-				linear-gradient(180deg, rgba(1, 3, 10, 0.18), rgba(3, 3, 9, 0.52));
-			background-size: 36px 36px, 36px 36px, 96px 96px, auto;
-			opacity: 0.48;
+			inset: -48px;
+			z-index: 0;
 			pointer-events: none;
+			opacity: 0.78;
+			background-image:
+				linear-gradient(rgba(116, 176, 255, 0.09) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(116, 176, 255, 0.065) 1px, transparent 1px),
+				linear-gradient(rgba(116, 176, 255, 0.12) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(116, 176, 255, 0.10) 1px, transparent 1px),
+				radial-gradient(circle at 1px 1px, rgba(133, 190, 255, 0.22) 1px, transparent 1.5px),
+				repeating-linear-gradient(
+					135deg,
+					transparent 0 104px,
+					rgba(95, 145, 255, 0.025) 104px 168px,
+					transparent 168px 300px
+				),
+				radial-gradient(circle at 12% 22%, rgba(137, 205, 255, 0.32) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 31% 19%, rgba(137, 205, 255, 0.12) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 67% 31%, rgba(137, 205, 255, 0.32) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 84% 16%, rgba(137, 205, 255, 0.12) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 72% 76%, rgba(137, 205, 255, 0.32) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 18% 82%, rgba(137, 205, 255, 0.12) 0 1px, transparent 1.6px));
+			background-size: 32px 32px, 32px 32px, 128px 128px, 128px 128px, 12px 12px, auto,
+				100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+			transform: translate3d(0, 0, 0);
+			animation: ugk-chat-bg-drift 120s linear infinite;
+			will-change: transform;
 		}
 
 		body::after {
 			content: "";
 			position: fixed;
 			inset: 0;
-			background:
-				radial-gradient(circle at 18% 12%, rgba(101, 209, 255, 0.1), transparent 0 24%),
-				radial-gradient(circle at 78% 6%, rgba(141, 255, 178, 0.06), transparent 0 18%);
-			opacity: 0.92;
+			z-index: 0;
 			pointer-events: none;
+			background:
+				radial-gradient(circle at 18% 12%, rgba(51, 131, 255, 0.14), transparent 0 24%),
+				radial-gradient(circle at 78% 6%, rgba(81, 255, 194, 0.06), transparent 0 18%);
+			opacity: 0.92;
 		}
 
 		.shell {
@@ -3358,6 +3377,29 @@ export function getPlaygroundStyles(): string {
 			isolation: isolate;
 			--conversation-width: 760px;
 		}
+
+			.shell:not([data-home="true"]) {
+				background-image:
+					linear-gradient(var(--ugk-grid-line) 1px, transparent 1px),
+					linear-gradient(90deg, var(--ugk-grid-line) 1px, transparent 1px),
+					linear-gradient(var(--ugk-grid-line-strong) 1px, transparent 1px),
+					linear-gradient(90deg, var(--ugk-grid-line-strong) 1px, transparent 1px),
+					radial-gradient(circle at 1px 1px, var(--ugk-grid-dot) 1px, transparent 1.5px),
+					repeating-linear-gradient(
+						135deg,
+						transparent 0 104px,
+						var(--ugk-diagonal-band) 104px 168px,
+						transparent 168px 300px
+					),
+					radial-gradient(circle at 12% 22%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 31% 19%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 67% 31%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 84% 16%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 72% 76%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 18% 82%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px);
+				background-size: 32px 32px, 32px 32px, 128px 128px, 128px 128px, 12px 12px, auto,
+					100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+			}
 
 		.topbar {
 			position: relative;
@@ -3672,6 +3714,25 @@ export function getPlaygroundStyles(): string {
 				animation: none !important;
 			}
 		}
+
+			@keyframes ugk-chat-bg-drift {
+				from { transform: translate3d(0, 0, 0); }
+				to { transform: translate3d(32px, 32px, 0); }
+			}
+
+			@keyframes ugk-chat-bg-scan {
+				0% { transform: translate3d(-42vw, 0, 0) skewX(-18deg); opacity: 0; }
+				12% { opacity: 0.3; }
+				50% { opacity: 0.5; }
+				88% { opacity: 0.25; }
+				100% { transform: translate3d(128vw, 0, 0) skewX(-18deg); opacity: 0; }
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				body::before {
+					animation: none !important;
+				}
+			}
 
 
 		.landing-agent-card {
@@ -4057,7 +4118,7 @@ export function getPlaygroundStyles(): string {
 			border: 0;
 			border-radius: 6px;
 			background:
-				linear-gradient(180deg, rgba(11, 16, 27, 0.96), rgba(5, 8, 15, 0.96)),
+				linear-gradient(180deg, rgba(11, 16, 27, 0.88), rgba(5, 8, 15, 0.88)),
 				#080c14;
 			box-shadow: none;
 			overflow: hidden;

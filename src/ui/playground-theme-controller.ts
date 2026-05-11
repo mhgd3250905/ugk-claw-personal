@@ -20,28 +20,35 @@ export function getPlaygroundThemeStyles(): string {
 		:root[data-theme="light"],
 		:root[data-theme="light"] body {
 			background:
-				linear-gradient(rgba(31, 95, 200, 0.035) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(31, 95, 200, 0.028) 1px, transparent 1px),
-				radial-gradient(circle at 18% 10%, rgba(31, 95, 200, 0.12), transparent 0 24%),
-				radial-gradient(circle at 82% 6%, rgba(8, 120, 75, 0.08), transparent 0 18%),
-				linear-gradient(180deg, #f7f9fd 0%, #e9eff7 48%, #dde5f0 100%);
-			background-size: 34px 34px, 34px 34px, auto, auto, auto;
+				radial-gradient(circle at 18% 10%, rgba(45, 122, 255, 0.10), transparent 0 24%),
+				radial-gradient(circle at 82% 6%, rgba(67, 170, 255, 0.055), transparent 0 18%),
+				linear-gradient(180deg, #f7f9fd 0%, #eef3f9 48%, #e3eaf4 100%);
+			background-size: auto, auto, auto;
 			color: var(--fg);
 		}
 
 		:root[data-theme="light"] body::before {
-			background:
-				linear-gradient(rgba(36, 84, 214, 0.035) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(36, 84, 214, 0.03) 1px, transparent 1px);
-			background-size: 34px 34px;
-			opacity: 0.9;
+			background-image:
+				linear-gradient(rgba(24, 69, 119, 0.055) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(24, 69, 119, 0.04) 1px, transparent 1px),
+				linear-gradient(rgba(24, 69, 119, 0.085) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(24, 69, 119, 0.06) 1px, transparent 1px),
+				radial-gradient(circle at 1px 1px, rgba(41, 104, 180, 0.10) 1px, transparent 1.5px),
+				repeating-linear-gradient(
+					135deg,
+					transparent 0 104px,
+					rgba(48, 105, 180, 0.035) 104px 168px,
+					transparent 168px 300px
+				);
+			background-size: 32px 32px, 32px 32px, 128px 128px, 128px 128px, 12px 12px, auto;
+			opacity: 0.85;
 		}
 
 		:root[data-theme="light"] body::after {
 			background:
-				radial-gradient(circle at 18% 12%, rgba(31, 95, 200, 0.08), transparent 0 24%),
-				radial-gradient(circle at 78% 6%, rgba(8, 120, 75, 0.05), transparent 0 18%);
-			opacity: 1;
+				radial-gradient(circle at 18% 12%, rgba(45, 122, 255, 0.07), transparent 0 24%),
+				radial-gradient(circle at 78% 6%, rgba(67, 170, 255, 0.04), transparent 0 18%);
+			opacity: 0.92;
 		}
 
 		.theme-toggle-button {
@@ -145,6 +152,22 @@ export function getPlaygroundThemeStyles(): string {
 			border-color: transparent;
 			background: transparent;
 			box-shadow: none;
+		}
+
+		:root[data-theme="light"] .shell:not([data-home="true"]) {
+			background-image:
+				linear-gradient(var(--ugk-grid-line) 1px, transparent 1px),
+				linear-gradient(90deg, var(--ugk-grid-line) 1px, transparent 1px),
+				linear-gradient(var(--ugk-grid-line-strong) 1px, transparent 1px),
+				linear-gradient(90deg, var(--ugk-grid-line-strong) 1px, transparent 1px),
+				radial-gradient(circle at 1px 1px, var(--ugk-grid-dot) 1px, transparent 1.5px),
+				repeating-linear-gradient(
+					135deg,
+					transparent 0 104px,
+					var(--ugk-diagonal-band) 104px 168px,
+					transparent 168px 300px
+				);
+			background-size: 32px 32px, 32px 32px, 128px 128px, 128px 128px, 12px 12px, auto;
 		}
 
 		:root[data-theme="light"] .shell,
@@ -343,18 +366,19 @@ export function getPlaygroundThemeStyles(): string {
 
 		:root[data-theme="light"] .message.assistant .message-body,
 		:root[data-theme="light"] :is(.task-inbox-result-bubble) {
-			background: rgba(255, 255, 255, 0.9);
+			background: rgba(255, 255, 255, 0.6);
+			border: 1px solid rgba(31, 95, 200, 0.10);
 			color: #172033;
-			box-shadow: none;
+			box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 		}
 
 		:root[data-theme="light"] .message.user .message-body {
 			position: relative;
 			overflow: hidden;
-			border: 0;
+			border: 1px solid rgba(22, 163, 74, 0.15);
 			background: #95ec69;
 			color: #1a1a1a;
-			box-shadow: none;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 		}
 
 		:root[data-theme="light"] .message.user .message-content {
