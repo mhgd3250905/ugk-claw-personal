@@ -3510,13 +3510,24 @@ export function getPlaygroundStyles(): string {
 			margin-bottom: 24px;
 		}
 
-		.landing-title {
-			font-size: 24px;
-			font-weight: 700;
-			letter-spacing: 0.08em;
-			color: var(--text-primary);
-			margin: 0 0 8px;
-		}
+.landing-logo {
+				margin: 0 0 8px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+			}
+
+			.landing-logo .ugk-svg-logo {
+				width: 240px;
+				height: auto;
+			}
+
+			.landing-logo .ugk-ascii-logo {
+				color: rgba(138, 170, 218, 0.4);
+				font-size: clamp(6px, 0.88vw, 10px);
+				line-height: 0.94;
+				margin-top: 8px;
+			}
 
 		.landing-subtitle {
 			font-size: 13px;
@@ -3533,6 +3544,136 @@ export function getPlaygroundStyles(): string {
 			width: 100%;
 		}
 
+		/* === UGK CLAW Landing Pixel Hacker Background === */
+		:root[data-theme="dark"] {
+			--ugk-bg-base: #020611;
+			--ugk-bg-base-2: #050817;
+			--ugk-bg-glow: rgba(51, 131, 255, 0.12);
+			--ugk-bg-corner-glow: rgba(81, 255, 194, 0.045);
+			--ugk-grid-line: rgba(116, 176, 255, 0.075);
+			--ugk-grid-line-strong: rgba(116, 176, 255, 0.11);
+			--ugk-grid-dot: rgba(133, 190, 255, 0.16);
+			--ugk-pixel: rgba(137, 205, 255, 0.42);
+			--ugk-pixel-soft: rgba(137, 205, 255, 0.16);
+			--ugk-diagonal-band: rgba(95, 145, 255, 0.035);
+			--ugk-scan-glow: rgba(96, 194, 255, 0.10);
+			--ugk-bg-opacity: 1;
+		}
+
+		:root[data-theme="light"] {
+			--ugk-bg-base: #f7f9fd;
+			--ugk-bg-base-2: #eef3f9;
+			--ugk-bg-glow: rgba(45, 122, 255, 0.10);
+			--ugk-bg-corner-glow: rgba(67, 170, 255, 0.055);
+			--ugk-grid-line: rgba(24, 69, 119, 0.055);
+			--ugk-grid-line-strong: rgba(24, 69, 119, 0.085);
+			--ugk-grid-dot: rgba(41, 104, 180, 0.13);
+			--ugk-pixel: rgba(26, 101, 210, 0.34);
+			--ugk-pixel-soft: rgba(26, 101, 210, 0.12);
+			--ugk-diagonal-band: rgba(48, 105, 180, 0.045);
+			--ugk-scan-glow: rgba(0, 91, 255, 0.07);
+			--ugk-bg-opacity: 0.9;
+		}
+
+		.shell[data-home="true"] {
+			background:
+				radial-gradient(circle at 50% 26%, var(--ugk-bg-glow), transparent 38%),
+				radial-gradient(circle at 12% 18%, var(--ugk-bg-corner-glow), transparent 34%),
+				linear-gradient(180deg, var(--ugk-bg-base) 0%, var(--ugk-bg-base-2) 100%);
+			isolation: isolate;
+		}
+
+		.shell[data-home="true"]::before {
+			content: "";
+			position: fixed;
+			inset: -72px;
+			z-index: 0;
+			pointer-events: none;
+			opacity: var(--ugk-bg-opacity);
+			background-image:
+				linear-gradient(var(--ugk-grid-line) 1px, transparent 1px),
+				linear-gradient(90deg, var(--ugk-grid-line) 1px, transparent 1px),
+				linear-gradient(var(--ugk-grid-line-strong) 1px, transparent 1px),
+				linear-gradient(90deg, var(--ugk-grid-line-strong) 1px, transparent 1px),
+				radial-gradient(circle at 1px 1px, var(--ugk-grid-dot) 1px, transparent 1.5px),
+				repeating-linear-gradient(
+					135deg,
+					transparent 0 104px,
+					var(--ugk-diagonal-band) 104px 168px,
+					transparent 168px 300px
+				),
+				radial-gradient(circle at 12% 22%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 31% 19%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 67% 31%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 84% 16%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 72% 76%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 18% 82%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px);
+			background-size:
+				32px 32px,
+				32px 32px,
+				128px 128px,
+				128px 128px,
+				12px 12px,
+				auto,
+				100% 100%,
+				100% 100%,
+				100% 100%,
+				100% 100%,
+				100% 100%,
+				100% 100%;
+			transform: translate3d(0, 0, 0);
+			animation: ugk-bg-drift 56s linear infinite;
+			will-change: transform;
+		}
+
+		.shell[data-home="true"]::after {
+			content: "";
+			position: fixed;
+			top: -20%;
+			left: 0;
+			z-index: 0;
+			width: 28vw;
+			height: 140%;
+			pointer-events: none;
+			background:
+				linear-gradient(
+					90deg,
+					transparent 0%,
+					var(--ugk-scan-glow) 48%,
+					transparent 100%
+				);
+			opacity: 0.75;
+			transform: translate3d(-40vw, 0, 0) skewX(-18deg);
+			animation: ugk-bg-scan 18s ease-in-out infinite;
+			will-change: transform;
+		}
+
+		.shell[data-home="true"] > * {
+			position: relative;
+			z-index: 1;
+		}
+
+		@keyframes ugk-bg-drift {
+			from { transform: translate3d(0, 0, 0); }
+			to { transform: translate3d(32px, 32px, 0); }
+		}
+
+		@keyframes ugk-bg-scan {
+			0% { transform: translate3d(-42vw, 0, 0) skewX(-18deg); opacity: 0; }
+			12% { opacity: 0.55; }
+			50% { opacity: 0.75; }
+			88% { opacity: 0.45; }
+			100% { transform: translate3d(128vw, 0, 0) skewX(-18deg); opacity: 0; }
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.shell[data-home="true"]::before,
+			.shell[data-home="true"]::after {
+				animation: none !important;
+			}
+		}
+
+
 		.landing-agent-card {
 			display: flex;
 			flex-direction: column;
@@ -3548,7 +3689,7 @@ export function getPlaygroundStyles(): string {
 			font-size: inherit;
 			line-height: inherit;
 			box-shadow: none;
-			transition: border-color 0.15s ease;
+			transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 		}
 
 		.landing-agent-card:hover,
@@ -3557,7 +3698,24 @@ export function getPlaygroundStyles(): string {
 			background: rgba(201, 210, 255, 0.07);
 		}
 
-		.landing-agent-card.is-busy {
+		
+
+		
+		
+
+
+		:root[data-theme="light"] .landing-agent-card {
+			background: rgba(16, 24, 44, 0.08);
+			border-color: rgba(31, 95, 200, 0.10);
+		}
+
+		:root[data-theme="light"] button.landing-agent-card:hover,
+		:root[data-theme="light"] button.landing-agent-card:focus-visible {
+			border-color: rgba(201, 210, 255, 0.24);
+			background: rgba(201, 210, 255, 0.07) !important;
+		}
+
+.landing-agent-card.is-busy {
 			opacity: 0.7;
 		}
 
@@ -4168,6 +4326,8 @@ export function getPlaygroundStyles(): string {
 				grid-column: unset;
 				width: 100%;
 				height: 100%;
+				display: flex;
+				flex-direction: column;
 			}
 
 			.shell[data-home="true"] .landing-screen {
@@ -4198,8 +4358,12 @@ export function getPlaygroundStyles(): string {
 				gap: 12px;
 			}
 
-			.landing-title {
-				font-size: 20px;
+			.landing-logo .ugk-svg-logo {
+				width: min(200px, 60vw);
+			}
+
+			.landing-logo .ugk-ascii-logo {
+				display: none;
 			}
 
 

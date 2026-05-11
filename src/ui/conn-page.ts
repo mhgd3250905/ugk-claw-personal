@@ -1,4 +1,4 @@
-import { getStandaloneBaseCss, getStandaloneBaseJs, STANDALONE_FAVICON, renderStandaloneConfirmDialog, renderStandaloneToastContainer, renderStandaloneTopbar } from "./standalone-page-shared.js";
+import { getStandaloneBaseCss, getStandaloneBaseJs, STANDALONE_FAVICON, STANDALONE_THEME_INLINE_SCRIPT, renderStandaloneConfirmDialog, renderStandaloneToastContainer, renderStandaloneTopbar } from "./standalone-page-shared.js";
 import { getConnPageCss } from "./conn-page-css.js";
 import { getConnPageJs } from "./conn-page-js.js";
 import { getBrowserMarkdownRendererScript } from "./playground-transcript-renderer.js";
@@ -15,6 +15,7 @@ export function renderConnPage(): string {
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	${STANDALONE_THEME_INLINE_SCRIPT}
 	<title>后台任务工作台 - UGK Claw</title>
 	<link rel="icon" href="${STANDALONE_FAVICON}" />
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css" />

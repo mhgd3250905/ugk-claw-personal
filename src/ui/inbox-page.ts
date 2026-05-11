@@ -5,6 +5,7 @@ import {
 	renderStandaloneConfirmDialog,
 	renderStandaloneToastContainer,
 	STANDALONE_FAVICON,
+	STANDALONE_THEME_INLINE_SCRIPT,
 } from "./standalone-page-shared.js";
 
 function getInboxPageCss(): string {
@@ -1359,6 +1360,7 @@ export function renderInboxPage(): string {
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	${STANDALONE_THEME_INLINE_SCRIPT}
 	<title>消息中心 - UGK Claw</title>
 	<link rel="icon" href="${STANDALONE_FAVICON}" />
 	<style>${css}</style>

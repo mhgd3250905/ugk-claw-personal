@@ -1419,11 +1419,13 @@ test("GET /playground embeds syntactically valid browser script", async () => {
 	});
 
 	assert.equal(response.statusCode, 200);
-	const scriptMatch = response.body.match(/<script>([\s\S]*)<\/script>/);
-	assert.ok(scriptMatch, "expected inline playground script");
-	assert.doesNotThrow(() => {
-		new Function(scriptMatch[1]);
-	});
+	const inlineScripts = [...response.body.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+	assert.ok(inlineScripts.length > 0, "expected inline playground scripts");
+	for (const match of inlineScripts) {
+		assert.doesNotThrow(() => {
+			new Function(match[1]);
+		}, "inline script should be valid JS: " + match[1].slice(0, 80) + "...");
+	}
 	await app.close();
 });
 

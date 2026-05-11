@@ -82,11 +82,11 @@ Fastify Server (src/server.ts)
 
 **Playground UI** (`src/ui/`): Vanilla TypeScript single-page application with no framework. Follows a controller-per-feature pattern — each `playground-*-controller.ts` manages one UI concern (streaming, conversations, assets, status, layout, theme, etc.). The design system is codified in `DESIGN.md` (dark theme primary, no shadows/gradients, two-column "cockpit" layout). HTML is server-rendered from `src/ui/playground.ts`.
 
-**Playground Theming**: Dual-theme system via `[data-theme="dark"]` / `[data-theme="light"]` on `<html>`. Main playground uses `playground-theme-controller.ts`; standalone pages (conn, agents) embed their own CSS token blocks with `standalone-page-shared.ts` as the shared base. Token selectors must NOT include `body` — only `:root` and `[data-theme="dark"]` for dark tokens, `[data-theme="light"]` for light tokens.
+**Playground Theming**: Dual-theme system via `[data-theme="dark"]` / `[data-theme="light"]` on `<html>`. Main playground uses `playground-theme-controller.ts`; standalone pages (conn, agents) embed their own CSS token blocks with `standalone-page-shared.ts` as the shared base. Token selectors must NOT include `body` — only `:root` and `[data-theme="dark"]` for dark tokens, `[data-theme="light"]` for light tokens. FOUC prevention: an inline `<script>` in `<head>` reads `localStorage("ugk-pi:playground-theme")` and sets `data-theme` + `colorScheme` before CSS loads — shared across playground and standalone pages via `STANDALONE_THEME_INLINE_SCRIPT`. Light-theme card/button overrides need sufficient CSS specificity to beat the generic `button:hover` rule in `playground-theme-controller.ts` (which sets `background: #ffffff`).
 
 **Playground Routing**: Two data attributes control view state on the shell element: `data-home="true"/"false"` is the sole routing toggle (agent list vs. conversation view). `data-stage-mode="landing"` is a permanent CSS-only hook for base layout styles (composer, textarea, stream-layout positioning) — it never changes at runtime and has no corresponding JS state.
 
-**Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`. To add a new route group, create the file and call its register function in `buildServer()`.
+**Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`, shared response presentation in `*-route-presenters.ts` (e.g., `conn-route-presenters.ts`). API errors use helpers from `http-errors.ts` for consistent error responses. To add a new route group, create the file and call its register function in `buildServer()`.
 
 ### `.pi/` Directory
 
@@ -124,7 +124,7 @@ Model source selection persists at `.data/agent/model-settings.json` and can be 
 
 ### Testing
 
-Uses Node.js native test runner (`node:test` + `node:assert/strict`). Tests import from `../src/` directly via tsx. 86 test files in a flat `test/` directory covering all major modules. The server test (`test/server.test.ts`) uses Fastify's `inject()` for HTTP-level testing against a `buildServer()` instance with stubbed services. Test isolation is achieved by passing stub services and using temp directories.
+Uses Node.js native test runner (`node:test` + `node:assert/strict`). Tests import from `../src/` directly via tsx. Test files live in a flat `test/` directory covering all major modules. The server test (`test/server.test.ts`) uses Fastify's `inject()` for HTTP-level testing against a `buildServer()` instance with stubbed services. Test isolation is achieved by passing stub services and using temp directories.
 
 ### Data Directory Layout
 
