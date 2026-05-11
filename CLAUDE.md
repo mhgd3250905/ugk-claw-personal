@@ -76,7 +76,7 @@ Fastify Server (src/server.ts)
 
 **Conn (Background Tasks)**: SQLite-backed job queue. `ConnSqliteStore`/`ConnDatabase` manage conn definitions, `ConnRunStore` tracks runs. `conn-worker.ts` polls for due jobs and executes them via `BackgroundAgentRunner`. Each conn run gets an isolated workspace (`BackgroundWorkspace` in `src/agent/background-workspace.ts`) with input/work/output/logs/session directories under `.data/agent/background/`. `AgentTemplateRegistry` (`src/agent/agent-template-registry.ts`) caches resolved agent profiles for conn tasks so the worker doesn't re-resolve on every run. Results delivered to task inbox, conversations, or Feishu.
 
-**Browser Integration**: Agent browser automation uses Docker Chrome sidecar via CDP (`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp` → `172.31.250.10:9223`). `browser-cleanup.ts` closes browser targets after each agent run. Sidecar profile persists in `.data/chrome-sidecar/` for login-state retention. The browser layer (`src/browser/`) provides `BrowserRegistry` for multi-instance management and `browser-control.ts` for start/restart/close operations.
+**Browser Integration**: Agent browser automation uses Docker Chrome sidecars via CDP (`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`). `UGK_BROWSER_INSTANCES_JSON` configures up to 3 independent Chrome instances (default / chrome-01 / chrome-02), each with its own profile directory, CDP endpoint, and GUI port. `BrowserRegistry` manages multi-instance lifecycle; `browser-cleanup.ts` closes targets after each agent run. Sidecar profiles persist in `.data/chrome-sidecar*/` for login-state retention. `browser-control.ts` handles start/restart/close operations.
 
 **Search (SearXNG)**: Web search uses a self-hosted SearXNG sidecar (`SEARXNG_BASE_URL`). The search skill calls SearXNG's JSON API and returns results to the agent. Config lives in `deploy/searxng/` with persistent cache at `.data/searxng/`.
 
@@ -116,11 +116,13 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 
 ### Configuration
 
-Runtime config comes from env vars, with `.env.example` as the template. Key vars:
-- `DASHSCOPE_CODING_API_KEY` / `DEEPSEEK_API_KEY` / `XIAOMI_MIMO_API_KEY` — model provider keys
+Requires Node.js >= 22. Runtime config comes from env vars, with `.env.example` as the template. Key vars:
+- `ANTHROPIC_AUTH_TOKEN` — primary model key for pi-coding-agent sessions
+- `DASHSCOPE_CODING_API_KEY` / `DEEPSEEK_API_KEY` / `XIAOMI_MIMO_API_KEY` — alternative model provider keys
 - `PUBLIC_BASE_URL` — external URL for generated links
 - `UGK_AGENT_DATA_DIR` / `UGK_AGENTS_DATA_DIR` — persistent state directories (externally mounted in production)
 - `UGK_RUNTIME_SKILLS_USER_DIR` — user skills directory (production: shared volume, not git worktree)
+- `CONN_WORKER_MAX_CONCURRENCY` — max parallel conn runs (default 3)
 
 Model source selection persists at `.data/agent/model-settings.json` and can be changed at runtime via Playground.
 
