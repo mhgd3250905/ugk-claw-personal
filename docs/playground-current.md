@@ -2,6 +2,13 @@
 
 更新时间：`2026-05-09`
 
+## 2026-05-11 Conn 独立页面空列表新建任务
+
+- `/playground/conn` 独立后台任务工作台在当前任务列表为空时，点击顶部“新建任务”后，左侧列表必须显示一个选中的“新建任务”虚拟卡片，并在卡片内展示“保存任务 / 取消”按钮。
+- 这个虚拟卡片属于编辑态，不应被普通“暂无任务”空态截断；`renderList()` 需要先判断 `state.editorOpen && state.editorMode === "create" && conns.length === 0`，再进入普通空列表分支。
+- 有任务列表时，新建任务仍显示在左侧列表顶部；编辑已有任务时，保存 / 取消按钮仍显示在被编辑的任务卡片上。
+- 相关源码：`src/ui/conn-page-js.ts`
+
 ## 2026-05-09 Agent / Conn 浏览器绑定手动化
 
 - 浏览器绑定从自然语言 Agent 能力中撤出：Agent 不再通过 `.pi/skills/agent-profile-ops` 或 `.pi/skills/conn-orchestrator` 查询浏览器清单、生成浏览器绑定提案或修改浏览器绑定字段。

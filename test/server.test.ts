@@ -9,6 +9,7 @@ import { FeishuSettingsStore } from "../src/integrations/feishu/settings-store.j
 import type { AgentService } from "../src/agent/agent-service.js";
 import { AgentBusyError } from "../src/agent/agent-errors.js";
 import { renderPlaygroundMarkdown } from "../src/ui/playground.js";
+import { renderConnPage } from "../src/ui/conn-page.js";
 import { createBrowserRegistry } from "../src/browser/browser-registry.js";
 import type {
 	ModelConfigBody,
@@ -1145,6 +1146,20 @@ test("GET /playground releases panel focus before hiding conn run details", asyn
 		/function closeConnRunDetailsDialog\(\)\s*\{[\s\S]*connRunDetailsDialog\.setAttribute\("aria-hidden", "true"\);[\s\S]*releasePanelFocusBeforeHide\(connRunDetailsDialog,/,
 	);
 	await app.close();
+});
+
+test("standalone conn page keeps the new-task card visible when the task list is empty", () => {
+	const response = renderConnPage();
+	const createEmptyEditorBranch = response.indexOf(
+		'if (state.editorOpen && state.editorMode === "create" && conns.length === 0)',
+	);
+	const emptyListBranch = response.indexOf("if (conns.length === 0)");
+
+	assert.notEqual(createEmptyEditorBranch, -1);
+	assert.notEqual(emptyListBranch, -1);
+	assert.ok(createEmptyEditorBranch < emptyListBranch);
+	assert.match(response, /function appendNewConnEditorItem\(\)/);
+	assert.match(response, /id="editor-submit"[\s\S]*保存任务[\s\S]*id="editor-cancel"[\s\S]*取消/);
 });
 
 test("GET /playground defaults runtime append behavior to steer", async () => {

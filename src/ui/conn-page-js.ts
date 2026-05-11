@@ -288,6 +288,25 @@ function renderList() {
   if (!container) return;
   const conns = getFilteredConns();
 
+  function appendNewConnEditorItem() {
+    const newItem = document.createElement("button");
+    newItem.className = "conn-list-item is-selected";
+    newItem.innerHTML = '<div class="conn-list-item-row"><span class="conn-list-item-dot conn-list-item-dot--active"></span><span class="conn-list-item-title">新建任务</span><span class="conn-list-item-badge conn-list-item-badge--active">新建</span></div>';
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "conn-list-item-editor-actions";
+    actionsDiv.innerHTML = '<button id="editor-submit" class="conn-list-editor-btn conn-list-editor-btn--primary" type="button"' + (state.editorSaving ? ' disabled' : '') + '>保存任务</button><button id="editor-cancel" class="conn-list-editor-btn conn-list-editor-btn--cancel" type="button"' + (state.editorSaving ? ' disabled' : '') + '>取消</button>';
+    newItem.appendChild(actionsDiv);
+    container.appendChild(newItem);
+  }
+
+  if (state.editorOpen && state.editorMode === "create" && conns.length === 0) {
+    container.innerHTML = "";
+    appendNewConnEditorItem();
+    const footer = document.querySelector(".conn-list-footer");
+    if (footer) footer.remove();
+    return;
+  }
+
   if (conns.length === 0) {
     container.innerHTML = '<div class="conn-list-empty"><div class="conn-list-empty-icon"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h4"/></svg></div><div class="conn-list-empty-title">暂无任务</div><div>创建你的第一个后台任务</div></div>';
     const footer = document.querySelector(".conn-list-footer");
@@ -299,14 +318,7 @@ function renderList() {
 
   // When creating a new task, show a virtual "new task" item at the top
   if (state.editorOpen && state.editorMode === "create") {
-    const newItem = document.createElement("button");
-    newItem.className = "conn-list-item is-selected";
-    newItem.innerHTML = '<div class="conn-list-item-row"><span class="conn-list-item-dot conn-list-item-dot--active"></span><span class="conn-list-item-title">新建任务</span><span class="conn-list-item-badge conn-list-item-badge--active">新建</span></div>';
-    const actionsDiv = document.createElement("div");
-    actionsDiv.className = "conn-list-item-editor-actions";
-    actionsDiv.innerHTML = '<button id="editor-submit" class="conn-list-editor-btn conn-list-editor-btn--primary" type="button"' + (state.editorSaving ? ' disabled' : '') + '>保存任务</button><button id="editor-cancel" class="conn-list-editor-btn conn-list-editor-btn--cancel" type="button"' + (state.editorSaving ? ' disabled' : '') + '>取消</button>';
-    newItem.appendChild(actionsDiv);
-    container.appendChild(newItem);
+    appendNewConnEditorItem();
   }
 
   for (const conn of conns) {
