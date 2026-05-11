@@ -12,6 +12,14 @@
 
 ## 2026-05-11
 
+### 双云增量更新状态文档校准
+- 日期：2026-05-11
+- 主题：在腾讯云和阿里云都完成本轮增量更新后，校准接手文档里的双云生产状态，避免后续 agent 按旧提交判断服务器版本。
+- 影响范围：
+  - `AGENTS.md` 的当前阶段快照更新为本轮 Conn 未读徽章修复已完成双云增量发布，功能锚点为 `efb0de7 Align conn unread badge with run counts`。
+  - `docs/handoff-current.md` 的当前结论改为 `origin/main` / `gitee/main` 与本文件所在 HEAD 同步，腾讯云和阿里云均已通过 `deploy` + `verify`，未跟踪运行产物仍不属于发布内容。
+- 对应入口：`AGENTS.md`、`docs/handoff-current.md`
+
 ### Playground 后台任务入口未读徽章对齐 Conn 口径
 - 日期：2026-05-11
 - 主题：修正对话页顶部“后台任务”按钮数字徽章的数据源，让它和 `/playground/conn` 页面顶部“未读结果”保持一致。
