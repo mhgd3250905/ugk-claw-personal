@@ -44,24 +44,24 @@ function getAgentsPageCss(): string {
 		html, body { background: var(--bg); }
 
 		/* ── Scrollbar ── */
+		.ag-detail-body::-webkit-scrollbar,
 		.ag-agent-list::-webkit-scrollbar,
-		.ag-detail::-webkit-scrollbar,
 		.ag-skill-list::-webkit-scrollbar {
 			width: 6px;
 		}
+		.ag-detail-body::-webkit-scrollbar-track,
 		.ag-agent-list::-webkit-scrollbar-track,
-		.ag-detail::-webkit-scrollbar-track,
 		.ag-skill-list::-webkit-scrollbar-track {
 			background: transparent;
 		}
+		.ag-detail-body::-webkit-scrollbar-thumb,
 		.ag-agent-list::-webkit-scrollbar-thumb,
-		.ag-detail::-webkit-scrollbar-thumb,
 		.ag-skill-list::-webkit-scrollbar-thumb {
 			background: #263552;
 			border-radius: 999px;
 		}
+		.ag-detail-body::-webkit-scrollbar-thumb:hover,
 		.ag-agent-list::-webkit-scrollbar-thumb:hover,
-		.ag-detail::-webkit-scrollbar-thumb:hover,
 		.ag-skill-list::-webkit-scrollbar-thumb:hover {
 			background: #3A4B70;
 		}
@@ -74,20 +74,6 @@ function getAgentsPageCss(): string {
 		.sp-topbar-btn { height: 36px; border-radius: var(--radius-btn); border-color: var(--border); padding: 0 14px; font-size: 12px; }
 		.sp-topbar-btn:hover { background: var(--primary-soft); border-color: var(--border-hover); color: var(--fg-secondary); }
 		.sp-topbar-btn svg { width: 14px; height: 14px; }
-
-		.ag-topbar-new {
-			background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
-			border: none !important;
-			color: #fff !important;
-			font-weight: 600;
-			box-shadow: 0 8px 24px var(--primary-glow);
-		}
-		.ag-topbar-new:hover {
-			filter: brightness(1.12);
-			box-shadow: 0 12px 32px rgba(99,102,241,0.35);
-			color: #fff !important;
-			background: linear-gradient(135deg, #6D7DFF, #9B6CFF) !important;
-		}
 
 		/* ── Root layout ── */
 		#app {
@@ -106,43 +92,52 @@ function getAgentsPageCss(): string {
 			padding: 20px 24px;
 		}
 		.ag-stat-card {
-			padding: 18px 20px;
+			padding: 20px;
 			border-radius: var(--radius-card);
 			background: var(--surface);
 			border: 1px solid var(--border);
+			transition: border-color 0.2s, box-shadow 0.2s;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			gap: 16px;
-			min-height: 96px;
-			transition: border-color 0.2s;
+			min-height: 104px;
 		}
-		.ag-stat-card:hover { border-color: var(--border-hover); }
-		.ag-stat-info { flex: 1; min-width: 0; }
-		.ag-stat-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
-		.ag-stat-num { font-size: 28px; font-weight: 700; color: var(--fg); line-height: 1; font-variant-numeric: tabular-nums; }
-		.ag-stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+		.ag-stat-card:hover {
+			border-color: var(--border-hover);
+			box-shadow: 0 0 20px rgba(99, 102, 241, 0.06);
+		}
+		.ag-stat-card-body { flex: 1; min-width: 0; }
+		.ag-stat-card .ag-stat-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+		.ag-stat-card .ag-stat-num { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+		.ag-stat-card .ag-stat-desc { font-size: 11px; color: var(--muted); margin-top: 6px; }
 		.ag-stat-icon {
-			width: 42px; height: 42px;
+			width: 44px; height: 44px;
 			border-radius: 8px;
 			display: flex; align-items: center; justify-content: center;
 			flex-shrink: 0;
 		}
-		.ag-stat-icon svg { width: 20px; height: 20px; }
-		.ag-stat-icon--1 { background: var(--primary-soft); color: var(--primary-hover); }
-		.ag-stat-icon--2 { background: var(--success-soft); color: var(--success); }
-		.ag-stat-icon--3 { background: var(--warning-soft); color: var(--warning); }
-		.ag-stat-icon--4 { background: var(--info-soft); color: var(--info); }
+		.ag-stat-icon svg { width: 22px; height: 22px; }
+		.ag-stat-card--blue .ag-stat-icon { background: var(--primary-soft); }
+		.ag-stat-card--blue .ag-stat-num { color: var(--primary); }
+		.ag-stat-card--green .ag-stat-icon { background: var(--success-soft); }
+		.ag-stat-card--green .ag-stat-num { color: var(--success); }
+		.ag-stat-card--amber .ag-stat-icon { background: var(--warning-soft); }
+		.ag-stat-card--amber .ag-stat-num { color: var(--warning); }
+		.ag-stat-card--violet .ag-stat-icon { background: rgba(139, 92, 246, 0.12); }
+		.ag-stat-card--violet .ag-stat-num { color: #8B5CF6; }
 
-		/* ── Main split ── */
+		/* ── Main split (5-col grid, same as conn) ── */
 		.ag-main {
 			display: grid;
-			grid-template-columns: 340px minmax(0, 1fr);
+			grid-template-columns: repeat(5, 1fr);
 			min-height: 0;
 			overflow: hidden;
 			padding: 0 24px 24px;
 			gap: 16px;
 		}
+		.ag-sidebar { grid-column: 1 / 2; }
+		.ag-detail { grid-column: 2 / 6; }
 
 		/* ── Sidebar ── */
 		.ag-sidebar {
@@ -150,266 +145,290 @@ function getAgentsPageCss(): string {
 			grid-template-rows: auto auto minmax(0, 1fr);
 			min-height: 0;
 			overflow: hidden;
-			gap: 12px;
 			background: var(--sidebar);
 			border: 1px solid var(--border);
 			border-radius: var(--radius-card);
-			padding: 16px;
 		}
-		.ag-search-wrap { position: relative; flex-shrink: 0; }
+		.ag-sidebar-toolbar { padding: 16px 16px 12px; }
 		.ag-search-input {
 			width: 100%; height: 40px;
-			padding: 0 12px 0 36px;
+			padding: 0 14px 0 36px;
 			border-radius: var(--radius-input);
 			border: 1px solid var(--border);
 			background: var(--bg-input);
 			color: var(--fg);
+			font-family: var(--font-sans);
 			font-size: 13px;
 			outline: none;
-			transition: border-color .18s, box-shadow .18s;
+			transition: border-color .2s, box-shadow .2s;
+			box-sizing: border-box;
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
+			background-repeat: no-repeat;
+			background-position: 12px center;
 		}
 		.ag-search-input::placeholder { color: var(--muted); }
-		.ag-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.14); }
-		.ag-search-icon {
-			position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
-			width: 16px; height: 16px; color: var(--muted); pointer-events: none;
-		}
+		.ag-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 
-		/* ── Filter tabs ── */
+		/* ── Filter tabs (borderless pills, same as conn) ── */
 		.ag-filter-tabs {
-			display: flex; gap: 6px; flex-shrink: 0; overflow-x: auto;
-			scrollbar-width: none; -ms-overflow-style: none;
+			display: flex; gap: 4px; padding: 0 12px 12px; flex-wrap: wrap;
 		}
-		.ag-filter-tabs::-webkit-scrollbar { display: none; }
 		.ag-filter-tab {
-			height: 30px; padding: 0 14px;
+			padding: 6px 14px;
 			border-radius: 999px;
-			border: 1px solid var(--border);
 			background: transparent;
 			color: var(--muted);
-			font-size: 12px; font-family: var(--font-sans);
-			cursor: pointer; white-space: nowrap; flex-shrink: 0;
+			font-family: var(--font-sans);
+			font-size: 12px; font-weight: 600;
+			border: none;
+			cursor: pointer;
 			transition: all .15s;
 		}
-		.ag-filter-tab:hover { background: var(--primary-soft); color: var(--fg-secondary); }
-		.ag-filter-tab.active {
-			border-color: var(--primary);
-			background: var(--primary-soft);
-			color: var(--primary-hover); font-weight: 600;
-		}
+		.ag-filter-tab:hover { background: var(--surface); color: var(--fg-secondary); }
+		.ag-filter-tab.active { background: var(--primary); color: #fff; }
 
 		/* ── Agent list ── */
-		.ag-agent-list { overflow-y: auto; min-height: 0; display: grid; gap: 6px; }
+		.ag-agent-list { overflow-y: auto; padding: 4px 8px 8px; min-height: 0; }
 
 		.ag-agent-item {
-			display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-			align-items: center; gap: 12px;
-			padding: 14px 16px;
-			border-radius: var(--radius-card-sm);
+			display: grid;
+			gap: 6px;
+			width: 100%;
+			padding: 14px 14px 14px 16px;
 			border: 1px solid transparent;
-			background: transparent;
+			border-radius: var(--radius-card-sm);
+			background: #161E35;
+			text-align: left;
 			cursor: pointer;
-			text-align: left; font-family: var(--font-sans);
-			transition: all .18s;
+			margin-bottom: 4px;
+			font-family: var(--font-sans);
+			transition: all .15s;
 		}
-		.ag-agent-item:hover {
-			border-color: var(--border);
-			background: var(--surface);
-		}
+		.ag-agent-item:hover { background: #1A2440; }
 		.ag-agent-item.selected {
+			background: var(--primary-soft);
 			border-color: var(--primary);
 			border-left: 3px solid var(--primary);
-			background: var(--surface-elevated);
-			box-shadow: 0 0 0 1px rgba(99,102,241,0.1), 0 4px 16px rgba(0,0,0,0.15);
+			padding-left: 13px;
+			box-shadow: 0 0 16px rgba(99, 102, 241, 0.08);
 		}
-		.ag-agent-icon-wrap {
-			width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;
-			display: flex; align-items: center; justify-content: center;
-			background: var(--primary-soft); color: var(--primary-hover);
+		.ag-agent-item-row {
+			display: flex; align-items: center; gap: 8px; min-width: 0;
 		}
-		.ag-agent-item.selected .ag-agent-icon-wrap { background: rgba(99,102,241,0.22); }
-		.ag-agent-icon-wrap svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.6; }
-		.ag-agent-info { min-width: 0; }
-		.ag-agent-name { font-size: 13px; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		.ag-agent-id { font-size: 10px; color: var(--muted); font-family: var(--font-mono); margin-top: 1px; }
-		.ag-agent-browser { font-size: 10px; color: var(--muted); margin-top: 1px; }
-		.ag-agent-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+		.ag-agent-dot {
+			width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0;
+		}
+		.ag-agent-dot--active { background: var(--success); box-shadow: 0 0 6px var(--success); }
+		.ag-agent-dot--available { background: var(--muted); }
+		.ag-agent-dot--viewing { background: var(--primary); box-shadow: 0 0 6px var(--primary); }
+		.ag-agent-item-title {
+			font-size: 13px; font-weight: 600; color: var(--fg);
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+			flex: 1; min-width: 0;
+		}
+		.ag-agent-item-badge {
+			font-size: 11px; font-weight: 600; padding: 3px 10px;
+			border-radius: 999px; white-space: nowrap;
+		}
+		.ag-agent-item-badge--active { background: var(--success-soft); color: var(--success); }
+		.ag-agent-item-badge--viewing { background: var(--primary-soft); color: var(--primary); }
+		.ag-agent-item-badge--available { background: rgba(100,116,139,0.15); color: var(--muted); }
+		.ag-agent-item-meta {
+			font-size: 11px; color: var(--muted);
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		}
 
-		/* Agent status badge (in list) */
-		.ag-list-badge {
-			display: inline-flex; align-items: center; gap: 5px;
-			padding: 2px 8px;
-			border-radius: 999px;
-			font-size: 10px; font-weight: 600; white-space: nowrap;
-		}
-		.ag-list-badge-dot {
-			width: 6px; height: 6px; border-radius: 999px;
-		}
-		.ag-list-badge--active { background: var(--success-soft); color: var(--success); }
-		.ag-list-badge--active .ag-list-badge-dot { background: var(--success); box-shadow: 0 0 4px rgba(34,197,94,0.4); }
-		.ag-list-badge--viewing { background: var(--primary-soft); color: var(--primary-hover); }
-		.ag-list-badge--viewing .ag-list-badge-dot { background: var(--primary); }
-		.ag-list-badge--available { background: rgba(100,116,139,0.12); color: var(--muted); }
-		.ag-list-badge--available .ag-list-badge-dot { background: var(--muted); }
-
-		/* ── Detail panel ── */
-		.ag-detail { overflow-y: auto; min-height: 0; display: grid; gap: 16px; align-content: start; padding-right: 4px; }
-
-		/* Header card */
-		.ag-header-card {
-			display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-			align-items: center; gap: 20px;
-			padding: 24px;
-			border-radius: var(--radius-card);
-			border: 1px solid var(--border);
-			background: var(--surface);
-		}
-		.ag-header-icon {
-			width: 52px; height: 52px; border-radius: 8px;
-			background: var(--primary-soft);
-			color: var(--primary-hover);
-			display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-		}
-		.ag-header-icon svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.6; }
-		.ag-header-info { min-width: 0; }
-		.ag-header-name { font-size: 20px; font-weight: 700; color: var(--fg); }
-		.ag-header-desc { font-size: 13px; color: var(--fg-secondary); margin-top: 4px; line-height: 1.5; }
-		.ag-header-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
-
-		/* Buttons */
-		.ag-btn {
-			height: 40px; padding: 0 18px; border-radius: var(--radius-btn);
-			font-size: 13px; font-family: var(--font-sans);
-			cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-			transition: all .18s; white-space: nowrap;
-		}
-		.ag-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-		.ag-btn svg { width: 14px; height: 14px; }
-		.ag-btn-primary {
-			border: none;
-			background: linear-gradient(135deg, #6366F1, #8B5CF6);
-			color: #fff; font-weight: 600;
-			box-shadow: 0 8px 24px var(--primary-glow);
-		}
-		.ag-btn-primary:hover:not(:disabled) {
-			filter: brightness(1.1);
-			box-shadow: 0 12px 32px rgba(99,102,241,0.38);
-			transform: translateY(-1px);
-		}
-		.ag-btn-secondary {
-			border: 1px solid var(--border);
-			background: transparent;
-			color: var(--fg-secondary);
-		}
-		.ag-btn-secondary:hover:not(:disabled) { border-color: var(--border-hover); background: var(--surface); color: var(--fg); }
-		.ag-btn-danger {
-			border: 1px solid rgba(255,77,109,0.3);
-			background: transparent; color: var(--danger);
-		}
-		.ag-btn-danger:hover:not(:disabled) { background: var(--danger-soft); border-color: var(--danger); }
-		.ag-btn-sm { height: 32px; padding: 0 12px; font-size: 11px; border-radius: 8px; }
-
-		/* Status badge (in detail) */
-		.ag-badge {
-			display: inline-flex; align-items: center; gap: 5px;
-			padding: 3px 10px; border-radius: 999px;
-			font-size: 11px; font-weight: 600; white-space: nowrap;
-		}
-		.ag-badge-active { background: var(--success-soft); color: var(--success); }
-		.ag-badge-available { background: var(--primary-soft); color: var(--primary-hover); }
-		.ag-badge-custom { background: rgba(168,85,247,0.12); color: #A78BFA; }
-		.ag-badge-default { background: rgba(100,116,139,0.12); color: var(--muted); }
-
-		/* ── Detail cards ── */
-		.ag-card {
-			background: var(--surface);
-			border: 1px solid var(--border);
-			border-radius: var(--radius-card);
+		/* ── Detail panel (matches conn-detail structure) ── */
+		.ag-detail {
+			display: grid;
+			grid-template-rows: auto minmax(0, 1fr);
 			overflow: hidden;
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-card);
 		}
-		.ag-card-head {
-			display: flex; align-items: center; gap: 10px;
-			padding: 16px 20px 14px;
+		.ag-detail-head {
+			display: flex; align-items: center; gap: 12px;
+			padding: 16px 20px;
 			border-bottom: 1px solid var(--border);
+			flex-wrap: wrap;
 		}
-		.ag-card-icon {
+		.ag-detail-title {
+			font-size: 16px; font-weight: 700;
+			flex: 1; min-width: 0;
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+			color: var(--fg);
+		}
+		.ag-detail-actions {
+			display: flex; gap: 8px; flex-wrap: wrap;
+		}
+		.ag-detail-body {
+			overflow-y: auto;
+			padding: 20px;
+			min-height: 0;
+		}
+
+		/* ── Card module (matches conn-card) ── */
+		.ag-card {
+			background: var(--surface-elevated);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-card);
+			padding: 20px;
+		}
+		.ag-card + .ag-card { margin-top: 20px; }
+		.ag-detail-row > .ag-card + .ag-card { margin-top: 0; }
+		.ag-detail-row + .ag-card,
+		.ag-card + .ag-detail-row { margin-top: 20px; }
+		.ag-status-cards + .ag-card { margin-top: 20px; }
+
+		.ag-card-title {
+			display: flex; align-items: center; gap: 10px;
+			font-size: 13px; font-weight: 700; color: var(--fg-secondary);
+			margin-bottom: 16px;
+		}
+		.ag-card-title-icon {
 			width: 28px; height: 28px;
 			border-radius: 8px;
 			display: flex; align-items: center; justify-content: center;
 			flex-shrink: 0;
 		}
-		.ag-card-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
-		.ag-card-title { font-size: 14px; font-weight: 600; color: var(--fg); }
-		.ag-card-sub { font-size: 12px; color: var(--muted); margin-left: auto; }
-		.ag-card-body { padding: 16px 20px; }
+		.ag-card-title-icon svg { width: 14px; height: 14px; }
 
-		/* Info grid */
-		.ag-field-grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-			gap: 12px;
+		/* ── Detail header card ── */
+		.ag-detail-header {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 16px;
+			flex-wrap: wrap;
 		}
-		.ag-field-block {
-			display: grid; gap: 4px;
-			padding: 12px 14px;
-			border-radius: 8px;
-			background: var(--surface-elevated);
-			border: 1px solid var(--border);
+		.ag-detail-header-left {
+			display: flex; align-items: flex-start; gap: 14px;
+			min-width: 0; flex: 1;
 		}
-		.ag-field-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-		.ag-field-value {
-			font-size: 13px; color: var(--fg); word-break: break-all;
-			font-family: var(--font-mono);
-			display: flex; align-items: center; gap: 8px;
-		}
-		.ag-field-copy {
-			background: none; border: none; cursor: pointer;
-			padding: 2px; border-radius: 8px; color: var(--muted);
-			display: flex; align-items: center;
-			transition: color .15s, background .15s; flex-shrink: 0;
-		}
-		.ag-field-copy:hover { color: var(--primary-hover); background: var(--primary-soft); }
-		.ag-field-copy svg { width: 14px; height: 14px; }
-
-		/* Rules card */
-		.ag-file-card {
-			display: flex; align-items: center; gap: 14px;
-			padding: 14px 16px;
-			border-radius: 8px;
-			border: 1px solid var(--border);
-			background: var(--surface-elevated);
-			transition: border-color .15s;
-		}
-		.ag-file-card:hover { border-color: var(--border-hover); }
-		.ag-file-icon {
-			width: 38px; height: 38px; border-radius: 8px;
-			background: var(--warning-soft); color: var(--warning);
+		.ag-detail-task-icon {
+			width: 44px; height: 44px; border-radius: 8px;
+			background: var(--primary-soft);
 			display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 		}
-		.ag-file-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.6; }
-		.ag-file-info { min-width: 0; flex: 1; }
-		.ag-file-name { font-size: 13px; font-weight: 600; color: var(--fg); }
-		.ag-file-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+		.ag-detail-task-icon svg { width: 22px; height: 22px; stroke: var(--primary); fill: none; stroke-width: 1.8; }
+		.ag-detail-task-info { display: grid; gap: 6px; min-width: 0; padding-top: 2px; }
+		.ag-detail-task-name {
+			font-size: 20px; font-weight: 700; color: var(--fg); margin: 0;
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		}
+		.ag-detail-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+		.ag-detail-header-actions {
+			display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap;
+		}
 
-		/* Runtime overview */
-		.ag-runtime-grid {
+		/* ── Status badges (pill, matches conn-badge) ── */
+		.ag-badge {
+			display: inline-flex; align-items: center; gap: 5px;
+			font-size: 12px; font-weight: 600;
+			padding: 4px 12px; border-radius: 999px; white-space: nowrap;
+		}
+		.ag-badge--active { background: var(--success-soft); color: var(--success); }
+		.ag-badge--default { background: rgba(100,116,139,0.15); color: var(--muted); }
+		.ag-badge--custom { background: rgba(139, 92, 246, 0.12); color: #8B5CF6; }
+
+		/* ── Status mini-cards row (matches conn-status-cards) ── */
+		.ag-status-cards {
 			display: grid;
-			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-template-columns: repeat(4, 1fr);
 			gap: 12px;
+			margin-top: 16px;
 		}
-		.ag-runtime-item {
-			padding: 14px; border-radius: 8px;
-			background: var(--surface-elevated); border: 1px solid var(--border);
-			text-align: center;
+		.ag-status-mini {
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-card-sm);
+			padding: 16px;
+			display: flex; align-items: center; gap: 14px;
+			min-height: 88px; min-width: 0;
 		}
-		.ag-runtime-num { font-size: 22px; font-weight: 700; color: var(--fg); line-height: 1.2; }
-		.ag-runtime-num.green { color: var(--success); }
-		.ag-runtime-unit { font-size: 11px; color: var(--muted); margin-top: 2px; }
+		.ag-status-mini-icon {
+			width: 36px; height: 36px; border-radius: 8px;
+			display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+		}
+		.ag-status-mini-icon svg { width: 18px; height: 18px; }
+		.ag-status-mini-label { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+		.ag-status-mini-value {
+			font-size: 14px; font-weight: 600; color: var(--fg);
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+		}
+		.ag-status-mini-value code { font-family: var(--font-mono); font-size: 12px; }
 
-		/* Skills toolbar */
+		/* ── Detail row (2-col, matches conn-detail-row) ── */
+		.ag-detail-row {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			grid-auto-rows: 1fr;
+			gap: 12px;
+			margin-top: 20px;
+			align-items: stretch;
+		}
+		.ag-detail-row > .ag-detail-row-config { grid-column: 1 / 3; }
+		.ag-detail-row > .ag-card:nth-child(2) { grid-column: 3 / 5; }
+		.ag-detail-row > .ag-card {
+			display: flex; flex-direction: column; height: 100%; box-sizing: border-box;
+		}
+
+		/* ── Config grid (matches conn-config-grid) ── */
+		.ag-config-grid { display: grid; gap: 12px; }
+		.ag-config-item { display: grid; gap: 4px; }
+		.ag-config-label { font-size: 11px; font-weight: 600; color: var(--muted); }
+		.ag-config-value {
+			font-size: 13px; color: var(--fg-secondary); line-height: 1.5;
+			word-break: break-all; display: flex; align-items: center; gap: 6px;
+		}
+		.ag-config-value code {
+			font-family: var(--font-mono); font-size: 12px; color: var(--primary);
+			background: var(--bg-input); padding: 3px 10px; border-radius: 8px;
+			border: 1px solid var(--border);
+		}
+
+		/* ── Copy button (matches conn-copy-btn) ── */
+		.ag-copy-btn {
+			background: none; border: 1px solid var(--border);
+			border-radius: 8px; color: var(--muted); cursor: pointer;
+			padding: 3px 8px; font-size: 11px; font-family: var(--font-sans);
+			transition: all .15s; display: inline-flex; align-items: center;
+			gap: 4px; white-space: nowrap;
+		}
+		.ag-copy-btn:hover { color: var(--primary); border-color: var(--primary); background: var(--primary-soft); }
+		.ag-copy-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+		/* ── Buttons (matches conn-btn) ── */
+		.ag-btn {
+			display: inline-flex; align-items: center; justify-content: center;
+			height: 36px; padding: 0 18px; border-radius: var(--radius-btn);
+			font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+			cursor: pointer; transition: all .15s; border: 1px solid transparent;
+			white-space: nowrap; gap: 6px;
+		}
+		.ag-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+		.ag-btn svg { width: 14px; height: 14px; }
+		.ag-btn--primary {
+			background: linear-gradient(135deg, var(--primary), var(--accent-violet));
+			color: #fff; box-shadow: 0 4px 16px var(--primary-glow);
+		}
+		.ag-btn--primary:not(:disabled):hover { filter: brightness(1.1); }
+		.ag-btn--outline {
+			background: transparent; color: var(--fg-secondary); border-color: var(--border);
+		}
+		.ag-btn--outline:not(:disabled):hover {
+			background: var(--surface-elevated); border-color: var(--border-strong); color: var(--fg);
+		}
+		.ag-btn--danger {
+			background: transparent; color: var(--danger); border-color: var(--danger); opacity: 0.7;
+		}
+		.ag-btn--danger:not(:disabled):hover { background: var(--danger-soft); opacity: 1; }
+
+		/* ── Skills toolbar ── */
 		.ag-skills-toolbar {
 			display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-			padding: 16px 20px;
+			padding-top: 4px;
 		}
 		.ag-skills-select {
 			width: 220px; height: 36px; border-radius: var(--radius-btn);
@@ -424,41 +443,74 @@ function getAgentsPageCss(): string {
 		.ag-skills-select:focus { border-color: var(--primary); }
 
 		/* Skill items */
-		.ag-skill-list { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; padding: 0 20px 16px; }
+		.ag-skill-list { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; padding-top: 4px; }
 		.ag-skill-item {
 			display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
 			align-items: center; gap: 14px;
-			padding: 14px 16px;
-			border-radius: 8px;
+			padding: 12px 14px; border-radius: 8px;
 			border: 1px solid var(--border);
-			background: var(--surface-elevated);
+			background: var(--surface);
 			transition: border-color .15s;
 		}
 		.ag-skill-item:hover { border-color: var(--border-hover); }
 		.ag-skill-icon {
 			width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
 			display: flex; align-items: center; justify-content: center;
-			background: var(--primary-soft); color: var(--primary-hover);
+			background: rgba(139, 92, 246, 0.12); color: #A78BFA;
 		}
 		.ag-skill-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; }
 		.ag-skill-info { min-width: 0; }
 		.ag-skill-name { font-size: 13px; font-weight: 600; color: var(--fg); }
-		.ag-skill-desc { font-size: 11px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.ag-skill-desc {
+			font-size: 11px; color: var(--muted); margin-top: 2px;
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		}
 
-		/* Empty / error */
+		/* ── Empty / error ── */
 		.ag-empty {
-			text-align: center; padding: 48px 24px;
-			color: var(--muted); font-size: 13px; line-height: 1.6;
+			padding: 80px 24px; text-align: center;
 		}
 		.ag-empty-icon {
-			width: 52px; height: 52px; border-radius: 8px;
-			background: var(--primary-soft); color: var(--muted);
-			display: inline-flex; align-items: center; justify-content: center;
-			margin-bottom: 14px;
+			width: 56px; height: 56px; margin: 0 auto 16px;
+			border-radius: 8px; background: var(--surface-elevated);
+			display: flex; align-items: center; justify-content: center;
 		}
-		.ag-empty-icon svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.6; }
-		.ag-empty-title { font-size: 14px; font-weight: 600; color: var(--fg-secondary); margin-bottom: 6px; }
-		.ag-empty-desc { font-size: 12px; color: var(--muted); }
+		.ag-empty-icon svg { width: 28px; height: 28px; stroke: var(--muted); fill: none; stroke-width: 1.5; }
+		.ag-empty h3 { font-size: 16px; font-weight: 600; color: var(--fg-secondary); margin: 0 0 4px; }
+		.ag-empty p { font-size: 13px; color: var(--muted); margin: 0; }
+		.ag-empty-sm { padding: 40px 16px; }
+		.ag-empty-sm .ag-empty-icon { width: 40px; height: 40px; }
+		.ag-empty-sm .ag-empty-icon svg { width: 20px; height: 20px; }
+
+		/* ── File card (rules link) ── */
+		.ag-file-card {
+			display: flex; align-items: center; gap: 14px;
+			padding: 14px 16px; border-radius: 8px;
+			border: 1px solid var(--border); background: var(--surface);
+			transition: border-color .15s;
+		}
+		.ag-file-card:hover { border-color: var(--border-hover); }
+		.ag-file-icon {
+			width: 38px; height: 38px; border-radius: 8px;
+			background: var(--warning-soft); color: var(--warning);
+			display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+		}
+		.ag-file-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+		.ag-file-info { min-width: 0; flex: 1; }
+		.ag-file-name { font-size: 13px; font-weight: 600; color: var(--fg); }
+		.ag-file-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+		/* ── List empty state ── */
+		.ag-list-empty {
+			padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.7;
+		}
+		.ag-list-empty-icon {
+			width: 48px; height: 48px; margin: 0 auto 12px;
+			border-radius: 8px; background: var(--surface);
+			display: flex; align-items: center; justify-content: center;
+		}
+		.ag-list-empty-icon svg { width: 24px; height: 24px; stroke: var(--muted); fill: none; stroke-width: 1.5; }
+		.ag-list-empty-title { font-size: 14px; font-weight: 600; color: var(--fg-secondary); margin-bottom: 4px; }
 
 		/* ── Mobile ── */
 		.ag-mobile-back { display: none !important; }
@@ -474,17 +526,78 @@ function getAgentsPageCss(): string {
 			.ag-detail { display: none; }
 			.ag-detail.mobile-visible { display: grid; }
 			.ag-mobile-back { display: inline-flex !important; }
-			.ag-header-card { grid-template-columns: auto minmax(0, 1fr); }
-			.ag-header-actions { grid-column: 1/-1; justify-content: flex-start; }
-			.ag-runtime-grid { grid-template-columns: repeat(2, 1fr); }
-			.ag-field-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+			.ag-detail-header { flex-direction: column; }
+			.ag-detail-header-actions { width: 100%; }
+			.ag-status-cards { grid-template-columns: repeat(2, 1fr); }
+			.ag-detail-row { grid-template-columns: 1fr; }
+			.ag-detail-row > .ag-detail-row-config,
+			.ag-detail-row > .ag-card:nth-child(2) { grid-column: auto; }
 			.sp-topbar { height: 48px; padding: 0 10px; }
 			.sp-topbar-title { font-size: 15px; }
 		}
-		@media (max-width: 480px) {
+		
+			/* ── Editor (matches conn-editor pattern) ── */
+			.ag-editor-root { display: grid; gap: 16px; }
+			.ag-editor-error {
+				padding: 10px 16px; border-radius: var(--radius-input);
+				background: var(--danger-soft); border: 1px solid var(--danger);
+				color: var(--danger); font-size: 12px; font-weight: 500;
+			}
+			.ag-editor-header {
+				display: flex; align-items: flex-start; gap: 16px;
+				padding: 20px 24px; border-radius: var(--radius-card);
+				background: var(--surface-elevated); border: 1px solid var(--border);
+			}
+			.ag-editor-header-icon {
+				width: 48px; height: 48px; border-radius: 8px;
+				display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+			}
+			.ag-editor-header-icon svg { width: 24px; height: 24px; }
+			.ag-editor-header-text { flex: 1; min-width: 0; }
+			.ag-editor-header-title { font-size: 22px; font-weight: 700; color: var(--fg); line-height: 1.2; }
+			.ag-editor-header-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+			.ag-editor-section-card {
+				padding: 20px; border-radius: var(--radius-card);
+				background: var(--surface-elevated); border: 1px solid var(--border);
+			}
+			.ag-editor-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+			.ag-editor-section-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+			.ag-editor-section-icon svg { width: 14px; height: 14px; }
+			.ag-editor-section-title { font-size: 15px; font-weight: 700; color: var(--fg); }
+			.ag-editor-section-body { display: grid; gap: 16px; }
+			.ag-editor-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+			.ag-editor-field { display: grid; gap: 8px; }
+			.ag-editor-field > span:first-child { font-size: 13px; font-weight: 600; color: var(--fg-secondary); }
+			.ag-editor-field > span:first-child .required { color: var(--danger); margin-left: 2px; }
+			.ag-editor-field input, .ag-editor-field select, .ag-editor-field textarea {
+				height: 40px; width: 100%; padding: 0 12px;
+				border-radius: var(--radius-input); background: var(--bg-input);
+				border: 1px solid var(--border); color: var(--fg);
+				font-family: var(--font-sans); font-size: 14px;
+				outline: none; transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box;
+			}
+			.ag-editor-field textarea { height: auto; padding: 12px; resize: vertical; min-height: 80px; line-height: 1.6; }
+			.ag-editor-field input:hover, .ag-editor-field select:hover { border-color: var(--border-strong); }
+			.ag-editor-field input:focus, .ag-editor-field select:focus, .ag-editor-field textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+			.ag-editor-field.is-error input, .ag-editor-field.is-error textarea { border-color: var(--danger); }
+			.ag-editor-field input::placeholder, .ag-editor-field textarea::placeholder { color: var(--muted); }
+			.ag-editor-field select {
+				appearance: none;
+				background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+				background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+			}
+			.ag-editor-field .field-hint { font-size: 11px; color: var(--muted); }
+			.ag-editor-actions {
+				display: flex; justify-content: space-between; align-items: center;
+				padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--border);
+			}
+			.ag-editor-actions-right { font-size: 11px; color: var(--muted); }
+			@media (max-width: 768px) { .ag-editor-form-grid { grid-template-columns: 1fr; } }
+
+@media (max-width: 480px) {
 			.ag-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
 			.ag-stat-card { padding: 14px 16px; min-height: 80px; }
-			.ag-stat-num { font-size: 22px; }
+			.ag-stat-card .ag-stat-num { font-size: 24px; }
 			.ag-stat-icon { width: 36px; height: 36px; }
 			.ag-stat-icon svg { width: 16px; height: 16px; }
 		}
@@ -502,6 +615,8 @@ function getAgentsPageJs(): string {
 			skillsLoading: false,
 			switchLoading: false,
 			gallerySkills: [],
+			editorMode: null,
+			browserList: [],
 		};
 
 		const FILTER_TABS = [
@@ -511,8 +626,14 @@ function getAgentsPageJs(): string {
 			{ id: "custom", label: "自定义" },
 		];
 
+		var ACTIVE_AGENT_KEY = "ugk-pi:active-agent-id";
+
+		function readActiveAgentId() {
+			try { return localStorage.getItem(ACTIVE_AGENT_KEY) || null; } catch { return null; }
+		}
+
 		function isAgentActive(agent) {
-			return agent.currentAgent === true || agent.isCurrent === true;
+			return readActiveAgentId() === agent.agentId;
 		}
 
 		/* ── API ── */
@@ -532,20 +653,10 @@ function getAgentsPageJs(): string {
 
 		async function apiFetchAgentSkills(agentId) {
 			try {
-				var data = await fetchJson("/v1/agents/" + agentId + "/skills");
+				var data = await fetchJson("/v1/agents/" + agentId + "/debug/skills");
 				state.skillsByAgentId[agentId] = Array.isArray(data.skills) ? data.skills : [];
 			} catch {
 				state.skillsByAgentId[agentId] = [];
-			}
-		}
-
-		async function apiSwitchAgent(agentId) {
-			state.switchLoading = true;
-			renderDetail();
-			try {
-				await fetchJson("/v1/agents/" + agentId + "/switch", { method: "POST" });
-			} finally {
-				state.switchLoading = false;
 			}
 		}
 
@@ -595,13 +706,10 @@ function getAgentsPageJs(): string {
 		function getStatCounts() {
 			var total = state.agents.length;
 			var active = state.agents.filter(function(a) { return isAgentActive(a); }).length;
-			var skillsTotal = 0;
-			Object.keys(state.skillsByAgentId).forEach(function(id) {
-				skillsTotal += (state.skillsByAgentId[id] || []).length;
-			});
+			var selectedSkills = state.skillsByAgentId[state.selectedId] || [];
 			var browsers = new Set();
 			state.agents.forEach(function(a) { if (a.defaultBrowserId) browsers.add(a.defaultBrowserId); });
-			return { total: total, active: active, skills: skillsTotal, browsers: browsers.size };
+			return { total: total, active: active, skills: selectedSkills.length, browsers: browsers.size };
 		}
 
 		/* ── Rendering: Stats ── */
@@ -639,7 +747,7 @@ function getAgentsPageJs(): string {
 			container.innerHTML = "";
 			var filtered = getFilteredAgents();
 			if (filtered.length === 0) {
-				container.innerHTML = '<div class="ag-empty"><div class="ag-empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5.5 20v-1a6.5 6.5 0 0113 0v1"/></svg></div><div class="ag-empty-title">暂无匹配的 Agent</div><div class="ag-empty-desc">请尝试更换关键词或清除筛选条件。</div></div>';
+				container.innerHTML = '<div class="ag-list-empty"><div class="ag-list-empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5.5 20v-1a6.5 6.5 0 0113 0v1"/></svg></div><div class="ag-list-empty-title">暂无匹配的 Agent</div><div>请尝试更换关键词或清除筛选条件。</div></div>';
 				return;
 			}
 			filtered.forEach(function(agent) {
@@ -647,140 +755,155 @@ function getAgentsPageJs(): string {
 				item.type = "button";
 				item.className = "ag-agent-item" + (state.selectedId === agent.agentId ? " selected" : "");
 
-				// Icon
-				var iconWrap = document.createElement("div");
-				iconWrap.className = "ag-agent-icon-wrap";
-				iconWrap.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5.5 20v-1a6.5 6.5 0 0113 0v1"/></svg>';
-				item.appendChild(iconWrap);
+				// Row: dot + name + badge
+				var row = document.createElement("div");
+				row.className = "ag-agent-item-row";
 
-				// Info
-				var info = document.createElement("div");
-				info.className = "ag-agent-info";
-				var name = document.createElement("div");
-				name.className = "ag-agent-name";
-				name.textContent = agent.name || agent.agentId;
-				var id = document.createElement("div");
-				id.className = "ag-agent-id";
-				id.textContent = agent.agentId;
-				var browser = document.createElement("div");
-				browser.className = "ag-agent-browser";
-				browser.textContent = agent.defaultBrowserId || "跟随系统默认";
-				info.appendChild(name);
-				info.appendChild(id);
-				info.appendChild(browser);
-				item.appendChild(info);
-
-				// Status badge
-				var right = document.createElement("div");
-				right.className = "ag-agent-right";
-				var badge = document.createElement("span");
+				var dot = document.createElement("span");
 				var active = isAgentActive(agent);
 				var isSelected = state.selectedId === agent.agentId;
+				dot.className = "ag-agent-dot " + (active ? "ag-agent-dot--active" : isSelected ? "ag-agent-dot--viewing" : "ag-agent-dot--available");
+				row.appendChild(dot);
+
+				var title = document.createElement("span");
+				title.className = "ag-agent-item-title";
+				title.textContent = agent.name || agent.agentId;
+				row.appendChild(title);
+
+				var badge = document.createElement("span");
 				if (active) {
-					badge.className = "ag-list-badge ag-list-badge--active";
-					badge.innerHTML = '<span class="ag-list-badge-dot"></span>当前激活';
+					badge.className = "ag-agent-item-badge ag-agent-item-badge--active";
+					badge.textContent = "激活";
 				} else if (isSelected) {
-					badge.className = "ag-list-badge ag-list-badge--viewing";
-					badge.innerHTML = '<span class="ag-list-badge-dot"></span>查看中';
+					badge.className = "ag-agent-item-badge ag-agent-item-badge--viewing";
+					badge.textContent = "查看中";
 				} else {
-					badge.className = "ag-list-badge ag-list-badge--available";
-					badge.innerHTML = '<span class="ag-list-badge-dot"></span>可用';
+					badge.className = "ag-agent-item-badge ag-agent-item-badge--available";
+					badge.textContent = "可用";
 				}
-				right.appendChild(badge);
-				item.appendChild(right);
+				row.appendChild(badge);
+				item.appendChild(row);
+
+				// Meta line
+				var meta = document.createElement("div");
+				meta.className = "ag-agent-item-meta";
+				meta.textContent = agent.agentId + (agent.defaultBrowserId ? " · " + agent.defaultBrowserId : "");
+				item.appendChild(meta);
 
 				item.addEventListener("click", function() { selectAgent(agent.agentId); });
 				container.appendChild(item);
 			});
 		}
 
-		function getStatusLabel(agent) {
-			if (isAgentActive(agent)) return { text: "当前激活", cls: "ag-badge-active" };
-			if (agent.isDefault) return { text: "内置默认", cls: "ag-badge-default" };
-			return { text: "自定义", cls: "ag-badge-custom" };
+		function getStatusBadge(agent) {
+			if (isAgentActive(agent)) return { text: "当前激活", cls: "ag-badge--active" };
+			if (agent.isDefault) return { text: "内置默认", cls: "ag-badge--default" };
+			return { text: "自定义", cls: "ag-badge--custom" };
 		}
 
-		/* ── Rendering: Detail ── */
-		function renderDetail() {
-			var body = document.getElementById("ag-detail");
+		/* ── SVG icons ── */
+		var SVG_USER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M5.5 20v-1a6.5 6.5 0 0113 0v1"/></svg>';
+		var SVG_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>';
+		var SVG_STAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+		var SVG_MONITOR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+		var SVG_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+		var SVG_ACTIVITY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
+		var SVG_GRID = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>';
+
+		/* ── Rendering: Detail body ── */
+		function renderDetailBody() {
+			var body = document.getElementById("ag-detail-body");
+			var titleEl = document.getElementById("ag-detail-title");
+			var actionsEl = document.getElementById("ag-detail-actions");
 			if (!body) return;
 
 			var agent = state.agents.find(function(a) { return a.agentId === state.selectedId; });
 			if (!agent) {
-				body.innerHTML = '<div class="ag-empty"><div class="ag-empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5.5 20v-1a6.5 6.5 0 0113 0v1"/></svg></div><div class="ag-empty-title">请选择一个 Agent</div><div class="ag-empty-desc">从左侧列表选择 Agent 查看详情。</div></div>';
+				body.innerHTML = '<div class="ag-empty"><div class="ag-empty-icon">' + SVG_USER + '</div><h3>请选择一个 Agent</h3><p>从左侧列表选择 Agent 查看详情。</p></div>';
+				if (titleEl) titleEl.textContent = "";
+				if (actionsEl) actionsEl.innerHTML = "";
 				return;
 			}
 
-			var status = getStatusLabel(agent);
+			var status = getStatusBadge(agent);
 			var active = isAgentActive(agent);
 
+			if (titleEl) titleEl.textContent = agent.name || agent.agentId;
+
+			// Actions in header
+			if (actionsEl) {
+				var acts = "";
+				acts += '<button id="ag-btn-edit" class="ag-btn ag-btn--outline" type="button">编辑</button>';
+				if (!active) {
+					acts += '<button id="ag-btn-switch" class="ag-btn ag-btn--primary" type="button">切换到此 Agent</button>';
+				}
+				if (agent.agentId !== "main") {
+					acts += '<button id="ag-btn-archive" class="ag-btn ag-btn--danger" type="button">归档</button>';
+				}
+				actionsEl.innerHTML = acts;
+
+				var editBtn = document.getElementById("ag-btn-edit");
+				if (editBtn) editBtn.addEventListener("click", openEditEditor);
+				var switchBtn = document.getElementById("ag-btn-switch");
+				if (switchBtn) switchBtn.addEventListener("click", handleSwitch);
+				var archiveBtn = document.getElementById("ag-btn-archive");
+				if (archiveBtn) archiveBtn.addEventListener("click", handleArchive);
+			}
+
+			// Build detail body content
 			var html = "";
 
 			// Header card
-			html += '<div class="ag-header-card">';
-			html += '<div class="ag-header-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5.5 20v-1a6.5 6.5 0 0113 0v1"/></svg></div>';
-			html += '<div class="ag-header-info">';
-			html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
-			html += '<span class="ag-header-name">' + escapeHtml(agent.name || agent.agentId) + '</span>';
+			html += '<div class="ag-card ag-detail-header">';
+			html += '<div class="ag-detail-header-left">';
+			html += '<div class="ag-detail-task-icon">' + SVG_USER + '</div>';
+			html += '<div class="ag-detail-task-info">';
+			html += '<h2 class="ag-detail-task-name">' + escapeHtml(agent.name || agent.agentId) + '</h2>';
+			html += '<div class="ag-detail-meta">';
 			html += '<span class="ag-badge ' + status.cls + '">' + status.text + '</span>';
-			html += '</div>';
-			html += '<div class="ag-header-desc">' + escapeHtml(agent.description || "暂无描述") + '</div>';
-			html += '</div>';
-			html += '<div class="ag-header-actions">';
-			if (active) {
-				html += '<button class="ag-btn ag-btn-primary" type="button" disabled>当前已激活</button>';
-			} else {
-				html += '<button id="ag-btn-switch" class="ag-btn ag-btn-primary" type="button"' + (state.switchLoading ? ' disabled' : '') + '>' + (state.switchLoading ? '切换中...' : '切换到此 Agent') + '</button>';
+			if (agent.description) {
+				html += '<span style="font-size:12px;color:var(--muted)">' + escapeHtml(agent.description) + '</span>';
 			}
-			if (agent.agentId !== "main") {
-				html += '<button id="ag-btn-archive" class="ag-btn ag-btn-danger ag-btn-sm" type="button">归档</button>';
-			}
-			html += '</div>';
-			html += '</div>';
-
-			// Basic info card
-			html += '<div class="ag-card">';
-			html += '<div class="ag-card-head"><div class="ag-card-icon" style="background:var(--primary-soft);color:var(--primary-hover)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg></div><span class="ag-card-title">基础信息</span></div>';
-			html += '<div class="ag-card-body"><div class="ag-field-grid">';
-			html += makeField("Agent ID", agent.agentId, true);
-			html += makeField("状态", status.text, false);
-			html += makeField("默认浏览器", agent.defaultBrowserId || "跟随系统默认", false);
-			html += makeField("会话接口", "/v1/agents/" + agent.agentId + "/chat/*", true);
-			html += makeField("技能接口", "/v1/agents/" + agent.agentId + "/debug/skills", true);
-			html += makeField("规则文件", "AGENTS.MD", false);
 			html += '</div></div></div>';
+			html += '</div>';
 
+			// Status mini-cards
+			html += '<div class="ag-status-cards">';
+			html += buildMiniCard("Agent ID", '<code>' + escapeHtml(agent.agentId) + '</code>', "var(--primary-soft)", "#6366F1", SVG_GRID);
+			html += buildMiniCard("状态", status.text, status.cls === "ag-badge--active" ? "var(--success-soft)" : "var(--primary-soft)", status.cls === "ag-badge--active" ? "#22C55E" : "#6366F1", SVG_ACTIVITY);
+			html += buildMiniCard("浏览器", agent.defaultBrowserId || "默认", "var(--warning-soft)", "#F59E0B", SVG_MONITOR);
+			var skillCount = (state.skillsByAgentId[state.selectedId] || []).length;
+			html += buildMiniCard("技能数", String(skillCount), "rgba(139,92,246,0.12)", "#8B5CF6", SVG_STAR);
+			html += '</div>';
+
+			// Config + Rules row
+			html += '<div class="ag-detail-row">';
+			// Config card
+			html += '<div class="ag-card ag-detail-row-config">';
+			html += '<div class="ag-card-title"><span class="ag-card-title-icon" style="background:var(--primary-soft)">' + SVG_GRID + '</span>基础信息</div>';
+			html += '<div class="ag-config-grid">';
+			html += buildConfigItem("Agent ID", '<code>' + escapeHtml(agent.agentId) + '</code>', true);
+			html += buildConfigItem("名称", escapeHtml(agent.name || "-"), false);
+			html += buildConfigItem("默认浏览器", escapeHtml(agent.defaultBrowserId || "跟随系统默认"), false);
+			html += buildConfigItem("会话接口", '<code>/v1/agents/' + escapeHtml(agent.agentId) + '/chat/*</code>', true);
+			html += '</div></div>';
 			// Rules card
 			html += '<div class="ag-card">';
-			html += '<div class="ag-card-head"><div class="ag-card-icon" style="background:var(--warning-soft);color:var(--warning)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span class="ag-card-title">规则与说明</span></div>';
-			html += '<div class="ag-card-body">';
+			html += '<div class="ag-card-title"><span class="ag-card-title-icon" style="background:var(--warning-soft)">' + SVG_FILE + '</span>规则文件</div>';
 			html += '<div class="ag-file-card">';
-			html += '<div class="ag-file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>';
-			html += '<div class="ag-file-info"><div class="ag-file-name">AGENTS.MD</div><div class="ag-file-desc">点击查看并编辑该 Agent 的规则文件</div></div>';
-			html += '<a class="ag-btn ag-btn-secondary ag-btn-sm" href="/playground/agents/' + encodeURIComponent(agent.agentId) + '/rules" target="_blank">打开</a>';
-			html += '</div></div></div>';
-
-			// Runtime overview card
-			html += '<div class="ag-card">';
-			html += '<div class="ag-card-head"><div class="ag-card-icon" style="background:var(--success-soft);color:var(--success)"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><span class="ag-card-title">运行概览</span></div>';
-			html += '<div class="ag-card-body"><div class="ag-runtime-grid">';
-			html += '<div class="ag-runtime-item"><div class="ag-runtime-num">-</div><div class="ag-runtime-unit">最近调用</div></div>';
-			html += '<div class="ag-runtime-item"><div class="ag-runtime-num green">-</div><div class="ag-runtime-unit">成功率</div></div>';
-			html += '<div class="ag-runtime-item"><div class="ag-runtime-num">-</div><div class="ag-runtime-unit">平均响应</div></div>';
-			html += '<div class="ag-runtime-item"><div class="ag-runtime-num">-</div><div class="ag-runtime-unit">最后同步</div></div>';
-			html += '</div></div></div>';
+			html += '<div class="ag-file-icon">' + SVG_FILE + '</div>';
+			html += '<div class="ag-file-info"><div class="ag-file-name">AGENTS.MD</div><div class="ag-file-desc">Agent 运行时的规则与说明文件</div></div>';
+			html += '<a class="ag-btn ag-btn--outline" href="/playground/agents/' + encodeURIComponent(agent.agentId) + '/rules" target="_blank">打开</a>';
+			html += '</div></div>';
+			html += '</div>';
 
 			// Skills card
 			html += '<div class="ag-card">';
-			html += '<div class="ag-card-head">';
-			html += '<div class="ag-card-icon" style="background:rgba(168,85,247,0.12);color:#A78BFA"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>';
-			html += '<span class="ag-card-title">技能透明视图</span>';
-			html += '<span class="ag-card-sub">仅展示该 Agent scoped 技能</span>';
-			html += '</div>';
+			html += '<div class="ag-card-title"><span class="ag-card-title-icon" style="background:rgba(139,92,246,0.12)">' + SVG_STAR + '</span>技能<span style="margin-left:auto;font-size:11px;color:var(--muted)">仅展示 scoped 技能</span></div>';
 			html += '<div class="ag-skills-toolbar">';
-			html += '<select id="ag-skill-select" class="ag-skills-select"><option value="">选择要复制安装的技能...</option></select>';
-			html += '<button id="ag-btn-copy-skill" class="ag-btn ag-btn-secondary ag-btn-sm" type="button" disabled>复制安装</button>';
-			html += '<button id="ag-btn-refresh-skills" class="ag-btn ag-btn-secondary ag-btn-sm" type="button">刷新技能</button>';
+			html += '<select id="ag-skill-select" class="ag-skills-select"><option value="">选择要安装的技能...</option></select>';
+			html += '<button id="ag-btn-copy-skill" class="ag-btn ag-btn--outline" type="button" disabled>复制安装</button>';
+			html += '<button id="ag-btn-refresh-skills" class="ag-btn ag-btn--outline" type="button">刷新</button>';
 			html += '</div>';
 			html += '<div id="ag-skill-list" class="ag-skill-list"></div>';
 			html += '</div>';
@@ -788,10 +911,6 @@ function getAgentsPageJs(): string {
 			body.innerHTML = html;
 
 			// Wire up buttons
-			var switchBtn = document.getElementById("ag-btn-switch");
-			if (switchBtn && !active) switchBtn.addEventListener("click", handleSwitch);
-			var archiveBtn = document.getElementById("ag-btn-archive");
-			if (archiveBtn) archiveBtn.addEventListener("click", handleArchive);
 			var copySkillBtn = document.getElementById("ag-btn-copy-skill");
 			if (copySkillBtn) copySkillBtn.addEventListener("click", handleCopySkill);
 			var refreshSkillsBtn = document.getElementById("ag-btn-refresh-skills");
@@ -801,16 +920,22 @@ function getAgentsPageJs(): string {
 			populateSkillSelect();
 		}
 
-		function makeField(label, value, copyable) {
-			var h = '<div class="ag-field-block">';
-			h += '<div class="ag-field-label">' + escapeHtml(label) + '</div>';
-			h += '<div class="ag-field-value">';
-			h += '<span>' + escapeHtml(value) + '</span>';
-			if (copyable && value) {
-				h += '<button class="ag-field-copy" type="button" data-copy="' + escapeHtml(value) + '" title="复制"><svg viewBox="0 0 20 20"><rect x="7" y="4" width="10" height="13" rx="2"/><path d="M5 8H4a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2v-1"/></svg></button>';
-			}
-			h += '</div></div>';
-			return h;
+		function buildMiniCard(label, value, iconBg, iconColor, iconSvg) {
+			return '<div class="ag-status-mini">' +
+				'<div class="ag-status-mini-icon" style="background:' + iconBg + '">' +
+				'<svg viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8" stroke-linecap="round" style="width:18px;height:18px">' + iconSvg.replace(/<svg[^>]*>/, '').replace(/<\\/svg>/, '') + '</svg>' +
+				'</div>' +
+				'<div><div class="ag-status-mini-label">' + label + '</div>' +
+				'<div class="ag-status-mini-value">' + value + '</div></div></div>';
+		}
+
+		function buildConfigItem(label, value, copyable) {
+			var raw = value.replace(/<[^>]*>/g, '');
+			return '<div class="ag-config-item">' +
+				'<div class="ag-config-label">' + label + '</div>' +
+				'<div class="ag-config-value">' + value +
+				(copyable ? '<button class="ag-copy-btn" type="button" data-copy="' + escapeHtml(raw) + '"><svg viewBox="0 0 20 20"><rect x="7" y="4" width="10" height="13" rx="2"/><path d="M5 8H4a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2v-1"/></svg>复制</button>' : '') +
+				'</div></div>';
 		}
 
 		function renderSkills() {
@@ -820,11 +945,11 @@ function getAgentsPageJs(): string {
 			var agent = state.agents.find(function(a) { return a.agentId === state.selectedId; });
 
 			if (state.skillsLoading) {
-				container.innerHTML = '<div class="ag-empty" style="padding:24px">加载中...</div>';
+				container.innerHTML = '<div class="ag-empty ag-empty-sm" style="padding:24px"><p>加载中...</p></div>';
 				return;
 			}
 			if (!skills || skills.length === 0) {
-				container.innerHTML = '<div class="ag-empty" style="padding:32px 16px"><div class="ag-empty-icon" style="width:40px;height:40px"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="ag-empty-title">暂无技能</div><div class="ag-empty-desc">可通过上方下拉选择技能并复制安装</div></div>';
+				container.innerHTML = '<div class="ag-empty ag-empty-sm"><div class="ag-empty-icon">' + SVG_STAR + '</div><h3>暂无 scoped 技能</h3><p>通过上方下拉选择技能并复制安装</p></div>';
 				return;
 			}
 			container.innerHTML = "";
@@ -838,7 +963,7 @@ function getAgentsPageJs(): string {
 
 				var icon = document.createElement("div");
 				icon.className = "ag-skill-icon";
-				icon.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+				icon.innerHTML = SVG_STAR;
 				item.appendChild(icon);
 
 				var info = document.createElement("div");
@@ -856,7 +981,7 @@ function getAgentsPageJs(): string {
 				if (agent && agent.agentId !== "main" && skill.skillName) {
 					var delBtn = document.createElement("button");
 					delBtn.type = "button";
-					delBtn.className = "ag-btn ag-btn-danger ag-btn-sm";
+					delBtn.className = "ag-btn ag-btn--danger";
 					delBtn.textContent = "删除";
 					delBtn.addEventListener("click", function() { handleRemoveSkill(skill.skillName); });
 					item.appendChild(delBtn);
@@ -878,10 +1003,10 @@ function getAgentsPageJs(): string {
 				opt.textContent = name;
 				sel.appendChild(opt);
 			});
-			sel.addEventListener("change", function() {
+			sel.onchange = function() {
 				var btn = document.getElementById("ag-btn-copy-skill");
 				if (btn) btn.disabled = !sel.value;
-			});
+			};
 		}
 
 		/* ── Selection ── */
@@ -889,11 +1014,15 @@ function getAgentsPageJs(): string {
 			state.selectedId = agentId;
 			state.skillsLoading = true;
 			renderAgentList();
-			renderDetail();
+			renderDetailBody();
 			apiFetchAgentSkills(agentId).then(function() {
 				state.skillsLoading = false;
 				renderSkills();
+				renderStats();
+				var agent = state.agents.find(function(a) { return a.agentId === agentId; });
+				if (agent) renderDetailBody();
 			});
+			// Mobile: show detail, hide sidebar
 			var detail = document.querySelector(".ag-detail");
 			var sidebar = document.querySelector(".ag-sidebar");
 			if (detail) detail.classList.add("mobile-visible");
@@ -901,17 +1030,11 @@ function getAgentsPageJs(): string {
 		}
 
 		/* ── Handlers ── */
-		async function handleSwitch() {
+		function handleSwitch() {
 			var agent = state.agents.find(function(a) { return a.agentId === state.selectedId; });
 			if (!agent || isAgentActive(agent)) return;
-			try {
-				await apiSwitchAgent(agent.agentId);
-				showToast("已切换到 " + (agent.name || agent.agentId), "ok");
-				await apiFetchAgents();
-				renderAgentList();
-				renderDetail();
-				renderStats();
-			} catch (e) { showToast(e.message || "切换失败", "danger"); }
+			localStorage.setItem("ugk-pi:active-agent-id", agent.agentId);
+			window.location.href = "/playground";
 		}
 
 		async function handleArchive() {
@@ -929,7 +1052,7 @@ function getAgentsPageJs(): string {
 				if (state.selectedId === agent.agentId) state.selectedId = null;
 				await apiFetchAgents();
 				renderAgentList();
-				renderDetail();
+				renderDetailBody();
 				renderStats();
 				showToast("已归档", "ok");
 			} catch (e) { showToast(e.message || "归档失败", "danger"); }
@@ -971,7 +1094,7 @@ function getAgentsPageJs(): string {
 				renderSkills();
 				showToast("技能已刷新", "ok");
 			} catch (e) { showToast(e.message || "刷新失败", "danger"); }
-			finally { if (btn) { btn.disabled = false; btn.textContent = "刷新技能"; } }
+			finally { if (btn) { btn.disabled = false; btn.textContent = "刷新"; } }
 		}
 
 		function mobileBackToList() {
@@ -981,19 +1104,159 @@ function getAgentsPageJs(): string {
 			if (sidebar) sidebar.classList.add("mobile-visible");
 		}
 
+		/* ── Editor mode ── */
+		function slugify(s) { return (s || "").toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40); }
+
+		function openCreateEditor() {
+			state.editorMode = "create";
+			state.selectedId = null;
+			renderAgentList();
+			renderEditorForm(null);
+		}
+
+		function openEditEditor() {
+			state.editorMode = "edit";
+			var agent = state.agents.find(function(a) { return a.agentId === state.selectedId; });
+			renderEditorForm(agent);
+		}
+
+		function closeEditor() {
+			state.editorMode = null;
+			if (state.agents.length > 0 && !state.selectedId) {
+				state.selectedId = state.agents[0].agentId;
+			}
+			renderAgentList();
+			renderDetailBody();
+		}
+
+		function renderEditorForm(agent) {
+			var body = document.getElementById("ag-detail-body");
+			var titleEl = document.getElementById("ag-detail-title");
+			var actionsEl = document.getElementById("ag-detail-actions");
+			if (!body) return;
+			if (titleEl) titleEl.textContent = "";
+			if (actionsEl) actionsEl.innerHTML = "";
+
+			var isEdit = !!agent;
+			var pageTitle = isEdit ? "编辑 Agent" : "新建 Agent";
+			var pageSub = isEdit ? "修改 Agent 配置" : "配置新 Agent 信息";
+
+			var browserOptions = state.browserList.map(function(b) {
+				return '<option value="' + escapeHtml(b.browserId) + '"' + (isEdit && agent.defaultBrowserId === b.browserId ? ' selected' : '') + '>' + escapeHtml(b.browserId) + '</option>';
+			}).join("");
+
+			var idField = isEdit ? ""
+				: '<div class="ag-editor-form-grid">'
+				+ '<label class="ag-editor-field"><span>名称 <span class="required">*</span></span><input id="ed-name" autocomplete="off" placeholder="例如：代码审查员" /></label>'
+				+ '<label class="ag-editor-field"><span>Agent ID <span class="required">*</span></span><input id="ed-id" autocomplete="off" placeholder="自动生成" /><span class="field-hint">小写字母、数字、连字符，创建后不可修改</span></label>'
+				+ '</div>';
+			var nameField = isEdit ? '<label class="ag-editor-field"><span>名称 <span class="required">*</span></span><input id="ed-name" autocomplete="off" value="' + escapeHtml(agent.name || "") + '" /></label>' : "";
+
+			body.innerHTML = '<div class="ag-editor-root">'
+				+ '<div id="editor-error" class="ag-editor-error" role="alert" hidden></div>'
+				+ '<div class="ag-editor-header">'
+				+ '<div class="ag-editor-header-icon" style="background:rgba(109,125,255,0.14)"><svg viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>'
+				+ '<div class="ag-editor-header-text"><div class="ag-editor-header-title">' + pageTitle + '</div><div class="ag-editor-header-sub">' + pageSub + '</div></div>'
+				+ '</div>'
+				+ '<div class="ag-editor-section-card">'
+				+ '<div class="ag-editor-section-head"><div class="ag-editor-section-icon" style="background:rgba(244,114,182,0.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#F472B6" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div class="ag-editor-section-title">基本信息</div></div>'
+				+ '<div class="ag-editor-section-body">'
+				+ idField + nameField
+				+ '<label class="ag-editor-field"><span>描述</span><textarea id="ed-desc" rows="3" placeholder="描述 Agent 的职责...">' + (isEdit ? escapeHtml(agent.description || "") : "") + '</textarea></label>'
+				+ '<label class="ag-editor-field"><span>默认浏览器</span><select id="ed-browser"><option value="">跟随系统默认</option>' + browserOptions + '</select></label>'
+				+ '</div></div>'
+				+ '<div class="ag-editor-actions"><div><button id="ed-submit" class="ag-btn ag-btn--primary" type="button">' + (isEdit ? "保存修改" : "创建 Agent") + '</button> <button id="ed-cancel" class="ag-btn ag-btn--outline" type="button">取消</button></div><div class="ag-editor-actions-right">' + (isEdit ? "agentId: " + escapeHtml(agent.agentId) : "") + '</div></div>'
+				+ '</div>';
+
+			document.getElementById("ed-submit").addEventListener("click", isEdit ? handleEditorUpdate : handleEditorCreate);
+			document.getElementById("ed-cancel").addEventListener("click", closeEditor);
+
+			if (!isEdit) {
+				var nameInput = document.getElementById("ed-name");
+				var idInput = document.getElementById("ed-id");
+				if (nameInput && idInput) {
+					nameInput.addEventListener("input", function() {
+						if (!idInput.dataset.touched) idInput.value = slugify(nameInput.value);
+					});
+					idInput.addEventListener("input", function() { idInput.dataset.touched = "1"; });
+				}
+			}
+		}
+
+		function showEditorError(msg) {
+			var el = document.getElementById("editor-error");
+			if (el) { el.textContent = msg; el.hidden = false; }
+		}
+
+		async function handleEditorCreate() {
+			var name = (document.getElementById("ed-name") || {}).value || "";
+			var id = (document.getElementById("ed-id") || {}).value || slugify(name);
+			var desc = (document.getElementById("ed-desc") || {}).value || "";
+			var browser = (document.getElementById("ed-browser") || {}).value || "";
+			if (!name.trim()) { showEditorError("名称不能为空"); return; }
+			if (!id.trim() || !/^[a-z][a-z0-9-]*$/.test(id)) { showEditorError("Agent ID 格式不正确（小写字母开头，仅含小写字母、数字、连字符）"); return; }
+			if (["main","search"].indexOf(id) !== -1) { showEditorError("该 Agent ID 已被系统保留"); return; }
+			var submitBtn = document.getElementById("ed-submit");
+			if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "创建中..."; }
+			try {
+				await fetchJson("/v1/agents", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ agentId: id, name: name, description: desc, defaultBrowserId: browser || undefined }),
+				});
+				state.editorMode = null;
+				await apiFetchAgents();
+				state.selectedId = id;
+				renderAgentList();
+				renderDetailBody();
+				renderStats();
+				showToast("Agent " + name + " 已创建", "ok");
+			} catch (e) {
+				showEditorError(e.message || "创建失败");
+				if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "创建 Agent"; }
+			}
+		}
+
+		async function handleEditorUpdate() {
+			var agent = state.agents.find(function(a) { return a.agentId === state.selectedId; });
+			if (!agent) return;
+			var name = (document.getElementById("ed-name") || {}).value || "";
+			var desc = (document.getElementById("ed-desc") || {}).value || "";
+			var browser = (document.getElementById("ed-browser") || {}).value || "";
+			if (!name.trim()) { showEditorError("名称不能为空"); return; }
+			var submitBtn = document.getElementById("ed-submit");
+			if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "保存中..."; }
+			try {
+				await fetchJson("/v1/agents/" + agent.agentId, {
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ name: name, description: desc, defaultBrowserId: browser || null }),
+				});
+				state.editorMode = null;
+				await apiFetchAgents();
+				renderAgentList();
+				renderDetailBody();
+				renderStats();
+				showToast("已保存", "ok");
+			} catch (e) {
+				showEditorError(e.message || "保存失败");
+				if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "保存修改"; }
+			}
+		}
+
 		async function handleRefresh() {
 			await apiFetchAgents();
 			await apiFetchGallerySkills();
 			renderAgentList();
 			renderFilterTabs();
-			renderDetail();
+			renderDetailBody();
 			renderStats();
 			showToast("已刷新", "ok");
 		}
 
 		/* ── Copy event delegation ── */
 		document.addEventListener("click", function(e) {
-			var btn = e.target.closest(".ag-field-copy");
+			var btn = e.target.closest(".ag-copy-btn");
 			if (!btn) return;
 			var val = btn.getAttribute("data-copy") || "";
 			var orig = btn.innerHTML;
@@ -1005,7 +1268,7 @@ function getAgentsPageJs(): string {
 				ta.select();
 				document.execCommand("copy");
 				ta.remove();
-				btn.innerHTML = '<svg viewBox="0 0 20 20"><polyline points="3 12 8 17 17 6" stroke-width="2.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+				btn.innerHTML = '<svg viewBox="0 0 20 20" style="width:12px;height:12px"><polyline points="3 12 8 17 17 6" stroke-width="2.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>已复制';
 				setTimeout(function() { btn.innerHTML = orig; }, 1400);
 			} catch {}
 		});
@@ -1014,6 +1277,7 @@ function getAgentsPageJs(): string {
 		async function init() {
 			applyTheme(readStoredTheme());
 
+			document.getElementById("btn-new-agent").addEventListener("click", openCreateEditor);
 			document.getElementById("btn-refresh").addEventListener("click", handleRefresh);
 			document.getElementById("mobile-back-btn").addEventListener("click", mobileBackToList);
 
@@ -1025,6 +1289,8 @@ function getAgentsPageJs(): string {
 				}, 200));
 			}
 
+			var browserResult = await fetchJson("/v1/browsers");
+			state.browserList = Array.isArray(browserResult.browsers) ? browserResult.browsers : [];
 			await Promise.all([apiFetchAgents(), apiFetchGallerySkills()]);
 			renderFilterTabs();
 			renderAgentList();
@@ -1054,64 +1320,85 @@ export function renderAgentsPage(): string {
 </head>
 <body>
 	<div id="app">
-		${renderStandaloneTopbar("Agent 管理台", "/playground")}
-		<button id="btn-new-agent" class="sp-topbar-btn ag-topbar-new" type="button" style="position:absolute;right:150px;top:10px">
-			<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-			新建 Agent
-		</button>
-		<button id="btn-refresh" class="sp-topbar-btn" type="button" style="position:absolute;right:70px;top:10px">
-			<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-			刷新
-		</button>
+		<header class="sp-topbar">
+			<a class="sp-topbar-back" href="/playground" title="返回">
+				<svg viewBox="0 0 20 20" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l-6 6 6 6"/></svg>
+			</a>
+			<strong class="sp-topbar-title">Agent 管理台</strong>
+			<div class="sp-topbar-spacer"></div>
+			<button id="btn-new-agent" class="sp-topbar-btn" type="button">
+				<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+				新建 Agent
+			</button>
+			<button id="btn-refresh" class="sp-topbar-btn" type="button">
+				<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+			</button>
+			<button class="sp-topbar-btn" type="button" onclick="toggleTheme()" title="切换主题">
+				<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.4M12 18.8v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>
+			</button>
+		</header>
 
 		<section class="ag-stats">
-			<div class="ag-stat-card">
-				<div class="ag-stat-info">
+			<div class="ag-stat-card ag-stat-card--blue">
+				<div class="ag-stat-card-body">
 					<div class="ag-stat-label">全部 Agent</div>
 					<div class="ag-stat-num" id="ag-stat-total">0</div>
-					<div class="ag-stat-sub">已配置 Agent 数量</div>
+					<div class="ag-stat-desc">已配置数量</div>
 				</div>
-				<div class="ag-stat-icon ag-stat-icon--1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M5.5 20v-1a6.5 6.5 0 0113 0v1"/></svg></div>
+				<div class="ag-stat-icon">
+					<svg viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5.5 20v-1a6.5 6.5 0 0113 0v1"/></svg>
+				</div>
 			</div>
-			<div class="ag-stat-card">
-				<div class="ag-stat-info">
+			<div class="ag-stat-card ag-stat-card--green">
+				<div class="ag-stat-card-body">
 					<div class="ag-stat-label">当前激活</div>
 					<div class="ag-stat-num" id="ag-stat-active">0</div>
-					<div class="ag-stat-sub">主 Agent</div>
+					<div class="ag-stat-desc">运行中的 Agent</div>
 				</div>
-				<div class="ag-stat-icon ag-stat-icon--2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+				<div class="ag-stat-icon">
+					<svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+				</div>
 			</div>
-			<div class="ag-stat-card">
-				<div class="ag-stat-info">
+			<div class="ag-stat-card ag-stat-card--amber">
+				<div class="ag-stat-card-body">
 					<div class="ag-stat-label">技能总数</div>
 					<div class="ag-stat-num" id="ag-stat-skills">0</div>
+					<div class="ag-stat-desc">当前 Agent 技能</div>
 				</div>
-				<div class="ag-stat-icon ag-stat-icon--3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+				<div class="ag-stat-icon">
+					<svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+				</div>
 			</div>
-			<div class="ag-stat-card">
-				<div class="ag-stat-info">
+			<div class="ag-stat-card ag-stat-card--violet">
+				<div class="ag-stat-card-body">
 					<div class="ag-stat-label">可用浏览器</div>
 					<div class="ag-stat-num" id="ag-stat-browsers">0</div>
+					<div class="ag-stat-desc">已绑定实例</div>
 				</div>
-				<div class="ag-stat-icon ag-stat-icon--4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+				<div class="ag-stat-icon">
+					<svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+				</div>
 			</div>
 		</section>
 
 		<div class="ag-main">
 			<aside class="ag-sidebar mobile-visible">
-				<div class="ag-search-wrap">
-					<svg class="ag-search-icon" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><line x1="13" y1="13" x2="18" y2="18"/></svg>
+				<div class="ag-sidebar-toolbar">
 					<input id="ag-search" class="ag-search-input" type="text" placeholder="搜索 Agent 名称或 ID..." autocomplete="off" />
 				</div>
 				<div id="ag-filter-tabs" class="ag-filter-tabs"></div>
 				<div id="ag-agent-list" class="ag-agent-list"></div>
 			</aside>
 
-			<section class="ag-detail" id="ag-detail">
-				<button id="mobile-back-btn" class="ag-mobile-back ag-btn ag-btn-secondary ag-btn-sm" type="button" style="margin-bottom:8px">
-					<svg viewBox="0 0 20 20" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><path d="M13 4l-6 6 6 6"/></svg>
-					返回列表
-				</button>
+			<section class="ag-detail">
+				<div class="ag-detail-head">
+					<button id="mobile-back-btn" class="ag-mobile-back ag-btn ag-btn--outline" type="button" style="padding:0 10px">
+						<svg viewBox="0 0 20 20" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><path d="M13 4l-6 6 6 6"/></svg>
+					</button>
+					<strong id="ag-detail-title" class="ag-detail-title"></strong>
+					<div id="ag-detail-actions" class="ag-detail-actions"></div>
+				</div>
+				<div id="ag-detail-body" class="ag-detail-body"></div>
 			</section>
 		</div>
 	</div>
