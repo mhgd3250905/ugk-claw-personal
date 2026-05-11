@@ -12,6 +12,14 @@
 
 ## 2026-05-11
 
+### 新同事 Agent 接手提示补齐
+- 日期：2026-05-11
+- 主题：为没有接触过项目的新同事 agent 准备第一条接手提示，明确阅读顺序、Docker 启动口径、双云增量更新规则和本地未跟踪产物禁区。
+- 影响范围：
+  - `docs/handoff-current.md` 顶部新增可直接复制给新 agent 的接手消息，避免新接手者误把 Playground 运行时 agent、仓库维护 agent、本地 Docker 和生产部署混在一起。
+  - 保留现有文档分层，不新增散落文档；新 agent 先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/traceability-map.md`，再按任务类型展开专题文档。
+- 对应入口：`docs/handoff-current.md`
+
 ### 双云增量更新状态文档校准
 - 日期：2026-05-11
 - 主题：在腾讯云和阿里云都完成本轮增量更新后，校准接手文档里的双云生产状态，避免后续 agent 按旧提交判断服务器版本。
