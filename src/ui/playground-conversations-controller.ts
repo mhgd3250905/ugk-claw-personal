@@ -914,7 +914,6 @@ export function getPlaygroundConversationControllerScript(): string {
 				markConversationCatalogFresh();
 				clearSelectedFiles();
 				clearSelectedAssetRefs();
-				setStageMode("landing");
 				const activated = await activateConversation(nextConversationId, {
 					skipCatalogSync: true,
 					skipServerSwitch: true,

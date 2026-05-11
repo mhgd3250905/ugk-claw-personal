@@ -158,7 +158,6 @@ function getPlaygroundScript(): string {
 		const state = {
 			loading: false,
 			theme: "dark",
-			stageMode: "landing",
 			workspaceMode: "chat",
 			agentId: readStoredAgentId(),
 			agentCatalog: [],
@@ -648,6 +647,7 @@ function getPlaygroundScript(): string {
 				renderAgentSelector();
 				clearError();
 				shell.dataset.home = "true";
+				landingScreen.setAttribute("aria-hidden", "false");
 				void loadAgentStatusAndRenderCards();
 			}
 
@@ -1339,7 +1339,6 @@ function getPlaygroundScript(): string {
 
 		function initializePlaygroundAssembler() {
 			conversationInput.value = state.conversationId;
-			setStageMode("landing");
 			shell.dataset.home = "true";
 			setTranscriptState("idle");
 			setCommandStatus("STANDBY");

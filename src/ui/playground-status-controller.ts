@@ -1,11 +1,5 @@
 export function getPlaygroundStatusControllerScript(): string {
 	return `
-		function setStageMode(next) {
-			state.stageMode = next;
-			shell.dataset.stageMode = next;
-			landingScreen.setAttribute("aria-hidden", next === "landing" ? "false" : "true");
-		}
-
 		function setCommandStatus(next) {
 			shell.dataset.commandState = String(next || "standby").toLowerCase();
 			newConversationButton.dataset.state = shell.dataset.commandState;
