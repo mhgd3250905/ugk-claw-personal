@@ -82,6 +82,10 @@ Fastify Server (src/server.ts)
 
 **Playground UI** (`src/ui/`): Vanilla TypeScript single-page application with no framework. Follows a controller-per-feature pattern — each `playground-*-controller.ts` manages one UI concern (streaming, conversations, assets, status, layout, theme, etc.). The design system is codified in `DESIGN.md` (dark theme primary, no shadows/gradients, two-column "cockpit" layout). HTML is server-rendered from `src/ui/playground.ts`.
 
+**Playground Theming**: Dual-theme system via `[data-theme="dark"]` / `[data-theme="light"]` on `<html>`. Main playground uses `playground-theme-controller.ts`; standalone pages (conn, agents) embed their own CSS token blocks with `standalone-page-shared.ts` as the shared base. Token selectors must NOT include `body` — only `:root` and `[data-theme="dark"]` for dark tokens, `[data-theme="light"]` for light tokens.
+
+**Playground Routing**: Two data attributes control view state on the shell element: `data-home="true"/"false"` is the sole routing toggle (agent list vs. conversation view). `data-stage-mode="landing"` is a permanent CSS-only hook for base layout styles (composer, textarea, stream-layout positioning) — it never changes at runtime and has no corresponding JS state.
+
 **Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`. To add a new route group, create the file and call its register function in `buildServer()`.
 
 ### `.pi/` Directory
