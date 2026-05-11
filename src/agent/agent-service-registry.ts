@@ -80,6 +80,7 @@ export class AgentServiceRegistry<TService> {
 
 	updateProfile(profile: AgentProfile): void {
 		this.profiles.set(profile.agentId, profile);
+		this.services.delete(profile.agentId);
 	}
 
 	remove(agentId: string): void {
