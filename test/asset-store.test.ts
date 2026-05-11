@@ -1,23 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AssetStore } from "../src/agent/asset-store.js";
 
 interface AssetStoreTestContext {
 	store: AssetStore;
+	blobsDir: string;
 	indexPath: string;
 }
 
 async function createAssetStoreContext(): Promise<AssetStoreTestContext> {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-asset-store-"));
+	const blobsDir = join(dir, "assets", "blobs");
 	const indexPath = join(dir, "asset-index.json");
 	return {
 		store: new AssetStore({
-			blobsDir: join(dir, "assets", "blobs"),
+			blobsDir,
 			indexPath,
 		}),
+		blobsDir,
 		indexPath,
 	};
 }
@@ -75,6 +78,43 @@ test("saveFiles reuses the same blob content while keeping separate asset record
 	const firstMeta = await store.getAsset(first[0]!.assetId);
 	const secondMeta = await store.getAsset(second[0]!.assetId);
 	assert.equal(firstMeta?.sha256, secondMeta?.sha256);
+});
+
+test("deleteAsset removes the selected asset without deleting shared blob content still in use", async () => {
+	const { store, blobsDir } = await createAssetStoreContext();
+
+	const first = await store.saveFiles("manual:first", [
+		{
+			fileName: "first.txt",
+			mimeType: "text/plain",
+			content: "same content",
+		},
+	]);
+	const second = await store.saveFiles("manual:second", [
+		{
+			fileName: "second.txt",
+			mimeType: "text/plain",
+			content: "same content",
+		},
+	]);
+	const firstAssetId = first[0]!.assetId;
+	const secondAssetId = second[0]!.assetId;
+	const secondFile = await store.getFile(secondAssetId);
+
+	assert.equal(await store.deleteAsset(firstAssetId), true);
+	assert.equal(await store.getAsset(firstAssetId), undefined);
+	assert.equal((await store.getFile(secondAssetId))?.content?.toString("utf8"), "same content");
+	assert.deepEqual(
+		(await store.listAssets({ limit: 10 })).map((asset) => asset.assetId),
+		[secondAssetId],
+	);
+
+	assert.equal(await store.deleteAsset(secondAssetId), true);
+	assert.equal(await store.deleteAsset("missing-asset"), false);
+	assert.equal(await store.getAsset(secondAssetId), undefined);
+	if (secondFile?.sha256) {
+		await assert.rejects(access(join(blobsDir, secondFile.sha256)));
+	}
 });
 
 test("registerAttachments preserves every asset across concurrent index writes", async () => {

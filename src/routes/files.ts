@@ -22,6 +22,7 @@ import type {
 	AssetDetailResponseBody,
 	AssetListResponseBody,
 	CreateAssetResponseBody,
+	DeleteAssetResponseBody,
 } from "../types/api.js";
 
 export interface FileRouteOptions {
@@ -71,6 +72,26 @@ export function registerFileRoutes(app: FastifyInstance, options: FileRouteOptio
 
 			return {
 				asset,
+			};
+		},
+	);
+
+	app.delete(
+		"/v1/assets/:assetId",
+		async (request, reply): Promise<DeleteAssetResponseBody | ReturnType<typeof reply.status>> => {
+			const { assetId } = request.params as { assetId: string };
+			if (!assetId || typeof options.assetStore.deleteAsset !== "function") {
+				return reply.status(404).send();
+			}
+
+			const deleted = await options.assetStore.deleteAsset(assetId);
+			if (!deleted) {
+				return reply.status(404).send();
+			}
+
+			return {
+				assetId,
+				deleted: true,
 			};
 		},
 	);

@@ -13,7 +13,7 @@ test("playground renders an agent selector for switching operation windows", () 
 	assert.match(html, /id="agent-selector-status"/);
 	assert.ok(html.indexOf('id="agent-selector-status"') > contextSlotStart);
 	assert.match(html, /class="topbar-agent-label"/);
-	assert.match(html, /aria-label="打开 Agent 管理"/);
+	assert.match(html, /aria-label="打开 Agent 页面"/);
 	assert.match(html, /const AGENT_SELECTION_STORAGE_KEY = "ugk-pi:active-agent-id"/);
 	assert.match(html, /agentId:\s*readStoredAgentId\(\)/);
 	assert.match(html, /localStorage\.setItem\(AGENT_SELECTION_STORAGE_KEY, normalized\)/);
@@ -73,4 +73,11 @@ test("playground renders agent management entry points and workspace", () => {
 	assert.match(html, /fetch\("\/v1\/agents\/" \+ encodeURIComponent\(agent\.agentId\)/);
 	assert.match(html, /encodeURIComponent\(agent\.agentId\) \+ "\/rules"/);
 	assert.doesNotMatch(html, /agent\.agentId !== "main"/);
+});
+
+test("playground agent button opens the standalone agents page instead of the legacy workspace", () => {
+	const script = getPlaygroundAgentManagerScript();
+
+	assert.match(script, /window\.open\("\/playground\/agents", "_blank"\)/);
+	assert.doesNotMatch(script, /agentSelectorStatus\?\.addEventListener\("click", \(\) => \{\s*openAgentManager\(agentSelectorStatus, \{ mode: "workspace" \}\);/);
 });

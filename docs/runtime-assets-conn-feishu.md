@@ -1,6 +1,6 @@
 # Runtime / Assets / Conn / Feishu
 
-更新时间：`2026-05-09`
+更新时间：`2026-05-11`
 
 这份文档只讲四类运行能力：
 
@@ -26,8 +26,10 @@
 - agent 生成了真实文件时，优先通过 `send_file` 交付
 - `/v1/files/:fileId` 负责文件内容返回
 - `/v1/assets` 与 `/v1/assets/:assetId` 提供资产元数据
+- `DELETE /v1/assets/:assetId` 删除指定资产。删除会移除资产索引记录；如果该资产的 blob 内容没有被其他资产记录复用，后端会同步删除物理 blob。删除不存在的资产返回 `404`。
 - `AssetStore` 的 `asset-index.json` 写入走进程内串行队列，并通过同目录临时文件 + `rename` 原子替换落盘；主 chat 上传、`conn` 上传和 agent `send_file` / `ugk-file` 输出即使在同一进程内并发写入，也不能互相覆盖资产索引记录。不要把它退回成普通 `readIndex()` + `writeFile()`，那是并发丢资产记录的老坑。
 - `AssetStore` 读 `asset-index.json` 时会先规整条目：畸形条目不会进入资产列表，`createdAt` 不是字符串的记录不会参与排序；`hasContent=true` 但 `blobPath` 不在 blobs 目录内的记录会降级为仅元数据资产，不暴露 `/v1/files/:fileId` 下载链接。不要把文件库恢复成“读到什么就展示什么”，那是在邀请坏索引把前端拖进 404 表演。
+- Playground 文件库中的“删除”按钮只删除资产库记录与可安全删除的 blob，不会回写或改写历史聊天消息、后台任务历史、任务消息文本或已经生成的外部引用。历史里曾经引用过的 `assetId` 删除后不能再作为后续 `assetRefs` 复用，这正是删除的真实语义。
 
 关键入口：
 
@@ -223,6 +225,8 @@ Run 查询接口：
 - `GET /v1/conns/:connId/runs`：查看某个 conn 的历史 run。
 - `GET /v1/conns/:connId/runs/:runId`：查看单次 run 的状态、结果摘要和输出文件索引。
 - `GET /v1/conns/:connId/runs/:runId/events`：查看单次 run 的过程事件；如果 run 不属于该 conn，返回 `404`。
+- `GET /v1/conns` 返回的 `totalUnreadRuns` 是当前仍存在的 conn 下，状态为 `succeeded / failed` 且 `read_at IS NULL` 的 run 数；它不是任务消息 `agent_activity_items` 的未读数，也不会再把已软删除 conn 的历史 run 算进顶部“未读结果”。
+- `POST /v1/conns/runs/read-all` 只把当前仍存在的 conn 范围内的未读 run 标记为已读；已软删除 conn 的历史 run 保留原始 read 状态，交给维护任务或排障时查看。
 
 当前运行口径：
 - 前台 `ugk-pi` 进程只负责创建 / 查询 / 暂停 / 恢复 conn，以及把 `POST /v1/conns/:connId/run` 写成一条 `pending` run。

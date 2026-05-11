@@ -61,6 +61,11 @@ export interface CreateAssetResponseBody {
 	assets: ChatAssetBody[];
 }
 
+export interface DeleteAssetResponseBody {
+	assetId: string;
+	deleted: boolean;
+}
+
 export type ConnTargetBody =
 	| {
 			type: "task_inbox";

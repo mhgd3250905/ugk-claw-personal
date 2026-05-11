@@ -12,6 +12,34 @@
 
 ## 2026-05-11
 
+### Conn 未读结果统计口径收口
+- 日期：2026-05-11
+- 主题：修正 `/playground/conn` 顶部“未读结果”总数，把统计范围收口到当前仍存在的 conn，避免已软删除任务的历史 run 继续混入总数。
+- 影响范围：
+  - `GET /v1/conns` 现在把当前 conn id 列表传给 `ConnRunStore.getTotalUnreadCount(connIds)`；单个 run 标记已读和“全部已读”后的总数刷新也使用同一口径。
+  - `ConnRunStore.getTotalUnreadCount()` 保留不传参时的全局统计兼容；传入 `connIds` 时只统计这些 conn 下 `succeeded / failed` 且 `read_at IS NULL` 的 run。
+  - `markAllRunsRead(connIds)` 只批量标记当前 conn 范围内的未读 run，避免用户在页面上点“全部已读”时顺手把已经删除的历史任务状态也清掉。
+- 对应入口：`src/agent/conn-run-store.ts`、`src/routes/conns.ts`、`test/conn-run-store.test.ts`、`test/server.test.ts`
+
+### Playground Agent 按钮改为独立页面入口
+- 日期：2026-05-11
+- 主题：对话页顶部当前 Agent 按钮不再打开旧的内嵌 Agent workspace，改为像后台任务入口一样打开独立 Agents 页面。
+- 影响范围：
+  - `agent-selector-status` 点击后调用 `window.open("/playground/agents", "_blank")`，不再触发 `openAgentManager(..., { mode: "workspace" })`。
+  - 按钮可访问名称从“打开 Agent 管理”调整为“打开 Agent 页面”，与独立页面入口语义一致。
+  - 旧 Agent workspace 代码暂时保留兼容，不作为顶部按钮入口展示；独立 `/playground/agents` 继续作为 Agent 管理主界面。
+- 对应入口：`src/ui/playground-agent-manager.ts`、`src/ui/playground-page-shell.ts`、`test/playground-agent-switch.test.ts`
+
+### 文件库指定文件删除
+- 日期：2026-05-11
+- 主题：文件库新增删除指定资产功能，支持从“可复用资产”列表中移除不再需要的上传文件或 agent 产出文件。
+- 影响范围：
+  - `AssetStore` 新增 `deleteAsset(assetId)`：删除资产索引记录；当底层 blob 没有被其他资产记录复用时同步删除物理 blob，避免共享内容被误删。
+  - 新增 `DELETE /v1/assets/:assetId`，删除成功返回 `{ assetId, deleted: true }`，不存在或不支持删除时返回 `404`。
+  - Playground 文件库卡片新增“删除”操作，删除前走确认弹窗；成功后同步移除最近资产列表、聊天输入区已选资产和 conn 编辑器已选资料。
+  - 新增存储层、HTTP 路由和前端控制器断言，锁住删除接口、共享 blob 保护和 UI 调用链。
+- 对应入口：`src/agent/asset-store.ts`、`src/routes/files.ts`、`src/types/api.ts`、`src/ui/playground-assets.ts`、`src/ui/playground-assets-controller.ts`、`test/asset-store.test.ts`、`test/server.test.ts`、`test/playground-assets-controller.test.ts`
+
 ### Conn 独立页面空列表新建任务卡片修复
 - 日期：2026-05-11
 - 主题：修复 `/playground/conn` 当前任务为空时点击“新建任务”后，左侧不显示“新建任务”虚拟卡片和“保存任务 / 取消”按钮的问题。

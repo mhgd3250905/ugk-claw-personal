@@ -49,6 +49,7 @@ export interface AssetStoreLike {
 	resolveAssets(assetIds: readonly string[]): Promise<AssetRecord[]>;
 	readText(assetId: string, maxChars?: number): Promise<string | undefined>;
 	getFile(assetId: string): Promise<StoredAssetRecord | undefined>;
+	deleteAsset?(assetId: string): Promise<boolean>;
 }
 
 interface AssetIndexEntry {
@@ -219,6 +220,35 @@ export class AssetStore implements AssetStoreLike {
 			...toPublicAsset(entry),
 			content: await readFile(blobPath),
 		};
+	}
+
+	async deleteAsset(assetId: string): Promise<boolean> {
+		const normalizedAssetId = String(assetId || "").trim();
+		if (!normalizedAssetId) {
+			return false;
+		}
+
+		return await this.mutateIndex(async (index) => {
+			const entry = index[normalizedAssetId];
+			if (!entry) {
+				return false;
+			}
+
+			delete index[normalizedAssetId];
+			if (entry.hasContent && entry.blobPath) {
+				const blobPath = resolve(entry.blobPath);
+				const blobStillReferenced = Object.values(index).some((candidate) => candidate.blobPath === blobPath);
+				if (!blobStillReferenced && isPathInside(blobPath, this.options.blobsDir)) {
+					await unlink(blobPath).catch((error) => {
+						if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+							return;
+						}
+						throw error;
+					});
+				}
+			}
+			return true;
+		});
 	}
 
 	private async createAttachmentEntry(conversationId: string, attachment: ChatAttachment): Promise<AssetIndexEntry> {

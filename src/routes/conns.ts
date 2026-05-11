@@ -114,8 +114,8 @@ interface ConnRunStoreLike {
 	listFiles(runId: string): Promise<ConnRunFileRecord[]>;
 	markRunRead(runId: string): Promise<boolean>;
 	getUnreadCountsByConn(connIds: readonly string[]): Promise<Record<string, number>>;
-	getTotalUnreadCount(): Promise<number>;
-	markAllRunsRead(): Promise<number>;
+	getTotalUnreadCount(connIds?: readonly string[]): Promise<number>;
+	markAllRunsRead(connIds?: readonly string[]): Promise<number>;
 }
 
 const RUN_EVENT_PAGE_SIZE = 2;
@@ -330,7 +330,7 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				? options.connRunStore.listLatestRunsForConns(connIds)
 				: Promise.resolve(undefined),
 			options.connRunStore.getUnreadCountsByConn(connIds),
-			options.connRunStore.getTotalUnreadCount(),
+			options.connRunStore.getTotalUnreadCount(connIds),
 		]);
 		return {
 			conns: conns.map((conn) => toConnListBody(conn, latestRunsByConnId)),
@@ -376,8 +376,10 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 	});
 
 	app.post("/v1/conns/runs/read-all", async () => {
-		const markedCount = await options.connRunStore.markAllRunsRead();
-		const totalUnread = await options.connRunStore.getTotalUnreadCount();
+		const conns = await options.connStore.list();
+		const connIds = conns.map((conn) => conn.connId);
+		const markedCount = await options.connRunStore.markAllRunsRead(connIds);
+		const totalUnread = await options.connRunStore.getTotalUnreadCount(connIds);
 		return { markedCount, totalUnreadRuns: totalUnread };
 	});
 
@@ -389,7 +391,9 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 			}
 			await options.connRunStore.markRunRead(runId);
 			const updatedRun = await options.connRunStore.getRun(runId);
-			const totalUnread = await options.connRunStore.getTotalUnreadCount();
+			const conns = await options.connStore.list();
+			const connIds = conns.map((conn) => conn.connId);
+			const totalUnread = await options.connRunStore.getTotalUnreadCount(connIds);
 			return {
 				run: toConnRunBody(updatedRun ?? run),
 				totalUnreadRuns: totalUnread,

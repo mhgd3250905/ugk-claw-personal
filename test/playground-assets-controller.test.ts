@@ -9,3 +9,14 @@ test("asset library refresh only disables while the asset request is in flight",
 	assert.match(script, /finally \{\s*refreshAssetsButton\.disabled = false;\s*\}/);
 	assert.doesNotMatch(script, /refreshAssetsButton\.disabled = state\.loading/);
 });
+
+test("asset library exposes a delete action that calls the asset delete API", () => {
+	const script = getPlaygroundAssetControllerScript();
+
+	assert.match(script, /function deleteAssetFromLibrary\(assetId, restoreFocusElement\)/);
+	assert.match(script, /fetch\("\/v1\/assets\/" \+ encodeURIComponent\(assetId\), \{\s*method: "DELETE"/);
+	assert.match(script, /confirmText: "删除"/);
+	assert.match(script, /state\.recentAssets = state\.recentAssets\.filter/);
+	assert.match(script, /state\.selectedAssetRefs = state\.selectedAssetRefs\.filter/);
+	assert.match(script, /state\.connEditorSelectedAssetRefs = state\.connEditorSelectedAssetRefs\.filter/);
+});

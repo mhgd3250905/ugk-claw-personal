@@ -4102,6 +4102,44 @@ test("GET /v1/assets returns reusable asset metadata", async () => {
 	await app.close();
 });
 
+test("DELETE /v1/assets/:assetId removes a reusable asset", async () => {
+	const calls: string[] = [];
+	const app = buildServer({
+		agentService: createAgentServiceStub(),
+		assetStore: {
+			registerAttachments: async () => [],
+			saveFiles: async () => [],
+			listAssets: async () => [],
+			getAsset: async () => undefined,
+			resolveAssets: async () => [],
+			readText: async () => undefined,
+			getFile: async () => undefined,
+			deleteAsset: async (assetId: string) => {
+				calls.push(assetId);
+				return assetId === "asset-delete";
+			},
+		},
+	});
+
+	const response = await app.inject({
+		method: "DELETE",
+		url: "/v1/assets/asset-delete",
+	});
+	const missingResponse = await app.inject({
+		method: "DELETE",
+		url: "/v1/assets/asset-missing",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.deepEqual(response.json(), {
+		assetId: "asset-delete",
+		deleted: true,
+	});
+	assert.equal(missingResponse.statusCode, 404);
+	assert.deepEqual(calls, ["asset-delete", "asset-missing"]);
+	await app.close();
+});
+
 test("POST /v1/assets no longer accepts JSON attachment uploads", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -4256,6 +4294,7 @@ test("POST /v1/assets/upload returns 413 when a file exceeds the configured size
 test("GET /v1/conns returns scheduled conn tasks", async () => {
 	const latestRunCalls: string[][] = [];
 	const runHistoryCalls: string[] = [];
+	const totalUnreadCalls: string[][] = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
@@ -4311,7 +4350,10 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 			listEvents: async () => [],
 			listFiles: async () => [],
 			getUnreadCountsByConn: async () => ({}),
-			getTotalUnreadCount: async () => 0,
+			getTotalUnreadCount: async (connIds?: readonly string[]) => {
+				totalUnreadCalls.push([...(connIds ?? [])]);
+				return 0;
+			},
 			markRunRead: async () => true,
 		} as never,
 	});
@@ -4353,6 +4395,7 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 		unreadRunCountsByConnId: {},
 	});
 	assert.deepEqual(latestRunCalls, [["conn-1"]]);
+	assert.deepEqual(totalUnreadCalls, [["conn-1"]]);
 	assert.deepEqual(runHistoryCalls, []);
 	await app.close();
 });

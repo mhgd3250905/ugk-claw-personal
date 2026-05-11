@@ -2087,9 +2087,13 @@ export function getPlaygroundAgentManagerScript(): string {
 			}
 		}
 
+		function openStandaloneAgentsPage() {
+			window.open("/playground/agents", "_blank");
+		}
+
 		function bindAgentManagerEvents() {
 			agentSelectorStatus?.addEventListener("click", () => {
-				openAgentManager(agentSelectorStatus, { mode: "workspace" });
+				openStandaloneAgentsPage();
 			});
 			refreshAgentManagerButton.addEventListener("click", () => {
 				void loadAgentManager({ silent: false });

@@ -620,21 +620,34 @@ export class ConnRunStore {
 		return result;
 	}
 
-	async getTotalUnreadCount(): Promise<number> {
+	async getTotalUnreadCount(connIds?: readonly string[]): Promise<number> {
+		const scopedConnIds = normalizeConnIds(connIds);
+		if (scopedConnIds && scopedConnIds.length === 0) return 0;
+		const connScope = scopedConnIds
+			? `conn_id IN (${scopedConnIds.map(() => "?").join(", ")}) AND `
+			: "";
 		const row = this.options.database.get<{ cnt: number }>(
-			"SELECT COUNT(*) AS cnt FROM conn_runs WHERE status IN ('succeeded', 'failed') AND read_at IS NULL",
+			`SELECT COUNT(*) AS cnt FROM conn_runs WHERE ${connScope}status IN ('succeeded', 'failed') AND read_at IS NULL`,
+			...(scopedConnIds ?? []),
 		);
 		return Number.isFinite(row?.cnt) ? Number(row!.cnt) : 0;
 	}
 
-	async markAllRunsRead(now: Date = new Date()): Promise<number> {
-		const count = await this.getTotalUnreadCount();
+	async markAllRunsRead(connIdsOrNow?: readonly string[] | Date, now: Date = new Date()): Promise<number> {
+		const scopedConnIds = Array.isArray(connIdsOrNow) ? normalizeConnIds(connIdsOrNow) : undefined;
+		if (scopedConnIds && scopedConnIds.length === 0) return 0;
+		const effectiveNow = connIdsOrNow instanceof Date ? connIdsOrNow : now;
+		const count = await this.getTotalUnreadCount(scopedConnIds);
 		if (count === 0) return 0;
-		const iso = now.toISOString();
+		const iso = effectiveNow.toISOString();
+		const connScope = scopedConnIds
+			? `conn_id IN (${scopedConnIds.map(() => "?").join(", ")}) AND `
+			: "";
 		this.options.database.run(
-			"UPDATE conn_runs SET read_at = ?, updated_at = ? WHERE status IN ('succeeded', 'failed') AND read_at IS NULL",
+			`UPDATE conn_runs SET read_at = ?, updated_at = ? WHERE ${connScope}status IN ('succeeded', 'failed') AND read_at IS NULL`,
 			iso,
 			iso,
+			...(scopedConnIds ?? []),
 		);
 		return count;
 	}
@@ -748,6 +761,11 @@ function rowToFile(row: ConnRunFileRow): ConnRunFileRecord {
 
 function serializeOptionalJson(value: Record<string, unknown> | undefined): string | undefined {
 	return value ? JSON.stringify(value) : undefined;
+}
+
+function normalizeConnIds(connIds: readonly string[] | undefined): string[] | undefined {
+	if (!connIds) return undefined;
+	return Array.from(new Set(connIds.map((connId) => connId.trim()).filter(Boolean)));
 }
 
 function serializeRunEvent(event: Record<string, unknown>): string {

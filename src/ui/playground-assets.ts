@@ -291,6 +291,17 @@ export function getPlaygroundAssetBaseStyles(): string {
 			grid-template-columns: minmax(0, 1fr) auto;
 		}
 
+		.asset-pill-actions {
+			display: inline-flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 6px;
+		}
+
+		.asset-pill-delete-button {
+			color: rgba(255, 198, 206, 0.84);
+		}
+
 		.asset-pill.active {
 			border-color: rgba(201, 210, 255, 0.18);
 			background: rgba(255, 255, 255, 0.08);
@@ -734,6 +745,12 @@ export function getPlaygroundAssetMobileStyles(): string {
 			.asset-pill {
 				grid-template-columns: minmax(0, 1fr) auto;
 				gap: 12px;
+			}
+
+			.asset-pill-actions {
+				display: grid;
+				grid-template-columns: 1fr;
+				gap: 8px;
 			}
 
 			.asset-pill > div {

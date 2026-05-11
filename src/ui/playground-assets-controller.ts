@@ -454,7 +454,7 @@ export function getPlaygroundAssetControllerScript(): string {
 
 				const item = document.createElement("div");
 				item.className = "asset-pill" + (selectedAssetRefs.includes(asset.assetId) ? " active" : "");
-				item.innerHTML = "<div><strong></strong><span></span></div><button type=\\"button\\"></button>";
+				item.innerHTML = "<div><strong></strong><span></span></div><div class=\\"asset-pill-actions\\"><button class=\\"asset-pill-reuse-button\\" type=\\"button\\"></button><button class=\\"asset-pill-delete-button\\" type=\\"button\\">删除</button></div>";
 				item.querySelector("strong").textContent = asset.fileName;
 				item.querySelector("span").textContent =
 					(asset.kind || "metadata") +
@@ -464,13 +464,75 @@ export function getPlaygroundAssetControllerScript(): string {
 					formatFileSize(asset.sizeBytes) +
 					" / " +
 					asset.assetId.slice(0, 12);
-				const toggleButton = item.querySelector("button");
+				const toggleButton = item.querySelector(".asset-pill-reuse-button");
 				toggleButton.textContent = selectedAssetRefs.includes(asset.assetId) ? "已选" : "复用";
 				toggleButton.disabled = selectedAssetRefs.includes(asset.assetId);
 				toggleButton.addEventListener("click", () => {
 					selectAssetForReuse(asset.assetId);
 				});
+				const deleteButton = item.querySelector(".asset-pill-delete-button");
+				deleteButton.disabled = state.assetDeletingAssetId === asset.assetId;
+				deleteButton.textContent = state.assetDeletingAssetId === asset.assetId ? "删除中" : "删除";
+				deleteButton.addEventListener("click", (event) => {
+					event.stopPropagation();
+					void deleteAssetFromLibrary(asset.assetId, deleteButton);
+				});
 				assetModalList.appendChild(item);
+			}
+		}
+
+		async function deleteAssetFromLibrary(assetId, restoreFocusElement) {
+			const normalizedAssetId = String(assetId || "").trim();
+			if (!normalizedAssetId || state.assetDeletingAssetId) {
+				return;
+			}
+			const asset = state.recentAssets.find((current) => current.assetId === normalizedAssetId);
+			const confirmed = await openConfirmDialog({
+				title: "删除文件？",
+				description:
+					"文件：" +
+					(asset?.fileName || normalizedAssetId) +
+					"\\n\\n删除后这个文件会从文件库移除，后续不能再选择复用。",
+				confirmText: "删除",
+				cancelText: "取消",
+				tone: "danger",
+				restoreFocusElement,
+			});
+			if (!confirmed) {
+				return;
+			}
+
+			state.assetDeletingAssetId = normalizedAssetId;
+			renderAssetPickerList();
+			try {
+				const response = await fetch("/v1/assets/" + encodeURIComponent(assetId), {
+					method: "DELETE",
+					headers: { accept: "application/json" },
+				});
+				if (!response.ok) {
+					const payload = await response.json().catch(() => ({}));
+					const fallbackMessage = response.status === 404 ? "文件不存在或已经删除" : "删除文件失败";
+					throw new Error(payload?.error?.message || payload?.message || fallbackMessage);
+				}
+				state.recentAssets = state.recentAssets.filter((current) => current.assetId !== normalizedAssetId);
+				state.selectedAssetRefs = state.selectedAssetRefs.filter((currentId) => currentId !== normalizedAssetId);
+				state.connEditorSelectedAssetRefs = state.connEditorSelectedAssetRefs.filter(
+					(currentId) => currentId !== normalizedAssetId,
+				);
+				if (typeof connEditorAssetRefs !== "undefined" && connEditorAssetRefs) {
+					connEditorAssetRefs.value = state.connEditorSelectedAssetRefs.join("\\\\n");
+				}
+				renderSelectedAssets();
+				if (typeof renderConnEditorSelectedAssets === "function") {
+					renderConnEditorSelectedAssets();
+				}
+				renderAssetPickerList();
+			} catch (error) {
+				const messageText = error instanceof Error ? error.message : "删除文件失败";
+				showError(messageText);
+			} finally {
+				state.assetDeletingAssetId = "";
+				renderAssetPickerList();
 			}
 		}
 

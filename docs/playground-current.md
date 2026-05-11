@@ -1,6 +1,27 @@
 # Playground 当前状态
 
-更新时间：`2026-05-09`
+更新时间：`2026-05-11`
+
+## 2026-05-11 Conn 未读结果统计
+
+- `/playground/conn` 顶部右侧“未读结果”统计的是后台 run 结果，不是任务消息页的 `agent_activity_items` 未读消息数。
+- 统计范围已经收口为当前仍存在的 conn：只计算这些 conn 下 `succeeded / failed` 且 `read_at IS NULL` 的 run；已软删除任务的历史 run 不再混入顶部总数。
+- 列表卡片上的单个 conn 未读徽章和顶部总数使用同一批 conn id 作为过滤范围；“全部已读”和展开单条 run 自动已读后的总数刷新也按这个口径返回。
+- 相关源码：`src/routes/conns.ts`、`src/agent/conn-run-store.ts`
+
+## 2026-05-11 Agent 按钮独立页面入口
+
+- 对话页顶部当前 Agent 标签按钮现在直接打开独立 `/playground/agents` 页面，行为和后台任务按钮打开 `/playground/conn` 一致。
+- 点击该按钮不再展示旧的内嵌 Agent workspace 区域；旧 workspace 代码暂时只作为兼容实现保留，不再作为顶部 Agent 按钮的入口。
+- 悬浮 Agent 切换菜单仍保留：菜单项内部点击会阻止冒泡，继续用于快速切换当前 Agent。
+- 相关源码：`src/ui/playground-agent-manager.ts`、`src/ui/playground-page-shell.ts`
+
+## 2026-05-11 文件库指定文件删除
+
+- Playground 文件库现在在每个可复用资产卡片上提供“删除”操作，和“复用”并列展示。
+- 删除前必须弹出确认框；确认后调用 `DELETE /v1/assets/:assetId`，成功后从文件库列表、聊天输入区已选资产、conn 编辑器已选附加资料中同步移除该资产。
+- 删除语义以资产库为准：后端会移除资产索引记录，并在底层 blob 不再被其他资产复用时删除物理文件；不会修改历史聊天正文、任务消息正文或后台 run 历史里曾经展示过的旧文本。
+- 相关源码：`src/ui/playground-assets.ts`、`src/ui/playground-assets-controller.ts`、`src/routes/files.ts`、`src/agent/asset-store.ts`
 
 ## 2026-05-11 Conn 独立页面空列表新建任务
 

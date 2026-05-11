@@ -97,7 +97,7 @@ ${input.playgroundScript ?? ""}</script>`;
 						<span id="task-inbox-unread-badge" class="telemetry-action-badge" hidden>0</span>
 					</button>
 					<div class="topbar-context-slot">
-						<button id="agent-selector-status" class="topbar-agent-label" type="button" aria-label="打开 Agent 管理" title="Agent 管理"><span class="agent-switcher-label">主 Agent</span><span id="agent-switcher-meta" class="agent-switcher-meta" role="tooltip"></span></button>
+						<button id="agent-selector-status" class="topbar-agent-label" type="button" aria-label="打开 Agent 页面" title="Agent 页面"><span class="agent-switcher-label">主 Agent</span><span id="agent-switcher-meta" class="agent-switcher-meta" role="tooltip"></span></button>
 						<button id="context-usage-shell" class="context-usage-shell" type="button" data-status="safe" data-expanded="false" aria-label="&#19978;&#19979;&#25991;&#20351;&#29992; 0%" aria-describedby="context-usage-meta">
 							<span class="context-usage-battery" aria-hidden="true">
 								<span id="context-usage-progress" class="context-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>

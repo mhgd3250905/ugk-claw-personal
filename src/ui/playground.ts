@@ -185,6 +185,7 @@ function getPlaygroundScript(): string {
 			receivedDoneEvent: false,
 			composerUploadingAssets: false,
 			recentAssets: [],
+			assetDeletingAssetId: "",
 			assetDetailQueue: [],
 			assetDetailInFlightById: new Map(),
 			assetDetailActiveCount: 0,

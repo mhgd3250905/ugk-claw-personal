@@ -202,6 +202,49 @@ test("ConnRunStore lists the latest run for each requested conn in one batch", a
 	database.close();
 });
 
+test("ConnRunStore scopes total unread counts and mark-all-read to requested conns", async () => {
+	const { connStore, runStore, database } = await createStores();
+	const visibleConn = await connStore.create({
+		title: "visible digest",
+		prompt: "summarize visible",
+		target: { type: "task_inbox" },
+		schedule: { kind: "interval", everyMs: 60_000 },
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const deletedConn = await connStore.create({
+		title: "deleted digest",
+		prompt: "summarize deleted",
+		target: { type: "task_inbox" },
+		schedule: { kind: "interval", everyMs: 60_000 },
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-visible",
+		connId: visibleConn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-visible",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	await runStore.createRun({
+		runId: "run-deleted",
+		connId: deletedConn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: "/tmp/conn/run-deleted",
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+	database.run("UPDATE conn_runs SET status = ?, finished_at = ? WHERE run_id = ?", "succeeded", "2026-04-21T10:02:00.000Z", "run-visible");
+	database.run("UPDATE conn_runs SET status = ?, finished_at = ? WHERE run_id = ?", "failed", "2026-04-21T10:02:00.000Z", "run-deleted");
+	await connStore.delete(deletedConn.connId);
+
+	assert.equal(await runStore.getTotalUnreadCount(), 2);
+	assert.equal(await runStore.getTotalUnreadCount([visibleConn.connId]), 1);
+	assert.equal(await runStore.markAllRunsRead([visibleConn.connId]), 1);
+	assert.equal(await runStore.getTotalUnreadCount([visibleConn.connId]), 0);
+	assert.equal(await runStore.getTotalUnreadCount(), 1);
+
+	database.close();
+});
+
 test("ConnRunStore uses run ids as stable timestamp tie-breakers for run lists and claims", async () => {
 	const { connStore, runStore, database } = await createStores();
 	const conn = await connStore.create({
