@@ -2,7 +2,7 @@ export function getConnPageCss(): string {
   return /* css */ `
     /* ── Design tokens ── */
 
-    :root, body, [data-theme="dark"], [data-theme="light"] {
+    :root, [data-theme="dark"] {
       --bg: #070A12;
       --surface: #0F1524;
       --surface-elevated: #121A2B;
@@ -33,6 +33,35 @@ export function getConnPageCss(): string {
       --radius-card-sm: 8px;
       --radius-btn: 8px;
       --radius-input: 8px;
+    }
+
+    [data-theme="light"] {
+      --bg: #F0F2F8;
+      --surface: #FFFFFF;
+      --surface-elevated: #F8F9FC;
+      --sidebar: #F4F5FA;
+      --bg-input: #FFFFFF;
+      --border: #D4D9E6;
+      --border-strong: #B0B9CC;
+      --border-hover: #96A0B8;
+      --fg: #1A1F36;
+      --fg-secondary: #4A5568;
+      --muted: #8896AB;
+      --primary: #5B5BD6;
+      --primary-hover: #6E6EE8;
+      --primary-soft: rgba(91, 91, 214, 0.10);
+      --primary-glow: rgba(91, 91, 214, 0.14);
+      --accent-violet: #7C3AED;
+      --success: #16A34A;
+      --success-soft: rgba(22, 163, 74, 0.10);
+      --danger: #E11D48;
+      --danger-soft: rgba(225, 29, 72, 0.10);
+      --warning: #D97706;
+      --warning-soft: rgba(217, 119, 6, 0.10);
+      --cyan: #0891B2;
+      --cyan-soft: rgba(8, 145, 178, 0.10);
+      --pink: #DB2777;
+      --pink-soft: rgba(219, 39, 119, 0.10);
     }
 
     /* ── Scrollbar ── */
@@ -1690,6 +1719,48 @@ export function getConnPageCss(): string {
       .conn-detail-header-actions { width: 100%; }
 
       #mobile-back-btn { display: inline-flex !important; }
+    }
+
+    /* ── Light theme overrides (hardcoded colors) ── */
+
+    [data-theme="light"] .conn-detail-body::-webkit-scrollbar-thumb,
+    [data-theme="light"] .conn-list-items::-webkit-scrollbar-thumb,
+    [data-theme="light"] .conn-prompt-block::-webkit-scrollbar-thumb,
+    [data-theme="light"] .conn-run-result::-webkit-scrollbar-thumb {
+      background: #C4C9D6;
+    }
+    [data-theme="light"] .conn-detail-body::-webkit-scrollbar-thumb:hover,
+    [data-theme="light"] .conn-list-items::-webkit-scrollbar-thumb:hover,
+    [data-theme="light"] .conn-prompt-block::-webkit-scrollbar-thumb:hover,
+    [data-theme="light"] .conn-run-result::-webkit-scrollbar-thumb:hover {
+      background: #A8B0C0;
+    }
+
+    [data-theme="light"] .conn-list-item { background: #FFFFFF; }
+    [data-theme="light"] .conn-list-item:hover { background: #F0F2F8; }
+
+    [data-theme="light"] .conn-stat-card--violet .value { color: #7C3AED; }
+    [data-theme="light"] .conn-stat-card--violet .conn-stat-icon { background: rgba(124, 58, 237, 0.10); }
+
+    [data-theme="light"] .conn-search {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238896AB' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
+    }
+
+    [data-theme="light"] .conn-editor-field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238896AB' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+    }
+
+    [data-theme="light"] .conn-run-result code { background: rgba(91, 91, 214, 0.08); }
+    [data-theme="light"] .conn-run-result pre { background: rgba(0, 0, 0, 0.04); }
+    [data-theme="light"] .conn-run-result blockquote { background: rgba(91, 91, 214, 0.04); }
+    [data-theme="light"] .conn-run-result th { background: rgba(91, 91, 214, 0.06); }
+
+    [data-theme="light"] .flatpickr-calendar {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+    }
+
+    [data-theme="light"] .conn-list-item.is-selected .conn-list-item-unread {
+      background: rgba(225, 29, 72, 0.8);
     }
   `;
 }
