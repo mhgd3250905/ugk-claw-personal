@@ -67,9 +67,9 @@ export function getPlaygroundStyles(): string {
 			margin: 0;
 			height: 100%;
 			background:
-				radial-gradient(circle at 18% 14%, rgba(121, 105, 214, 0.14), transparent 0 18%),
-				radial-gradient(circle at 78% 10%, rgba(255, 255, 255, 0.05), transparent 0 14%),
-				linear-gradient(180deg, #02030a 0%, #04050d 38%, #090611 100%);
+				radial-gradient(circle at 18% 14%, rgba(51, 131, 255, 0.10), transparent 0 20%),
+				radial-gradient(circle at 78% 10%, rgba(81, 255, 194, 0.04), transparent 0 16%),
+				linear-gradient(180deg, #020611 0%, #040812 38%, #050817 100%);
 			background-size: auto;
 			color: var(--fg);
 			font-family: var(--font-sans);
@@ -2314,7 +2314,7 @@ export function getPlaygroundStyles(): string {
 			padding: 12px 0 14px;
 			border: 0;
 			border-radius: 4px;
-			background: rgba(102, 93, 138, 0.16);
+			background: rgba(9, 12, 22, 0.96);
 			outline: 1px solid transparent;
 			outline-offset: 2px;
 			box-shadow: none;
@@ -2328,7 +2328,7 @@ export function getPlaygroundStyles(): string {
 
 		.composer:focus-within {
 			border-color: rgba(201, 210, 255, 0.34);
-			background: rgba(102, 93, 138, 0.2);
+			background: rgba(14, 18, 32, 0.98);
 			outline: none;
 			box-shadow: inset 0 0 0 1px var(--accent);
 		}
@@ -3318,26 +3318,45 @@ export function getPlaygroundStyles(): string {
 		body::before {
 			content: "";
 			position: fixed;
-			inset: 0;
-			background:
-				linear-gradient(rgba(201, 210, 255, 0.024) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(201, 210, 255, 0.02) 1px, transparent 1px),
-				linear-gradient(135deg, transparent 0 48%, rgba(101, 209, 255, 0.035) 49% 51%, transparent 52% 100%),
-				linear-gradient(180deg, rgba(1, 3, 10, 0.18), rgba(3, 3, 9, 0.52));
-			background-size: 36px 36px, 36px 36px, 96px 96px, auto;
-			opacity: 0.48;
+			inset: -48px;
+			z-index: 0;
 			pointer-events: none;
+			opacity: 0.78;
+			background-image:
+				linear-gradient(rgba(116, 176, 255, 0.09) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(116, 176, 255, 0.065) 1px, transparent 1px),
+				linear-gradient(rgba(116, 176, 255, 0.12) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(116, 176, 255, 0.10) 1px, transparent 1px),
+				radial-gradient(circle at 1px 1px, rgba(133, 190, 255, 0.22) 1px, transparent 1.5px),
+				repeating-linear-gradient(
+					135deg,
+					transparent 0 104px,
+					rgba(95, 145, 255, 0.025) 104px 168px,
+					transparent 168px 300px
+				),
+				radial-gradient(circle at 12% 22%, rgba(137, 205, 255, 0.32) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 31% 19%, rgba(137, 205, 255, 0.12) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 67% 31%, rgba(137, 205, 255, 0.32) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 84% 16%, rgba(137, 205, 255, 0.12) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 72% 76%, rgba(137, 205, 255, 0.32) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 18% 82%, rgba(137, 205, 255, 0.12) 0 1px, transparent 1.6px));
+			background-size: 32px 32px, 32px 32px, 128px 128px, 128px 128px, 12px 12px, auto,
+				100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+			transform: translate3d(0, 0, 0);
+			animation: ugk-chat-bg-drift 120s linear infinite;
+			will-change: transform;
 		}
 
 		body::after {
 			content: "";
 			position: fixed;
 			inset: 0;
-			background:
-				radial-gradient(circle at 18% 12%, rgba(101, 209, 255, 0.1), transparent 0 24%),
-				radial-gradient(circle at 78% 6%, rgba(141, 255, 178, 0.06), transparent 0 18%);
-			opacity: 0.92;
+			z-index: 0;
 			pointer-events: none;
+			background:
+				radial-gradient(circle at 18% 12%, rgba(51, 131, 255, 0.14), transparent 0 24%),
+				radial-gradient(circle at 78% 6%, rgba(81, 255, 194, 0.06), transparent 0 18%);
+			opacity: 0.92;
 		}
 
 		.shell {
@@ -3358,6 +3377,29 @@ export function getPlaygroundStyles(): string {
 			isolation: isolate;
 			--conversation-width: 760px;
 		}
+
+			.shell:not([data-home="true"]) {
+				background-image:
+					linear-gradient(var(--ugk-grid-line) 1px, transparent 1px),
+					linear-gradient(90deg, var(--ugk-grid-line) 1px, transparent 1px),
+					linear-gradient(var(--ugk-grid-line-strong) 1px, transparent 1px),
+					linear-gradient(90deg, var(--ugk-grid-line-strong) 1px, transparent 1px),
+					radial-gradient(circle at 1px 1px, var(--ugk-grid-dot) 1px, transparent 1.5px),
+					repeating-linear-gradient(
+						135deg,
+						transparent 0 104px,
+						var(--ugk-diagonal-band) 104px 168px,
+						transparent 168px 300px
+					),
+					radial-gradient(circle at 12% 22%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 31% 19%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 67% 31%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 84% 16%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 72% 76%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+					radial-gradient(circle at 18% 82%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px);
+				background-size: 32px 32px, 32px 32px, 128px 128px, 128px 128px, 12px 12px, auto,
+					100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+			}
 
 		.topbar {
 			position: relative;
@@ -3510,13 +3552,24 @@ export function getPlaygroundStyles(): string {
 			margin-bottom: 24px;
 		}
 
-		.landing-title {
-			font-size: 24px;
-			font-weight: 700;
-			letter-spacing: 0.08em;
-			color: var(--text-primary);
-			margin: 0 0 8px;
-		}
+.landing-logo {
+				margin: 0 0 8px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+			}
+
+			.landing-logo .ugk-svg-logo {
+				width: 240px;
+				height: auto;
+			}
+
+			.landing-logo .ugk-ascii-logo {
+				color: rgba(138, 170, 218, 0.4);
+				font-size: clamp(6px, 0.88vw, 10px);
+				line-height: 0.94;
+				margin-top: 8px;
+			}
 
 		.landing-subtitle {
 			font-size: 13px;
@@ -3533,6 +3586,155 @@ export function getPlaygroundStyles(): string {
 			width: 100%;
 		}
 
+		/* === UGK CLAW Landing Pixel Hacker Background === */
+		:root[data-theme="dark"] {
+			--ugk-bg-base: #020611;
+			--ugk-bg-base-2: #050817;
+			--ugk-bg-glow: rgba(51, 131, 255, 0.12);
+			--ugk-bg-corner-glow: rgba(81, 255, 194, 0.045);
+			--ugk-grid-line: rgba(116, 176, 255, 0.075);
+			--ugk-grid-line-strong: rgba(116, 176, 255, 0.11);
+			--ugk-grid-dot: rgba(133, 190, 255, 0.16);
+			--ugk-pixel: rgba(137, 205, 255, 0.42);
+			--ugk-pixel-soft: rgba(137, 205, 255, 0.16);
+			--ugk-diagonal-band: rgba(95, 145, 255, 0.035);
+			--ugk-scan-glow: rgba(96, 194, 255, 0.10);
+			--ugk-bg-opacity: 1;
+		}
+
+		:root[data-theme="light"] {
+			--ugk-bg-base: #f7f9fd;
+			--ugk-bg-base-2: #eef3f9;
+			--ugk-bg-glow: rgba(45, 122, 255, 0.10);
+			--ugk-bg-corner-glow: rgba(67, 170, 255, 0.055);
+			--ugk-grid-line: rgba(24, 69, 119, 0.055);
+			--ugk-grid-line-strong: rgba(24, 69, 119, 0.085);
+			--ugk-grid-dot: rgba(41, 104, 180, 0.13);
+			--ugk-pixel: rgba(26, 101, 210, 0.34);
+			--ugk-pixel-soft: rgba(26, 101, 210, 0.12);
+			--ugk-diagonal-band: rgba(48, 105, 180, 0.045);
+			--ugk-scan-glow: rgba(0, 91, 255, 0.07);
+			--ugk-bg-opacity: 0.9;
+		}
+
+		.shell[data-home="true"] {
+			background:
+				radial-gradient(circle at 50% 26%, var(--ugk-bg-glow), transparent 38%),
+				radial-gradient(circle at 12% 18%, var(--ugk-bg-corner-glow), transparent 34%),
+				linear-gradient(180deg, var(--ugk-bg-base) 0%, var(--ugk-bg-base-2) 100%);
+			isolation: isolate;
+		}
+
+		.shell[data-home="true"]::before {
+			content: "";
+			position: fixed;
+			inset: -72px;
+			z-index: 0;
+			pointer-events: none;
+			opacity: var(--ugk-bg-opacity);
+			background-image:
+				linear-gradient(var(--ugk-grid-line) 1px, transparent 1px),
+				linear-gradient(90deg, var(--ugk-grid-line) 1px, transparent 1px),
+				linear-gradient(var(--ugk-grid-line-strong) 1px, transparent 1px),
+				linear-gradient(90deg, var(--ugk-grid-line-strong) 1px, transparent 1px),
+				radial-gradient(circle at 1px 1px, var(--ugk-grid-dot) 1px, transparent 1.5px),
+				repeating-linear-gradient(
+					135deg,
+					transparent 0 104px,
+					var(--ugk-diagonal-band) 104px 168px,
+					transparent 168px 300px
+				),
+				radial-gradient(circle at 12% 22%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 31% 19%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 67% 31%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 84% 16%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 72% 76%, var(--ugk-pixel) 0 1px, transparent 1.6px),
+				radial-gradient(circle at 18% 82%, var(--ugk-pixel-soft) 0 1px, transparent 1.6px);
+			background-size:
+				32px 32px,
+				32px 32px,
+				128px 128px,
+				128px 128px,
+				12px 12px,
+				auto,
+				100% 100%,
+				100% 100%,
+				100% 100%,
+				100% 100%,
+				100% 100%,
+				100% 100%;
+			transform: translate3d(0, 0, 0);
+			animation: ugk-bg-drift 56s linear infinite;
+			will-change: transform;
+		}
+
+		.shell[data-home="true"]::after {
+			content: "";
+			position: fixed;
+			top: -20%;
+			left: 0;
+			z-index: 0;
+			width: 28vw;
+			height: 140%;
+			pointer-events: none;
+			background:
+				linear-gradient(
+					90deg,
+					transparent 0%,
+					var(--ugk-scan-glow) 48%,
+					transparent 100%
+				);
+			opacity: 0.75;
+			transform: translate3d(-40vw, 0, 0) skewX(-18deg);
+			animation: ugk-bg-scan 18s ease-in-out infinite;
+			will-change: transform;
+		}
+
+		.shell[data-home="true"] > * {
+			position: relative;
+			z-index: 1;
+		}
+
+		@keyframes ugk-bg-drift {
+			from { transform: translate3d(0, 0, 0); }
+			to { transform: translate3d(32px, 32px, 0); }
+		}
+
+		@keyframes ugk-bg-scan {
+			0% { transform: translate3d(-42vw, 0, 0) skewX(-18deg); opacity: 0; }
+			12% { opacity: 0.55; }
+			50% { opacity: 0.75; }
+			88% { opacity: 0.45; }
+			100% { transform: translate3d(128vw, 0, 0) skewX(-18deg); opacity: 0; }
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.shell[data-home="true"]::before,
+			.shell[data-home="true"]::after {
+				animation: none !important;
+			}
+		}
+
+			@keyframes ugk-chat-bg-drift {
+				from { transform: translate3d(0, 0, 0); }
+				to { transform: translate3d(32px, 32px, 0); }
+			}
+
+			@keyframes ugk-chat-bg-scan {
+				0% { transform: translate3d(-42vw, 0, 0) skewX(-18deg); opacity: 0; }
+				12% { opacity: 0.3; }
+				50% { opacity: 0.5; }
+				88% { opacity: 0.25; }
+				100% { transform: translate3d(128vw, 0, 0) skewX(-18deg); opacity: 0; }
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				body::before {
+					animation: none !important;
+				}
+			}
+
+
 		.landing-agent-card {
 			display: flex;
 			flex-direction: column;
@@ -3548,7 +3750,7 @@ export function getPlaygroundStyles(): string {
 			font-size: inherit;
 			line-height: inherit;
 			box-shadow: none;
-			transition: border-color 0.15s ease;
+			transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 		}
 
 		.landing-agent-card:hover,
@@ -3557,7 +3759,24 @@ export function getPlaygroundStyles(): string {
 			background: rgba(201, 210, 255, 0.07);
 		}
 
-		.landing-agent-card.is-busy {
+		
+
+		
+		
+
+
+		:root[data-theme="light"] .landing-agent-card {
+			background: rgba(16, 24, 44, 0.08);
+			border-color: rgba(31, 95, 200, 0.10);
+		}
+
+		:root[data-theme="light"] button.landing-agent-card:hover,
+		:root[data-theme="light"] button.landing-agent-card:focus-visible {
+			border-color: rgba(201, 210, 255, 0.24);
+			background: rgba(201, 210, 255, 0.07) !important;
+		}
+
+.landing-agent-card.is-busy {
 			opacity: 0.7;
 		}
 
@@ -3899,7 +4118,7 @@ export function getPlaygroundStyles(): string {
 			border: 0;
 			border-radius: 6px;
 			background:
-				linear-gradient(180deg, rgba(11, 16, 27, 0.96), rgba(5, 8, 15, 0.96)),
+				linear-gradient(180deg, rgba(11, 16, 27, 0.88), rgba(5, 8, 15, 0.88)),
 				#080c14;
 			box-shadow: none;
 			overflow: hidden;
@@ -4168,6 +4387,8 @@ export function getPlaygroundStyles(): string {
 				grid-column: unset;
 				width: 100%;
 				height: 100%;
+				display: flex;
+				flex-direction: column;
 			}
 
 			.shell[data-home="true"] .landing-screen {
@@ -4198,8 +4419,12 @@ export function getPlaygroundStyles(): string {
 				gap: 12px;
 			}
 
-			.landing-title {
-				font-size: 20px;
+			.landing-logo .ugk-svg-logo {
+				width: min(200px, 60vw);
+			}
+
+			.landing-logo .ugk-ascii-logo {
+				display: none;
 			}
 
 

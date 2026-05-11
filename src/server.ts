@@ -25,6 +25,7 @@ import { ConnDatabase } from "./agent/conn-db.js";
 import { ConnRunStore } from "./agent/conn-run-store.js";
 import { ConnSqliteStore } from "./agent/conn-sqlite-store.js";
 import type { ModelConfigStore, ModelSelectionValidator } from "./agent/model-config.js";
+import { createFileModelConfigStore, createLiveModelSelectionValidator } from "./agent/model-config.js";
 import { NotificationHub } from "./agent/notification-hub.js";
 import { registerAssetRoutes } from "./routes/assets.js";
 import { registerActivityRoutes } from "./routes/activity.js";
@@ -130,6 +131,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	const agentServiceRegistry = options.agentServiceRegistry ?? createDefaultAgentServiceRegistry(assetStore);
 	const agentProfileProjectRoot = options.agentProfileProjectRoot ?? config.projectRoot;
 	const agentTemplateRegistry = options.agentTemplateRegistry ?? new AgentTemplateRegistry({ projectRoot: agentProfileProjectRoot });
+	const modelConfigStore = options.modelConfigStore ?? createFileModelConfigStore(config.projectRoot);
+	const modelSelectionValidator = options.modelSelectionValidator ?? createLiveModelSelectionValidator(config.projectRoot);
 	const agentService = options.agentService ?? agentServiceRegistry.get(DEFAULT_AGENT_ID) ?? createDefaultAgentService(assetStore);
 	const connStore = options.connStore ?? new ConnSqliteStore({ database: connDatabase! });
 	const connRunStore = options.connRunStore ?? new ConnRunStore({ database: connDatabase! });
@@ -159,13 +162,15 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		browserBindingAuditLog,
 		agentTemplateRegistry,
 		projectRoot: agentProfileProjectRoot,
+		modelConfigStore,
+		modelSelectionValidator,
 	});
 	registerRuntimeDebugRoutes(app, { projectRoot: config.projectRoot });
 	registerCleanupDebugRoutes(app, { database: connDatabase });
 	registerModelConfigRoutes(app, {
 		projectRoot: config.projectRoot,
-		store: options.modelConfigStore,
-		validator: options.modelSelectionValidator,
+		store: modelConfigStore,
+		validator: modelSelectionValidator,
 	});
 	registerNotificationRoutes(app, { notificationHub });
 	registerFeishuSettingsRoutes(app, {

@@ -5,6 +5,7 @@ import {
 	renderStandaloneConfirmDialog,
 	renderStandaloneToastContainer,
 	STANDALONE_FAVICON,
+	STANDALONE_THEME_INLINE_SCRIPT,
 } from "./standalone-page-shared.js";
 
 function getAgentsPageCss(): string {
@@ -1376,6 +1377,7 @@ export function renderAgentsPage(): string {
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	${STANDALONE_THEME_INLINE_SCRIPT}
 	<title>Agent 管理台 - UGK Claw</title>
 	<link rel="icon" href="${STANDALONE_FAVICON}" />
 	<style>${css}</style>

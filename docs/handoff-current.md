@@ -6,6 +6,29 @@
 
 当前服务器更新、双云目录、shared 运行态和 user skills 规则仍以 [server-ops.md](./server-ops.md)、[server-ops-quick-reference.md](./server-ops-quick-reference.md)、[tencent-cloud-singapore-deploy.md](./tencent-cloud-singapore-deploy.md) 和 [aliyun-ecs-deploy.md](./aliyun-ecs-deploy.md) 顶部“当前部署快照”为准。本文件只做接手摘要，不替代发布 runbook。
 
+## 给新接手 Agent 的第一条消息
+
+可以把下面这段直接发给下一位同事 agent：
+
+```text
+请先接手 `E:\AII\ugk-pi`。你是维护这个仓库的 coding agent，不是产品运行时 Playground agent。
+
+必须先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/traceability-map.md`。如果要跑本地，只用 Docker：`docker compose up -d` 或 `docker compose restart ugk-pi`，不要用宿主机 `npm start` / `npm run dev` 当正规入口。如果要部署服务器，先读 `docs/server-ops.md`，默认增量更新；腾讯云拉 GitHub `origin/main`，阿里云拉 Gitee `gitee/main`，不要整目录覆盖，不要洗 shared 运行态。
+
+开始前先执行 `git status --short` 和 `git log -1 --oneline`。未跟踪的 `.claude/`、`runtime/*.cjs`、`public/*.png/html`、`ui-design/`、奇怪的 `Eapp...jsonl` 都是本地运行产物，除非用户明确说明，否则不要提交、不要删除。
+
+当前双云和两个远端已经同步到 `9917981 Document dual-cloud conn badge deployment`；功能锚点是 `efb0de7 Align conn unread badge with run counts`。最近修复的是：对话页“后台任务”按钮未读数字现在和 `/playground/conn` 的 Conn run 未读结果保持一致。
+```
+
+新 agent 如果只做普通 bugfix，最小阅读顺序是：
+
+1. `AGENTS.md`
+2. `docs/handoff-current.md`
+3. `docs/traceability-map.md`
+4. 按任务类型读 `docs/playground-current.md`、`docs/runtime-assets-conn-feishu.md`、`docs/docker-local-ops.md` 或 `docs/server-ops.md`
+
+先别让新 agent 一上来全仓扫描。这个项目文档已经够多了，乱读只会把自己读晕。
+
 ## 当前结论
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
