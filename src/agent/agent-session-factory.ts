@@ -146,6 +146,8 @@ export interface DefaultAgentSessionFactoryOptions {
 	agentDir?: string;
 	allowedSkillPaths?: string[];
 	runtimeAgentRulesPath?: string;
+	defaultModelProvider?: string;
+	defaultModelId?: string;
 }
 
 export interface ProjectDefaultModelContext {
@@ -346,6 +348,45 @@ export function resolveProjectDefaultSessionModel(projectRoot: string, modelRegi
 		return undefined;
 	}
 	return modelRegistry.find(defaultModel.provider, defaultModel.model);
+}
+
+export function resolveAgentDefaultSessionModel(
+	projectRoot: string,
+	modelRegistry: ModelRegistry,
+	input?: { provider?: string; model?: string },
+) {
+	if (input?.provider && input?.model) {
+		return modelRegistry.find(input.provider, input.model);
+	}
+	return resolveProjectDefaultSessionModel(projectRoot, modelRegistry);
+}
+
+export function resolveAgentDefaultModelContext(
+	projectRoot: string,
+	input?: { provider?: string; model?: string },
+): ProjectDefaultModelContext {
+	if (!input?.provider || !input?.model) {
+		return resolveProjectDefaultModelContext(projectRoot);
+	}
+
+	const projectFallback = resolveProjectDefaultModelContext(projectRoot);
+	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(projectRoot));
+	const resolvedModel = registry.find(input.provider, input.model);
+	if (!resolvedModel) {
+		return {
+			...projectFallback,
+			provider: input.provider,
+			model: input.model,
+		};
+	}
+
+	return {
+		provider: resolvedModel.provider,
+		model: resolvedModel.id,
+		contextWindow: resolvedModel.contextWindow,
+		maxResponseTokens: resolvedModel.maxTokens,
+		reserveTokens: projectFallback.reserveTokens,
+	};
 }
 
 function readFileSyncUtf8(filePath: string): string {
@@ -649,7 +690,10 @@ export function createDefaultAgentSessionFactory(
 					}) as never,
 				],
 				modelRegistry,
-				model: resolveProjectDefaultSessionModel(options.projectRoot, modelRegistry),
+				model: resolveAgentDefaultSessionModel(options.projectRoot, modelRegistry, {
+					provider: options.defaultModelProvider,
+					model: options.defaultModelId,
+				}),
 				settingsManager,
 				sessionManager,
 				resourceLoader,
@@ -670,7 +714,10 @@ export function createDefaultAgentSessionFactory(
 			return await buildSkillFingerprint(allowedSkillPaths);
 		},
 		getDefaultModelContext() {
-			return resolveProjectDefaultModelContext(options.projectRoot);
+			return resolveAgentDefaultModelContext(options.projectRoot, {
+				provider: options.defaultModelProvider,
+				model: options.defaultModelId,
+			});
 		},
 	};
 }

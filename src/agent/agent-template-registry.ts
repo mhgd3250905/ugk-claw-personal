@@ -6,6 +6,7 @@ import {
 	getDefaultRuntimeAgentRulesPath,
 	getProjectAgentDirPath,
 	readProjectSettingsContent,
+	resolveAgentDefaultModelContext,
 	resolveProjectDefaultModelContext,
 } from "./agent-session-factory.js";
 import { DEFAULT_AGENT_ID, type AgentProfile } from "./agent-profile.js";
@@ -180,7 +181,10 @@ export class AgentTemplateRegistry {
 		context: PlaygroundTemplateContext,
 		signature: string,
 	): Promise<AgentTemplate> {
-		const defaultModel = resolveProjectDefaultModelContext(this.options.projectRoot);
+		const defaultModel = resolveAgentDefaultModelContext(this.options.projectRoot, {
+			provider: context.profile.defaultModelProvider,
+			model: context.profile.defaultModelId,
+		});
 		const skills = await collectSkills(context.skillPaths);
 		const skillSetVersion = hashStrings([
 			...context.skillPaths,
@@ -359,6 +363,8 @@ export class AgentTemplateRegistry {
 					name: profile.name,
 					description: profile.description,
 					defaultBrowserId: profile.defaultBrowserId,
+					defaultModelProvider: profile.defaultModelProvider,
+					defaultModelId: profile.defaultModelId,
 					agentDir,
 					rulesPath,
 					skillPaths,
