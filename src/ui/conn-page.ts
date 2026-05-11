@@ -22,14 +22,27 @@ export function renderConnPage(): string {
 </head>
 <body>
 	<div id="app">
-		${renderStandaloneTopbar("后台任务工作台", "/playground")}
-		<button id="btn-new-conn" class="sp-topbar-btn" type="button" style="position:absolute;right:110px;top:11px">
-			<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-			新建任务
-		</button>
-		<button id="btn-refresh" class="sp-topbar-btn" type="button" style="position:absolute;right:52px;top:11px">
-			<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-		</button>
+			<header class="sp-topbar">
+				<a class="sp-topbar-back" href="/playground" title="返回">
+					<svg viewBox="0 0 20 20" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l-6 6 6 6"/></svg>
+				</a>
+				<strong class="sp-topbar-title">后台任务工作台</strong>
+				<div class="sp-topbar-spacer"></div>
+				<button id="btn-new-conn" class="sp-topbar-btn" type="button">
+					<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+					新建任务
+				</button>
+				<button id="btn-read-all" class="sp-topbar-btn" type="button">
+					<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+					全部已读
+				</button>
+				<button id="btn-refresh" class="sp-topbar-btn" type="button">
+					<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+				</button>
+				<button class="sp-topbar-btn" type="button" onclick="toggleTheme()" title="切换主题">
+					<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.4M12 18.8v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>
+				</button>
+			</header>
 
 		<section class="conn-stats">
 			<div class="conn-stat-card conn-stat-card--blue">

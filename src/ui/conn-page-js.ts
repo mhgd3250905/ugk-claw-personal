@@ -79,6 +79,16 @@ async function apiMarkRunRead(connId, runId) {
   return data;
 }
 
+async function apiMarkAllRunsRead() {
+  const resp = await fetch("/v1/conns/runs/read-all", {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data?.error?.message || "全部已读失败");
+  return data;
+}
+
 async function apiCreateConn(payload) {
   const resp = await fetch("/v1/conns", {
     method: "POST",
@@ -110,17 +120,6 @@ async function apiDeleteConn(connId) {
     const data = await resp.json().catch(() => ({}));
     throw new Error(data?.error?.message || data?.message || "删除失败");
   }
-}
-
-async function apiBulkDeleteConns(ids) {
-  const resp = await fetch("/v1/conns/bulk-delete", {
-    method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ connIds: ids }),
-  });
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data?.error?.message || data?.message || "批量删除失败");
-  return data;
 }
 
 async function apiPauseConn(connId) {
@@ -1397,33 +1396,29 @@ async function handleDelete(connId) {
   }
 }
 
-async function handleBulkDelete() {
-  const filtered = getFilteredConns();
-  const ids = filtered.map(c => c.connId);
-  if (ids.length === 0) {
-    showToast("没有可删除的任务", "info");
+async function handleMarkAllRead() {
+  const total = state.totalUnreadRuns || 0;
+  if (total === 0) {
+    showToast("没有未读结果", "info");
     return;
   }
-
   const confirmed = await openConfirmDialog({
-    title: "批量删除？",
-    description: "将删除当前筛选下的 " + ids.length + " 个任务。此操作不可恢复。",
-    confirmText: "批量删除",
+    title: "全部已读？",
+    description: "将标记所有 " + total + " 条未读结果为已读。",
+    confirmText: "全部已读",
     cancelText: "取消",
-    tone: "danger",
   });
   if (!confirmed) return;
-
   try {
-    await apiBulkDeleteConns(ids);
-    const deletedSet = new Set(ids);
-    state.conns = state.conns.filter(c => !deletedSet.has(c.connId));
-    for (const id of ids) delete state.runsByConnId[id];
-    if (deletedSet.has(state.selectedId)) state.selectedId = null;
-    showToast("已删除 " + ids.length + " 个任务", "success");
+    const result = await apiMarkAllRunsRead();
+    state.totalUnreadRuns = result.totalUnreadRuns;
+    state.unreadCountsByConnId = {};
+    showToast("已标记 " + result.markedCount + " 条为已读", "success");
     renderAll();
+    // If a conn is selected, refresh its runs to show updated read state
+    if (state.selectedId) loadRuns(state.selectedId);
   } catch (err) {
-    showToast(err instanceof Error ? err.message : "批量删除失败", "error");
+    showToast(err instanceof Error ? err.message : "操作失败", "error");
   }
 }
 
@@ -1577,7 +1572,7 @@ function init() {
 
   // Bulk read-all / delete
   const readAllBtn = $("btn-read-all");
-  if (readAllBtn) readAllBtn.addEventListener("click", handleBulkDelete);
+  if (readAllBtn) readAllBtn.addEventListener("click", handleMarkAllRead);
 
   // Theme toggle
   document.querySelectorAll("[data-action='toggle-theme']").forEach(btn => {

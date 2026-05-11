@@ -115,6 +115,7 @@ interface ConnRunStoreLike {
 	markRunRead(runId: string): Promise<boolean>;
 	getUnreadCountsByConn(connIds: readonly string[]): Promise<Record<string, number>>;
 	getTotalUnreadCount(): Promise<number>;
+	markAllRunsRead(): Promise<number>;
 }
 
 const RUN_EVENT_PAGE_SIZE = 2;
@@ -372,6 +373,12 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				toConnRunFileBody(file, toOutputFileLinks(connId, runId, file, options.publicBaseUrl)),
 			),
 		};
+	});
+
+	app.post("/v1/conns/runs/read-all", async () => {
+		const markedCount = await options.connRunStore.markAllRunsRead();
+		const totalUnread = await options.connRunStore.getTotalUnreadCount();
+		return { markedCount, totalUnreadRuns: totalUnread };
 	});
 
 		app.post("/v1/conns/:connId/runs/:runId/read", async (request, reply) => {

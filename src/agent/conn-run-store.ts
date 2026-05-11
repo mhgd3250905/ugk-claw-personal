@@ -627,6 +627,18 @@ export class ConnRunStore {
 		return Number.isFinite(row?.cnt) ? Number(row!.cnt) : 0;
 	}
 
+	async markAllRunsRead(now: Date = new Date()): Promise<number> {
+		const count = await this.getTotalUnreadCount();
+		if (count === 0) return 0;
+		const iso = now.toISOString();
+		this.options.database.run(
+			"UPDATE conn_runs SET read_at = ?, updated_at = ? WHERE status IN ('succeeded', 'failed') AND read_at IS NULL",
+			iso,
+			iso,
+		);
+		return count;
+	}
+
 	private updateOwningConnAfterRun(connId: string, runId: string, finishedAt: Date): void {
 		const conn = this.options.database.get<ConnScheduleRow>(
 			"SELECT conn_id, schedule_json, status FROM conns WHERE conn_id = ?",
