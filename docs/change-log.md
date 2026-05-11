@@ -10,6 +10,23 @@
 
 ---
 
+## 2026-05-12
+
+### Per-Agent 默认模型源
+- 日期：2026-05-12
+- 主题：每个 Agent 可独立配置默认模型提供商和模型，不再仅依赖全局设置。模型优先级：Conn 显式指定 > Agent 默认 > 项目全局默认。
+- 影响范围：
+  - `src/agent/agent-profile.ts`：`AgentProfile` 接口新增 `defaultModelProvider` / `defaultModelId` 字段。
+  - `src/agent/agent-profile-catalog.ts`：新增 `normalizeOptionalModelSelection()` 校验（成对必填），`updateStoredAgentProfile` 支持模型字段更新。
+  - `src/agent/agent-session-factory.ts`：`resolveAgentDefaultSessionModel` / `resolveAgentDefaultModelContext` 实现优先级链。
+  - `src/agent/agent-template-registry.ts`：playground 模板使用 agent 级模型，签名包含模型字段。
+  - `src/agent/agent-service-registry.ts`：`updateProfile` 驱逐缓存 service（修复模型变更不生效的 critical bug）。
+  - `src/routes/chat.ts`：POST/PATCH `/v1/agents` 支持模型字段、live validate、409 运行中保护。
+  - `src/server.ts`：共享 `modelConfigStore` / `modelSelectionValidator` 实例。
+  - `src/ui/agents-page.ts`：独立管理页新增模型提供商/模型下拉选择器。
+  - `src/ui/playground-agent-manager.ts`：Playground 内嵌管理器新增模型选择器，主 Agent 隐藏选择器。
+- 对应入口：`src/agent/agent-profile.ts`、`src/routes/chat.ts`、`src/ui/agents-page.ts`
+
 ## 2026-05-11
 
 ### 新同事 Agent 接手提示补齐
