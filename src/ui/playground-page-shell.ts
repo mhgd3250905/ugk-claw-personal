@@ -75,7 +75,7 @@ ${input.playgroundScript ?? ""}</script>`;
 				<span>文件会进入当前消息，并自动补充文件处理描述</span>
 			</div>
 		</div>
-		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle">
+		<div id="shell" class="shell" data-stage-mode="landing" data-transcript-state="idle" data-home="true">
 			<header class="topbar">
 				<aside class="landing-side landing-side-right">
 					<button id="new-conversation-button" class="telemetry-card telemetry-action" type="button" data-tooltip-title="新会话" data-tooltip-desc="创建一条新的服务端会话。">
