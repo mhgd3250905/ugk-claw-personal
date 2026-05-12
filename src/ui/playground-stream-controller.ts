@@ -92,6 +92,23 @@ export function getPlaygroundStreamControllerScript(): string {
 			return event?.type === "done" || event?.type === "error" || event?.type === "interrupted";
 		}
 
+		function createStreamOwner(conversationId) {
+			return {
+				agentId: getCurrentAgentId(),
+				conversationId: String(conversationId || state.conversationId || "").trim(),
+				generation: state.agentSwitchGeneration,
+			};
+		}
+
+		function isStreamOwnerCurrent(owner) {
+			if (!owner) return true;
+			return (
+				owner.agentId === getCurrentAgentId() &&
+				owner.generation === state.agentSwitchGeneration &&
+				owner.conversationId === String(state.conversationId || "").trim()
+			);
+		}
+
 		async function attachActiveRunEventStream(conversationId) {
 			const nextConversationId = String(conversationId || "").trim();
 			if (!nextConversationId) {
@@ -108,6 +125,8 @@ export function getPlaygroundStreamControllerScript(): string {
 			stopActiveRunEventStream();
 			const controller = new AbortController();
 			controller.conversationId = nextConversationId;
+			const streamOwner = createStreamOwner(nextConversationId);
+			controller.streamOwner = streamOwner;
 			state.activeRunEventController = controller;
 			let shouldRecoverFromCanonicalState = false;
 
@@ -126,12 +145,13 @@ export function getPlaygroundStreamControllerScript(): string {
 				await readEventStream(
 					response,
 					(event) => {
+						if (!isStreamOwnerCurrent(streamOwner)) return;
 						receivedTerminalEvent ||= isTerminalRunEvent(event);
 						handleStreamEvent(event);
 					},
 					{ idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS },
 				);
-				shouldRecoverFromCanonicalState = !receivedTerminalEvent;
+				shouldRecoverFromCanonicalState = !receivedTerminalEvent && isStreamOwnerCurrent(streamOwner);
 			} catch (error) {
 				if (controller.signal.aborted || isAbortError(error) || isPageUnloadStreamError(error)) {
 					return;
@@ -541,14 +561,20 @@ export function getPlaygroundStreamControllerScript(): string {
 					return;
 				}
 
+				const streamOwner = createStreamOwner(state.conversationId);
+				state.activeStreamOwner = streamOwner;
 				state.primaryStreamActive = true;
 				try {
-					await readEventStream(response, handleStreamEvent, { idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS });
+					await readEventStream(response, (event) => {
+						if (!isStreamOwnerCurrent(streamOwner)) return;
+						handleStreamEvent(event);
+					}, { idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS });
 				} finally {
+					if (state.activeStreamOwner === streamOwner) state.activeStreamOwner = null;
 					state.primaryStreamActive = false;
 				}
 
-				if (!state.receivedDoneEvent && !errorBanner.classList.contains("visible")) {
+				if (isStreamOwnerCurrent(streamOwner) && !state.receivedDoneEvent && !errorBanner.classList.contains("visible")) {
 					const streamWasRecovered = await recoverRunningStreamAfterDisconnect("missing_done");
 					if (streamWasRecovered) {
 						handoffToRunEvents = true;
@@ -560,13 +586,15 @@ export function getPlaygroundStreamControllerScript(): string {
 					completeProcessStream();
 				}
 
-				if (state.receivedDoneEvent) {
+				if (isStreamOwnerCurrent(streamOwner) && state.receivedDoneEvent) {
 					messageInput.focus();
 				}
 			} catch (error) {
 				if (isPageUnloadStreamError(error)) {
 					return;
 				}
+
+				if (!isStreamOwnerCurrent(streamOwner)) return;
 
 				const streamWasRecovered = await recoverRunningStreamAfterDisconnect("network_error");
 				if (streamWasRecovered) {
@@ -584,7 +612,7 @@ export function getPlaygroundStreamControllerScript(): string {
 				completeProcessStream();
 			} finally {
 				state.primaryStreamActive = false;
-				if (!state.pageUnloading && !handoffToRunEvents) {
+				if (!state.pageUnloading && !handoffToRunEvents && isStreamOwnerCurrent(streamOwner)) {
 					setLoading(false);
 				}
 			}

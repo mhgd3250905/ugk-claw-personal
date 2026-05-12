@@ -162,6 +162,10 @@ function getPlaygroundScript(): string {
 			agentId: readStoredAgentId(),
 			agentCatalog: [],
 			agentCatalogReliable: true,
+			agentRunStatusByAgentId: {},
+			agentRunStatusLoading: false,
+			agentRunStatusReliable: true,
+			agentRunStatusLoadedAt: 0,
 			browserCatalog: [],
 			defaultBrowserId: "default",
 			browserCatalogReliable: true,
@@ -310,6 +314,8 @@ function getPlaygroundScript(): string {
 			pageUnloading: false,
 			skipNextPageShowResumeSync: true,
 			primaryStreamActive: false,
+			activeStreamOwner: null,
+			agentSwitchGeneration: 0,
 			autoFollowTranscript: true,
 			layoutSyncRaf: 0,
 			layoutSyncTimer: null,
@@ -464,6 +470,10 @@ function getPlaygroundScript(): string {
 				agentSwitcherCloseTimer = null;
 			}
 			agentSelectorStatus.dataset.switcherOpen = "true";
+			renderAgentSelector();
+			void loadAgentRunStatus({ force: true }).then(() => {
+				renderAgentSelector();
+			});
 		}
 
 		function closeAgentSwitcher() {
@@ -497,9 +507,13 @@ function getPlaygroundScript(): string {
 					continue;
 				}
 				const isCurrent = agentId === currentAgentId;
+				const runStatus = state.agentRunStatusByAgentId?.[agentId];
+				const runState = runStatus?.status || "unknown";
+				const isBusy = runState === "busy";
+				const isIdle = runState === "idle";
 				const item = document.createElement("button");
 				item.type = "button";
-				item.className = "agent-switcher-item" + (isCurrent ? " is-current" : "");
+				item.className = "agent-switcher-item" + (isCurrent ? " is-current" : "") + (isBusy ? " is-busy" : isIdle ? " is-idle" : " is-unknown");
 				item.dataset.agentId = agentId;
 				const name = document.createElement("span");
 				name.className = "agent-switcher-item-name";
@@ -509,7 +523,11 @@ function getPlaygroundScript(): string {
 				id.textContent = agentId;
 				const status = document.createElement("span");
 				status.className = "agent-switcher-item-status";
-				status.textContent = isCurrent ? "当前" : "";
+				status.textContent = (isCurrent ? "当前 · " : "") + (isBusy ? "运行中" : isIdle ? "空闲" : "状态未知");
+				if (isBusy && runStatus?.activeSince) {
+					const elapsed = Math.round((Date.now() - new Date(runStatus.activeSince).getTime()) / 60000);
+					if (elapsed > 0) status.title = "运行时间：" + elapsed + " 分钟";
+				}
 				item.appendChild(name);
 				item.appendChild(id);
 				item.appendChild(status);
@@ -553,6 +571,50 @@ function getPlaygroundScript(): string {
 			renderAgentSelector();
 		}
 
+
+		function normalizeAgentRunStatus(raw) {
+			const agentId = String(raw?.agentId || "").trim();
+			if (!agentId) return null;
+			const statusValue = raw?.status === "busy" ? "busy" : raw?.status === "idle" ? "idle" : "unknown";
+			return {
+				agentId,
+				name: String(raw?.name || agentId),
+				status: statusValue,
+				activeConversationId: typeof raw?.activeConversationId === "string" ? raw.activeConversationId : "",
+				activeSince: typeof raw?.activeSince === "string" ? raw.activeSince : "",
+			};
+		}
+
+		async function loadAgentRunStatus(options) {
+			const now = Date.now();
+			const freshMs = Number.isFinite(options?.freshMs) ? options.freshMs : 3000;
+			if (!options?.force && now - Number(state.agentRunStatusLoadedAt || 0) < freshMs) {
+				return state.agentRunStatusByAgentId;
+			}
+			state.agentRunStatusLoading = true;
+			try {
+				const response = await fetch("/v1/agents/status", {
+					method: "GET",
+					headers: { accept: "application/json" },
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(payload?.message || "无法读取 agent 状态");
+				const statuses = Array.isArray(payload?.agents)
+					? payload.agents.map(normalizeAgentRunStatus).filter(Boolean)
+					: [];
+				state.agentRunStatusByAgentId = Object.fromEntries(
+					statuses.map((s) => [s.agentId, s]),
+				);
+				state.agentRunStatusReliable = true;
+				state.agentRunStatusLoadedAt = Date.now();
+				return state.agentRunStatusByAgentId;
+			} catch {
+				state.agentRunStatusReliable = false;
+				return state.agentRunStatusByAgentId;
+			} finally {
+				state.agentRunStatusLoading = false;
+			}
+		}
 		async function loadAgentStatusAndRenderCards() {
 				const container = document.getElementById("landing-agent-cards");
 				if (!container) return;
@@ -660,12 +722,9 @@ function getPlaygroundScript(): string {
 				renderAgentSelector();
 				return;
 			}
-			if (state.loading) {
-				showError("当前 agent 仍在运行，先别切视窗。");
-				renderAgentSelector();
-				return;
-			}
 
+			state.agentSwitchGeneration += 1;
+			state.activeStreamOwner = null;
 			stopActiveRunEventStream();
 			abortConversationStateSync();
 			state.agentId = writeStoredAgentId(nextAgentId);
@@ -677,6 +736,11 @@ function getPlaygroundScript(): string {
 			state.conversationState = null;
 			state.renderedConversationId = "";
 			state.renderedConversationStateSignature = "";
+			state.loading = false;
+			state.activeRunId = "";
+			state.receivedDoneEvent = false;
+			state.streamingText = "";
+			state.primaryStreamActive = false;
 			state.historyHasMore = false;
 			state.historyNextBefore = "";
 			conversationInput.value = "";
@@ -688,6 +752,7 @@ function getPlaygroundScript(): string {
 			renderAgentSelector();
 			clearError();
 			await ensureCurrentConversation({ silent: true });
+			void loadAgentRunStatus({ force: true }).then(renderAgentSelector);
 		}
 
 		window.ugkPlaygroundAgentOps = Object.freeze({

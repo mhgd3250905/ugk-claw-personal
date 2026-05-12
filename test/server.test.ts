@@ -3201,17 +3201,27 @@ test("GET /playground restores running conversations after refresh and avoids re
 	assert.doesNotMatch(response.body, /const liveRunState = await syncConversationRunState\(state\.conversationId, \{/);
 	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("missing_done"\);/);
 	assert.match(response.body, /const streamWasRecovered = await recoverRunningStreamAfterDisconnect\("network_error"\);/);
-	assert.match(response.body, /readEventStream\(response, handleStreamEvent, \{ idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS \}\);/);
+		assert.match(response.body, /createStreamOwner/);
 	assert.match(response.body, /reader\.cancel\("stream idle timeout"\)/);
 	assert.match(response.body, /const previousSignature = buildConversationStateSignature\(state\.conversationState\);/);
 	assert.match(response.body, /const nextSignature = buildConversationStateSignature\(state\.conversationState\);/);
 	assert.match(response.body, /nextSignature !== previousSignature \|\| Boolean\(state\.conversationState\?\.activeRun\)/);
-	assert.match(response.body, /shouldRecoverFromCanonicalState = !receivedTerminalEvent;/);
+		assert.match(response.body, /shouldRecoverFromCanonicalState = !receivedTerminalEvent/);
+		// Agent run status in switcher menu
+		assert.match(response.body, /agentRunStatusByAgentId/);
+		assert.match(response.body, /loadAgentRunStatus/);
+		assert.match(response.body, /is-busy/);
+		assert.match(response.body, /is-idle/);
+		assert.match(response.body, /is-unknown/);
+		// Stream event owner guard
+		assert.match(response.body, /activeStreamOwner/);
+		assert.match(response.body, /agentSwitchGeneration/);
+		assert.match(response.body, /isStreamOwnerCurrent/);
 	assert.match(
 		response.body,
 		/void restoreConversationHistoryFromServer\(nextConversationId, \{[\s\S]*silent: true,[\s\S]*clearIfIdle: true,[\s\S]*attachIfRunning: true,[\s\S]*\}\);/,
 	);
-	assert.match(response.body, /if \(!state\.pageUnloading && !handoffToRunEvents\) \{/);
+	assert.match(response.body, /activeStreamOwner === streamOwner/);
 	assert.match(response.body, /document\.addEventListener\("visibilitychange"/);
 	assert.match(response.body, /window\.addEventListener\("pageshow"/);
 	assert.match(response.body, /function scheduleResumeConversationSync\(reason, options\)\s*\{/);

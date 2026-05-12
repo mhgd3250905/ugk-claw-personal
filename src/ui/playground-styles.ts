@@ -4013,6 +4013,39 @@ export function getPlaygroundStyles(): string {
 				display: none;
 			}
 
+
+			.agent-switcher-item-status::before {
+				content: "";
+				display: inline-block;
+				width: 6px;
+				height: 6px;
+				border-radius: 999px;
+				margin-right: 4px;
+				background: rgba(238, 244, 255, 0.32);
+				vertical-align: middle;
+			}
+
+			.agent-switcher-item.is-idle .agent-switcher-item-status {
+				color: rgba(141, 255, 178, 0.78);
+			}
+			.agent-switcher-item.is-idle .agent-switcher-item-status::before {
+				background: var(--ok);
+			}
+
+			.agent-switcher-item.is-busy .agent-switcher-item-status {
+				color: rgba(255, 209, 102, 0.88);
+				background: rgba(255, 209, 102, 0.1);
+			}
+			.agent-switcher-item.is-busy .agent-switcher-item-status::before {
+				background: var(--warn);
+			}
+
+			.agent-switcher-item.is-unknown .agent-switcher-item-status {
+				color: rgba(238, 244, 255, 0.48);
+			}
+			.agent-switcher-item.is-unknown .agent-switcher-item-status::before {
+				background: rgba(238, 244, 255, 0.32);
+			}
 
 
 		.telemetry-action {
