@@ -17,7 +17,7 @@
 
 开始前先执行 `git status --short` 和 `git log -1 --oneline`。未跟踪的 `.claude/`、`runtime/*.cjs`、`public/*.png/html`、`ui-design/`、奇怪的 `Eapp...jsonl` 都是本地运行产物，除非用户明确说明，否则不要提交、不要删除。
 
-当前本地、`origin/main`、`gitee/main`、腾讯云生产和阿里云生产均已同步到 `6af83ac Confirm agent browser binding edits`。最近三次功能提交是：`ca2e272 Align model settings with active agent`、`42f7d4b Update Tencent cloud public IP`、`6af83ac Confirm agent browser binding edits`。重点变化是：左下角模型源跟随当前 Agent 默认模型；腾讯云公网入口更新为 `43.156.19.100`；独立 Agents 页编辑默认浏览器时补齐 UI 确认 header，避免 `Browser binding changes require explicit confirmation.`。
+当前本地 HEAD 为 `676368b Show agent run status in switcher and allow cross-agent switch while running`；`origin/main` 和 `gitee/main` 需推送后同步。最近功能提交：`7d4fc25 Improve CLAUDE.md with architecture governance and isolation notes`、`9b9a5cb Update handoff baseline and replace old Tencent Cloud IP in docs`、`676368b Show agent run status in switcher and allow cross-agent switch while running`。重点变化是：Agent 悬浮菜单显示运行状态（运行中/空闲/状态未知）；允许运行中跨 Agent 切换，不中断原 Agent 后台任务；流式事件增加 owner guard 防止串台。
 ```
 
 新 agent 如果只做普通 bugfix，最小阅读顺序是：
@@ -34,10 +34,10 @@
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
-- 当前本地最新提交：`6af83ac Confirm agent browser binding edits`。
-- 当前 `origin/main` / `gitee/main`：已同步到 `6af83ac`。
-- 腾讯云生产运行代码：已增量更新到 `6af83ac`，已通过 `npm run server:ops -- tencent deploy` 和 `npm run server:ops -- tencent verify`。
-- 阿里云生产运行代码：已增量更新到 `6af83ac`，已通过 `npm run server:ops -- aliyun deploy` 和 `npm run server:ops -- aliyun verify`。
+- 当前本地最新提交：`676368b Confirm agent browser binding edits`。
+- 当前 `origin/main` / `gitee/main`：已同步到 `676368b`。
+- 腾讯云生产运行代码：已增量更新到 `676368b`，已通过 `npm run server:ops -- tencent deploy` 和 `npm run server:ops -- tencent verify`。
+- 阿里云生产运行代码：已增量更新到 `676368b`，已通过 `npm run server:ops -- aliyun deploy` 和 `npm run server:ops -- aliyun verify`。
 - 本轮稳定版主线：Agent 默认模型设置收口、左下角模型源跟随当前 Agent、腾讯云公网 IP 更新、独立 Agents 页浏览器绑定确认补齐，并保留此前 Agents 页面重写、Conn 未读统计、Conn 立即执行反馈、独立页面浅色主题和 Playground 路由架构清理。
 - 验收结论：最近模型与浏览器绑定修复已通过 `npx tsx test/agent-model-ui.test.ts`、`npx tsx test/playground-agent-switch.test.ts`、`npx tsc --noEmit`、`git diff --check` 和双云 `verify`；shared 运行态挂载、runtime skills、agent 数据和 Chrome sidecar 保持可用。
 - 腾讯云正式入口：`http://43.156.19.100:3000/playground`

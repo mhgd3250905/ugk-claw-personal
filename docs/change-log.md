@@ -11,6 +11,27 @@
 ---
 
 ## 2026-05-12
+### Agent 悬浮状态展示与运行中跨 Agent 切换
+- 日期：2026-05-12
+- 主题：Agent 悬浮菜单显示每个 Agent 的运行状态（运行中/空闲/状态未知），并允许在另一个 Agent 运行时切换到其他 Agent，不会中断原 Agent 的后台任务。
+- 影响范围：
+  - `src/ui/playground.ts`：新增 `normalizeAgentRunStatus`、`loadAgentRunStatus` 函数和 `agentRunStatusByAgentId` 等 state 字段；`openAgentSwitcher` 打开时刷新状态；`renderAgentSwitcherMeta` 展示运行状态和彩色圆点；`switchAgent` 移除 `state.loading` 硬阻断，允许跨 Agent 切换并重置前端状态。
+  - `src/ui/playground-stream-controller.ts`：新增 `createStreamOwner`、`isStreamOwnerCurrent` owner guard 函数；`sendMessage` 和 `attachActiveRunEventStream` 绑定 stream owner，丢弃旧 Agent 事件；finally/catch 中 UI 操作增加 owner 校验，防止旧 stream 污染新界面。
+  - `src/ui/playground-styles.ts`：新增 `.agent-switcher-item.is-busy / .is-idle / .is-unknown` 样式，状态指示点使用 `var(--ok)` / `var(--warn)`。
+  - `test/server.test.ts`：更新受影响的 HTML 断言，新增 owner guard 和状态展示断言。
+- 保留限制：同一 Agent 内运行中切换会话的限制不变。
+- 对应入口：`src/ui/playground.ts`、`src/ui/playground-stream-controller.ts`、`src/ui/playground-styles.ts`
+
+### Agent 悬浮状态展示与运行中跨 Agent 切换
+- 日期：2026-05-12
+- 主题：Agent 悬浮菜单显示每个 Agent 的运行状态（运行中/空闲/状态未知），并允许在另一个 Agent 运行时切换到其他 Agent，不会中断原 Agent 的后台任务。
+- 影响范围：
+  - ：新增 、 函数和  等 state 字段； 打开时刷新状态； 展示运行状态和彩色圆点； 移除  硬阻断，允许跨 Agent 切换并重置前端状态。
+  - ：新增 、 owner guard 函数； 和  绑定 stream owner，丢弃旧 Agent 事件；finally/catch 中 UI 操作增加 owner 校验，防止旧 stream 污染新界面。
+  - ：新增  样式，状态指示点使用  / 。
+  - ：更新受影响的 HTML 断言，新增 owner guard 和状态展示断言。
+- 保留限制：同一 Agent 内运行中切换会话的限制不变。
+- 对应入口：、、
 
 ### 独立 Agents 页浏览器绑定确认补齐
 - 日期：2026-05-12
