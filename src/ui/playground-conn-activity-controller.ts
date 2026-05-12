@@ -1660,12 +1660,62 @@ export function getConnActivityRendererScript(): string {
 			container.appendChild(details);
 		}
 
+
+		function getConnRunSortRank(conn) {
+			const status = String(conn?.latestRun?.status || "").trim();
+			if (status === "running") return 0;
+			if (status === "pending") return 1;
+			return 2;
+		}
+
+		function getConnLatestRunTimeMs(conn) {
+			const latestRun = conn?.latestRun || null;
+			const candidates = [
+				latestRun?.startedAt,
+				latestRun?.claimedAt,
+				latestRun?.finishedAt,
+				latestRun?.scheduledAt,
+				latestRun?.createdAt,
+				latestRun?.updatedAt,
+				conn?.lastRunAt,
+				conn?.updatedAt,
+				conn?.createdAt,
+			];
+			for (const value of candidates) {
+				const time = Date.parse(String(value || ""));
+				if (Number.isFinite(time)) {
+					return time;
+				}
+			}
+			return 0;
+		}
+
+		function compareConnManagerItems(left, right) {
+			const leftRank = getConnRunSortRank(left);
+			const rightRank = getConnRunSortRank(right);
+			if (leftRank !== rightRank) {
+				return leftRank - rightRank;
+			}
+			const leftTime = getConnLatestRunTimeMs(left);
+			const rightTime = getConnLatestRunTimeMs(right);
+			if (leftTime !== rightTime) {
+				return rightTime - leftTime;
+			}
+			const leftTitle = String(left?.title || "").trim();
+			const rightTitle = String(right?.title || "").trim();
+			const titleCompare = leftTitle.localeCompare(rightTitle, "zh-CN");
+			if (titleCompare !== 0) {
+				return titleCompare;
+			}
+			return String(left?.connId || "").localeCompare(String(right?.connId || ""));
+		}
+
 		function renderConnManager() {
 			connManagerList.innerHTML = "";
 			setConnManagerNotice(state.connManagerNotice, state.connManagerHighlightedConnId);
 			updateConnManagerToolbar();
 			const conns = Array.isArray(state.connManagerItems) ? state.connManagerItems : [];
-			const visibleConns = getVisibleConnManagerItems();
+			const visibleConns = getVisibleConnManagerItems().slice().sort(compareConnManagerItems);
 			if (conns.length === 0) {
 				const empty = document.createElement("div");
 				empty.className = "asset-empty";
