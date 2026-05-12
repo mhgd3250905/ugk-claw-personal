@@ -66,7 +66,7 @@ Fastify Server (src/server.ts)
 
 **Session Factory** (`src/agent/agent-session-factory.ts`): Creates `pi-coding-agent` sessions wired to the project's skills (`.pi/skills/`), extensions (`.pi/extensions/`), prompts (`.pi/prompts/`), and model settings (`.pi/settings.json`). Each agent profile can have its own session directory and rules file.
 
-**Multi-Agent Profiles** (`src/agent/agent-profile.ts`): The system supports multiple agent profiles (e.g., default, scout, planner, reviewer, worker). Each profile has isolated sessions, conversations, assets, and optional browser bindings. Profiles are defined in `.pi/agents/` as markdown files. `AgentTemplateRegistry` manages profile-to-service mapping.
+**Multi-Agent Profiles** (`src/agent/agent-profile.ts`): The system supports multiple agent profiles (e.g., default, scout, planner, reviewer, worker). Each profile has isolated sessions, conversations, assets, and optional browser bindings and model sources. Profiles are defined in `.pi/agents/` as markdown files. `AgentTemplateRegistry` manages profile-to-service mapping. Model priority chain: Conn explicit override > Agent default (`defaultModelProvider`/`defaultModelId`) > Project global default (`.pi/settings.json`). `AgentServiceRegistry.list()` exposes model fields in `AgentSummary`.
 
 **Conversation Lifecycle**: One global "current conversation" + many historical conversations. State is stored as JSON files under `.data/agent/sessions/`. `ConversationStore` (`src/agent/conversation-store.ts`) manages the catalog index with atomic writes. Switching, creating, and deleting conversations goes through command helpers in `src/agent/agent-conversation-commands.ts`.
 
@@ -109,6 +109,7 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 | Chat route (largest route file) | `src/routes/chat.ts` |
 | Conn routes (scheduled tasks) | `src/routes/conns.ts` |
 | Conn workspace & template cache | `src/agent/background-workspace.ts`, `src/agent/agent-template-registry.ts` |
+| Model config & validation | `src/agent/model-config.ts`, `src/routes/model-config.ts` |
 | Playground UI shell | `src/ui/playground.ts` |
 | Design system tokens & components | `DESIGN.md` |
 | pi-coding-agent settings | `.pi/settings.json` |
