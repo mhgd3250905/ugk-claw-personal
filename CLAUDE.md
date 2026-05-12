@@ -68,6 +68,8 @@ Fastify Server (src/server.ts)
 
 **Multi-Agent Profiles** (`src/agent/agent-profile.ts`): The system supports multiple agent profiles (e.g., default, scout, planner, reviewer, worker). Each profile has isolated sessions, conversations, assets, and optional browser bindings and model sources. Profiles are defined in `.pi/agents/` as markdown files. `AgentTemplateRegistry` manages profile-to-service mapping. Model priority chain: Conn explicit override > Agent default (`defaultModelProvider`/`defaultModelId`) > Project global default (`.pi/settings.json`). `AgentServiceRegistry.list()` exposes model fields in `AgentSummary`.
 
+**Multi-Agent Isolation**: Frontend agent scope uses `AsyncLocalStorage` (not global `process.env`), so concurrent agent runs don't leak env into each other. Backend conn workspace env also uses async context with explicit injection at Bash spawn. Browser cleanup scope carries `agentId + conversationId` or `connId + runId` to avoid shared Chrome instance cleanup colliding across runs. `GET /v1/agents/status` reports per-profile `idle/busy`; same-agent concurrent non-streaming chat returns `409 AGENT_BUSY`, streaming chat pre-checks before SSE hijack.
+
 **Conversation Lifecycle**: One global "current conversation" + many historical conversations. State is stored as JSON files under `.data/agent/sessions/`. `ConversationStore` (`src/agent/conversation-store.ts`) manages the catalog index with atomic writes. Switching, creating, and deleting conversations goes through command helpers in `src/agent/agent-conversation-commands.ts`.
 
 **Streaming**: `POST /v1/chat/stream` returns SSE. `AgentService` buffers events per active run so reconnecting clients can catch up via `GET /v1/chat/events`. The Playground uses `playground-stream-controller.ts` to manage SSE connections and auto-reconnect.
@@ -76,7 +78,7 @@ Fastify Server (src/server.ts)
 
 **Conn (Background Tasks)**: SQLite-backed job queue. `ConnSqliteStore`/`ConnDatabase` manage conn definitions, `ConnRunStore` tracks runs. `conn-worker.ts` polls for due jobs and executes them via `BackgroundAgentRunner`. Each conn run gets an isolated workspace (`BackgroundWorkspace` in `src/agent/background-workspace.ts`) with input/work/output/logs/session directories under `.data/agent/background/`. `AgentTemplateRegistry` (`src/agent/agent-template-registry.ts`) caches resolved agent profiles for conn tasks so the worker doesn't re-resolve on every run. Results delivered to task inbox, conversations, or Feishu.
 
-**Browser Integration**: Agent browser automation uses Docker Chrome sidecars via CDP (`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`). `UGK_BROWSER_INSTANCES_JSON` configures up to 3 independent Chrome instances (default / chrome-01 / chrome-02), each with its own profile directory, CDP endpoint, and GUI port. `BrowserRegistry` manages multi-instance lifecycle; `browser-cleanup.ts` closes targets after each agent run. Sidecar profiles persist in `.data/chrome-sidecar*/` for login-state retention. `browser-control.ts` handles start/restart/close operations.
+**Browser Integration**: Agent browser automation uses Docker Chrome sidecars via CDP (`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`). `UGK_BROWSER_INSTANCES_JSON` configures up to 3 independent Chrome instances (default / chrome-01 / chrome-02), each with its own profile directory, CDP endpoint, and GUI port. `BrowserRegistry` manages multi-instance lifecycle; `browser-cleanup.ts` closes targets after each agent run. Sidecar profiles persist in `.data/chrome-sidecar*/` for login-state retention. `browser-control.ts` handles start/restart/close operations. Browser bindings can only be changed through the Playground UI (requires `x-ugk-browser-binding-confirmed: true` + `x-ugk-browser-binding-source: playground` headers); agent skills (`agent-profile-ops`, `web-access`, etc.) cannot modify browser bindings programmatically. Policy is centralized in `src/browser/browser-binding-policy.ts`.
 
 **Search (SearXNG)**: Web search uses a self-hosted SearXNG sidecar (`SEARXNG_BASE_URL`). The search skill calls SearXNG's JSON API and returns results to the agent. Config lives in `deploy/searxng/` with persistent cache at `.data/searxng/`.
 
@@ -89,6 +91,10 @@ Fastify Server (src/server.ts)
 **Playground Routing**: Two data attributes control view state on the shell element: `data-home="true"/"false"` is the sole routing toggle (agent list vs. conversation view). `data-stage-mode="landing"` is a permanent CSS-only hook for base layout styles (composer, textarea, stream-layout positioning) — it never changes at runtime and has no corresponding JS state.
 
 **Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`, shared response presentation in `*-route-presenters.ts` (e.g., `conn-route-presenters.ts`). API errors use helpers from `http-errors.ts` for consistent error responses. To add a new route group, create the file and call its register function in `buildServer()`.
+
+### Architecture Governance
+
+`AgentService` (`src/agent/agent-service.ts`) is the runtime orchestration center. Its `activeRuns` / `terminalRuns` in-memory maps and `runChat()` lifecycle (create session → prepare assets → register active run → subscribe events → execute prompt → persist → terminal snapshot → browser cleanup) are intentionally kept together — splitting them into separate stores would make synchronization boundaries worse, not better. Do not refactor `AgentService` further unless a real bug or new feature demands it. The project has completed its architecture cleanup phase (~85-90%); remaining work should focus on real user scenarios, small-scoped tests for new features, and targeted fixes rather than continued file splitting.
 
 ### `.pi/` Directory
 
@@ -118,7 +124,7 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 ### Configuration
 
 Requires Node.js >= 22. Runtime config comes from env vars, with `.env.example` as the template. Key vars:
-- `ANTHROPIC_AUTH_TOKEN` — primary model key for pi-coding-agent sessions
+- `ANTHROPIC_AUTH_TOKEN` — primary model key; also used for zhipu-glm compatible chain (`https://open.bigmodel.cn/api/anthropic` via `anthropic-messages` provider)
 - `DASHSCOPE_CODING_API_KEY` / `DEEPSEEK_API_KEY` / `XIAOMI_MIMO_API_KEY` — alternative model provider keys
 - `PUBLIC_BASE_URL` — external URL for generated links
 - `UGK_AGENT_DATA_DIR` / `UGK_AGENTS_DATA_DIR` — persistent state directories (externally mounted in production)
