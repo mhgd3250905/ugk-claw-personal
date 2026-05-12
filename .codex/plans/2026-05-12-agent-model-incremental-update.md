@@ -76,3 +76,4 @@ npm run server:ops -- aliyun verify
 - 这次改动只影响 Playground 前端设置入口，不改变后端模型优先级链。
 - 非主 Agent 保存模型会走 `PATCH /v1/agents/:agentId`，如果该 Agent 有运行中会话，后端会按既有规则返回 `409`。
 - 生产发布必须保护 shared 运行态，不得使用整目录覆盖或 `docker compose down -v`。
+- 腾讯云公网 IP 已变为 `43.156.19.100`；本地 `ugk-claw-prod` alias 若仍指向旧 IP，必须先更新 SSH 配置。若新 IP `22/tcp` 超时，先检查腾讯云安全组 / 防火墙，暂停腾讯云 deploy。

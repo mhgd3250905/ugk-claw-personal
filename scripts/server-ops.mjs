@@ -7,7 +7,7 @@ const TARGETS = {
     repoDir: "~/ugk-claw-repo",
     sharedDir: "~/ugk-claw-shared",
     deployRemote: "origin",
-    publicHealthz: "http://43.134.167.179:3000/healthz",
+    publicHealthz: "http://43.156.19.100:3000/healthz",
     agentDataDir: "/home/ubuntu/ugk-claw-shared/.data/agent",
     agentsDataDir: "/home/ubuntu/ugk-claw-shared/.data/agents",
     skillsDir: "/home/ubuntu/ugk-claw-shared/runtime/skills-user",

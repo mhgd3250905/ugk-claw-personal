@@ -158,7 +158,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 当前生产更新默认不能洗掉三类状态：sidecar 登录态挂在 `~/ugk-claw-shared/.data/chrome-sidecar`，主 Agent 会话 / session / 资产 / conn 数据挂在 `~/ugk-claw-shared/.data/agent` 并映射到容器 `/app/.data/agent`，自定义 agent profile 挂在 `~/ugk-claw-shared/.data/agents` 并映射到容器 `/app/.data/agents`；如果更新后历史会话或自定义 Agent 消失，先查 `docker inspect ugk-pi-claw-ugk-pi-1` 的 mounts、`UGK_AGENT_DATA_DIR` 和 `UGK_AGENTS_DATA_DIR`，别又让容器可写层背锅。
 - 用户可见链接使用 `PUBLIC_BASE_URL`；sidecar 自动化打开本地 artifact 使用 `WEB_ACCESS_BROWSER_PUBLIC_BASE_URL`，本地 compose 默认是 `http://ugk-pi:3000`。
 - 运行中的 agent 对用户输出服务入口、playground 或本地文件预览链接时，必须以当前容器 `PUBLIC_BASE_URL` 为准；只有用户明确询问双云部署事实时才同时列出腾讯云 / 阿里云公网入口。阿里云环境不要主动提腾讯云公网地址，腾讯云环境也不要主动提阿里云公网地址，别把部署手册里的备用事实当默认回复模板。
-- 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`，公网入口是 `http://43.134.167.179:3000/playground`；阿里云 ECS 的正式部署记录在 `docs/aliyun-ecs-deploy.md`，公网入口是 `http://101.37.209.54:3000/playground`。两边 sidecar GUI 都只能走 SSH tunnel，不要开放公网 `3901`。
+- 腾讯云新加坡 CVM 的正式部署记录在 `docs/tencent-cloud-singapore-deploy.md`，公网入口是 `http://43.156.19.100:3000/playground`；阿里云 ECS 的正式部署记录在 `docs/aliyun-ecs-deploy.md`，公网入口是 `http://101.37.209.54:3000/playground`。两边 sidecar GUI 都只能走 SSH tunnel，不要开放公网 `3901`。
 - Windows host IPC fallback 仍保留，但只用于 legacy 本机调试和紧急排障。
 - 本阶段标准验证命令是 `npm test` 与 `npm run docker:chrome:check`。
 - `playground` 手机端已经单独重写成移动聊天页；后续 `/init` 如果接手前端，不要把手机端继续按桌面端压缩版理解，先看 `docs/playground-current.md`。
@@ -248,12 +248,12 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 如果这次 `/init` 的目标是接手云服务器，而不是本机开发，先记住三件事：
 
-- 腾讯云正式入口是 `http://43.134.167.179:3000/playground`；阿里云正式入口是 `http://101.37.209.54:3000/playground`。这两条只用于云服务器接手和双云排障；普通运行回复、文件预览链接和 playground 链接必须优先使用当前环境的 `PUBLIC_BASE_URL`，不要默认把两边公网入口一起甩给用户。
+- 腾讯云正式入口是 `http://43.156.19.100:3000/playground`；阿里云正式入口是 `http://101.37.209.54:3000/playground`。这两条只用于云服务器接手和双云排障；普通运行回复、文件预览链接和 playground 链接必须优先使用当前环境的 `PUBLIC_BASE_URL`，不要默认把两边公网入口一起甩给用户。
 - 腾讯云当前主部署目录是 `~/ugk-claw-repo`，已经是 GitHub 工作目录；旧的 `~/ugk-pi-claw` 与 `~/ugk-pi-claw-prev-*` 只保留给回滚和比对，不是默认更新入口。
 - 阿里云当前主部署目录是 `/root/ugk-claw-repo`，已迁移为 Git 工作目录；旧的 archive 目录 `/root/ugk-claw-repo-pre-git-*` 只用于回滚和比对，不是默认更新入口。
 - 两台服务器都已经配置 `origin` GitHub 和 `gitee` remote；常规发布默认走 Git fast-forward，不要再默认打包上传。服务器增量更新优先使用 `npm run server:ops -- <tencent|aliyun> <preflight|deploy|verify>`；脚本会按目标选择拉取远端：腾讯云 `origin`，阿里云 `gitee`。读文档按 `docs/server-ops.md` -> `docs/server-ops-quick-reference.md` -> 单云长手册的顺序渐进披露。
 - 发布验收不要只看 `/healthz`。需要确认运行态挂载、session、skills、conn SQLite 和公开 URL / browser provider 时查 `GET /v1/debug/runtime`；服务器脚本已经把它纳入硬闸门。
-- 腾讯云增量更新锚点：`ssh ugk-claw-prod` / `~/ugk-claw-repo` / `~/ugk-claw-shared` / `http://43.134.167.179:3000/healthz`。阿里云增量更新锚点：`root@101.37.209.54` / `/root/ugk-claw-repo` / `/root/ugk-claw-shared` / `http://101.37.209.54:3000/healthz`。
+- 腾讯云增量更新锚点：`ssh ugk-claw-prod` / `~/ugk-claw-repo` / `~/ugk-claw-shared` / `http://43.156.19.100:3000/healthz`。阿里云增量更新锚点：`root@101.37.209.54` / `/root/ugk-claw-repo` / `/root/ugk-claw-shared` / `http://101.37.209.54:3000/healthz`。
 - 增量更新禁区：不要 `git reset --hard`，不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、key、tar 包、runtime 报告或服务器 `.data`，不要在服务器 `git status --short` 非空时继续 pull；先备份/保全现场，再决定怎么收口。
 - 只要改到 `Dockerfile`、系统依赖或运行环境，服务器必须执行 `docker compose -f docker-compose.prod.yml up --build -d`，不要只 `restart`。
 

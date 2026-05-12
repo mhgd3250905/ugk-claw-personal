@@ -40,8 +40,8 @@
 - 阿里云生产运行代码：已增量更新到本文件所在 HEAD，功能锚点 `efb0de7 Align conn unread badge with run counts`，已通过 `npm run server:ops -- aliyun deploy` 和 `npm run server:ops -- aliyun verify`。
 - 本轮稳定版主线：Agents 页面重写（inline 编辑器、对齐设计）、文件库指定文件删除、对话页 Agent 按钮直达独立 Agents 页面、Conn 未读统计收口、对话页后台任务未读徽章对齐 Conn run 未读口径、Conn 立即执行反馈防重复、Conn 立即执行后端幂等、Conn 运行一键全部已读按钮 + topbar 布局修复、Conn/Agents 独立页面浅色主题支持、Playground 刷新闪屏修复（`data-home` 路由架构清理）、`setStageMode` 死代码移除。
 - 验收结论：本地 `npx tsc --noEmit`、`git diff --check`、`npm test` 通过；双云均完成增量更新与运行态检查，腾讯云和阿里云 `verify` 均返回 `ok=true`，shared 运行态挂载、runtime skills 和 Chrome sidecar 保持可用。
-- 腾讯云正式入口：`http://43.134.167.179:3000/playground`
-- 腾讯云健康检查：`http://43.134.167.179:3000/healthz`
+- 腾讯云正式入口：`http://43.156.19.100:3000/playground`
+- 腾讯云健康检查：`http://43.156.19.100:3000/healthz`
 - 腾讯云主部署目录：`/home/ubuntu/ugk-claw-repo`
 - 腾讯云 shared 运行态目录：`/home/ubuntu/ugk-claw-shared`
 - 腾讯云最近一次生产回滚 tag：`server-pre-deploy-20260427-144258`
@@ -236,7 +236,7 @@ git log --oneline c05753b..HEAD
 如果你是用户刚点了新会话后重新 `/init` 的新 agent，先别急着开工。先确认：
 
 1. `git status --short` 里只有上面列出的本地现场文件，或者先处理它们。
-2. 不要把腾讯云和阿里云当成一台机器。腾讯云是 `ubuntu@43.134.167.179` 且目录是 `/home/ubuntu/...`；阿里云是 `root@101.37.209.54` 且目录是 `/root/...`。
+2. 不要把腾讯云和阿里云当成一台机器。腾讯云当前公网入口是 `ubuntu@43.156.19.100` 且目录是 `/home/ubuntu/...`；阿里云是 `root@101.37.209.54` 且目录是 `/root/...`。
 3. 这条是历史提醒：当时不要在阿里云 `/root/ugk-claw-repo` 里直接 `git pull`，因为那时它还是 archive 解包目录；当前阿里云已经迁移为 Git 工作目录，发布看 `docs/server-ops.md`。
 4. SQLite / JSON 字段边界本轮已扫完，`AgentService.queueMessage()` 已经抽到 `src/agent/agent-queue-message.ts`，新建 / 删除 / 切换 / 重置会话命令也已经抽到 `src/agent/agent-conversation-commands.ts`；下一步如果继续做架构整理，优先从 `AgentService.runChat()` 周边找真正可测的窄边界，别继续堆“为了拆而拆”的文件。
 

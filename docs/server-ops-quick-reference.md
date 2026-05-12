@@ -9,13 +9,13 @@
 
 ### 腾讯云新加坡
 
-- 服务器：`ubuntu@43.134.167.179`
+- 服务器：`ubuntu@43.156.19.100`
 - SSH 别名：`ssh ugk-claw-prod`
 - 代码目录：`~/ugk-claw-repo`
 - shared 运行态目录：`~/ugk-claw-shared`
 - 生产 compose：`docker-compose.prod.yml`
-- 公网入口：`http://43.134.167.179:3000/playground`
-- 健康检查：`http://43.134.167.179:3000/healthz`
+- 公网入口：`http://43.156.19.100:3000/playground`
+- 健康检查：`http://43.156.19.100:3000/healthz`
 - 当前推荐稳定 tag：`snapshot-20260422-v4.1.2-stable`
 - 当前线上应用提交：以服务器 `git log -1 --oneline` 为准，当前跟随远端 `main`
 - 备用远端：`gitee -> https://gitee.com/ksheng3250905/ugk-pi-claw.git`
@@ -45,11 +45,11 @@
 
 ### 腾讯云增量更新规范
 
-- 目标：`ubuntu@43.134.167.179`
+- 目标：`ubuntu@43.156.19.100`
 - 登录：`ssh ugk-claw-prod`
 - 代码目录：`~/ugk-claw-repo`
 - shared 目录：`~/ugk-claw-shared`
-- 公网健康检查：`http://43.134.167.179:3000/healthz`
+- 公网健康检查：`http://43.156.19.100:3000/healthz`
 - 默认远端：`origin -> https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 备用远端：`gitee -> https://gitee.com/ksheng3250905/ugk-pi-claw.git`
 
@@ -170,7 +170,7 @@ ssh ugk-claw-prod
 如果 SSH 别名失效，就老老实实用：
 
 ```bash
-ssh ubuntu@43.134.167.179
+ssh ubuntu@43.156.19.100
 ```
 
 阿里云：
@@ -200,7 +200,7 @@ git push gitee main
 
 ### 腾讯云：Git 增量发布
 
-适用目标：`ubuntu@43.134.167.179`，目录：`~/ugk-claw-repo`。
+适用目标：`ubuntu@43.156.19.100`，目录：`~/ugk-claw-repo`。
 
 ```bash
 ssh ugk-claw-prod
@@ -302,7 +302,7 @@ docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f do
 
 ```bash
 curl -fsS http://127.0.0.1:3000/healthz
-curl -fsS http://43.134.167.179:3000/healthz
+curl -fsS http://43.156.19.100:3000/healthz
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi node /app/runtime/skills-user/web-access/scripts/check-deps.mjs
 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml exec -T ugk-pi sh -lc "find /app/runtime/skills-user -maxdepth 2 -name SKILL.md -printf '%h\n' | sort"
 ```
@@ -500,7 +500,7 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 ## SSH tunnel 打开 sidecar GUI
 
 ```bash
-ssh -L 13901:127.0.0.1:3901 ubuntu@43.134.167.179
+ssh -L 13901:127.0.0.1:3901 ubuntu@43.156.19.100
 ```
 
 本机打开：

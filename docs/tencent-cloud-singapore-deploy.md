@@ -113,18 +113,18 @@
 
 ## 当前部署快照
 
-- 日期：`2026-05-05`
+- 日期：`2026-05-12`
 - 云厂商：腾讯云 CVM
 - 地域：新加坡二区
 - 实例 ID：`ins-0voci0xy`
-- 公网 IP：`43.134.167.179`
+- 公网 IP：`43.156.19.100`
 - SSH 用户：`ubuntu`
 - 实例规格：标准型 SA2，`4 核 8G`
 - 公网带宽：`5Mbps`
 - 系统盘：通用型 SSD 云硬盘，`100G`
 - 系统镜像：Ubuntu Server `24.04.4 LTS`，`x86_64`
-- 服务公网入口：`http://43.134.167.179:3000/playground`
-- 健康检查入口：`http://43.134.167.179:3000/healthz`
+- 服务公网入口：`http://43.156.19.100:3000/playground`
+- 健康检查入口：`http://43.156.19.100:3000/healthz`
 - 生产 compose 文件：`docker-compose.prod.yml`
 - 当前主部署目录：`/home/ubuntu/ugk-claw-repo`
 - 当前 shared 运行态目录：`/home/ubuntu/ugk-claw-shared`
@@ -136,6 +136,7 @@
 - 当前服务器本地回滚 tag：`server-pre-deploy-20260426-234533`
 - 当前 clean Git 迁移备份：`/home/ubuntu/ugk-claw-shared/backups/tencent-git-clean-20260429-225108`
 - 注意：`snapshot-20260422-v4.1.1-stable` 已存在，但因为 `docker-compose.prod.yml` 的 healthcheck 缩进错误，不应再作为交接后的部署基线
+- 当前注意：本地 SSH alias `ugk-claw-prod` 必须同步到新公网 IP `43.156.19.100`；若 `ssh ubuntu@43.156.19.100` 在 banner 阶段超时，先检查腾讯云安全组 / 防火墙的 `22/tcp` 入站规则，不要继续用旧 IP 跑 `server:ops`。
 
 服务器初始核验结果：
 
@@ -163,7 +164,7 @@ free -h
 
 ```text
 公网用户
-  -> http://43.134.167.179:3000
+  -> http://43.156.19.100:3000
   -> nginx container :80
   -> ugk-pi container :3000
   -> web-access direct_cdp
@@ -182,7 +183,7 @@ WEB_ACCESS_BROWSER_PROVIDER=direct_cdp
 sidecar GUI 不暴露公网。需要人工登录 X 等网站时，从本机用 SSH tunnel 访问：
 
 ```bash
-ssh -L 13901:127.0.0.1:3901 ubuntu@43.134.167.179
+ssh -L 13901:127.0.0.1:3901 ubuntu@43.156.19.100
 ```
 
 当前 compose 已经给 `ugk-pi-browser` 加了容器内自举 healthcheck。不要把“GUI 页面能打开”误判成“CDP 已经 ready”；真正算数的是 `9222/9223` 探针和 `check-deps.mjs` 输出。
@@ -849,7 +850,7 @@ ANTHROPIC_AUTH_TOKEN=<填真实智谱 GLM Key>
 HOST=0.0.0.0
 PORT=3000
 HOST_PORT=3000
-PUBLIC_BASE_URL=http://43.134.167.179:3000
+PUBLIC_BASE_URL=http://43.156.19.100:3000
 
 WEB_ACCESS_BROWSER_GUI_PORT=3901
 WEB_ACCESS_BROWSER_PROFILE_DIR=/config/chrome-profile-sidecar
@@ -987,7 +988,7 @@ docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker
 公网验证：
 
 ```text
-http://43.134.167.179:3000/playground
+http://43.156.19.100:3000/playground
 ```
 
 本次用户已确认：公网 playground 可以正常对话。
@@ -997,7 +998,7 @@ http://43.134.167.179:3000/playground
 sidecar GUI 入口只通过 SSH tunnel 访问：
 
 ```bash
-ssh -L 13901:127.0.0.1:3901 ubuntu@43.134.167.179
+ssh -L 13901:127.0.0.1:3901 ubuntu@43.156.19.100
 ```
 
 本机打开：
@@ -1009,7 +1010,7 @@ https://127.0.0.1:13901/
 本次曾尝试：
 
 ```bash
-ssh -L 3901:127.0.0.1:3901 ubuntu@43.134.167.179
+ssh -L 3901:127.0.0.1:3901 ubuntu@43.156.19.100
 ```
 
 本机报错：
@@ -1083,7 +1084,7 @@ playground:3958 Uncaught TypeError: crypto.randomUUID is not a function
 
 根因：
 
-- 当前公网入口是 `http://43.134.167.179:3000`，不是 HTTPS。
+- 当前公网入口是 `http://43.156.19.100:3000`，不是 HTTPS。
 - `crypto.randomUUID()` 在部分浏览器 / 非安全上下文里不可用。
 - 页面初始化时直接调用，导致 playground 无法正常发送消息。
 

@@ -12,6 +12,15 @@
 
 ## 2026-05-12
 
+### 腾讯云公网 IP 口径更新
+- 日期：2026-05-12
+- 主题：腾讯云新加坡生产公网 IP 从 `43.134.167.179` 更新为 `43.156.19.100`，同步调整运维脚本公网验收地址和接手文档。
+- 影响范围：
+  - `scripts/server-ops.mjs`：`tencent.publicHealthz` 改为 `http://43.156.19.100:3000/healthz`。
+  - `AGENTS.md`、`docs/server-ops-quick-reference.md`、`docs/tencent-cloud-singapore-deploy.md`、`docs/handoff-current.md`：当前腾讯云入口和健康检查改为新 IP。
+  - 当前本机 `ugk-claw-prod` SSH alias 若仍指向旧 IP，需要同步更新；若 `ssh ubuntu@43.156.19.100` 在 banner 阶段超时，应先检查腾讯云安全组 / 防火墙 `22/tcp` 入站规则。
+- 对应入口：`scripts/server-ops.mjs`、`docs/tencent-cloud-singapore-deploy.md`
+
 ### Playground 模型源设置跟随当前 Agent
 - 日期：2026-05-12
 - 主题：修复对话页左下角“模型源”设置仍只读写全局默认的问题，使其在切换到非主 Agent 后显示并保存当前 Agent 的默认 API 源和模型。
