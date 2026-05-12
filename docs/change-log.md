@@ -12,6 +12,14 @@
 
 ## 2026-05-12
 
+### Playground 模型源设置跟随当前 Agent
+- 日期：2026-05-12
+- 主题：修复对话页左下角“模型源”设置仍只读写全局默认的问题，使其在切换到非主 Agent 后显示并保存当前 Agent 的默认 API 源和模型。
+- 影响范围：
+  - `src/ui/playground.ts`：打开模型源弹窗时优先读取 active Agent 的 `defaultModelProvider/defaultModelId`，Agent 未单独设置或保存模型已失效时再显示全局默认；保存时 `main` 继续写 `/v1/model-config/default`，其他 Agent 改为 `PATCH /v1/agents/:agentId`。
+  - `test/agent-model-ui.test.ts`：补充前端回归断言，锁定非主 Agent 的模型设置入口不会继续误写全局默认。
+- 对应入口：`src/ui/playground.ts`、`test/agent-model-ui.test.ts`
+
 ### 本地 Conn Worker 公开链接口径修复
 - 日期：2026-05-12
 - 主题：修复本地 Docker 下 `ugk-pi-conn-worker` 继续继承 `.env` 生产 `PUBLIC_BASE_URL`，导致后台任务正文里生成公网链接的问题。

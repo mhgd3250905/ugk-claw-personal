@@ -735,6 +735,39 @@ function getPlaygroundScript(): string {
 			return state.modelConfig?.providers?.find((provider) => provider.id === providerId) || null;
 		}
 
+		function findCurrentAgentCatalogEntry() {
+			const currentAgentId = getCurrentAgentId();
+			return (Array.isArray(state.agentCatalog) ? state.agentCatalog : [])
+				.find((agent) => String(agent?.agentId || "").trim() === currentAgentId) || null;
+		}
+
+		function getCurrentAgentModelConfigSelection() {
+			if (getCurrentAgentId() === "main") {
+				return null;
+			}
+			const agent = findCurrentAgentCatalogEntry();
+			const provider = String(agent?.defaultModelProvider || "").trim();
+			const model = String(agent?.defaultModelId || "").trim();
+			return provider && model ? { provider, model } : null;
+		}
+
+		function hasModelConfigSelection(selection) {
+			if (!selection?.provider || !selection?.model) {
+				return false;
+			}
+			return Boolean(
+				state.modelConfig?.providers
+					?.find((provider) => provider.id === selection.provider)
+					?.models?.some((model) => model.id === selection.model)
+			);
+		}
+
+		function getEffectiveModelConfigSelection() {
+			const current = state.modelConfig?.current || { provider: "", model: "" };
+			const agentSelection = getCurrentAgentModelConfigSelection();
+			return hasModelConfigSelection(agentSelection) ? agentSelection : current;
+		}
+
 		function formatModelTokenCount(value) {
 			const count = Number(value);
 			if (!Number.isFinite(count) || count <= 0) {
@@ -836,12 +869,22 @@ function getPlaygroundScript(): string {
 				modelConfigProvider.appendChild(option);
 			}
 			const current = config?.current || { provider: "", model: "" };
-			state.modelConfigSelectedProvider = state.modelConfigSelectedProvider || current.provider;
-			state.modelConfigSelectedModel = state.modelConfigSelectedModel || current.model;
+			const agentSelection = getCurrentAgentModelConfigSelection();
+			const effectiveSelection = getEffectiveModelConfigSelection();
+			state.modelConfigSelectedProvider = state.modelConfigSelectedProvider || effectiveSelection.provider;
+			state.modelConfigSelectedModel = state.modelConfigSelectedModel || effectiveSelection.model;
 			if (providers.some((provider) => provider.id === state.modelConfigSelectedProvider)) {
 				modelConfigProvider.value = state.modelConfigSelectedProvider;
 			}
-			modelConfigCurrent.textContent = current.provider && current.model ? "当前：" + current.provider + " / " + current.model : "当前配置未知";
+			if (getCurrentAgentId() === "main") {
+				modelConfigCurrent.textContent = current.provider && current.model ? "主 Agent 跟随全局：" + current.provider + " / " + current.model : "当前配置未知";
+			} else if (agentSelection && hasModelConfigSelection(agentSelection)) {
+				modelConfigCurrent.textContent = "当前 Agent：" + getCurrentAgentId() + " · " + agentSelection.provider + " / " + agentSelection.model;
+			} else if (agentSelection) {
+				modelConfigCurrent.textContent = "当前 Agent 模型已不可用，按全局显示：" + (current.provider && current.model ? current.provider + " / " + current.model : "配置未知");
+			} else {
+				modelConfigCurrent.textContent = current.provider && current.model ? "当前 Agent 跟随全局：" + current.provider + " / " + current.model : "当前配置未知";
+			}
 			renderModelConfigModelOptions();
 		}
 
@@ -856,10 +899,11 @@ function getPlaygroundScript(): string {
 					throw new Error(payload?.error?.message || "读取模型源失败");
 				}
 				state.modelConfig = payload;
-				state.modelConfigSelectedProvider = payload?.current?.provider || "";
-				state.modelConfigSelectedModel = payload?.current?.model || "";
+				const effectiveSelection = getEffectiveModelConfigSelection();
+				state.modelConfigSelectedProvider = effectiveSelection.provider || "";
+				state.modelConfigSelectedModel = effectiveSelection.model || "";
 				renderModelConfigDialog();
-				setModelConfigStatus("选择模型后可以先测试连接，保存时仍会再次验证。", "neutral");
+				setModelConfigStatus(getCurrentAgentId() === "main" ? "主 Agent 跟随全局模型设置，保存会更新全局默认。" : "这里保存到当前 Agent，后续新会话和后台继承该 Agent 的任务会使用它。", "neutral");
 			} catch (error) {
 				setModelConfigStatus(error instanceof Error ? error.message : "读取模型源失败", "error");
 			} finally {
@@ -922,22 +966,35 @@ function getPlaygroundScript(): string {
 			setModelConfigBusy();
 			setModelConfigStatus("正在验证并保存", "neutral");
 			try {
-				const response = await fetch("/v1/model-config/default", {
-					method: "PUT",
+				const currentAgentId = getCurrentAgentId();
+				const isMainAgent = currentAgentId === "main";
+				const response = await fetch(isMainAgent ? "/v1/model-config/default" : "/v1/agents/" + encodeURIComponent(currentAgentId), {
+					method: isMainAgent ? "PUT" : "PATCH",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify(selection),
+					body: JSON.stringify(isMainAgent ? selection : {
+						defaultModelProvider: selection.provider,
+						defaultModelId: selection.model,
+					}),
 				});
 				const payload = await response.json().catch(() => ({}));
 				if (!response.ok || payload?.ok === false) {
 					throw new Error(payload?.error?.message || payload?.message || "保存模型源失败");
 				}
-				if (state.modelConfig) {
+				if (isMainAgent && state.modelConfig) {
 					state.modelConfig.current = payload.current;
 				}
-				state.modelConfigSelectedProvider = payload.current.provider;
-				state.modelConfigSelectedModel = payload.current.model;
+				if (!isMainAgent && payload?.agent) {
+					const agents = Array.isArray(state.agentCatalog) ? state.agentCatalog : [];
+					const replaced = agents.some((agent) => agent?.agentId === payload.agent.agentId);
+					state.agentCatalog = replaced
+						? agents.map((agent) => agent?.agentId === payload.agent.agentId ? payload.agent : agent)
+						: [...agents, payload.agent];
+				}
+				const savedSelection = isMainAgent ? payload.current : selection;
+				state.modelConfigSelectedProvider = savedSelection.provider;
+				state.modelConfigSelectedModel = savedSelection.model;
 				renderModelConfigDialog();
-				setModelConfigStatus("已保存，新会话生效。", "success");
+				setModelConfigStatus(isMainAgent ? "已保存到全局默认，新会话生效。" : "已保存到当前 Agent，新会话生效。", "success");
 				void syncContextUsage({ silent: true });
 			} catch (error) {
 				setModelConfigStatus(error instanceof Error ? error.message : "保存模型源失败", "error");
@@ -1207,12 +1264,12 @@ function getPlaygroundScript(): string {
 				state.modelConfigSelectedProvider = modelConfigProvider.value;
 				state.modelConfigSelectedModel = "";
 				renderModelConfigModelOptions();
-				setModelConfigStatus("选择模型后可以先测试连接，保存时仍会再次验证。", "neutral");
+				setModelConfigStatus(getCurrentAgentId() === "main" ? "主 Agent 跟随全局模型设置，保存会更新全局默认。" : "这里保存到当前 Agent，后续新会话和后台继承该 Agent 的任务会使用它。", "neutral");
 			});
 			modelConfigModel.addEventListener("change", () => {
 				state.modelConfigSelectedModel = modelConfigModel.value;
 				setModelConfigBusy();
-				setModelConfigStatus("选择模型后可以先测试连接，保存时仍会再次验证。", "neutral");
+				setModelConfigStatus(getCurrentAgentId() === "main" ? "主 Agent 跟随全局模型设置，保存会更新全局默认。" : "这里保存到当前 Agent，后续新会话和后台继承该 Agent 的任务会使用它。", "neutral");
 			});
 			modelConfigTest.addEventListener("click", () => {
 				void testModelConfigSelection();
