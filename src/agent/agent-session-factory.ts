@@ -148,6 +148,7 @@ export interface DefaultAgentSessionFactoryOptions {
 	runtimeAgentRulesPath?: string;
 	defaultModelProvider?: string;
 	defaultModelId?: string;
+	disabledSkillNames?: string[];
 }
 
 export interface ProjectDefaultModelContext {
@@ -241,6 +242,33 @@ export function createSkillRestrictedResourceLoader(options: {
 	});
 }
 
+export function createSkillFilteredResourceLoader(options: {
+	projectRoot: string;
+	agentDir?: string;
+	allowedSkillPaths: string[];
+	runtimeAgentRulesPath?: string;
+	disabledSkillNames?: string[];
+}): DefaultResourceLoader {
+	const loader = createSkillRestrictedResourceLoader(options);
+	const disabledSet = new Set(
+		(options.disabledSkillNames ?? [])
+			.map((name) => String(name || "").trim())
+			.filter(Boolean),
+	);
+	if (disabledSet.size === 0) {
+		return loader;
+	}
+	const originalGetSkills = loader.getSkills.bind(loader);
+	(loader as DefaultResourceLoader & { getSkills: DefaultResourceLoader["getSkills"] }).getSkills = () => {
+		const result = originalGetSkills();
+		return {
+			...result,
+			skills: result.skills.filter((skill) => !disabledSet.has(skill.name)),
+		};
+	};
+	return loader;
+}
+
 export function getDefaultRuntimeAgentRulesPath(projectRoot: string): string {
 	return join(projectRoot, ".data", "agent", "AGENTS.md");
 }
@@ -279,9 +307,10 @@ async function collectSkillFiles(rootPath: string): Promise<string[]> {
 	}
 }
 
-async function buildSkillFingerprint(allowedSkillPaths: string[]): Promise<string> {
+async function buildSkillFingerprint(allowedSkillPaths: string[], disabledSkillNames: string[] = []): Promise<string> {
 	const hash = createHash("sha256");
 	hash.update(JSON.stringify([...allowedSkillPaths].sort()));
+	hash.update(JSON.stringify([...disabledSkillNames].sort()));
 
 	for (const rootPath of allowedSkillPaths) {
 		const skillFiles = (await collectSkillFiles(rootPath)).sort();
@@ -592,6 +621,7 @@ export function createDefaultAgentSessionFactory(
 	options: DefaultAgentSessionFactoryOptions,
 ): AgentSessionFactory {
 	const allowedSkillPaths = options.allowedSkillPaths ?? getDefaultAllowedSkillPaths(options.projectRoot);
+		const disabledSkillNames = options.disabledSkillNames ?? [];
 	const runtimeAgentRulesPath = options.runtimeAgentRulesPath ?? getDefaultRuntimeAgentRulesPath(options.projectRoot);
 	let cachedSkillList: { fingerprint: string; skills: RuntimeSkillInfo[]; cachedAt: string; checkedAtMs: number } | null = null;
 	let lastSkillCacheTimestampMs = 0;
@@ -603,11 +633,12 @@ export function createDefaultAgentSessionFactory(
 	}
 
 	async function loadSkills(): Promise<RuntimeSkillInfo[]> {
-		const resourceLoader = createSkillRestrictedResourceLoader({
+		const resourceLoader = createSkillFilteredResourceLoader({
 			projectRoot: options.projectRoot,
 			agentDir: options.agentDir,
 			allowedSkillPaths,
 			runtimeAgentRulesPath,
+			disabledSkillNames,
 		});
 		await resourceLoader.reload();
 		const result = await resourceLoader.getSkills();
@@ -620,7 +651,7 @@ export function createDefaultAgentSessionFactory(
 	}
 
 	async function getAvailableSkills(): Promise<RuntimeSkillListResult> {
-		const fingerprint = await buildSkillFingerprint(allowedSkillPaths);
+		const fingerprint = await buildSkillFingerprint(allowedSkillPaths, disabledSkillNames);
 		const now = Date.now();
 		if (cachedSkillList?.fingerprint === fingerprint && now - cachedSkillList.checkedAtMs < 30_000) {
 			cachedSkillList.checkedAtMs = now;
@@ -653,11 +684,12 @@ export function createDefaultAgentSessionFactory(
 				: SessionManager.create(options.projectRoot, options.sessionDir);
 			const authStorage = AuthStorage.create();
 			const modelRegistry = ModelRegistry.create(authStorage, getProjectModelsPath(options.projectRoot));
-			const resourceLoader = createSkillRestrictedResourceLoader({
+			const resourceLoader = createSkillFilteredResourceLoader({
 				projectRoot: options.projectRoot,
 				agentDir: options.agentDir,
 				allowedSkillPaths,
 				runtimeAgentRulesPath,
+				disabledSkillNames,
 			});
 
 			await resourceLoader.reload();

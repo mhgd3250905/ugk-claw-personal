@@ -19,6 +19,7 @@ export interface AgentProfile {
 	runtimeAgentRulesPath: string;
 	workspaceDir: string;
 	allowedSkillPaths: string[];
+	disabledSkillNames?: string[];
 }
 
 export const DEFAULT_AGENT_ID = "main";

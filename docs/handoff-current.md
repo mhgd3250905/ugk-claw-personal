@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-12`
+更新时间：`2026-05-13`
 
 这份文档给下一位全新接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
@@ -17,7 +17,7 @@
 
 开始前先执行 `git status --short` 和 `git log -1 --oneline`。未跟踪的 `.claude/`、`runtime/*.cjs`、`public/*.png/html`、`ui-design/`、奇怪的 `Eapp...jsonl` 都是本地运行产物，除非用户明确说明，否则不要提交、不要删除。
 
-当前本地 HEAD 为 `676368b Show agent run status in switcher and allow cross-agent switch while running`；`origin/main` 和 `gitee/main` 需推送后同步。最近功能提交：`7d4fc25 Improve CLAUDE.md with architecture governance and isolation notes`、`9b9a5cb Update handoff baseline and replace old Tencent Cloud IP in docs`、`676368b Show agent run status in switcher and allow cross-agent switch while running`。重点变化是：Agent 悬浮菜单显示运行状态（运行中/空闲/状态未知）；允许运行中跨 Agent 切换，不中断原 Agent 后台任务；流式事件增加 owner guard 防止串台。
+当前本地 HEAD 为 `2e69e56 Add per-agent skill enable/disable toggle`；`origin/main` 和 `gitee/main` 需推送后同步。最近功能提交：`489514d Sort conn manager`、`2e69e56 Add per-agent skill enable/disable toggle`。重点变化是：每个 Agent Profile 可独立启用/关闭已安装技能（必需技能锁定不可关闭）；Session factory 在创建会话时过滤已关闭技能；运行中 Agent 拒绝切换技能（409）；Conn 管理器列表运行中优先 + 最新任务倒序。
 ```
 
 新 agent 如果只做普通 bugfix，最小阅读顺序是：
@@ -34,11 +34,12 @@
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
-- 当前本地最新提交：`676368b Confirm agent browser binding edits`。
+- 当前本地最新提交：`2e69e56 Add per-agent skill enable/disable toggle`。
+- 当前稳定版本：`v1.2.0`
 - 当前 `origin/main` / `gitee/main`：已同步到 `676368b`。
 - 腾讯云生产运行代码：已增量更新到 `676368b`，已通过 `npm run server:ops -- tencent deploy` 和 `npm run server:ops -- tencent verify`。
 - 阿里云生产运行代码：已增量更新到 `676368b`，已通过 `npm run server:ops -- aliyun deploy` 和 `npm run server:ops -- aliyun verify`。
-- 本轮稳定版主线：Agent 默认模型设置收口、左下角模型源跟随当前 Agent、腾讯云公网 IP 更新、独立 Agents 页浏览器绑定确认补齐，并保留此前 Agents 页面重写、Conn 未读统计、Conn 立即执行反馈、独立页面浅色主题和 Playground 路由架构清理。
+- 本轮稳定版主线：Agent Skill 开关（每个 Agent Profile 独立启用/关闭已安装技能，必需技能锁定，Session factory 过滤，运行中 409 拒绝）；Conn 管理器排序（运行中优先 + 最新任务倒序）；并保留此前 Agent 默认模型设置收口、左下角模型源跟随当前 Agent、腾讯云公网 IP 更新、独立 Agents 页浏览器绑定确认补齐、Agents 页面重写、Conn 未读统计、Conn 立即执行反馈、独立页面浅色主题和 Playground 路由架构清理。
 - 验收结论：最近模型与浏览器绑定修复已通过 `npx tsx test/agent-model-ui.test.ts`、`npx tsx test/playground-agent-switch.test.ts`、`npx tsc --noEmit`、`git diff --check` 和双云 `verify`；shared 运行态挂载、runtime skills、agent 数据和 Chrome sidecar 保持可用。
 - 腾讯云正式入口：`http://43.156.19.100:3000/playground`
 - 腾讯云健康检查：`http://43.156.19.100:3000/healthz`
@@ -52,12 +53,41 @@
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
-- 当前本地未发布变更：无已跟踪源码 / 文档变更待发布；如果本文件后续有交接文档改动，需要单独提交文档。未跟踪运行产物仍不属于发布内容。
+- 当前本地未发布变更：Agent Skill 开关 + Conn 管理器排序待本轮提交后推送。未跟踪运行产物仍不属于发布内容。
 - 双云部署注意：腾讯云从 `origin`（GitHub）拉代码，阿里云从 `gitee` 拉代码。要让双云完全同版，发布前务必同时推送两个 remote：`git push && git push gitee main`；只修阿里云时也要在文档里写清楚腾讯云没有同步，别让下个 agent 脑补。
 - Playground UI 架构：`data-home="true"/"false"` 是唯一路由开关（agent 列表 vs 对话视图）。`data-stage-mode="landing"` 是永久 CSS-only hook，运行时不变。主题系统用 `[data-theme="dark"]` / `[data-theme="light"]`，token 选择器不能包含 `body`。独立页面（conn、agents）用 `standalone-page-shared.ts` 作共享 CSS base，各自内嵌 token 覆盖块。
 - 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。左下角“模型源”设置在 `main` 里仍写全局默认；切到非主 Agent 时优先显示并保存该 Agent 的 `defaultModelProvider/defaultModelId`。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
 - 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
 - 当前未跟踪禁区：`.claude/`、`runtime/xhs-extract.mjs`、`public/ptt-slide*.html`、`public/slide*.png`、`runtime/*.cjs`、奇怪的 `Eapp...jsonl` 路径等运行产物 / 本地文件不属于本轮增量提交，继续不要提交、不要删除，除非用户明确说明它们的归属。
+
+## 2026-05-13 Agent Skill 开关 + Conn 管理器排序
+
+关键提交：`489514d`、`2e69e56`
+
+### Agent Skill 开关（Enable/Disable）
+
+每个 Agent Profile 可独立启用/关闭已安装技能。关闭的技能不会出现在 Agent 会话中。
+
+后端：
+- `src/agent/agent-profile.ts`：`AgentProfile` 接口新增 `disabledSkillNames?: string[]`。
+- `src/agent/agent-profile-catalog.ts`：新增 `skillSettingsByAgentId` deny-list 持久化到 `profiles.json`；新增 `listStoredAgentProfileSkills`（同步读取已安装技能列表）和 `updateStoredAgentProfileSkillEnabled`（异步更新启用状态）；`agent-skill-ops`、`agent-runtime-ops`、`agent-filesystem-ops` 为必需技能不可关闭。
+- `src/agent/agent-session-factory.ts`：新增 `createSkillFilteredResourceLoader` 包装 `createSkillRestrictedResourceLoader`，同步过滤 `getSkills()` 返回值；`buildSkillFingerprint` 包含 `disabledSkillNames` 参数确保缓存失效。
+- `src/server.ts`：传递 `disabledSkillNames` 到 session factory options。
+- `src/types/api.ts`：新增 `AgentSkillBody`、`AgentSkillListResponseBody`、`UpdateAgentSkillRequestBody`、`UpdateAgentSkillResponseBody`。
+- `src/routes/chat.ts`：新增 `GET /v1/agents/:agentId/skills`（返回技能列表含 enabled/required 状态）和 `PATCH /v1/agents/:agentId/skills/:skillName`（切换启用状态，运行中返回 409）。
+
+前端：
+- `src/ui/playground-agent-manager.ts`：Playground 内嵌 Agent 操作台新增技能开关按钮（`role="switch"`），必需技能显示锁定，切换后自动刷新。
+- `src/ui/agents-page.ts`：独立 Agents 页面新增同等开关功能，显示"已启用"/"已关闭"状态和"必需"标签。
+
+### Conn 管理器排序
+
+- `src/ui/playground-conn-activity-controller.ts`：Conn 列表按运行中优先 + 最新任务倒序排列，运行中的 conn 置顶并高亮。
+
+验证：
+- `npm test`：663 pass / 0 fail
+- `npx tsc --noEmit`：通过
+- API 验证：`GET /v1/agents/:agentId/skills`、`PATCH ...`、必需技能锁定、运行中 409 拒绝均通过
 
 ## 2026-05-11 阿里云 Conn 立即执行反馈排查与发布
 
@@ -208,7 +238,7 @@ git log --oneline c05753b..HEAD
 - `docker compose -f docker-compose.prod.yml config --quiet`
 - `npm test`
 
-截至最近一次全量测试，`npm test` 为 `613 pass / 0 fail`。本轮还单独跑过：
+截至最近一次全量测试，`npm test` 为 `663 pass / 0 fail`。本轮还单独跑过：
 
 - `npx tsc --noEmit`
 - `node --test --test-concurrency=1 --import tsx test\conn-db.test.ts test\conn-sqlite-store.test.ts test\cleanup-debug.test.ts`

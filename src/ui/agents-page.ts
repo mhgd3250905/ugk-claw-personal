@@ -494,7 +494,21 @@ function getAgentsPageCss(): string {
 			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 		}
 
-		/* ── Empty / error ── */
+		.ag-skill-item--disabled { opacity: 0.6; }
+			.ag-skill-toggle {
+				min-width: 40px; height: 28px; padding: 0 8px;
+				border: 1px solid var(--border); border-radius: 6px;
+				background: transparent; cursor: pointer;
+				font-size: 12px; font-weight: 600;
+				color: var(--muted); transition: all 0.15s;
+			}
+			.ag-skill-toggle:hover:not(:disabled) { border-color: var(--border-hover); }
+			.ag-skill-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+			.ag-skill-toggle--on { border-color: rgba(141, 255, 178, 0.28); color: rgba(141, 255, 178, 0.92); }
+			.ag-skill-toggle--off { border-color: rgba(255, 209, 102, 0.22); color: rgba(255, 209, 102, 0.86); }
+			.ag-skill-required { color: var(--muted); font-size: 10px; font-weight: 400; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; margin-left: 6px; }
+
+			/* ── Empty / error ── */
 		.ag-empty {
 			padding: 80px 24px; text-align: center;
 		}
@@ -717,7 +731,7 @@ function getAgentsPageJs(): string {
 
 		async function apiFetchAgentSkills(agentId) {
 			try {
-				var data = await fetchJson("/v1/agents/" + agentId + "/debug/skills");
+				var data = await fetchJson("/v1/agents/" + agentId + "/skills");
 				state.skillsByAgentId[agentId] = Array.isArray(data.skills) ? data.skills : [];
 			} catch {
 				state.skillsByAgentId[agentId] = [];
@@ -732,7 +746,15 @@ function getAgentsPageJs(): string {
 			await fetchJson("/v1/agents/" + agentId + "/skills/" + encodeURIComponent(skillName), { method: "DELETE" });
 		}
 
-		async function apiFetchGallerySkills() {
+		async function apiToggleSkill(agentId, skillName, enabled) {
+				await fetchJson("/v1/agents/" + agentId + "/skills/" + encodeURIComponent(skillName), {
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ enabled: enabled }),
+				});
+			}
+
+			async function apiFetchGallerySkills() {
 			try {
 				var data = await fetchJson("/v1/debug/skills");
 				state.gallerySkills = Array.isArray(data.skills) ? data.skills : [];
@@ -1020,25 +1042,48 @@ function getAgentsPageJs(): string {
 			container.innerHTML = "";
 			skills.forEach(function(skill) {
 				var name = skill.name || skill.skillName || "-";
-				var desc = skill.description || "";
-				if (desc.length > 80) desc = desc.slice(0, 80) + "...";
+				var isEnabled = skill.enabled !== false;
+				var isRequired = Boolean(skill.required);
+				var skillName = skill.name || skill.skillName || "";
 
 				var item = document.createElement("div");
-				item.className = "ag-skill-item";
+				item.className = "ag-skill-item" + (isEnabled ? "" : " ag-skill-item--disabled");
 
-				var icon = document.createElement("div");
-				icon.className = "ag-skill-icon";
-				icon.innerHTML = SVG_STAR;
-				item.appendChild(icon);
+				var toggle = document.createElement("button");
+				toggle.type = "button";
+				toggle.className = "ag-skill-toggle" + (isEnabled ? " ag-skill-toggle--on" : " ag-skill-toggle--off");
+				toggle.setAttribute("role", "switch");
+				toggle.setAttribute("aria-checked", isEnabled ? "true" : "false");
+				toggle.textContent = isEnabled ? "开" : "关";
+				toggle.disabled = isRequired;
+				toggle.addEventListener("click", function() {
+					if (agent && skillName) {
+						toggle.disabled = true;
+						apiToggleSkill(agent.agentId, skillName, !isEnabled).then(function() {
+							apiFetchAgentSkills(agent.agentId).then(function() { renderSkills(); });
+						}).catch(function(err) {
+							toggle.disabled = false;
+							alert(err && err.message || "切换失败");
+						});
+					}
+				});
+				item.appendChild(toggle);
 
 				var info = document.createElement("div");
 				info.className = "ag-skill-info";
 				var n = document.createElement("div");
 				n.className = "ag-skill-name";
 				n.textContent = name;
+				if (isRequired) {
+					var badge = document.createElement("span");
+					badge.className = "ag-skill-required";
+					badge.textContent = "必需";
+					n.appendChild(document.createTextNode(" "));
+					n.appendChild(badge);
+				}
 				var d = document.createElement("div");
 				d.className = "ag-skill-desc";
-				d.textContent = desc || "暂无说明";
+				d.textContent = isEnabled ? "已启用" : "已关闭";
 				info.appendChild(n);
 				info.appendChild(d);
 				item.appendChild(info);

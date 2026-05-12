@@ -747,6 +747,11 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /conn-manager-selected-count/);
 	assert.match(response.body, /delete-selected-conns-button/);
 	assert.match(response.body, /function getVisibleConnManagerItems\(/);
+	assert.match(response.body, /function getConnRunSortRank\(/);
+	assert.match(response.body, /function getConnLatestRunTimeMs\(/);
+	assert.match(response.body, /function compareConnManagerItems\(/);
+	assert.match(response.body, /latestRun\?\.status/);
+	assert.match(response.body, /\.sort\(compareConnManagerItems\)/);
 	assert.match(response.body, /function deleteSelectedConns\(/);
 	assert.match(response.body, /\/v1\/conns\/bulk-delete/);
 	assert.match(response.body, /delete-selected-conns-button/);
@@ -2429,6 +2434,14 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.agent-manager-list\s*\{[\s\S]*background:\s*#f1f5fa;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.agent-manager-list-button,[\s\S]*:root\[data-theme="light"\]\s+\.agent-manager-skill-item\s*\{[\s\S]*border-color:\s*#dfe7f2;[\s\S]*background:\s*#ffffff;[\s\S]*color:\s*#24324a;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.agent-manager-status\s*\{[\s\S]*background:\s*#eef3fb;[\s\S]*color:\s*#40516d;/);
+
+	// Agent skill toggle UI
+	assert.match(response.body, /updateAgentSkillEnabled/);
+	assert.match(response.body, /role.*switch/);
+	assert.match(response.body, /aria-checked/);
+	assert.match(response.body, /agent-manager-skill-toggle/);
+	assert.match(response.body, /is-disabled/);
+	assert.match(response.body, /agent-manager-skill-required/);
 	assert.doesNotMatch(response.body, /:root\[data-theme="light"\]\s+:is\(\.asset-pill\),[\s\S]*:root\[data-theme="light"\]\s+:is\(\.conn-editor-field\)[\s\S]*background:\s*#eef3fa;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.task-inbox-view/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.task-inbox-pane/);

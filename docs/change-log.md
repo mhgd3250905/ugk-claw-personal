@@ -10,6 +10,31 @@
 
 ---
 
+## 2026-05-13
+### Agent Skill 开关（Enable/Disable）
+- 日期：2026-05-13
+- 主题：每个 Agent 可单独开关已安装 skill，关闭后新建 session 不加载该 skill，重新开启无需重装。必需系统 skill 不可关闭。运行中 conversation 不允许切换 skill。
+- 影响范围：
+  - `src/agent/agent-profile.ts`：`AgentProfile` 新增 `disabledSkillNames?: string[]`。
+  - `src/agent/agent-profile-catalog.ts`：`StoredAgentProfiles` 新增 `skillSettingsByAgentId`；新增 `listStoredAgentProfileSkills`、`updateStoredAgentProfileSkillEnabled`、`collectInstalledSkillNames`、`normalizeDisabledSkillNames`、`applySkillSettingsToProfiles`；所有 catalog mutation 保留 `skillSettingsByAgentId`。
+  - `src/agent/agent-session-factory.ts`：新增 `createSkillFilteredResourceLoader`，在 `resourceLoader.getSkills()` 层过滤 disabled skills；`loadSkills` 和 `createSession` 改用 filtered loader；`buildSkillFingerprint` 包含 `disabledSkillNames`。
+  - `src/server.ts`：`createDefaultAgentService` 传入 `profile.disabledSkillNames`。
+  - `src/types/api.ts`：新增 `AgentSkillBody`、`AgentSkillListResponseBody`、`UpdateAgentSkillRequestBody`、`UpdateAgentSkillResponseBody`。
+  - `src/routes/chat.ts`：新增 `GET /v1/agents/:agentId/skills`（管理接口，返回 enabled 状态）和 `PATCH /v1/agents/:agentId/skills/:skillName`（切换开关，含 running guard 返回 409）。
+  - `src/ui/playground-agent-manager.ts`：Playground 内嵌 Agent 操作台的技能列表改用管理接口，新增 toggle switch UI 和 `updateAgentSkillEnabled` 函数。
+  - `src/ui/agents-page.ts`：独立 Agent 管理台 `/playground/agents` 同步支持 skill toggle。
+  - `test/server.test.ts`：新增 skill toggle UI 静态断言。
+- 不变项：不删除 disabled skill 文件；不改变安装/移除语义；不修改 pi-coding-agent 源码；`debug/skills` 仍表示 runtime 真实技能。
+- 对应入口：`src/routes/chat.ts`、`src/ui/agents-page.ts`、`src/ui/playground-agent-manager.ts`
+
+### Conn 管理器排序（运行中优先 + 最新任务倒序）
+- 日期：2026-05-12
+- 主题：Conn 管理器列表按运行状态优先排序：running > pending > 其他，同组内按最新任务时间倒序。
+- 影响范围：
+  - `src/ui/playground-conn-activity-controller.ts`：新增 `getConnRunSortRank`、`getConnLatestRunTimeMs`、`compareConnManagerItems` 排序 helper；`renderConnManager` 中 `visibleConns` 使用 `.slice().sort(compareConnManagerItems)`。
+  - `test/server.test.ts`：新增排序函数和 sort 调用的静态断言。
+- 对应入口：`src/ui/playground-conn-activity-controller.ts`
+
 ## 2026-05-12
 ### Agent 悬浮状态展示与运行中跨 Agent 切换
 - 日期：2026-05-12

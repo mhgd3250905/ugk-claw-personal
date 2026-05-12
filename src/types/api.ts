@@ -271,6 +271,28 @@ export interface DebugSkillsResponseBody {
 	cachedAt: string;
 }
 
+export interface AgentSkillBody {
+	name: string;
+	path?: string;
+	enabled: boolean;
+	required?: boolean;
+}
+
+export interface AgentSkillListResponseBody {
+	agentId: string;
+	skills: AgentSkillBody[];
+}
+
+export interface UpdateAgentSkillRequestBody {
+	enabled: boolean;
+}
+
+export interface UpdateAgentSkillResponseBody {
+	agentId: string;
+	skillName: string;
+	enabled: boolean;
+}
+
 export interface AgentRunStatusBody {
 	agentId: string;
 	name: string;

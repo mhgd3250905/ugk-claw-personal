@@ -696,7 +696,31 @@ export function getPlaygroundAgentManagerStyles(): string {
 			.agent-manager-create-grid {
 				grid-template-columns: 1fr;
 			}
+
+		.agent-manager-skill-item.is-disabled {
+			opacity: 0.66;
 		}
+
+		.agent-manager-skill-toggle {
+			min-width: 46px;
+			border-color: rgba(201, 210, 255, 0.16);
+		}
+
+		.agent-manager-skill-toggle[aria-checked="true"] {
+			border-color: rgba(141, 255, 178, 0.28);
+			color: rgba(141, 255, 178, 0.92);
+		}
+
+		.agent-manager-skill-toggle[aria-checked="false"] {
+			border-color: rgba(255, 209, 102, 0.22);
+			color: rgba(255, 209, 102, 0.86);
+		}
+
+		.agent-manager-skill-required {
+			color: rgba(226, 234, 255, 0.52);
+			font-size: 10px;
+		}
+			}
 	`;
 }
 
@@ -1623,7 +1647,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			title.textContent = "技能透明视图";
 			const meta = document.createElement("div");
 			meta.className = "agent-manager-skill-meta";
-			meta.textContent = "只展示该 Agent scoped debug skills，不读取主 Agent 技能。";
+			meta.textContent = "展示该 Agent 已安装技能及启用状态，可单独开关非必需技能。";
 			copy.appendChild(title);
 			copy.appendChild(meta);
 			const actions = document.createElement("div");
@@ -1658,13 +1682,32 @@ export function getPlaygroundAgentManagerScript(): string {
 			} else {
 				for (const skill of skills) {
 					const item = document.createElement("article");
-					item.className = "agent-manager-skill-item";
+					item.className = "agent-manager-skill-item" + (skill.enabled === false ? " is-disabled" : "");
 					const row = document.createElement("div");
 					row.className = "agent-manager-skill-item-head";
+					const toggle = document.createElement("button");
+					toggle.type = "button";
+					toggle.className = "agent-manager-skill-toggle";
+					toggle.setAttribute("role", "switch");
+					toggle.setAttribute("aria-checked", skill.enabled !== false ? "true" : "false");
+					toggle.textContent = skill.enabled !== false ? "开" : "关";
+					const isRequired = getRequiredAgentSkillNames().includes(skill?.name || "");
+					const toggleActionKey = agent.agentId + ":" + (skill?.name || "") + ":toggle";
+					toggle.disabled = isRequired || state.agentManagerSkillActionKey === toggleActionKey;
+					toggle.addEventListener("click", () => {
+						void updateAgentSkillEnabled(agent, skill?.name || "", skill.enabled !== false ? false : true);
+					});
+					row.appendChild(toggle);
 					const name = document.createElement("strong");
 					name.textContent = skill?.name || "unknown";
 					row.appendChild(name);
-					if (!isMainAgent(agent) && !getRequiredAgentSkillNames().includes(skill?.name || "")) {
+					if (isRequired) {
+						const requiredBadge = document.createElement("span");
+						requiredBadge.className = "agent-manager-skill-required";
+						requiredBadge.textContent = "必需";
+						row.appendChild(requiredBadge);
+					}
+					if (!isMainAgent(agent) && !isRequired) {
 						const removeButton = document.createElement("button");
 						removeButton.type = "button";
 						const actionKey = agent.agentId + ":" + (skill?.name || "");
@@ -1675,11 +1718,7 @@ export function getPlaygroundAgentManagerScript(): string {
 						});
 						row.appendChild(removeButton);
 					}
-					const description = document.createElement("span");
-					description.className = "agent-manager-skill-meta";
-					description.textContent = skill?.description || "暂无说明";
 					item.appendChild(row);
-					item.appendChild(description);
 					list.appendChild(item);
 				}
 			}
@@ -2008,7 +2047,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			};
 			renderAgentManager();
 			try {
-				const response = await fetch("/v1/agents/" + encodeURIComponent(agent.agentId) + "/debug/skills", {
+				const response = await fetch("/v1/agents/" + encodeURIComponent(agent.agentId) + "/skills", {
 					method: "GET",
 					headers: { accept: "application/json" },
 				});
@@ -2032,7 +2071,40 @@ export function getPlaygroundAgentManagerScript(): string {
 			}
 		}
 
-		async function installAgentSkillFromManager(agent, skillName) {
+		async function updateAgentSkillEnabled(agent, skillName, enabled) {
+				if (!agent?.agentId || !skillName) {
+					return;
+				}
+				const actionKey = agent.agentId + ":" + skillName + ":toggle";
+				state.agentManagerSkillActionKey = actionKey;
+				renderAgentManager();
+				try {
+					const response = await fetch(
+						"/v1/agents/" + encodeURIComponent(agent.agentId) + "/skills/" + encodeURIComponent(skillName),
+						{
+							method: "PATCH",
+							headers: {
+								"content-type": "application/json",
+								accept: "application/json",
+							},
+							body: JSON.stringify({ enabled }),
+						},
+					);
+					const payload = await response.json().catch(() => ({}));
+					if (!response.ok) {
+						throw new Error(payload?.message || "无法更新技能开关");
+					}
+					await loadAgentManagerSkills(agent, { force: true });
+					setAgentManagerNotice(enabled ? "已启用 " + skillName : "已关闭 " + skillName);
+				} catch (error) {
+					showError(error instanceof Error ? error.message : "无法更新技能开关");
+				} finally {
+					state.agentManagerSkillActionKey = "";
+					renderAgentManager();
+				}
+			}
+
+			async function installAgentSkillFromManager(agent, skillName) {
 			const normalizedSkillName = String(skillName || "").trim();
 			if (!agent?.agentId || !normalizedSkillName || state.agentManagerSkillActionKey) {
 				return;

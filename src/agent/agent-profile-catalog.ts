@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { cp, mkdir, readdir, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import {
@@ -13,9 +13,14 @@ import {
 import { DEFAULT_AGENT_SYSTEM_SKILLS, ensureAgentProfileRuntime } from "./agent-profile-bootstrap.js";
 import { getDefaultAllowedSkillPaths } from "./agent-session-factory.js";
 
+interface StoredAgentSkillSettings {
+	disabledSkillNames?: string[];
+}
+
 interface StoredAgentProfiles {
 	agents?: AgentProfileSummaryInput[];
 	archivedAgentIds?: string[];
+	skillSettingsByAgentId?: Record<string, StoredAgentSkillSettings>;
 }
 
 const catalogWriteQueues = new Map<string, Promise<void>>();
@@ -133,7 +138,52 @@ function parseStoredCatalog(raw: string): Required<StoredAgentProfiles> {
 	return {
 		agents: Array.isArray(parsed.agents) ? parsed.agents : [],
 		archivedAgentIds: Array.isArray(parsed.archivedAgentIds) ? parsed.archivedAgentIds : [],
+		skillSettingsByAgentId: normalizeStoredSkillSettings(parsed.skillSettingsByAgentId),
 	};
+}
+
+function normalizeDisabledSkillNames(value: unknown): string[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+	const normalized = value
+		.map((entry) => String(entry || "").trim())
+		.filter((entry) => /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(entry));
+	return Array.from(new Set(normalized)).sort();
+}
+
+function normalizeStoredSkillSettings(
+	value: unknown,
+): Record<string, StoredAgentSkillSettings> {
+	if (!value || typeof value !== "object") {
+		return {};
+	}
+	const result: Record<string, StoredAgentSkillSettings> = {};
+	for (const [agentId, rawSettings] of Object.entries(value as Record<string, unknown>)) {
+		if (!isValidAgentId(agentId)) {
+			continue;
+		}
+		result[agentId] = {
+			disabledSkillNames: normalizeDisabledSkillNames(
+				(rawSettings as { disabledSkillNames?: unknown })?.disabledSkillNames,
+			),
+		};
+	}
+	return result;
+}
+
+function applySkillSettingsToProfiles(
+	profiles: AgentProfile[],
+	settingsByAgentId: Record<string, StoredAgentSkillSettings>,
+): AgentProfile[] {
+	return profiles.map((profile) => {
+		const settings = settingsByAgentId[profile.agentId];
+		const disabledSkillNames = settings?.disabledSkillNames ?? [];
+		return {
+			...profile,
+			...(disabledSkillNames.length > 0 ? { disabledSkillNames } : {}),
+		};
+	});
 }
 
 export function normalizeAgentProfileInput(input: CreateAgentProfileInput): AgentProfileSummaryInput {
@@ -353,7 +403,7 @@ async function readStoredAgentProfileCatalogFromDisk(projectRoot: string): Promi
 		return parseStoredCatalog(await readFile(catalogPath, "utf8"));
 	} catch (error) {
 		if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
-			return { agents: [], archivedAgentIds: [] };
+			return { agents: [], archivedAgentIds: [], skillSettingsByAgentId: {} };
 		}
 		throw error;
 	}
@@ -367,7 +417,7 @@ async function readStoredAgentProfileCatalog(projectRoot: string): Promise<Requi
 function readStoredAgentProfileCatalogSync(projectRoot: string): Required<StoredAgentProfiles> {
 	const catalogPath = getAgentProfilesCatalogPath(projectRoot);
 	if (!existsSync(catalogPath)) {
-		return { agents: [], archivedAgentIds: [] };
+		return { agents: [], archivedAgentIds: [], skillSettingsByAgentId: {} };
 	}
 	return parseStoredCatalog(readFileSync(catalogPath, "utf8"));
 }
@@ -378,7 +428,8 @@ export async function writeStoredAgentProfileSummaries(
 	archivedAgentIds: string[] = [],
 ): Promise<void> {
 	await queueStoredAgentProfileCatalogOperation(projectRoot, async () => {
-		await writeStoredAgentProfileCatalogFile(projectRoot, { agents, archivedAgentIds });
+		const current = await readStoredAgentProfileCatalogFromDisk(projectRoot);
+		await writeStoredAgentProfileCatalogFile(projectRoot, { agents, archivedAgentIds, skillSettingsByAgentId: current.skillSettingsByAgentId });
 	});
 }
 
@@ -441,7 +492,10 @@ async function mutateStoredAgentProfileCatalog<T>(
 export function loadAgentProfilesSync(projectRoot: string): AgentProfile[] {
 	const catalog = readStoredAgentProfileCatalogSync(projectRoot);
 	const archived = new Set(catalog.archivedAgentIds);
-	return createDefaultAgentProfiles(projectRoot, catalog.agents).filter((profile) => !archived.has(profile.agentId));
+	return applySkillSettingsToProfiles(
+		createDefaultAgentProfiles(projectRoot, catalog.agents).filter((profile) => !archived.has(profile.agentId)),
+		catalog.skillSettingsByAgentId,
+	);
 }
 
 export function isAgentProfileArchivedSync(projectRoot: string, agentId: string): boolean {
@@ -470,6 +524,7 @@ export async function createStoredAgentProfile(
 			catalog: {
 				agents: [...catalog.agents, normalized],
 				archivedAgentIds: catalog.archivedAgentIds.filter((agentId) => agentId !== normalized.agentId),
+				skillSettingsByAgentId: catalog.skillSettingsByAgentId,
 			},
 			result: profile,
 		};
@@ -528,6 +583,7 @@ export async function updateStoredAgentProfile(
 					updatedSummary,
 				],
 				archivedAgentIds: catalog.archivedAgentIds,
+				skillSettingsByAgentId: catalog.skillSettingsByAgentId,
 			},
 			result: createAgentProfileFromSummary(projectRoot, updatedSummary),
 		};
@@ -606,8 +662,140 @@ export async function archiveStoredAgentProfile(
 			catalog: {
 				agents: catalog.agents.filter((entry) => entry.agentId !== agentId),
 				archivedAgentIds: Array.from(new Set([...catalog.archivedAgentIds, agentId])),
+				skillSettingsByAgentId: catalog.skillSettingsByAgentId,
 			},
 			result: { agentId, archivedPath },
+		};
+	});
+}
+
+
+export interface AgentProfileSkillInfo {
+	name: string;
+	path?: string;
+	enabled: boolean;
+	required?: boolean;
+}
+
+function isRequiredAgentSkill(skillName: string): boolean {
+	return DEFAULT_AGENT_SYSTEM_SKILLS.some((skill) => skill.name === skillName);
+}
+
+function collectInstalledSkillNames(skillPaths: string[]): Array<{ name: string; path: string }> {
+	const seen = new Map<string, string>();
+	for (const rootPath of skillPaths) {
+		let entries;
+		try {
+			entries = readdirSync(rootPath, { encoding: "utf8", withFileTypes: true });
+		} catch {
+			continue;
+		}
+		for (const entry of entries) {
+			if (!entry.isDirectory()) {
+				continue;
+			}
+			const skillDir = join(rootPath, entry.name);
+			if (!isPathWithin(rootPath, skillDir)) {
+				continue;
+			}
+			const skillMdPath = join(skillDir, "SKILL.md");
+			let skillName: string | undefined;
+			try {
+				const content = readFileSync(skillMdPath, "utf8");
+				skillName = parseSkillMetadataName(content) ?? entry.name;
+			} catch {
+				skillName = entry.name;
+			}
+			if (skillName && !seen.has(skillName)) {
+				seen.set(skillName, skillDir);
+			}
+		}
+	}
+	return Array.from(seen.entries()).map(([name, path]) => ({ name, path }));
+}
+
+export function listStoredAgentProfileSkills(
+	projectRoot: string,
+	agentId: string,
+): { agentId: string; skills: AgentProfileSkillInfo[] } {
+	if (!isValidAgentId(agentId)) {
+		throw new Error("agentId must start with a lowercase letter and contain only lowercase letters, digits, or hyphens");
+	}
+	const catalog = readStoredAgentProfileCatalogSync(projectRoot);
+	if (catalog.archivedAgentIds.includes(agentId)) {
+		throw new Error(`agent ${agentId} is archived`);
+	}
+	const profile = createDefaultAgentProfiles(projectRoot, catalog.agents)
+		.find((p) => p.agentId === agentId);
+	if (!profile) {
+		throw new Error(`agent ${agentId} does not exist`);
+	}
+	const disabledSet = new Set(catalog.skillSettingsByAgentId[agentId]?.disabledSkillNames ?? []);
+	const installed = collectInstalledSkillNames(profile.allowedSkillPaths);
+	const skills: AgentProfileSkillInfo[] = installed.map(({ name, path }) => ({
+		name,
+		path,
+		enabled: !disabledSet.has(name),
+		required: isRequiredAgentSkill(name),
+	}));
+	skills.sort((a, b) => a.name.localeCompare(b.name));
+	return { agentId, skills };
+}
+
+export async function updateStoredAgentProfileSkillEnabled(
+	projectRoot: string,
+	agentId: string,
+	inputSkillName: unknown,
+	inputEnabled: unknown,
+): Promise<{ agentId: string; skillName: string; enabled: boolean; profile: AgentProfile }> {
+	const skillName = normalizeSkillName(inputSkillName);
+	if (typeof inputEnabled !== "boolean") {
+		throw new Error("enabled must be a boolean");
+	}
+	if (!inputEnabled && isRequiredAgentSkill(skillName)) {
+		throw new Error("required agent skill cannot be disabled");
+	}
+	return await mutateStoredAgentProfileCatalog(projectRoot, async (catalog) => {
+		const profile = createDefaultAgentProfiles(projectRoot, catalog.agents)
+			.find((p) => p.agentId === agentId);
+		if (!profile) {
+			throw new Error(`agent ${agentId} does not exist`);
+		}
+		if (catalog.archivedAgentIds.includes(agentId)) {
+			throw new Error(`agent ${agentId} is archived`);
+		}
+		const installed = collectInstalledSkillNames(profile.allowedSkillPaths);
+		if (!installed.some((s) => s.name === skillName)) {
+			throw new Error(`agent ${agentId} does not have skill ${skillName}`);
+		}
+		const currentSettings = catalog.skillSettingsByAgentId[agentId] ?? { disabledSkillNames: [] };
+		const currentDisabled = new Set(currentSettings.disabledSkillNames);
+		if (inputEnabled) {
+			currentDisabled.delete(skillName);
+		} else {
+			currentDisabled.add(skillName);
+		}
+		const nextDisabled = Array.from(currentDisabled).sort();
+		const updatedSettings: Record<string, StoredAgentSkillSettings> = {
+			...catalog.skillSettingsByAgentId,
+			[agentId]: { disabledSkillNames: nextDisabled },
+		};
+		if (nextDisabled.length === 0) {
+			delete updatedSettings[agentId];
+		}
+		const disabledSkillNames = updatedSettings[agentId]?.disabledSkillNames ?? [];
+		return {
+			catalog: {
+				agents: catalog.agents,
+				archivedAgentIds: catalog.archivedAgentIds,
+				skillSettingsByAgentId: updatedSettings,
+			},
+			result: {
+				agentId,
+				skillName,
+				enabled: inputEnabled,
+				profile: { ...profile, ...(disabledSkillNames.length > 0 ? { disabledSkillNames } : {}) },
+			},
 		};
 	});
 }

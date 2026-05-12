@@ -21,9 +21,11 @@ import {
 	archiveStoredAgentProfile,
 	createStoredAgentProfile,
 	installStoredAgentProfileSkill,
+	listStoredAgentProfileSkills,
 	normalizeOptionalModelSelection,
 	removeStoredAgentProfileSkill,
 	updateStoredAgentProfile,
+	updateStoredAgentProfileSkillEnabled,
 } from "../agent/agent-profile-catalog.js";
 import {
 	configureSseResponse,
@@ -50,6 +52,9 @@ import type {
 	ChatStatusResponseBody,
 	ConversationStateResponseBody,
 	DebugSkillsResponseBody,
+		AgentSkillListResponseBody,
+		UpdateAgentSkillRequestBody,
+		UpdateAgentSkillResponseBody,
 	AgentRunStatusListResponseBody,
 	InterruptChatRequestBody,
 	InterruptChatResponseBody,
@@ -636,6 +641,78 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}
 		},
 	);
+
+	app.get(
+		"/v1/agents/:agentId/skills",
+		async (
+			request: FastifyRequest<{ Params: { agentId?: string } }>,
+			reply,
+		): Promise<AgentSkillListResponseBody | FastifyReply> => {
+			const { agentId } = request.params ?? {};
+			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			if (!deps.agentServiceRegistry.getProfile(agentId)) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			try {
+				return listStoredAgentProfileSkills(deps.projectRoot, agentId);
+			} catch (error) {
+				return reply.status(400).send({
+					error: "BAD_REQUEST",
+					message: error instanceof Error ? error.message : "Unable to list agent skills.",
+				});
+			}
+		},
+	);
+
+	app.patch(
+		"/v1/agents/:agentId/skills/:skillName",
+		async (
+			request: FastifyRequest<{
+				Params: { agentId?: string; skillName?: string };
+				Body: UpdateAgentSkillRequestBody;
+			}>,
+			reply,
+		): Promise<UpdateAgentSkillResponseBody | FastifyReply> => {
+			const { agentId, skillName } = request.params ?? {};
+			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
+				return sendUnknownAgent(reply, agentId);
+			}
+			const service = resolveScopedAgentServiceOrSend(reply, agentId);
+			if (!service) {
+				return reply;
+			}
+			const catalog = await service.getConversationCatalog();
+			if (catalog.conversations.some((conversation) => conversation.running)) {
+				return reply.status(409).send({
+					error: "CONFLICT",
+					message: `Agent ${agentId} has a running conversation. Stop the current run before changing skill enablement.`,
+				});
+			}
+			try {
+				const result = await updateStoredAgentProfileSkillEnabled(
+					deps.projectRoot,
+					agentId,
+					skillName,
+					request.body?.enabled,
+				);
+				deps.agentServiceRegistry.updateProfile(result.profile);
+				deps.agentTemplateRegistry?.invalidate(agentId);
+				return {
+					agentId: result.agentId,
+					skillName: result.skillName,
+					enabled: result.enabled,
+				};
+			} catch (error) {
+				return reply.status(400).send({
+					error: "BAD_REQUEST",
+					message: error instanceof Error ? error.message : "Unable to update agent skill.",
+				});
+			}
+		},
+	);
+
 
 	app.get(
 		"/v1/agents/:agentId/rules",

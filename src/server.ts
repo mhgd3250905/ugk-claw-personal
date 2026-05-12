@@ -93,6 +93,7 @@ function createDefaultAgentService(assetStore: AssetStoreLike, profile?: AgentPr
 		...(profile?.runtimeAgentRulesPath ? { runtimeAgentRulesPath: profile.runtimeAgentRulesPath } : {}),
 		...(profile?.defaultModelProvider ? { defaultModelProvider: profile.defaultModelProvider } : {}),
 		...(profile?.defaultModelId ? { defaultModelId: profile.defaultModelId } : {}),
+		...(profile?.disabledSkillNames ? { disabledSkillNames: profile.disabledSkillNames } : {}),
 	});
 
 	return new AgentService({
