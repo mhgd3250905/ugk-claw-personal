@@ -8,6 +8,8 @@ export interface AgentSummary {
 	name: string;
 	description: string;
 	defaultBrowserId?: string;
+	defaultModelProvider?: string;
+	defaultModelId?: string;
 }
 
 export type AgentRegistryRunStatus =
@@ -51,6 +53,9 @@ export class AgentServiceRegistry<TService> {
 			name: profile.name,
 			description: profile.description,
 			...(profile.defaultBrowserId ? { defaultBrowserId: profile.defaultBrowserId } : {}),
+			...(profile.defaultModelProvider && profile.defaultModelId
+				? { defaultModelProvider: profile.defaultModelProvider, defaultModelId: profile.defaultModelId }
+				: {}),
 		}));
 	}
 
