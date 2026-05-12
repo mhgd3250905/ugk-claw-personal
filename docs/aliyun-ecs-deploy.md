@@ -437,7 +437,7 @@ git pull --ff-only origin main
 - 不要删除 `/root/ugk-claw-shared`。
 - 不要开放公网 `3901` 或 `9223`。
 - 不要在阿里云上把 `/root/ugk-claw-shared` 并入 Git 仓库；代码用 Git 更新，运行态留在 shared 目录。
-- 不要把腾讯云的 `ubuntu@43.134.167.179` 命令原样粘到阿里云机器上；阿里云是 `root@101.37.209.54`。
+- 不要把腾讯云的 `ubuntu@43.156.19.100` 命令原样粘到阿里云机器上；阿里云是 `root@101.37.209.54`。
 ## 2026-04-27 Playground ASCII 品牌增量发布记录
 
 本次发布继续使用 archive 小包增量覆盖 `/root/ugk-claw-repo`，没有执行整目录替换，也没有触碰 `/root/ugk-claw-shared` 下的 `.data/agent`、sidecar 登录态、资产、conn 或日志。阿里云当前目录仍不是 Git 工作目录，不要照抄腾讯云 `git pull`。

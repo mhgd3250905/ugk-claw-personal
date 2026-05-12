@@ -55,7 +55,7 @@
 2. 服务器执行 `git fetch origin main`、`git pull --ff-only origin main`，随后执行生产 compose config 校验和 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`。
 3. 本次改动涉及 `src/`、`.pi/extensions/subagent` 和 `runtime/pi-agent/models.json`，因此重建 `ugk-pi`、`ugk-pi-conn-worker` 与 `ugk-pi-feishu-worker`，而不是只 restart。
 4. 发布后服务器 `git status --short` 为空；`docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker` 正常运行。
-5. 验收通过：内网 `http://127.0.0.1:3000/healthz` 和公网 `http://43.134.167.179:3000/healthz` 均返回 `{"ok":true}`；内网与公网 `/v1/model-config` 均确认不包含 `deepseek-v4-flash`，且仍包含 `deepseek-v4-pro`。
+5. 验收通过：内网 `http://127.0.0.1:3000/healthz` 和公网 `http://43.156.19.100:3000/healthz` 均返回 `{"ok":true}`；内网与公网 `/v1/model-config` 均确认不包含 `deepseek-v4-flash`，且仍包含 `deepseek-v4-pro`。
 
 上线内容：
 - 飞书 `/stop` 控制命令，语义对齐 Web playground 打断按钮。
@@ -74,7 +74,7 @@
 3. 通过加密上传临时文件把小米 key 写入 `/home/ubuntu/ugk-claw-shared/app.env` 的 `XIAOMI_MIMO_API_KEY`，写入后删除临时文件，未把 key 写进仓库或部署包。
 4. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet` 通过。
 5. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建并启动应用相关容器。
-6. 验收通过：内网 `/healthz`、公网 `http://43.134.167.179:3000/healthz` 均返回 `{"ok":true}`；`/v1/model-config` 显示 `xiaomi-mimo-cn`、`xiaomi-mimo-sgp`、`xiaomi-mimo-ams` 均为 `configured=true`，上下文窗口均为 `1048576`；`POST /v1/model-config/validate` 验证 `xiaomi-mimo-cn / mimo-v2.5-pro` 返回 `ok=true`。
+6. 验收通过：内网 `/healthz`、公网 `http://43.156.19.100:3000/healthz` 均返回 `{"ok":true}`；`/v1/model-config` 显示 `xiaomi-mimo-cn`、`xiaomi-mimo-sgp`、`xiaomi-mimo-ams` 均为 `configured=true`，上下文窗口均为 `1048576`；`POST /v1/model-config/validate` 验证 `xiaomi-mimo-cn / mimo-v2.5-pro` 返回 `ok=true`。
 
 注意：前置直连验证已确认 SGP / AMS endpoint 在腾讯云新加坡网络可达，但当前小米 key 对 SGP / AMS 返回 `401 Invalid API Key`。如果要在腾讯云新加坡优先使用 `xiaomi-mimo-sgp`，需要小米侧提供具备 SGP 集群权限的 key，而不是删掉 SGP provider。
 
@@ -94,7 +94,7 @@
 3. 生产维护时先停止 `ugk-pi` 与 `ugk-pi-conn-worker`，备份目录为 `/home/ubuntu/ugk-claw-shared/backups/conn-oom-20260429-114104`。
 4. 备份内容包括 `conn.sqlite.before`、`conn.sqlite-wal.before`、`conn.sqlite-shm.before`，以及两个超大 session 的 `large-sessions.tar.gz` 和 `sessions-archived/`。
 5. 清理 `conn_run_events`：删除每个 run 超过最近 `2000` 条之外的旧事件，共删除 `194856` 条；将 `2909` 条超大事件改为摘要 stub；执行 `VACUUM`。
-6. 清理后 `conn.sqlite` 从约 `4.45GB` 降至约 `245MB`，公网 `http://43.134.167.179:3000/healthz` 与 `/playground` 均恢复 `200`，`check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`。
+6. 清理后 `conn.sqlite` 从约 `4.45GB` 降至约 `245MB`，公网 `http://43.156.19.100:3000/healthz` 与 `/playground` 均恢复 `200`，`check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`。
 
 后续接手时注意：腾讯云 `~/ugk-claw-repo` 当前工作树仍有历史脏状态，不能再假设 `git pull` 一定可用；在彻底整理远端 Git 状态前，生产小包增量覆盖比 `reset --hard` 更安全。
 
@@ -298,7 +298,7 @@ cd ~/ugk-claw-repo
    - 服务器 `HEAD` 为 `4aeb01e`
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - 服务器内网 `/playground` 源码包含 `message.user` 与 `2454d6`，确认浅色用户气泡样式已上线
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
 
@@ -311,7 +311,7 @@ cd ~/ugk-claw-repo
 实际结果：
 1. 本地提交主题为 `Tighten playground light UI spacing`，本次功能内容为当前任务运行日志 / 后台任务过程日志倒序分页、滚动增量加载、正文增量过滤、单条详情截断与浅色主题可读样式；发布后继续 amend 追加部署记录，最终本地 `HEAD` 以 `git log` 为准。
 2. 本地执行 `git archive --format=tar.gz -o runtime/playground-log-pagination-incremental.tar.gz HEAD ...`，只打包本轮相关文件。
-3. 直连 `ubuntu@43.134.167.179` 的 `scp` 会卡在密码认证；`ssh -o BatchMode=yes ubuntu@43.134.167.179` 返回 `Permission denied (publickey,password)`。随后确认本机 SSH alias `ugk-claw-prod` 可用，改用该 alias 上传到 `~/playground-log-pagination-incremental.tar.gz`。
+3. 直连 `ubuntu@43.156.19.100` 的 `scp` 会卡在密码认证；`ssh -o BatchMode=yes ubuntu@43.156.19.100` 返回 `Permission denied (publickey,password)`。随后确认本机 SSH alias `ugk-claw-prod` 可用，改用该 alias 上传到 `~/playground-log-pagination-incremental.tar.gz`。
 4. 服务器进入 `~/ugk-claw-repo`，执行 `tar -xzf ~/playground-log-pagination-incremental.tar.gz -C ~/ugk-claw-repo` 增量覆盖源码。
 5. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml config --quiet`。
 6. 执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d`，重建 `ugk-pi` 与 `ugk-pi-conn-worker`。
@@ -346,7 +346,7 @@ cd ~/ugk-claw-repo
    - 服务器 `HEAD` 为 `9d3cb37`
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - 服务器内网 `/playground` 源码包含 `parsePlaygroundSlashCommand`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
    - 公网 `/playground` 源码包含 `parsePlaygroundSlashCommand`
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
    - `ugk-pi-browser` 容器内 `127.0.0.1:9222/json/version` 探针通过
@@ -380,8 +380,8 @@ cd ~/ugk-claw-repo
 10. 发布后验收通过：
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
    - 页面源码包含 `conn-time-picker-calendar .flatpickr-month`、`conn-time-picker-calendar .flatpickr-day.selected`、`conn-editor-target-preview` 等本次浅色后台任务编辑器修复标记
 
 本次修复重点：
@@ -416,8 +416,8 @@ cd ~/ugk-claw-repo
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
    - 服务器内网页面源码包含 `history-auto-load-status` 与 `hasOlderConversationHistory`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
    - 公网页面源码包含 `history-auto-load-status`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
@@ -451,8 +451,8 @@ cd ~/ugk-claw-repo
 9. 发布后验收通过：
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
    - 公网页面源码包含 `sanitizeExportStyles`、`data:image/svg` 与 `task-inbox-view.open`
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
    - `ugk-pi-browser` 容器内 `http://127.0.0.1:9222/json/version` 返回 Chrome CDP JSON
@@ -489,8 +489,8 @@ cd ~/ugk-claw-repo
 10. 发布后验收通过：
     - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
     - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
-    - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-    - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+    - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+    - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
     - 公网页面源码包含 `releasePanelFocusBeforeHide` 和 `activeElement.blur`
     - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
     - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
@@ -523,8 +523,8 @@ cd ~/ugk-claw-repo
 9. 发布后验收通过：
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - 服务器内网 `http://127.0.0.1:3000/playground` 返回 `200`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
    - 公网页面源码包含 `ASSET_DETAIL_CONCURRENCY_LIMIT`
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
@@ -558,8 +558,8 @@ cd ~/ugk-claw-repo
 9. 发布后验收通过：
    - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/playground` 返回 `200`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
 10. 本次上线的行为收口：
@@ -590,8 +590,8 @@ cd ~/ugk-claw-repo
 9. 发布后验收通过：
    - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/playground` 返回 `200`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
    - `GET /playground` 页面源码包含 `assistant-run-log-trigger` 与 `assistant-status-summary`，且不再包含可见的 `assistant-loading-label`
@@ -619,8 +619,8 @@ cd ~/ugk-claw-repo
 10. 发布后验收通过：
     - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
     - `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/playground` 返回 `200`
-    - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-    - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+    - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+    - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
     - 页面源码包含 `rows="1"`、`task-inbox-result-bubble` 和三类面板透明头部样式；不再包含任务消息、文件库、后台任务管理器的旧说明句
     - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
     - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
@@ -648,8 +648,8 @@ cd ~/ugk-claw-repo
 10. 发布后验收通过：
     - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
     - `curl -I http://127.0.0.1:3000/playground` 返回 `HTTP/1.1 200 OK`
-    - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-    - 公网 `http://43.134.167.179:3000/playground` 返回 `200`
+    - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+    - 公网 `http://43.156.19.100:3000/playground` 返回 `200`
     - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
     - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
     - `GET /v1/activity/summary` 返回任务消息未读数，`GET /playground` 页面源码包含 `mobile-overflow-task-inbox-badge`、`task-inbox-filter-unread-button` 和 `/v1/assets/upload`
@@ -677,8 +677,8 @@ cd ~/ugk-claw-repo
 9. 发布后验收通过：
    - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - `curl -I http://127.0.0.1:3000/playground` 返回 `HTTP/1.1 200 OK`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `http://43.134.167.179:3000/playground` 返回 `HTTP/1.1 200 OK`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/playground` 返回 `HTTP/1.1 200 OK`
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` 健康，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
    - `GET /v1/chat/state` 已返回 `viewMessages` 字段，当前会话状态接口结构与本次会话渲染收口一致
@@ -700,8 +700,8 @@ cd ~/ugk-claw-repo
 8. 发布后验收通过：
    - `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
    - `curl -I http://127.0.0.1:3000/playground` 返回 `HTTP/1.1 200 OK`
-   - 公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `http://43.134.167.179:3000/playground` 返回 `HTTP/1.1 200 OK`
+   - 公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `http://43.156.19.100:3000/playground` 返回 `HTTP/1.1 200 OK`
    - `check-deps.mjs` 返回 `host-browser: ok (http://172.31.250.10:9223)` 与 `proxy: ready (127.0.0.1:3456)`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` 健康，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
 
@@ -769,7 +769,7 @@ git archive --format=tar.gz -o ugk-pi-deploy.tar.gz HEAD
 上传到服务器：
 
 ```bash
-scp E:\AII\ugk-pi\ugk-pi-deploy.tar.gz ubuntu@43.134.167.179:/home/ubuntu/
+scp E:\AII\ugk-pi\ugk-pi-deploy.tar.gz ubuntu@43.156.19.100:/home/ubuntu/
 ```
 
 服务器解包：
@@ -1140,7 +1140,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 ```bash
 cd E:\AII\ugk-pi
 git archive --format=tar.gz -o ugk-pi-deploy.tar.gz HEAD
-scp E:\AII\ugk-pi\ugk-pi-deploy.tar.gz ubuntu@43.134.167.179:/home/ubuntu/
+scp E:\AII\ugk-pi\ugk-pi-deploy.tar.gz ubuntu@43.156.19.100:/home/ubuntu/
 ```
 
 服务器：
@@ -1347,7 +1347,7 @@ free -h
 6. 首次验收 `http://127.0.0.1:3000/healthz` 返回 `502`；`ugk-pi` 容器 healthy 但 nginx 仍在旧 upstream 状态，随后执行 `docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up -d --force-recreate nginx` 强制重建 nginx。
 7. 最终验收通过：
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `curl -fsS http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
    - `/playground` 源码包含 `mobile-brand-logo desktop-brand`、`ugk-ascii-logo-topbar`、`chat-stage-watermark`
    - `/playground` 源码不再包含 `ugk-ascii-logo-mobile` 或 `ugk-claw-mobile-logo.png`
    - `docker compose ... ps` 显示 nginx、ugk-pi、ugk-pi-browser healthy，CDP relay 与 conn-worker 正常运行
@@ -1364,7 +1364,7 @@ free -h
 6. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建 `ugk-pi` 与 `ugk-pi-conn-worker`。
 7. 最终验收通过：
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `curl -fsS http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
    - `/playground` HTML 包含 `/playground/styles.css` 与 `/playground/app.js`
    - `/playground/styles.css` 包含 `.chat-stage`
    - 容器内 `PLAYGROUND_EXTERNALIZED=1`
@@ -1384,7 +1384,7 @@ free -h
 6. 首次健康检查撞到应用重启窗口返回 nginx `502`；等待后复验恢复正常。
 7. 最终验收通过：
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `curl -fsS http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
    - `.pi/skills/playground-runtime-ui/SKILL.md` 包含 `Do not claim \`src/ui/\` edits are zero-restart changes`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行
 
@@ -1400,7 +1400,7 @@ free -h
 5. 执行 `COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file ~/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建并启动 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`。
 6. 最终验收通过：
    - 服务器内网 `curl -fsS http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`
-   - 公网 `curl -fsS http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`
+   - 公网 `curl -fsS http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`
    - `/playground` HTML 包含 `feishu-settings-dialog`
    - `docker compose ... ps` 显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，CDP relay、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker` 正常运行
    - `ugk-pi-feishu-worker` 日志显示 `[feishu-worker] disabled by settings`，表示当前生产配置未启用飞书，而不是 worker 启动失败

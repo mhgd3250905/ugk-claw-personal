@@ -22,7 +22,7 @@
 
 ### 腾讯云公网 IP 口径更新
 - 日期：2026-05-12
-- 主题：腾讯云新加坡生产公网 IP 从 `43.134.167.179` 更新为 `43.156.19.100`，同步调整运维脚本公网验收地址和接手文档。
+- 主题：腾讯云新加坡生产公网 IP 从 `43.156.19.100` 更新为 `43.156.19.100`，同步调整运维脚本公网验收地址和接手文档。
 - 影响范围：
   - `scripts/server-ops.mjs`：`tencent.publicHealthz` 改为 `http://43.156.19.100:3000/healthz`。
   - `AGENTS.md`、`docs/server-ops-quick-reference.md`、`docs/tencent-cloud-singapore-deploy.md`、`docs/handoff-current.md`：当前腾讯云入口和健康检查改为新 IP。
@@ -1155,7 +1155,7 @@
 - 日期：2026-04-28
 - 主题：将 `b288853 Pass playground externalized flag to containers` 以增量包 `runtime/playground-externalized-b288853-incremental.tar.gz` 发布到腾讯云新加坡与阿里云 ECS。两端均启用 `PLAYGROUND_EXTERNALIZED=1`，并确认 `/playground` 返回外部化资源引用 `/playground/styles.css` 与 `/playground/app.js`，容器内生成 `runtime/playground/app.js`，项目级 skill `.pi/skills/playground-runtime-ui/SKILL.md` 可用。
 - 影响范围：只覆盖本次提交涉及的源码、文档、测试、项目级 skill 与 `docker-compose.prod.yml`，不替换 shared 运行态目录，不触碰 `.data/agent`、sidecar 登录态、资产、conn 数据或生产日志。阿里云重建应用容器后出现 nginx `502`，按 runbook 强制重建 nginx 后恢复。
-- 对应入口：腾讯云 `http://43.134.167.179:3000/playground`，阿里云 `http://101.37.209.54:3000/playground`，部署记录见 `docs/tencent-cloud-singapore-deploy.md` 与 `docs/aliyun-ecs-deploy.md`。
+- 对应入口：腾讯云 `http://43.156.19.100:3000/playground`，阿里云 `http://101.37.209.54:3000/playground`，部署记录见 `docs/tencent-cloud-singapore-deploy.md` 与 `docs/aliyun-ecs-deploy.md`。
 
 ### Playground 前端运行时外部化
 - 日期：2026-04-27
@@ -1167,7 +1167,7 @@
 - 日期：2026-04-27
 - 主题：把项目 ASCII 字标收口成真实 DOM `<pre>` 资产，桌面左侧历史栏头部与手机品牌入口共用同一套 `ugk-ascii-logo-topbar` 彩色图案，手机端只约束容器尺寸，不再使用单独缩水版会话按钮图案；`chat-stage` 中心使用低对比水印变体。移除旧 topbar 图片 logo、旧 `UGK CLAW` 伪元素文字、旧 landing `hero-wordmark / hero-version`、idle transcript `:empty::before` 伪元素 logo，以及 `.chat-stage::before { content: ... }` 巨型字符串。桌面端不再同时显示 `desktop-brand` 和“历史会话 / 常驻”头部，左侧历史栏头部就是唯一品牌入口，避免浅色主题下出现旧图标不变、字符错位和水印糊成一团。
 - 影响范围：调整 playground 品牌 DOM、背景装饰层、浅色主题覆盖、landing shell 旧品牌 DOM、页面断言和设计文档；不改变会话状态、发送逻辑或运行日志接口。
-- 发布记录：本地提交 `66dcae1 Unify playground ASCII branding`，使用 `runtime/playground-ascii-branding-incremental.tar.gz` 对腾讯云新加坡 `43.134.167.179` 和阿里云 ECS `101.37.209.54` 做增量覆盖更新；两端均保留 shared 运行态目录，不触碰 `.data/agent`、sidecar 登录态、资产、conn 或日志。腾讯云首次验收遇到 nginx upstream `502`，按 runbook 强制重建 nginx 后恢复；两端最终 `/healthz` 均返回 `{"ok":true}`，`/playground` 均确认包含 `mobile-brand-logo desktop-brand`、`ugk-ascii-logo-topbar`、`chat-stage-watermark`，且不再包含 `ugk-ascii-logo-mobile` 或 `ugk-claw-mobile-logo.png`。
+- 发布记录：本地提交 `66dcae1 Unify playground ASCII branding`，使用 `runtime/playground-ascii-branding-incremental.tar.gz` 对腾讯云新加坡 `43.156.19.100` 和阿里云 ECS `101.37.209.54` 做增量覆盖更新；两端均保留 shared 运行态目录，不触碰 `.data/agent`、sidecar 登录态、资产、conn 或日志。腾讯云首次验收遇到 nginx upstream `502`，按 runbook 强制重建 nginx 后恢复；两端最终 `/healthz` 均返回 `{"ok":true}`，`/playground` 均确认包含 `mobile-brand-logo desktop-brand`、`ugk-ascii-logo-topbar`、`chat-stage-watermark`，且不再包含 `ugk-ascii-logo-mobile` 或 `ugk-claw-mobile-logo.png`。
 - 对应入口：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`、`src/ui/playground-page-shell.ts`、`test/server.test.ts`、`docs/playground-current.md`、`DESIGN.md`
 
 ### Playground 运行日志倒序增量加载
@@ -1975,7 +1975,7 @@
 - 日期：2026-04-23
 - 主题：按增量更新流程把腾讯云新加坡生产环境从 `bbd8735` 更新到 `4b78f21 feat: consolidate task inbox and asset uploads`，上线标准 multipart 文件上传、任务消息独立收件箱、未读筛选分页、手机端更多按钮数字徽标和后台结果不再默认写回当前会话的收口。
 - 影响范围：服务器继续使用 GitHub 工作目录 `~/ugk-claw-repo` 与 shared 运行态 `~/ugk-claw-shared`；发布前备份 sidecar 登录态到 `/home/ubuntu/ugk-claw-shared/backups/chrome-sidecar-20260423-180038.tar.gz`，并给旧 `HEAD` 打本地回滚 tag `server-pre-deploy-20260423-180038`；执行 `git pull --ff-only origin main`、生产 compose config、`up --build -d`，随后因 nginx 单文件 bind mount 旧 inode 问题额外 `--force-recreate nginx`，确认 `client_max_body_size 80m` 真正在容器内生效。
-- 验证结果：内网 `/healthz` 返回 `{"ok":true}`，内网 `/playground` 返回 `HTTP/1.1 200 OK`；公网 `http://43.134.167.179:3000/healthz` 返回 `{"ok":true}`，公网 `/playground` 返回 `200`；`check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`；compose 状态显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行；页面源码包含 `mobile-overflow-task-inbox-badge`、`task-inbox-filter-unread-button` 和 `/v1/assets/upload`；`GET /v1/activity/summary` 正常返回未读数。
+- 验证结果：内网 `/healthz` 返回 `{"ok":true}`，内网 `/playground` 返回 `HTTP/1.1 200 OK`；公网 `http://43.156.19.100:3000/healthz` 返回 `{"ok":true}`，公网 `/playground` 返回 `200`；`check-deps.mjs` 返回 `host-browser: ok` 与 `proxy: ready`；compose 状态显示 `nginx`、`ugk-pi`、`ugk-pi-browser` healthy，`ugk-pi-browser-cdp` 与 `ugk-pi-conn-worker` 正常运行；页面源码包含 `mobile-overflow-task-inbox-badge`、`task-inbox-filter-unread-button` 和 `/v1/assets/upload`；`GET /v1/activity/summary` 正常返回未读数。
 - 对应入口：[docs/tencent-cloud-singapore-deploy.md](/E:/AII/ugk-pi/docs/tencent-cloud-singapore-deploy.md)、[docs/server-ops-quick-reference.md](/E:/AII/ugk-pi/docs/server-ops-quick-reference.md)
 
 ### 本轮上传与任务消息收口整理备份
@@ -2923,7 +2923,7 @@
 ### 腾讯云新加坡部署 Runbook 落地
 - 主题：把本次腾讯云新加坡 CVM 从选型、初始化、Docker 安装、代码传输、`.env`、生产 compose 启动、Chrome sidecar 登录、线上故障修复到后续更新发布的全过程沉淀为可追溯部署文档。
 - 影响范围：
-  - 新增 `docs/tencent-cloud-singapore-deploy.md`，记录当前云端实例 `43.134.167.179`、`4 核 8G`、`5Mbps`、Ubuntu `24.04.4 LTS`、`docker-compose.prod.yml`、公网 `3000`、SSH tunnel 访问 sidecar GUI 等事实。
+  - 新增 `docs/tencent-cloud-singapore-deploy.md`，记录当前云端实例 `43.156.19.100`、`4 核 8G`、`5Mbps`、Ubuntu `24.04.4 LTS`、`docker-compose.prod.yml`、公网 `3000`、SSH tunnel 访问 sidecar GUI 等事实。
   - `AGENTS.md` 增加云端部署 runbook 线索，明确后续接手时不要开放公网 `3901`，域名或 HTTPS 变更必须同步服务器 `.env` 与部署文档。
   - `README.md` 的文档导航补充部署 runbook 入口，避免只有 agent 接手文档知道这件事，普通入口却找不到。
   - `docs/traceability-map.md` 在快速接手和容器部署场景中加入部署 runbook，后续排查云端更新、回滚、SSH tunnel 时可以直接定位。

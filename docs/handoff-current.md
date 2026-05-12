@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-11`
+更新时间：`2026-05-12`
 
 这份文档给下一位全新接手 `ugk-pi / UGK CLAW` 的 agent 看。先读这里，再读 `AGENTS.md` 和追溯地图。别靠聊天记录拼现状，聊天记录会骗人，仓库里的事实比较不会装。
 
@@ -17,7 +17,7 @@
 
 开始前先执行 `git status --short` 和 `git log -1 --oneline`。未跟踪的 `.claude/`、`runtime/*.cjs`、`public/*.png/html`、`ui-design/`、奇怪的 `Eapp...jsonl` 都是本地运行产物，除非用户明确说明，否则不要提交、不要删除。
 
-当前双云和两个远端已经同步到 `9917981 Document dual-cloud conn badge deployment`；功能锚点是 `efb0de7 Align conn unread badge with run counts`。最近修复的是：对话页“后台任务”按钮未读数字现在和 `/playground/conn` 的 Conn run 未读结果保持一致。
+当前本地、`origin/main`、`gitee/main`、腾讯云生产和阿里云生产均已同步到 `6af83ac Confirm agent browser binding edits`。最近三次功能提交是：`ca2e272 Align model settings with active agent`、`42f7d4b Update Tencent cloud public IP`、`6af83ac Confirm agent browser binding edits`。重点变化是：左下角模型源跟随当前 Agent 默认模型；腾讯云公网入口更新为 `43.156.19.100`；独立 Agents 页编辑默认浏览器时补齐 UI 确认 header，避免 `Browser binding changes require explicit confirmation.`。
 ```
 
 新 agent 如果只做普通 bugfix，最小阅读顺序是：
@@ -34,12 +34,12 @@
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
-- 当前本地最新提交：本文件所在 HEAD；具体 hash 以 `git log -1 --oneline` 为准。
-- 当前 `origin/main` / `gitee/main`：已同步到本文件所在 HEAD；具体 hash 以 `git log -1 --oneline` 为准。
-- 腾讯云生产运行代码：已增量更新到本文件所在 HEAD，功能锚点 `efb0de7 Align conn unread badge with run counts`，已通过 `npm run server:ops -- tencent deploy` 和 `npm run server:ops -- tencent verify`。
-- 阿里云生产运行代码：已增量更新到本文件所在 HEAD，功能锚点 `efb0de7 Align conn unread badge with run counts`，已通过 `npm run server:ops -- aliyun deploy` 和 `npm run server:ops -- aliyun verify`。
-- 本轮稳定版主线：Agents 页面重写（inline 编辑器、对齐设计）、文件库指定文件删除、对话页 Agent 按钮直达独立 Agents 页面、Conn 未读统计收口、对话页后台任务未读徽章对齐 Conn run 未读口径、Conn 立即执行反馈防重复、Conn 立即执行后端幂等、Conn 运行一键全部已读按钮 + topbar 布局修复、Conn/Agents 独立页面浅色主题支持、Playground 刷新闪屏修复（`data-home` 路由架构清理）、`setStageMode` 死代码移除。
-- 验收结论：本地 `npx tsc --noEmit`、`git diff --check`、`npm test` 通过；双云均完成增量更新与运行态检查，腾讯云和阿里云 `verify` 均返回 `ok=true`，shared 运行态挂载、runtime skills 和 Chrome sidecar 保持可用。
+- 当前本地最新提交：`6af83ac Confirm agent browser binding edits`。
+- 当前 `origin/main` / `gitee/main`：已同步到 `6af83ac`。
+- 腾讯云生产运行代码：已增量更新到 `6af83ac`，已通过 `npm run server:ops -- tencent deploy` 和 `npm run server:ops -- tencent verify`。
+- 阿里云生产运行代码：已增量更新到 `6af83ac`，已通过 `npm run server:ops -- aliyun deploy` 和 `npm run server:ops -- aliyun verify`。
+- 本轮稳定版主线：Agent 默认模型设置收口、左下角模型源跟随当前 Agent、腾讯云公网 IP 更新、独立 Agents 页浏览器绑定确认补齐，并保留此前 Agents 页面重写、Conn 未读统计、Conn 立即执行反馈、独立页面浅色主题和 Playground 路由架构清理。
+- 验收结论：最近模型与浏览器绑定修复已通过 `npx tsx test/agent-model-ui.test.ts`、`npx tsx test/playground-agent-switch.test.ts`、`npx tsc --noEmit`、`git diff --check` 和双云 `verify`；shared 运行态挂载、runtime skills、agent 数据和 Chrome sidecar 保持可用。
 - 腾讯云正式入口：`http://43.156.19.100:3000/playground`
 - 腾讯云健康检查：`http://43.156.19.100:3000/healthz`
 - 腾讯云主部署目录：`/home/ubuntu/ugk-claw-repo`
@@ -52,10 +52,10 @@
 - 阿里云 shared 运行态目录：`/root/ugk-claw-shared`
 - 当前服务器更新方式：默认增量更新，腾讯云默认拉 `origin/main`，阿里云默认拉 `gitee/main`；如 Gitee 推送或阿里云直连 GitHub 不通，可在用户确认后用 Git bundle 做 ff-only 增量，不要整目录覆盖。
 - 当前 Chrome 工作台发布现场：Chrome 工作台第一阶段已经完成本地验证、提交、推送和双云增量部署。发布过程没有执行 `docker compose down -v`，没有覆盖 shared，没有复制本地 Chrome profile 到服务器；默认旧 Chrome sidecar 在双云验收时仍显示 `Up 4 days (healthy)`，说明旧登录态未被重建洗掉。后续仍必须保护 shared Chrome 登录态目录：腾讯云 `~/ugk-claw-shared/.data/chrome-sidecar*`，阿里云 `/root/ugk-claw-shared/.data/chrome-sidecar*`。
-- 当前本地未发布变更：无已跟踪源码 / 文档变更待发布；未跟踪运行产物仍不属于发布内容。
+- 当前本地未发布变更：无已跟踪源码 / 文档变更待发布；如果本文件后续有交接文档改动，需要单独提交文档。未跟踪运行产物仍不属于发布内容。
 - 双云部署注意：腾讯云从 `origin`（GitHub）拉代码，阿里云从 `gitee` 拉代码。要让双云完全同版，发布前务必同时推送两个 remote：`git push && git push gitee main`；只修阿里云时也要在文档里写清楚腾讯云没有同步，别让下个 agent 脑补。
 - Playground UI 架构：`data-home="true"/"false"` 是唯一路由开关（agent 列表 vs 对话视图）。`data-stage-mode="landing"` 是永久 CSS-only hook，运行时不变。主题系统用 `[data-theme="dark"]` / `[data-theme="light"]`，token 选择器不能包含 `body`。独立页面（conn、agents）用 `standalone-page-shared.ts` 作共享 CSS base，各自内嵌 token 覆盖块。
-- 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
+- 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。左下角“模型源”设置在 `main` 里仍写全局默认；切到非主 Agent 时优先显示并保存该 Agent 的 `defaultModelProvider/defaultModelId`。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
 - 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
 - 当前未跟踪禁区：`.claude/`、`runtime/xhs-extract.mjs`、`public/ptt-slide*.html`、`public/slide*.png`、`runtime/*.cjs`、奇怪的 `Eapp...jsonl` 路径等运行产物 / 本地文件不属于本轮增量提交，继续不要提交、不要删除，除非用户明确说明它们的归属。
 

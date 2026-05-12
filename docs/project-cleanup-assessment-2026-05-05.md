@@ -45,7 +45,7 @@ curl http://101.37.209.54:3000/v1/debug/cleanup
 只看某个修复时间之后的腾讯云状态：
 
 ```bash
-curl "http://43.134.167.179:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z"
+curl "http://43.156.19.100:3000/v1/debug/cleanup?since=2026-05-05T06:00:00.000Z"
 ```
 
 ## 保留但必须标记为 legacy 的兼容层

@@ -12,7 +12,7 @@
 ## 当前已确认事实
 
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
-- 当前公网入口：`http://43.134.167.179:3000/playground`
+- 当前公网入口：`http://43.156.19.100:3000/playground`
 - 当前服务器目录：`~/ugk-pi-claw`
 - 当前服务器目录性质：tar 解包目录，不是 Git 仓库
 - 生产 compose：`docker-compose.prod.yml`
@@ -24,7 +24,7 @@
 当前本机没有可用 SSH 私钥，直接执行：
 
 ```bash
-ssh ubuntu@43.134.167.179
+ssh ubuntu@43.156.19.100
 ```
 
 返回：
@@ -69,7 +69,7 @@ Permission denied (publickey,password).
 1. 登录服务器
 
 ```bash
-ssh ubuntu@43.134.167.179
+ssh ubuntu@43.156.19.100
 ```
 
 2. 记录当前目录与容器状态

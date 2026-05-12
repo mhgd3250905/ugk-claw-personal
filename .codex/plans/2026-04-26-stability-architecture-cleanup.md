@@ -23,7 +23,7 @@
 - 本地入口：`http://127.0.0.1:3000/playground`
 - 健康检查：`http://127.0.0.1:3000/healthz`
 - 标准验证：`npm test`、涉及设计时加 `npm run design:lint`
-- 生产入口：`http://43.134.167.179:3000/playground`
+- 生产入口：`http://43.156.19.100:3000/playground`
 - 生产部署目录：`~/ugk-claw-repo`
 - 生产运行态目录：`~/ugk-claw-shared`
 - 当前工作区已有未跟踪文件：`runtime/commit-playground-asset-detail-hydration.ps1`、`runtime/pudong-weather.md`，不是本计划内容，不能顺手提交或删除。
