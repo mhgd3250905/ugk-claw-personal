@@ -25,6 +25,16 @@ test("standalone agents page binds model provider changes for both create and ed
 	);
 });
 
+test("standalone agents page confirms browser binding changes when editing agents", () => {
+	const page = renderAgentsPage();
+
+	assert.match(page, /function confirmAgentBrowserChangeIfNeeded\(/);
+	assert.match(page, /确认变更默认浏览器/);
+	assert.match(page, /var browserChanged = String\(agent\.defaultBrowserId \|\| ""\)\.trim\(\) !== String\(browser \|\| ""\)\.trim\(\);/);
+	assert.match(page, /"x-ugk-browser-binding-confirmed": "true"/);
+	assert.match(page, /"x-ugk-browser-binding-source": "playground"/);
+});
+
 test("playground model settings follow the active agent default model outside main", () => {
 	const page = renderPlaygroundPage();
 

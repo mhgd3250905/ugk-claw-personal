@@ -12,6 +12,14 @@
 
 ## 2026-05-12
 
+### 独立 Agents 页浏览器绑定确认补齐
+- 日期：2026-05-12
+- 主题：修复 `/playground/agents` 编辑 Agent 时修改默认浏览器会被后端返回 `Browser binding changes require explicit confirmation.` 的问题。
+- 影响范围：
+  - `src/ui/agents-page.ts`：独立 Agents 页在默认浏览器发生变化时弹出确认，并在 PATCH `/v1/agents/:agentId` 时携带 `x-ugk-browser-binding-confirmed: true` 和 `x-ugk-browser-binding-source: playground`，与 Playground 内嵌 Agent 管理器保持一致。
+  - `test/agent-model-ui.test.ts`：补充回归断言，防止独立页面再次漏掉浏览器绑定确认头。
+- 对应入口：`src/ui/agents-page.ts`、`test/agent-model-ui.test.ts`
+
 ### 腾讯云公网 IP 口径更新
 - 日期：2026-05-12
 - 主题：腾讯云新加坡生产公网 IP 从 `43.134.167.179` 更新为 `43.156.19.100`，同步调整运维脚本公网验收地址和接手文档。

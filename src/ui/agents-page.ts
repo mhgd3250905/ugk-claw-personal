@@ -1227,6 +1227,29 @@ function getAgentsPageJs(): string {
 			return { defaultModelProvider: modelProvider, defaultModelId: modelModel };
 		}
 
+		function getBrowserLabel(browserId) {
+			var normalized = String(browserId || "").trim();
+			if (!normalized) return "跟随系统默认";
+			var browser = state.browserList.find(function(b) { return b.browserId === normalized; });
+			return browser ? ((browser.name || browser.browserId) + " · " + browser.browserId) : normalized;
+		}
+
+		async function confirmAgentBrowserChangeIfNeeded(agent, nextBrowserId) {
+			var currentBrowserId = String((agent || {}).defaultBrowserId || "").trim();
+			var normalizedNextBrowserId = String(nextBrowserId || "").trim();
+			if (currentBrowserId === normalizedNextBrowserId) return true;
+			return await openConfirmDialog({
+				title: "确认变更默认浏览器",
+				message:
+					'Agent "' + ((agent || {}).name || (agent || {}).agentId || "") + '" 的默认浏览器将从 "' +
+					getBrowserLabel(currentBrowserId) +
+					'" 改为 "' +
+					getBrowserLabel(normalizedNextBrowserId) +
+					'"。后续新 run 会使用新的浏览器登录态。',
+				confirmLabel: "确认变更",
+			});
+		}
+
 		function renderEditorForm(agent) {
 			var body = document.getElementById("ag-detail-body");
 			var titleEl = document.getElementById("ag-detail-title");
@@ -1318,12 +1341,20 @@ function getAgentsPageJs(): string {
 			if (!name.trim()) { showEditorError("名称不能为空"); return; }
 			if (!id.trim() || !/^[a-z][a-z0-9-]*$/.test(id)) { showEditorError("Agent ID 格式不正确（小写字母开头，仅含小写字母、数字、连字符）"); return; }
 			if (["main","search"].indexOf(id) !== -1) { showEditorError("该 Agent ID 已被系统保留"); return; }
+			var confirmed = await confirmAgentBrowserChangeIfNeeded({ agentId: id, name: name, defaultBrowserId: "" }, browser);
+			if (!confirmed) return;
 			var submitBtn = document.getElementById("ed-submit");
 			if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "创建中..."; }
 			try {
 				await fetchJson("/v1/agents", {
 					method: "POST",
-					headers: { "content-type": "application/json" },
+					headers: {
+						"content-type": "application/json",
+						...(browser ? {
+							"x-ugk-browser-binding-confirmed": "true",
+							"x-ugk-browser-binding-source": "playground",
+						} : {}),
+					},
 					body: JSON.stringify({ agentId: id, name: name, description: desc, defaultBrowserId: browser || undefined, ...modelPatch }),
 				});
 				state.editorMode = null;
@@ -1348,12 +1379,21 @@ function getAgentsPageJs(): string {
 			var modelPatch = buildEditorModelPatch(true);
 			if (modelPatch === null) return;
 			if (!name.trim()) { showEditorError("名称不能为空"); return; }
+			var browserChanged = String(agent.defaultBrowserId || "").trim() !== String(browser || "").trim();
+			var confirmed = await confirmAgentBrowserChangeIfNeeded(agent, browser);
+			if (!confirmed) return;
 			var submitBtn = document.getElementById("ed-submit");
 			if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "保存中..."; }
 			try {
 				await fetchJson("/v1/agents/" + agent.agentId, {
 					method: "PATCH",
-					headers: { "content-type": "application/json" },
+					headers: {
+						"content-type": "application/json",
+						...(browserChanged ? {
+							"x-ugk-browser-binding-confirmed": "true",
+							"x-ugk-browser-binding-source": "playground",
+						} : {}),
+					},
 					body: JSON.stringify({ name: name, description: desc, defaultBrowserId: browser || null, ...modelPatch }),
 				});
 				state.editorMode = null;
