@@ -1194,6 +1194,39 @@ function getAgentsPageJs(): string {
 			renderDetailBody();
 		}
 
+		function bindEditorModelProviderSelect() {
+			var providerSel = document.getElementById("ed-model-provider");
+			var modelSel = document.getElementById("ed-model-model");
+			if (!providerSel || !modelSel || !state.modelConfig) return;
+			providerSel.addEventListener("change", function() {
+				var pid = providerSel.value;
+				modelSel.innerHTML = '<option value="">跟随全局默认</option>';
+				if (!pid) return;
+				var prov = state.modelConfig.providers.find(function(p) { return p.id === pid; });
+				if (!prov) return;
+				prov.models.forEach(function(m) {
+					var opt = document.createElement('option');
+					opt.value = m.id;
+					opt.textContent = m.name || m.id;
+					modelSel.appendChild(opt);
+				});
+			});
+		}
+
+		function buildEditorModelPatch(isEdit) {
+			if (!state.modelConfig) return {};
+			var modelProvider = (document.getElementById("ed-model-provider") || {}).value || "";
+			var modelModel = (document.getElementById("ed-model-model") || {}).value || "";
+			if (!modelProvider && !modelModel) {
+				return isEdit ? { defaultModelProvider: null, defaultModelId: null } : {};
+			}
+			if (!modelProvider || !modelModel) {
+				showEditorError("默认模型提供商和默认模型需要同时选择，或都留空跟随全局默认。");
+				return null;
+			}
+			return { defaultModelProvider: modelProvider, defaultModelId: modelModel };
+		}
+
 		function renderEditorForm(agent) {
 			var body = document.getElementById("ag-detail-body");
 			var titleEl = document.getElementById("ag-detail-title");
@@ -1256,6 +1289,7 @@ function getAgentsPageJs(): string {
 
 			document.getElementById("ed-submit").addEventListener("click", isEdit ? handleEditorUpdate : handleEditorCreate);
 			document.getElementById("ed-cancel").addEventListener("click", closeEditor);
+			bindEditorModelProviderSelect();
 
 			if (!isEdit) {
 				var nameInput = document.getElementById("ed-name");
@@ -1266,28 +1300,6 @@ function getAgentsPageJs(): string {
 					});
 					idInput.addEventListener("input", function() { idInput.dataset.touched = "1"; });
 				}
-
-			if (!isMainAgent && state.modelConfig) {
-				var providerSel = document.getElementById("ed-model-provider");
-				var modelSel = document.getElementById("ed-model-model");
-				if (providerSel && modelSel) {
-					providerSel.addEventListener("change", function() {
-						var pid = providerSel.value;
-						modelSel.innerHTML = '<option value="">跟随全局默认</option>';
-						if (pid && state.modelConfig) {
-							var prov = state.modelConfig.providers.find(function(p) { return p.id === pid; });
-							if (prov) {
-								prov.models.forEach(function(m) {
-									var opt = document.createElement('option');
-									opt.value = m.id;
-									opt.textContent = m.name || m.id;
-									modelSel.appendChild(opt);
-								});
-							}
-						}
-					});
-				}
-			}
 			}
 		}
 
@@ -1301,8 +1313,8 @@ function getAgentsPageJs(): string {
 			var id = (document.getElementById("ed-id") || {}).value || slugify(name);
 			var desc = (document.getElementById("ed-desc") || {}).value || "";
 			var browser = (document.getElementById("ed-browser") || {}).value || "";
-			var modelProvider = (document.getElementById("ed-model-provider") || {}).value || "";
-			var modelModel = (document.getElementById("ed-model-model") || {}).value || "";
+			var modelPatch = buildEditorModelPatch(false);
+			if (modelPatch === null) return;
 			if (!name.trim()) { showEditorError("名称不能为空"); return; }
 			if (!id.trim() || !/^[a-z][a-z0-9-]*$/.test(id)) { showEditorError("Agent ID 格式不正确（小写字母开头，仅含小写字母、数字、连字符）"); return; }
 			if (["main","search"].indexOf(id) !== -1) { showEditorError("该 Agent ID 已被系统保留"); return; }
@@ -1312,7 +1324,7 @@ function getAgentsPageJs(): string {
 				await fetchJson("/v1/agents", {
 					method: "POST",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ agentId: id, name: name, description: desc, defaultBrowserId: browser || undefined, defaultModelProvider: modelProvider || undefined, defaultModelId: modelModel || undefined }),
+					body: JSON.stringify({ agentId: id, name: name, description: desc, defaultBrowserId: browser || undefined, ...modelPatch }),
 				});
 				state.editorMode = null;
 				await apiFetchAgents();
@@ -1333,8 +1345,8 @@ function getAgentsPageJs(): string {
 			var name = (document.getElementById("ed-name") || {}).value || "";
 			var desc = (document.getElementById("ed-desc") || {}).value || "";
 			var browser = (document.getElementById("ed-browser") || {}).value || "";
-			var modelProvider = (document.getElementById("ed-model-provider") || {}).value || "";
-			var modelModel = (document.getElementById("ed-model-model") || {}).value || "";
+			var modelPatch = buildEditorModelPatch(true);
+			if (modelPatch === null) return;
 			if (!name.trim()) { showEditorError("名称不能为空"); return; }
 			var submitBtn = document.getElementById("ed-submit");
 			if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "保存中..."; }
@@ -1342,7 +1354,7 @@ function getAgentsPageJs(): string {
 				await fetchJson("/v1/agents/" + agent.agentId, {
 					method: "PATCH",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ name: name, description: desc, defaultBrowserId: browser || null, defaultModelProvider: modelProvider || null, defaultModelId: modelModel || null }),
+					body: JSON.stringify({ name: name, description: desc, defaultBrowserId: browser || null, ...modelPatch }),
 				});
 				state.editorMode = null;
 				await apiFetchAgents();

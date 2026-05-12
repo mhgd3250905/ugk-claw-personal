@@ -22,16 +22,22 @@ async function createProjectRootWithModelSettings(): Promise<string> {
 	await writeFile(
 		join(root, "runtime", "pi-agent", "models.json"),
 		JSON.stringify({
-			providers: [
-				{
-					id: "global-provider",
+			providers: {
+				"global-provider": {
+					name: "global-provider",
+					api: "anthropic-messages",
+					baseUrl: "https://example.invalid",
+					apiKey: "TEST_API_KEY",
 					models: [{ id: "global-model", contextWindow: 64000, maxTokens: 4096 }],
 				},
-				{
-					id: "agent-provider",
+				"agent-provider": {
+					name: "agent-provider",
+					api: "anthropic-messages",
+					baseUrl: "https://example.invalid",
+					apiKey: "TEST_API_KEY",
 					models: [{ id: "agent-model", contextWindow: 128000, maxTokens: 8192 }],
 				},
-			],
+			},
 		}),
 		"utf8",
 	);

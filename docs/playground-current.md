@@ -7,6 +7,8 @@
 - Agent 管理页（`/playground/agents`）和 Playground 内嵌 Agent 操作台都支持为每个 Agent 独立选择默认模型提供商和模型。
 - 主 Agent（agentId `main`）的模型选择器被隐藏，始终跟随全局设置（`.pi/settings.json`）。
 - 新建和编辑 Agent 时均可设置模型；provider 变更会动态刷新 model 下拉列表。
+- 如果模型配置读取失败，编辑保存时必须保留 Agent 已有默认模型，不得因为下拉为空而提交 `null/null` 清空配置。
+- 如果 Agent 保存的默认模型已从当前 `models.json` 移除，运行态和展示上下文都回落项目全局默认模型。
 - 后端 PATCH `/v1/agents/:agentId` 对模型字段做 live validate（创建真实 agent session 验证），Agent 有运行中任务时返回 409。
 - 模型优先级链：Conn 显式指定 > Agent 默认 > 项目全局默认。
 - 相关源码：`src/ui/agents-page.ts`、`src/ui/playground-agent-manager.ts`、`src/routes/chat.ts`、`src/agent/agent-session-factory.ts`

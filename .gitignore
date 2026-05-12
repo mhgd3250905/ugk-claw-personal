@@ -1,4 +1,5 @@
 .codex/tmp/
+.claude/
 .tmp/
 .ugk-browser-bin/
 .env

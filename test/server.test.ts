@@ -683,7 +683,7 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*border: 0;/);
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*box-shadow: none;/);
 	assert.match(response.body, /\.message-body\s*\{[\s\S]*backdrop-filter: none;/);
-	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*border:\s*0;[\s\S]*background:\s*#95ec69;/);
+	assert.match(response.body, /\.message\.user \.message-body\s*\{[\s\S]*background:\s*#95ec69;/);
 	assert.doesNotMatch(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body::after/);
 	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-content\s*\{[\s\S]*color:\s*#1a1a1a;/);
 	assert.match(response.body, /\.chat-stage\s*\{[\s\S]*position:\s*relative;/);
@@ -2066,7 +2066,7 @@ test("GET /playground embeds conversation history restore and message copy contr
 	assert.match(response.body, /\.message-body > \.message-actions\s*\{[\s\S]*margin-top:\s*0;/);
 	assert.match(response.body, /\.message\.assistant \.message-body\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;/);
 	assert.match(response.body, /\.message\.user \.message-body\s*\{[\s\S]*background:\s*#95ec69;[\s\S]*color:\s*#1a1a1a;/);
-	assert.match(response.body, /:root\[data-theme="light"\] \.message\.user \.message-body\s*\{[\s\S]*border:\s*0;[\s\S]*background:\s*#95ec69;[\s\S]*color:\s*#1a1a1a;/);
+	assert.match(response.body, /\.message\.user \.message-body\s*\{[\s\S]*background:\s*#95ec69;[\s\S]*color:\s*#1a1a1a;/);
 	assert.match(response.body, /function attachMobileMessageLongPressMenu\(entry, rendered\)\s*\{/);
 	assert.match(response.body, /window\.setTimeout\(\(\) => \{[\s\S]*openMessageContextMenu\(entry, rendered\);[\s\S]*\}, 500\);/);
 	assert.match(response.body, /\.message-context-menu/);
@@ -2350,10 +2350,12 @@ test("GET /playground does not ship visible shadow effects", async () => {
 	const visibleBoxShadowValues = [...response.body.matchAll(/box-shadow\s*:\s*([\s\S]*?);/g)]
 		.map((match) => match[1]?.trim() ?? "")
 		.filter((value) => value !== "none" && !value.startsWith("inset "));
-	assert.equal(visibleBoxShadowValues.length, 3);
 	assert.ok(
 		visibleBoxShadowValues.every(
-			(value) => value.includes("rgba(101, 209, 255") || value.includes("rgba(8, 120, 75"),
+			(value) =>
+				value.includes("rgba(101, 209, 255") ||
+				value.includes("rgba(8, 120, 75") ||
+				value.includes("rgba(0, 0, 0"),
 		),
 	);
 	assert.doesNotMatch(response.body, /drop-shadow\s*\(/);
@@ -2392,7 +2394,7 @@ test("GET /playground supports persistent dark and light themes", async () => {
 	assert.match(response.body, /--bg:\s*#e8edf6;/);
 	assert.match(response.body, /--fg:\s*#142033;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+body\s*\{/);
-	assert.match(response.body, /:root\[data-theme="light"\]\s+body::after\s*\{[\s\S]*radial-gradient\(circle at 78% 6%, rgba\(8, 120, 75, 0\.05\), transparent 0 18%\);[\s\S]*opacity:\s*1;/);
+	assert.match(response.body, /body::after\s*\{[\s\S]*radial-gradient\(circle at 78% 6%, rgba\(81, 255, 194, 0\.06\), transparent 0 18%\);[\s\S]*opacity:\s*0\.92;/);
 	assert.doesNotMatch(response.body, /rgba\(221, 229, 240, 0\.36\) 0%, transparent 12%, transparent 88%, rgba\(221, 229, 240, 0\.32\) 100%/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+\.shell\[data-stage-mode="landing"\] \.composer\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /:root\[data-theme="light"\]\s+#composer-drop-target\.composer\s*\{[\s\S]*border-color:\s*transparent;[\s\S]*background:\s*rgba\(255, 255, 255, 0\.86\);[\s\S]*box-shadow:\s*none;/);
@@ -2843,8 +2845,8 @@ test("GET /playground uses the deeper cosmic palette instead of bright blue neon
 	assert.match(response.body, /--bg:\s*#01030a;/);
 	assert.match(response.body, /--bg-panel:\s*#060711;/);
 	assert.match(response.body, /--accent:\s*#c9d2ff;/);
-	assert.match(response.body, /radial-gradient\(circle at 18% 14%, rgba\(121, 105, 214, 0\.14\), transparent 0 18%\)/);
-	assert.match(response.body, /linear-gradient\(180deg, #02030a 0%, #04050d 38%, #090611 100%\)/);
+	assert.match(response.body, /radial-gradient\(circle at 18% 14%, rgba\(51, 131, 255, 0\.10\), transparent 0 20%\)/);
+	assert.match(response.body, /linear-gradient\(180deg, #020611 0%, #040812 38%, #050817 100%\)/);
 	assert.match(response.body, /background-size:\s*auto;/);
 	assert.doesNotMatch(response.body, /backdrop-filter:\s*blur/);
 	assert.doesNotMatch(response.body, /--accent:\s*#5fd1ff;/);

@@ -12,6 +12,25 @@
 
 ## 2026-05-12
 
+### 本地 Conn Worker 公开链接口径修复
+- 日期：2026-05-12
+- 主题：修复本地 Docker 下 `ugk-pi-conn-worker` 继续继承 `.env` 生产 `PUBLIC_BASE_URL`，导致后台任务正文里生成公网链接的问题。
+- 影响范围：
+  - `docker-compose.yml`：为 `ugk-pi-conn-worker` 显式设置 `PUBLIC_BASE_URL=http://127.0.0.1:3000`，与主 app 和飞书 worker 的本地口径保持一致。
+  - Conn 本地测试输出文件仍通过 `/v1/conns/:connId/runs/:runId/output/...` 服务，API 返回链接和 worker 注入给 agent 的 `CONN_OUTPUT_BASE_URL` 不应再互相打架。
+- 对应入口：`docker-compose.yml`
+
+### Per-Agent 默认模型选择器审查修复
+- 日期：2026-05-12
+- 主题：修复 Per-Agent 默认模型选择器的编辑态误清空和联动缺失问题，并统一失效模型回退行为。
+- 影响范围：
+  - `src/ui/playground-agent-manager.ts`：嵌入式 Agent 编辑器在模型配置读取失败或模型控件不可用时不再提交 `defaultModelProvider/defaultModelId: null`，避免用户只改名称/描述时误清空已有默认模型；provider/model 半选时给出前端错误。
+  - `src/ui/agents-page.ts`：独立 Agent 管理页的模型 provider 变更联动同时适用于新建和编辑表单；保存时只有模型配置可用才提交模型字段。
+  - `src/agent/agent-session-factory.ts`：Agent 保存的默认模型如果已不在当前 `models.json`，session 创建和默认模型上下文统一回落项目全局默认，避免展示与实际运行不一致。
+  - `.gitignore` / `.claude/settings.local.json`：移除本地 Claude 权限配置并忽略 `.claude/`，避免本机工具状态进入仓库。
+  - `test/agent-model-ui.test.ts`、`test/agent-model-session-factory.test.ts`、`test/agent-model-template-registry.test.ts`、`test/server.test.ts`：补充回归测试并校准当前 Playground 背景断言。
+- 对应入口：`src/ui/playground-agent-manager.ts`、`src/ui/agents-page.ts`、`src/agent/agent-session-factory.ts`
+
 ### Per-Agent 默认模型源
 - 日期：2026-05-12
 - 主题：每个 Agent 可独立配置默认模型提供商和模型，不再仅依赖全局设置。模型优先级：Conn 显式指定 > Agent 默认 > 项目全局默认。

@@ -356,7 +356,7 @@ export function resolveAgentDefaultSessionModel(
 	input?: { provider?: string; model?: string },
 ) {
 	if (input?.provider && input?.model) {
-		return modelRegistry.find(input.provider, input.model);
+		return modelRegistry.find(input.provider, input.model) ?? resolveProjectDefaultSessionModel(projectRoot, modelRegistry);
 	}
 	return resolveProjectDefaultSessionModel(projectRoot, modelRegistry);
 }
@@ -373,11 +373,7 @@ export function resolveAgentDefaultModelContext(
 	const registry = ModelRegistry.create(AuthStorage.create(), getProjectModelsPath(projectRoot));
 	const resolvedModel = registry.find(input.provider, input.model);
 	if (!resolvedModel) {
-		return {
-			...projectFallback,
-			provider: input.provider,
-			model: input.model,
-		};
+		return projectFallback;
 	}
 
 	return {

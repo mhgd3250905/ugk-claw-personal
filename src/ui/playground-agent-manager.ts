@@ -913,6 +913,24 @@ export function getPlaygroundAgentManagerScript(): string {
 				}
 			}
 
+			function buildAgentEditorModelSelectionPatch() {
+				if (!state.modelConfig || !agentEditorModelProviderSelect || !agentEditorModelSelect) {
+					return {};
+				}
+				const provider = String(agentEditorModelProviderSelect.value || "").trim();
+				const model = String(agentEditorModelSelect.value || "").trim();
+				if (!provider && !model) {
+					return state.agentEditorMode === "edit"
+						? { defaultModelProvider: null, defaultModelId: null }
+						: {};
+				}
+				if (!provider || !model) {
+					setAgentEditorError("默认模型提供商和默认模型需要同时选择，或都留空跟随全局默认。");
+					return null;
+				}
+				return { defaultModelProvider: provider, defaultModelId: model };
+			}
+
 		function getBrowserCatalog() {
 			return Array.isArray(state.browserCatalog) ? state.browserCatalog : [];
 		}
@@ -1838,6 +1856,10 @@ export function getPlaygroundAgentManagerScript(): string {
 				return;
 			}
 			const editing = state.agentEditorMode === "edit";
+			const modelSelectionPatch = buildAgentEditorModelSelectionPatch();
+			if (modelSelectionPatch === null) {
+				return;
+			}
 			const currentAgent = getManagedAgentCatalog().find((entry) => entry.agentId === agentId) || {
 				agentId,
 				name,
@@ -1875,9 +1897,7 @@ export function getPlaygroundAgentManagerScript(): string {
 							name,
 							description,
 							...(editing || defaultBrowserId ? { defaultBrowserId: defaultBrowserId || null } : {}),
-							...(agentEditorModelProviderSelect?.value && agentEditorModelSelect?.value
-								? { defaultModelProvider: agentEditorModelProviderSelect.value, defaultModelId: agentEditorModelSelect.value }
-								: editing ? { defaultModelProvider: null, defaultModelId: null } : {}),
+							...modelSelectionPatch,
 						}),
 					},
 				);

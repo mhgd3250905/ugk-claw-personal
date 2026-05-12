@@ -16,7 +16,24 @@ async function setupProjectWithModels(
 	await mkdir(join(projectRoot, ".pi"), { recursive: true });
 	await mkdir(join(projectRoot, "runtime", "pi-agent"), { recursive: true });
 	await writeFile(join(projectRoot, ".pi", "settings.json"), JSON.stringify(settings), "utf8");
-	await writeFile(join(projectRoot, "runtime", "pi-agent", "models.json"), JSON.stringify({ providers: models }), "utf8");
+	await writeFile(
+		join(projectRoot, "runtime", "pi-agent", "models.json"),
+		JSON.stringify({
+			providers: Object.fromEntries(
+				Object.entries(models).map(([providerId, provider]) => [
+					providerId,
+					{
+						name: providerId,
+						api: "anthropic-messages",
+						baseUrl: "https://example.invalid",
+						apiKey: "TEST_API_KEY",
+						models: provider.models,
+					},
+				]),
+			),
+		}),
+		"utf8",
+	);
 	return projectRoot;
 }
 
@@ -57,7 +74,7 @@ test("resolveAgentDefaultModelContext falls back to project global when agent in
 	assert.equal(withUndef.model, globalCtx.model);
 });
 
-test("resolveAgentDefaultModelContext handles unknown agent model gracefully", async () => {
+test("resolveAgentDefaultModelContext falls back to project global when agent model is unknown", async () => {
 	const projectRoot = await setupProjectWithModels(
 		{ "global-provider": { models: [{ id: "global-model", contextWindow: 64000, maxTokens: 4096 }] } },
 		{ defaultProvider: "global-provider", defaultModel: "global-model", compaction: { reserveTokens: 8192 } },
@@ -68,7 +85,7 @@ test("resolveAgentDefaultModelContext handles unknown agent model gracefully", a
 		model: "unknown-model",
 	});
 
-	assert.equal(ctx.provider, "unknown-provider");
-	assert.equal(ctx.model, "unknown-model");
+	assert.equal(ctx.provider, "global-provider");
+	assert.equal(ctx.model, "global-model");
 	assert.equal(ctx.reserveTokens, 8192);
 });
