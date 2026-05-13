@@ -11,6 +11,16 @@
 ---
 
 ## 2026-05-13
+### Conn 页面复制按钮兼容公网 HTTP
+- 日期：2026-05-13
+- 主题：修复正式服务器 HTTP 访问 `/playground/conn` 时复制按钮因 `navigator.clipboard` 不存在而报错的问题。
+- 影响范围：
+  - `src/ui/conn-page-js.ts`：Conn 独立页复制逻辑改为先使用安全上下文 Clipboard API，非安全上下文回退到隐藏 textarea + `document.execCommand("copy")`；Run ID 点击复制改为走统一复制 helper。
+  - `test/server.test.ts`：新增 Conn 页面复制 fallback 回归断言，防止再次裸调 `navigator.clipboard.writeText(run.runId)`。
+- 对应入口：
+  - `src/ui/conn-page-js.ts`
+  - `test/server.test.ts`
+
 ### Matt Pocock 工程技能配置
 - 日期：2026-05-13
 - 主题：为 `to-issues`、`to-prd`、`triage`、`diagnose`、`tdd`、`improve-codebase-architecture`、`zoom-out` 等工程技能补齐仓库级配置入口。

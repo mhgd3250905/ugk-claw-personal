@@ -41,8 +41,38 @@ const state = {
 
 function $(id) { return document.getElementById(id); }
 
+async function writeClipboardText(text) {
+  const value = String(text || "");
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    if (!document.execCommand("copy")) {
+      throw new Error("copy_failed");
+    }
+  } finally {
+    textarea.remove();
+  }
+}
+
 function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(function() { showToast("已复制", "success"); }).catch(function() {});
+  return writeClipboardText(text).then(function() {
+    showToast("已复制", "success");
+    return true;
+  }).catch(function() {
+    showToast("复制失败", "error");
+    return false;
+  });
 }
 
 // ── API Functions ──────────────────────────────────────────────────────────
@@ -674,7 +704,8 @@ function renderRunDetail(container, run, files, events) {
   idLabel.addEventListener("click", function(e) {
     e.stopPropagation();
     e.preventDefault();
-    navigator.clipboard.writeText(run.runId).then(function() {
+    copyToClipboard(run.runId).then(function(copied) {
+      if (!copied) return;
       idLabel.textContent = "已复制";
       idLabel.classList.add("is-copied");
       setTimeout(function() {

@@ -1224,6 +1224,16 @@ test("standalone conn page sorts the left task list by recent completed run", ()
 	assert.match(response, /conn\?\.lastRunAt/);
 });
 
+test("standalone conn page falls back when clipboard API is unavailable", () => {
+	const response = renderConnPage();
+
+	assert.match(response, /async function writeClipboardText\(text\)\s*\{[\s\S]*navigator\.clipboard && window\.isSecureContext/);
+	assert.match(response, /function copyToClipboard\(text\)\s*\{[\s\S]*return writeClipboardText\(text\)\.then/);
+	assert.match(response, /document\.execCommand\("copy"\)/);
+	assert.match(response, /copyToClipboard\(run\.runId\)\.then/);
+	assert.doesNotMatch(response, /navigator\.clipboard\.writeText\(run\.runId\)/);
+});
+
 test("GET /playground defaults runtime append behavior to steer", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
