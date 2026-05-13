@@ -469,7 +469,9 @@ function checkNoContainerPaths(
 	resultText: string,
 ): ArtifactValidationIssue[] {
 	const issues: ArtifactValidationIssue[] = [];
-	if (/\/app\//.test(resultText)) {
+	const decodedResultText = decodeRepeatedly(resultText);
+	const searchableText = `${resultText}\n${decodedResultText}`;
+	if (/\/app\//.test(searchableText)) {
 		issues.push({
 			severity: "error",
 			code: "container_path_in_result",
@@ -479,7 +481,7 @@ function checkNoContainerPaths(
 				"Only ARTIFACT_PUBLIC_DIR files get official system-generated links",
 		});
 	}
-	if (/\/tmp\//.test(resultText)) {
+	if (/\/tmp\//.test(searchableText)) {
 		issues.push({
 			severity: "error",
 			code: "tmp_path_in_result",
@@ -490,6 +492,20 @@ function checkNoContainerPaths(
 		});
 	}
 	return issues;
+}
+
+function decodeRepeatedly(value: string): string {
+	let current = value;
+	for (let index = 0; index < 2; index += 1) {
+		try {
+			const decoded = decodeURIComponent(current);
+			if (decoded === current) break;
+			current = decoded;
+		} catch {
+			break;
+		}
+	}
+	return current;
 }
 
 function checkNoFileUrl(

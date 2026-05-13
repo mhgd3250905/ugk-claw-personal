@@ -214,6 +214,24 @@ test("resultText with /app/ fails no_container_paths", async () => {
 	}
 });
 
+test("encoded local-file container path fails no_container_paths", async () => {
+	const { workspace, cleanup } = await createTestWorkspace();
+	try {
+		await writeFile(join(workspace.artifactPublicDir, "report.txt"), "content");
+		const contract = buildDefaultArtifactContract({ expectedKind: "auto", repairMaxAttempts: 0 });
+		const result = await validateArtifactDelivery({
+			workspace,
+			contract,
+			resultText:
+				"See http://example.test/v1/local-file?path=%2Fapp%2Fpublic%2Freport%2Findex.html",
+		});
+		assert.equal(result.ok, false);
+		assert.ok(result.issues.some((i) => i.code === "container_path_in_result"));
+	} finally {
+		await cleanup();
+	}
+});
+
 test("resultText with file:// fails", async () => {
 	const { workspace, cleanup } = await createTestWorkspace();
 	try {

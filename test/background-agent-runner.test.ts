@@ -414,6 +414,7 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 				CONN_OUTPUT_BASE_URL: workspaceEnv.CONN_OUTPUT_BASE_URL,
 				SITE_PUBLIC_DIR: workspaceEnv.SITE_PUBLIC_DIR,
 				SITE_PUBLIC_BASE_URL: workspaceEnv.SITE_PUBLIC_BASE_URL,
+				ARTIFACT_PUBLIC_BASE_URL: workspaceEnv.ARTIFACT_PUBLIC_BASE_URL,
 				ZHIHU_REPORT_BASE_URL: workspaceEnv.ZHIHU_REPORT_BASE_URL,
 			};
 			await super.prompt(message);
@@ -456,6 +457,7 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 	assert.match(prompt, /CONN_OUTPUT_BASE_URL=http:\/\/example\.test\/v1\/conns\/[^/]+\/runs\/run-env-contract\/output/);
 	assert.match(prompt, /CONN_PUBLIC_BASE_URL=http:\/\/example\.test\/v1\/conns\/[^/]+\/public/);
 	assert.match(prompt, /SITE_PUBLIC_BASE_URL=http:\/\/example\.test\/v1\/sites\/team-website/);
+	assert.match(prompt, /ARTIFACT_PUBLIC_BASE_URL=http:\/\/example\.test\/v1\/conns\/[^/]+\/runs\/run-env-contract\/artifacts/);
 	assert.ok(session.observedEnv.OUTPUT_DIR?.endsWith(join("background", "runs", "run-env-contract", "output")));
 	assert.ok(session.observedEnv.CONN_SHARED_DIR?.endsWith(join("background", "shared", conn.connId)));
 	assert.ok(session.observedEnv.CONN_PUBLIC_DIR?.endsWith(join("background", "shared", conn.connId, "public")));
@@ -466,6 +468,7 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 	);
 	assert.equal(session.observedEnv.CONN_PUBLIC_BASE_URL, `http://example.test/v1/conns/${conn.connId}/public`);
 	assert.equal(session.observedEnv.SITE_PUBLIC_BASE_URL, "http://example.test/v1/sites/team-website");
+	assert.equal(session.observedEnv.ARTIFACT_PUBLIC_BASE_URL, `http://example.test/v1/conns/${conn.connId}/runs/run-env-contract/artifacts`);
 	assert.equal(session.observedEnv.ZHIHU_REPORT_BASE_URL, session.observedEnv.CONN_OUTPUT_BASE_URL);
 	assert.equal(process.env.OUTPUT_DIR, undefined);
 	assert.equal(process.env.CONN_SHARED_DIR, undefined);
@@ -474,6 +477,7 @@ test("BackgroundAgentRunner exposes output aliases and public output base url to
 	assert.equal(process.env.CONN_OUTPUT_BASE_URL, undefined);
 	assert.equal(process.env.SITE_PUBLIC_DIR, undefined);
 	assert.equal(process.env.SITE_PUBLIC_BASE_URL, undefined);
+	assert.equal(process.env.ARTIFACT_PUBLIC_BASE_URL, undefined);
 	assert.equal(process.env.ZHIHU_REPORT_BASE_URL, undefined);
 
 	database.close();

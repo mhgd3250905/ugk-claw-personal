@@ -154,9 +154,10 @@ export class BackgroundAgentRunner {
 			const outputBaseUrl = buildConnOutputBaseUrl(this.options.publicBaseUrl, conn.connId, run.runId);
 			const connPublicBaseUrl = buildConnPublicBaseUrl(this.options.publicBaseUrl, conn.connId);
 			const sitePublicBaseUrl = buildSitePublicBaseUrl(this.options.publicBaseUrl, conn.publicSiteId);
-			const prompt = buildBackgroundPrompt(conn, workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl);
+			const artifactBaseUrl = buildArtifactBaseUrl(this.options.publicBaseUrl, conn.connId, run.runId);
+			const prompt = buildBackgroundPrompt(conn, workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl, artifactBaseUrl);
 			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
-				await runWithBackgroundWorkspaceEnvironment(buildBackgroundWorkspaceEnvironment(workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl), async () => {
+				await runWithBackgroundWorkspaceEnvironment(buildBackgroundWorkspaceEnvironment(workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl, artifactBaseUrl), async () => {
 					await promptWithAbort(session, prompt, signal);
 				});
 			});
@@ -187,7 +188,7 @@ export class BackgroundAgentRunner {
 					promptWithAbort: (sess, promptText, sig) =>
 						runWithScopedAgentEnvironment(browserCleanupScope, async () =>
 							runWithBackgroundWorkspaceEnvironment(
-								buildBackgroundWorkspaceEnvironment(workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl),
+								buildBackgroundWorkspaceEnvironment(workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl, artifactBaseUrl),
 								() => promptWithAbort(sess, promptText, sig),
 							),
 						),
@@ -322,6 +323,7 @@ function buildBackgroundPrompt(
 	outputBaseUrl: string | undefined,
 	connPublicBaseUrl: string | undefined,
 	sitePublicBaseUrl: string | undefined,
+	artifactBaseUrl: string | undefined,
 ): string {
 	return [
 		`Background conn task: ${conn.title}`,
@@ -344,7 +346,8 @@ function buildBackgroundPrompt(
 					"- Use the site public directory only for files intended to be maintained by multiple conns and opened publicly.",
 				]
 			: []),
-	`- Official artifact delivery directory: ${workspace.artifactPublicDir}`,
+		`- Official artifact delivery directory: ${workspace.artifactPublicDir}`,
+		...(artifactBaseUrl ? [`- Official artifact delivery URL: ${artifactBaseUrl}`] : []),
 		"- Put every file, report, spreadsheet, PDF, CSV, Markdown file, image, and website that the user should receive into ARTIFACT_PUBLIC_DIR.",
 		"- For websites, put a complete folder in ARTIFACT_PUBLIC_DIR with index.html and all local CSS/JS/images.",
 		"- Do not give the user /app, file://, /tmp, work, logs, input, or session paths as final links.",
@@ -358,7 +361,8 @@ function buildBackgroundPrompt(
 		`LOGS_DIR=${workspace.logsDir}`,
 		`CONN_SHARED_DIR=${workspace.sharedDir}`,
 		`CONN_PUBLIC_DIR=${workspace.publicDir}`,
-	`ARTIFACT_PUBLIC_DIR=${workspace.artifactPublicDir}`,
+		`ARTIFACT_PUBLIC_DIR=${workspace.artifactPublicDir}`,
+		...(artifactBaseUrl ? [`ARTIFACT_PUBLIC_BASE_URL=${artifactBaseUrl}`] : []),
 		...(connPublicBaseUrl ? [`CONN_PUBLIC_BASE_URL=${connPublicBaseUrl}`] : []),
 		...(outputBaseUrl ? [`CONN_OUTPUT_BASE_URL=${outputBaseUrl}`, `ZHIHU_REPORT_BASE_URL=${outputBaseUrl}`] : []),
 		...(workspace.sitePublicDir ? [`SITE_PUBLIC_DIR=${workspace.sitePublicDir}`] : []),
@@ -392,6 +396,17 @@ function buildConnPublicBaseUrl(publicBaseUrl: string | undefined, connId: strin
 	).toString();
 }
 
+function buildArtifactBaseUrl(publicBaseUrl: string | undefined, connId: string, runId: string): string | undefined {
+	const normalizedBaseUrl = publicBaseUrl?.trim();
+	if (!normalizedBaseUrl) {
+		return undefined;
+	}
+	return new URL(
+		`/v1/conns/${encodeURIComponent(connId)}/runs/${encodeURIComponent(runId)}/artifacts`,
+		normalizedBaseUrl.endsWith("/") ? normalizedBaseUrl : `${normalizedBaseUrl}/`,
+	).toString();
+}
+
 function buildSitePublicBaseUrl(publicBaseUrl: string | undefined, siteId: string | undefined): string | undefined {
 	const normalizedBaseUrl = publicBaseUrl?.trim();
 	const normalizedSiteId = siteId?.trim();
@@ -409,6 +424,7 @@ function buildBackgroundWorkspaceEnvironment(
 	outputBaseUrl: string | undefined,
 	connPublicBaseUrl: string | undefined,
 	sitePublicBaseUrl: string | undefined,
+	artifactBaseUrl: string | undefined,
 ): Record<string, string | undefined> {
 	return {
 		OUTPUT_DIR: workspace.outputDir,
@@ -422,7 +438,8 @@ function buildBackgroundWorkspaceEnvironment(
 		SITE_PUBLIC_DIR: workspace.sitePublicDir,
 		SITE_PUBLIC_BASE_URL: sitePublicBaseUrl,
 		ZHIHU_REPORT_BASE_URL: outputBaseUrl,
-	ARTIFACT_PUBLIC_DIR: workspace.artifactPublicDir,
+		ARTIFACT_PUBLIC_DIR: workspace.artifactPublicDir,
+		ARTIFACT_PUBLIC_BASE_URL: artifactBaseUrl,
 	};
 }
 
@@ -548,7 +565,15 @@ function extractPublicLinkPaths(text: string): string[] {
 
 function tryAddPublicUrlPath(paths: Set<string>, value: string): void {
 	try {
-		addSafePublicPath(paths, new URL(value).pathname.replace(/^\/+/, ""));
+		const url = new URL(value);
+		if (url.pathname === "/v1/local-file") {
+			const localPath = url.searchParams.get("path");
+			if (localPath?.startsWith("/app/public/")) {
+				addSafePublicPath(paths, localPath.slice("/app/public/".length));
+			}
+			return;
+		}
+		addSafePublicPath(paths, url.pathname.replace(/^\/+/, ""));
 	} catch {
 		// Ignore malformed model-generated URLs.
 	}

@@ -11,6 +11,21 @@
 ---
 
 ## 2026-05-13
+### Conn artifact 交付链接保障
+- 日期：2026-05-13
+- 主题：修复启用 `artifactDelivery` 的 conn run 仍可能把旧 `/v1/local-file?path=/app/public/...` 链接写进最终结果，导致公网 IP 错误或手动改 IP 后仍 404 的问题。
+- 影响范围：
+  - `src/agent/background-agent-runner.ts`：后台任务新增 `ARTIFACT_PUBLIC_BASE_URL` 注入，让技能 / agent 能按平台官方 artifact 路由生成用户可见链接。
+  - `src/agent/artifact-validation.ts`：容器路径泄漏检测会解码 URL 编码文本，防止 `%2Fapp%2Fpublic...` 形式的 `/v1/local-file` 链接绕过验证。
+  - `src/agent/artifact-repair-loop.ts`：artifact 修复 prompt 明确要求使用 `ARTIFACT_PUBLIC_BASE_URL`，并禁止把 `/v1/local-file` 当 artifact 交付链接。
+  - `test/artifact-validation.test.ts`、`test/background-agent-runner.test.ts`、`test/artifact-repair-loop.test.ts`：新增编码 local-file 容器路径、artifact URL 环境变量和修复 prompt 回归测试。
+  - `docs/runtime-assets-conn-feishu.md`：同步 artifact 交付 URL 与错误链接修复口径。
+- 对应入口：
+  - `src/agent/background-agent-runner.ts`
+  - `src/agent/artifact-validation.ts`
+  - `src/agent/artifact-repair-loop.ts`
+  - `docs/runtime-assets-conn-feishu.md`
+
 ### 用户气泡链接与文件引用对比度修复
 - 日期：2026-05-13
 - 主题：修复深色主题下用户绿色消息气泡内链接和引用文件 chip 继承浅色文字导致看不清的问题。

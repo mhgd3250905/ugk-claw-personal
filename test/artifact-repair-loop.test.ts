@@ -186,6 +186,8 @@ test("repair prompt contains ARTIFACT_PUBLIC_DIR", async () => {
 
 	assert.ok(capturedPrompt.includes("ARTIFACT_PUBLIC_DIR"));
 	assert.ok(capturedPrompt.includes(workspace.artifactPublicDir));
+	assert.ok(capturedPrompt.includes("ARTIFACT_PUBLIC_BASE_URL"));
+	assert.ok(capturedPrompt.includes("/v1/local-file"));
 
 	const { rm } = await import("node:fs/promises");
 	await rm(rootPath, { recursive: true, force: true });
