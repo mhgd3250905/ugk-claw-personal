@@ -782,6 +782,9 @@ function getAgentsPageJs(): string {
 			editorMode: null,
 			browserList: [],
 			modelConfig: null,
+			archivePendingId: "",
+			removingSkillName: "",
+			refreshing: false,
 		};
 
 		const FILTER_TABS = [
@@ -1011,7 +1014,8 @@ function getAgentsPageJs(): string {
 					acts += '<button id="ag-btn-switch" class="ag-btn ag-btn--primary" type="button">切换到此 Agent</button>';
 				}
 				if (agent.agentId !== "main") {
-					acts += '<button id="ag-btn-archive" class="ag-btn ag-btn--danger" type="button">归档</button>';
+					var archiving = state.archivePendingId === agent.agentId;
+					acts += '<button id="ag-btn-archive" class="ag-btn ag-btn--danger" type="button"' + (archiving ? ' disabled' : '') + '>' + (archiving ? "归档中" : "归档") + '</button>';
 				}
 				actionsEl.innerHTML = acts;
 
@@ -1179,7 +1183,8 @@ function getAgentsPageJs(): string {
 					var delBtn = document.createElement("button");
 					delBtn.type = "button";
 					delBtn.className = "ag-btn ag-btn--danger";
-					delBtn.textContent = "删除";
+					delBtn.textContent = state.removingSkillName === skill.skillName ? "删除中" : "删除";
+					delBtn.disabled = state.removingSkillName === skill.skillName;
 					delBtn.addEventListener("click", function() { handleRemoveSkill(skill.skillName); });
 					item.appendChild(delBtn);
 				}
@@ -1244,6 +1249,8 @@ function getAgentsPageJs(): string {
 				tone: "danger",
 			});
 			if (!ok) return;
+			state.archivePendingId = agent.agentId;
+			renderDetailBody();
 			try {
 				await apiArchiveAgent(agent.agentId);
 				if (state.selectedId === agent.agentId) state.selectedId = null;
@@ -1253,10 +1260,16 @@ function getAgentsPageJs(): string {
 				renderStats();
 				showToast("已归档", "ok");
 			} catch (e) { showToast(e.message || "归档失败", "danger"); }
+			finally {
+				state.archivePendingId = "";
+				renderDetailBody();
+			}
 		}
 
 		async function handleRemoveSkill(skillName) {
-			if (!state.selectedId) return;
+			if (!state.selectedId || state.removingSkillName) return;
+			state.removingSkillName = skillName;
+			renderSkills();
 			try {
 				await apiRemoveSkill(state.selectedId, skillName);
 				await apiFetchAgentSkills(state.selectedId);
@@ -1264,6 +1277,10 @@ function getAgentsPageJs(): string {
 				renderStats();
 				showToast("已移除 " + skillName, "ok");
 			} catch (e) { showToast(e.message || "移除失败", "danger"); }
+			finally {
+				state.removingSkillName = "";
+				renderSkills();
+			}
 		}
 
 		async function handleCopySkill() {
@@ -1541,13 +1558,24 @@ function getAgentsPageJs(): string {
 		}
 
 		async function handleRefresh() {
-			await apiFetchAgents();
-			await apiFetchGallerySkills();
-			renderAgentList();
-			renderFilterTabs();
-			renderDetailBody();
-			renderStats();
-			showToast("已刷新", "ok");
+			if (state.refreshing) return;
+			var btn = document.getElementById("btn-refresh");
+			state.refreshing = true;
+			if (btn) { btn.disabled = true; btn.textContent = "刷新中"; }
+			try {
+				await apiFetchAgents();
+				await apiFetchGallerySkills();
+				renderAgentList();
+				renderFilterTabs();
+				renderDetailBody();
+				renderStats();
+				showToast("已刷新", "ok");
+			} catch (e) {
+				showToast(e.message || "刷新失败", "danger");
+			} finally {
+				state.refreshing = false;
+				if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>'; }
+			}
 		}
 
 		/* ── Copy event delegation ── */

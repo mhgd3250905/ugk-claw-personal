@@ -439,12 +439,20 @@ export function getConnManagerActivityStyles(): string {
 
 		.conn-manager-status.active {
 			border-color: rgba(141, 255, 178, 0.3);
+			background: rgba(64, 214, 126, 0.1);
 			color: rgba(141, 255, 178, 0.9);
 		}
 
 		.conn-manager-status.paused {
 			border-color: rgba(255, 209, 102, 0.3);
+			background: rgba(255, 209, 102, 0.1);
 			color: rgba(255, 209, 102, 0.92);
+		}
+
+		.conn-manager-status.completed {
+			border-color: rgba(148, 163, 184, 0.22);
+			background: rgba(148, 163, 184, 0.08);
+			color: rgba(203, 213, 225, 0.72);
 		}
 
 		.conn-manager-meta {

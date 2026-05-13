@@ -637,6 +637,27 @@ export class ConnRunStore {
 		return result;
 	}
 
+	async getLatestUnreadTimesByConn(connIds: readonly string[]): Promise<Record<string, string>> {
+		if (connIds.length === 0) return {};
+		const placeholders = connIds.map(() => "?").join(", ");
+		const rows = this.options.database.all<{ conn_id: string; latest_unread_at: string | null }>(
+			[
+				"SELECT conn_id, MAX(COALESCE(finished_at, updated_at, created_at)) AS latest_unread_at",
+				"FROM conn_runs",
+				`WHERE conn_id IN (${placeholders}) AND status IN ('succeeded', 'failed') AND read_at IS NULL`,
+				"GROUP BY conn_id",
+			].join(" "),
+			...connIds,
+		);
+		const result: Record<string, string> = {};
+		for (const row of rows) {
+			if (row.latest_unread_at) {
+				result[row.conn_id] = row.latest_unread_at;
+			}
+		}
+		return result;
+	}
+
 	async getTotalUnreadCount(connIds?: readonly string[]): Promise<number> {
 		const scopedConnIds = normalizeConnIds(connIds);
 		if (scopedConnIds && scopedConnIds.length === 0) return 0;

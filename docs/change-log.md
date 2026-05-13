@@ -11,6 +11,38 @@
 ---
 
 ## 2026-05-13
+### 手机首页 Agent 列表滚动
+- 日期：2026-05-13
+- 主题：修复手机首页 Agent 创建较多后卡片列表超出视口且无法滚动的问题。
+- 影响范围：
+  - `src/ui/playground-styles.ts`：将首页 `.landing-screen` 明确为滚动容器，移动端使用 `100dvh`、安全区 padding 和 `-webkit-overflow-scrolling: touch`，让 Agent 卡片多时在首页区域内滚动；同时让 `.landing-grid` 从顶部自然排列，避免超高内容被 flex 居中顶到负坐标导致 logo 看不见。
+  - `test/server.test.ts`：补充手机首页滚动约束断言，避免后续又被居中全屏布局覆盖。
+  - `docs/playground-current.md`：记录手机首页 Agent 列表滚动口径。
+- 对应入口：`/playground` 手机首页。
+
+### 前端异步按钮即时反馈
+- 日期：2026-05-13
+- 主题：补齐当前可见前端入口的异步按钮 pending 状态，避免腾讯云新加坡这类高延迟环境下按钮点击后像“没反应”。
+- 影响范围：
+  - `src/ui/conn-page-js.ts`：独立 Conn 页的保存、刷新、暂停 / 恢复、立即执行、删除、全部已读、加载更多事件增加禁用保护和“处理中 / 保存中 / 刷新中”等文案。
+  - `src/ui/conn-page-js.ts`：同时修复 Conn 左侧列表项把保存 / 取消按钮嵌进 `<button>` 的非法 DOM 结构，避免新建任务取消无效、切换任务后保存 / 取消按钮跟着跑到其他卡片。
+  - `src/ui/conn-page-js.ts`：移除左侧列表保存 / 取消按钮的重复 `editor-submit` / `editor-cancel` ID，改为局部 `data-editor-action` 事件绑定，避免保存新建任务时事件绑到错误按钮。
+  - `src/ui/conn-page-js.ts`：新建任务默认填入 10 分钟后的执行时间，表单底部增加明确保存 / 取消按钮，并让保存失败提示跨重渲染保留，避免用户只看到“点了没反应”。
+  - `src/routes/conns.ts`、`src/agent/conn-run-store.ts`、`src/ui/conn-page-js.ts`：Conn 列表排序调整为未读结果优先，其余按运行中、暂停、已完成分组；未读任务按最新未读 run 时间倒序。
+  - `src/ui/conn-page-css.ts`：Conn 状态色调整为运行中绿色、暂停橙黄、已完成灰色，避免 completed 继续显示为成功绿。
+  - `src/ui/agents-page.ts`：独立 Agent 管理页的归档、删除技能、刷新补齐 pending 文案和防重复点击。
+  - `src/ui/playground-stream-controller.ts`、`src/ui/playground-status-controller.ts`：聊天运行中追加消息和打断任务增加“追加中 / 中断中”按钮状态。
+  - `src/ui/playground-task-inbox.ts`、`src/ui/playground-assets-controller.ts`、`src/ui/playground-agent-manager.ts`、`src/ui/playground-conversations-controller.ts`、`src/ui/playground-conn-activity-controller.ts`：任务消息、文件库、Agent 管理、会话菜单和 Conn 管理器补齐刷新、删除、标记已读、技能开关、暂停 / 恢复、批量删除等 pending 状态。
+  - `test/server.test.ts`：新增 Playground pending 文案和脚本拼装回归断言。
+  - `docs/playground-current.md`：补充异步操作反馈约束。
+- 对应入口：
+  - `src/ui/conn-page-js.ts`
+  - `src/ui/agents-page.ts`
+  - `src/ui/playground-stream-controller.ts`
+  - `src/ui/playground-status-controller.ts`
+  - `src/ui/playground-task-inbox.ts`
+  - `src/ui/playground-conn-activity-controller.ts`
+
 ### Conn artifact 交付链接保障
 - 日期：2026-05-13
 - 主题：修复启用 `artifactDelivery` 的 conn run 仍可能把旧 `/v1/local-file?path=/app/public/...` 链接写进最终结果，导致公网 IP 错误或手动改 IP 后仍 404 的问题。

@@ -1147,9 +1147,9 @@ export function getPlaygroundThemeStyles(): string {
 		}
 
 		:root[data-theme="light"] .conn-manager-status.completed {
-			border-color: rgba(31, 95, 200, 0.18);
-			background: #e8f0ff;
-			color: #1d4f9a;
+			border-color: rgba(100, 116, 139, 0.2);
+			background: #f1f5f9;
+			color: #64748b;
 		}
 
 		:root[data-theme="light"] .conn-manager-status.paused {

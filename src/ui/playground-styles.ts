@@ -3599,8 +3599,14 @@ export function getPlaygroundStyles(): string {
 			display: flex !important;
 			flex-direction: column;
 			align-items: center;
-			justify-content: center;
+			justify-content: flex-start;
+			width: 100%;
 			height: 100%;
+			min-height: 0;
+			overflow-x: hidden;
+			overflow-y: auto;
+			padding: clamp(24px, 5vh, 56px) 0;
+			scrollbar-gutter: stable both-edges;
 		}
 
 		.shell[data-home="true"] .landing-grid {
@@ -3608,7 +3614,9 @@ export function getPlaygroundStyles(): string {
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
-			height: 100%;
+			width: 100%;
+			min-height: 100%;
+			height: auto;
 		}
 
 		.shell[data-home="true"] .chat-stage-watermark,
@@ -4473,10 +4481,11 @@ export function getPlaygroundStyles(): string {
 			.shell[data-home="true"] {
 				display: flex;
 				flex-direction: column;
-				align-items: center;
-				justify-content: center;
+				align-items: stretch;
+				justify-content: flex-start;
 				width: 100vw;
 				height: 100vh;
+				height: 100dvh;
 				grid-template-columns: unset !important;
 				grid-template-rows: unset !important;
 			}
@@ -4490,6 +4499,7 @@ export function getPlaygroundStyles(): string {
 				grid-column: unset;
 				width: 100%;
 				height: 100%;
+				min-height: 0;
 				display: flex;
 				flex-direction: column;
 			}
@@ -4497,17 +4507,25 @@ export function getPlaygroundStyles(): string {
 			.shell[data-home="true"] .landing-screen {
 				display: flex !important;
 				flex-direction: column;
-				align-items: center;
-				justify-content: center;
+				align-items: stretch;
+				justify-content: flex-start;
+				width: 100%;
 				height: 100%;
+				min-height: 0;
+				overflow-x: hidden;
+				overflow-y: auto;
+				padding: calc(18px + env(safe-area-inset-top)) 0 calc(24px + env(safe-area-inset-bottom));
+				-webkit-overflow-scrolling: touch;
 			}
 
 			.shell[data-home="true"] .landing-grid {
 				display: flex;
 				flex-direction: column;
 				align-items: center;
-				justify-content: center;
-				height: 100%;
+				justify-content: flex-start;
+				width: 100%;
+				min-height: 100%;
+				height: auto;
 			}
 
 			.shell[data-home="true"] .chat-stage-watermark,
@@ -4520,10 +4538,15 @@ export function getPlaygroundStyles(): string {
 				grid-template-columns: 1fr;
 				padding: 0 16px;
 				gap: 12px;
+				max-width: 480px;
 			}
 
 			.landing-logo .ugk-svg-logo {
 				width: min(200px, 60vw);
+			}
+
+			.landing-logo .ugk-svg-logo-watermark {
+				opacity: 0.88;
 			}
 
 			.landing-logo .ugk-ascii-logo {

@@ -20,7 +20,12 @@ const state = {
   editorMode: null,
   editorConnId: null,
   editorSaving: false,
+  editorError: "",
   actionConnId: "",
+  actionKind: "",
+  markingAllRead: false,
+  refreshing: false,
+  loadingMoreRunId: "",
   runRefreshTimers: {},
   agentCatalog: [],
   browserCatalog: [],
@@ -34,6 +39,7 @@ const state = {
   runDetailFiles: {},
   sseSource: null,
   unreadCountsByConnId: {},
+  unreadLatestRunTimesByConnId: {},
   totalUnreadRuns: 0,
 };
 
@@ -82,6 +88,7 @@ async function apiFetchConns() {
   return {
     conns: data.conns || [],
     unreadCountsByConnId: data.unreadRunCountsByConnId || {},
+    unreadLatestRunTimesByConnId: data.unreadLatestRunTimesByConnId || {},
     totalUnreadRuns: data.totalUnreadRuns || 0,
   };
 }
@@ -382,10 +389,20 @@ function getConnLatestRunTimeMs(conn) {
 }
 
 function compareConnListItems(left, right) {
-  const leftTime = getConnLatestCompletedRunTimeMs(left);
-  const rightTime = getConnLatestCompletedRunTimeMs(right);
-  if ((leftTime > 0) !== (rightTime > 0)) return leftTime > 0 ? -1 : 1;
-  if (leftTime !== rightTime) return rightTime - leftTime;
+  const leftUnreadTime = getConnUnreadTimeMs(left);
+  const rightUnreadTime = getConnUnreadTimeMs(right);
+  if ((leftUnreadTime > 0) !== (rightUnreadTime > 0)) return leftUnreadTime > 0 ? -1 : 1;
+  if (leftUnreadTime !== rightUnreadTime) return rightUnreadTime - leftUnreadTime;
+
+  const leftStatusRank = getConnStatusSortRank(left);
+  const rightStatusRank = getConnStatusSortRank(right);
+  if (leftStatusRank !== rightStatusRank) return leftStatusRank - rightStatusRank;
+
+  const leftNextRunTime = getConnNextRunTimeMs(left);
+  const rightNextRunTime = getConnNextRunTimeMs(right);
+  if ((leftNextRunTime > 0) !== (rightNextRunTime > 0)) return leftNextRunTime > 0 ? -1 : 1;
+  if (leftNextRunTime !== rightNextRunTime) return leftNextRunTime - rightNextRunTime;
+
   const leftFallbackTime = getConnLatestRunTimeMs(left);
   const rightFallbackTime = getConnLatestRunTimeMs(right);
   if (leftFallbackTime !== rightFallbackTime) return rightFallbackTime - leftFallbackTime;
@@ -394,13 +411,31 @@ function compareConnListItems(left, right) {
   return String(left?.connId || "").localeCompare(String(right?.connId || ""));
 }
 
-function getConnLatestCompletedRunTimeMs(conn) {
+function getConnUnreadTimeMs(conn) {
+  const count = state.unreadCountsByConnId[conn?.connId] || 0;
+  if (count <= 0) return 0;
+  const explicitTime = Date.parse(String(state.unreadLatestRunTimesByConnId[conn?.connId] || ""));
+  if (Number.isFinite(explicitTime)) return explicitTime;
   const latestRun = conn?.latestRun || null;
-  const candidates = [
-    latestRun?.finishedAt,
-    conn?.lastRunAt,
-  ];
-  for (const value of candidates) {
+  if (latestRun && !latestRun.readAt && (latestRun.status === "succeeded" || latestRun.status === "failed")) {
+    return getFirstValidTimeMs([latestRun.finishedAt, latestRun.updatedAt, latestRun.createdAt]);
+  }
+  return getConnLatestRunTimeMs(conn);
+}
+
+function getConnStatusSortRank(conn) {
+  if (conn?.status === "active") return 1;
+  if (conn?.status === "paused") return 2;
+  if (conn?.status === "completed") return 3;
+  return 4;
+}
+
+function getConnNextRunTimeMs(conn) {
+  return getFirstValidTimeMs([conn?.nextRunAt]);
+}
+
+function getFirstValidTimeMs(candidates) {
+  for (const value of candidates || []) {
     const time = Date.parse(String(value || ""));
     if (Number.isFinite(time)) return time;
   }
@@ -413,12 +448,18 @@ function renderList() {
   const conns = getFilteredConns();
 
   function appendNewConnEditorItem() {
-    const newItem = document.createElement("button");
+    const newItem = document.createElement("div");
     newItem.className = "conn-list-item is-selected";
+    newItem.setAttribute("role", "button");
+    newItem.tabIndex = 0;
     newItem.innerHTML = '<div class="conn-list-item-row"><span class="conn-list-item-dot conn-list-item-dot--active"></span><span class="conn-list-item-title">新建任务</span><span class="conn-list-item-badge conn-list-item-badge--active">新建</span></div>';
     const actionsDiv = document.createElement("div");
     actionsDiv.className = "conn-list-item-editor-actions";
-    actionsDiv.innerHTML = '<button id="editor-submit" class="conn-list-editor-btn conn-list-editor-btn--primary" type="button"' + (state.editorSaving ? ' disabled' : '') + '>保存任务</button><button id="editor-cancel" class="conn-list-editor-btn conn-list-editor-btn--cancel" type="button"' + (state.editorSaving ? ' disabled' : '') + '>取消</button>';
+    actionsDiv.innerHTML = '<button data-editor-action="submit" class="conn-list-editor-btn conn-list-editor-btn--primary" type="button"' + (state.editorSaving ? ' disabled' : '') + '>' + (state.editorSaving ? "保存中" : "保存任务") + '</button><button data-editor-action="cancel" class="conn-list-editor-btn conn-list-editor-btn--cancel" type="button"' + (state.editorSaving ? ' disabled' : '') + '>取消</button>';
+    const submitBtn = actionsDiv.querySelector('[data-editor-action="submit"]');
+    if (submitBtn) submitBtn.addEventListener("click", (event) => { event.stopPropagation(); submitEditor(); });
+    const cancelBtn = actionsDiv.querySelector('[data-editor-action="cancel"]');
+    if (cancelBtn) cancelBtn.addEventListener("click", (event) => { event.stopPropagation(); closeEditor(); });
     newItem.appendChild(actionsDiv);
     container.appendChild(newItem);
   }
@@ -446,9 +487,11 @@ function renderList() {
   }
 
   for (const conn of conns) {
-    const item = document.createElement("button");
+    const item = document.createElement("div");
     item.className = "conn-list-item" + (state.selectedId === conn.connId ? " is-selected" : "");
     item.dataset.connId = conn.connId;
+    item.setAttribute("role", "button");
+    item.tabIndex = 0;
 
     const dotClass = "conn-list-item-dot--" + (conn.status || "unknown");
     const badgeClass = "conn-list-item-badge--" + (conn.status || "unknown");
@@ -465,11 +508,25 @@ function renderList() {
       const isEdit = state.editorMode === "edit";
       const actionsDiv = document.createElement("div");
       actionsDiv.className = "conn-list-item-editor-actions";
-      actionsDiv.innerHTML = '<button id="editor-submit" class="conn-list-editor-btn conn-list-editor-btn--primary" type="button"' + (state.editorSaving ? ' disabled' : '') + '>' + (isEdit ? "保存修改" : "保存任务") + '</button><button id="editor-cancel" class="conn-list-editor-btn conn-list-editor-btn--cancel" type="button"' + (state.editorSaving ? ' disabled' : '') + '>取消</button>';
+      actionsDiv.innerHTML = '<button data-editor-action="submit" class="conn-list-editor-btn conn-list-editor-btn--primary" type="button"' + (state.editorSaving ? ' disabled' : '') + '>' + (state.editorSaving ? "保存中" : (isEdit ? "保存修改" : "保存任务")) + '</button><button data-editor-action="cancel" class="conn-list-editor-btn conn-list-editor-btn--cancel" type="button"' + (state.editorSaving ? ' disabled' : '') + '>取消</button>';
+      const submitBtn = actionsDiv.querySelector('[data-editor-action="submit"]');
+      if (submitBtn) submitBtn.addEventListener("click", (event) => { event.stopPropagation(); submitEditor(); });
+      const cancelBtn = actionsDiv.querySelector('[data-editor-action="cancel"]');
+      if (cancelBtn) cancelBtn.addEventListener("click", (event) => { event.stopPropagation(); closeEditor(); });
       item.appendChild(actionsDiv);
     }
 
-    item.addEventListener("click", () => handleConnSelect(conn.connId));
+    item.addEventListener("click", (event) => {
+      if (event.target instanceof Element && event.target.closest(".conn-list-item-editor-actions")) {
+        return;
+      }
+      handleConnSelect(conn.connId);
+    });
+    item.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      handleConnSelect(conn.connId);
+    });
     container.appendChild(item);
   }
 
@@ -599,19 +656,19 @@ function renderActions(container, conn) {
   container.innerHTML = "";
   const isActing = state.editorSaving || state.actionConnId === conn.connId;
   const hasRunInFlight = hasActiveRunForConn(conn.connId);
-  const runLabel = isActing ? "入队中" : hasRunInFlight ? "执行中" : "立即执行";
+  const runLabel = state.actionConnId === conn.connId && state.actionKind === "run" ? "入队中" : hasRunInFlight ? "执行中" : "立即执行";
 
   const actions = [];
   actions.push({ label: '编辑', icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M11.5 1.5a2.121 2.121 0 013 3L5 14l-4 1 1-4z"/></svg>', handler: () => openEditor("edit", conn), cls: "conn-btn conn-btn--outline" });
 
   if (conn.status === "active") {
-    actions.push({ label: "暂停", icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:13px;height:13px"><rect x="4" y="3" width="3" height="10" rx="0.5"/><rect x="9" y="3" width="3" height="10" rx="0.5"/></svg>', handler: () => handlePause(conn.connId), cls: "conn-btn conn-btn--outline" });
+    actions.push({ label: state.actionConnId === conn.connId && state.actionKind === "pause" ? "暂停中" : "暂停", icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:13px;height:13px"><rect x="4" y="3" width="3" height="10" rx="0.5"/><rect x="9" y="3" width="3" height="10" rx="0.5"/></svg>', handler: () => handlePause(conn.connId), cls: "conn-btn conn-btn--outline" });
   }
   if (conn.status === "paused") {
-    actions.push({ label: "恢复", icon: '<svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M4 3l9 5-9 5z"/></svg>', handler: () => handleResume(conn.connId), cls: "conn-btn conn-btn--outline" });
+    actions.push({ label: state.actionConnId === conn.connId && state.actionKind === "resume" ? "恢复中" : "恢复", icon: '<svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M4 3l9 5-9 5z"/></svg>', handler: () => handleResume(conn.connId), cls: "conn-btn conn-btn--outline" });
   }
   actions.push({ label: runLabel, icon: '<svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M4 3l9 5-9 5z"/></svg>', handler: () => handleRunNow(conn.connId), cls: "conn-btn conn-btn--primary", disabled: hasRunInFlight });
-  actions.push({ label: "删除", icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4"/></svg>', handler: () => handleDelete(conn.connId), cls: "conn-btn conn-btn--danger" });
+  actions.push({ label: state.actionConnId === conn.connId && state.actionKind === "delete" ? "删除中" : "删除", icon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4"/></svg>', handler: () => handleDelete(conn.connId), cls: "conn-btn conn-btn--danger" });
 
   for (const action of actions) {
     const btn = document.createElement("button");
@@ -854,7 +911,8 @@ function renderRunDetail(container, run, files, events) {
       const moreBtn = document.createElement("button");
       moreBtn.type = "button";
       moreBtn.className = "conn-run-load-more";
-      moreBtn.textContent = "加载更多事件";
+      moreBtn.textContent = state.loadingMoreRunId === run.runId ? "加载中" : "加载更多事件";
+      moreBtn.disabled = state.loadingMoreRunId === run.runId;
       moreBtn.addEventListener("click", () => handleLoadMoreEvents(run.connId, run.runId));
       eventSection.appendChild(moreBtn);
     }
@@ -884,6 +942,7 @@ function openEditor(mode, conn) {
   state.editorMode = mode || "create";
   state.editorConnId = conn ? conn.connId : null;
   state.editorSaving = false;
+  state.editorError = "";
   if (mode === "create") state.selectedId = null;
   renderList();
   renderDetail();
@@ -894,6 +953,7 @@ function closeEditor() {
   state.editorMode = null;
   state.editorConnId = null;
   state.editorSaving = false;
+  state.editorError = "";
   renderList();
   renderDetail();
 }
@@ -989,6 +1049,11 @@ function clearEditorForm() {
   const modelId = $("editor-model-id");
   if (modelProvider && state.modelConfig?.providers?.length) modelProvider.value = state.modelConfig.providers[0].id;
   if (modelId && state.modelConfig?.providers?.[0]?.models?.length) modelId.value = state.modelConfig.providers[0].models[0].id;
+  const defaultRunAt = formatDateTimeLocal(getDefaultEditorRunDate());
+  const onceAt = $("editor-once-at");
+  if (onceAt) onceAt.value = defaultRunAt;
+  const intervalStart = $("editor-interval-start");
+  if (intervalStart) intervalStart.value = defaultRunAt;
 
   // Artifact delivery reset
   const artifactCb = $("editor-artifact-enabled");
@@ -1001,15 +1066,35 @@ function clearEditorForm() {
   if (artifactOpts) artifactOpts.style.display = "none";
 }
 
-function readEditorPayload() {
+function showEditorError(message, focusId) {
+  state.editorError = message;
   const errorEl = $("editor-error");
-  const showError = (msg) => { if (errorEl) { errorEl.textContent = msg; errorEl.hidden = false; } };
+  if (errorEl) {
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+    errorEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  const focusEl = focusId ? $(focusId) : null;
+  if (focusEl && typeof focusEl.focus === "function") {
+    setTimeout(() => focusEl.focus(), 0);
+  }
+}
 
+function clearEditorError() {
+  state.editorError = "";
+  const errorEl = $("editor-error");
+  if (errorEl) {
+    errorEl.hidden = true;
+    errorEl.textContent = "";
+  }
+}
+
+function readEditorPayload() {
   const title = (($("editor-title-input") || {}).value || "").trim();
   const prompt = (($("editor-prompt") || {}).value || "").trim();
 
-  if (!title) { showError("请填写标题"); return null; }
-  if (!prompt) { showError("请填写 Prompt"); return null; }
+  if (!title) { showEditorError("请填写标题", "editor-title-input"); return null; }
+  if (!prompt) { showEditorError("请填写 Prompt", "editor-prompt"); return null; }
 
   const payload = { title, prompt };
 
@@ -1017,19 +1102,19 @@ function readEditorPayload() {
   const schedKind = (($("editor-schedule-kind") || {}).value || "once");
   if (schedKind === "once") {
     const at = parseDateTimeLocal(($("editor-once-at") || {}).value);
-    if (!at) { showError("请填写执行时间"); return null; }
+    if (!at) { showEditorError("请填写执行时间", "editor-once-at"); return null; }
     payload.schedule = { kind: "once", at };
   } else if (schedKind === "interval") {
     const mins = parseInt(($("editor-interval-minutes") || {}).value, 10);
     const startAt = parseDateTimeLocal(($("editor-interval-start") || {}).value);
-    if (!mins || mins < 1) { showError("间隔分钟必须大于 0"); return null; }
-    if (!startAt) { showError("请填写首次执行时间"); return null; }
+    if (!mins || mins < 1) { showEditorError("间隔分钟必须大于 0", "editor-interval-minutes"); return null; }
+    if (!startAt) { showEditorError("请填写首次执行时间", "editor-interval-start"); return null; }
     payload.schedule = { kind: "interval", everyMs: mins * 60 * 1000, startAt };
   } else if (schedKind === "daily") {
     const timeInput = $("editor-time-of-day") || $("editor-once-at");
     const timeVal = (timeInput || {}).value || "";
     const match = timeVal.match(/^(\\d{1,2}):(\\d{2})/);
-    if (!match) { showError("请填写每日执行时间"); return null; }
+    if (!match) { showEditorError("请填写每日执行时间", "editor-once-at"); return null; }
     const expr = match[2] + " " + match[1] + " * * *";
     payload.schedule = { kind: "cron", expression: expr };
   }
@@ -1040,11 +1125,11 @@ function readEditorPayload() {
     payload.target = { type: "task_inbox" };
   } else if (targetType === "feishu_chat") {
     const chatId = (($("editor-target-id") || {}).value || "").trim();
-    if (!chatId) { showError("请填写飞书群 ID"); return null; }
+    if (!chatId) { showEditorError("请填写飞书群 ID", "editor-target-id"); return null; }
     payload.target = { type: "feishu_chat", chatId };
   } else if (targetType === "feishu_user") {
     const openId = (($("editor-target-id") || {}).value || "").trim();
-    if (!openId) { showError("请填写飞书用户 ID"); return null; }
+    if (!openId) { showEditorError("请填写飞书用户 ID", "editor-target-id"); return null; }
     payload.target = { type: "feishu_user", openId };
   }
 
@@ -1092,7 +1177,7 @@ function readEditorPayload() {
     payload.artifactDelivery = { enabled: false };
   }
 
-  if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
+  clearEditorError();
   return payload;
 }
 
@@ -1141,8 +1226,7 @@ async function submitEditor() {
     closeEditor();
     await loadData();
   } catch (err) {
-    const errorEl = $("editor-error");
-    if (errorEl) { errorEl.textContent = err instanceof Error ? err.message : "保存失败"; errorEl.hidden = false; }
+    showEditorError(err instanceof Error ? err.message : "保存失败");
   } finally {
     state.editorSaving = false;
     renderList();
@@ -1160,7 +1244,7 @@ function renderEditorForm(body, titleEl, actionsEl) {
 
   body.innerHTML = \`
     <div class="conn-editor-root">
-      <div id="editor-error" class="conn-editor-error" role="alert" hidden></div>
+      <div id="editor-error" class="conn-editor-error" role="alert" \${state.editorError ? "" : "hidden"}>\${escapeHtml(state.editorError)}</div>
 
       <!-- Header -->
       <div class="conn-editor-header">
@@ -1360,6 +1444,11 @@ function renderEditorForm(body, titleEl, actionsEl) {
 <div id="editor-asset-chips" class="conn-editor-asset-chips"></div>
       <textarea id="editor-asset-refs" hidden></textarea>
 
+      <div class="conn-editor-form-actions">
+        <button id="editor-form-submit" class="conn-btn conn-btn--primary" type="button" \${state.editorSaving ? "disabled" : ""}>\${state.editorSaving ? "保存中" : (isEdit ? "保存修改" : "保存任务")}</button>
+        <button id="editor-form-cancel" class="conn-btn conn-btn--outline" type="button" \${state.editorSaving ? "disabled" : ""}>取消</button>
+      </div>
+
     </div>
   \`;
 
@@ -1389,6 +1478,10 @@ function renderEditorForm(body, titleEl, actionsEl) {
   if (submitBtn) submitBtn.addEventListener("click", () => { submitEditor(); });
   const cancelBtn = $("editor-cancel");
   if (cancelBtn) cancelBtn.addEventListener("click", closeEditor);
+  const formSubmitBtn = $("editor-form-submit");
+  if (formSubmitBtn) formSubmitBtn.addEventListener("click", () => { submitEditor(); });
+  const formCancelBtn = $("editor-form-cancel");
+  if (formCancelBtn) formCancelBtn.addEventListener("click", closeEditor);
 
   // Artifact delivery toggle
   const artifactCb = $("editor-artifact-enabled");
@@ -1538,6 +1631,19 @@ function initializeFlatpickr() {
 
 // ── DateTime helpers ──────────────────────────────────────────────────────
 
+function getDefaultEditorRunDate() {
+  const date = new Date(Date.now() + 10 * 60 * 1000);
+  date.setSeconds(0, 0);
+  const minutes = date.getMinutes();
+  const roundedMinutes = Math.ceil(minutes / 5) * 5;
+  if (roundedMinutes >= 60) {
+    date.setHours(date.getHours() + 1, 0, 0, 0);
+  } else {
+    date.setMinutes(roundedMinutes, 0, 0);
+  }
+  return date;
+}
+
 function formatDateTimeLocal(value) {
   if (!value) return "";
   const d = new Date(value);
@@ -1556,6 +1662,9 @@ function parseDateTimeLocal(value) {
 // ── Event handlers ─────────────────────────────────────────────────────────
 
 async function handleConnSelect(connId) {
+  if (state.editorOpen && !state.editorSaving) {
+    closeEditor();
+  }
   state.selectedId = connId;
   state.expandedRunId = null;
 
@@ -1591,6 +1700,10 @@ function handleSearchInput(value) {
 }
 
 async function handlePause(connId) {
+  if (state.actionConnId) return;
+  state.actionConnId = connId;
+  state.actionKind = "pause";
+  renderAll();
   try {
     const data = await apiPauseConn(connId);
     const updated = data.conn;
@@ -1599,10 +1712,18 @@ async function handlePause(connId) {
     renderAll();
   } catch (err) {
     showToast(err instanceof Error ? err.message : "暂停失败", "error");
+  } finally {
+    state.actionConnId = "";
+    state.actionKind = "";
+    renderAll();
   }
 }
 
 async function handleResume(connId) {
+  if (state.actionConnId) return;
+  state.actionConnId = connId;
+  state.actionKind = "resume";
+  renderAll();
   try {
     const data = await apiResumeConn(connId);
     const updated = data.conn;
@@ -1611,6 +1732,10 @@ async function handleResume(connId) {
     renderAll();
   } catch (err) {
     showToast(err instanceof Error ? err.message : "恢复失败", "error");
+  } finally {
+    state.actionConnId = "";
+    state.actionKind = "";
+    renderAll();
   }
 }
 
@@ -1620,6 +1745,7 @@ async function handleRunNow(connId) {
     return;
   }
   state.actionConnId = connId;
+  state.actionKind = "run";
   renderDetail();
   renderList();
   try {
@@ -1633,12 +1759,14 @@ async function handleRunNow(connId) {
     showToast(err instanceof Error ? err.message : "执行失败", "error");
   } finally {
     state.actionConnId = "";
+    state.actionKind = "";
     renderDetail();
     renderList();
   }
 }
 
 async function handleDelete(connId) {
+  if (state.actionConnId) return;
   const conn = state.conns.find(c => c.connId === connId);
   const confirmed = await openConfirmDialog({
     title: "删除后台任务？",
@@ -1649,6 +1777,9 @@ async function handleDelete(connId) {
   });
   if (!confirmed) return;
 
+  state.actionConnId = connId;
+  state.actionKind = "delete";
+  renderAll();
   try {
     await apiDeleteConn(connId);
     state.conns = state.conns.filter(c => c.connId !== connId);
@@ -1658,10 +1789,15 @@ async function handleDelete(connId) {
     renderAll();
   } catch (err) {
     showToast(err instanceof Error ? err.message : "删除失败", "error");
+  } finally {
+    state.actionConnId = "";
+    state.actionKind = "";
+    renderAll();
   }
 }
 
 async function handleMarkAllRead() {
+  if (state.markingAllRead) return;
   const total = state.totalUnreadRuns || 0;
   if (total === 0) {
     showToast("没有未读结果", "info");
@@ -1674,6 +1810,12 @@ async function handleMarkAllRead() {
     cancelText: "取消",
   });
   if (!confirmed) return;
+  state.markingAllRead = true;
+  const readAllBtn = $("btn-read-all");
+  if (readAllBtn) {
+    readAllBtn.disabled = true;
+    readAllBtn.textContent = "处理中";
+  }
   try {
     const result = await apiMarkAllRunsRead();
     state.totalUnreadRuns = result.totalUnreadRuns;
@@ -1684,6 +1826,12 @@ async function handleMarkAllRead() {
     if (state.selectedId) loadRuns(state.selectedId);
   } catch (err) {
     showToast(err instanceof Error ? err.message : "操作失败", "error");
+  } finally {
+    state.markingAllRead = false;
+    if (readAllBtn) {
+      readAllBtn.disabled = false;
+      readAllBtn.textContent = "全部已读";
+    }
   }
 }
 
@@ -1731,8 +1879,10 @@ async function loadRunDetail(connId, runId, container) {
 
 async function handleLoadMoreEvents(connId, runId) {
   const before = state.runDetailEventsNextBefore[runId];
-  if (!before) return;
+  if (!before || state.loadingMoreRunId) return;
 
+  state.loadingMoreRunId = runId;
+  renderDetail();
   try {
     const payload = await apiFetchRunEvents(connId, runId, before);
     const events = payload.events || [];
@@ -1750,6 +1900,9 @@ async function handleLoadMoreEvents(connId, runId) {
     }
   } catch (err) {
     showToast(err instanceof Error ? err.message : "加载更多事件失败", "error");
+  } finally {
+    state.loadingMoreRunId = "";
+    renderDetail();
   }
 }
 
@@ -1767,6 +1920,13 @@ function updateConnInState(updated) {
 // ── Data loading ──────────────────────────────────────────────────────────
 
 async function loadData() {
+  if (state.refreshing) return;
+  state.refreshing = true;
+  const refreshBtn = $("btn-refresh");
+  if (refreshBtn) {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = "刷新中";
+  }
   try {
     const [conns, agents, browsers, modelConfig] = await Promise.all([
       apiFetchConns(),
@@ -1776,6 +1936,7 @@ async function loadData() {
     ]);
     state.conns = conns.conns || conns;
     state.unreadCountsByConnId = conns.unreadCountsByConnId || {};
+    state.unreadLatestRunTimesByConnId = conns.unreadLatestRunTimesByConnId || {};
     state.totalUnreadRuns = conns.totalUnreadRuns || 0;
     state.agentCatalog = agents;
     state.browserCatalog = browsers;
@@ -1784,6 +1945,12 @@ async function loadData() {
     renderAll();
   } catch (err) {
     showToast(err instanceof Error ? err.message : "加载数据失败", "error");
+  } finally {
+    state.refreshing = false;
+    if (refreshBtn) {
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = "刷新";
+    }
   }
 }
 

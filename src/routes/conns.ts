@@ -129,6 +129,7 @@ interface ConnRunStoreLike {
 	listFiles(runId: string): Promise<ConnRunFileRecord[]>;
 	markRunRead(runId: string): Promise<boolean>;
 	getUnreadCountsByConn(connIds: readonly string[]): Promise<Record<string, number>>;
+	getLatestUnreadTimesByConn?(connIds: readonly string[]): Promise<Record<string, string>>;
 	getTotalUnreadCount(connIds?: readonly string[]): Promise<number>;
 	markAllRunsRead(connIds?: readonly string[]): Promise<number>;
 }
@@ -340,16 +341,20 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 	app.get("/v1/conns", async (): Promise<ConnListResponseBody> => {
 		const conns = await options.connStore.list();
 		const connIds = conns.map((conn) => conn.connId);
-		const [latestRunsByConnId, unreadRunCountsByConnId, totalUnreadRuns] = await Promise.all([
+		const [latestRunsByConnId, unreadRunCountsByConnId, unreadLatestRunTimesByConnId, totalUnreadRuns] = await Promise.all([
 			options.connRunStore.listLatestRunsForConns
 				? options.connRunStore.listLatestRunsForConns(connIds)
 				: Promise.resolve(undefined),
 			options.connRunStore.getUnreadCountsByConn(connIds),
+			options.connRunStore.getLatestUnreadTimesByConn
+				? options.connRunStore.getLatestUnreadTimesByConn(connIds)
+				: Promise.resolve({}),
 			options.connRunStore.getTotalUnreadCount(connIds),
 		]);
 		return {
 			conns: sortConnListBodiesByRecentRun(conns.map((conn) => toConnListBody(conn, latestRunsByConnId))),
 			unreadRunCountsByConnId,
+			unreadLatestRunTimesByConnId,
 			totalUnreadRuns,
 		};
 	});

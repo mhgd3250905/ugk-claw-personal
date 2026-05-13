@@ -744,7 +744,9 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /function runConnNow\(/);
 	assert.match(response.body, /function hasConnManagerRunInFlight\(connId\)/);
 	assert.match(response.body, /const CONN_RUN_REFRESH_MAX_ATTEMPTS = 120/);
-	assert.match(response.body, /state\.connManagerActionConnId === conn\.connId \? "入队中" : hasRunInFlight \? "执行中" : "立即执行"/);
+	assert.match(response.body, /state\.connManagerActionConnId === conn\.connId && state\.connManagerActionKind === "run" \? "入队中" : hasRunInFlight \? "执行中" : "立即执行"/);
+	assert.match(response.body, /conn\.status === "paused" \? "恢复中" : "暂停中"/);
+	assert.match(response.body, /deleteSelectedConnsButton\.textContent = state\.connManagerActionKind === "bulk-delete" \? "删除中" : "删除所选"/);
 	assert.match(response.body, /setConnManagerNotice\("已触发执行，正在后台运行："/);
 	assert.match(response.body, /scheduleConnManagerRunRefresh\(conn\.connId, 0\)/);
 	assert.match(response.body, /function toggleConnPaused\(/);
@@ -754,11 +756,15 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /conn-manager-selected-count/);
 	assert.match(response.body, /delete-selected-conns-button/);
 	assert.match(response.body, /function getVisibleConnManagerItems\(/);
-	assert.match(response.body, /function getConnRunSortRank\(/);
+	assert.match(response.body, /connManagerUnreadLatestRunTimesByConnId: \{\}/);
+	assert.match(response.body, /function getConnUnreadTimeMs\(conn\)/);
+	assert.match(response.body, /state\.connManagerUnreadLatestRunTimesByConnId\?\.\[conn\?\.connId\]/);
+	assert.match(response.body, /function getConnLifecycleSortRank\(conn\)[\s\S]*conn\?\.status === "active"[\s\S]*conn\?\.status === "paused"[\s\S]*conn\?\.status === "completed"/);
+	assert.match(response.body, /function getConnNextRunTimeMs\(conn\)/);
 	assert.match(response.body, /function getConnLatestRunTimeMs\(/);
 	assert.match(response.body, /function compareConnManagerItems\(/);
-	assert.match(response.body, /latestRun\?\.status/);
 	assert.match(response.body, /\.sort\(compareConnManagerItems\)/);
+	assert.match(response.body, /\.conn-manager-status\.completed/);
 	assert.match(response.body, /function deleteSelectedConns\(/);
 	assert.match(response.body, /\/v1\/conns\/bulk-delete/);
 	assert.match(response.body, /delete-selected-conns-button/);
@@ -907,6 +913,8 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /mobile-overflow-task-inbox-badge/);
 	assert.match(response.body, /mobile-topbar-notification-badge/);
 	assert.match(response.body, /mark-all-task-inbox-read-button/);
+	assert.match(response.body, /markAllTaskInboxReadButton\.textContent = state\.taskInboxMarkingRead \? "处理中" : "全部已读"/);
+	assert.match(response.body, /refreshTaskInboxButton\.textContent = "刷新中"/);
 	assert.doesNotMatch(response.body, /task-inbox-filter-unread-button/);
 	assert.doesNotMatch(response.body, /task-inbox-filter-all-button/);
 	assert.match(response.body, /task-inbox-load-more-button/);
@@ -1182,7 +1190,21 @@ test("standalone conn page keeps the new-task card visible when the task list is
 	assert.notEqual(emptyListBranch, -1);
 	assert.ok(createEmptyEditorBranch < emptyListBranch);
 	assert.match(response, /function appendNewConnEditorItem\(\)/);
-	assert.match(response, /id="editor-submit"[\s\S]*保存任务[\s\S]*id="editor-cancel"[\s\S]*取消/);
+	assert.match(response, /const newItem = document\.createElement\("div"\)/);
+	assert.match(response, /const item = document\.createElement\("div"\)/);
+	assert.match(response, /event\.target instanceof Element && event\.target\.closest\("\.conn-list-item-editor-actions"\)/);
+	assert.doesNotMatch(response, /const newItem = document\.createElement\("button"\)/);
+	assert.doesNotMatch(response, /const item = document\.createElement\("button"\)/);
+	assert.match(response, /data-editor-action="submit"[\s\S]*保存任务[\s\S]*data-editor-action="cancel"[\s\S]*取消/);
+	assert.match(response, /submitBtn\.addEventListener\("click", \(event\) => \{ event\.stopPropagation\(\); submitEditor\(\); \}\)/);
+	assert.match(response, /cancelBtn\.addEventListener\("click", \(event\) => \{ event\.stopPropagation\(\); closeEditor\(\); \}\)/);
+	assert.doesNotMatch(response, /id="editor-submit"/);
+	assert.doesNotMatch(response, /id="editor-cancel"/);
+	assert.match(response, /editorError:\s*""/);
+	assert.match(response, /function getDefaultEditorRunDate\(\)/);
+	assert.match(response, /const defaultRunAt = formatDateTimeLocal\(getDefaultEditorRunDate\(\)\)/);
+	assert.match(response, /id="editor-form-submit"[\s\S]*保存任务[\s\S]*id="editor-form-cancel"[\s\S]*取消/);
+	assert.match(response, /function showEditorError\(message, focusId\)[\s\S]*state\.editorError = message/);
 });
 
 test("standalone conn page disables run-now while a run is pending or running", () => {
@@ -1216,14 +1238,18 @@ test("standalone conn page follows the home cockpit visual system", () => {
 	assert.match(response, /body\[data-standalone-theme="cockpit"\] \.conn-stat-card/);
 });
 
-test("standalone conn page sorts the left task list by recent completed run", () => {
+test("standalone conn page sorts the left task list by unread recency then lifecycle status", () => {
 	const response = renderConnPage();
 
-	assert.match(response, /function getConnLatestCompletedRunTimeMs\(conn\)/);
 	assert.match(response, /function compareConnListItems\(left, right\)/);
 	assert.match(response, /return list\.slice\(\)\.sort\(compareConnListItems\)/);
-	assert.match(response, /latestRun\?\.finishedAt/);
-	assert.match(response, /conn\?\.lastRunAt/);
+	assert.match(response, /function getConnUnreadTimeMs\(conn\)/);
+	assert.match(response, /state\.unreadLatestRunTimesByConnId\[conn\?\.connId\]/);
+	assert.match(response, /function getConnStatusSortRank\(conn\)[\s\S]*conn\?\.status === "active"[\s\S]*conn\?\.status === "paused"[\s\S]*conn\?\.status === "completed"/);
+	assert.match(response, /function getConnNextRunTimeMs\(conn\)/);
+	assert.match(response, /unreadLatestRunTimesByConnId: data\.unreadLatestRunTimesByConnId \|\| \{\}/);
+	assert.match(response, /\.conn-list-item-badge--active \{ background: var\(--success-soft\); color: var\(--success\); \}/);
+	assert.match(response, /\.conn-list-item-badge--completed \{ background: rgba\(100,116,139,0\.15\); color: var\(--muted\); \}/);
 });
 
 test("standalone conn page falls back when clipboard API is unavailable", () => {
@@ -2350,6 +2376,12 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*display:\s*grid;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right\s*\{[\s\S]*display:\s*contents;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-side-right > \.telemetry-action\s*\{[\s\S]*display:\s*none;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-home="true"\]\s*\{[\s\S]*height:\s*100dvh;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-home="true"\] \.landing-screen\s*\{[\s\S]*overflow-y:\s*auto;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-home="true"\] \.landing-screen\s*\{[\s\S]*-webkit-overflow-scrolling:\s*touch;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.shell\[data-home="true"\] \.landing-grid\s*\{[\s\S]*justify-content:\s*flex-start;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-logo \.ugk-svg-logo-watermark\s*\{[\s\S]*opacity:\s*0\.88;/);
+	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.landing-agent-cards\s*\{[\s\S]*max-width:\s*480px;/);
 	assert.doesNotMatch(response.body, /\.landing-side-right > \.topbar-context-slot\s*\{[\s\S]*display:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.topbar\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/);
 	assert.match(response.body, /@media \(max-width: 640px\) \{[\s\S]*\.mobile-topbar\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto auto;/);
@@ -4390,6 +4422,7 @@ test("POST /v1/assets/upload returns 413 when a file exceeds the configured size
 test("GET /v1/conns returns scheduled conn tasks", async () => {
 	const latestRunCalls: string[][] = [];
 	const runHistoryCalls: string[] = [];
+	const latestUnreadCalls: string[][] = [];
 	const totalUnreadCalls: string[][] = [];
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
@@ -4446,6 +4479,10 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 			listEvents: async () => [],
 			listFiles: async () => [],
 			getUnreadCountsByConn: async () => ({}),
+			getLatestUnreadTimesByConn: async (connIds: readonly string[]) => {
+				latestUnreadCalls.push([...connIds]);
+				return {};
+			},
 			getTotalUnreadCount: async (connIds?: readonly string[]) => {
 				totalUnreadCalls.push([...(connIds ?? [])]);
 				return 0;
@@ -4488,9 +4525,11 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 			},
 		],
 		totalUnreadRuns: 0,
+		unreadLatestRunTimesByConnId: {},
 		unreadRunCountsByConnId: {},
 	});
 	assert.deepEqual(latestRunCalls, [["conn-1"]]);
+	assert.deepEqual(latestUnreadCalls, [["conn-1"]]);
 	assert.deepEqual(totalUnreadCalls, [["conn-1"]]);
 	assert.deepEqual(runHistoryCalls, []);
 	await app.close();

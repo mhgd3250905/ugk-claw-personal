@@ -327,9 +327,9 @@ export function getConnPageCss(): string {
       flex-shrink: 0;
     }
 
-    .conn-list-item-dot--active { background: var(--primary); box-shadow: 0 0 6px var(--primary); }
-    .conn-list-item-dot--paused { background: var(--warning); }
-    .conn-list-item-dot--completed { background: var(--success); }
+    .conn-list-item-dot--active { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .conn-list-item-dot--paused { background: var(--warning); box-shadow: 0 0 6px rgba(245,158,11,0.35); }
+    .conn-list-item-dot--completed { background: var(--muted); }
     .conn-list-item-dot--unknown { background: var(--muted); }
 
     .conn-list-item-title {
@@ -351,9 +351,9 @@ export function getConnPageCss(): string {
       white-space: nowrap;
     }
 
-    .conn-list-item-badge--active { background: var(--primary-soft); color: var(--primary); }
+    .conn-list-item-badge--active { background: var(--success-soft); color: var(--success); }
     .conn-list-item-badge--paused { background: var(--warning-soft); color: var(--warning); }
-    .conn-list-item-badge--completed { background: var(--success-soft); color: var(--success); }
+    .conn-list-item-badge--completed { background: rgba(100,116,139,0.15); color: var(--muted); }
     .conn-list-item-badge--unknown { background: rgba(100,116,139,0.15); color: var(--muted); }
     /* Unread badge on list items */
     .conn-list-item-unread {
@@ -780,9 +780,9 @@ export function getConnPageCss(): string {
       white-space: nowrap;
     }
 
-    .conn-badge--active { background: var(--primary-soft); color: var(--primary); }
+    .conn-badge--active { background: var(--success-soft); color: var(--success); }
     .conn-badge--paused { background: var(--warning-soft); color: var(--warning); }
-    .conn-badge--completed { background: var(--success-soft); color: var(--success); }
+    .conn-badge--completed { background: rgba(100,116,139,0.15); color: var(--muted); }
     .conn-badge--running { background: var(--primary-soft); color: var(--primary); animation: conn-pulse 2s ease-in-out infinite; }
     .conn-badge--succeeded { background: var(--success-soft); color: var(--success); }
     .conn-badge--failed { background: var(--danger-soft); color: var(--danger); }
@@ -1514,6 +1514,17 @@ export function getConnPageCss(): string {
     .conn-editor-hint { font-size: 11px; color: var(--muted); }
 
     .conn-editor-asset-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .conn-editor-form-actions {
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 0 2px;
+      background: linear-gradient(to top, var(--bg) 68%, transparent);
+    }
 
     .conn-editor-key-status {
       display: flex;

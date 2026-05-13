@@ -2,11 +2,20 @@
 
 更新时间：`2026-05-13`
 
-## 2026-05-13 Conn 管理器排序
+## 2026-05-13 手机首页 Agent 列表滚动
 
-- 后台任务管理器列表排序策略：running > pending > 其他，同级别内按最近任务时间倒序，再按标题字母序，最后按 connId 兜底。
-- `compareConnManagerItems()` 先用 `getConnRunSortRank()` 计算 rank（running=0 / pending=1 / 其他=2），rank 不同时按 rank 升序；rank 相同时按 `getConnLatestRunTimeMs()` 倒序；时间也相同则按标题比较，最终按 connId 兜底。
-- 相关源码：`src/ui/playground-conn-activity-controller.ts`
+- 手机首页不能假设 Agent 数量很少；`.shell[data-home="true"] .landing-screen` 是首页内容滚动容器，Agent 卡片变多时必须在该区域内纵向滚动，不能撑出视口高度。
+- 首页 logo 是滚动内容头部，不是背景水印；滚动到最顶部时必须先看到 logo，再看到 Agent 卡片列表。移动端 `.landing-grid` 禁止用居中布局把超高内容顶到负坐标。
+- 移动断点使用 `100dvh` 和 `-webkit-overflow-scrolling: touch`，同时保留应用壳全屏和首页背景，不让滚动泄漏到其他 workspace。
+- 相关源码：`src/ui/playground-styles.ts`
+
+## 2026-05-13 Conn 列表排序与状态色
+
+- 后台任务列表不按“最近完成”粗暴排序。真正的优先级是：已完成但有未读结果的任务排最前，并按最新未读 run 时间倒序；没有未读结果的任务再按生命周期排序：运行中 > 暂停 > 已完成且不会再执行。
+- 同一生命周期内，优先按 `nextRunAt` 升序展示即将执行的任务；没有下次执行时间时，再按最近 run / 更新时间倒序、标题和 connId 兜底。
+- `/playground/conn` 独立页使用 `state.unreadLatestRunTimesByConnId`；Playground 内嵌 Conn 管理器使用 `state.connManagerUnreadLatestRunTimesByConnId`，两者数据都来自 `GET /v1/conns`。
+- 状态色固定为：运行中绿色、暂停橙黄色、已完成灰色；深色和浅色主题都不能把“已完成不会再执行”渲染成成功绿或可继续运行的蓝色。
+- 相关源码：`src/routes/conns.ts`、`src/agent/conn-run-store.ts`、`src/ui/conn-page-js.ts`、`src/ui/conn-page-css.ts`、`src/ui/playground-conn-activity-controller.ts`、`src/ui/playground-conn-activity.ts`、`src/ui/playground-theme-controller.ts`
 
 ## 2026-05-12 Chat 视图背景氛围统一
 
@@ -654,6 +663,8 @@
 
 ## Frontend Performance Budget
 
+- 所有可见异步操作都必须在点击后立刻给反馈。短请求用按钮级 `处理中 / 保存中 / 刷新中 / 删除中` 文案并禁用当前操作；长任务触发用“已触发 / 正在后台运行”notice 或过程弹层承接。不能让按钮等接口返回后才变化，高延迟公网下这等于装死。
+- pending 状态必须在深色和浅色主题下都可读，优先复用现有按钮禁用态、notice 和表单状态样式；如果只改深色主题导致浅色主题白底浅字，按回归处理。
 - 会话切换 / 新建会话的交互预算按“服务端确认目标会话即可切屏”计算，`GET /v1/chat/state` hydrate 必须后台化；否则历史会话越大，用户越会把真实数据恢复误读成按钮卡死。
 - 新建会话必须对“已经在空白会话里”保持幂等；只靠按钮 disabled 防连点挡不住本机快请求，最后还是会把历史列表灌满空会话，这种体验债不要再放回去。
 - 发送消息时，如果前端已经持有 `conversationId`，不再每次串行等待 `GET /v1/chat/conversations` 和 `GET /v1/chat/state` 预检完成；消息先进入 `/v1/chat/stream`，会话目录改为后台静默刷新。

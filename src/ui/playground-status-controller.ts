@@ -7,9 +7,10 @@ export function getPlaygroundStatusControllerScript(): string {
 
 		function setLoading(next) {
 			state.loading = next;
-			sendButton.disabled = false;
-			sendButton.textContent = "发送";
-			interruptButton.disabled = !next;
+			sendButton.disabled = Boolean(state.queueMessagePending);
+			sendButton.textContent = state.queueMessagePending ? "追加中" : "发送";
+			interruptButton.disabled = !next || Boolean(state.interruptPending);
+			interruptButton.textContent = state.interruptPending ? "中断中" : "打断";
 			filePickerAction.disabled = false;
 			messageInput.disabled = false;
 			fileInput.disabled = false;

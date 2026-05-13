@@ -808,6 +808,10 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				return;
 			}
 			keepTaskInboxItemExpanded(activityId);
+			state.taskInboxMarkingReadId = activityId;
+			if (state.taskInboxOpen) {
+				renderTaskInbox();
+			}
 			try {
 				const payload = await markTaskInboxItemRead(activityId);
 				setTaskInboxItemReadLocally(activityId, payload.activity?.readAt);
@@ -816,6 +820,11 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				if (!options?.silent) {
 					const messageText = error instanceof Error ? error.message : "标记任务消息已读失败";
 					showError(messageText);
+				}
+			} finally {
+				state.taskInboxMarkingReadId = "";
+				if (state.taskInboxOpen) {
+					renderTaskInbox();
 				}
 			}
 		}
@@ -827,6 +836,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			state.taskInboxMarkingRead = true;
 			if (markAllTaskInboxReadButton) {
 				markAllTaskInboxReadButton.disabled = true;
+				markAllTaskInboxReadButton.textContent = "处理中";
 			}
 			try {
 				const now = new Date().toISOString();
@@ -854,6 +864,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				state.taskInboxMarkingRead = false;
 				if (markAllTaskInboxReadButton) {
 					markAllTaskInboxReadButton.disabled = false;
+					markAllTaskInboxReadButton.textContent = "全部已读";
 				}
 			}
 		}
@@ -876,6 +887,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			state.taskInboxError = "";
 			if (refreshTaskInboxButton) {
 				refreshTaskInboxButton.disabled = true;
+				refreshTaskInboxButton.textContent = "刷新中";
 			}
 			if (taskInboxList) {
 				taskInboxList.setAttribute("aria-busy", "true");
@@ -917,6 +929,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 				}
 				if (refreshTaskInboxButton) {
 					refreshTaskInboxButton.disabled = false;
+					refreshTaskInboxButton.textContent = "刷新";
 				}
 				if (taskInboxList) {
 					taskInboxList.removeAttribute("aria-busy");
@@ -982,6 +995,7 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 			const hasUnreadItems =
 				state.taskInboxUnreadCount > 0 || state.taskInboxItems.some((item) => item && !item.readAt);
 			markAllTaskInboxReadButton.disabled = state.taskInboxMarkingRead || !hasUnreadItems;
+			markAllTaskInboxReadButton.textContent = state.taskInboxMarkingRead ? "处理中" : "全部已读";
 		}
 
 		function renderTaskInbox() {
@@ -1102,7 +1116,8 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 
 				const actions = document.createElement("div");
 				actions.className = "task-inbox-item-actions message-actions";
-				const taskIdButton = createTaskInboxAction("任务ID", async () => {
+				const isMarkingThisItem = state.taskInboxMarkingReadId === activity.activityId;
+				const taskIdButton = createTaskInboxAction(isMarkingThisItem ? "处理中" : "任务ID", async () => {
 					await markTaskInboxItemReadAndSync(activity.activityId, { silent: true });
 					const original = taskIdButton.textContent;
 					try {
@@ -1115,8 +1130,8 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 							taskIdButton.textContent = original;
 						}, 1200);
 					}
-				}, { disabled: !taskId });
-				const copyButton = createTaskInboxAction("复制", async () => {
+				}, { disabled: !taskId || isMarkingThisItem });
+				const copyButton = createTaskInboxAction(isMarkingThisItem ? "处理中" : "复制", async () => {
 					await markTaskInboxItemReadAndSync(activity.activityId, { silent: true });
 					const original = copyButton.textContent;
 					try {
@@ -1129,11 +1144,11 @@ export function getPlaygroundTaskInboxControllerScript(): string {
 							copyButton.textContent = original;
 						}, 1200);
 					}
-				}, { disabled: !activity.text });
-				const detailsButton = createTaskInboxAction("查看过程", async () => {
+				}, { disabled: !activity.text || isMarkingThisItem });
+				const detailsButton = createTaskInboxAction(isMarkingThisItem ? "处理中" : "查看过程", async () => {
 					await markTaskInboxItemReadAndSync(activity.activityId, { silent: true });
 					void openConnRunDetails(activity, openTaskInboxButton);
-				}, { disabled: !canOpenConnRunDetails(activity) });
+				}, { disabled: !canOpenConnRunDetails(activity) || isMarkingThisItem });
 				actions.appendChild(taskIdButton);
 				actions.appendChild(copyButton);
 				actions.appendChild(detailsButton);

@@ -624,6 +624,8 @@ export function getPlaygroundStreamControllerScript(): string {
 				appendUserTranscriptMessage(message, attachments, assetRefs);
 			}
 			clearComposerDraft();
+			state.queueMessagePending = true;
+			setLoading(state.loading);
 
 			try {
 				const payloadBody = {
@@ -655,6 +657,9 @@ export function getPlaygroundStreamControllerScript(): string {
 				restoreComposerDraft(composerDraft);
 				const messageText = error instanceof Error ? error.message : "追加请求失败";
 				showError(messageText);
+			} finally {
+				state.queueMessagePending = false;
+				setLoading(state.loading);
 			}
 		}
 
@@ -678,6 +683,8 @@ export function getPlaygroundStreamControllerScript(): string {
 				}
 			}
 
+			state.interruptPending = true;
+			setLoading(state.loading || true);
 			try {
 				const response = await fetch(getAgentApiPath("/chat/interrupt"), {
 					method: "POST",
@@ -711,6 +718,9 @@ export function getPlaygroundStreamControllerScript(): string {
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "打断请求失败";
 				showError(messageText);
+			} finally {
+				state.interruptPending = false;
+				setLoading(state.loading);
 			}
 		}
 

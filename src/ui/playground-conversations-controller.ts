@@ -186,20 +186,21 @@ export function getPlaygroundConversationControllerScript(): string {
 			const menu = document.createElement("div");
 			menu.className = "conversation-item-menu";
 			menu.setAttribute("role", "menu");
+			const pendingAction = state.conversationActionPendingById?.[item.conversationId] || "";
 			menu.addEventListener("click", (event) => {
 				event.stopPropagation();
 			});
 
 			menu.appendChild(createConversationMenuButton({
 				icon: "✎",
-				label: "重命名",
-				disabled: options?.disabled,
+				label: pendingAction === "rename" ? "保存中" : "重命名",
+				disabled: options?.disabled || Boolean(pendingAction),
 				onClick: () => void requestRenameConversation(item, restoreFocusElement),
 			}));
 			menu.appendChild(createConversationMenuButton({
 				icon: item.pinned ? "⌄" : "⌃",
 				label: item.pinned ? "取消置顶" : "置顶",
-				disabled: options?.disabled,
+				disabled: options?.disabled || Boolean(pendingAction),
 				onClick: () => void requestUpdateConversation(item.conversationId, { pinned: !item.pinned }),
 			}));
 
@@ -217,7 +218,7 @@ export function getPlaygroundConversationControllerScript(): string {
 				if ((item.backgroundColor || "") === colorOption.value) {
 					swatch.classList.add("is-selected");
 				}
-				swatch.disabled = Boolean(options?.disabled);
+				swatch.disabled = Boolean(options?.disabled || pendingAction);
 				swatch.setAttribute("aria-label", "设置背景颜色为" + colorOption.label);
 				swatch.addEventListener("click", (event) => {
 					event.preventDefault();
@@ -234,9 +235,9 @@ export function getPlaygroundConversationControllerScript(): string {
 
 			menu.appendChild(createConversationMenuButton({
 				icon: "×",
-				label: "删除",
+				label: pendingAction === "delete" ? "删除中" : "删除",
 				danger: true,
-				disabled: options?.disabled,
+				disabled: options?.disabled || Boolean(pendingAction),
 				onClick: () => void requestDeleteConversation(item, restoreFocusElement),
 			}));
 			return menu;
@@ -543,7 +544,19 @@ export function getPlaygroundConversationControllerScript(): string {
 				restoreFocusElement?.focus?.();
 				return;
 			}
-			await requestUpdateConversation(item.conversationId, { title: trimmedTitle });
+			state.conversationActionPendingById = {
+				...(state.conversationActionPendingById || {}),
+				[item.conversationId]: "rename",
+			};
+			renderConversationDrawer();
+			try {
+				await requestUpdateConversation(item.conversationId, { title: trimmedTitle });
+			} finally {
+				const nextPending = { ...(state.conversationActionPendingById || {}) };
+				delete nextPending[item.conversationId];
+				state.conversationActionPendingById = nextPending;
+				renderConversationDrawer();
+			}
 		}
 
 		async function syncConversationCatalog(options) {
@@ -816,6 +829,11 @@ export function getPlaygroundConversationControllerScript(): string {
 				return;
 			}
 
+			state.conversationActionPendingById = {
+				...(state.conversationActionPendingById || {}),
+				[item.conversationId]: "delete",
+			};
+			renderConversationDrawer();
 			try {
 				const result = await deleteConversationOnServer(item.conversationId);
 				if (!result.deleted) {
@@ -855,6 +873,11 @@ export function getPlaygroundConversationControllerScript(): string {
 			} catch (error) {
 				const messageText = error instanceof Error ? error.message : "删除会话失败";
 				showError(messageText);
+			} finally {
+				const nextPending = { ...(state.conversationActionPendingById || {}) };
+				delete nextPending[item.conversationId];
+				state.conversationActionPendingById = nextPending;
+				renderConversationDrawer();
 			}
 		}
 

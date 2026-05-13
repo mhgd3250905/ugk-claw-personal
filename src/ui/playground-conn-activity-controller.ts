@@ -1074,6 +1074,8 @@ export function getConnActivityApiScript(): string {
 
 		function applyConnManagerUnreadCount(payload) {
 			state.connManagerUnreadCount = Math.max(0, Number(payload?.totalUnreadRuns) || 0);
+			state.connManagerUnreadCountsByConnId = payload?.unreadRunCountsByConnId || {};
+			state.connManagerUnreadLatestRunTimesByConnId = payload?.unreadLatestRunTimesByConnId || {};
 			renderTaskInboxToggleState();
 			return state.connManagerUnreadCount;
 		}
@@ -1476,6 +1478,7 @@ export function getConnActivityRendererScript(): string {
 			}
 			if (deleteSelectedConnsButton) {
 				deleteSelectedConnsButton.disabled = selectedCount === 0 || Boolean(state.connManagerActionConnId);
+				deleteSelectedConnsButton.textContent = state.connManagerActionKind === "bulk-delete" ? "删除中" : "删除所选";
 			}
 		}
 
@@ -1661,11 +1664,31 @@ export function getConnActivityRendererScript(): string {
 		}
 
 
-		function getConnRunSortRank(conn) {
-			const status = String(conn?.latestRun?.status || "").trim();
-			if (status === "running") return 0;
-			if (status === "pending") return 1;
-			return 2;
+		function getConnUnreadTimeMs(conn) {
+			const count = state.connManagerUnreadCountsByConnId?.[conn?.connId] || 0;
+			if (count <= 0) {
+				return 0;
+			}
+			const explicitTime = Date.parse(String(state.connManagerUnreadLatestRunTimesByConnId?.[conn?.connId] || ""));
+			if (Number.isFinite(explicitTime)) {
+				return explicitTime;
+			}
+			const latestRun = conn?.latestRun || null;
+			if (latestRun && !latestRun.readAt && (latestRun.status === "succeeded" || latestRun.status === "failed")) {
+				return getFirstValidTimeMs([
+					latestRun.finishedAt,
+					latestRun.updatedAt,
+					latestRun.createdAt,
+				]);
+			}
+			return getConnLatestRunTimeMs(conn);
+		}
+
+		function getConnLifecycleSortRank(conn) {
+			if (conn?.status === "active") return 1;
+			if (conn?.status === "paused") return 2;
+			if (conn?.status === "completed") return 3;
+			return 4;
 		}
 
 		function getConnLatestRunTimeMs(conn) {
@@ -1690,11 +1713,41 @@ export function getConnActivityRendererScript(): string {
 			return 0;
 		}
 
+		function getConnNextRunTimeMs(conn) {
+			return getFirstValidTimeMs([conn?.nextRunAt]);
+		}
+
+		function getFirstValidTimeMs(candidates) {
+			for (const value of candidates || []) {
+				const time = Date.parse(String(value || ""));
+				if (Number.isFinite(time)) {
+					return time;
+				}
+			}
+			return 0;
+		}
+
 		function compareConnManagerItems(left, right) {
-			const leftRank = getConnRunSortRank(left);
-			const rightRank = getConnRunSortRank(right);
+			const leftUnreadTime = getConnUnreadTimeMs(left);
+			const rightUnreadTime = getConnUnreadTimeMs(right);
+			if ((leftUnreadTime > 0) !== (rightUnreadTime > 0)) {
+				return leftUnreadTime > 0 ? -1 : 1;
+			}
+			if (leftUnreadTime !== rightUnreadTime) {
+				return rightUnreadTime - leftUnreadTime;
+			}
+			const leftRank = getConnLifecycleSortRank(left);
+			const rightRank = getConnLifecycleSortRank(right);
 			if (leftRank !== rightRank) {
 				return leftRank - rightRank;
+			}
+			const leftNextRunTime = getConnNextRunTimeMs(left);
+			const rightNextRunTime = getConnNextRunTimeMs(right);
+			if ((leftNextRunTime > 0) !== (rightNextRunTime > 0)) {
+				return leftNextRunTime > 0 ? -1 : 1;
+			}
+			if (leftNextRunTime !== rightNextRunTime) {
+				return leftNextRunTime - rightNextRunTime;
 			}
 			const leftTime = getConnLatestRunTimeMs(left);
 			const rightTime = getConnLatestRunTimeMs(right);
@@ -1806,7 +1859,7 @@ export function getConnActivityRendererScript(): string {
 				const isActing = isBulkAction || state.connManagerActionConnId === conn.connId;
 				const hasRunInFlight = hasConnManagerRunInFlight(conn.connId);
 				const runButton = createConnActionButton(
-					state.connManagerActionConnId === conn.connId ? "入队中" : hasRunInFlight ? "执行中" : "立即执行",
+					state.connManagerActionConnId === conn.connId && state.connManagerActionKind === "run" ? "入队中" : hasRunInFlight ? "执行中" : "立即执行",
 					() => {
 						void runConnNow(conn);
 					},
@@ -1820,14 +1873,16 @@ export function getConnActivityRendererScript(): string {
 					{ disabled: isActing },
 				);
 				const toggleButton = createConnActionButton(
-					conn.status === "paused" ? "恢复" : "暂停",
+					state.connManagerActionConnId === conn.connId && state.connManagerActionKind === "toggle"
+						? (conn.status === "paused" ? "恢复中" : "暂停中")
+						: (conn.status === "paused" ? "恢复" : "暂停"),
 					() => {
 						void toggleConnPaused(conn);
 					},
 					{ disabled: isActing || conn.status === "completed" },
 				);
 				const deleteButton = createConnActionButton(
-					"删除",
+					state.connManagerActionConnId === conn.connId && state.connManagerActionKind === "delete" ? "删除中" : "删除",
 					() => {
 						void deleteConn(conn);
 					},
@@ -1854,6 +1909,7 @@ export function getConnActivityRendererScript(): string {
 				return;
 			}
 			state.connManagerActionConnId = conn.connId;
+			state.connManagerActionKind = "run";
 			renderConnManager();
 			try {
 				const response = await fetch("/v1/conns/" + encodeURIComponent(conn.connId) + "/run", {
@@ -1875,6 +1931,7 @@ export function getConnActivityRendererScript(): string {
 				showError(messageText);
 			} finally {
 				state.connManagerActionConnId = "";
+				state.connManagerActionKind = "";
 				renderConnManager();
 			}
 		}
@@ -1884,6 +1941,7 @@ export function getConnActivityRendererScript(): string {
 				return;
 			}
 			state.connManagerActionConnId = conn.connId;
+			state.connManagerActionKind = "toggle";
 			renderConnManager();
 			try {
 				const response = await fetch(
@@ -1905,6 +1963,7 @@ export function getConnActivityRendererScript(): string {
 				showError(messageText);
 			} finally {
 				state.connManagerActionConnId = "";
+				state.connManagerActionKind = "";
 				renderConnManager();
 			}
 		}
@@ -1924,6 +1983,7 @@ export function getConnActivityRendererScript(): string {
 				return;
 			}
 			state.connManagerActionConnId = conn.connId;
+			state.connManagerActionKind = "delete";
 			renderConnManager();
 			try {
 				const response = await fetch("/v1/conns/" + encodeURIComponent(conn.connId), {
@@ -1946,6 +2006,7 @@ export function getConnActivityRendererScript(): string {
 				showError(messageText);
 			} finally {
 				state.connManagerActionConnId = "";
+				state.connManagerActionKind = "";
 				renderConnManager();
 			}
 		}
@@ -1980,6 +2041,7 @@ export function getConnActivityRendererScript(): string {
 				return;
 			}
 			state.connManagerActionConnId = "__bulk_delete__";
+			state.connManagerActionKind = "bulk-delete";
 			renderConnManager();
 			try {
 				const result = await bulkDeleteConns(selectedIds);
@@ -1999,6 +2061,7 @@ export function getConnActivityRendererScript(): string {
 				showError(messageText);
 			} finally {
 				state.connManagerActionConnId = "";
+				state.connManagerActionKind = "";
 				renderConnManager();
 			}
 		}
@@ -2212,7 +2275,7 @@ export function getConnActivityRendererScript(): string {
 			}
 			state.connRunDetailsRestoreFocusElement = rememberPanelReturnFocus(restoreFocusElement);
 			state.connRunDetailsPagination = null;
-			connRunDetailsBody.textContent = "Loading conn run details...";
+			connRunDetailsBody.textContent = "正在读取后台任务详情...";
 			connRunDetailsDialog.hidden = false;
 			connRunDetailsDialog.classList.add("open");
 			connRunDetailsDialog.setAttribute("aria-hidden", "false");

@@ -1368,7 +1368,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			actions.appendChild(createAgentManagerAction("编辑资料", (event) => {
 				openAgentEditor("edit", agent, event.currentTarget);
 			}, { disabled: isActing || isCoreAgent }));
-			actions.appendChild(createAgentManagerAction("删除", () => {
+			actions.appendChild(createAgentManagerAction(isActing ? "删除中" : "删除", () => {
 				void archiveAgentFromManager(agent);
 			}, { disabled: isActing || isCoreAgent, className: "danger-action" }));
 			head.appendChild(title);
@@ -1690,9 +1690,11 @@ export function getPlaygroundAgentManagerScript(): string {
 					toggle.className = "agent-manager-skill-toggle";
 					toggle.setAttribute("role", "switch");
 					toggle.setAttribute("aria-checked", skill.enabled !== false ? "true" : "false");
-					toggle.textContent = skill.enabled !== false ? "开" : "关";
 					const isRequired = getRequiredAgentSkillNames().includes(skill?.name || "");
 					const toggleActionKey = agent.agentId + ":" + (skill?.name || "") + ":toggle";
+					toggle.textContent = state.agentManagerSkillActionKey === toggleActionKey
+						? (skill.enabled !== false ? "关..." : "开...")
+						: (skill.enabled !== false ? "开" : "关");
 					toggle.disabled = isRequired || state.agentManagerSkillActionKey === toggleActionKey;
 					toggle.addEventListener("click", () => {
 						void updateAgentSkillEnabled(agent, skill?.name || "", skill.enabled !== false ? false : true);
@@ -1796,6 +1798,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			}
 			state.agentManagerLoading = true;
 			refreshAgentManagerButton.disabled = true;
+			refreshAgentManagerButton.textContent = "刷新中";
 			agentManagerList.setAttribute("aria-busy", "true");
 			try {
 				await Promise.all([loadAgentCatalog(), loadBrowserCatalog(), loadModelConfig()]);
@@ -1814,6 +1817,7 @@ export function getPlaygroundAgentManagerScript(): string {
 			} finally {
 				state.agentManagerLoading = false;
 				refreshAgentManagerButton.disabled = false;
+				refreshAgentManagerButton.textContent = "刷新";
 				agentManagerList.removeAttribute("aria-busy");
 			}
 		}

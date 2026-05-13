@@ -13,23 +13,24 @@
 
 开始前先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/traceability-map.md`。如果要跑本地，只用 Docker：`docker compose up -d` 或 `docker compose restart ugk-pi`，标准入口是 `http://127.0.0.1:3000/playground`，健康检查是 `http://127.0.0.1:3000/healthz`。不要把宿主机 `npm start` / `npm run dev` 当正规入口。
 
-开始前执行 `git status --short` 和 `git log -1 --oneline`。当前稳定交接点是 `d7bcb4d Show runtime summary and sort conn tasks`，`origin/main` 和 `gitee/main` 均已同步，腾讯云和阿里云均已完成增量部署并通过 verify。
+开始前执行 `git status --short` 和 `git log -1 --oneline`。当前本地交接点以 `git log -1 --oneline` 为准，提交主题是 `Improve conn UX and mobile home scrolling`。本轮已经准备进入双云增量更新；腾讯云默认拉 GitHub `origin/main`，阿里云默认拉 Gitee `gitee/main`，发布前确认对应远端已包含这个提交。
 
 服务器发布默认走增量更新。腾讯云拉 GitHub `origin/main`，阿里云拉 Gitee `gitee/main`。不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、`.data/`、Chrome profile、runtime 临时产物或本地截图。
 ```
 
 ## 当前状态
 
-- 当前本地 HEAD：`d7bcb4d Show runtime summary and sort conn tasks`
-- 当前 `origin/main`：已同步到 `d7bcb4d`
-- 当前 `gitee/main`：已同步到 `d7bcb4d`
-- 当前本地工作区：交接前检查为干净
+- 当前本地 HEAD：以 `git log -1 --oneline` 为准，提交主题 `Improve conn UX and mobile home scrolling`
+- 当前 `origin/main`：本轮提交后需同步
+- 当前 `gitee/main`：本轮提交后需同步
+- 当前本地工作区：本轮提交后应保持干净
 - 当前稳定 tag：已有 `snapshot-20260513-v4.5.0-stable`，但最新交接提交在该 tag 之后
 - 本轮最新功能：
-  - `/playground/conn` 任务列表按最近完成任务时间倒序
-  - Playground 左侧会话列表底部展示当前 API 源 / 模型与 Chrome
-  - 独立 Conn / Agents 页面 cockpit UI 与相关测试稳定化
-  - Agent profile 路由边界、artifact 路由归属校验和架构治理收口
+  - 当前可见前端异步按钮补齐 pending 文案与禁用态，覆盖聊天追加 / 中断、文件库、任务消息、Agent 管理、Conn 管理等入口
+  - `/playground/conn` 新建任务保存 / 取消修复，左侧任务卡片不再嵌套非法 button，表单底部增加明确保存 / 取消按钮，新建任务默认给出可保存的执行时间
+  - Conn 列表排序改为“未读结果优先”，未读按最新未读 run 时间倒序，其余按运行中、暂停、已完成分组；运行中绿色、暂停橙黄、已完成灰色
+  - 手机首页 Agent 卡片多时可滚动，滚到顶部能看到 UGK logo，避免 Agent 增多后撑出视口
+  - 生产 artifact 交付链接保障已在上一提交收口，继续保持以 `PUBLIC_BASE_URL` 和 artifact 路由为准
 
 ## 生产部署状态
 
@@ -40,8 +41,9 @@
 - 主部署目录：`/home/ubuntu/ugk-claw-repo`
 - shared 运行态：`/home/ubuntu/ugk-claw-shared`
 - 更新方式：`npm run server:ops -- tencent preflight|deploy|verify`
-- 当前已增量更新到：`d7bcb4d`
-- 最近验收：`npm run server:ops -- tencent verify` 通过，公网 `/playground` 已确认包含运行汇总 UI，`/playground/conn` 已确认包含最近完成时间排序逻辑
+- 当前已知部署点：发布前以服务器 `git log -1 --oneline` 和 `npm run server:ops -- tencent verify` 为准
+- 本轮目标更新到：提交主题 `Improve conn UX and mobile home scrolling`
+- 本轮发布状态：待执行 `npm run server:ops -- tencent preflight && npm run server:ops -- tencent deploy && npm run server:ops -- tencent verify`
 
 阿里云：
 
@@ -50,8 +52,9 @@
 - 主部署目录：`/root/ugk-claw-repo`
 - shared 运行态：`/root/ugk-claw-shared`
 - 更新方式：`npm run server:ops -- aliyun preflight|deploy|verify`
-- 当前已增量更新到：`d7bcb4d`
-- 最近验收：`npm run server:ops -- aliyun verify` 通过，公网 `/playground` 已确认包含运行汇总 UI，`/playground/conn` 已确认包含最近完成时间排序逻辑
+- 当前已知部署点：发布前以服务器 `git log -1 --oneline` 和 `npm run server:ops -- aliyun verify` 为准
+- 本轮目标更新到：提交主题 `Improve conn UX and mobile home scrolling`
+- 本轮发布状态：待执行 `npm run server:ops -- aliyun preflight && npm run server:ops -- aliyun deploy && npm run server:ops -- aliyun verify`
 
 发布禁区：
 
@@ -124,18 +127,13 @@ Agent profile / Agents 页面：
 
 本轮本地与发布过程中已执行或确认：
 
-- `git status --short`：交接前干净
+- `git status --short`：提交后应为干净
 - `git diff --check`：通过
 - `npx tsc --noEmit`：通过
-- `npm test`：近期全量测试通过
-- `npm run server:ops -- tencent preflight`
-- `npm run server:ops -- tencent deploy`
-- `npm run server:ops -- tencent verify`
-- `npm run server:ops -- aliyun preflight`
-- `npm run server:ops -- aliyun deploy`
-- `npm run server:ops -- aliyun verify`
-- 腾讯云 / 阿里云公网 `/playground` 页面均确认包含 `runtime-summary`
-- 腾讯云 / 阿里云公网 `/playground/conn` 页面均确认包含最近完成时间排序逻辑
+- `npm test`：727 passed
+- 手机视口真实验证：临时塞入 18 个 Agent 卡片，确认首页 logo 在 `scrollTop=0` 可见，Agent 列表可滚动
+- 本地 Docker：已 `docker compose up --build -d ugk-pi`，并刷新 `/playground` runtime 资产
+- 双云发布：本轮尚未执行，下一步按 `docs/server-ops.md` 走增量更新
 
 如果新同事继续开发，不要只看字符串就宣称修复完成。改接口跑接口，改 UI 看真实页面，改部署跑 `preflight/deploy/verify`，这点别省，省了后面就会用线上事故补课。
 

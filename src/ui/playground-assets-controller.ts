@@ -802,6 +802,7 @@ export function getPlaygroundAssetControllerScript(): string {
 				clearError();
 			}
 			refreshAssetsButton.disabled = true;
+			refreshAssetsButton.textContent = "刷新中";
 
 			try {
 				const response = await fetch("/v1/assets?limit=40", {
@@ -836,6 +837,7 @@ export function getPlaygroundAssetControllerScript(): string {
 				}
 			} finally {
 				refreshAssetsButton.disabled = false;
+				refreshAssetsButton.textContent = "刷新";
 			}
 		}
 

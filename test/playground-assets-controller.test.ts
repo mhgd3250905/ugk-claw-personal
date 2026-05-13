@@ -6,7 +6,8 @@ test("asset library refresh only disables while the asset request is in flight",
 	const script = getPlaygroundAssetControllerScript();
 
 	assert.match(script, /refreshAssetsButton\.disabled = true/);
-	assert.match(script, /finally \{\s*refreshAssetsButton\.disabled = false;\s*\}/);
+	assert.match(script, /refreshAssetsButton\.textContent = "刷新中"/);
+	assert.match(script, /finally \{\s*refreshAssetsButton\.disabled = false;\s*refreshAssetsButton\.textContent = "刷新";\s*\}/);
 	assert.doesNotMatch(script, /refreshAssetsButton\.disabled = state\.loading/);
 });
 
