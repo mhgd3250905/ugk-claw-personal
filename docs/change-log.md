@@ -11,6 +11,14 @@
 ---
 
 ## 2026-05-13
+### 新接手 agent 交接快照更新
+- 日期：2026-05-13
+- 主题：更新当前交接快照，明确本轮 `2090fa4 Improve conn UX and mobile home scrolling` 已同步到 GitHub / Gitee，并已完成腾讯云、阿里云双云增量发布与验证。
+- 影响范围：
+  - `docs/handoff-current.md`：把“待发布”状态改为真实已发布状态，补充双云 shared 运行态备份位置、生产部署点和公网页面资源核验结果。
+- 对应入口：
+  - `docs/handoff-current.md`
+
 ### 手机首页 Agent 列表滚动
 - 日期：2026-05-13
 - 主题：修复手机首页 Agent 创建较多后卡片列表超出视口且无法滚动的问题。

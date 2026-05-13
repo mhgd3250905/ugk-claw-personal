@@ -13,7 +13,7 @@
 
 开始前先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/traceability-map.md`。如果要跑本地，只用 Docker：`docker compose up -d` 或 `docker compose restart ugk-pi`，标准入口是 `http://127.0.0.1:3000/playground`，健康检查是 `http://127.0.0.1:3000/healthz`。不要把宿主机 `npm start` / `npm run dev` 当正规入口。
 
-开始前执行 `git status --short` 和 `git log -1 --oneline`。当前本地交接点以 `git log -1 --oneline` 为准，提交主题是 `Improve conn UX and mobile home scrolling`。本轮已经准备进入双云增量更新；腾讯云默认拉 GitHub `origin/main`，阿里云默认拉 Gitee `gitee/main`，发布前确认对应远端已包含这个提交。
+开始前执行 `git status --short` 和 `git log -1 --oneline`。当前本地交接点以 `git log -1 --oneline` 为准，提交主题是 `Improve conn UX and mobile home scrolling`。本轮代码已推送到 GitHub `origin/main` 和 Gitee `gitee/main`，腾讯云与阿里云生产均已增量更新并通过 `verify`。
 
 服务器发布默认走增量更新。腾讯云拉 GitHub `origin/main`，阿里云拉 Gitee `gitee/main`。不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、`.data/`、Chrome profile、runtime 临时产物或本地截图。
 ```
@@ -21,8 +21,8 @@
 ## 当前状态
 
 - 当前本地 HEAD：以 `git log -1 --oneline` 为准，提交主题 `Improve conn UX and mobile home scrolling`
-- 当前 `origin/main`：本轮提交后需同步
-- 当前 `gitee/main`：本轮提交后需同步
+- 当前 `origin/main`：已同步到 `2090fa4 Improve conn UX and mobile home scrolling`
+- 当前 `gitee/main`：已同步到 `2090fa4 Improve conn UX and mobile home scrolling`
 - 当前本地工作区：本轮提交后应保持干净
 - 当前稳定 tag：已有 `snapshot-20260513-v4.5.0-stable`，但最新交接提交在该 tag 之后
 - 本轮最新功能：
@@ -41,9 +41,9 @@
 - 主部署目录：`/home/ubuntu/ugk-claw-repo`
 - shared 运行态：`/home/ubuntu/ugk-claw-shared`
 - 更新方式：`npm run server:ops -- tencent preflight|deploy|verify`
-- 当前已知部署点：发布前以服务器 `git log -1 --oneline` 和 `npm run server:ops -- tencent verify` 为准
-- 本轮目标更新到：提交主题 `Improve conn UX and mobile home scrolling`
-- 本轮发布状态：待执行 `npm run server:ops -- tencent preflight && npm run server:ops -- tencent deploy && npm run server:ops -- tencent verify`
+- 当前已知部署点：`2090fa4 Improve conn UX and mobile home scrolling`
+- 本轮发布状态：已执行 `preflight`、shared 运行态备份、`deploy`、`verify`
+- 本轮备份位置：`/home/ubuntu/ugk-claw-shared/backups/pre-deploy-2090fa4-20260513-233453/shared-runtime.tgz`
 
 阿里云：
 
@@ -52,9 +52,9 @@
 - 主部署目录：`/root/ugk-claw-repo`
 - shared 运行态：`/root/ugk-claw-shared`
 - 更新方式：`npm run server:ops -- aliyun preflight|deploy|verify`
-- 当前已知部署点：发布前以服务器 `git log -1 --oneline` 和 `npm run server:ops -- aliyun verify` 为准
-- 本轮目标更新到：提交主题 `Improve conn UX and mobile home scrolling`
-- 本轮发布状态：待执行 `npm run server:ops -- aliyun preflight && npm run server:ops -- aliyun deploy && npm run server:ops -- aliyun verify`
+- 当前已知部署点：`2090fa4 Improve conn UX and mobile home scrolling`
+- 本轮发布状态：已执行 `preflight`、shared 运行态备份、`deploy`、`verify`
+- 本轮备份位置：`/root/ugk-claw-shared/backups/pre-deploy-2090fa4-20260513-233450/shared-runtime.tgz`
 
 发布禁区：
 
@@ -133,7 +133,8 @@ Agent profile / Agents 页面：
 - `npm test`：727 passed
 - 手机视口真实验证：临时塞入 18 个 Agent 卡片，确认首页 logo 在 `scrollTop=0` 可见，Agent 列表可滚动
 - 本地 Docker：已 `docker compose up --build -d ugk-pi`，并刷新 `/playground` runtime 资产
-- 双云发布：本轮尚未执行，下一步按 `docs/server-ops.md` 走增量更新
+- 双云发布：腾讯云与阿里云均已增量更新到 `2090fa4`，并通过 `npm run server:ops -- tencent verify` / `npm run server:ops -- aliyun verify`
+- 公网页面资源核验：两边 `/playground/styles.css` 与 `/playground/app.js` 均包含本轮移动首页滚动、Conn 未读排序和状态排序相关标记
 
 如果新同事继续开发，不要只看字符串就宣称修复完成。改接口跑接口，改 UI 看真实页面，改部署跑 `preflight/deploy/verify`，这点别省，省了后面就会用线上事故补课。
 
