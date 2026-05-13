@@ -215,6 +215,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 
 	registerTeamRoutes(app, {
 		dataDir: config.agentDataDir,
+		notificationHub,
 	});
 
 	return app;

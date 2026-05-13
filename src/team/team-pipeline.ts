@@ -3,12 +3,9 @@ import { buildDiscoveryPrompt, buildReviewerPrompt, FIXTURE_SEARCH_CONTEXT } fro
 import { searchAndFormat } from "../team-lab/search.js";
 import { TeamStore } from "./team-store.js";
 import { loadLLMConfig, callLLM } from "./llm.js";
+import { generateRunId } from "./run-id.js";
 import type { TeamRun, RoleTask, CreateTeamRunInput } from "./types.js";
 import type { CandidateDomain, DiscoveryEnvelope, ReviewEnvelope } from "../team-lab/brand-domain-types.js";
-
-function generateRunId(): string {
-  return `tr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-}
 
 function parseJsonOutput(raw: string): { ok: true; value: unknown } | { ok: false; error: string } {
   const stripped = stripMarkdownFence(raw);
@@ -47,13 +44,19 @@ export interface PipelineResult {
   run: TeamRun;
 }
 
+export interface PipelineOptions {
+  onCompleted?: (run: TeamRun) => void;
+}
+
 export class TeamPipeline {
   private store: TeamStore;
   private config: ReturnType<typeof loadLLMConfig>;
+  private options: PipelineOptions;
 
-  constructor(store: TeamStore) {
+  constructor(store: TeamStore, options?: PipelineOptions) {
     this.store = store;
     this.config = loadLLMConfig();
+    this.options = options ?? {};
   }
 
   async execute(input: CreateTeamRunInput): Promise<PipelineResult> {
@@ -222,6 +225,7 @@ export class TeamPipeline {
     this.store.writeRun(run);
     this.store.appendEvent(runId, { type: "run_completed", _ts: run.finishedAt });
 
+    this.options.onCompleted?.(run);
     return { run };
   }
 
