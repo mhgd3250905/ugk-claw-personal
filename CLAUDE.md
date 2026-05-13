@@ -94,15 +94,13 @@ Fastify Server (src/server.ts)
 
 **Browser Integration**: Agent browser automation uses Docker Chrome sidecars via CDP (`WEB_ACCESS_BROWSER_PROVIDER=direct_cdp`). `UGK_BROWSER_INSTANCES_JSON` configures up to 3 independent Chrome instances (default / chrome-01 / chrome-02), each with its own profile directory, CDP endpoint, and GUI port. `BrowserRegistry` manages multi-instance lifecycle; `browser-cleanup.ts` closes targets after each agent run. Sidecar profiles persist in `.data/chrome-sidecar*/` for login-state retention. `browser-control.ts` handles start/restart/close operations. Browser bindings can only be changed through the Playground UI (requires `x-ugk-browser-binding-confirmed: true` + `x-ugk-browser-binding-source: playground` headers); agent skills (`agent-profile-ops`, `web-access`, etc.) cannot modify browser bindings programmatically. Policy is centralized in `src/browser/browser-binding-policy.ts`.
 
+**Notification Hub** (`src/agent/notification-hub.ts`): In-process broadcast bus for real-time events (conn run completion, task inbox updates). Frontend subscribes via `GET /v1/notifications/stream` (SSE). `playground-notification-controller.ts` renders toasts; `playground-task-inbox.ts` handles cross-session conn result observation.
+
 **Search (SearXNG)**: Web search uses a self-hosted SearXNG sidecar (`SEARXNG_BASE_URL`). The search skill calls SearXNG's JSON API and returns results to the agent. Config lives in `deploy/searxng/` with persistent cache at `.data/searxng/`.
 
 **Playground UI** (`src/ui/`): Vanilla TypeScript single-page application with no framework. Follows a controller-per-feature pattern — each `playground-*-controller.ts` manages one UI concern (streaming, conversations, assets, status, layout, theme, etc.). HTML is server-rendered from `src/ui/playground.ts`.
 
-**Playground Theming**: Dual-theme system via `[data-theme="dark"]` / `[data-theme="light"]` on `<html>`. Main playground uses `playground-theme-controller.ts`; standalone pages (conn, agents) embed their own CSS token blocks with `standalone-page-shared.ts` as the shared base. Token selectors must NOT include `body` — only `:root` and `[data-theme="dark"]` for dark tokens, `[data-theme="light"]` for light tokens. FOUC prevention: an inline `<script>` in `<head>` reads `localStorage("ugk-pi:playground-theme")` and sets `data-theme` + `colorScheme` before CSS loads — shared across playground and standalone pages via `STANDALONE_THEME_INLINE_SCRIPT`. Light-theme card/button overrides need sufficient CSS specificity to beat the generic `button:hover` rule in `playground-theme-controller.ts` (which sets `background: #ffffff`).
-
-**Background Grid Texture**: The landing page (`data-home="true"`) uses `.shell[data-home="true"]::before/::after` pseudo-elements with `--ugk-*` CSS variables for animated grid/dot/pixel texture. The chat view reuses the same `--ugk-*` variables via `.shell:not([data-home="true"])` `background-image` (no pseudo-elements needed — shell background paints behind all children). Both dark and light themes define their own `--ugk-*` palettes. The body `::before/::after` provide secondary ambient layers (grid drift animation + radial glow) underneath the shell.
-
-**Playground Routing**: Two data attributes control view state on the shell element: `data-home="true"/"false"` is the sole routing toggle (agent list vs. conversation view). `data-stage-mode="landing"` is a permanent CSS-only hook for base layout styles (composer, textarea, stream-layout positioning) — it never changes at runtime and has no corresponding JS state.
+**Playground Theming & Routing**: Dual-theme (`[data-theme="dark"]`/`[data-theme="light"]`) with FOUC prevention via inline `<script>`. Token selectors must use `:root` / `[data-theme]` only — never `body`. View routing uses `data-home="true"/"false"` on the shell element; `data-stage-mode="landing"` is a permanent CSS-only hook. Full CSS details in `docs/playground-current.md`.
 
 **Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`, shared response presentation in `*-route-presenters.ts` (e.g., `conn-route-presenters.ts`). API errors use helpers from `http-errors.ts` for consistent error responses. To add a new route group, create the file and call its register function in `buildServer()`.
 
@@ -154,7 +152,15 @@ Model source selection persists at `.data/agent/model-settings.json` and can be 
 
 ### Testing
 
-Uses Node.js native test runner (`node:test` + `node:assert/strict`). Tests import from `../src/` directly via tsx. Test files live in a flat `test/` directory covering all major modules. The server test (`test/server.test.ts`) uses Fastify's `inject()` for HTTP-level testing against a `buildServer()` instance with stubbed services. Test isolation is achieved by passing stub services and using temp directories.
+Uses Node.js native test runner (`node:test` + `node:assert/strict`). Tests run with `--test-concurrency=1` to avoid SQLite contention between test files. Tests import from `../src/` directly via tsx. Test files live in a flat `test/` directory covering all major modules. The server test (`test/server.test.ts`) uses Fastify's `inject()` for HTTP-level testing against a `buildServer()` instance with stubbed services. Test isolation is achieved by passing stub services and using temp directories (`node:os` `tmpdir()`).
+
+### Conventions
+
+- **ESM**: `"type": "module"` — all local imports must use `.js` extensions (e.g., `import { foo } from "./bar.js"` for `bar.ts`).
+- **Route registration**: Every route file exports `register*Routes(app, options)`. Shared parsers → `*-route-parsers.ts`, shared utils → `*-route-utils.ts`, shared presenters → `*-route-presenters.ts`. Add new route groups by creating the file and calling its register function in `buildServer()` inside `server.ts`.
+- **UI controllers**: Each `playground-*-controller.ts` owns one UI concern. No framework; vanilla TS with direct DOM manipulation.
+- **Agent profile operations**: Must go through REST API (`POST /v1/agents`, `/v1/agents/:agentId/skills`, etc.), never by editing `.data/agents/profiles.json` directly.
+- **Browser bindings**: Only changeable via Playground UI (specific headers required); agent skills cannot modify browser bindings programmatically.
 
 ### Data Directory Layout
 

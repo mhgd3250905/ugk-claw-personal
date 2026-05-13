@@ -24,7 +24,10 @@
     "docker:chrome:check": "node scripts/sidecar-chrome.mjs check",
     "docker:chrome:status": "node scripts/sidecar-chrome.mjs status",
     "docker:chrome:open": "node scripts/sidecar-chrome.mjs open",
-    "server:ops": "node scripts/server-ops.mjs"
+    "server:ops": "node scripts/server-ops.mjs",
+    "team:probe-json": "tsx src/team-lab/json-envelope-probe.ts",
+    "team:spike": "tsx src/team-lab/brand-domain-spike.ts",
+    "test:team-lab": "node --test --import tsx test/team-lab-brand-domain-gate.test.ts test/team-lab-workspace.test.ts"
   },
   "dependencies": {
     "@fastify/multipart": "^10.0.0",
