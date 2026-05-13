@@ -230,6 +230,12 @@
 15. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
 16. [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
 
+技能管理接口：
+
+- `GET /v1/agents/:agentId/skills`：返回已安装技能列表，含 enabled / required 状态。
+- `PATCH /v1/agents/:agentId/skills/:skillName`：切换技能启用/关闭；运行中 conversation 返回 409。
+- 排查 skill toggle 问题时看 `src/agent/agent-profile-catalog.ts`（deny-list 持久化）、`src/agent/agent-session-factory.ts`（filtered loader）、`src/routes/chat.ts`（路由注册）、`src/ui/playground-agent-manager.ts`（Playground 内嵌开关）、[src/ui/agents-page.ts](/E:/AII/ugk-pi/src/ui/agents-page.ts)（独立 Agents 页开关）。
+
 多 agent 口径：
 
 - 旧 `GET /v1/debug/skills` 只代表 `main`。
@@ -298,6 +304,10 @@
 21. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 22. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 23. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
+24. [src/agent/artifact-contract.ts](/E:/AII/ugk-pi/src/agent/artifact-contract.ts)
+25. [src/agent/artifact-validation.ts](/E:/AII/ugk-pi/src/agent/artifact-validation.ts)
+26. [src/agent/artifact-repair-loop.ts](/E:/AII/ugk-pi/src/agent/artifact-repair-loop.ts)
+27. [src/routes/artifacts.ts](/E:/AII/ugk-pi/src/routes/artifacts.ts)
 
 ## H. 容器、部署、健康检查、截图
 

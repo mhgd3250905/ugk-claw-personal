@@ -29,8 +29,10 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 | 创建 agent | `POST /v1/agents` |
 | 归档 agent | `POST /v1/agents/:agentId/archive` |
 | 查看技能 | `GET /v1/agents/:agentId/debug/skills` |
+| 列出技能（含启用/禁用状态） | `GET /v1/agents/:agentId/skills` |
 | 复制安装技能 | `POST /v1/agents/:agentId/skills` |
 | 删除技能 | `DELETE /v1/agents/:agentId/skills/:skillName` |
+| 切换技能启用/禁用 | `PATCH /v1/agents/:agentId/skills/:skillName`（body: `{ "enabled": true/false }`） |
 | 会话接口 | `/v1/agents/:agentId/chat/*` |
 | 统一派发脚本 | `node .pi/skills/agent-profile-ops/scripts/agent_profile_ops.mjs dispatch --agent <agent> --message <task>` |
 
@@ -53,7 +55,7 @@ description: Use when the user asks to view, list, create, configure, switch, ve
 2. 创建 agent：如果用户只是讨论或询问方案，先解释影响并询问是否创建；只有用户明确要求创建时，才调用 `POST /v1/agents`。
 3. 验证目录和技能：调用 `GET /v1/agents/:agentId/debug/skills`，确认只看到该 agent 自己的系统技能和用户技能。
 4. 切换 agent：如果用户明确要求“帮我切换到某个 agent”，先用 `GET /v1/agents` 确认目标 `agentId`，再在当前 Playground 页面执行明确的前端操作接口；不要靠多语言关键词、正则或猜测自然语言在前端自动拦截。
-5. 配置技能：创建时的 `initialSystemSkillNames` 会把主 Agent 当前已有且来源明确的技能复制到该 agent 的 `.data/agents/:agentId/pi/skills`；创建后追加安装调用 `POST /v1/agents/:agentId/skills`，只允许把主 Agent 当前已有且来源明确的技能复制到该 agent 自己的 `user-skills` 目录。如果主 Agent 没有目标技能，停止、说明原因，并询问用户是否要切换到目标 agent 自己处理。
+5. 配置技能：创建时的 `initialSystemSkillNames` 会把主 Agent 当前已有且来源明确的技能复制到该 agent 的 `.data/agents/:agentId/pi/skills`；创建后追加安装调用 `POST /v1/agents/:agentId/skills`，只允许把主 Agent 当前已有且来源明确的技能复制到该 agent 自己的 `user-skills` 目录。如果主 Agent 没有目标技能，停止、说明原因，并询问用户是否要切换到目标 agent 自己处理。每个 agent 的已安装技能支持按技能粒度启用/禁用：`GET /v1/agents/:agentId/skills` 返回技能清单及 `enabled` / `required` 状态，`PATCH /v1/agents/:agentId/skills/:skillName` 切换 `enabled`（`required` 技能不可禁用）。Playground Agent 操作台和独立 Agent 管理页均提供开关按钮。
 6. 归档 agent：先说明影响范围并询问确认；确认不是 `main`、确认没有 running conversation 后，才调用 `POST /v1/agents/:agentId/archive`。
 
 ## 浏览器配置边界

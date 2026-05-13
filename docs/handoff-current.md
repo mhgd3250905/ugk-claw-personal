@@ -60,6 +60,52 @@
 - 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
 - 当前未跟踪禁区：`.claude/`、`runtime/xhs-extract.mjs`、`public/ptt-slide*.html`、`public/slide*.png`、`runtime/*.cjs`、奇怪的 `Eapp...jsonl` 路径等运行产物 / 本地文件不属于本轮增量提交，继续不要提交、不要删除，除非用户明确说明它们的归属。
 
+## 2026-05-13 Artifact Delivery Validation
+
+关键文件：`src/agent/artifact-contract.ts`、`src/agent/artifact-validation.ts`、`src/agent/artifact-repair-loop.ts`、`src/routes/artifacts.ts`
+
+Conn 后台任务支持 artifact 交付验证：用户在 conn 编辑器启用 `artifactDelivery` 后，后台 run 完成时会验证产物是否真实写入 `artifact-public/` 目录（文件存在、格式正确、无敏感文件、无容器路径泄漏）。验证不通过时自动追加修复 prompt 重试，最多 configurable 轮。产物通过独立 artifact 路由对外提供访问（`GET /v1/conns/:connId/runs/:runId/artifacts/*`、`latest` 入口和 `health` 检查）。
+
+关键变更：
+- `src/types/api.ts`：`ConnDefinition` 新增 `artifactDelivery?: ArtifactDeliveryConfig`。
+- `src/agent/background-workspace.ts`：`RunWorkspace` 新增 `artifactPublicDir`。
+- `src/agent/background-agent-runner.ts`：run 完成后调用验证 + 修复循环，注入 `ARTIFACT_PUBLIC_DIR` 环境变量。
+- `src/ui/conn-page-js.ts`：Conn 编辑器新增 artifact delivery 开关。
+- 测试：`test/artifact-*.test.ts` 四个测试文件。
+
+## 2026-05-12 Agent 状态指示器与跨 Agent 运行中切换
+
+关键提交：`676368b`
+
+### Agent 运行状态指示器
+
+Agent 悬浮菜单（switcher）为每个 Agent 显示彩色状态圆点，实时反映运行状态：
+
+- 运行中（busy）：绿色圆点（`var(--ok)`），标签"运行中"
+- 空闲（idle）：琥珀色圆点（`var(--warn)`），标签"空闲"
+- 状态未知（unknown）：灰色圆点，标签"未知"
+
+状态数据来自 `GET /v1/agents/status`，打开 switcher 时自动刷新。状态归一化逻辑在 `normalizeAgentRunStatus()`，按 agentId 缓存在 `agentRunStatusByAgentId` 中。
+
+CSS 样式：`.agent-switcher-item.is-busy / .is-idle / .is-unknown` 控制圆点颜色和间距（`src/ui/playground-styles.ts`）。
+
+### 跨 Agent 运行中切换
+
+移除了 `state.loading` 对 `switchAgent()` 的硬阻断。当 Agent A 正在运行时，用户可以直接切换到 Agent B，不会中断 Agent A 的后台任务。
+
+关键保护机制 — stream owner guard：
+
+- `createStreamOwner()` 在每次 sendMessage / attachActiveRunEventStream 时生成 owner token。
+- `isStreamOwnerCurrent()` 在 SSE 事件处理、UI 更新和 finally/catch 回调中校验当前 owner 是否仍是自己。
+- 跨 Agent 切换后，旧 Agent 的 SSE 事件被静默丢弃，不会污染新 Agent 的界面。
+
+保留限制：同一 Agent 内运行中切换会话的限制不变。
+
+关键文件：
+- `src/ui/playground.ts`：switcher 渲染、状态加载、切换逻辑
+- `src/ui/playground-stream-controller.ts`：stream owner guard、事件过滤
+- `src/ui/playground-styles.ts`：状态指示器样式
+
 ## 2026-05-13 Agent Skill 开关 + Conn 管理器排序
 
 关键提交：`489514d`、`2e69e56`

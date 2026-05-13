@@ -201,6 +201,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - 文件交付历史挂载与 `send_file` 结果合并：`src/agent/agent-file-history.ts`
 - agent 发文件工具：`.pi/extensions/send-file.ts`
 - conn：`src/agent/conn-store.ts`、`src/agent/conn-db.ts`、`src/agent/conn-sqlite-store.ts`、`src/agent/conn-run-store.ts`、`src/workers/conn-worker.ts`
+- artifact 交付：`src/agent/artifact-contract.ts`、`src/agent/artifact-validation.ts`、`src/agent/artifact-repair-loop.ts`、`src/routes/artifacts.ts`
 - 飞书：`src/integrations/feishu/`
 - 项目级配置：`.pi/settings.json`
 - 项目级 prompts：`.pi/prompts/`
@@ -352,6 +353,10 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `src/agent/conn-db.ts`
 - `src/agent/conn-sqlite-store.ts`
 - `src/agent/conn-run-store.ts`
+- `src/agent/artifact-contract.ts`
+- `src/agent/artifact-validation.ts`
+- `src/agent/artifact-repair-loop.ts`
+- `src/routes/artifacts.ts`
 - `src/workers/conn-worker.ts`
 - `src/workers/feishu-worker.ts`
 - `src/integrations/feishu/`
@@ -464,6 +469,6 @@ This file provides the highest-level working rules for AI coding agents in this 
 - Playground 多会话和运行态恢复以服务端 canonical state 为准：`GET /v1/chat/conversations` 管当前会话目录，`GET /v1/chat/state` 管可渲染状态，`GET /v1/chat/events` 管 active run 增量续订。本节只保留原则，具体实现看 `docs/agent-chat-governance-map.md`。
 - Agent profile 的运行时注册列表以 `GET /v1/agents` 为准；创建、归档、技能变更必须走 API。`.data/agents/profiles.json` 只是持久化 catalog，不是操作入口。
 - 仓库根 `AGENTS.md` 只给维护本项目代码的 coding agent 使用；Playground 主 Agent 和其他 agent profile 使用运行态规则文件 `/app/.data/agent/AGENTS.md` 或 `/app/.data/agents/<agentId>/AGENTS.md`。
-- `conn` 后台任务默认投递到任务消息；`workspace/output/` 是持久产物标准出口，`/app/public` 只保留兼容收编，不恢复为主输出目录。细节见 `docs/conn-activity-legacy-governance-map.md`。
+- `conn` 后台任务默认投递到任务消息；`workspace/output/` 是持久产物标准出口，`/app/public` 只保留兼容收编，不恢复为主输出目录。每个 conn workspace 包含六个目录：input、work、output、logs、session、artifact-public；启用 artifact 交付时 `ARTIFACT_PUBLIC_DIR` 指向 `artifact-public/`，post-execution 自动校验和修复。细节见 `docs/conn-activity-legacy-governance-map.md`。
 - 生产部署必须保留 shared 运行态：Chrome profile、agent session / assets / conn 数据、自定义 agent profile、用户 skills 都不能被代码更新洗掉。具体路径和验收以 `docs/server-ops.md` 及对应云手册为准。
 - Docker 镜像基础工具、浏览器 sidecar、公开 URL、模型源和双云部署事实如果变化，应更新对应专题文档和 `docs/change-log.md`，不要把变更流水账塞进本文件。

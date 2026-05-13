@@ -1,6 +1,31 @@
 # Playground 当前状态
 
-更新时间：`2026-05-12`
+更新时间：`2026-05-13`
+
+## 2026-05-13 Conn 管理器排序
+
+- 后台任务管理器列表排序策略：running > pending > 其他，同级别内按最近任务时间倒序，再按标题字母序，最后按 connId 兜底。
+- `compareConnManagerItems()` 先用 `getConnRunSortRank()` 计算 rank（running=0 / pending=1 / 其他=2），rank 不同时按 rank 升序；rank 相同时按 `getConnLatestRunTimeMs()` 倒序；时间也相同则按标题比较，最终按 connId 兜底。
+- 相关源码：`src/ui/playground-conn-activity-controller.ts`
+
+## 2026-05-12 Agent 状态指示与跨 Agent 切换
+
+- Agent 切换悬浮菜单和首页 Agent 卡片现在展示运行状态彩色圆点：`busy`（运行中）使用绿色脉冲动画，`idle`（空闲）使用暗灰静态点，`unknown` 使用更暗灰点。
+- 状态数据来自 `GET /v1/agents/status`，该接口返回每个 agent 的 `status`（`busy` / `idle` / `unknown`）和可选的 `activeSince` 时间戳。
+- 切换菜单项根据状态添加 CSS 类 `is-busy` / `is-idle` / `is-unknown`；busy agent 的菜单项右侧会显示运行时长（分钟），鼠标悬浮展示"运行时间"提示。
+- 用户可以在当前 Agent 运行期间切换到另一个 Agent：`switchAgent()` 不再阻止跨 Agent 切换，它会把当前 Agent 的 stream / events / state 同步全部清理，然后进入目标 Agent 的 scoped 会话。这允许用户在等待某个 Agent 任务完成的同时切换到另一个 Agent 继续工作。
+- 首页 Agent 卡片同样展示状态圆点和运行时长；busy 卡片额外标记 `is-busy` 类。
+- 相关源码：`src/ui/playground.ts`（`renderAgentSwitcherMeta()`、`renderAgentSelector()`、`switchAgent()`、`loadAgentRunStatus()`）、`src/ui/playground-styles.ts`（`agent-switcher-item.is-busy` / `is-idle` / `is-unknown` 样式、`landing-agent-status-dot` 样式）、`src/routes/chat.ts`（`GET /v1/agents/status`）
+
+## 2026-05-12 Per-Agent 技能启用/禁用开关
+
+- 每个 Agent 的已安装技能支持按技能粒度启用/禁用，不再只有"安装 / 删除"两种状态。
+- `GET /v1/agents/:agentId/skills` 返回技能清单及 `enabled` / `required` 状态；`PATCH /v1/agents/:agentId/skills/:skillName` 切换 `enabled`（请求体 `{ "enabled": true/false }`）。
+- `required` 技能（`agent-skill-ops`、`agent-runtime-ops`、`agent-filesystem-ops` 三件套）不可禁用，对应 UI 开关显示为禁用态。
+- Playground Agent 操作台和独立 Agent 管理页（`/playground/agents`）的技能列表都提供开关按钮（`ag-skill-toggle`），使用 `role="switch"` + `aria-checked`，开/关分别显示"开"/"关"文字和绿色/黄色配色。
+- 切换操作调用 `PATCH /v1/agents/:agentId/skills/:skillName`，成功后重新拉取技能列表并刷新渲染；失败时保留开关状态并提示错误。
+- 禁用后技能在列表中以降低透明度（`ag-skill-item--disabled`）展示，但不会从磁盘删除；重新启用即可恢复。
+- 相关源码：`src/routes/chat.ts`（`GET /v1/agents/:agentId/skills`、`PATCH /v1/agents/:agentId/skills/:skillName`）、`src/types/api.ts`（`AgentSkillListResponseBody`、`UpdateAgentSkillRequestBody`、`UpdateAgentSkillResponseBody`）、`src/ui/agents-page.ts`（`apiToggleSkill()`、`renderSkills()`）、`src/agent/agent-service.ts`
 
 ## 2026-05-12 Per-Agent 默认模型选择器
 

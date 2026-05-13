@@ -62,6 +62,24 @@
 - output 路由会校验相对路径、run 归属、`conn_run_files` 索引和 `workspacePath/output` 边界。
 - `/app/public` / public URL 收编只是旧脚本兼容层：确认 public 文件存在后复制进本轮 `output/`，再走标准索引。
 
+### 3.1 Artifact Public 目录
+
+除了 `output/` 外，conn run 还有一个独立的官方交付目录 `artifact-public/`（`<runRoot>/artifact-public/`），用于经过验证的正式产物。
+
+- 路由服务：`src/routes/artifacts.ts`（`registerArtifactRoutes`）
+- Contract 定义：`src/agent/artifact-contract.ts`
+- 产物验证：`src/agent/artifact-validation.ts`
+- 修复循环：`src/agent/artifact-repair-loop.ts`
+- 环境变量注入：`ARTIFACT_PUBLIC_DIR`，由 `background-agent-runner.ts` 在 run 启动时注入
+
+关键事实：
+
+- 当 conn 的 `artifactDelivery.enabled` 为 true 时，后台 run 会启用产物验证：扫描 `artifact-public/` 校验文件存在性、格式、敏感文件和容器路径。
+- 验证不通过时自动追加修复 prompt 重试，最多 `repairMaxAttempts` 轮。
+- artifact 路由独立于 output 路由：`GET /v1/conns/:connId/runs/:runId/artifacts/*`、`GET .../artifacts/latest/*` 和 `GET .../artifacts/health`。
+- `artifact-public/` 是每条 run 独立的交付目录，与跨 run 共享的 `CONN_PUBLIC_DIR` 和 run 级 `output/` 各自独立，不互相替代。
+- 不启用 `artifactDelivery` 的 conn 不受影响，`artifact-public/` 目录仅作为空目录存在。
+
 ### 4. Activity 与通知
 
 - Store：`src/agent/agent-activity-store.ts`

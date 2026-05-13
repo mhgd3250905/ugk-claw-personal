@@ -103,6 +103,7 @@ Conn 支持选择执行 Agent。自然语言配置时不要发明新字段，直
 - `CONN_OUTPUT_BASE_URL`：本次 run 的 `OUTPUT_DIR` 对应 URL 前缀。
 - `SITE_PUBLIC_DIR`：可选；多个 conn 共同维护同一个站点时使用的站点级公开目录。
 - `SITE_PUBLIC_BASE_URL`：可选；`SITE_PUBLIC_DIR` 对应的公开 URL 前缀。
+- `ARTIFACT_PUBLIC_DIR`：本次 run 的官方产物交付目录。开启产物交付保障后，系统会在 Agent 执行完毕后自动验证此目录，确保文件存在且格式正确。
 
 跨 run 状态必须写入 `CONN_SHARED_DIR`，例如：
 
@@ -168,6 +169,61 @@ Conn 支持选择执行 Agent。自然语言配置时不要发明新字段，直
 - 先查 `list_runs`
 - 必要时再查 `get_run`
 - 不要靠猜
+
+## 产物交付保障
+
+Conn 支持产物交付保障（artifact delivery validation）。开启后，系统会在 Agent 执行完毕后自动检查产物目录，确保文件存在且格式正确。如果验证失败且配置了修复次数，系统会自动让 Agent 修复后重试。
+
+### 何时建议开启
+
+- 任务需要生成 HTML 网页、Excel、PDF、CSV 等文件给用户
+- 产物质量关键，不能接受空文件或格式错误
+- Agent 偶尔会忘记写文件或写错位置
+
+### 创建 / 更新任务时的配置
+
+`artifactDelivery` 字段控制产物交付保障：
+
+```json
+{
+  "artifactDelivery": {
+    "enabled": true,
+    "expectedKind": "web",
+    "repairMaxAttempts": 2
+  }
+}
+```
+
+- `enabled`：是否开启验证
+- `expectedKind`：期望产物类型，可选值 `auto`（自动判断）、`web`、`xlsx`、`pdf`、`csv`、`markdown`、`file`
+- `repairMaxAttempts`：验证失败时自动修复的最大次数（0-3，默认 2）
+
+### 产物目录与 OUTPUT_DIR 的区别
+
+- `OUTPUT_DIR`：传统的交付目录，文件会被索引展示给用户
+- `ARTIFACT_PUBLIC_DIR`：官方产物交付目录，开启产物保障后使用此目录
+
+两者都是合法的交付位置。`ARTIFACT_PUBLIC_DIR` 的优势是系统会自动验证内容，并可通过专用的产物路由（`/v1/conns/:connId/runs/:runId/artifacts/*`）访问。
+
+### Agent 写产物的指引
+
+在 prompt 中引导 Agent 把最终产物写入 `ARTIFACT_PUBLIC_DIR`：
+
+- 网页类：放入完整的 `index.html` 及所有本地 CSS/JS/图片
+- Excel/PDF/CSV：直接放入文件
+- 多文件：都可以放，系统会扫描整个目录
+
+系统会自动在 prompt 里注入 `ARTIFACT_PUBLIC_DIR` 路径和相关指引，不需要手动拼路径。
+
+### 自然语言触发
+
+当用户表达这些意图时，可以考虑开启产物交付保障：
+
+- "确保产出文件"/"要检查产出文件"
+- "生成报告并验证"/"保证文件没问题"
+- "生成网页，确保能打开"
+
+不要默认开启。只在用户明确要求或任务明显需要产出文件时才建议开启。
 
 ## 禁止事项
 

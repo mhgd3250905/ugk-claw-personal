@@ -59,6 +59,7 @@ function summarizeConn(conn: ConnDefinition): string {
 		`nextRunAt: ${conn.nextRunAt ?? "(none)"}`,
 		`lastRunAt: ${conn.lastRunAt ?? "(none)"}`,
 		`lastRunId: ${conn.lastRunId ?? "(none)"}`,
+	`artifactDelivery: ${conn.artifactDelivery ? JSON.stringify(conn.artifactDelivery) : "(disabled)"}`,
 	].join("\n");
 }
 
@@ -148,6 +149,14 @@ const ConnToolParams = Type.Object({
 	modelProvider: Type.Optional(Type.String()),
 	modelId: Type.Optional(Type.String()),
 	upgradePolicy: Type.Optional(Type.Union([Type.Literal("latest"), Type.Literal("pinned"), Type.Literal("manual")])),
+	artifactDelivery: Type.Optional(Type.Object({
+		enabled: Type.Boolean(),
+		expectedKind: Type.Optional(Type.Union([
+			Type.Literal("auto"), Type.Literal("file"), Type.Literal("web"),
+			Type.Literal("xlsx"), Type.Literal("pdf"), Type.Literal("csv"), Type.Literal("markdown"),
+		])),
+		repairMaxAttempts: Type.Optional(Type.Number()),
+	})),
 });
 
 export default function connExtension(pi: ExtensionAPI) {
@@ -199,7 +208,8 @@ export default function connExtension(pi: ExtensionAPI) {
 						modelProvider: params.modelProvider,
 						modelId: params.modelId,
 						upgradePolicy: params.upgradePolicy,
-					});
+					artifactDelivery: params.artifactDelivery,
+				});
 					return {
 						content: [{ type: "text", text: summarizeConn(conn) }],
 						details: {
@@ -302,6 +312,7 @@ export default function connExtension(pi: ExtensionAPI) {
 						...(params.modelProvider !== undefined ? { modelProvider: params.modelProvider } : {}),
 						...(params.modelId !== undefined ? { modelId: params.modelId } : {}),
 						...(params.upgradePolicy !== undefined ? { upgradePolicy: params.upgradePolicy } : {}),
+					...(params.artifactDelivery !== undefined ? { artifactDelivery: params.artifactDelivery } : {}),
 					});
 					if (!conn) {
 						return createErrorResult(`Conn not found: ${params.connId}`, {

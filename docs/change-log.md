@@ -11,6 +11,25 @@
 ---
 
 ## 2026-05-13
+### Conn Artifact Delivery Validation
+- 日期：2026-05-13
+- 主题：Conn 后台任务支持 artifact 交付验证与自动修复。用户在 conn 编辑器中启用 `artifactDelivery` 后，后台 run 会验证产物是否真实写入 `artifact-public/` 目录；未通过验证时自动追加修复 prompt 重试，最多 configurable 轮。验证通过后，产物通过独立 artifact 路由对外提供访问。
+- 新增文件：
+  - `src/agent/artifact-contract.ts`：定义 `ArtifactDeliveryConfig`、`ArtifactContract`、`ArtifactRequiredOutput`、`ArtifactCheck` 等 contract 类型，以及 `buildDefaultArtifactContract()` 默认 contract 生成。
+  - `src/agent/artifact-validation.ts`：扫描 `artifact-public/` 目录，校验产物文件存在性、格式、敏感文件和容器路径泄漏，返回结构化 `ArtifactValidationResult`。
+  - `src/agent/artifact-repair-loop.ts`：当验证不通过时，向 agent session 追加修复 prompt 并重新验证，最多 `repairMaxAttempts` 轮。
+  - `src/routes/artifacts.ts`：artifact 独立服务路由，含 `GET /v1/conns/:connId/runs/:runId/artifacts/*`、`GET .../artifacts`、`GET .../artifacts/health` 和 `latest` 对应入口。
+  - `test/artifact-contract.test.ts`、`test/artifact-validation.test.ts`、`test/artifact-repair-loop.test.ts`、`test/artifact-routes.test.ts`：contract 生成、目录扫描、修复循环和路由单元测试。
+- 关键变更：
+  - `src/types/api.ts`：`ConnDefinition` 新增 `artifactDelivery?: ArtifactDeliveryConfig`。
+  - `src/routes/conn-route-parsers.ts`：解析和 normalize `artifactDelivery` 输入。
+  - `src/routes/conns.ts`：create / update conn 时持久化 `artifactDelivery`。
+  - `src/agent/background-workspace.ts`：`RunWorkspace` 新增 `artifactPublicDir`（`<runRoot>/artifact-public/`），初始化时递归创建。
+  - `src/agent/background-agent-runner.ts`：run 完成后若 `artifactDelivery.enabled`，调用验证 + 修复循环；workspace contract 注入 `ARTIFACT_PUBLIC_DIR` 和 `ARTIFACT_PUBLIC_BASE_URL` 环境变量。
+  - `src/ui/conn-page-js.ts`：Conn 编辑器新增 artifact delivery 开关和 `expectedKind` 选择。
+- 环境变量：`ARTIFACT_PUBLIC_DIR`（每条 run 注入，指向 `<runRoot>/artifact-public/`）。
+- 对应入口：`src/routes/artifacts.ts`、`src/agent/artifact-contract.ts`、`src/agent/artifact-validation.ts`、`src/agent/artifact-repair-loop.ts`
+
 ### Agent Skill 开关（Enable/Disable）
 - 日期：2026-05-13
 - 主题：每个 Agent 可单独开关已安装 skill，关闭后新建 session 不加载该 skill，重新开启无需重装。必需系统 skill 不可关闭。运行中 conversation 不允许切换 skill。
@@ -47,16 +66,23 @@
 - 保留限制：同一 Agent 内运行中切换会话的限制不变。
 - 对应入口：`src/ui/playground.ts`、`src/ui/playground-stream-controller.ts`、`src/ui/playground-styles.ts`
 
-### Agent 悬浮状态展示与运行中跨 Agent 切换
+### Chat view background atmosphere unification
 - 日期：2026-05-12
-- 主题：Agent 悬浮菜单显示每个 Agent 的运行状态（运行中/空闲/状态未知），并允许在另一个 Agent 运行时切换到其他 Agent，不会中断原 Agent 的后台任务。
+- 主题：统一聊天视图与落地页的背景网格纹理，使用共享 `--ugk-*` CSS 变量。Shell `background-image` 替代 `body::before` 绘制背景，确保纹理在所有子元素之后。暗色主题 body 渐变微调，增强 grid / dot / pixel 纹理层次；亮色主题消息气泡改为半透明以显示底层纹理。
 - 影响范围：
-  - ：新增 、 函数和  等 state 字段； 打开时刷新状态； 展示运行状态和彩色圆点； 移除  硬阻断，允许跨 Agent 切换并重置前端状态。
-  - ：新增 、 owner guard 函数； 和  绑定 stream owner，丢弃旧 Agent 事件；finally/catch 中 UI 操作增加 owner 校验，防止旧 stream 污染新界面。
-  - ：新增  样式，状态指示点使用  / 。
-  - ：更新受影响的 HTML 断言，新增 owner guard 和状态展示断言。
-- 保留限制：同一 Agent 内运行中切换会话的限制不变。
-- 对应入口：、、
+  - `src/ui/playground-styles.ts`：聊天视图（`.shell:not([data-home="true"])`）使用 `background-image` 引用 `--ugk-*` 变量，与落地页共用纹理定义。`body::before` 渐变角度和色值微调。暗色 `--ugk-dot-color` / `--ugk-pixel-color` 对比度增强。亮色主题消息气泡 `background` 改为 `rgba()` 半透明。
+  - `src/ui/playground.ts`：移除落地页专属的纹理注入逻辑，统一由 CSS 变量驱动。
+- 对应入口：`src/ui/playground-styles.ts`
+
+### Light-theme FOUC fix + visual polish
+- 日期：2026-05-11
+- 主题：修复独立页面（conn、agents）亮色主题加载时 FOUC（Flash of Unstyled Content）。通过内联主题脚本在 CSS 加载前设置 `data-theme` 和 `colorScheme`。统一所有独立页面的 theme storage key。落地页 logo 替换为 SVG + ASCII 组合。新增 pixel-hacker 背景纹理。
+- 影响范围：
+  - `src/ui/standalone-page-shared.ts`：导出 `STANDALONE_THEME_INLINE_SCRIPT`，所有独立页面在 `<head>` 内联执行，从 `localStorage("ugk-pi:playground-theme")` 读取用户偏好并立即设置 `data-theme` / `colorScheme`，消除 CSS 加载前的白闪。
+  - `src/ui/conn-page.ts`、`src/ui/agents-page.ts`：引入 `STANDALONE_THEME_INLINE_SCRIPT`，统一 theme storage key 为 `ugk-pi:playground-theme`。
+  - `src/ui/playground.ts`：落地页 logo 从纯文本改为 SVG 图标 + ASCII art 组合。
+  - `src/ui/playground-styles.ts`：落地页新增 pixel-hacker 风格背景纹理（grid + dot + pixel layer），与暗色主题氛围统一。
+- 对应入口：`src/ui/standalone-page-shared.ts`、`src/ui/playground-styles.ts`
 
 ### 独立 Agents 页浏览器绑定确认补齐
 - 日期：2026-05-12

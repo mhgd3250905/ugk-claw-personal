@@ -151,6 +151,7 @@ playground 卡片当前规则：
 - `modelProvider` / `modelId`
 - `modelPolicyId`（旧任务和底层策略兼容）
 - `upgradePolicy`
+- `artifactDelivery`：可选 artifact 交付验证配置，启用后 run 完成时验证 `artifact-public/` 目录产物合规性，未通过则自动修复重试
 
 这些字段的作用是让后台 worker 在真正执行时，按 ID 解析当前 agent 规范、skill 集和任务级模型选择，而不是把整套运行时定义硬编码进 conn 本身。
 
@@ -245,6 +246,8 @@ Run 查询接口：
 - 每条 conn 会获得独立的跨 run 共享目录：`CONN_SHARED_DIR=/app/.data/agent/background/shared/<connId>`。该目录用于去重历史、冷却时间戳、游标、checkpoint、审计记录等私有状态；不同 conn 彼此隔离，容器重建后只要 `/app/.data/agent` 仍挂在 shared 运行态上就会保留。不要把这类状态写进 `/tmp`、`/app/runtime`、`/app/runtime/skills-user`、`OUTPUT_DIR` 或 public 目录。当前平台不在删除 conn 时自动清理 `CONN_SHARED_DIR`，避免误删生产状态；需要清理时必须走显式维护动作。
 - 每条 conn 还会获得独立的长期公开目录：`CONN_PUBLIC_DIR=/app/.data/agent/background/shared/<connId>/public`，对应 URL 为 `GET /v1/conns/:connId/public/<path>`，运行时别名是 `CONN_PUBLIC_BASE_URL`。这个目录只放用户可以长期公开打开的文件，例如稳定站点 HTML、公开 JSON、图片和下载物；不要放 token、cookie、游标、checkpoint、审计记录或其他私有状态。路由只服务 `public/` 子目录，`shared/<connId>` 下其他文件不会被公开。
 - 如果多个 conn 需要共同维护同一个网站，应给这些 conn 配置同一个 `publicSiteId`。后台 run 会创建 `SITE_PUBLIC_DIR=/app/.data/agent/background/sites/<publicSiteId>/public` 并注入 `SITE_PUBLIC_BASE_URL`，对应 URL 为 `GET /v1/sites/:siteId/<path>`。站点级目录是公开网站出口，不是共享数据库；多个 conn 的私有状态仍分别写回各自的 `CONN_SHARED_DIR`。
+- 每条 conn run 还会获得 run 级 artifact 交付目录：`ARTIFACT_PUBLIC_DIR=<runRoot>/artifact-public/`，对应 URL 为 `GET /v1/conns/:connId/runs/:runId/artifacts/*` 和 `GET /v1/conns/:connId/artifacts/latest/*`。该目录与 `output/` 和 `CONN_PUBLIC_DIR` 平行，专门用于经过验证的正式交付产物。后台 session 同时会收到 `ARTIFACT_PUBLIC_DIR` 环境变量。
+- Artifact 交付验证流程：当 conn 的 `artifactDelivery.enabled` 为 true 时，run 完成后会扫描 `artifact-public/` 目录，校验产物文件存在性、格式匹配、敏感文件泄漏和容器路径残留。验证不通过时，`artifact-repair-loop.ts` 会向 agent session 追加修复 prompt 并重新执行，最多 `repairMaxAttempts` 轮。所有修复尝试和验证结果记入 run 事件。验证配置和 contract 定义见 `src/agent/artifact-contract.ts`，验证逻辑见 `src/agent/artifact-validation.ts`，路由见 `src/routes/artifacts.ts`。
 - conn run 的 `finishedAt`、`run_succeeded` / `run_failed` 事件时间、输出文件索引时间和任务消息 `createdAt` 均以真实终止时刻为准，不再复用 worker 领取任务时的 `tick(now)`。如果 `startedAt == finishedAt`，现在更能代表任务确实瞬间结束，而不是后台跑了 100 秒但时钟被写瞎。
 - 后台任务完成 / 失败 / 取消后写入任务消息页的 activity 正文，会在开头追加 `执行 Agent：...` 和 `执行模型：provider / model`。Agent 行来自该 run 的 `resolvedSnapshot.agentName/agentId`；如果发生降级，要显示“原执行 Agent 不可用，已由主 Agent 完成”这类可见提示。模型行来自 `resolvedSnapshot.provider/model`，展示实际执行模型，不拿当前设置或 conn 表单字段猜。
 - 后台 runner 生成 `resultText` 时会优先保留用户真正要的可见答案；如果最后一条 assistant 文本只是“输出文件已写入”这类低信息量收尾，会回退到前面更有用的回答。别再让通知正文只剩一个文件路径，用户不是来猜谜的。
