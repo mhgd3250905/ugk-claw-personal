@@ -11,7 +11,13 @@ import type {
 } from "../agent/conn-run-store.js";
 import type { ConnDefinition, ConnSchedule, ConnTarget } from "../agent/conn-store.js";
 import { sanitizeBackgroundPathSegment } from "../agent/background-workspace.js";
-import { toConnListBody, toConnRunBody, toConnRunEventBody, toConnRunFileBody } from "./conn-route-presenters.js";
+import {
+	sortConnListBodiesByRecentRun,
+	toConnListBody,
+	toConnRunBody,
+	toConnRunEventBody,
+	toConnRunFileBody,
+} from "./conn-route-presenters.js";
 import { parseConnIdList, parseConnMutationBody } from "./conn-route-parsers.js";
 import {
 	buildContentDispositionHeader,
@@ -342,7 +348,7 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 			options.connRunStore.getTotalUnreadCount(connIds),
 		]);
 		return {
-			conns: conns.map((conn) => toConnListBody(conn, latestRunsByConnId)),
+			conns: sortConnListBodiesByRecentRun(conns.map((conn) => toConnListBody(conn, latestRunsByConnId))),
 			unreadRunCountsByConnId,
 			totalUnreadRuns,
 		};

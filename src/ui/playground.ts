@@ -393,6 +393,10 @@ function getPlaygroundScript(): string {
 		const modelConfigSave = document.getElementById("model-config-save");
 		const openFeishuSettingsButton = document.getElementById("open-feishu-settings-button");
 		const openBrowserWorkbenchButton = document.getElementById("open-browser-workbench-button");
+		const runtimeModelSummary = document.getElementById("runtime-model-summary");
+		const runtimeModelValue = document.getElementById("runtime-model-value");
+		const runtimeBrowserSummary = document.getElementById("runtime-browser-summary");
+		const runtimeBrowserValue = document.getElementById("runtime-browser-value");
 		const browserWorkbenchDialog = document.getElementById("browser-workbench-dialog");
 		const closeBrowserWorkbenchButton = document.getElementById("close-browser-workbench-button");
 		const refreshBrowserWorkbenchButton = document.getElementById("refresh-browser-workbench-button");
@@ -569,6 +573,7 @@ function getPlaygroundScript(): string {
 				state.agentId = writeStoredAgentId("main");
 			}
 			renderAgentSelector();
+			renderRuntimeSummary();
 		}
 
 
@@ -673,6 +678,7 @@ function getPlaygroundScript(): string {
 						container.appendChild(card);
 					}
 					renderAgentSelector();
+					renderRuntimeSummary();
 				} catch {
 					container.innerHTML = '<span style="color:var(--text-muted)">无法加载 agent 列表</span>';
 				}
@@ -750,8 +756,10 @@ function getPlaygroundScript(): string {
 			renderConversationDrawer();
 			renderContextUsageBar();
 			renderAgentSelector();
+			renderRuntimeSummary();
 			clearError();
 			await ensureCurrentConversation({ silent: true });
+			void syncRuntimeSummary();
 			void loadAgentRunStatus({ force: true }).then(renderAgentSelector);
 		}
 
@@ -831,6 +839,84 @@ function getPlaygroundScript(): string {
 			const current = state.modelConfig?.current || { provider: "", model: "" };
 			const agentSelection = getCurrentAgentModelConfigSelection();
 			return hasModelConfigSelection(agentSelection) ? agentSelection : current;
+		}
+
+		function getBrowserCatalogForRuntimeSummary() {
+			return Array.isArray(state.browserCatalog) && state.browserCatalog.length > 0
+				? state.browserCatalog
+				: [{ browserId: "default", name: "Default", isDefault: true }];
+		}
+
+		function getRuntimeBrowserLabel(browserId) {
+			const normalized = String(browserId || "").trim() || "default";
+			const browser = getBrowserCatalogForRuntimeSummary()
+				.find((entry) => String(entry?.browserId || "").trim() === normalized);
+			const name = String(browser?.name || normalized).trim();
+			return name === normalized ? normalized : name + " · " + normalized;
+		}
+
+		function getEffectiveBrowserSelection() {
+			const agent = findCurrentAgentCatalogEntry();
+			const agentBrowserId = String(agent?.defaultBrowserId || "").trim();
+			return agentBrowserId || String(state.defaultBrowserId || "default").trim() || "default";
+		}
+
+		function renderRuntimeSummary() {
+			const modelSelection = getEffectiveModelConfigSelection();
+			if (runtimeModelValue) {
+				runtimeModelValue.textContent = modelSelection.provider && modelSelection.model
+					? modelSelection.provider + " / " + modelSelection.model
+					: "配置未知";
+			}
+			if (runtimeModelSummary) {
+				const agentModel = getCurrentAgentModelConfigSelection();
+				runtimeModelSummary.dataset.source = agentModel ? "agent" : "global";
+				runtimeModelSummary.setAttribute("aria-label", "当前 API 源 " + (runtimeModelValue?.textContent || "配置未知"));
+			}
+
+			const browserId = getEffectiveBrowserSelection();
+			if (runtimeBrowserValue) {
+				runtimeBrowserValue.textContent = getRuntimeBrowserLabel(browserId);
+			}
+			if (runtimeBrowserSummary) {
+				const agentBrowserId = String(findCurrentAgentCatalogEntry()?.defaultBrowserId || "").trim();
+				runtimeBrowserSummary.dataset.source = agentBrowserId ? "agent" : "global";
+				runtimeBrowserSummary.setAttribute("aria-label", "当前 Chrome " + (runtimeBrowserValue?.textContent || "配置未知"));
+			}
+		}
+
+		async function syncRuntimeSummary() {
+			await Promise.allSettled([
+				loadModelConfigForRuntimeSummary(),
+				loadBrowserCatalogForRuntimeSummary(),
+			]);
+			renderRuntimeSummary();
+		}
+
+		async function loadModelConfigForRuntimeSummary() {
+			if (state.modelConfig) {
+				return;
+			}
+			const response = await fetch("/v1/model-config", { headers: { accept: "application/json" } });
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw new Error(payload?.error?.message || "读取模型源失败");
+			}
+			state.modelConfig = payload;
+		}
+
+		async function loadBrowserCatalogForRuntimeSummary() {
+			if (Array.isArray(state.browserCatalog) && state.browserCatalog.length > 0) {
+				return;
+			}
+			const response = await fetch("/v1/browsers", { headers: { accept: "application/json" } });
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw new Error(payload?.error?.message || "读取 Chrome 列表失败");
+			}
+			state.defaultBrowserId = String(payload?.defaultBrowserId || "default").trim() || "default";
+			state.browserCatalog = Array.isArray(payload?.browsers) ? payload.browsers : [];
+			state.browserCatalogReliable = true;
 		}
 
 		function formatModelTokenCount(value) {
@@ -968,6 +1054,7 @@ function getPlaygroundScript(): string {
 				state.modelConfigSelectedProvider = effectiveSelection.provider || "";
 				state.modelConfigSelectedModel = effectiveSelection.model || "";
 				renderModelConfigDialog();
+				renderRuntimeSummary();
 				setModelConfigStatus(getCurrentAgentId() === "main" ? "主 Agent 跟随全局模型设置，保存会更新全局默认。" : "这里保存到当前 Agent，后续新会话和后台继承该 Agent 的任务会使用它。", "neutral");
 			} catch (error) {
 				setModelConfigStatus(error instanceof Error ? error.message : "读取模型源失败", "error");
@@ -1059,6 +1146,7 @@ function getPlaygroundScript(): string {
 				state.modelConfigSelectedProvider = savedSelection.provider;
 				state.modelConfigSelectedModel = savedSelection.model;
 				renderModelConfigDialog();
+				renderRuntimeSummary();
 				setModelConfigStatus(isMainAgent ? "已保存到全局默认，新会话生效。" : "已保存到当前 Agent，新会话生效。", "success");
 				void syncContextUsage({ silent: true });
 			} catch (error) {
@@ -1476,6 +1564,7 @@ function getPlaygroundScript(): string {
 			setTranscriptState("idle");
 			setCommandStatus("STANDBY");
 			renderContextUsageBar();
+			renderRuntimeSummary();
 			renderSelectedAssets();
 			renderAssetPickerList();
 			renderTaskInbox();
@@ -1485,6 +1574,7 @@ function getPlaygroundScript(): string {
 			void syncTaskInboxSummary({ silent: true });
 			void syncConnManagerUnreadSummary({ silent: true });
 			void loadAgentStatusAndRenderCards();
+			void syncRuntimeSummary();
 
 			resetStreamingState();
 			clearError();

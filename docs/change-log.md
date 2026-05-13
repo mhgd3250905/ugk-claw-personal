@@ -11,6 +11,26 @@
 ---
 
 ## 2026-05-13
+### Playground 左栏运行汇总
+- 日期：2026-05-13
+- 主题：在 Playground 左侧会话列表底部增加当前运行汇总，展示当前有效 API 源 / 模型和当前 Chrome 实例，避免用户在运行前后无法确认实际使用的 provider 与浏览器。
+- 影响范围：
+  - `src/ui/playground-page-shell.ts`：在左侧设置区下方新增纯文本 `runtime-summary`，按“小字标题 + 正文”的形式展示 API 源和 Chrome。
+  - `src/ui/playground.ts`：新增运行汇总读取与渲染逻辑，复用当前 Agent 模型优先、全局默认兜底的规则；Chrome 优先当前 Agent 默认浏览器，兜底全局默认浏览器。
+  - `src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`：新增深色 / 浅色视觉样式，保持信息高亮但不做成按钮。
+  - `test/server.test.ts`：新增 Playground 页面包含运行汇总信息与渲染函数的断言。
+- 对应入口：`src/ui/playground-page-shell.ts`、`src/ui/playground.ts`
+
+### Conn 任务列表按最近完成时间倒序
+- 日期：2026-05-13
+- 主题：优化 `/playground/conn` 左侧任务列表排序。列表现在优先按最近完成的 run 时间倒序展示，有未读结果的任务通常会因为刚完成而排到前面，用户看到未读数后进入页面无需再从旧任务里翻。
+- 影响范围：
+  - `src/routes/conn-route-presenters.ts`：新增 conn 列表排序 helper，优先使用 `latestRun.finishedAt` / `lastRunAt`，无完成记录的任务排在已完成任务之后。
+  - `src/routes/conns.ts`：`GET /v1/conns` 返回前统一应用排序，避免只在某个前端入口里临时排序。
+  - `src/ui/conn-page-js.ts`：独立 Conn 页面过滤后再次按最近完成时间排序，保证左侧列表局部刷新后仍稳定。
+  - `test/conn-route-presenters.test.ts`、`test/server.test.ts`：新增排序规则和页面排序钩子断言。
+- 对应入口：`src/routes/conns.ts`、`src/ui/conn-page-js.ts`
+
 ### Standalone Conn / Agents 首页同款 cockpit UI 与测试稳定化
 - 日期：2026-05-13
 - 主题：继续治理收尾并优化独立 Conn / Agents 页面。`npm test` 固定为串行执行，避免 Windows 本地多个 `buildServer()` 并发初始化默认 SQLite 时出现 `database is locked`；`/playground/conn` 和 `/playground/agents` 采用首页 Agent 选择页同源的 pixel cockpit 背景、扫描光、半透明边框和卡片 hover 语言。

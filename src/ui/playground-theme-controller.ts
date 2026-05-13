@@ -129,6 +129,18 @@ export function getPlaygroundThemeStyles(): string {
 			color: #34435f;
 		}
 
+		:root[data-theme="light"] .runtime-summary {
+			border-top-color: rgba(31, 95, 200, 0.10);
+		}
+
+		:root[data-theme="light"] .runtime-summary-label {
+			color: rgba(39, 55, 83, 0.58);
+		}
+
+		:root[data-theme="light"] .runtime-summary-item strong {
+			color: #17243a;
+		}
+
 		:root[data-theme="light"] .chat-stage {
 			border-color: transparent;
 			background: transparent;

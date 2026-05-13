@@ -13,6 +13,52 @@ export function toConnListBody(
 	};
 }
 
+export function sortConnListBodiesByRecentRun(conns: readonly ConnBody[]): ConnBody[] {
+	return [...conns].sort(compareConnListBodiesByRecentRun);
+}
+
+function compareConnListBodiesByRecentRun(left: ConnBody, right: ConnBody): number {
+	const leftTime = getConnRecentCompletedRunTimeMs(left);
+	const rightTime = getConnRecentCompletedRunTimeMs(right);
+	if (leftTime > 0 !== rightTime > 0) {
+		return leftTime > 0 ? -1 : 1;
+	}
+	if (leftTime !== rightTime) {
+		return rightTime - leftTime;
+	}
+	const leftFallbackTime = getConnFallbackTimeMs(left);
+	const rightFallbackTime = getConnFallbackTimeMs(right);
+	if (leftFallbackTime !== rightFallbackTime) {
+		return rightFallbackTime - leftFallbackTime;
+	}
+	const titleCompare = String(left.title || "").localeCompare(String(right.title || ""), "zh-CN");
+	if (titleCompare !== 0) {
+		return titleCompare;
+	}
+	return String(left.connId || "").localeCompare(String(right.connId || ""));
+}
+
+function getConnRecentCompletedRunTimeMs(conn: ConnBody): number {
+	const latestRun = conn.latestRun || undefined;
+	const candidates = [latestRun?.finishedAt, conn.lastRunAt];
+	return getFirstValidTimeMs(candidates);
+}
+
+function getConnFallbackTimeMs(conn: ConnBody): number {
+	const latestRun = conn.latestRun || undefined;
+	return getFirstValidTimeMs([latestRun?.updatedAt, latestRun?.createdAt, conn.updatedAt, conn.createdAt]);
+}
+
+function getFirstValidTimeMs(candidates: readonly unknown[]): number {
+	for (const value of candidates) {
+		const time = Date.parse(String(value || ""));
+		if (Number.isFinite(time)) {
+			return time;
+		}
+	}
+	return 0;
+}
+
 export function toConnRunBody(run: ConnRunRecord): ConnRunDetailResponseBody["run"] {
 	return {
 		runId: run.runId,

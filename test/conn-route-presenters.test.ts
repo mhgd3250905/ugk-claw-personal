@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+	sortConnListBodiesByRecentRun,
 	toConnListBody,
 	toConnRunBody,
 	toConnRunEventBody,
@@ -109,4 +110,41 @@ test("conn route presenters map run files and events", () => {
 
 	assert.deepEqual(toConnRunFileBody(file), file);
 	assert.deepEqual(toConnRunEventBody(event), event);
+});
+
+test("conn list bodies sort by latest completed run time first", () => {
+	const makeConn = (connId: string, title: string, createdAt: string): ConnDefinition => ({
+		connId,
+		title,
+		prompt: "Summarize",
+		target: { type: "task_inbox" },
+		schedule: { kind: "interval", everyMs: 60000 },
+		assetRefs: [],
+		status: "active",
+		createdAt,
+		updatedAt: createdAt,
+	});
+	const makeRun = (connId: string, runId: string, finishedAt: string): ConnRunRecord => ({
+		runId,
+		connId,
+		status: "succeeded",
+		scheduledAt: finishedAt,
+		finishedAt,
+		workspacePath: "/app/.data/background/runs/" + runId,
+		createdAt: finishedAt,
+		updatedAt: finishedAt,
+	});
+
+	const older = toConnListBody(makeConn("conn-older", "Older", "2026-04-22T08:00:00.000Z"), {
+		"conn-older": makeRun("conn-older", "run-older", "2026-04-22T10:00:00.000Z"),
+	});
+	const newer = toConnListBody(makeConn("conn-newer", "Newer", "2026-04-22T07:00:00.000Z"), {
+		"conn-newer": makeRun("conn-newer", "run-newer", "2026-04-22T12:00:00.000Z"),
+	});
+	const neverRun = toConnListBody(makeConn("conn-never", "Never", "2026-04-22T11:00:00.000Z"), {});
+
+	assert.deepEqual(
+		sortConnListBodiesByRecentRun([older, neverRun, newer]).map((conn) => conn.connId),
+		["conn-newer", "conn-older", "conn-never"],
+	);
 });

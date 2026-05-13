@@ -331,7 +331,50 @@ function getFilteredConns() {
       (c.prompt || "").toLowerCase().includes(q)
     );
   }
-  return list;
+  return list.slice().sort(compareConnListItems);
+}
+
+function getConnLatestRunTimeMs(conn) {
+  const latestRun = conn?.latestRun || null;
+  const candidates = [
+    latestRun?.finishedAt,
+    latestRun?.updatedAt,
+    latestRun?.createdAt,
+    conn?.lastRunAt,
+    conn?.updatedAt,
+    conn?.createdAt,
+  ];
+  for (const value of candidates) {
+    const time = Date.parse(String(value || ""));
+    if (Number.isFinite(time)) return time;
+  }
+  return 0;
+}
+
+function compareConnListItems(left, right) {
+  const leftTime = getConnLatestCompletedRunTimeMs(left);
+  const rightTime = getConnLatestCompletedRunTimeMs(right);
+  if ((leftTime > 0) !== (rightTime > 0)) return leftTime > 0 ? -1 : 1;
+  if (leftTime !== rightTime) return rightTime - leftTime;
+  const leftFallbackTime = getConnLatestRunTimeMs(left);
+  const rightFallbackTime = getConnLatestRunTimeMs(right);
+  if (leftFallbackTime !== rightFallbackTime) return rightFallbackTime - leftFallbackTime;
+  const titleCompare = String(left?.title || "").localeCompare(String(right?.title || ""), "zh-CN");
+  if (titleCompare !== 0) return titleCompare;
+  return String(left?.connId || "").localeCompare(String(right?.connId || ""));
+}
+
+function getConnLatestCompletedRunTimeMs(conn) {
+  const latestRun = conn?.latestRun || null;
+  const candidates = [
+    latestRun?.finishedAt,
+    conn?.lastRunAt,
+  ];
+  for (const value of candidates) {
+    const time = Date.parse(String(value || ""));
+    if (Number.isFinite(time)) return time;
+  }
+  return 0;
 }
 
 function renderList() {

@@ -729,6 +729,13 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /open-conn-manager-button/);
 	assert.match(response.body, /conn-manager-dialog/);
 	assert.match(response.body, /conn-manager-list/);
+	assert.match(response.body, /id="runtime-summary"/);
+	assert.match(response.body, /id="runtime-model-value"/);
+	assert.match(response.body, /id="runtime-browser-value"/);
+	assert.match(response.body, /function renderRuntimeSummary\(\)/);
+	assert.match(response.body, /function syncRuntimeSummary\(\)/);
+	assert.match(response.body, /当前 API 源/);
+	assert.match(response.body, /当前 Chrome/);
 	assert.doesNotMatch(response.body, /查看 conn、暂停或恢复调度、立即入队一次运行/);
 	assert.match(response.body, /function openConnManager\(/);
 	assert.match(response.body, /function loadConnManager\(/);
@@ -1205,6 +1212,16 @@ test("standalone conn page follows the home cockpit visual system", () => {
 	assert.match(response, /data-standalone-theme="cockpit"/);
 	assert.match(response, /sp-cockpit-drift/);
 	assert.match(response, /body\[data-standalone-theme="cockpit"\] \.conn-stat-card/);
+});
+
+test("standalone conn page sorts the left task list by recent completed run", () => {
+	const response = renderConnPage();
+
+	assert.match(response, /function getConnLatestCompletedRunTimeMs\(conn\)/);
+	assert.match(response, /function compareConnListItems\(left, right\)/);
+	assert.match(response, /return list\.slice\(\)\.sort\(compareConnListItems\)/);
+	assert.match(response, /latestRun\?\.finishedAt/);
+	assert.match(response, /conn\?\.lastRunAt/);
 });
 
 test("GET /playground defaults runtime append behavior to steer", async () => {
