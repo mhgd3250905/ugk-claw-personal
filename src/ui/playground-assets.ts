@@ -213,6 +213,21 @@ export function getPlaygroundAssetBaseStyles(): string {
 			justify-content: flex-end;
 		}
 
+		.message.user .file-chip {
+			border-color: rgba(0, 0, 0, 0.08);
+			background: rgba(0, 0, 0, 0.07);
+		}
+
+		.message.user .file-chip-badge {
+			border-color: rgba(0, 0, 0, 0.08);
+			background: rgba(255, 255, 255, 0.26);
+			color: #17320f;
+		}
+
+		.message.user .file-chip-label {
+			color: #17320f;
+		}
+
 		.file-download-actions {
 			display: inline-flex;
 			gap: 6px;

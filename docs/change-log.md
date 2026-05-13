@@ -11,6 +11,20 @@
 ---
 
 ## 2026-05-13
+### 用户气泡链接与文件引用对比度修复
+- 日期：2026-05-13
+- 主题：修复深色主题下用户绿色消息气泡内链接和引用文件 chip 继承浅色文字导致看不清的问题。
+- 影响范围：
+  - `src/ui/playground-styles.ts`：为 `.message.user .message-content a` 增加深色链接色和下划线色，避免继承 assistant / 全局链接色。
+  - `src/ui/playground-assets.ts`：为 `.message.user` 内的 `.file-chip`、badge 和 label 增加绿色气泡专用深色文字与背景。
+  - `test/server.test.ts`：新增用户气泡链接和文件 chip 对比度断言。
+  - `docs/playground-current.md`：补充用户气泡内链接 / 文件 chip 颜色约束。
+- 对应入口：
+  - `src/ui/playground-styles.ts`
+  - `src/ui/playground-assets.ts`
+  - `test/server.test.ts`
+  - `docs/playground-current.md`
+
 ### Conn 页面复制按钮兼容公网 HTTP
 - 日期：2026-05-13
 - 主题：修复正式服务器 HTTP 访问 `/playground/conn` 时复制按钮因 `navigator.clipboard` 不存在而报错的问题。

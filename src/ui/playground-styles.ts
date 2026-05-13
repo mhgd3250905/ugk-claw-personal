@@ -1762,6 +1762,13 @@ export function getPlaygroundStyles(): string {
 		.message.user .message-content {
 			text-align: left;
 		}
+
+		.message.user .message-content a {
+			color: #064e3b;
+			text-decoration-color: rgba(6, 78, 59, 0.5);
+			font-weight: 700;
+		}
+
 		.message.user .message-copy-button,
 		.message.user .message-image-export-button {
 			color: rgba(0, 0, 0, 0.35);

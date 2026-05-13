@@ -868,6 +868,8 @@ test("GET /playground returns the test UI html", async () => {
 	assert.match(response.body, /\.message\.assistant \.message-content h2\s*\{[\s\S]*font-size:\s*16px;/);
 	assert.match(response.body, /\.message\.assistant \.message-content h3\s*\{[\s\S]*font-size:\s*14px;/);
 	assert.match(response.body, /\.message\.assistant \.message-content a\s*\{[\s\S]*color:\s*#8fd6ff;/);
+	assert.match(response.body, /\.message\.user \.message-content a\s*\{[\s\S]*color:\s*#064e3b;/);
+	assert.match(response.body, /\.message\.user \.file-chip-label\s*\{[\s\S]*color:\s*#17320f;/);
 	assert.match(response.body, /\.message\.assistant \.message-content code\s*\{[\s\S]*color:\s*#ffe6ad;/);
 	assert.match(response.body, /\.message\.assistant \.message-content blockquote\s*\{[\s\S]*border-left-color:\s*rgba\(128, 232, 198, 0\.46\);/);
 	assert.match(response.body, /\.message\.assistant \.message-content th\s*\{[\s\S]*background:\s*rgba\(143, 214, 255, 0\.1\);/);
