@@ -11,6 +11,14 @@
 ---
 
 ## 2026-05-13
+### 新同事接手交接快照刷新
+- 日期：2026-05-13
+- 主题：刷新 `docs/handoff-current.md`，把旧的未推送、旧 HEAD、旧生产版本等历史残留口径替换为当前真实交接状态，方便新同事按最短路径接手项目。
+- 影响范围：
+  - `docs/handoff-current.md`：重写为当前快照、双云部署状态、最小阅读顺序、关键禁区、验证记录和给同事的接手提示。
+  - 明确当前交接提交为 `d7bcb4d Show runtime summary and sort conn tasks`，`origin/main` / `gitee/main` 已同步，腾讯云 / 阿里云均已增量更新并通过 verify。
+- 对应入口：`docs/handoff-current.md`
+
 ### Playground 左栏运行汇总
 - 日期：2026-05-13
 - 主题：在 Playground 左侧会话列表底部增加当前运行汇总，展示当前有效 API 源 / 模型和当前 Chrome 实例，避免用户在运行前后无法确认实际使用的 provider 与浏览器。
