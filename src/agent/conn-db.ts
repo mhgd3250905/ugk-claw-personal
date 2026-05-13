@@ -118,7 +118,7 @@ export class ConnDatabase {
 		const db = this.open();
 		db.exec(SCHEMA_SQL);
 		this.applyMigrations(db);
-		db.exec("PRAGMA user_version = 9");
+		db.exec("PRAGMA user_version = 10");
 	}
 
 	private async prepareDatabasePath(): Promise<void> {
@@ -196,6 +196,9 @@ export class ConnDatabase {
 			db.exec("ALTER TABLE conn_runs ADD COLUMN read_at TEXT");
 				db.exec("CREATE INDEX IF NOT EXISTS idx_conn_runs_unread ON conn_runs(conn_id, status, read_at)");
 		}
+		if (userVersion < 10 && !this.hasColumn("conns", "artifact_delivery_json")) {
+			db.exec("ALTER TABLE conns ADD COLUMN artifact_delivery_json TEXT");
+		}
 		db.exec("CREATE INDEX IF NOT EXISTS idx_conns_deleted_at ON conns(deleted_at, created_at DESC)");
 		if (userVersion < 3) {
 			db.exec(
@@ -256,6 +259,7 @@ CREATE TABLE IF NOT EXISTS conns (
 	model_id TEXT,
 	upgrade_policy TEXT NOT NULL DEFAULT 'latest',
 	public_site_id TEXT,
+	artifact_delivery_json TEXT,
 	status TEXT NOT NULL DEFAULT 'active',
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL,

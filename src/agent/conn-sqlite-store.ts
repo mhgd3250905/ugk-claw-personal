@@ -31,6 +31,7 @@ export interface CreateConnInput {
 	modelId?: string;
 	upgradePolicy?: ConnUpgradePolicy;
 	publicSiteId?: string;
+	artifactDelivery?: import("./artifact-contract.js").ArtifactDeliveryConfig;
 	now?: Date;
 }
 
@@ -51,6 +52,7 @@ export type UpdateConnInput = Partial<
 		| "modelId"
 		| "upgradePolicy"
 		| "publicSiteId"
+		| "artifactDelivery"
 		| "status"
 	>
 > & { browserId?: string | null; now?: Date };
@@ -77,6 +79,7 @@ interface ConnRow {
 	model_id?: string | null;
 	upgrade_policy: ConnUpgradePolicy;
 	public_site_id?: string | null;
+	artifact_delivery_json?: string | null;
 	status: ConnStatus;
 	created_at: string;
 	updated_at: string;
@@ -134,6 +137,7 @@ export class ConnSqliteStore {
 			...(input.modelId !== undefined ? { modelId: normalizeRequiredId(input.modelId, "modelId") } : {}),
 			upgradePolicy: input.upgradePolicy ?? DEFAULT_UPGRADE_POLICY,
 			...(input.publicSiteId !== undefined ? { publicSiteId: normalizePublicSiteId(input.publicSiteId) } : {}),
+			...(input.artifactDelivery ? { artifactDelivery: input.artifactDelivery } : {}),
 			status: "active",
 			createdAt,
 			updatedAt: createdAt,
@@ -144,9 +148,9 @@ export class ConnSqliteStore {
 			[
 				"INSERT INTO conns (",
 				"conn_id, title, prompt, target_json, schedule_json, asset_refs_json, max_run_ms,",
-				"profile_id, browser_id, agent_spec_id, skill_set_id, model_policy_id, model_provider, model_id, upgrade_policy, public_site_id,",
+				"profile_id, browser_id, agent_spec_id, skill_set_id, model_policy_id, model_provider, model_id, upgrade_policy, public_site_id, artifact_delivery_json,",
 				"status, created_at, updated_at, next_run_at",
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			].join(" "),
 			conn.connId,
 			conn.title,
@@ -164,6 +168,7 @@ export class ConnSqliteStore {
 			conn.modelId,
 			conn.upgradePolicy,
 			conn.publicSiteId,
+			JSON.stringify(conn.artifactDelivery) ?? null,
 			conn.status,
 			conn.createdAt,
 			conn.updatedAt,
@@ -203,6 +208,7 @@ export class ConnSqliteStore {
 			...(patch.modelId !== undefined ? { modelId: normalizeRequiredId(patch.modelId, "modelId") } : {}),
 			...(patch.upgradePolicy !== undefined ? { upgradePolicy: patch.upgradePolicy } : {}),
 			...(patch.publicSiteId !== undefined ? { publicSiteId: normalizePublicSiteId(patch.publicSiteId) } : {}),
+			...(patch.artifactDelivery !== undefined ? { artifactDelivery: patch.artifactDelivery } : {}),
 			status,
 			updatedAt: now.toISOString(),
 			nextRunAt:
@@ -215,7 +221,7 @@ export class ConnSqliteStore {
 			[
 				"UPDATE conns SET",
 				"title = ?, prompt = ?, target_json = ?, schedule_json = ?, asset_refs_json = ?, max_run_ms = ?,",
-				"profile_id = ?, browser_id = ?, agent_spec_id = ?, skill_set_id = ?, model_policy_id = ?, model_provider = ?, model_id = ?, upgrade_policy = ?, public_site_id = ?,",
+				"profile_id = ?, browser_id = ?, agent_spec_id = ?, skill_set_id = ?, model_policy_id = ?, model_provider = ?, model_id = ?, upgrade_policy = ?, public_site_id = ?, artifact_delivery_json = ?,",
 				"status = ?, updated_at = ?, next_run_at = ?",
 				"WHERE conn_id = ?",
 			].join(" "),
@@ -234,6 +240,7 @@ export class ConnSqliteStore {
 			updated.modelId,
 			updated.upgradePolicy,
 			updated.publicSiteId,
+			JSON.stringify(updated.artifactDelivery) ?? null,
 			updated.status,
 			updated.updatedAt,
 			updated.nextRunAt,
@@ -332,6 +339,7 @@ function rowToConnDefinition(row: ConnRow): ConnDefinition {
 		...(row.model_id ? { modelId: row.model_id } : {}),
 		upgradePolicy: row.upgrade_policy,
 		...(row.public_site_id ? { publicSiteId: row.public_site_id } : {}),
+		...(row.artifact_delivery_json && row.artifact_delivery_json !== "null" ? { artifactDelivery: JSON.parse(row.artifact_delivery_json) } : {}),
 		status: row.status,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,

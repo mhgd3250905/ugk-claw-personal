@@ -118,6 +118,7 @@ export interface ConnBody {
 	modelId?: string;
 	upgradePolicy?: "latest" | "pinned" | "manual";
 	publicSiteId?: string;
+	artifactDelivery?: import("../agent/artifact-contract.js").ArtifactDeliveryConfig;
 	status: "active" | "paused" | "completed";
 	createdAt: string;
 	updatedAt: string;

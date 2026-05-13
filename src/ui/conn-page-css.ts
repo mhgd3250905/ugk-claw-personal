@@ -1486,6 +1486,25 @@ export function getConnPageCss(): string {
 
     .conn-editor-field .field-helper { font-size: 11px; color: var(--muted); }
 
+    .conn-editor-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--fg);
+    }
+
+    .conn-editor-toggle input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--primary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
     .conn-editor-schedule-block,
     .conn-editor-target-block { display: grid; gap: 12px; }
 

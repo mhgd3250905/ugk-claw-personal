@@ -1,5 +1,7 @@
 export type ConnStatus = "active" | "paused" | "completed";
 export type ConnUpgradePolicy = "latest" | "pinned" | "manual";
+export type { ArtifactDeliveryConfig, ArtifactExpectedKind } from "./artifact-contract.js";
+import type { ArtifactDeliveryConfig } from "./artifact-contract.js";
 
 export type ConnTarget =
 	| {
@@ -53,6 +55,7 @@ export interface ConnDefinition {
 	modelId?: string;
 	upgradePolicy?: ConnUpgradePolicy;
 	publicSiteId?: string;
+	artifactDelivery?: ArtifactDeliveryConfig;
 	status: ConnStatus;
 	createdAt: string;
 	updatedAt: string;

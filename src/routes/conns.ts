@@ -71,6 +71,7 @@ interface ConnStoreLike {
 		modelId?: string;
 		upgradePolicy?: "latest" | "pinned" | "manual";
 		publicSiteId?: string;
+			artifactDelivery?: import("../agent/artifact-contract.js").ArtifactDeliveryConfig;
 	}): Promise<ConnDefinition>;
 	update(
 		connId: string,
@@ -91,6 +92,7 @@ interface ConnStoreLike {
 				| "modelId"
 				| "upgradePolicy"
 				| "publicSiteId"
+				| "artifactDelivery"
 			>
 		> & { browserId?: string | null },
 	): Promise<ConnDefinition | undefined>;
@@ -579,6 +581,7 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				modelId: parsed.value!.modelId,
 				upgradePolicy: parsed.value!.upgradePolicy,
 				...(parsed.value!.publicSiteId !== undefined ? { publicSiteId: parsed.value!.publicSiteId } : {}),
+				...(parsed.value!.artifactDelivery !== undefined ? { artifactDelivery: parsed.value!.artifactDelivery } : {}),
 			});
 			return reply.status(201).send({ conn } satisfies ConnDetailResponseBody);
 		} catch (error) {
@@ -686,6 +689,7 @@ export function registerConnRoutes(app: FastifyInstance, options: ConnRouteOptio
 				...(body.upgradePolicy !== undefined ? { upgradePolicy: parsed.value!.upgradePolicy } : {}),
 				...(body.publicSiteId !== undefined ? { publicSiteId: parsed.value!.publicSiteId } : {}),
 				...(body.maxRunMs !== undefined ? { maxRunMs: parsed.value!.maxRunMs } : {}),
+				...(body.artifactDelivery !== undefined ? { artifactDelivery: parsed.value!.artifactDelivery } : {}),
 			});
 			if (!conn) {
 				return reply.status(404).send();

@@ -1,4 +1,5 @@
 import type { ConnSchedule, ConnTarget } from "../agent/conn-store.js";
+import { normalizeArtifactDeliveryInput } from "../agent/artifact-contract.js";
 
 export interface ParsedConnMutationBody {
 	title?: string;
@@ -16,6 +17,7 @@ export interface ParsedConnMutationBody {
 	upgradePolicy?: "latest" | "pinned" | "manual";
 	publicSiteId?: string;
 	maxRunMs?: number;
+	artifactDelivery?: import("../agent/artifact-contract.js").ArtifactDeliveryConfig;
 }
 
 export function parseConnMutationBody(
@@ -129,6 +131,10 @@ export function parseConnMutationBody(
 	}
 	if (body.maxRunMs !== undefined) {
 		parsed.maxRunMs = parsedMaxRunMs.value;
+	}
+
+	if (body.artifactDelivery !== undefined) {
+		parsed.artifactDelivery = normalizeArtifactDeliveryInput(body.artifactDelivery);
 	}
 
 	return { value: parsed };

@@ -19,6 +19,9 @@ import {
 	type BackgroundWorkspaceEnvironment,
 } from "./background-workspace-context.js";
 import { prependCurrentTimeContext } from "./file-artifacts.js";
+import { runArtifactValidationRepairLoop } from "./artifact-repair-loop.js";
+import { buildDefaultArtifactContract } from "./artifact-contract.js";
+import { validateArtifactDelivery } from "./artifact-validation.js";
 
 export interface BackgroundAgentSessionFactory {
 	createSession(input: {
@@ -160,7 +163,58 @@ export class BackgroundAgentRunner {
 			unsubscribe?.();
 			unsubscribe = undefined;
 
-			const resultText = extractAssistantText(session);
+			let resultText = extractAssistantText(session);
+
+			if (conn.artifactDelivery?.enabled) {
+				const contract = conn.artifactDelivery.contract ?? buildDefaultArtifactContract({
+					expectedKind: conn.artifactDelivery.expectedKind,
+					repairMaxAttempts: conn.artifactDelivery.repairMaxAttempts,
+				});
+				await this.options.runStore.appendEvent({
+					runId: run.runId,
+					leaseOwner: run.leaseOwner,
+					eventType: "artifact_validation_started",
+					event: { expectedKind: conn.artifactDelivery.expectedKind },
+					createdAt: new Date(),
+				});
+				const outcome = await runArtifactValidationRepairLoop({
+					session,
+					workspace,
+					conn,
+					contract,
+					initialResultText: resultText,
+					maxAttempts: conn.artifactDelivery.repairMaxAttempts,
+					promptWithAbort: (sess, promptText, sig) =>
+						runWithScopedAgentEnvironment(browserCleanupScope, async () =>
+							runWithBackgroundWorkspaceEnvironment(
+								buildBackgroundWorkspaceEnvironment(workspace, outputBaseUrl, connPublicBaseUrl, sitePublicBaseUrl),
+								() => promptWithAbort(sess, promptText, sig),
+							),
+						),
+					extractAssistantText: extractAssistantTextFromSession,
+					signal,
+				});
+				resultText = outcome.resultText;
+				if (outcome.ok) {
+					await this.options.runStore.appendEvent({
+						runId: run.runId,
+						leaseOwner: run.leaseOwner,
+						eventType: "artifact_validation_succeeded",
+						event: { attemptsUsed: outcome.attemptsUsed },
+						createdAt: new Date(),
+					});
+				} else {
+					await this.options.runStore.appendEvent({
+						runId: run.runId,
+						leaseOwner: run.leaseOwner,
+						eventType: "artifact_validation_final_failed",
+						event: { attemptsUsed: outcome.attemptsUsed, summary: outcome.validation.summary },
+						createdAt: new Date(),
+					});
+					throw new Error("Artifact delivery validation failed: " + outcome.validation.summary);
+				}
+			}
+
 			await captureLinkedPublicOutputFiles(resultText, workspace, this.options.publicDir);
 			const finishedAt = new Date();
 			await recordOutputFiles(this.options.runStore, run.runId, run.leaseOwner, workspace, finishedAt);
@@ -290,6 +344,11 @@ function buildBackgroundPrompt(
 					"- Use the site public directory only for files intended to be maintained by multiple conns and opened publicly.",
 				]
 			: []),
+	`- Official artifact delivery directory: ${workspace.artifactPublicDir}`,
+		"- Put every file, report, spreadsheet, PDF, CSV, Markdown file, image, and website that the user should receive into ARTIFACT_PUBLIC_DIR.",
+		"- For websites, put a complete folder in ARTIFACT_PUBLIC_DIR with index.html and all local CSS/JS/images.",
+		"- Do not give the user /app, file://, /tmp, work, logs, input, or session paths as final links.",
+		"- The system will scan ARTIFACT_PUBLIC_DIR after you finish. Only files there are considered official deliverables.",
 		"- Do not store cross-run state in /tmp, /app/runtime, or runtime/skills-user.",
 		"",
 		"Workspace aliases:",
@@ -299,6 +358,7 @@ function buildBackgroundPrompt(
 		`LOGS_DIR=${workspace.logsDir}`,
 		`CONN_SHARED_DIR=${workspace.sharedDir}`,
 		`CONN_PUBLIC_DIR=${workspace.publicDir}`,
+	`ARTIFACT_PUBLIC_DIR=${workspace.artifactPublicDir}`,
 		...(connPublicBaseUrl ? [`CONN_PUBLIC_BASE_URL=${connPublicBaseUrl}`] : []),
 		...(outputBaseUrl ? [`CONN_OUTPUT_BASE_URL=${outputBaseUrl}`, `ZHIHU_REPORT_BASE_URL=${outputBaseUrl}`] : []),
 		...(workspace.sitePublicDir ? [`SITE_PUBLIC_DIR=${workspace.sitePublicDir}`] : []),
@@ -362,6 +422,7 @@ function buildBackgroundWorkspaceEnvironment(
 		SITE_PUBLIC_DIR: workspace.sitePublicDir,
 		SITE_PUBLIC_BASE_URL: sitePublicBaseUrl,
 		ZHIHU_REPORT_BASE_URL: outputBaseUrl,
+	ARTIFACT_PUBLIC_DIR: workspace.artifactPublicDir,
 	};
 }
 
@@ -373,6 +434,10 @@ async function runWithBackgroundWorkspaceEnvironment<T>(
 }
 
 function extractAssistantText(session: AgentSessionLike): string {
+	return extractAssistantTextFromSession(session);
+}
+
+function extractAssistantTextFromSession(session: AgentSessionLike): string {
 	const messages = session.messages ?? [];
 	const visibleAssistantTexts: string[] = [];
 	for (let index = messages.length - 1; index >= 0; index -= 1) {

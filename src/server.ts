@@ -40,6 +40,7 @@ import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerPlaygroundRoute } from "./routes/playground.js";
 import { registerRuntimeDebugRoutes } from "./routes/runtime-debug.js";
 import { registerStaticRoutes } from "./routes/static.js";
+import { registerArtifactRoutes } from "./routes/artifacts.js";
 import { FeishuSettingsStore } from "./integrations/feishu/settings-store.js";
 
 export interface BuildServerOptions {
@@ -183,6 +184,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		backgroundDataDir: options.backgroundDataDir ?? config.backgroundDataDir,
 		browserRegistry,
 		browserBindingAuditLog,
+		publicBaseUrl: config.publicBaseUrl,
+	});
+	registerArtifactRoutes(app, {
+		connStore,
+		connRunStore,
+		backgroundDataDir: options.backgroundDataDir ?? config.backgroundDataDir,
 		publicBaseUrl: config.publicBaseUrl,
 	});
 

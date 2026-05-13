@@ -713,6 +713,42 @@ function renderRunDetail(container, run, files, events) {
     container.appendChild(fileList);
   }
 
+  // Artifact links (for succeeded runs)
+  if (run.status === "succeeded" && run.connId && run.runId) {
+    const artifactSection = document.createElement("div");
+    artifactSection.className = "conn-run-files";
+    const artHeading = document.createElement("span");
+    artHeading.className = "conn-run-files-heading";
+    artHeading.textContent = "产物";
+    artifactSection.appendChild(artHeading);
+
+    const openLink = document.createElement("a");
+    openLink.className = "conn-run-file-link";
+    openLink.href = "/v1/conns/" + encodeURIComponent(run.connId) + "/runs/" + encodeURIComponent(run.runId) + "/artifacts";
+    openLink.target = "_blank";
+    openLink.rel = "noreferrer";
+    openLink.textContent = "打开产物目录";
+    artifactSection.appendChild(openLink);
+
+    const latestLink = document.createElement("a");
+    latestLink.className = "conn-run-file-link conn-run-file-link-secondary";
+    latestLink.href = "/v1/conns/" + encodeURIComponent(run.connId) + "/artifacts/latest";
+    latestLink.target = "_blank";
+    latestLink.rel = "noreferrer";
+    latestLink.textContent = "最新产物入口";
+    artifactSection.appendChild(latestLink);
+
+    const healthLink = document.createElement("a");
+    healthLink.className = "conn-run-file-link conn-run-file-link-secondary";
+    healthLink.href = "/v1/conns/" + encodeURIComponent(run.connId) + "/runs/" + encodeURIComponent(run.runId) + "/artifacts/health";
+    healthLink.target = "_blank";
+    healthLink.rel = "noreferrer";
+    healthLink.textContent = "健康检查";
+    artifactSection.appendChild(healthLink);
+
+    container.appendChild(artifactSection);
+  }
+
   // Events
   if (events && events.length > 0) {
     const eventSection = document.createElement("div");
@@ -840,6 +876,17 @@ function fillEditorForm(conn) {
   if (upgradePolicy) upgradePolicy.value = conn.upgradePolicy || "latest";
   if (agentSpecId) agentSpecId.value = conn.agentSpecId || "";
   if (skillSetId) skillSetId.value = conn.skillSetId || "";
+
+  // Artifact delivery
+  const ad = conn.artifactDelivery || {};
+  const artifactCb = $("editor-artifact-enabled");
+  const artifactKind = $("editor-artifact-kind");
+  const artifactRepair = $("editor-artifact-repair");
+  const artifactOpts = $("editor-artifact-options");
+  if (artifactCb) artifactCb.checked = !!ad.enabled;
+  if (artifactKind) artifactKind.value = ad.expectedKind || "auto";
+  if (artifactRepair) artifactRepair.value = String(ad.repairMaxAttempts ?? 2);
+  if (artifactOpts) artifactOpts.style.display = ad.enabled ? "" : "none";
 }
 
 function clearEditorForm() {
@@ -868,6 +915,16 @@ function clearEditorForm() {
   const modelId = $("editor-model-id");
   if (modelProvider && state.modelConfig?.providers?.length) modelProvider.value = state.modelConfig.providers[0].id;
   if (modelId && state.modelConfig?.providers?.[0]?.models?.length) modelId.value = state.modelConfig.providers[0].models[0].id;
+
+  // Artifact delivery reset
+  const artifactCb = $("editor-artifact-enabled");
+  if (artifactCb) artifactCb.checked = false;
+  const artifactKind = $("editor-artifact-kind");
+  if (artifactKind) artifactKind.value = "auto";
+  const artifactRepair = $("editor-artifact-repair");
+  if (artifactRepair) artifactRepair.value = "2";
+  const artifactOpts = $("editor-artifact-options");
+  if (artifactOpts) artifactOpts.style.display = "none";
 }
 
 function readEditorPayload() {
@@ -946,6 +1003,20 @@ function readEditorPayload() {
 
   const assetRefs = state.editorSelectedAssets || [];
   if (assetRefs.length > 0) payload.assetRefs = assetRefs;
+
+  // Artifact delivery
+  const artifactEnabled = $("editor-artifact-enabled");
+  if (artifactEnabled && artifactEnabled.checked) {
+    const artifactKind = (($("editor-artifact-kind") || {}).value || "auto");
+    const artifactRepair = parseInt(($("editor-artifact-repair") || {}).value, 10);
+    payload.artifactDelivery = {
+      enabled: true,
+      expectedKind: artifactKind,
+      repairMaxAttempts: isNaN(artifactRepair) ? 2 : artifactRepair,
+    };
+  } else if (state.editorMode === "edit") {
+    payload.artifactDelivery = { enabled: false };
+  }
 
   if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
   return payload;
@@ -1173,7 +1244,46 @@ function renderEditorForm(body, titleEl, actionsEl) {
         </div>
       </div>
 
-      <div id="editor-asset-chips" class="conn-editor-asset-chips"></div>
+            <div class="conn-editor-section-card">
+        <div class="conn-editor-section-head">
+          <div class="conn-editor-section-icon" style="background:rgba(34,197,94,0.12)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="conn-editor-section-title">产物交付保障</div>
+        </div>
+        <div class="conn-editor-section-body">
+          <label class="conn-editor-toggle">
+            <input id="editor-artifact-enabled" type="checkbox" />
+            <span>启用产物交付保障</span>
+          </label>
+          <div id="editor-artifact-options" class="conn-editor-form-grid" style="display:none;margin-top:12px">
+            <label class="conn-editor-field">
+              <span>期望产物类型</span>
+              <select id="editor-artifact-kind">
+                <option value="auto">自动判断</option>
+                <option value="file">普通文件</option>
+                <option value="web">网页</option>
+                <option value="xlsx">Excel</option>
+                <option value="pdf">PDF</option>
+                <option value="csv">CSV</option>
+                <option value="markdown">Markdown</option>
+              </select>
+            </label>
+            <label class="conn-editor-field">
+              <span>自动修复次数</span>
+              <select id="editor-artifact-repair">
+                <option value="0">0 次，只检查</option>
+                <option value="1">1 次</option>
+                <option value="2" selected>2 次</option>
+                <option value="3">3 次</option>
+              </select>
+            </label>
+          </div>
+          <div class="conn-editor-hint">开启后会在任务结束后检查产物目录，失败时自动让 Agent 修复</div>
+        </div>
+      </div>
+
+<div id="editor-asset-chips" class="conn-editor-asset-chips"></div>
       <textarea id="editor-asset-refs" hidden></textarea>
 
     </div>
@@ -1205,6 +1315,13 @@ function renderEditorForm(body, titleEl, actionsEl) {
   if (submitBtn) submitBtn.addEventListener("click", () => { submitEditor(); });
   const cancelBtn = $("editor-cancel");
   if (cancelBtn) cancelBtn.addEventListener("click", closeEditor);
+
+  // Artifact delivery toggle
+  const artifactCb = $("editor-artifact-enabled");
+  if (artifactCb) artifactCb.addEventListener("change", function() {
+    const opts = $("editor-artifact-options");
+    if (opts) opts.style.display = artifactCb.checked ? "" : "none";
+  });
 }
 
 

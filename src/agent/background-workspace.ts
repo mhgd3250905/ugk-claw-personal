@@ -26,6 +26,7 @@ export interface RunWorkspace {
 	sharedDir: string;
 	publicDir: string;
 	sitePublicDir?: string;
+	artifactPublicDir: string;
 	manifestPath: string;
 }
 
@@ -45,6 +46,7 @@ interface WorkspaceManifest {
 		shared: string;
 		public: string;
 		sitePublic?: string;
+		artifactPublic: string;
 	};
 }
 
@@ -73,6 +75,7 @@ export class BackgroundWorkspaceManager {
 			mkdir(workspace.sessionDir, { recursive: true }),
 			mkdir(workspace.sharedDir, { recursive: true }),
 			mkdir(workspace.publicDir, { recursive: true }),
+		mkdir(workspace.artifactPublicDir, { recursive: true }),
 			...(workspace.sitePublicDir ? [mkdir(workspace.sitePublicDir, { recursive: true })] : []),
 		]);
 
@@ -92,6 +95,7 @@ export class BackgroundWorkspaceManager {
 				session: "session",
 				shared: relative(workspace.rootPath, workspace.sharedDir).replace(/\\/g, "/"),
 				public: relative(workspace.rootPath, workspace.publicDir).replace(/\\/g, "/"),
+			artifactPublic: "artifact-public",
 				...(workspace.sitePublicDir ? { sitePublic: relative(workspace.rootPath, workspace.sitePublicDir).replace(/\\/g, "/") } : {}),
 			},
 		};
@@ -113,6 +117,7 @@ export class BackgroundWorkspaceManager {
 			sessionDir: join(rootPath, "session"),
 			sharedDir: join(this.options.backgroundDataDir, "shared", safeConnId),
 			publicDir: join(this.options.backgroundDataDir, "shared", safeConnId, "public"),
+			artifactPublicDir: join(rootPath, "artifact-public"),
 			...(safeSiteId ? { sitePublicDir: join(this.options.backgroundDataDir, "sites", safeSiteId, "public") } : {}),
 			manifestPath: join(rootPath, "manifest.json"),
 		};
