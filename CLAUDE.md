@@ -54,6 +54,14 @@ Worker processes (run independently, not via dev/start):
 ```bash
 npm run worker:conn       # Background conn worker (reads SQLite job queue)
 npm run worker:feishu     # Feishu WebSocket subscription worker
+npm run worker:team       # Team pipeline worker (requires TEAM_RUNTIME_ENABLED=1)
+```
+
+Team Pipeline (experimental):
+```bash
+npm run team:spike          # Run spike with fixture data (--keyword MED)
+npm run team:spike:real     # Run spike with SearXNG live search
+npm run test:team-lab       # Run all team-related tests
 ```
 
 ## Architecture
@@ -71,7 +79,7 @@ Fastify Server (src/server.ts)
   ├─ Browser Layer (src/browser/) — Chrome sidecar registry, CDP control, target management
   ├─ UI Layer (src/ui/) — vanilla TypeScript SPA, controller-per-feature, no framework
   ├─ Integrations (src/integrations/feishu/) — Feishu IM bridge
-  └─ Workers (src/workers/) — conn-worker, feishu-worker (separate Node processes)
+  └─ Workers (src/workers/) — conn-worker, feishu-worker, team-worker (separate Node processes)
 ```
 
 ### Core Subsystems
@@ -103,6 +111,8 @@ Fastify Server (src/server.ts)
 **Playground Theming & Routing**: Dual-theme (`[data-theme="dark"]`/`[data-theme="light"]`) with FOUC prevention via inline `<script>`. Token selectors must use `:root` / `[data-theme]` only — never `body`. View routing uses `data-home="true"/"false"` on the shell element; `data-stage-mode="landing"` is a permanent CSS-only hook. Full CSS details in `docs/playground-current.md`.
 
 **Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`, shared response presentation in `*-route-presenters.ts` (e.g., `conn-route-presenters.ts`). API errors use helpers from `http-errors.ts` for consistent error responses. To add a new route group, create the file and call its register function in `buildServer()`.
+
+**Team Runtime** (`src/team/`): Multi-role pipeline for brand domain investigation (experimental). `TeamPipeline` orchestrates Discovery → Reviewer → Finalizer roles using LLM calls. `TeamStore` manages run persistence (atomic writes, JSONL events). `src/team-lab/` contains the spike experiment (gate validators, prompts, fixture data). API routes at `/v1/team/*` support sync (`POST /v1/team/runs`) and async (`?async=true`) execution. The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=1`. Pipeline completion broadcasts via `NotificationHub`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
 
 ### Architecture Governance
 
@@ -137,6 +147,12 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 | Standalone agent management page | `src/ui/agents-page.ts` |
 | pi-coding-agent settings | `.pi/settings.json` |
 | Multi-agent profile definitions | `.pi/agents/` |
+| Team Runtime pipeline | `src/team/team-pipeline.ts` |
+| Team Runtime store | `src/team/team-store.ts` |
+| Team Runtime types | `src/team/types.ts` |
+| Team API routes | `src/routes/team.ts` |
+| Team worker | `src/workers/team-worker.ts` |
+| Spike experiment (gate, prompts) | `src/team-lab/` |
 
 ### Configuration
 
