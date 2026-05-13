@@ -186,6 +186,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 
 - 服务入口：`src/server.ts`
 - 聊天路由：`src/routes/chat.ts`，请求解析：`src/routes/chat-route-parsers.ts`，SSE 输出工具：`src/routes/chat-sse.ts`
+- Agent profile 管理路由：`src/routes/agent-profiles.ts`（`/v1/agents*` 元操作、技能开关、规则文件、默认 browser/model 绑定）；`src/routes/chat.ts` 仍负责注册它，并承载 main/scoped chat 路由
 - playground 路由：`src/routes/playground.ts`
 - 静态报告路由：`src/routes/static.ts`
 - 文件 / 资产路由：`src/routes/files.ts`，文件路由工具：`src/routes/file-route-utils.ts`
@@ -330,6 +331,7 @@ This file provides the highest-level working rules for AI coding agents in this 
 - `src/agent/agent-profile.ts`
 - `src/agent/agent-profile-catalog.ts`
 - `src/agent/agent-service-registry.ts`
+- `src/routes/agent-profiles.ts`
 - `src/routes/chat.ts`
 
 判断 agent 是否当前注册可用，以 `GET /v1/agents` 为准；`.data/agents/profiles.json` 只记录用户创建的自定义 agent，不是完整运行时注册表。`main` 和默认 `search` 可能来自代码内置 profile，不能因为 `profiles.json` 没有记录就说它未注册。

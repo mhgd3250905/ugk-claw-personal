@@ -556,6 +556,93 @@ function getAgentsPageCss(): string {
 
 		/* ── Mobile ── */
 		.ag-mobile-back { display: none !important; }
+		/* ── Home-inspired cockpit polish ── */
+		body[data-standalone-theme="cockpit"] {
+			--bg: transparent;
+			--surface: rgba(16, 24, 44, 0.50);
+			--surface-elevated: rgba(12, 18, 34, 0.72);
+			--sidebar: rgba(8, 13, 28, 0.66);
+			--bg-input: rgba(4, 9, 20, 0.72);
+			--border: rgba(116, 176, 255, 0.12);
+			--border-strong: rgba(201, 210, 255, 0.24);
+			--border-hover: rgba(201, 210, 255, 0.24);
+			--primary: #C9D2FF;
+			--primary-hover: #E3E8FF;
+			--primary-soft: rgba(201, 210, 255, 0.08);
+			--primary-glow: rgba(96, 194, 255, 0.16);
+			--accent-violet: #60C2FF;
+		}
+
+		body[data-standalone-theme="cockpit"] .ag-stats,
+		body[data-standalone-theme="cockpit"] .ag-main {
+			position: relative;
+			z-index: 1;
+		}
+
+		body[data-standalone-theme="cockpit"] .ag-stat-card,
+		body[data-standalone-theme="cockpit"] .ag-sidebar,
+		body[data-standalone-theme="cockpit"] .ag-detail,
+		body[data-standalone-theme="cockpit"] .ag-card {
+			background: rgba(16, 24, 44, 0.50);
+			border-color: rgba(116, 176, 255, 0.12);
+			box-shadow: none;
+			backdrop-filter: blur(16px);
+		}
+
+		body[data-standalone-theme="cockpit"] .ag-agent-item,
+		body[data-standalone-theme="cockpit"] .ag-status-mini,
+		body[data-standalone-theme="cockpit"] .ag-skill-item,
+		body[data-standalone-theme="cockpit"] .ag-file-card {
+			background: rgba(16, 24, 44, 0.42);
+			border-color: rgba(116, 176, 255, 0.08);
+		}
+
+		body[data-standalone-theme="cockpit"] .ag-agent-item:hover,
+		body[data-standalone-theme="cockpit"] .ag-agent-item.selected {
+			background: rgba(201, 210, 255, 0.07);
+			border-color: rgba(201, 210, 255, 0.24);
+			box-shadow: 0 0 22px rgba(96, 194, 255, 0.08);
+		}
+
+		body[data-standalone-theme="cockpit"] .ag-stat-card:hover,
+		body[data-standalone-theme="cockpit"] .ag-card:hover {
+			border-color: rgba(201, 210, 255, 0.20);
+			box-shadow: 0 0 22px rgba(96, 194, 255, 0.07);
+		}
+
+		body[data-standalone-theme="cockpit"] .ag-btn--primary {
+			background: linear-gradient(135deg, rgba(201, 210, 255, 0.96), rgba(96, 194, 255, 0.88));
+			color: #020611;
+			box-shadow: 0 8px 24px rgba(96, 194, 255, 0.16);
+		}
+
+		[data-theme="light"] body[data-standalone-theme="cockpit"] {
+			--surface: rgba(255, 255, 255, 0.72);
+			--surface-elevated: rgba(248, 250, 255, 0.82);
+			--sidebar: rgba(244, 247, 253, 0.76);
+			--bg-input: rgba(255, 255, 255, 0.82);
+			--border: rgba(24, 69, 119, 0.09);
+			--border-strong: rgba(24, 69, 119, 0.16);
+			--border-hover: rgba(26, 101, 210, 0.22);
+			--primary: #304170;
+			--primary-hover: #1F5FC8;
+			--primary-soft: rgba(26, 101, 210, 0.08);
+			--primary-glow: rgba(26, 101, 210, 0.10);
+			--accent-violet: #1F7AC8;
+		}
+
+		[data-theme="light"] body[data-standalone-theme="cockpit"] .ag-stat-card,
+		[data-theme="light"] body[data-standalone-theme="cockpit"] .ag-sidebar,
+		[data-theme="light"] body[data-standalone-theme="cockpit"] .ag-detail,
+		[data-theme="light"] body[data-standalone-theme="cockpit"] .ag-card,
+		[data-theme="light"] body[data-standalone-theme="cockpit"] .ag-agent-item,
+		[data-theme="light"] body[data-standalone-theme="cockpit"] .ag-status-mini,
+		[data-theme="light"] body[data-standalone-theme="cockpit"] .ag-skill-item,
+		[data-theme="light"] body[data-standalone-theme="cockpit"] .ag-file-card {
+			background: rgba(255, 255, 255, 0.76);
+			border-color: rgba(24, 69, 119, 0.09);
+		}
+
 		@media (max-width: 1024px) {
 			.ag-stats { grid-template-columns: repeat(2, 1fr); }
 			.ag-main { grid-template-columns: 300px minmax(0, 1fr); }
@@ -1532,7 +1619,7 @@ export function renderAgentsPage(): string {
 	<link rel="icon" href="${STANDALONE_FAVICON}" />
 	<style>${css}</style>
 </head>
-<body>
+<body data-standalone-theme="cockpit">
 	<div id="app">
 		<header class="sp-topbar">
 			<a class="sp-topbar-back" href="/playground" title="返回">

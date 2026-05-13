@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { getStandaloneBaseCss, getStandaloneBaseJs, STANDALONE_FAVICON, STANDALONE_THEME_INLINE_SCRIPT, renderStandaloneConfirmDialog, renderStandaloneToastContainer, renderStandaloneTopbar } from "./standalone-page-shared.js";
 import { getConnPageCss } from "./conn-page-css.js";
 import { getConnPageJs } from "./conn-page-js.js";
@@ -5,6 +7,17 @@ import { getBrowserMarkdownRendererScript } from "./playground-transcript-render
 
 export { getConnPageCss } from "./conn-page-css.js";
 export { getConnPageJs } from "./conn-page-js.js";
+
+let markedBrowserScriptCache: string | undefined;
+
+function getMarkedBrowserScript(): string {
+	if (!markedBrowserScriptCache) {
+		markedBrowserScriptCache = readFileSync(join(process.cwd(), "node_modules", "marked", "lib", "marked.umd.js"), "utf8")
+			.replace(/\/\/# sourceMappingURL=.*$/gm, "")
+			.replace(/<\/script/gi, "<\\/script");
+	}
+	return markedBrowserScriptCache;
+}
 
 export function renderConnPage(): string {
 	const css = getStandaloneBaseCss() + getConnPageCss();
@@ -18,10 +31,10 @@ export function renderConnPage(): string {
 	${STANDALONE_THEME_INLINE_SCRIPT}
 	<title>后台任务工作台 - UGK Claw</title>
 	<link rel="icon" href="${STANDALONE_FAVICON}" />
-		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css" />
+	<link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css" />
 	<style>${css}</style>
 </head>
-<body>
+<body data-standalone-theme="cockpit">
 	<div id="app">
 			<header class="sp-topbar">
 				<a class="sp-topbar-back" href="/playground" title="返回">
@@ -123,9 +136,9 @@ export function renderConnPage(): string {
 	${renderStandaloneConfirmDialog()}
 	${renderStandaloneToastContainer()}
 
-		<script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.js"></script>
-		<script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/zh.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+	<script src="/vendor/flatpickr/flatpickr.min.js"></script>
+	<script src="/vendor/flatpickr/l10n/zh.js"></script>
+	<script>${getMarkedBrowserScript()}</script>
 	<script>${getBrowserMarkdownRendererScript()}</script>
 	<script>${js}</script>
 </body>

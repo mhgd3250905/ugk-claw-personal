@@ -11,7 +11,7 @@
 | 格式与空白检查 | `git diff --check` | 每次提交前；文档改动也要跑 |
 | 类型检查 | `npx tsc --noEmit` | 涉及 `src/`、`test/`、类型、接口响应、构建入口 |
 | 定向 Node test | `node --test --import tsx <files>` | 单个业务域改动后先跑 |
-| 全量测试 | `npm test` | 合并前、跨域改动后、运行时/API/worker 行为变化后 |
+| 全量测试 | `npm test` | 合并前、跨域改动后、运行时/API/worker 行为变化后；Windows 本地固定串行运行，避免多个 `buildServer()` 并发初始化默认 SQLite 锁库 |
 | 设计规范 | `npm run design:lint` | 改 `DESIGN.md` 或视觉 token / 组件视觉语义 |
 | 浏览器 sidecar | `npm run docker:chrome:check` | 改 web-access、browser cleanup、Docker Chrome sidecar、文件预览自动化 |
 
@@ -60,6 +60,7 @@ node --test --import tsx test/agent-session-event-adapter.test.ts test/agent-ses
 - `src/agent/agent-profile-bootstrap.ts`
 - `src/agent/agent-profile-catalog.ts`
 - `src/agent/agent-service-registry.ts`
+- `src/routes/agent-profiles.ts`
 - `.pi/skills/agent-profile-ops/`
 - `/v1/agents*` 路由
 
@@ -174,6 +175,7 @@ node --test --import tsx test/server.test.ts --test-name-pattern "assets|local-f
 - `src/routes/activity.ts`
 - `src/routes/activity-route-utils.ts`
 - `src/routes/cleanup-debug.ts`
+- `src/server.ts` 中 `connStore` / `connRunStore` / `activityStore` 装配
 - `src/agent/conn-db.ts`
 - `src/agent/conn-sqlite-store.ts`
 - `src/agent/conn-run-store.ts`
@@ -205,6 +207,10 @@ node --test --import tsx test/background-agent-profile.test.ts test/background-a
 node --test --import tsx test/server.test.ts --test-name-pattern "conns|activity|debug/cleanup|task inbox|conn"
 node --test --import tsx test/playground-conn-activity-controller.test.ts
 ```
+
+### Server 注入规则
+
+`buildServer()` 测试里如果注入任一 conn store，优先同时注入 `connStore`、`connRunStore` 和 `activityStore`。三者都注入时不会创建默认 `ConnDatabase`；只注入其中一部分时，未注入的 store 会由默认数据库补齐。这条规则是为了避免测试意外打开共享 SQLite，别又让锁库问题返场。
 
 ### 必跑全量条件
 

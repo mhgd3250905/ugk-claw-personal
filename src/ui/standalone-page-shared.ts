@@ -53,6 +53,110 @@ const SHARED_CSS_VARIABLES = `
 	}
 `;
 
+const SHARED_COCKPIT_CSS = `
+	body[data-standalone-theme="cockpit"] {
+		background:
+			radial-gradient(circle at 50% 22%, rgba(51, 131, 255, 0.12), transparent 38%),
+			radial-gradient(circle at 12% 18%, rgba(81, 255, 194, 0.045), transparent 34%),
+			linear-gradient(180deg, #020611 0%, #050817 100%);
+		isolation: isolate;
+	}
+
+	body[data-standalone-theme="cockpit"]::before {
+		content: "";
+		position: fixed;
+		inset: -72px;
+		z-index: -2;
+		pointer-events: none;
+		opacity: 1;
+		background-image:
+			linear-gradient(rgba(116, 176, 255, 0.075) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(116, 176, 255, 0.075) 1px, transparent 1px),
+			linear-gradient(rgba(116, 176, 255, 0.11) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(116, 176, 255, 0.11) 1px, transparent 1px),
+			radial-gradient(circle at 1px 1px, rgba(133, 190, 255, 0.16) 1px, transparent 1.5px),
+			repeating-linear-gradient(135deg, transparent 0 104px, rgba(95, 145, 255, 0.035) 104px 168px, transparent 168px 300px);
+		background-size: 32px 32px, 32px 32px, 128px 128px, 128px 128px, 12px 12px, auto;
+		animation: sp-cockpit-drift 56s linear infinite;
+	}
+
+	body[data-standalone-theme="cockpit"]::after {
+		content: "";
+		position: fixed;
+		top: -20%;
+		left: 0;
+		z-index: -1;
+		width: 28vw;
+		height: 140%;
+		pointer-events: none;
+		background: linear-gradient(90deg, transparent 0%, rgba(96, 194, 255, 0.10) 48%, transparent 100%);
+		opacity: 0.7;
+		transform: translate3d(-42vw, 0, 0) skewX(-18deg);
+		animation: sp-cockpit-scan 18s ease-in-out infinite;
+	}
+
+	body[data-standalone-theme="cockpit"] #app {
+		background: transparent !important;
+	}
+
+	body[data-standalone-theme="cockpit"] .sp-topbar {
+		background: rgba(5, 8, 23, 0.76) !important;
+		border-bottom-color: rgba(116, 176, 255, 0.12) !important;
+		backdrop-filter: blur(18px);
+	}
+
+	[data-theme="light"] body[data-standalone-theme="cockpit"],
+	body[data-standalone-theme="cockpit"][data-theme="light"] {
+		background:
+			radial-gradient(circle at 50% 22%, rgba(45, 122, 255, 0.10), transparent 38%),
+			radial-gradient(circle at 12% 18%, rgba(67, 170, 255, 0.055), transparent 34%),
+			linear-gradient(180deg, #f7f9fd 0%, #eef3f9 100%);
+	}
+
+	[data-theme="light"] body[data-standalone-theme="cockpit"]::before,
+	body[data-standalone-theme="cockpit"][data-theme="light"]::before {
+		opacity: 0.9;
+		background-image:
+			linear-gradient(rgba(24, 69, 119, 0.055) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(24, 69, 119, 0.055) 1px, transparent 1px),
+			linear-gradient(rgba(24, 69, 119, 0.085) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(24, 69, 119, 0.085) 1px, transparent 1px),
+			radial-gradient(circle at 1px 1px, rgba(41, 104, 180, 0.13) 1px, transparent 1.5px),
+			repeating-linear-gradient(135deg, transparent 0 104px, rgba(48, 105, 180, 0.045) 104px 168px, transparent 168px 300px);
+	}
+
+	[data-theme="light"] body[data-standalone-theme="cockpit"]::after,
+	body[data-standalone-theme="cockpit"][data-theme="light"]::after {
+		background: linear-gradient(90deg, transparent 0%, rgba(0, 91, 255, 0.07) 48%, transparent 100%);
+	}
+
+	[data-theme="light"] body[data-standalone-theme="cockpit"] .sp-topbar,
+	body[data-standalone-theme="cockpit"][data-theme="light"] .sp-topbar {
+		background: rgba(247, 249, 253, 0.78) !important;
+		border-bottom-color: rgba(24, 69, 119, 0.09) !important;
+	}
+
+	@keyframes sp-cockpit-drift {
+		from { transform: translate3d(0, 0, 0); }
+		to { transform: translate3d(32px, 32px, 0); }
+	}
+
+	@keyframes sp-cockpit-scan {
+		0% { transform: translate3d(-42vw, 0, 0) skewX(-18deg); opacity: 0; }
+		12% { opacity: 0.55; }
+		50% { opacity: 0.75; }
+		88% { opacity: 0.45; }
+		100% { transform: translate3d(128vw, 0, 0) skewX(-18deg); opacity: 0; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		body[data-standalone-theme="cockpit"]::before,
+		body[data-standalone-theme="cockpit"]::after {
+			animation: none !important;
+		}
+	}
+`;
+
 const SHARED_TOPBAR_CSS = `
 	.sp-topbar {
 		display: flex;
@@ -426,6 +530,7 @@ const SHARED_RESPONSIVE_CSS = `
 export function getStandaloneBaseCss(): string {
 	return `
 		${SHARED_CSS_VARIABLES}
+		${SHARED_COCKPIT_CSS}
 		${SHARED_TOPBAR_CSS}
 		${SHARED_OVERLAY_CSS}
 		${SHARED_BADGE_CSS}

@@ -52,7 +52,7 @@
 
 再记一句浏览器绑定红线：Agent / Conn 的 Chrome 绑定只能由用户在 Playground UI 手动设置。排查时看 `docs/playground-current.md`、`docs/web-access-browser-bridge.md`、`src/browser/browser-binding-policy.ts`、`src/routes/chat.ts`、`src/routes/conns.ts`、`src/browser/browser-bound-bash.ts` 和 `runtime/skills-user/web-access/scripts/local-cdp-browser.mjs`；不要恢复自然语言改浏览器，不要把 `browser-scope-routes.json` 当长期配置，不要让 Agent 通过 `metaBrowserId` 或环境里的完整浏览器清单绕到其他 Chrome。
 
-再记一句：当前已开始引入“单进程多 agent profile”底座，第一版内置 `main` 与 `search`，后续自定义 agent 记录在 `.data/agents/profiles.json`。`GET /v1/agents` 是当前运行时注册可用列表；`profiles.json` 只代表用户创建记录，不是完整注册表，也不是创建 / 修复入口。禁止直接编辑 `profiles.json` 创建、恢复、归档或修复 agent；手写文件会绕过 `AgentServiceRegistry`，导致磁盘说存在、运行时列表看不到。`main` 继续走旧 `/v1/chat/*`，`search` 和后续 agent 走 `/v1/agents/:agentId/...`。排查技能串场、会话串场或创建 / 归档 agent 时先看 [src/agent/agent-profile.ts](/E:/AII/ugk-pi/src/agent/agent-profile.ts)、[src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)、[src/agent/agent-service-registry.ts](/E:/AII/ugk-pi/src/agent/agent-service-registry.ts)、[src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)、[.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md) 和 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
+再记一句：当前已开始引入“单进程多 agent profile”底座，第一版内置 `main` 与 `search`，后续自定义 agent 记录在 `.data/agents/profiles.json`。`GET /v1/agents` 是当前运行时注册可用列表；`profiles.json` 只代表用户创建记录，不是完整注册表，也不是创建 / 修复入口。禁止直接编辑 `profiles.json` 创建、恢复、归档或修复 agent；手写文件会绕过 `AgentServiceRegistry`，导致磁盘说存在、运行时列表看不到。`main` 继续走旧 `/v1/chat/*`，`search` 和后续 agent 走 `/v1/agents/:agentId/...`。排查技能串场、会话串场或创建 / 归档 agent 时先看 [src/agent/agent-profile.ts](/E:/AII/ugk-pi/src/agent/agent-profile.ts)、[src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)、[src/agent/agent-service-registry.ts](/E:/AII/ugk-pi/src/agent/agent-service-registry.ts)、[src/routes/agent-profiles.ts](/E:/AII/ugk-pi/src/routes/agent-profiles.ts)、[src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)、[.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md) 和 [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)。
 
 用户问“我有哪些 agent / 有哪些 agent / 当前有哪些 agent”时，默认指 `/v1/agents` 的 agent profile / 操作视窗，不是 `.pi/agents` 里的 legacy subagent。只有明确说 `subagent`、`scout/planner/worker/reviewer` 或“派发子任务”时才看 `.pi/agents`。
 
@@ -223,21 +223,22 @@
 5. [src/agent/agent-profile-bootstrap.ts](/E:/AII/ugk-pi/src/agent/agent-profile-bootstrap.ts)
 6. [src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)
 7. [src/agent/agent-service-registry.ts](/E:/AII/ugk-pi/src/agent/agent-service-registry.ts)
-8. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-9. [src/routes/runtime-debug.ts](/E:/AII/ugk-pi/src/routes/runtime-debug.ts)
-10. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
-11. [.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md)
-12. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
-13. [.data/agents/search/pi/skills](/E:/AII/ugk-pi/.data/agents/search/pi/skills)
-14. [.data/agents/search/user-skills](/E:/AII/ugk-pi/.data/agents/search/user-skills)
-15. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
-16. [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
+8. [src/routes/agent-profiles.ts](/E:/AII/ugk-pi/src/routes/agent-profiles.ts)
+9. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+10. [src/routes/runtime-debug.ts](/E:/AII/ugk-pi/src/routes/runtime-debug.ts)
+11. [.pi/skills](/E:/AII/ugk-pi/.pi/skills)
+12. [.pi/skills/agent-profile-ops/SKILL.md](/E:/AII/ugk-pi/.pi/skills/agent-profile-ops/SKILL.md)
+13. [runtime/skills-user](/E:/AII/ugk-pi/runtime/skills-user)
+14. [.data/agents/search/pi/skills](/E:/AII/ugk-pi/.data/agents/search/pi/skills)
+15. [.data/agents/search/user-skills](/E:/AII/ugk-pi/.data/agents/search/user-skills)
+16. [docs/web-access-browser-bridge.md](/E:/AII/ugk-pi/docs/web-access-browser-bridge.md)
+17. [src/agent/browser-cleanup.ts](/E:/AII/ugk-pi/src/agent/browser-cleanup.ts)
 
 技能管理接口：
 
 - `GET /v1/agents/:agentId/skills`：返回已安装技能列表，含 enabled / required 状态。
 - `PATCH /v1/agents/:agentId/skills/:skillName`：切换技能启用/关闭；运行中 conversation 返回 409。
-- 排查 skill toggle 问题时看 `src/agent/agent-profile-catalog.ts`（deny-list 持久化）、`src/agent/agent-session-factory.ts`（filtered loader）、`src/routes/chat.ts`（路由注册）、`src/ui/playground-agent-manager.ts`（Playground 内嵌开关）、[src/ui/agents-page.ts](/E:/AII/ugk-pi/src/ui/agents-page.ts)（独立 Agents 页开关）。
+- 排查 skill toggle 问题时看 `src/agent/agent-profile-catalog.ts`（deny-list 持久化）、`src/agent/agent-session-factory.ts`（filtered loader）、`src/routes/agent-profiles.ts`（管理路由注册）、`src/routes/chat.ts`（main/scoped chat 路由注册入口）、`src/ui/playground-agent-manager.ts`（Playground 内嵌开关）、[src/ui/agents-page.ts](/E:/AII/ugk-pi/src/ui/agents-page.ts)（独立 Agents 页开关）。
 
 多 agent 口径：
 

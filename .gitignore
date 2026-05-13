@@ -41,8 +41,23 @@ runtime/zhihu-hot*.html
 runtime/thumb-up-page.html
 runtime/report-*-v3.html
 runtime/report-*-v4.html
+runtime/*.jpg
+runtime/cdp_screenshot.cjs
+runtime/fix-test-assertions.cjs
+runtime/snap.cjs
+runtime/snap.txt
+runtime/update-agents-page.cjs
+runtime/xhs-extract.mjs
 public/thumb-up.html
 public/zhihu-hot-*.html
 public/zhihu-hot-*.png
+public/card*.png
+public/ptt-*.html
+public/slide*.png
+public/reddit/
 desgin/
+ui-design/
 logo.png
+
+# Mis-encoded runtime session files that can be dropped at repo root by host/container path bridging.
+/E*app*.data*agent*sessions*.jsonl

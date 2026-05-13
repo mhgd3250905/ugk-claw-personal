@@ -35,6 +35,14 @@ test("standalone agents page confirms browser binding changes when editing agent
 	assert.match(page, /"x-ugk-browser-binding-source": "playground"/);
 });
 
+test("standalone agents page follows the home cockpit visual system", () => {
+	const page = renderAgentsPage();
+
+	assert.match(page, /data-standalone-theme="cockpit"/);
+	assert.match(page, /sp-cockpit-drift/);
+	assert.match(page, /body\[data-standalone-theme="cockpit"\] \.ag-stat-card/);
+});
+
 test("playground model settings follow the active agent default model outside main", () => {
 	const page = renderPlaygroundPage();
 

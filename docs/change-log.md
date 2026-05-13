@@ -11,6 +11,43 @@
 ---
 
 ## 2026-05-13
+### Standalone Conn / Agents 首页同款 cockpit UI 与测试稳定化
+- 日期：2026-05-13
+- 主题：继续治理收尾并优化独立 Conn / Agents 页面。`npm test` 固定为串行执行，避免 Windows 本地多个 `buildServer()` 并发初始化默认 SQLite 时出现 `database is locked`；`/playground/conn` 和 `/playground/agents` 采用首页 Agent 选择页同源的 pixel cockpit 背景、扫描光、半透明边框和卡片 hover 语言。
+- 影响范围：
+  - `package.json`：`npm test` 增加 `--test-concurrency=1`，将全量验证命令固定为稳定口径。
+  - `src/ui/standalone-page-shared.ts`：新增 `data-standalone-theme="cockpit"` 共享背景与 topbar 视觉系统。
+  - `src/ui/conn-page.ts`、`src/ui/conn-page-css.ts`：Conn 独立页启用 cockpit 主题，并调整卡片、列表、详情面板、主按钮的视觉口径。
+  - `src/ui/agents-page.ts`：Agents 独立页启用 cockpit 主题，并调整列表、详情、技能、文件卡片和主按钮的视觉口径。
+  - `test/server.test.ts`、`test/agent-model-ui.test.ts`：新增 Conn / Agents standalone 页面 cockpit 主题断言。
+- 对应入口：`src/ui/standalone-page-shared.ts`、`src/ui/conn-page.ts`、`src/ui/agents-page.ts`
+
+### 架构治理 Batch B/C：Agent Profile 路由边界与 Server Store 装配显式化
+- 日期：2026-05-13
+- 主题：继续执行全项目架构治理计划，保持外部 API 不变的前提下，把 `/v1/agents*` 元操作从 `chat.ts` 抽到独立 route 模块，并将 `buildServer()` 的 conn store / run store / activity store 装配规则命名化，降低后续修改 scoped chat、agent profile 和 conn 测试注入时的误伤风险。
+- 影响范围：
+  - `src/routes/agent-profiles.ts`：新增 agent profile 管理路由注册器，承载 agent 列表、创建、更新、归档、技能安装/移除/启停、规则文件读写、默认 browser/model 绑定等 `/v1/agents*` 元操作。
+  - `src/routes/chat.ts`：保留 main/scoped chat 路由，调用 `registerAgentProfileRoutes()` 注册原有 `/v1/agents*` URL，避免改动 server 注入面和外部 API。
+  - `src/server.ts`：新增 `resolveConnStores()`，显式表达“三个 conn 相关 store 全部注入时不创建默认 ConnDatabase；部分注入时由默认数据库补齐缺失 store”的现有规则。
+  - `AGENTS.md`、`docs/traceability-map.md`、`docs/architecture-governance-guide.md`、`docs/architecture-test-matrix.md`：同步更新接手索引、治理边界和测试注入规则。
+- 验证：
+  - `git diff --check`
+  - `npx tsc --noEmit`
+  - `node --test --import tsx test/agent-profile.test.ts test/agent-profile-catalog.test.ts test/agent-service-registry.test.ts`
+  - `node --test --import tsx test/chat-agent-routes.test.ts test/agent-model-chat-routes.test.ts`
+  - `node --test --import tsx test/server.test.ts --test-name-pattern "agent"`
+- 对应入口：`src/routes/agent-profiles.ts`、`src/routes/chat.ts`、`src/server.ts`
+
+### 架构治理 Batch A：外部资源与误提交防护
+- 日期：2026-05-13
+- 主题：执行全项目架构治理计划的第一批安全收口。独立 Conn 页面不再依赖 jsDelivr CDN 加载 flatpickr / marked，改为使用本地 vendor 路由和内联 bundled marked 脚本；同时补充 `.gitignore`，降低运行产物、截图、临时 HTML / JS 和 UI 草稿误入治理提交的风险。
+- 影响范围：
+  - `src/ui/conn-page.ts`：`/playground/conn` 改用 `/vendor/flatpickr/...` 本地资源，marked 使用 `node_modules/marked/lib/marked.umd.js` 内联脚本，与 Playground 的本地依赖口径对齐。
+  - `test/server.test.ts`：新增独立 Conn 页面不含 `cdn.jsdelivr.net`、且包含本地 flatpickr / marked 脚本的回归断言。
+  - `.gitignore`：补充当前高频运行产物和草稿目录忽略规则。
+  - `docs/architecture-governance-guide.md`：新增提交前防误提交清单。
+- 对应入口：`src/ui/conn-page.ts`、`.gitignore`、`docs/architecture-governance-guide.md`
+
 ### Conn Artifact 路由归属校验收口
 - 日期：2026-05-13
 - 主题：修复 artifact 独立服务路由只按 `runId` 拼目录、未校验 `connId` 与 run 归属的问题。现在 run 级 artifact 路由必须先读取 `ConnRunStore.getRun(runId)` 并确认 `run.connId === connId`，再使用 run 记录里的 `workspacePath/artifact-public` 作为产物目录。

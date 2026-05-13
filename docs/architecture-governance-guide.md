@@ -13,7 +13,7 @@
 | 全新接手 / `/init` | `AGENTS.md`、`README.md`、`docs/traceability-map.md`、本文件 |
 | 架构治理 / 重构评估 | 本文件、`docs/architecture-governance-audit-2026-05-06.md`、`docs/architecture-test-matrix.md` |
 | Playground UI | `docs/playground-current.md`、`DESIGN.md`、`docs/playground-ui-governance-map.md` |
-| Chat / Agent / scoped agent | `docs/agent-chat-governance-map.md`、`src/routes/chat.ts`、`src/agent/agent-service.ts` |
+| Chat / Agent / scoped agent | `docs/agent-chat-governance-map.md`、`src/routes/chat.ts`、`src/routes/agent-profiles.ts`、`src/agent/agent-service.ts` |
 | Conn / Activity / output / Feishu | `docs/runtime-assets-conn-feishu.md`、`docs/conn-activity-legacy-governance-map.md` |
 | 生产部署 / 双云验收 | `docs/server-ops.md`、`docs/server-ops-quick-reference.md`，再读对应云手册 |
 
@@ -37,7 +37,8 @@
 | --- | --- | --- |
 | `src/server.ts` | 依赖创建、路由注册、组合根 | 业务逻辑、复杂状态机 |
 | `src/routes/*` | HTTP 参数解析、状态码、响应体、调用 service | 长生命周期编排、运行时状态所有权 |
-| `src/routes/chat.ts` | main/scoped chat 和 agent profile HTTP 壳层 | `AgentService.runChat()` 生命周期拆分 |
+| `src/routes/chat.ts` | main/scoped chat HTTP 壳层，并注册 agent profile 管理路由 | `AgentService.runChat()` 生命周期拆分 |
+| `src/routes/agent-profiles.ts` | `/v1/agents*` 元操作、技能开关、规则文件读写、默认 browser/model 绑定 | scoped chat 会话运行逻辑 |
 | `src/agent/agent-service.ts` | 前台 run 生命周期、active/terminal run、会话状态 | HTTP 细节、UI 细节 |
 | `src/agent/agent-*.ts` helpers | 会话、run、event、result、history 等窄职责 | 重新持有全局 run 生命周期 |
 | `src/ui/playground.ts` | Playground 脚本、样式、dialog、shell 装配 | 新业务逻辑无限堆叠 |
@@ -58,6 +59,16 @@
 5. 对应最小验证是什么？先查 `docs/architecture-test-matrix.md`。
 6. 是否碰到运行态目录？`.env`、`.data/`、`runtime/` 临时报告、部署包默认不进提交。
 7. 是否只是因为“文件太大”想拆？如果是，先停。大文件不是罪，边界不清才是。
+
+## 提交前防误提交清单
+
+架构治理批次提交前，除了跑对应测试，还必须检查这些东西。别让一次“代码优化”顺手带上截图、临时脚本和网页草稿，那不叫交付，那叫搬家。
+
+1. `git status --short` 里只能出现本批次明确要提交的源码 / 测试 / 文档文件。
+2. 新增未跟踪文件如果属于运行产物、截图、临时 HTML、临时脚本或设计草稿，优先补 `.gitignore` 或移到仓库外，不要混进治理提交。
+3. 如果改了页面外部资源来源，例如 CDN 改成本地 vendor，必须补页面断言，防止后续又悄悄退回外链。
+4. 如果触碰 legacy / fallback 字段，必须写明保留、迁移或删除条件，并确认是否需要 `/v1/debug/cleanup` 观测。
+5. 如果改动影响外部行为、运行方式、接口、文档结构或协作约定，同轮更新 `docs/change-log.md`。
 
 ## 禁区
 

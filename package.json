@@ -8,7 +8,7 @@
     "start": "tsx src/server.ts",
     "worker:conn": "tsx src/workers/conn-worker.ts",
     "worker:feishu": "tsx src/workers/feishu-worker.ts",
-    "test": "node --test --import tsx test/**/*.test.ts",
+    "test": "node --test --test-concurrency=1 --import tsx test/**/*.test.ts",
     "design:lint": "node ./node_modules/@google/design.md/dist/index.js lint DESIGN.md",
     "docker:build": "docker build -t ugk-pi:local .",
     "docker:up": "docker compose up --build",

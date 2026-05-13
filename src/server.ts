@@ -83,6 +83,31 @@ function createDefaultConnDatabase(dbPath: string): ConnDatabase {
 	return database;
 }
 
+interface ResolvedConnStores {
+	connDatabase?: ConnDatabase;
+	connStore: ConnSqliteStore;
+	connRunStore: ConnRunStore;
+	activityStore: AgentActivityStore;
+}
+
+function resolveConnStores(options: BuildServerOptions, dbPath: string): ResolvedConnStores {
+	const hasCompleteInjectedStores = Boolean(options.connStore && options.connRunStore && options.activityStore);
+	const connDatabase = hasCompleteInjectedStores ? undefined : createDefaultConnDatabase(dbPath);
+	const getDefaultDatabase = (): ConnDatabase => {
+		if (!connDatabase) {
+			throw new Error("Default conn database is unavailable when all conn stores are injected.");
+		}
+		return connDatabase;
+	};
+
+	return {
+		connDatabase,
+		connStore: options.connStore ?? new ConnSqliteStore({ database: getDefaultDatabase() }),
+		connRunStore: options.connRunStore ?? new ConnRunStore({ database: getDefaultDatabase() }),
+		activityStore: options.activityStore ?? new AgentActivityStore({ database: getDefaultDatabase() }),
+	};
+}
+
 function createDefaultAgentService(assetStore: AssetStoreLike, profile?: AgentProfile): AgentService {
 	const config = getAppConfig();
 	const conversationStore = new ConversationStore(profile?.conversationIndexPath ?? config.conversationIndexPath);
@@ -122,10 +147,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	});
 	const assetStore = options.assetStore ?? createDefaultAssetStore();
 	const config = getAppConfig();
-	const connDatabase =
-		options.connStore && options.connRunStore && options.activityStore
-			? undefined
-			: createDefaultConnDatabase(config.connDatabasePath);
+	const { connDatabase, connStore, connRunStore, activityStore } = resolveConnStores(options, config.connDatabasePath);
 	const notificationHub = options.notificationHub ?? new NotificationHub();
 	const browserRegistry = options.browserRegistry ?? createBrowserRegistryFromEnv();
 	const browserBindingAuditLog =
@@ -136,9 +158,6 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	const modelConfigStore = options.modelConfigStore ?? createFileModelConfigStore(config.projectRoot);
 	const modelSelectionValidator = options.modelSelectionValidator ?? createLiveModelSelectionValidator(config.projectRoot);
 	const agentService = options.agentService ?? agentServiceRegistry.get(DEFAULT_AGENT_ID) ?? createDefaultAgentService(assetStore);
-	const connStore = options.connStore ?? new ConnSqliteStore({ database: connDatabase! });
-	const connRunStore = options.connRunStore ?? new ConnRunStore({ database: connDatabase! });
-	const activityStore = options.activityStore ?? new AgentActivityStore({ database: connDatabase! });
 
 	app.get("/healthz", async () => {
 		return { ok: true };

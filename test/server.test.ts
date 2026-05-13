@@ -1189,6 +1189,24 @@ test("standalone conn page disables run-now while a run is pending or running", 
 	assert.match(response, /scheduleRunRefresh\(connId, 0\)/);
 });
 
+test("standalone conn page uses bundled vendor assets instead of CDN resources", () => {
+	const response = renderConnPage();
+
+	assert.match(response, /\/vendor\/flatpickr\/flatpickr\.min\.css/);
+	assert.match(response, /\/vendor\/flatpickr\/flatpickr\.min\.js/);
+	assert.match(response, /\/vendor\/flatpickr\/l10n\/zh\.js/);
+	assert.match(response, /marked v18\.0\.2|globalThis\.__ugkPlaygroundMarkdownParser/);
+	assert.doesNotMatch(response, /cdn\.jsdelivr\.net/);
+});
+
+test("standalone conn page follows the home cockpit visual system", () => {
+	const response = renderConnPage();
+
+	assert.match(response, /data-standalone-theme="cockpit"/);
+	assert.match(response, /sp-cockpit-drift/);
+	assert.match(response, /body\[data-standalone-theme="cockpit"\] \.conn-stat-card/);
+});
+
 test("GET /playground defaults runtime append behavior to steer", async () => {
 	const app = buildServer({
 		agentService: createAgentServiceStub(),
