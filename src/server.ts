@@ -41,6 +41,7 @@ import { registerPlaygroundRoute } from "./routes/playground.js";
 import { registerRuntimeDebugRoutes } from "./routes/runtime-debug.js";
 import { registerStaticRoutes } from "./routes/static.js";
 import { registerArtifactRoutes } from "./routes/artifacts.js";
+import { registerTeamRoutes } from "./routes/team.js";
 import { FeishuSettingsStore } from "./integrations/feishu/settings-store.js";
 
 export interface BuildServerOptions {
@@ -210,6 +211,10 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		connRunStore,
 		backgroundDataDir: options.backgroundDataDir ?? config.backgroundDataDir,
 		publicBaseUrl: config.publicBaseUrl,
+	});
+
+	registerTeamRoutes(app, {
+		dataDir: config.agentDataDir,
 	});
 
 	return app;

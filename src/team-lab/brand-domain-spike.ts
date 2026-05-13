@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { TeamLabWorkspace } from "./workspace.js";
 import { stripMarkdownFence, normalizeDomain, validateDiscoveryEnvelope, validateReviewEnvelope, repairJson } from "./brand-domain-gate.js";
 import { buildDiscoveryPrompt, buildReviewerPrompt, FIXTURE_SEARCH_CONTEXT } from "./brand-domain-prompts.js";
+import { searchAndFormat } from "./search.js";
 import type { SpikeState, CandidateDomain, DiscoveryEnvelope, ReviewEnvelope } from "./brand-domain-types.js";
 
 // --- Config loading (shared with probe) ---
@@ -60,17 +61,19 @@ async function callLLM(config: { apiKey: string; baseUrl: string; model: string 
 
 // --- Args ---
 
-function parseArgs(): { keyword: string; maxRounds: number; maxCandidates: number } {
+function parseArgs(): { keyword: string; maxRounds: number; maxCandidates: number; mode: "fixture" | "real" } {
   const args = process.argv.slice(2);
   let keyword = "MED";
   let maxRounds = 2;
   let maxCandidates = 10;
+  let mode: "fixture" | "real" = "fixture";
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--keyword" && args[i + 1]) { keyword = args[++i]; }
     else if (args[i] === "--max-rounds" && args[i + 1]) { maxRounds = parseInt(args[++i], 10); }
     else if (args[i] === "--max-candidates" && args[i + 1]) { maxCandidates = parseInt(args[++i], 10); }
+    else if (args[i] === "--mode" && args[i + 1]) { mode = args[++i] as "fixture" | "real"; }
   }
-  return { keyword, maxRounds, maxCandidates };
+  return { keyword, maxRounds, maxCandidates, mode };
 }
 
 // --- Helpers ---
@@ -91,7 +94,7 @@ function parseJsonOutput(raw: string): { ok: true; value: unknown } | { ok: fals
   }
 }
 
-function generateFinalReport(state: SpikeState, candidates: CandidateDomain[], review: ReviewEnvelope | null): string {
+function generateFinalReport(state: SpikeState, candidates: CandidateDomain[], review: ReviewEnvelope | null, mode: "fixture" | "real"): string {
   const lines: string[] = [];
   lines.push(`# ${state.keyword} Domain Discovery Spike Report`);
   lines.push("");
@@ -109,7 +112,7 @@ function generateFinalReport(state: SpikeState, candidates: CandidateDomain[], r
   lines.push(`- Max rounds: ${state.maxRounds}`);
   lines.push(`- Max candidates: ${state.maxCandidates}`);
   lines.push(`- Completed queries: ${state.completedQueries.join(", ")}`);
-  lines.push("- Source: fixture search context (not real web search)");
+  lines.push(`- Source: ${mode === "real" ? "SearXNG live search" : "fixture search context (not real web search)"}`);
   lines.push("");
 
   lines.push("## 3. Candidate Domains");
@@ -139,7 +142,9 @@ function generateFinalReport(state: SpikeState, candidates: CandidateDomain[], r
   lines.push(`- This does NOT represent all ${state.keyword}-related domains.`);
   lines.push("- Domain ownership was NOT verified via WHOIS, DNS, or certificates.");
   lines.push("- No official domain whitelist was provided; ownership claims are preliminary at best.");
-  lines.push("- Results are based on fixture search context, not real web search.");
+  lines.push(mode === "real"
+    ? "- Results are based on SearXNG search; coverage depends on search engine availability."
+    : "- Results are based on fixture search context, not real web search.");
   lines.push("");
   lines.push(`Generated at ${new Date().toISOString()}`);
 
@@ -149,11 +154,13 @@ function generateFinalReport(state: SpikeState, candidates: CandidateDomain[], r
 // --- Main Pipeline ---
 
 async function main() {
-  const { keyword, maxRounds, maxCandidates } = parseArgs();
+  const { keyword, maxRounds, maxCandidates, mode } = parseArgs();
   const config = loadConfig();
   const runId = generateRunId();
   const rootDir = join(".data", "team-lab");
   const ws = new TeamLabWorkspace({ rootDir });
+
+  console.log(`[team-lab] mode: ${mode}, keyword: ${keyword}, maxRounds: ${maxRounds}, maxCandidates: ${maxCandidates}`);
 
   const queries = [
     `${keyword} official domain`,
@@ -199,7 +206,11 @@ async function main() {
     state.currentRound = round + 1;
     console.log(`[team-lab] discovery round ${state.currentRound} started (queries: ${batch.join(", ")})`);
 
-    const prompt = buildDiscoveryPrompt(batch, FIXTURE_SEARCH_CONTEXT);
+    const searchContext = mode === "real"
+      ? await searchAndFormat(batch)
+      : FIXTURE_SEARCH_CONTEXT;
+    await ws.writeText(runId, `discovery-round-${state.currentRound}.search-context.txt`, searchContext);
+    const prompt = buildDiscoveryPrompt(batch, searchContext);
     let raw: string;
     try {
       raw = await callLLM(config, prompt);
@@ -309,7 +320,7 @@ async function main() {
   }
 
   // --- Final Report (program-generated) ---
-  const report = generateFinalReport(state, allCandidates, review);
+  const report = generateFinalReport(state, allCandidates, review, mode);
   await ws.writeText(runId, "final_report.md", report);
 
   state.status = "completed";
