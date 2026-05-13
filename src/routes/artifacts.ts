@@ -1,12 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
-import { extname, join, resolve, sep } from "node:path";
+import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import type { ConnRunStore } from "../agent/conn-run-store.js";
 import type { ConnSqliteStore } from "../agent/conn-sqlite-store.js";
-import { sanitizeBackgroundPathSegment } from "../agent/background-workspace.js";
-import { buildDefaultArtifactContract } from "../agent/artifact-contract.js";
-import { validateArtifactDelivery } from "../agent/artifact-validation.js";
 
 export interface ArtifactRouteOptions {
 	connStore: ConnSqliteStore;
@@ -37,14 +34,22 @@ export function registerArtifactRoutes(
 	app: FastifyInstance,
 	options: ArtifactRouteOptions,
 ): void {
-	const { connStore, connRunStore, backgroundDataDir } = options;
+	const { connRunStore, backgroundDataDir } = options;
+
+	async function resolveRunArtifactDir(connId: string, runId: string): Promise<string | undefined> {
+		const run = await connRunStore.getRun(runId);
+		if (!run || run.connId !== connId) {
+			return undefined;
+		}
+		return resolveArtifactDir(backgroundDataDir, run.workspacePath);
+	}
 
 	app.get<{ Params: { connId: string; runId: string; "*": string } }>(
 		"/v1/conns/:connId/runs/:runId/artifacts/*",
 		async (request, reply) => {
 			const { connId, runId } = request.params;
 			const subPath = request.params["*"];
-			const artifactDir = resolveArtifactDir(backgroundDataDir, runId);
+			const artifactDir = await resolveRunArtifactDir(connId, runId);
 			if (!artifactDir) {
 				return reply.code(404).send({ error: "Not found" });
 			}
@@ -60,8 +65,8 @@ export function registerArtifactRoutes(
 	app.get<{ Params: { connId: string; runId: string } }>(
 		"/v1/conns/:connId/runs/:runId/artifacts",
 		async (request, reply) => {
-			const { runId } = request.params;
-			const artifactDir = resolveArtifactDir(backgroundDataDir, runId);
+			const { connId, runId } = request.params;
+			const artifactDir = await resolveRunArtifactDir(connId, runId);
 			if (!artifactDir) {
 				return reply.code(404).send({ error: "Not found" });
 			}
@@ -76,8 +81,8 @@ export function registerArtifactRoutes(
 	app.get<{ Params: { connId: string; runId: string } }>(
 		"/v1/conns/:connId/runs/:runId/artifacts/health",
 		async (request, reply) => {
-			const { runId } = request.params;
-			const artifactDir = resolveArtifactDir(backgroundDataDir, runId);
+			const { connId, runId } = request.params;
+			const artifactDir = await resolveRunArtifactDir(connId, runId);
 			if (!artifactDir) {
 				return reply.send({ ok: false, error: "Artifact directory not found" });
 			}
@@ -106,7 +111,7 @@ export function registerArtifactRoutes(
 
 			const artifactDir = resolveArtifactDir(
 				backgroundDataDir,
-				latestSucceeded.runId,
+				latestSucceeded.workspacePath,
 			);
 			if (!artifactDir) {
 				return reply.code(404).send({ error: "Not found" });
@@ -133,7 +138,7 @@ export function registerArtifactRoutes(
 
 			const artifactDir = resolveArtifactDir(
 				backgroundDataDir,
-				latestSucceeded.runId,
+				latestSucceeded.workspacePath,
 			);
 			if (!artifactDir) {
 				return reply.code(404).send({ error: "Not found" });
@@ -160,7 +165,7 @@ export function registerArtifactRoutes(
 
 			const artifactDir = resolveArtifactDir(
 				backgroundDataDir,
-				latestSucceeded.runId,
+				latestSucceeded.workspacePath,
 			);
 			if (!artifactDir || !existsSync(artifactDir)) {
 				return reply.send({ ok: false, error: "Artifact directory not found" });
@@ -178,11 +183,19 @@ export function registerArtifactRoutes(
 
 export function resolveArtifactDir(
 	backgroundDataDir: string,
-	runId: string,
+	workspacePath: string,
 ): string | undefined {
-	const safeRunId = sanitizeBackgroundPathSegment(runId);
-	if (safeRunId === "run") return undefined;
-	return resolve(join(backgroundDataDir, "runs", safeRunId, "artifact-public"));
+	const resolvedBackgroundDir = resolve(backgroundDataDir);
+	const resolvedWorkspacePath = resolve(workspacePath);
+	if (resolvedWorkspacePath === resolvedBackgroundDir || !isPathWithin(resolvedBackgroundDir, resolvedWorkspacePath)) {
+		return undefined;
+	}
+	return resolve(join(resolvedWorkspacePath, "artifact-public"));
+}
+
+function isPathWithin(parentPath: string, candidatePath: string): boolean {
+	const relativePath = relative(resolve(parentPath), resolve(candidatePath));
+	return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
 }
 
 async function serveArtifactFile(
@@ -192,11 +205,7 @@ async function serveArtifactFile(
 ): Promise<any> {
 	const resolvedTarget = resolve(targetFile);
 	const resolvedArtifactDir = resolve(artifactDir);
-	if (
-		!resolvedTarget.startsWith(resolvedArtifactDir + "/") &&
-			!resolvedTarget.startsWith(resolvedArtifactDir + sep) &&
-		resolvedTarget !== resolvedArtifactDir
-	) {
+	if (!isPathWithin(resolvedArtifactDir, resolvedTarget)) {
 		return reply.code(404).send({ error: "Not found" });
 	}
 
@@ -243,7 +252,7 @@ async function listArtifactFiles(dir: string): Promise<string[]> {
 				await scan(fullPath);
 			} else if (entry.isFile()) {
 				const resolved = resolve(fullPath);
-				if (resolved.startsWith(resolve(dir))) {
+				if (isPathWithin(dir, resolved)) {
 					results.push(fullPath);
 				}
 			}

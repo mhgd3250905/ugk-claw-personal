@@ -11,6 +11,14 @@
 ---
 
 ## 2026-05-13
+### Conn Artifact 路由归属校验收口
+- 日期：2026-05-13
+- 主题：修复 artifact 独立服务路由只按 `runId` 拼目录、未校验 `connId` 与 run 归属的问题。现在 run 级 artifact 路由必须先读取 `ConnRunStore.getRun(runId)` 并确认 `run.connId === connId`，再使用 run 记录里的 `workspacePath/artifact-public` 作为产物目录。
+- 影响范围：
+  - `src/routes/artifacts.ts`：run 级 artifact、index 和 health 路由新增 run 归属校验；artifact 目录来源从 `backgroundDataDir + runId` 改为 `run.workspacePath`，并校验 workspace 必须位于 `backgroundDataDir` 内。
+  - `test/artifact-routes.test.ts`：路由测试改为创建真实 conn/run 记录；新增错 connId 访问 run artifact 返回 404、workspace 越界返回 404 的回归测试。
+- 对应入口：`src/routes/artifacts.ts`、`test/artifact-routes.test.ts`
+
 ### Conn Artifact Delivery Validation
 - 日期：2026-05-13
 - 主题：Conn 后台任务支持 artifact 交付验证与自动修复。用户在 conn 编辑器中启用 `artifactDelivery` 后，后台 run 会验证产物是否真实写入 `artifact-public/` 目录；未通过验证时自动追加修复 prompt 重试，最多 configurable 轮。验证通过后，产物通过独立 artifact 路由对外提供访问。

@@ -7,6 +7,7 @@ import { ConnDatabase } from "../../../src/agent/conn-db.js";
 import { ConnRunStore, type ConnRunRecord } from "../../../src/agent/conn-run-store.js";
 import { ConnSqliteStore } from "../../../src/agent/conn-sqlite-store.js";
 import type { ConnDefinition } from "../../../src/agent/conn-store.js";
+import { normalizeArtifactDeliveryInput } from "../../../src/agent/artifact-contract.js";
 import { getAppConfig } from "../../../src/config.js";
 
 function findProjectRoot(startPath: string): string {
@@ -208,8 +209,10 @@ export default function connExtension(pi: ExtensionAPI) {
 						modelProvider: params.modelProvider,
 						modelId: params.modelId,
 						upgradePolicy: params.upgradePolicy,
-					artifactDelivery: params.artifactDelivery,
-				});
+						...(params.artifactDelivery !== undefined
+							? { artifactDelivery: normalizeArtifactDeliveryInput(params.artifactDelivery) }
+							: {}),
+					});
 					return {
 						content: [{ type: "text", text: summarizeConn(conn) }],
 						details: {
@@ -312,7 +315,9 @@ export default function connExtension(pi: ExtensionAPI) {
 						...(params.modelProvider !== undefined ? { modelProvider: params.modelProvider } : {}),
 						...(params.modelId !== undefined ? { modelId: params.modelId } : {}),
 						...(params.upgradePolicy !== undefined ? { upgradePolicy: params.upgradePolicy } : {}),
-					...(params.artifactDelivery !== undefined ? { artifactDelivery: params.artifactDelivery } : {}),
+						...(params.artifactDelivery !== undefined
+							? { artifactDelivery: normalizeArtifactDeliveryInput(params.artifactDelivery) }
+							: {}),
 					});
 					if (!conn) {
 						return createErrorResult(`Conn not found: ${params.connId}`, {

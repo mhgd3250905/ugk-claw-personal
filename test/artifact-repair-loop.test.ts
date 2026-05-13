@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runArtifactValidationRepairLoop } from "../src/agent/artifact-repair-loop.js";
 import { buildDefaultArtifactContract } from "../src/agent/artifact-contract.js";
+import type { AgentSessionLike } from "../src/agent/agent-session-factory.js";
 import type { RunWorkspace } from "../src/agent/background-workspace.js";
 import type { ArtifactContract } from "../src/agent/artifact-contract.js";
 
@@ -15,7 +16,7 @@ function createFakeSession(): {
 		sessionFile?: string;
 		subscribe: () => () => void;
 		prompt(text: string): Promise<void>;
-	};
+	} & AgentSessionLike;
 	setLastAssistantText(text: string): void;
 } {
 	const prompts: string[] = [];
@@ -68,14 +69,14 @@ test("first validation ok, no repair", async () => {
 	setLastAssistantText("done");
 
 	const result = await runArtifactValidationRepairLoop({
-		session: session as never,
+		session,
 		workspace,
 		conn: {} as never,
 		contract,
 		initialResultText: "done",
 		maxAttempts: 2,
 		promptWithAbort: async (sess, promptText) => {
-			(sess as never).prompt(promptText);
+			await sess.prompt(promptText);
 		},
 		extractAssistantText: () => "done",
 	});
@@ -92,14 +93,14 @@ test("first fail, repair succeeds", async () => {
 	const contract = buildDefaultArtifactContract({ expectedKind: "auto", repairMaxAttempts: 2 });
 
 	let callCount = 0;
-	const fakePromptWithAbort = async (_sess: never, promptText: string) => {
+	const fakePromptWithAbort = async (_sess: AgentSessionLike, promptText: string) => {
 		callCount += 1;
 		assert.ok(promptText.includes("ARTIFACT_PUBLIC_DIR"));
 		await writeFile(join(workspace.artifactPublicDir, "report.txt"), "hello");
 	};
 
 	const result = await runArtifactValidationRepairLoop({
-		session: {} as never,
+		session: createFakeSession().session,
 		workspace,
 		conn: {} as never,
 		contract,
@@ -121,7 +122,7 @@ test("maxAttempts=0, no repair", async () => {
 	const contract = buildDefaultArtifactContract({ expectedKind: "auto", repairMaxAttempts: 0 });
 
 	const result = await runArtifactValidationRepairLoop({
-		session: {} as never,
+		session: createFakeSession().session,
 		workspace,
 		conn: {} as never,
 		contract,
@@ -144,7 +145,7 @@ test("maxAttempts=2 still fails", async () => {
 
 	let callCount = 0;
 	const result = await runArtifactValidationRepairLoop({
-		session: {} as never,
+		session: createFakeSession().session,
 		workspace,
 		conn: {} as never,
 		contract,
@@ -170,7 +171,7 @@ test("repair prompt contains ARTIFACT_PUBLIC_DIR", async () => {
 
 	let capturedPrompt = "";
 	await runArtifactValidationRepairLoop({
-		session: {} as never,
+		session: createFakeSession().session,
 		workspace,
 		conn: {} as never,
 		contract,
@@ -196,7 +197,7 @@ test("repair prompt contains issue details", async () => {
 
 	let capturedPrompt = "";
 	await runArtifactValidationRepairLoop({
-		session: {} as never,
+		session: createFakeSession().session,
 		workspace,
 		conn: {} as never,
 		contract,
