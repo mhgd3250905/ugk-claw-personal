@@ -34,9 +34,9 @@
 - 代码主仓库：`https://github.com/mhgd3250905/ugk-claw-personal.git`
 - 主分支：`main`
 - 当前稳定版本：`v1.2.0`
-- 当前本地最新提交：`2e69e56 Add per-agent skill enable/disable toggle`。
+- 当前本地最新提交：`7d9326b Sync docs, skills, extensions with recent features`。
 - 当前稳定版本：`v1.2.0`
-- 当前 `origin/main` / `gitee/main`：已同步到 `676368b`。
+- 当前 `origin/main` / `gitee/main`：已同步到 `676368b`，本地有未推送提交到 `7d9326b`。
 - 腾讯云生产运行代码：已增量更新到 `676368b`，已通过 `npm run server:ops -- tencent deploy` 和 `npm run server:ops -- tencent verify`。
 - 阿里云生产运行代码：已增量更新到 `676368b`，已通过 `npm run server:ops -- aliyun deploy` 和 `npm run server:ops -- aliyun verify`。
 - 本轮稳定版主线：Agent Skill 开关（每个 Agent Profile 独立启用/关闭已安装技能，必需技能锁定，Session factory 过滤，运行中 409 拒绝）；Conn 管理器排序（运行中优先 + 最新任务倒序）；并保留此前 Agent 默认模型设置收口、左下角模型源跟随当前 Agent、腾讯云公网 IP 更新、独立 Agents 页浏览器绑定确认补齐、Agents 页面重写、Conn 未读统计、Conn 立即执行反馈、独立页面浅色主题和 Playground 路由架构清理。
@@ -59,6 +59,12 @@
 - 当前本地模型源变更：阿里 `dashscope-coding / glm-5` 已移除，默认接入智谱 `zhipu-glm / glm-5.1`，使用 `ANTHROPIC_AUTH_TOKEN` 和 `https://open.bigmodel.cn/api/anthropic` 的 `anthropic-messages` 兼容链路。左下角“模型源”设置在 `main` 里仍写全局默认；切到非主 Agent 时优先显示并保存该 Agent 的 `defaultModelProvider/defaultModelId`。`/v1/model-config` 本地已确认 `zhipu-glm` 为 `configured=true`；本地 `.env` 已写入真实 token 但不得提交。若修改 `.env`，必须重新创建 `ugk-pi` 容器，单纯 `docker compose restart ugk-pi` 不会重新加载 env_file。
 - 当前本地多 Agent 并行加固：前台 Agent scope 已从全局 `process.env` 切到 `AsyncLocalStorage`，后台 Conn workspace env 也改为 async context 并在 Bash spawn 时显式注入；浏览器 cleanup scope 现在带 `agentId + conversationId` 或 `connId + runId`，降低共享 Chrome 误清理其他 run 的风险。新增 `GET /v1/agents/status` 查看 agent profile 级 `idle / busy`；同一 agent 忙时非流式 chat 返回 `409 AGENT_BUSY`，流式 chat 在 SSE hijack 前预检返回 409。普通 `ModelRegistry.create()` 未按外部报告改动，因为当前上游实现不在 create 路径 reset provider registry。
 - 当前未跟踪禁区：`.claude/`、`runtime/xhs-extract.mjs`、`public/ptt-slide*.html`、`public/slide*.png`、`runtime/*.cjs`、奇怪的 `Eapp...jsonl` 路径等运行产物 / 本地文件不属于本轮增量提交，继续不要提交、不要删除，除非用户明确说明它们的归属。
+
+## 2026-05-12 Chat 视图背景氛围统一
+
+关键提交：`1a60d52`
+
+Landing 页（`data-home="true"`）使用 `.shell::before/::after` 伪元素 + `--ugk-*` CSS 变量绘制网格/像素/光点动态纹理。Chat 视图复用同一套 `--ugk-*` 变量通过 `.shell:not([data-home="true"])` 的 `background-image` 渲染背景，不再需要独立伪元素。暗色和浅色主题各有自己的 `--ugk-*` 调色板。`body::before/::after` 提供次要环境层（网格漂移动画 + 径向发光）。关键文件：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`。
 
 ## 2026-05-13 Artifact Delivery Validation
 

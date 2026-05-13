@@ -8,6 +8,13 @@
 - `compareConnManagerItems()` 先用 `getConnRunSortRank()` 计算 rank（running=0 / pending=1 / 其他=2），rank 不同时按 rank 升序；rank 相同时按 `getConnLatestRunTimeMs()` 倒序；时间也相同则按标题比较，最终按 connId 兜底。
 - 相关源码：`src/ui/playground-conn-activity-controller.ts`
 
+## 2026-05-12 Chat 视图背景氛围统一
+
+- Landing 页使用 `.shell[data-home="true"]::before/::after` 伪元素 + `--ugk-*` CSS 变量绘制动态网格纹理。
+- Chat 视图复用同一套 `--ugk-*` 变量，通过 `.shell:not([data-home="true"])` 的 `background-image` 渲染，不需要伪元素（shell background 直接铺在所有子元素下方）。
+- 暗色和浅色主题各自定义独立的 `--ugk-*` 调色板。`body::before/::after` 提供次要环境层（网格漂移动画 + 径向发光）。
+- 相关源码：`src/ui/playground-styles.ts`、`src/ui/playground-theme-controller.ts`
+
 ## 2026-05-12 Agent 状态指示与跨 Agent 切换
 
 - Agent 切换悬浮菜单和首页 Agent 卡片现在展示运行状态彩色圆点：`busy`（运行中）使用绿色脉冲动画，`idle`（空闲）使用暗灰静态点，`unknown` 使用更暗灰点。

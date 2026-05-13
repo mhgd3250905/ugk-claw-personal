@@ -144,10 +144,13 @@
 24. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 25. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
 26. [src/ui/playground-task-inbox.ts](/E:/AII/ugk-pi/src/ui/playground-task-inbox.ts)
-27. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-28. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-29. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-30. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
+27. [src/ui/playground-agent-manager.ts](/E:/AII/ugk-pi/src/ui/playground-agent-manager.ts)
+28. [src/ui/playground-workspace-controller.ts](/E:/AII/ugk-pi/src/ui/playground-workspace-controller.ts)
+29. [src/ui/playground-browser-workbench.ts](/E:/AII/ugk-pi/src/ui/playground-browser-workbench.ts)
+30. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+31. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+32. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+33. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
 
 适用问题：
 
@@ -362,6 +365,25 @@
 - SSE 断线后页面不重连
 - 当前会话和非当前会话的提示表现不一致
 - conn 结果已经完成，但切换会话后只能靠任务消息页找到
+
+## E2. Agent 管理独立页面
+
+先看：
+
+1. [src/ui/agents-page.ts](/E:/AII/ugk-pi/src/ui/agents-page.ts)
+2. [src/ui/standalone-page-shared.ts](/E:/AII/ugk-pi/src/ui/standalone-page-shared.ts)
+3. [src/ui/playground-agent-manager.ts](/E:/AII/ugk-pi/src/ui/playground-agent-manager.ts)
+4. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+5. [src/agent/agent-profile.ts](/E:/AII/ugk-pi/src/agent/agent-profile.ts)
+6. [src/agent/agent-profile-catalog.ts](/E:/AII/ugk-pi/src/agent/agent-profile-catalog.ts)
+
+适用问题：
+
+- Agent 列表、inline 编辑、浏览器绑定下拉
+- Per-agent 技能启用/关闭开关、必需技能锁定
+- Per-agent 默认模型选择器
+- Agent 创建、归档、删除
+- 独立页面浅色主题
 
 ## G2. Conn 独立工作台页面
 
