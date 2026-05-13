@@ -11,6 +11,20 @@
 ---
 
 ## 2026-05-13
+### Matt Pocock 工程技能配置
+- 日期：2026-05-13
+- 主题：为 `to-issues`、`to-prd`、`triage`、`diagnose`、`tdd`、`improve-codebase-architecture`、`zoom-out` 等工程技能补齐仓库级配置入口。
+- 影响范围：
+  - `CLAUDE.md` 新增 `Agent skills` 索引，指向 issue tracker、triage labels 和 domain docs 配置。
+  - `docs/agents/issue-tracker.md` 记录 GitHub Issues 作为任务追踪入口。
+  - `docs/agents/triage-labels.md` 记录默认五标签 triage 词汇。
+  - `docs/agents/domain.md` 记录 single-context 领域文档读取规则。
+- 对应入口：
+  - `CLAUDE.md`
+  - `docs/agents/issue-tracker.md`
+  - `docs/agents/triage-labels.md`
+  - `docs/agents/domain.md`
+
 ### 新同事接手交接快照刷新
 - 日期：2026-05-13
 - 主题：刷新 `docs/handoff-current.md`，把旧的未推送、旧 HEAD、旧生产版本等历史残留口径替换为当前真实交接状态，方便新同事按最短路径接手项目。

@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for `mhgd3250905/ugk-claw-personal`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default five-label triage vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use a single-context domain-doc layout: root `CONTEXT.md` when present, with ADRs under `docs/adr/`. See `docs/agents/domain.md`.
+
 ## Build & Dev Commands
 
 ```bash
