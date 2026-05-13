@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TeamLabWorkspace } from "./workspace.js";
-import { stripMarkdownFence, normalizeDomain, validateDiscoveryEnvelope, validateReviewEnvelope } from "./brand-domain-gate.js";
+import { stripMarkdownFence, normalizeDomain, validateDiscoveryEnvelope, validateReviewEnvelope, repairJson } from "./brand-domain-gate.js";
 import { buildDiscoveryPrompt, buildReviewerPrompt, FIXTURE_SEARCH_CONTEXT } from "./brand-domain-prompts.js";
 import type { SpikeState, CandidateDomain, DiscoveryEnvelope, ReviewEnvelope } from "./brand-domain-types.js";
 
@@ -83,6 +83,9 @@ function parseJsonOutput(raw: string): { ok: true; value: unknown } | { ok: fals
   const stripped = stripMarkdownFence(raw);
   try {
     return { ok: true, value: JSON.parse(stripped) };
+  } catch { /* try repair */ }
+  try {
+    return { ok: true, value: repairJson(stripped) };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }

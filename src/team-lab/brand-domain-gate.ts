@@ -63,6 +63,58 @@ export function stripMarkdownFence(raw: string): string {
   return s.trim();
 }
 
+/**
+ * Attempt to repair common LLM JSON output issues:
+ * 1. Unescaped double quotes inside string values
+ * Uses a two-pass approach: first try strict parse, then try lenient parse.
+ */
+export function repairJson(raw: string): unknown {
+  // Pass 1: strict parse
+  try { return JSON.parse(raw); } catch { /* continue */ }
+
+  // Pass 2: walk character-by-character to fix unescaped quotes inside strings
+  const result: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (escaped) {
+      result.push(ch);
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      result.push(ch);
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      if (!inString) {
+        inString = true;
+        result.push(ch);
+      } else {
+        // Look ahead: if the next non-whitespace char is : or , or } or ] or \n then
+        // this is a proper closing quote
+        const rest = raw.slice(i + 1);
+        const nextMeaningful = rest.match(/^\s*([:,\}\]\n])/);
+        if (nextMeaningful) {
+          inString = false;
+          result.push(ch);
+        } else {
+          // Unescaped quote inside string — escape it
+          result.push('\\"');
+        }
+      }
+    } else {
+      result.push(ch);
+    }
+  }
+
+  try { return JSON.parse(result.join("")); } catch { /* give up */ }
+
+  throw new Error("JSON repair failed");
+}
+
 export function validateDiscoveryEnvelope(input: unknown):
   | { ok: true; value: DiscoveryEnvelope }
   | { ok: false; errors: string[] }

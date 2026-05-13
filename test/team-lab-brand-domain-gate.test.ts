@@ -6,6 +6,7 @@ import {
   validateDiscoveryEnvelope,
   validateReviewEnvelope,
   stripMarkdownFence,
+  repairJson,
 } from "../src/team-lab/brand-domain-gate.js";
 
 describe("normalizeDomain", () => {
@@ -221,5 +222,29 @@ describe("stripMarkdownFence", () => {
   it("handles leading/trailing whitespace", () => {
     const input = "  \n  ```json\n{\"status\":\"success\"}\n```\n  ";
     assert.equal(stripMarkdownFence(input), '{"status":"success"}');
+  });
+});
+
+describe("repairJson", () => {
+  it("parses valid JSON as-is", () => {
+    const result = repairJson('{"status":"success"}');
+    assert.deepEqual(result, { status: "success" });
+  });
+
+  it("fixes unescaped double quotes inside string values", () => {
+    const broken = '{"msg":"Domain contains "med" and appears in search"}';
+    const result = repairJson(broken) as { msg: string };
+    assert.equal(result.msg, 'Domain contains "med" and appears in search');
+  });
+
+  it("fixes the real reviewer output pattern", () => {
+    const broken = '{"recommendedChange":"Use e.g., \\"Domain contains \\"med\\" here\\" format"}';
+    // Already escaped — should pass through
+    const result = repairJson(broken) as { recommendedChange: string };
+    assert.ok(result.recommendedChange.includes("med"));
+  });
+
+  it("throws on completely invalid JSON", () => {
+    assert.throws(() => repairJson("not json at all"));
   });
 });
