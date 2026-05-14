@@ -13,19 +13,27 @@
 
 开始前先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/traceability-map.md`。如果要跑本地，只用 Docker：`docker compose up -d` 或 `docker compose restart ugk-pi`，标准入口是 `http://127.0.0.1:3000/playground`，健康检查是 `http://127.0.0.1:3000/healthz`。不要把宿主机 `npm start` / `npm run dev` 当正规入口。
 
-开始前执行 `git status --short` 和 `git log -1 --oneline`。如果看到本地有 DeepSeek Anthropic-compatible、Team Runtime 配置收口、Conn provider error 状态传播相关未提交改动，先按本交接快照和 `docs/model-providers.md` 判断当前事实，不要从旧 change-log 条目倒推配置。当前生产发布点仍以服务器 `git log -1 --oneline` 为准；本地未提交改动不要默认已经上线。
+开始前执行 `git status --short` 和 `git log -1 --oneline`。截至本交接更新，本地 Team Runtime 阶段性改动已提交为 `ce620bb Add Team role profiles and editable prompts`，工作区应为干净；如果现场不一致，先查清楚是谁的新改动，不要直接回滚。当前生产发布点仍以服务器 `git log -1 --oneline` 为准；本地新提交不要默认已经上线。
 
 服务器发布默认走增量更新。腾讯云拉 GitHub `origin/main`，阿里云拉 Gitee `gitee/main`。不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、`.data/`、Chrome profile、runtime 临时产物或本地截图。
 ```
 
 ## 当前状态
 
-- 当前本地 HEAD：以 `git log -1 --oneline` 为准；本快照更新时，本地工作区包含 DeepSeek / Team / Conn 状态传播相关未提交改动
-- 当前 `origin/main`：以 `git status --short` 和 `git branch -vv` 现场为准，不要假设本地 WIP 已推送
-- 当前 `gitee/main`：以 `git status --short` 和远端状态现场为准，不要假设本地 WIP 已推送
-- 当前本地工作区：本阶段改动尚未由本条文档声明为已提交；提交前必须重新跑验证并确认 `.env`、`.data/`、runtime 临时产物未进入提交边界
+- 当前本地 HEAD：`ce620bb Add Team role profiles and editable prompts`
+- 当前本地工作区：本快照更新时 `git status --short` 干净
+- 当前 `origin/main` / `gitee/main`：以现场 `git branch -vv` 和远端状态为准；不要假设本地 `ce620bb` 已推送或已部署
 - 当前稳定 tag：已有 `snapshot-20260513-v4.5.0-stable`，但最新交接提交在该 tag 之后
 - 本轮最新功能：
+  - Team Runtime 已进入重点开发阶段。当前主线不是 Conn，也不是 Feishu，而是 `/playground/team`、Team role 调度、Agent profile 绑定、可观测运行状态和 domain discovery 质量
+  - Team 全角色已可绑定 Agent profile：Discovery / Evidence / Classifier / Reviewer / Finalizer 都能继承对应 profile 的模型源、skills、规则文件和默认 Chrome；未绑定时仍走默认 Team LLM runner
+  - `/playground/team` 左侧保留创建任务基础输入和 Runs 列表；右侧按模板动态渲染角色卡。每个角色卡可选择 Agent profile，也可编辑 role prompt。模板 `GET /v1/team/templates*` 会返回 `roles`
+  - 创建 Team run 时支持 `roleProfileIds` 和 `rolePromptOverrides`；override 会传入角色任务，但默认 RoleBox、submit tool、allowed streams 和输出格式约束仍保留
+  - Discovery 已升级为“专业域名调查员”默认 prompt：用户不需要知道 `crt.sh`、证书透明日志、DNS、区域 TLD、login / portal / app / support、docs、partners、social、app stores、code refs 等具体方法；Discovery 应自行规划路径，并结构化提交候选域名。使用证书透明日志时应标注 `sourceType: certificate_transparency`
+  - 绑定 Agent profile 的 Discovery 作为后台活跃任务运行，使用 heartbeat / session JSONL 活跃度 watchdog，不再按启动后的固定墙钟时间直接判失败；它可以一边提交候选域名，一边让 Evidence 等下游逐条接力
+  - Evidence / Classifier / Reviewer 已按单条上游 item 推进，便于页面观察每个角色正在处理哪个域名；`role_task_started.data.consumes` 记录 stream、itemId 和 domain
+  - 当前仍缺一个正式的“任务取消 / 强制终止 API”和“所有角色活跃状态面板”。现在 Discovery 有 `activeRoleTasks`，但普通同步角色卡住时页面仍不够直观，这是下一阶段最该补的东西之一
+  - 当前还有一条本地测试 run 在跑：`teamrun_mp5kt5db_8mir`。截至本快照查询，它状态为 `running`，计数约为 `candidateDomains=23`、`domainEvidence=10`、`classifications=10`、`reviewFindings=10`，角色绑定为 `teamagent` / `teamagent2` / `teamagent3`。如果新 agent 要继续观察，先查 `GET /v1/team/runs/teamrun_mp5kt5db_8mir` 和 events，不要猜
   - DeepSeek 当前已收口为项目统一模型源 `deepseek`，走 `https://api.deepseek.com/anthropic` / `anthropic-messages` / `DEEPSEEK_API_KEY`；Team Runtime、前台 chat 和 conn worker 都应消费同一套 registry/settings
   - 智谱 GLM 使用 `ZHIPU_GLM_API_KEY` + `authHeader: true`，不要再复用 `ANTHROPIC_AUTH_TOKEN`；`ANTHROPIC_AUTH_TOKEN` 不是多 provider 公共 key
   - `zhipu-api.txt`、`deepseek-api.txt`、`小米api.txt` 只允许作为本地临时说明；默认 `UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP=false`，正常 Docker / 生产不读取这些文件
@@ -70,6 +78,19 @@
 - 不要提交 `.env`、token、cookie、`.data/`、部署包、runtime 临时文件
 
 ## 最小阅读顺序
+
+继续开发 Team Runtime：
+
+1. `docs/team-runtime.md`
+2. `.codex/plans/2026-05-14-handoff-team-next-agent.md`
+3. `.codex/plans/2026-05-14-handoff-team-realtime-submit.md`
+4. `src/ui/team-page.ts`
+5. `src/routes/team.ts`
+6. `src/team/templates/brand-domain-discovery.ts`
+7. `src/team/team-orchestrator.ts`
+8. `src/team/agent-profile-team-role-task-runner.ts`
+9. `src/team/team-role-task-runner.ts`
+10. `test/team-orchestrator.test.ts`
 
 普通 bugfix / 小功能：
 
