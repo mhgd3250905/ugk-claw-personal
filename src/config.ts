@@ -31,7 +31,7 @@ export interface AppConfig {
 
 export function loadApiKeyFromApiTxt(
 	projectRoot: string,
-	envVarName: string = "ANTHROPIC_AUTH_TOKEN",
+	envVarName: string = "ZHIPU_GLM_API_KEY",
 	fileName: string = "zhipu-api.txt",
 ): string | undefined {
 	const existingValue = process.env[envVarName];
@@ -71,9 +71,11 @@ function readApiKeyFromText(content: string, envVarName: string): string | undef
 }
 
 export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
-	loadApiKeyFromApiTxt(projectRoot);
-	loadApiKeyFromApiTxt(projectRoot, "DEEPSEEK_API_KEY", "deepseek-api.txt");
-	loadApiKeyFromApiTxt(projectRoot, "XIAOMI_MIMO_API_KEY", "小米api.txt");
+	if (process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP === "true") {
+		loadApiKeyFromApiTxt(projectRoot);
+		loadApiKeyFromApiTxt(projectRoot, "DEEPSEEK_API_KEY", "deepseek-api.txt");
+		loadApiKeyFromApiTxt(projectRoot, "XIAOMI_MIMO_API_KEY", "小米api.txt");
+	}
 	const dataDir = join(projectRoot, ".data");
 	const agentDataDir = join(dataDir, "agent");
 	const agentsDataDir = join(dataDir, "agents");

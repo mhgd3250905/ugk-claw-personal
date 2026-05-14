@@ -34,7 +34,8 @@ async function createProjectRoot(): Promise<string> {
 					vendor: "zhipu",
 					region: "cn",
 					priority: 10,
-					apiKey: "ANTHROPIC_AUTH_TOKEN",
+					apiKey: "ZHIPU_GLM_API_KEY",
+					authHeader: true,
 					models: [{ id: "glm-5.1", name: "GLM-5.1" }],
 				},
 				deepseek: {

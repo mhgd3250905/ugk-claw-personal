@@ -8,9 +8,79 @@
 - 每条记录至少写清：日期、主题、影响范围、对应入口
 - 如果只是纯局部代码重构且对外无感，可以不记；但只要会影响下一个接手的人，就应该记
 
+当前配置事实不要从旧流水账里倒推。历史条目里出现的 `deepseek-anthropic`、DeepSeek `openai-completions`、智谱复用 `ANTHROPIC_AUTH_TOKEN`、或通过 `*-api.txt` 注入 key，均只表示当时发生过，不代表当前规范。当前模型源以 `docs/model-providers.md`、`runtime/pi-agent/models.json`、`.env.example` 和 `/v1/model-config` 为准。
+
 ---
 
 ## 2026-05-14
+### 模型源与 Conn 状态传播文档收口
+- 日期：2026-05-14
+- 主题：补齐 DeepSeek Anthropic-compatible 迁移、key 环境变量隔离、`*-api.txt` 非正式配置源、以及 Conn provider error 不得假成功的文档口径。
+- 影响范围：
+  - `docs/model-providers.md`：增加当前模型源事实和防误判清单，明确 DeepSeek 当前走 `deepseek` / `anthropic-messages` / `https://api.deepseek.com/anthropic` / `DEEPSEEK_API_KEY`。
+  - `docs/team-runtime.md`：明确 Team Runtime 只消费统一 registry/settings，不拥有独立 DeepSeek 或 `deepseek-api.txt` 配置路径。
+  - `docs/runtime-assets-conn-feishu.md`：明确 conn worker 复用统一模型配置，并把 assistant `stopReason: "error"` 映射为 run failed。
+  - `docs/docker-local-ops.md`、双云部署文档、`docs/handoff-current.md`：补充 worker 重启、生产 key 位置和旧文档口径防误读。
+- 验证：
+  - `git diff --check`
+  - `npx tsc --noEmit`
+  - `node --test --import tsx test/background-agent-runner.test.ts test/config.test.ts test/model-config.test.ts test/team-llm-config.test.ts test/containerization.test.ts`
+- 对应入口：
+  - `docs/model-providers.md`
+  - `docs/runtime-assets-conn-feishu.md`
+  - `docs/docker-local-ops.md`
+
+### Conn 后台任务 provider error 状态传播修复
+- 日期：2026-05-14
+- 主题：修复 Conn 后台任务中 assistant 最终消息 `stopReason: "error"` 仍被标记为 `succeeded` 的假成功问题。
+- 影响范围：
+  - `src/agent/background-agent-runner.ts`：后台 conn run 在写入 `run_succeeded` 前复用主聊天的 `assertAssistantMessageSucceeded()`，provider 认证失败、上游错误等最终 assistant error 会进入 `run_failed` / `failed`。
+  - `test/background-agent-runner.test.ts`：新增 provider error 回归测试，覆盖 `stopReason: "error"` + `errorMessage` 的失败状态传播。
+- 验证：
+  - `node --test --import tsx test/background-agent-runner.test.ts`
+- 对应入口：
+  - `src/agent/background-agent-runner.ts`
+  - `test/background-agent-runner.test.ts`
+
+### 智谱 GLM key 从 Anthropic SDK 全局变量隔离
+- 日期：2026-05-14
+- 主题：按 pi 官方 custom provider 配置语义收口智谱 GLM 认证，避免 `ANTHROPIC_AUTH_TOKEN` 污染同进程内其他 `anthropic-messages` provider。
+- 影响范围：
+  - `runtime/pi-agent/models.json`：`zhipu-glm` 改用 `ZHIPU_GLM_API_KEY`，并设置 `authHeader: true`，继续走 `https://open.bigmodel.cn/api/anthropic` / `anthropic-messages`。
+  - `.env.example`、`src/config.ts`、`test/config.test.ts`：本地 bootstrap 默认智谱 key 名改为 `ZHIPU_GLM_API_KEY`。
+  - `docs/model-providers.md`、云部署文档：同步智谱 key 命名，明确不把 Anthropic SDK 专用 `ANTHROPIC_AUTH_TOKEN` 当多 provider 公共变量。
+- 验证：
+  - `node --test --import tsx test/config.test.ts test/model-config.test.ts test/agent-session-factory.test.ts test/team-llm-config.test.ts test/containerization.test.ts`
+  - `npm run test:team`
+  - `npx tsc --noEmit`
+  - `npm test`
+  - Docker live：`/v1/model-config/validate` 对 `deepseek/deepseek-v4-pro` 和 `zhipu-glm/glm-5.1` 均返回 `{"ok":true}`；Team LLM 直连返回 `UGK_TEAM_PROVIDER_OK`。
+- 对应入口：
+  - `runtime/pi-agent/models.json`
+  - `src/config.ts`
+  - `docs/model-providers.md`
+
+### Team LLM 模型配置收口到项目统一 provider
+- 日期：2026-05-14
+- 主题：修正 Team Runtime 的 LLM 配置边界，DeepSeek 按项目统一模型 registry/settings 走 `anthropic-messages`，不再在 Team 里单独硬编码 DeepSeek / OpenAI-compatible 路径。
+- 影响范围：
+  - `runtime/pi-agent/models.json`：`deepseek` provider 的 `baseUrl` 调整为 `https://api.deepseek.com/anthropic`，`api` 调整为 `anthropic-messages`，作为正式模型 registry 配置。
+  - `src/team/llm.ts`：`loadLLMConfig()` 改为读取项目统一 settings 和 model registry，返回 provider/model/api/baseUrl/auth；调用协议由 provider `api` 字段决定，不再用 `baseUrl.includes("/anthropic")` 推断。
+  - `src/config.ts`、`.env.example`：`getAppConfig()` 默认不再读取本地 `*-api.txt` 临时文件；只有显式设置 `UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP=true` 时才启用本地开发 bootstrap。
+  - `test/team-llm-config.test.ts`、`test/config.test.ts`、`package.json`：新增 Team LLM 配置和本地 api txt bootstrap 回归测试，并把 Team LLM 配置测试纳入 `npm run test:team`。
+  - `docs/model-providers.md`、`docs/team-runtime.md`、`.codex/plans/2026-05-14-team-realtime-submit-and-incremental-scheduler.md`：同步 DeepSeek Anthropic-compatible 口径和 Team 复用项目模型配置的规则。
+- 验证：
+  - `node --test --import tsx test/team-llm-config.test.ts`
+  - `node --test --import tsx test/config.test.ts test/team-llm-config.test.ts`
+  - `node --test --import tsx test/agent-session-factory.test.ts test/model-config.test.ts test/team-llm-config.test.ts`
+  - `npx tsc --noEmit`
+  - `npm run test:team`
+  - `npm test`
+- 对应入口：
+  - `src/team/llm.ts`
+  - `runtime/pi-agent/models.json`
+  - `docs/model-providers.md`
+
 ### Team Runtime 独立 Playground 页面
 - 日期：2026-05-14
 - 主题：新增 `/playground/team` 独立 Team Runtime 工作台，并在主 Playground 桌面入口和手机更多菜单暴露 `Team Runtime` 链接。

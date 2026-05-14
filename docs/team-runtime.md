@@ -164,7 +164,7 @@ curl http://127.0.0.1:3000/v1/team/templates/brand_domain_discovery
 | `src/team/team-config.ts` | 从环境变量读取配置 |
 | `src/team/team-events.ts` | 事件类型定义 |
 | `src/team/team-id.ts` | ID 生成器 |
-| `src/team/llm.ts` | LLM 客户端（DeepSeek API） |
+| `src/team/llm.ts` | Team LLM 客户端；读取项目统一模型 registry/settings，按 provider `api` 字段选择调用协议 |
 | `src/routes/team.ts` | HTTP API 路由 |
 | `src/ui/team-page.ts` | `/playground/team` 独立工作台页面 |
 | `src/workers/team-worker.ts` | 后台 worker 进程 |
@@ -187,7 +187,9 @@ curl http://127.0.0.1:3000/v1/team/templates/brand_domain_discovery
 | `TEAM_REAL_ROLES` | 无（全 mock） | 逗号分隔，如 `discovery,evidence_collector,classifier,reviewer` |
 | `TEAM_ROLE_TASK_TIMEOUT_MS` | 180000 | 单个角色任务超时（毫秒） |
 | `TEAM_ROLE_TASK_MAX_RETRIES` | 1 | 失败重试次数 |
-| `DEEPSEEK_API_KEY` | — | LLM API key |
+| `DEEPSEEK_API_KEY` | — | 当前默认 DeepSeek provider 的 API key；具体 provider/model/api 以项目统一模型配置为准 |
+
+Team Runtime 不拥有自己的模型源配置。`src/team/llm.ts` 会读取项目统一 settings 和 `runtime/pi-agent/models.json`，按 provider 的 `api` 字段决定调用协议。当前 DeepSeek 正式走 `deepseek` provider、`https://api.deepseek.com/anthropic` 和 `anthropic-messages`；不要在 Team 里恢复 `deepseek-anthropic`、OpenAI-compatible 分支或 `deepseek-api.txt` 读取逻辑。后续新增模型源也应先进入统一 registry/settings，Team 只消费结果。
 
 ### 数据目录
 
@@ -219,7 +221,7 @@ curl http://127.0.0.1:3000/v1/team/templates/brand_domain_discovery
 1. **Evidence Collector 不做真实 HTTP/DNS/证书检查** — 只做域名分析，全部标记 `checked: false`
 2. **单轮 Discovery 搜索覆盖率有限** — `maxRounds=1` 只跑当前 plan 分配给 Discovery 的查询集合
 3. **UI 仍是运维工作台，不是业务产品页** — `/playground/team` 已能发现模板、创建 run、查看 streams / events / artifacts，但还没有可视化 graph scheduler、批量对比或报告编辑能力
-4. **LLM 依赖 DeepSeek** — `src/team/llm.ts` 硬编码了 DeepSeek API 格式
+4. **真实 LLM runner 仍是兼容路径** — `src/team/llm.ts` 已读取项目统一 provider/model/api 配置，但当前仍只返回最终文本，尚未接入真实 submit tool loop
 5. **JSON 输出可能损坏** — DeepSeek 偶尔输出未转义的引号，`repairJson()` 做字符级修复
 6. **模板 schema 仍是轻量描述** — `/v1/team/templates*` 已暴露模板发现和输入字段，但还不是完整 JSON Schema；`/playground/team` 只按当前轻量 schema 和已知预算字段生成表单
 7. **调度仍是 MVP 顺序执行** — 当前每 tick 最多按模板 roles 顺序各执行一次 ready task，尚未做并行 graph scheduler

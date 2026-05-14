@@ -22,6 +22,7 @@ import { prependCurrentTimeContext } from "./file-artifacts.js";
 import { runArtifactValidationRepairLoop } from "./artifact-repair-loop.js";
 import { buildDefaultArtifactContract } from "./artifact-contract.js";
 import { validateArtifactDelivery } from "./artifact-validation.js";
+import { assertAssistantMessageSucceeded, findLastAssistantMessage } from "./agent-run-result.js";
 
 export interface BackgroundAgentSessionFactory {
 	createSession(input: {
@@ -161,6 +162,7 @@ export class BackgroundAgentRunner {
 					await promptWithAbort(session, prompt, signal);
 				});
 			});
+			assertAssistantMessageSucceeded(findLastAssistantMessage(session.messages));
 			unsubscribe?.();
 			unsubscribe = undefined;
 

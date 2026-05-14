@@ -47,7 +47,7 @@ class FakeAssetStore implements AssetStoreLike {
 
 class FakeSession implements AgentSessionLike {
 	sessionFile = "background-session.json";
-	messages: Array<{ role: string; content?: unknown }> = [];
+	messages: Array<{ role: string; content?: unknown; stopReason?: string; errorMessage?: string }> = [];
 	private listener?: (event: RawAgentSessionEventLike) => void;
 
 	constructor(private readonly options: { resultText?: string; error?: Error }) {}
@@ -90,7 +90,7 @@ class ScopeObservingSession extends FakeSession {
 
 class AbortableSession implements AgentSessionLike {
 	sessionFile = "background-session.json";
-	messages: Array<{ role: string; content?: unknown }> = [];
+	messages: Array<{ role: string; content?: unknown; stopReason?: string; errorMessage?: string }> = [];
 	abortCalls = 0;
 	private listener?: (event: RawAgentSessionEventLike) => void;
 	private rejectPrompt?: (error: Error) => void;
@@ -206,6 +206,22 @@ class TrailingOutputSummarySession extends FakeSession {
 					text: "任务完成。输出文件已写入 `output/result.txt`。",
 				},
 			],
+		});
+	}
+}
+
+class ProviderErrorSession extends FakeSession {
+	constructor() {
+		super({});
+	}
+
+	override async prompt(message: string): Promise<void> {
+		this.messages.push({ role: "user", content: message });
+		this.messages.push({
+			role: "assistant",
+			content: "provider failed",
+			stopReason: "error",
+			errorMessage: "401 invalid access token",
 		});
 	}
 }
@@ -817,6 +833,43 @@ test("BackgroundAgentRunner records failed runs without throwing into the foregr
 
 	assert.equal(failed?.status, "failed");
 	assert.equal(failed?.errorText, "model failed");
+	assert.deepEqual(
+		(await runStore.listEvents(run.runId)).map((event) => event.eventType),
+		["workspace_created", "snapshot_resolved", "run_failed"],
+	);
+
+	database.close();
+});
+
+test("BackgroundAgentRunner fails conn runs when the final assistant message reports a provider error", async () => {
+	const { database, connStore, runStore, runner } = await createRunner({
+		session: new ProviderErrorSession(),
+	});
+	const conn = await connStore.create({
+		title: "Daily Digest",
+		prompt: "Summarize",
+		target: {
+			type: "conversation",
+			conversationId: "manual:conn",
+		},
+		schedule: {
+			kind: "once",
+			at: "2026-04-21T10:01:00.000Z",
+		},
+		now: new Date("2026-04-21T10:00:00.000Z"),
+	});
+	const run = await runStore.createRun({
+		runId: "run-provider-error",
+		connId: conn.connId,
+		scheduledAt: "2026-04-21T10:01:00.000Z",
+		workspacePath: databasePathSafeRoot(),
+		now: new Date("2026-04-21T10:00:59.000Z"),
+	});
+
+	const failed = await runner.run(conn, run, new Date("2026-04-21T10:01:05.000Z"));
+
+	assert.equal(failed?.status, "failed");
+	assert.equal(failed?.errorText, "401 invalid access token");
 	assert.deepEqual(
 		(await runStore.listEvents(run.runId)).map((event) => event.eventType),
 		["workspace_created", "snapshot_resolved", "run_failed"],

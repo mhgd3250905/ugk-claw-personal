@@ -29,7 +29,7 @@
     "team:probe-json": "tsx src/team-lab/json-envelope-probe.ts",
     "team:spike": "tsx src/team-lab/brand-domain-spike.ts",
     "team:spike:real": "tsx src/team-lab/brand-domain-spike.ts --mode real",
-    "test:team": "node --test --import tsx test/team-workspace.test.ts test/team-gate.test.ts test/team-orchestrator.test.ts test/team-template-brand-domain.test.ts test/team-template-competitor-domain.test.ts test/team-template-registry.test.ts test/team-search.test.ts test/team-json-output.test.ts test/team-routes.test.ts",
+    "test:team": "node --test --import tsx test/team-workspace.test.ts test/team-gate.test.ts test/team-orchestrator.test.ts test/team-template-brand-domain.test.ts test/team-template-competitor-domain.test.ts test/team-template-registry.test.ts test/team-search.test.ts test/team-json-output.test.ts test/team-routes.test.ts test/team-llm-config.test.ts",
     "test:team-lab": "node --test --import tsx test/team-lab-brand-domain-gate.test.ts test/team-lab-workspace.test.ts test/team-lab-search.test.ts test/team-search.test.ts"
   },
   "dependencies": {

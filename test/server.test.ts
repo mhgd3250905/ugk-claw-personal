@@ -333,7 +333,7 @@ function createModelConfigStoreStub(): ModelConfigStore {
 				models: [{ id: "glm-5.1", name: "GLM-5.1" }],
 				auth: {
 					configured: true,
-					envVar: "ANTHROPIC_AUTH_TOKEN",
+					envVar: "ZHIPU_GLM_API_KEY",
 					source: "environment",
 				},
 			},
@@ -5738,7 +5738,7 @@ test("GET /v1/model-config returns current provider and selectable models", asyn
 				models: [{ id: "glm-5.1", name: "GLM-5.1" }],
 				auth: {
 					configured: true,
-					envVar: "ANTHROPIC_AUTH_TOKEN",
+					envVar: "ZHIPU_GLM_API_KEY",
 					source: "environment",
 				},
 			},

@@ -108,7 +108,7 @@ ssh ugk-claw-aliyun
 5. 执行 `COMPOSE_ANSI=never COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file /root/ugk-claw-shared/compose.env -p ugk-pi-claw -f docker-compose.prod.yml up --build -d` 重建并启动应用相关容器；因第一次绕中文文件名时误选本地通用 `api.txt`，随后已重新按内容精确选择 `小米api.txt`，修正 `/root/ugk-claw-shared/app.env` 并强制重建 `ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-feishu-worker`。
 6. 最终验收通过：内网 `/healthz`、公网 `http://101.37.209.54:3000/healthz` 均返回 `{"ok":true}`；`/v1/model-config` 显示 `xiaomi-mimo-cn`、`xiaomi-mimo-sgp`、`xiaomi-mimo-ams` 均为 `configured=true`，上下文窗口均为 `1048576`；`POST /v1/model-config/validate` 验证 `xiaomi-mimo-cn / mimo-v2.5-pro` 返回 `ok=true`。
 
-注意：如果后续继续用本地脚本给阿里云注入 key，不能再用宽泛 `*api.txt` glob；本地同时存在阿里、DeepSeek、小米多个 key 文件，必须按文件名或内容精确选中小米 key，否则就是把生产 env 写坏，没什么技术含量但很烦。
+注意：这一段是 2026-04-29 的历史事故记录，不是当前密钥管理流程。当前生产 key 只应维护在 `/root/ugk-claw-shared/app.env` / shared 运行态配置里，正常发布和 Docker 启动不读取仓库根目录的 `*-api.txt`。本地 `zhipu-api.txt`、`deepseek-api.txt`、`小米api.txt` 只能作为开发者临时说明；除非显式设置 `UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP=true`，否则运行时不会读它们。别再写脚本 glob `*api.txt` 注入生产 env，这种玩法属于把配置管理交给运气。
 
 ## 2026-04-30 阿里云 apt mirror 构建修复记录
 
@@ -209,7 +209,7 @@ nginx 入口必须保留 SSE 长连接配置：`proxy_read_timeout 600s`、`prox
 /root/ugk-claw-shared/backups
 ```
 
-`app.env` 内包含真实 `ANTHROPIC_AUTH_TOKEN` 和 `DEEPSEEK_API_KEY`，不要打印、不要复制进文档、不要提交进仓库。
+`app.env` 内包含真实 `ZHIPU_GLM_API_KEY`、`DEEPSEEK_API_KEY` 和其他模型源 key，不能打印、不能复制进文档、不能提交进仓库。当前 DeepSeek 使用 `DEEPSEEK_API_KEY`，走 `runtime/pi-agent/models.json` 中的 `deepseek` provider、`https://api.deepseek.com/anthropic` 和 `anthropic-messages`；不要用 `ANTHROPIC_AUTH_TOKEN` 或旧 `deepseek-anthropic` 口径覆盖它。
 
 `compose.env` 当前口径：
 

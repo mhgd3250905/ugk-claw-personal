@@ -78,6 +78,8 @@
 
 注意：前置直连验证已确认 SGP / AMS endpoint 在腾讯云新加坡网络可达，但当前小米 key 对 SGP / AMS 返回 `401 Invalid API Key`。如果要在腾讯云新加坡优先使用 `xiaomi-mimo-sgp`，需要小米侧提供具备 SGP 集群权限的 key，而不是删掉 SGP provider。
 
+注意：这一节是历史小包发布记录，不是当前模型源和 key 的配置规范。当前生产 key 只维护在 `~/ugk-claw-shared/app.env` / shared 运行态配置里，正常 Docker / 生产启动不读取仓库根目录的 `*-api.txt`。当前 DeepSeek 使用 `DEEPSEEK_API_KEY`，provider 为 `deepseek`，baseUrl 为 `https://api.deepseek.com/anthropic`，api 为 `anthropic-messages`；不要把旧 `deepseek-anthropic`、OpenAI-compatible baseUrl 或 `ANTHROPIC_AUTH_TOKEN` 当成当前腾讯云配置依据。
+
 ## 2026-04-29 后台任务日志膨胀与 OOM 清理记录
 
 本次腾讯云访问异常重启后确认不是 sidecar 页面过多，而是 `ugk-pi` app 多次触发 Node heap OOM。现场证据：
@@ -845,7 +847,7 @@ tsconfig.json
 模板如下，真实 key 不要写进仓库和文档：
 
 ```dotenv
-ANTHROPIC_AUTH_TOKEN=<填真实智谱 GLM Key>
+ZHIPU_GLM_API_KEY=<填真实智谱 GLM Key>
 
 HOST=0.0.0.0
 PORT=3000
@@ -1314,7 +1316,7 @@ free -h
 
 ## 不要做的事
 
-- 不要把真实 `ANTHROPIC_AUTH_TOKEN` 写进仓库。
+- 不要把真实 `ZHIPU_GLM_API_KEY` 写进仓库。
 - 不要开放公网 `3901`。
 - 不要开放公网 `9223`。
 - 不要把 `.env`、`.data/`、`node_modules/`、临时 tar 包提交到 git。

@@ -564,7 +564,8 @@ test("default session factory reflects model context changes after default model
 				"zhipu-glm": {
 					baseUrl: "https://open.bigmodel.cn/api/anthropic",
 					api: "anthropic-messages",
-					apiKey: "ANTHROPIC_AUTH_TOKEN",
+					apiKey: "ZHIPU_GLM_API_KEY",
+					authHeader: true,
 					models: [
 						{
 							id: "glm-5.1",

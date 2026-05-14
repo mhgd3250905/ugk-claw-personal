@@ -253,6 +253,10 @@ http://127.0.0.1:3456/new
 - provider / model 展示顺序看 `docs/model-providers.md`、`runtime/pi-agent/models.json` 和相关配置代码。
 - 真实 key 只放运行态环境、ignored 本地文件或服务器 shared 配置。
 - 改模型源后至少测 `/v1/model-config`。
+- 当前智谱、DeepSeek、小米都不是用 `ANTHROPIC_AUTH_TOKEN` 当公共 key。智谱使用 `ZHIPU_GLM_API_KEY`，DeepSeek 使用 `DEEPSEEK_API_KEY`，小米使用 `XIAOMI_MIMO_API_KEY`。
+- 当前 DeepSeek 正式走 `anthropic-messages` 和 `https://api.deepseek.com/anthropic`。如果看到旧文档或旧快照里写 `deepseek-anthropic`、OpenAI-compatible 或不带 `/anthropic` 的 baseUrl，先按历史兼容理解，不要直接照抄回当前配置。
+- 仓库根目录的 `zhipu-api.txt`、`deepseek-api.txt`、`小米api.txt` 这类文件默认不是运行配置源。只有 `UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP=true` 时本地开发会读取它们；正常 Docker 和生产都应保持 `false`。
+- 改了 `.env` 或模型源相关 env 后，至少重建或重启会创建 agent session 的进程：`ugk-pi`、`ugk-pi-conn-worker`、`ugk-pi-team-worker`。只重启主服务而忘了 worker，后台任务会继续拿旧环境，刚刚的 DeepSeek 401 假成功就是这种低级坑，难看但很真实。
 
 不要提交 `.claude/`、本地 key settings、`.env` 或任何 token。把 key 混进 Git，不叫交付，叫埋雷。
 

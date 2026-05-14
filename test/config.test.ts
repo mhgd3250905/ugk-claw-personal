@@ -5,17 +5,17 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { getAppConfig, loadApiKeyFromApiTxt } from "../src/config.js";
 
-test("loads ANTHROPIC_AUTH_TOKEN from zhipu-api.txt when environment variable is absent", async () => {
+test("loads ZHIPU_GLM_API_KEY from zhipu-api.txt when environment variable is absent", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
 	const apiTxtPath = join(dir, "zhipu-api.txt");
 	await writeFile(apiTxtPath, "api-key: sk-test-123", "utf8");
-	delete process.env.ANTHROPIC_AUTH_TOKEN;
+	delete process.env.ZHIPU_GLM_API_KEY;
 
 	const loaded = loadApiKeyFromApiTxt(dir);
 
 	assert.equal(loaded, "sk-test-123");
-	assert.equal(process.env.ANTHROPIC_AUTH_TOKEN, "sk-test-123");
-	delete process.env.ANTHROPIC_AUTH_TOKEN;
+	assert.equal(process.env.ZHIPU_GLM_API_KEY, "sk-test-123");
+	delete process.env.ZHIPU_GLM_API_KEY;
 });
 
 test("loads DEEPSEEK_API_KEY from deepseek-api.txt when environment variable is absent", async () => {
@@ -30,49 +30,87 @@ test("loads DEEPSEEK_API_KEY from deepseek-api.txt when environment variable is 
 	delete process.env.TEST_DEEPSEEK_KEY;
 });
 
-test("loads XIAOMI_MIMO_API_KEY from 小米api.txt with apikey spelling", async () => {
+test("getAppConfig does not load local api txt files by default", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
+	await writeFile(join(dir, "deepseek-api.txt"), "api-key = sk-deepseek-test-123", "utf8");
+	delete process.env.DEEPSEEK_API_KEY;
+	const previousAllow = process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP;
+	delete process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP;
+
+	try {
+		getAppConfig(dir);
+
+		assert.equal(process.env.DEEPSEEK_API_KEY, undefined);
+	} finally {
+		if (previousAllow === undefined) {
+			delete process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP;
+		} else {
+			process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP = previousAllow;
+		}
+	}
+});
+
+test("getAppConfig loads local api txt files only when bootstrap is explicitly enabled", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
 	const apiTxtPath = join(dir, "小米api.txt");
 	await writeFile(apiTxtPath, "model_name:mimo-v2.5-pro\napikey:tp-xiaomi-test-123\n", "utf8");
 	delete process.env.XIAOMI_MIMO_API_KEY;
+	const previousAllow = process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP;
+	process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP = "true";
 
-	getAppConfig(dir);
+	try {
+		getAppConfig(dir);
 
-	assert.equal(process.env.XIAOMI_MIMO_API_KEY, "tp-xiaomi-test-123");
-	delete process.env.XIAOMI_MIMO_API_KEY;
+		assert.equal(process.env.XIAOMI_MIMO_API_KEY, "tp-xiaomi-test-123");
+	} finally {
+		delete process.env.XIAOMI_MIMO_API_KEY;
+		if (previousAllow === undefined) {
+			delete process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP;
+		} else {
+			process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP = previousAllow;
+		}
+	}
 });
 
-test("loads ANTHROPIC_AUTH_TOKEN from Claude-style JSON env settings", async () => {
+test("loads ZHIPU_GLM_API_KEY from JSON env settings", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
 	const apiTxtPath = join(dir, "zhipu-api.txt");
 	await writeFile(
 		apiTxtPath,
 		JSON.stringify({
 			env: {
-				ANTHROPIC_AUTH_TOKEN: "zhipu-json-token",
-				ANTHROPIC_BASE_URL: "https://open.bigmodel.cn/api/anthropic",
-				ANTHROPIC_MODEL: "glm-5.1",
+				ZHIPU_GLM_API_KEY: "zhipu-json-token",
 			},
 		}),
 		"utf8",
 	);
-	delete process.env.ANTHROPIC_AUTH_TOKEN;
+	delete process.env.ZHIPU_GLM_API_KEY;
+	const previousAllow = process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP;
+	process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP = "true";
 
-	getAppConfig(dir);
+	try {
+		getAppConfig(dir);
 
-	assert.equal(process.env.ANTHROPIC_AUTH_TOKEN, "zhipu-json-token");
-	delete process.env.ANTHROPIC_AUTH_TOKEN;
+		assert.equal(process.env.ZHIPU_GLM_API_KEY, "zhipu-json-token");
+	} finally {
+		delete process.env.ZHIPU_GLM_API_KEY;
+		if (previousAllow === undefined) {
+			delete process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP;
+		} else {
+			process.env.UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP = previousAllow;
+		}
+	}
 });
 
 test("keeps existing environment variable and does not override it from api.txt", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "ugk-pi-config-"));
 	const apiTxtPath = join(dir, "zhipu-api.txt");
 	await writeFile(apiTxtPath, "api-key: sk-test-123", "utf8");
-	process.env.ANTHROPIC_AUTH_TOKEN = "existing-value";
+	process.env.ZHIPU_GLM_API_KEY = "existing-value";
 
 	const loaded = loadApiKeyFromApiTxt(dir);
 
 	assert.equal(loaded, "existing-value");
-	assert.equal(process.env.ANTHROPIC_AUTH_TOKEN, "existing-value");
-	delete process.env.ANTHROPIC_AUTH_TOKEN;
+	assert.equal(process.env.ZHIPU_GLM_API_KEY, "existing-value");
+	delete process.env.ZHIPU_GLM_API_KEY;
 });

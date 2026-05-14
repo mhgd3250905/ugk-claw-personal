@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-13`
+更新时间：`2026-05-14`
 
 这份文档给新接手 `ugk-pi / UGK CLAW` 的同事或 coding agent 看。先读这里，再按任务类型展开其他文档。不要靠聊天记录拼现状，聊天记录容易把历史事实和当前事实搅成一锅。
 
@@ -13,19 +13,23 @@
 
 开始前先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/traceability-map.md`。如果要跑本地，只用 Docker：`docker compose up -d` 或 `docker compose restart ugk-pi`，标准入口是 `http://127.0.0.1:3000/playground`，健康检查是 `http://127.0.0.1:3000/healthz`。不要把宿主机 `npm start` / `npm run dev` 当正规入口。
 
-开始前执行 `git status --short` 和 `git log -1 --oneline`。当前本地交接点以 `git log -1 --oneline` 为准，提交主题是 `Improve conn UX and mobile home scrolling`。本轮代码已推送到 GitHub `origin/main` 和 Gitee `gitee/main`，腾讯云与阿里云生产均已增量更新并通过 `verify`。
+开始前执行 `git status --short` 和 `git log -1 --oneline`。如果看到本地有 DeepSeek Anthropic-compatible、Team Runtime 配置收口、Conn provider error 状态传播相关未提交改动，先按本交接快照和 `docs/model-providers.md` 判断当前事实，不要从旧 change-log 条目倒推配置。当前生产发布点仍以服务器 `git log -1 --oneline` 为准；本地未提交改动不要默认已经上线。
 
 服务器发布默认走增量更新。腾讯云拉 GitHub `origin/main`，阿里云拉 Gitee `gitee/main`。不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、`.data/`、Chrome profile、runtime 临时产物或本地截图。
 ```
 
 ## 当前状态
 
-- 当前本地 HEAD：以 `git log -1 --oneline` 为准，提交主题 `Improve conn UX and mobile home scrolling`
-- 当前 `origin/main`：已同步到 `2090fa4 Improve conn UX and mobile home scrolling`
-- 当前 `gitee/main`：已同步到 `2090fa4 Improve conn UX and mobile home scrolling`
-- 当前本地工作区：本轮提交后应保持干净
+- 当前本地 HEAD：以 `git log -1 --oneline` 为准；本快照更新时，本地工作区包含 DeepSeek / Team / Conn 状态传播相关未提交改动
+- 当前 `origin/main`：以 `git status --short` 和 `git branch -vv` 现场为准，不要假设本地 WIP 已推送
+- 当前 `gitee/main`：以 `git status --short` 和远端状态现场为准，不要假设本地 WIP 已推送
+- 当前本地工作区：本阶段改动尚未由本条文档声明为已提交；提交前必须重新跑验证并确认 `.env`、`.data/`、runtime 临时产物未进入提交边界
 - 当前稳定 tag：已有 `snapshot-20260513-v4.5.0-stable`，但最新交接提交在该 tag 之后
 - 本轮最新功能：
+  - DeepSeek 当前已收口为项目统一模型源 `deepseek`，走 `https://api.deepseek.com/anthropic` / `anthropic-messages` / `DEEPSEEK_API_KEY`；Team Runtime、前台 chat 和 conn worker 都应消费同一套 registry/settings
+  - 智谱 GLM 使用 `ZHIPU_GLM_API_KEY` + `authHeader: true`，不要再复用 `ANTHROPIC_AUTH_TOKEN`；`ANTHROPIC_AUTH_TOKEN` 不是多 provider 公共 key
+  - `zhipu-api.txt`、`deepseek-api.txt`、`小米api.txt` 只允许作为本地临时说明；默认 `UGK_ALLOW_LOCAL_API_TXT_BOOTSTRAP=false`，正常 Docker / 生产不读取这些文件
+  - Conn 后台 runner 已补 provider error 闸门：assistant `stopReason: "error"` 应写成 `failed`，不能再出现 401 却 `succeeded` 的假成功
   - 当前可见前端异步按钮补齐 pending 文案与禁用态，覆盖聊天追加 / 中断、文件库、任务消息、Agent 管理、Conn 管理等入口
   - `/playground/conn` 新建任务保存 / 取消修复，左侧任务卡片不再嵌套非法 button，表单底部增加明确保存 / 取消按钮，新建任务默认给出可保存的执行时间
   - Conn 列表排序改为“未读结果优先”，未读按最新未读 run 时间倒序，其余按运行中、暂停、已完成分组；运行中绿色、暂停橙黄、已完成灰色
@@ -121,6 +125,7 @@ Agent profile / Agents 页面：
 - Agent profile 运行时列表以 `GET /v1/agents` 为准
 - 不要手写 `.data/agents/profiles.json` 来创建、归档或修复 Agent
 - `conn` 后台任务产物标准出口是 workspace 的 `output/` 与 `artifact-public/`
+- 模型源当前事实看 `docs/model-providers.md` 和 `/v1/model-config`；旧 change-log 里的 `deepseek-anthropic`、OpenAI-compatible DeepSeek 或 `ANTHROPIC_AUTH_TOKEN` 多源复用均是历史口径
 - Chrome sidecar 登录态在 shared 运行态目录，不能被部署流程洗掉
 
 ## 最近验证记录
@@ -130,7 +135,8 @@ Agent profile / Agents 页面：
 - `git status --short`：提交后应为干净
 - `git diff --check`：通过
 - `npx tsc --noEmit`：通过
-- `npm test`：727 passed
+- `npm test`：最近一次全量本地验证为 866 passed
+- DeepSeek / Team / Conn 状态传播相关验证：`npx tsc --noEmit` 通过；`node --test --import tsx test/background-agent-runner.test.ts test/agent-run-result.test.ts test/agent-service.test.ts` 通过；`node --test --import tsx test/background-agent-runner.test.ts test/config.test.ts test/model-config.test.ts test/team-llm-config.test.ts test/containerization.test.ts` 通过
 - 手机视口真实验证：临时塞入 18 个 Agent 卡片，确认首页 logo 在 `scrollTop=0` 可见，Agent 列表可滚动
 - 本地 Docker：已 `docker compose up --build -d ugk-pi`，并刷新 `/playground` runtime 资产
 - 双云发布：腾讯云与阿里云均已增量更新到 `2090fa4`，并通过 `npm run server:ops -- tencent verify` / `npm run server:ops -- aliyun verify`
