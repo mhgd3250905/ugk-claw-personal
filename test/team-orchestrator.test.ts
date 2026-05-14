@@ -7,7 +7,7 @@ import { TeamWorkspace } from "../src/team/team-workspace.js";
 import { TeamOrchestrator } from "../src/team/team-orchestrator.js";
 import { DeterministicMockTeamRoleTaskRunner } from "../src/team/team-role-task-runner.js";
 import { createBrandDomainDiscoveryPlan } from "../src/team/team-plan-brand-domain.js";
-import type { TeamRunState, TeamPlan } from "../src/team/types.js";
+
 
 function makeDir(): string {
 	return join(tmpdir(), `team-orch-test-${Date.now()}`);

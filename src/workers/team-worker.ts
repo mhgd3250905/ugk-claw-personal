@@ -43,20 +43,22 @@ async function main(): Promise<void> {
 			for (const teamRunId of batch) {
 				if (!running) break;
 
+				// Read budgets from state instead of hardcoding
+				const state = await workspace.readState(teamRunId);
 				const orchestrator = new TeamOrchestrator({
 					workspace,
 					roleTaskRunner: runner,
-					maxRounds: 5,
-					maxCandidates: 100,
-					maxMinutes: 60,
+					maxRounds: state.budgets.maxRounds,
+					maxCandidates: state.budgets.maxCandidates,
+					maxMinutes: state.budgets.maxMinutes,
 					roleTaskTimeoutMs: config.roleTaskTimeoutMs,
 					roleTaskMaxRetries: config.roleTaskMaxRetries,
 				});
 
 				try {
 					await orchestrator.tick(teamRunId);
-					const state = await workspace.readState(teamRunId);
-					console.log(`[team-worker] tick done: ${teamRunId} → ${state.status}`);
+					const updatedState = await workspace.readState(teamRunId);
+					console.log(`[team-worker] tick done: ${teamRunId} → ${updatedState.status}`);
 				} catch (err) {
 					console.error(`[team-worker] tick failed: ${teamRunId}: ${(err as Error).message}`);
 				}

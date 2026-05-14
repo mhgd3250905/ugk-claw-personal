@@ -4,7 +4,7 @@ import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from "node
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { TeamWorkspace } from "../src/team/team-workspace.js";
-import type { TeamRunState, TeamPlan, TeamStreamName, TeamStreamItem, TeamStreamCursor } from "../src/team/types.js";
+import type { TeamRunState, TeamPlan, TeamStreamItem, TeamStreamCursor } from "../src/team/types.js";
 import type { TeamEvent } from "../src/team/team-events.js";
 
 function makeDir(): string {

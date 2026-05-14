@@ -1,15 +1,13 @@
-import type { TeamRunState, TeamStreamName, TeamStreamItem, TeamRole, TeamRoleTaskExecutionInput } from "./types.js";
+import type { TeamRunState, TeamStreamName, TeamStreamItem, TeamRole, TeamRoleTaskExecutionInput, TeamRoleTaskExecutionResult } from "./types.js";
 import type { TeamEvent } from "./team-events.js";
 import type { TeamWorkspace } from "./team-workspace.js";
 import type { TeamRoleTaskRunner } from "./team-role-task-runner.js";
-import type { TeamRuntimeConfig } from "./team-config.js";
 import {
 	validateCandidateDomainPayload,
 	validateDomainEvidencePayload,
 	validateDomainClassificationPayload,
 	validateReviewFindingPayload,
 	canRoleWriteStream,
-	normalizeDomain,
 } from "./team-gate.js";
 import { generateTeamEventId, generateStreamItemId, generateRoleTaskId } from "./team-id.js";
 
@@ -109,13 +107,16 @@ export class TeamOrchestrator {
 		if (state.currentRound >= state.budgets.maxRounds) return;
 
 		state.currentRound++;
-		const task = this.createTaskInput(teamRunId, "discovery", { keyword: state.keyword });
-		const result = await this.runRoleTask(teamRunId, state, "discovery", task);
+		const task = this.createTaskInput(teamRunId, "discovery", {
+			keyword: state.keyword,
+			companyHints: state.companyHints,
+		});
+		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, "discovery", task);
 
 		if (result.status === "success" && result.emits.length > 0) {
 			const seenDomains = await this.getSeenNormalizedDomains(teamRunId);
 			for (const emit of result.emits) {
-				await this.processEmit(teamRunId, state, "discovery", emit, seenDomains);
+				await this.processEmit(teamRunId, state, "discovery", roleTaskId, emit, seenDomains);
 			}
 		}
 	}
@@ -130,13 +131,14 @@ export class TeamOrchestrator {
 
 		const batch = newItems.slice(0, 10);
 		const task = this.createTaskInput(teamRunId, "evidence_collector", {
+			keyword: state.keyword,
 			candidates: batch.map((i) => i.payload),
 		});
 
-		const result = await this.runRoleTask(teamRunId, state, "evidence_collector", task);
+		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, "evidence_collector", task);
 		if (result.status === "success" && result.emits.length > 0) {
 			for (const emit of result.emits) {
-				await this.processEmit(teamRunId, state, "evidence_collector", emit, new Set());
+				await this.processEmit(teamRunId, state, "evidence_collector", roleTaskId, emit, new Set());
 			}
 		}
 
@@ -167,13 +169,14 @@ export class TeamOrchestrator {
 
 		const batch = newItems.slice(0, 10);
 		const task = this.createTaskInput(teamRunId, "classifier", {
+			keyword: state.keyword,
 			evidences: batch.map((i) => i.payload),
 		});
 
-		const result = await this.runRoleTask(teamRunId, state, "classifier", task);
+		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, "classifier", task);
 		if (result.status === "success" && result.emits.length > 0) {
 			for (const emit of result.emits) {
-				await this.processEmit(teamRunId, state, "classifier", emit, new Set());
+				await this.processEmit(teamRunId, state, "classifier", roleTaskId, emit, new Set());
 			}
 		}
 
@@ -196,13 +199,14 @@ export class TeamOrchestrator {
 		// Run batch of 20, or all remaining if upstream done
 		const batch = newItems.slice(0, 20);
 		const task = this.createTaskInput(teamRunId, "reviewer", {
+			keyword: state.keyword,
 			classifications: batch.map((i) => i.payload),
 		});
 
-		const result = await this.runRoleTask(teamRunId, state, "reviewer", task);
+		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, "reviewer", task);
 		if (result.status === "success" && result.emits.length > 0) {
 			for (const emit of result.emits) {
-				await this.processEmit(teamRunId, state, "reviewer", emit, new Set());
+				await this.processEmit(teamRunId, state, "reviewer", roleTaskId, emit, new Set());
 			}
 		}
 
@@ -244,7 +248,7 @@ export class TeamOrchestrator {
 			reviewCount: reviews.length,
 		});
 
-		const result = await this.runRoleTask(teamRunId, state, "finalizer", task);
+		await this.runRoleTask(teamRunId, state, "finalizer", task);
 
 		// Generate report
 		await this.generateReport(teamRunId, state, candidates, evidences, classifications, reviews);
@@ -260,28 +264,57 @@ export class TeamOrchestrator {
 		state: TeamRunState,
 		roleId: TeamRole["roleId"],
 		task: TeamRoleTaskExecutionInput,
-	) {
+	): Promise<{ roleTaskId: string; result: TeamRoleTaskExecutionResult }> {
 		await this.emitEvent(teamRunId, "role_task_started", { roleId, roleTaskId: task.roleTaskId });
-		try {
-			const result = await this.runner.runTask(task);
-			if (result.status === "failed") {
+
+		const maxAttempts = 1 + this.config.roleTaskMaxRetries;
+		let lastResult: TeamRoleTaskExecutionResult = { status: "failed", emits: [], message: "not attempted" };
+
+		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+			try {
+				const resultPromise = this.runner.runTask(task);
+				const result = this.config.roleTaskTimeoutMs > 0
+					? await Promise.race([
+						resultPromise,
+						new Promise<never>((_, reject) =>
+							setTimeout(() => reject(new Error(`role task timed out after ${this.config.roleTaskTimeoutMs}ms`)), this.config.roleTaskTimeoutMs)
+						),
+					])
+					: await resultPromise;
+
+				if (result.status === "failed" && attempt < maxAttempts) {
+					await this.emitEvent(teamRunId, "role_task_retrying", { roleId, attempt, maxAttempts, message: result.message });
+					lastResult = result;
+					continue;
+				}
+
+				if (result.status === "failed") {
+					state.counters.failedRoleTasks++;
+					await this.emitEvent(teamRunId, "role_task_failed", { roleId, message: result.message });
+				} else {
+					await this.emitEvent(teamRunId, "role_task_completed", { roleId, emitCount: result.emits.length });
+				}
+				return { roleTaskId: task.roleTaskId, result };
+			} catch (err) {
+				const msg = (err as Error).message;
+				if (attempt < maxAttempts) {
+					await this.emitEvent(teamRunId, "role_task_retrying", { roleId, attempt, maxAttempts, error: msg });
+					lastResult = { status: "failed", emits: [], message: msg };
+					continue;
+				}
 				state.counters.failedRoleTasks++;
-				await this.emitEvent(teamRunId, "role_task_failed", { roleId, message: result.message });
-			} else {
-				await this.emitEvent(teamRunId, "role_task_completed", { roleId, emitCount: result.emits.length });
+				await this.emitEvent(teamRunId, "role_task_failed", { roleId, error: msg });
+				return { roleTaskId: task.roleTaskId, result: { status: "failed", emits: [], message: msg } };
 			}
-			return result;
-		} catch (err) {
-			state.counters.failedRoleTasks++;
-			await this.emitEvent(teamRunId, "role_task_failed", { roleId, error: (err as Error).message });
-			return { status: "failed" as const, emits: [], message: (err as Error).message };
 		}
+		return { roleTaskId: task.roleTaskId, result: lastResult };
 	}
 
 	private async processEmit(
 		teamRunId: string,
 		state: TeamRunState,
 		roleId: TeamRole["roleId"],
+		producerTaskId: string,
 		emit: { streamName: TeamStreamName; payload: unknown },
 		seenDomains: Set<string>,
 	): Promise<void> {
@@ -313,7 +346,7 @@ export class TeamOrchestrator {
 			teamRunId,
 			streamName: emit.streamName,
 			producerRoleId: roleId,
-			producerTaskId: "mock",
+			producerTaskId,
 			payload: validation.value,
 			createdAt: new Date().toISOString(),
 		};

@@ -1,8 +1,23 @@
-import type { TeamRole } from "./types.js";
+import type { TeamRole, TeamRunState } from "./types.js";
 
 const NOW = () => new Date().toISOString();
 
-export function buildDiscoveryPrompt(keyword: string, queries: string[], searchContext: string): string {
+interface CompanyHints {
+	officialDomains?: string[];
+	companyNames?: string[];
+	excludedGenericMeanings?: string[];
+}
+
+export function buildDiscoveryPrompt(keyword: string, queries: string[], searchContext: string, hints?: CompanyHints): string {
+	let hintsSection = "COMPANY HINTS (optional guidance):\n- Use these only to assess relevance, not as authoritative proof.";
+	if (hints) {
+		const parts: string[] = [];
+		if (hints.officialDomains?.length) parts.push(`- Known official domains: ${hints.officialDomains.join(", ")}`);
+		if (hints.companyNames?.length) parts.push(`- Known company names: ${hints.companyNames.join(", ")}`);
+		if (hints.excludedGenericMeanings?.length) parts.push(`- The keyword also has generic meanings: ${hints.excludedGenericMeanings.join(", ")} — focus on the brand, not generic usage`);
+		if (parts.length > 0) hintsSection = parts.join("\n");
+	}
+
 	return `You are a Discovery Agent for a brand domain investigation.
 
 YOUR ROLE:
@@ -10,8 +25,7 @@ YOUR ROLE:
 - You ONLY discover candidates. You do NOT classify, judge ownership, or write reports.
 - Natural language in your output is NOT a result. Only JSON emits count.
 
-COMPANY HINTS (optional guidance):
-- Use these only to assess relevance, not as authoritative proof.
+${hintsSection}
 
 THIS ROUND:
 - Process ONLY these queries: ${JSON.stringify(queries)}

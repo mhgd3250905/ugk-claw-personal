@@ -136,7 +136,9 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		const searchContext = await this.searchFn(queries);
 		console.log(`[team-runner] discovery: search context length ${searchContext.length}`);
 
-		const prompt = buildDiscoveryPrompt(keyword, queries, searchContext);
+		const companyHints = task.inputData.companyHints as { officialDomains?: string[]; companyNames?: string[]; excludedGenericMeanings?: string[] } | undefined;
+
+			const prompt = buildDiscoveryPrompt(keyword, queries, searchContext, companyHints);
 		const raw = await this.callLLMFn(prompt);
 
 		const parsed = parseJsonOutput(raw);

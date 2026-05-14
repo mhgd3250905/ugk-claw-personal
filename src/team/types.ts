@@ -206,16 +206,6 @@ export interface TeamStreamCursor {
 	updatedAt: string;
 }
 
-// --- §9.1 RoleTaskJsonEnvelope ---
-export interface RoleTaskJsonEnvelope {
-	status: "success" | "failed" | "needs_user_input";
-	emits: Array<{
-		streamName: TeamStreamName;
-		payload: unknown;
-	}>;
-	checkpoint?: Record<string, unknown>;
-	message?: string;
-}
 
 // --- Role Task execution ---
 export interface TeamRoleTaskExecutionInput {

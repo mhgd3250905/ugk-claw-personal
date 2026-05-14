@@ -9,6 +9,7 @@ export type TeamEventType =
 	| "role_task_started"
 	| "role_task_completed"
 	| "role_task_failed"
+	| "role_task_retrying"
 	| "role_task_timeout"
 	| "stream_item_accepted"
 	| "stream_item_rejected"

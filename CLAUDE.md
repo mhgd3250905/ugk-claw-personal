@@ -54,10 +54,10 @@ Worker processes (run independently, not via dev/start):
 ```bash
 npm run worker:conn       # Background conn worker (reads SQLite job queue)
 npm run worker:feishu     # Feishu WebSocket subscription worker
-npm run worker:team       # Team pipeline worker (requires TEAM_RUNTIME_ENABLED=1)
+npm run worker:team       # Team pipeline worker (requires TEAM_RUNTIME_ENABLED=true)
 ```
 
-Team Pipeline (experimental):
+Team Runtime (experimental):
 ```bash
 npm run team:spike          # Run spike with fixture data (--keyword MED)
 npm run team:spike:real     # Run spike with SearXNG live search
@@ -112,7 +112,7 @@ Fastify Server (src/server.ts)
 
 **Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`, shared response presentation in `*-route-presenters.ts` (e.g., `conn-route-presenters.ts`). API errors use helpers from `http-errors.ts` for consistent error responses. To add a new route group, create the file and call its register function in `buildServer()`.
 
-**Team Runtime** (`src/team/`): Multi-role pipeline for brand domain investigation (experimental, pending v0.1 refactor). Current `TeamPipeline` orchestrates Discovery → Reviewer → Finalizer via LLM calls. `TeamStore` manages run persistence (atomic writes, JSONL events). `src/team-lab/` contains the validated spike experiment (gate validators, prompts, fixture data) — **do not modify `src/team-lab/`**. API routes at `/v1/team/*` support sync (`POST /v1/team/runs`) and async (`?async=true`) execution. The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=1`. Pipeline completion broadcasts via `NotificationHub`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
+**Team Runtime** (`src/team/`): Tick-based multi-role pipeline for brand domain investigation (v0.1). `TeamOrchestrator` drives a 5-role state machine: Discovery → Evidence Collector → Classifier → Reviewer → Finalizer. `TeamWorkspace` manages run persistence (atomic JSON writes, JSONL events/streams, cursor-based consumption). Runtime Gate validates payload shape, role→stream permissions, and dedup before any item enters a stream. `CompositeTeamRoleTaskRunner` allows mixing real LLM roles with mock via `TEAM_REAL_ROLES` env var. `src/team-lab/` contains the validated spike experiment — **do not modify `src/team-lab/`**. API routes at `/v1/team/*` support sync execution (`POST /v1/team/runs`). The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=true`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
 
 Team Runtime internals:
 - **LLM calls** (`src/team/llm.ts`): `callLLM()` auto-detects API format by baseUrl — OpenAI format at `api.deepseek.com/chat/completions` vs Anthropic-compatible at `api.deepseek.com/anthropic/v1/messages`. Key loaded from `deepseek.txt` or `DEEPSEEK_API_KEY` env var.
@@ -153,8 +153,8 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 | Standalone agent management page | `src/ui/agents-page.ts` |
 | pi-coding-agent settings | `.pi/settings.json` |
 | Multi-agent profile definitions | `.pi/agents/` |
-| Team Runtime pipeline | `src/team/team-pipeline.ts` |
-| Team Runtime store | `src/team/team-store.ts` |
+| Team Runtime orchestrator | `src/team/team-orchestrator.ts` |
+| Team Runtime workspace | `src/team/team-workspace.ts` |
 | Team Runtime types | `src/team/types.ts` |
 | Team API routes | `src/routes/team.ts` |
 | Team worker | `src/workers/team-worker.ts` |

@@ -17,7 +17,7 @@ import type {
 	TeamStreamCursor,
 } from "./types.js";
 import type { TeamEvent } from "./team-events.js";
-import { generateTeamEventId } from "./team-id.js";
+
 
 export class TeamWorkspace {
 	private teamDataDir: string;
