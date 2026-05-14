@@ -59,6 +59,8 @@ export class TeamOrchestrator {
 		if (state.status === "queued") {
 			state.status = "running";
 			state.startedAt = new Date().toISOString();
+			state.updatedAt = new Date().toISOString();
+			await this.workspace.writeState(state);
 			await this.emitEvent(teamRunId, "team_run_started", {});
 		}
 
@@ -117,6 +119,8 @@ export class TeamOrchestrator {
 	): Promise<void> {
 		if (candidate.updates?.incrementCurrentRound) {
 			state.currentRound++;
+			state.updatedAt = new Date().toISOString();
+			await this.workspace.writeState(state);
 		}
 
 		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, template, candidate.roleId, candidate.task);
@@ -328,6 +332,8 @@ export class TeamOrchestrator {
 		});
 
 		this.incrementCounter(state, result.item.streamName);
+		state.updatedAt = new Date().toISOString();
+		await this.workspace.writeState(state);
 	}
 
 	private incrementCounter(state: TeamRunState, streamName: TeamStreamName): void {

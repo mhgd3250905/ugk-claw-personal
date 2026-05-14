@@ -57,6 +57,42 @@ class SubmitToolDiscoveryRunner extends DeterministicMockTeamRoleTaskRunner {
 	}
 }
 
+class BlockingSubmitToolDiscoveryRunner extends DeterministicMockTeamRoleTaskRunner {
+	constructor(
+		private onSubmitted: () => void,
+		private release: Promise<void>,
+	) {
+		super();
+	}
+
+	async runTaskWithSubmitToolHandler(
+		task: TeamRoleTaskExecutionInput,
+		submitToolHandler: (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult>,
+	): Promise<TeamRoleTaskExecutionResult> {
+		if (task.roleId !== "discovery") {
+			return super.runTask(task);
+		}
+		const result = await submitToolHandler({
+			roleId: "discovery",
+			toolName: "submitCandidateDomain",
+			streamName: "candidate_domains",
+			arguments: {
+				domain: "med-live-submit.com",
+				sourceType: "search_query",
+				query: "MED official domain",
+				matchReason: "Submitted during discovery work",
+				confidence: "medium",
+				discoveredAt: "2026-05-14T00:00:00.000Z",
+			},
+			callId: "toolu_live",
+		});
+		assert.equal(result.ok, true);
+		this.onSubmitted();
+		await this.release;
+		return { status: "success", emits: [], checkpoint: { submitCalls: 1 } };
+	}
+}
+
 function makeDir(): string {
 	return join(tmpdir(), `team-orch-test-${Date.now()}`);
 }
@@ -282,5 +318,26 @@ describe("TeamOrchestrator", () => {
 		assert.equal(state.counters.candidateDomains, 1);
 		assert.ok(evidences.length > 0, "evidence collector should consume the submitted candidate in the same tick");
 		assert.ok(events.some((event) => event.eventType === "stream_item_accepted"));
+	});
+
+	it("persists running status and counters while a submit-tool role task is still active", async () => {
+		let resolveSubmitted!: () => void;
+		let resolveRelease!: () => void;
+		const submitted = new Promise<void>((resolve) => { resolveSubmitted = resolve; });
+		const release = new Promise<void>((resolve) => { resolveRelease = resolve; });
+		const runner = new BlockingSubmitToolDiscoveryRunner(resolveSubmitted, release);
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const orchestrator = makeOrchestrator(ws, 1, runner);
+
+		const tickPromise = orchestrator.tick(teamRunId);
+		await submitted;
+
+		const state = await ws.readState(teamRunId);
+		assert.equal(state.status, "running");
+		assert.equal(state.currentRound, 1);
+		assert.equal(state.counters.candidateDomains, 1);
+
+		resolveRelease();
+		await tickPromise;
 	});
 });

@@ -7,21 +7,24 @@
 - Team Runtime 已有独立页面：`/playground/team`
 - Team Runtime 现在已有统一 stream 提交口：`submitTeamStreamItem()` 是 role 产物进入 Team stream 的正式入口
 - 旧 JSON envelope 路径仍保留：runner parse `emits[]` 后仍会经 orchestrator 调用同一提交口写 stream
-- Discovery 已接入 submit tool loop tracer bullet：可通过 `submitCandidateDomain` 在任务过程中写入 `candidate_domains`
+- Discovery / Evidence Collector / Classifier / Reviewer 已接入 submit tool loop：可在任务过程中分别写入 `candidate_domains`、`domain_evidence`、`domain_classifications`、`review_findings`
 - Team run events 已有 SSE 观察入口：`GET /v1/team/runs/:teamRunId/events/stream` 通过 tail/poll `events.jsonl` 发 live events
 - `/playground/team` 已接入 run event stream；收到 `stream_item_accepted` 后刷新 run detail 和 stream，断线后回退到手动刷新提示
+- submit tool spec 已携带真实参数 schema；不要再退回空 schema，否则真实模型会提交无效 payload
+- run 进入 running、round 递增、submit 接受 item 后会即时写回 state，页面刷新不应再看到 stream/event 已更新但 state 仍是 queued 的假实时状态
 - DeepSeek 配置已从旧分叉收口：当前正式 provider 是 `deepseek`，走 `anthropic-messages`、`https://api.deepseek.com/anthropic`、`DEEPSEEK_API_KEY`
 - Team LLM 已复用项目统一 registry/settings，不再读 `deepseek-api.txt`
 - Conn provider error 假成功问题已修：assistant `stopReason: "error"` 会让后台 run 进入 failed
-- 本轮不是完整 durable 并发 scheduler：Evidence / Classifier / Reviewer 真实 submit tool 接入、role task lease/store、崩溃恢复仍是后续阶段
+- 本轮不是完整 durable 并发 scheduler：role task lease/store、崩溃恢复和真正并发调度仍是后续阶段
 
 ## 本轮已完成
 
 - 新增 `src/team/team-submit.ts`，统一处理 role/stream 权限、payload validator、`candidate_domains` 去重和 stream 持久化。
 - `TeamOrchestrator` 的 JSON envelope emits 和 task 级 submit handler 都走 `submitTeamStreamItem()`，并统一记录 accepted / rejected / duplicate events 与 counters。
 - 新增 `src/team/team-submit-tools.ts` 和 `src/team/role-box.ts`，把 role 输出边界、submit tool spec 和 prompt 契约显式化。
-- `LLMTeamRoleTaskRunner` 已支持 RoleBox 包装 prompt，并在 Discovery 任务中按 `provider.api` 进入 submit tool loop；无 tool handler 时仍回退旧 `callLLM(prompt)` 路径。
+- `LLMTeamRoleTaskRunner` 已支持 RoleBox 包装 prompt，并让四个产物流角色按 `provider.api` 进入 submit tool loop；无 tool handler 时仍回退旧 `callLLM(prompt)` 路径。
 - 新增 `src/team/llm-tool-loop.ts`，第一版支持 `anthropic-messages` 的 `tool_use` / `tool_result` 和 `openai-completions` 的 `tool_calls` / `tool` message，不按厂商名硬编码协议。
+- 模型已通过 submit tool 提交阶段成果但最终 JSON envelope 损坏时，runner 会按 success + empty emits 收口，避免已落 stream 的成果因收尾 JSON 损坏触发 retry。
 - `CompositeTeamRoleTaskRunner` 支持 task 级 submit handler 透传，mock runner 保持兼容。
 - 新增 Team run SSE route 与 `/playground/team` 最小订阅逻辑。
 - 补充 Team submit / RoleBox / submit tools / LLM tool loop / route / UI / orchestrator 测试。
@@ -29,7 +32,7 @@
 ## 新会话第一句话
 
 ```text
-请接手 `E:\AII\ugk-pi` 的 Team Realtime Submit 专项。先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/team-runtime.md`、`docs/model-providers.md`、`.codex/plans/2026-05-14-team-realtime-submit-and-incremental-scheduler.md` 和 `.codex/plans/2026-05-14-handoff-team-realtime-submit.md`。当前最新提交仍是 `a2ce455 Align model providers and conn error handling`，但工作区已有未提交实现：统一 submit gate、RoleBox、submit tool specs、run events SSE、LLM submit tool loop、Discovery tracer bullet。开始前先跑 `git status --short`，不要动 `.env`、`.data/`、运行态 key 或临时 api txt 文件。下一步优先 review 并提交本轮改动，之后再扩展 Evidence / Classifier / Reviewer submit tools 或设计 durable role task lease/store。
+请接手 `E:\AII\ugk-pi` 的 Team Realtime Submit 专项。先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/team-runtime.md`、`docs/model-providers.md`、`.codex/plans/2026-05-14-team-realtime-submit-and-incremental-scheduler.md` 和 `.codex/plans/2026-05-14-handoff-team-realtime-submit.md`。当前最新提交至少应包含 `team: add realtime submit tracer bullet`；如继续接手，先跑 `git status --short`。本轮已完成统一 submit gate、RoleBox、submit tool specs、run events SSE、LLM submit tool loop、四个产物流角色 submit tool 接入。不要动 `.env`、`.data/`、运行态 key 或临时 api txt 文件。下一步优先做 Docker / Playground 真实链路验收；功能演进再设计 durable role task lease/store 和真正并发 scheduler。
 ```
 
 ## 必读文件
@@ -92,12 +95,9 @@ discovery 工作中 submitCandidateDomain
 
 ## 下一步建议
 
-1. 先 review 并提交本轮改动，建议提交标题：`team: add realtime submit tracer bullet`。
-2. 如继续功能推进，优先二选一：
-   - 扩展 Evidence / Classifier / Reviewer 的真实 submit tool 接入；
-   - 或先设计 durable role task lease/store，再碰真正并发 scheduler。
-3. 若准备上线或给用户演示，补跑 Docker / Playground 真实链路验证：启动服务、创建 Brand Domain Discovery run、确认运行中 events/streams 可刷新、重启后历史 run 仍可读取。
-4. 不要把当前状态宣传成“完整并发 Team scheduler”。这轮只是把“阶段成果可即时 submit、持久化、观察，并支撑同 tick 下游消费”的 tracer bullet 打通。
+1. 若准备上线或给用户演示，补跑 Docker / Playground 真实链路验证：启动服务、创建 Brand Domain Discovery run、确认运行中 events/streams 可刷新、重启后历史 run 仍可读取。
+2. 如继续功能推进，先设计 durable role task lease/store，再碰真正并发 scheduler。
+3. 不要把当前状态宣传成“完整并发 Team scheduler”。这轮把“阶段成果可即时 submit、持久化、观察，并支撑同 tick 下游消费”打通，但并发执行、崩溃恢复和 lease 还没做。
 
 ## 验证基线
 
@@ -108,16 +108,20 @@ git diff --check
 npx tsc --noEmit
 npm run test:team
 npm test
+Docker live validation
 ```
 
 本轮测试结果：
 
 ```text
-npm run test:team -> 112 pass / 0 fail
-npm test -> 892 pass / 0 fail
+npm run test:team -> 118 pass / 0 fail
+npm test -> 898 pass / 0 fail
+Docker live -> `/healthz` OK, `/playground/team` 200, `/v1/team/templates` OK, `teamrun_mp58i4yl_kjbc` completed and `final_report.md` 200
 ```
 
 注意：`npm test` 输出中仍可能出现既有 `[browser-cleanup] Error closing browser targets ... fetch failed` 日志；本轮验证中测试最终全绿。
+
+Docker live 注意：`teamrun_mp58i4yl_kjbc` 是修复过程中反复重启 worker 的旧现场，因此下游 stream 出现重复项；这正好证明 durable role task lease/store 仍未实现。新功能可用性以“实时 submit、状态即时落盘、四角色 tool schema、最终报告生成”作为本轮验收，不要把它说成崩溃恢复已完成。
 
 继续改 Team submit 后，最少跑：
 

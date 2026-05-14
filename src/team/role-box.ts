@@ -48,7 +48,8 @@ function appendRoleBoxContract(prompt: string, role: TeamRole): string {
 
 ROLE BOX CONTRACT:
 - Natural language does not count as a result.
-- Current compatibility mode is JSON envelope; submit tools are declared for future tool-calling mode.
+- When submit tools are available, submit each finished stream item immediately through the matching tool.
+- Current compatibility mode still requires a final JSON envelope; do not duplicate already submitted tool results in final emits.
 - Allowed output streams: ${outputStreams}.
 - Declared submit tools: ${submitToolText}.
 - Do not violate these role boundaries:

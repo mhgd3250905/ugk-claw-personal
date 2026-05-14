@@ -37,6 +37,16 @@ describe("team submit tool specs", () => {
 		}
 	});
 
+	it("declares provider tool schemas with required payload fields", () => {
+		const evidenceTool = getSubmitToolsForRole("evidence_collector")[0];
+		const classifierTool = getSubmitToolsForRole("classifier")[0];
+		const reviewerTool = getSubmitToolsForRole("reviewer")[0];
+
+		assert.deepEqual(evidenceTool.inputSchema.required, ["domain", "pageSignals", "evidence", "limitations", "collectedAt"]);
+		assert.deepEqual(classifierTool.inputSchema.required, ["domain", "category", "confidence", "reasons", "supportingEvidenceRefs", "recommendedAction", "classifiedAt"]);
+		assert.deepEqual(reviewerTool.inputSchema.required, ["verdict", "issueType", "message", "createdAt"]);
+	});
+
 	it("rejects discovery calling submitReviewFinding", () => {
 		const result = mapSubmitToolToStream({
 			roleId: "discovery",

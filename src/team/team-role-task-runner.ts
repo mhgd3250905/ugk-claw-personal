@@ -170,11 +170,11 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		const companyHints = task.inputData.companyHints as { officialDomains?: string[]; companyNames?: string[]; excludedGenericMeanings?: string[] } | undefined;
 
 		const roleBox = this.buildRoleBox(task, buildDiscoveryPrompt(keyword, queries, searchContext, companyHints));
-		const raw = await this.callLLMForTask(roleBox.prompt, roleBox);
+		const llmResult = await this.callLLMForTask(roleBox.prompt, roleBox);
 
-		const parsed = parseJsonOutput(raw);
+		const parsed = parseJsonOutput(llmResult.raw);
 		if (!parsed.ok) {
-			return { status: "failed", emits: [], message: `JSON parse failed: ${parsed.error}`, rawOutput: raw };
+			return this.fallbackAfterAcceptedToolSubmissions(llmResult, parsed.error);
 		}
 
 		// Handle both v0.1 format (streamName) and legacy format (type)
@@ -192,7 +192,7 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 			emits: (obj.emits as Array<{ streamName: TeamStreamName; payload: unknown }>) ?? [],
 			checkpoint: (obj.checkpoint as Record<string, unknown>) ?? {},
 			message: obj.message as string | undefined,
-			rawOutput: raw,
+			rawOutput: llmResult.raw,
 		};
 	}
 
@@ -200,31 +200,27 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		const keyword = (task.inputData.keyword as string) ?? "MED";
 		const candidates = (task.inputData.candidates as Array<{ domain: string; normalizedDomain: string; sourceType: string; snippet?: string }>) ?? [];
 
-		const prompt = this.buildRoleBoxPrompt(task, buildEvidenceCollectorPrompt(keyword, candidates));
-		const raw = await this.callLLMFn(prompt);
-		return this.parseEnvelope(raw);
+		const roleBox = this.buildRoleBox(task, buildEvidenceCollectorPrompt(keyword, candidates));
+		const llmResult = await this.callLLMForTask(roleBox.prompt, roleBox);
+		return this.parseEnvelope(llmResult);
 	}
 
 	private async runClassifier(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
 		const keyword = (task.inputData.keyword as string) ?? "MED";
 		const evidences = (task.inputData.evidences as Array<{ domain: string }>) ?? [];
 
-		const prompt = this.buildRoleBoxPrompt(task, buildClassifierPrompt(keyword, evidences));
-		const raw = await this.callLLMFn(prompt);
-		return this.parseEnvelope(raw);
+		const roleBox = this.buildRoleBox(task, buildClassifierPrompt(keyword, evidences));
+		const llmResult = await this.callLLMForTask(roleBox.prompt, roleBox);
+		return this.parseEnvelope(llmResult);
 	}
 
 	private async runReviewer(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
 		const keyword = (task.inputData.keyword as string) ?? "MED";
 		const classifications = (task.inputData.classifications as Array<{ domain: string; category: string; reasons: string[] }>) ?? [];
 
-		const prompt = this.buildRoleBoxPrompt(task, buildReviewerPrompt(keyword, classifications));
-		const raw = await this.callLLMFn(prompt);
-		return this.parseEnvelope(raw);
-	}
-
-	private buildRoleBoxPrompt(task: TeamRoleTaskExecutionInput, prompt: string): string {
-		return this.buildRoleBox(task, prompt).prompt;
+		const roleBox = this.buildRoleBox(task, buildReviewerPrompt(keyword, classifications));
+		const llmResult = await this.callLLMForTask(roleBox.prompt, roleBox);
+		return this.parseEnvelope(llmResult);
 	}
 
 	private buildRoleBox(task: TeamRoleTaskExecutionInput, prompt: string) {
@@ -235,22 +231,22 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		return buildRoleBox({ role, task, prompt });
 	}
 
-	private async callLLMForTask(prompt: string, roleBox: ReturnType<typeof buildRoleBox>): Promise<string> {
+	private async callLLMForTask(prompt: string, roleBox: ReturnType<typeof buildRoleBox>): Promise<{ raw: string; submitCallCount: number }> {
 		if (!this.llmConfig || !this.submitToolHandler || roleBox.submitTools.length === 0) {
-			return this.callLLMFn(prompt);
+			return { raw: await this.callLLMFn(prompt), submitCallCount: 0 };
 		}
 		const result = await callLLMWithTeamSubmitTools({
 			config: this.llmConfig,
 			roleBox,
 			submitToolHandler: this.submitToolHandler,
 		});
-		return result.finalText;
+		return { raw: result.finalText, submitCallCount: result.submitCallCount };
 	}
 
-	private parseEnvelope(raw: string): TeamRoleTaskExecutionResult {
-		const parsed = parseJsonOutput(raw);
+	private parseEnvelope(llmResult: { raw: string; submitCallCount: number }): TeamRoleTaskExecutionResult {
+		const parsed = parseJsonOutput(llmResult.raw);
 		if (!parsed.ok) {
-			return { status: "failed", emits: [], message: `JSON parse failed: ${parsed.error}`, rawOutput: raw };
+			return this.fallbackAfterAcceptedToolSubmissions(llmResult, parsed.error);
 		}
 		const obj = parsed.value as Record<string, unknown>;
 		return {
@@ -258,8 +254,24 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 			emits: (obj.emits as Array<{ streamName: TeamStreamName; payload: unknown }>) ?? [],
 			checkpoint: (obj.checkpoint as Record<string, unknown>) ?? {},
 			message: obj.message as string | undefined,
-			rawOutput: raw,
+			rawOutput: llmResult.raw,
 		};
+	}
+
+	private fallbackAfterAcceptedToolSubmissions(
+		llmResult: { raw: string; submitCallCount: number },
+		parseError: string,
+	): TeamRoleTaskExecutionResult {
+		if (llmResult.submitCallCount > 0) {
+			return {
+				status: "success",
+				emits: [],
+				checkpoint: {},
+				message: `Final JSON envelope ignored after ${llmResult.submitCallCount} submit tool call(s): ${parseError}`,
+				rawOutput: llmResult.raw,
+			};
+		}
+		return { status: "failed", emits: [], message: `JSON parse failed: ${parseError}`, rawOutput: llmResult.raw };
 	}
 }
 

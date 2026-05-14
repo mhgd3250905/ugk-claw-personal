@@ -13,6 +13,31 @@
 ---
 
 ## 2026-05-14
+### Team 四角色 submit tool loop 接通
+- 日期：2026-05-14
+- 主题：把 Evidence Collector、Classifier、Reviewer 也接入 Team submit tool loop，让四个产物流角色都能在 tool-calling 模式下即时提交对应 stream item，并补齐真实模型调用所需的 tool 参数 schema 和状态即时落盘。
+- 影响范围：
+  - `src/team/team-role-task-runner.ts`：Evidence Collector / Classifier / Reviewer 从旧 `callLLMFn(prompt)` 路径改为构建 RoleBox 后调用 `callLLMForTask()`；存在 `llmConfig` 和 task 级 submit handler 时走 provider-api-aware submit tool loop，缺省时仍保持 JSON envelope fallback。
+  - `src/team/team-role-task-runner.ts`：模型已通过 submit tool 提交阶段成果但最终 JSON envelope 损坏时，runner 按成功空 emits 收口，避免已提交结果又因收尾 JSON 失败触发 retry。
+  - `src/team/team-orchestrator.ts`：run 进入 `running`、round 递增和 submit tool 接受 item 后立即写回 `state.json`，让 SSE 后的页面刷新能看到真实状态和 counters。
+  - `src/team/team-submit-tools.ts`、`src/team/llm-tool-loop.ts`：submit tool spec 增加真实 `inputSchema`，Anthropic / OpenAI-compatible tool 声明不再发送空 schema。
+  - `src/team/role-box.ts`：RoleBox contract 明确“工具可用时立即 submit，最终 JSON envelope 不重复已提交结果”，避免模型把 tool result 再批量塞回 `emits[]`。
+  - `test/team-role-task-runner.test.ts`、`test/team-orchestrator.test.ts`、`test/team-submit-tools.test.ts`：新增三类非 Discovery 角色 submit tool loop、坏 JSON fallback、运行中状态/counter 即时持久化和 tool schema 回归测试。
+  - `docs/team-runtime.md`、`.codex/plans/2026-05-14-handoff-team-realtime-submit.md`：同步当前边界，明确四个产物流角色已接入，但 durable 并发 scheduler 仍未实现。
+- 验证：
+  - `node --test --import tsx test/team-submit-tools.test.ts test/team-llm-tool-loop.test.ts test/team-role-task-runner.test.ts test/team-orchestrator.test.ts`
+  - `npx tsc --noEmit`
+  - `npm run test:team`
+  - `npm test`
+  - Docker live：`docker compose up -d` + `docker compose restart ugk-pi ugk-pi-team-worker` 后，`/healthz`、`/playground/team`、`/v1/team/templates` 均返回正常；真实 `teamrun_mp58i4yl_kjbc` 完成并生成 `final_report.md`。该 run 曾在修复过程中重启 worker，出现下游重复 stream，作为 durable scheduler 未完成的真实边界保留。
+- 对应入口：
+  - `src/team/team-role-task-runner.ts`
+  - `src/team/team-orchestrator.ts`
+  - `src/team/team-submit-tools.ts`
+  - `src/team/llm-tool-loop.ts`
+  - `src/team/role-box.ts`
+  - `test/team-role-task-runner.test.ts`
+
 ### Team Discovery submit tracer bullet
 - 日期：2026-05-14
 - 主题：把 Discovery submit tool call 接入 TeamOrchestrator 的统一 stream 提交口，跑通 `submitCandidateDomain` 到 `candidate_domains` stream 再到下游 ready task 消费的最小闭环。

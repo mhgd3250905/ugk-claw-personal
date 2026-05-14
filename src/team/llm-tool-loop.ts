@@ -200,11 +200,7 @@ function toAnthropicToolSpec(tool: TeamSubmitToolSpec): Record<string, unknown> 
 	return {
 		name: tool.name,
 		description: tool.description,
-		input_schema: {
-			type: "object",
-			additionalProperties: true,
-			properties: {},
-		},
+		input_schema: tool.inputSchema,
 	};
 }
 
@@ -214,11 +210,7 @@ function toOpenAiToolSpec(tool: TeamSubmitToolSpec): Record<string, unknown> {
 		function: {
 			name: tool.name,
 			description: tool.description,
-			parameters: {
-				type: "object",
-				additionalProperties: true,
-				properties: {},
-			},
+			parameters: tool.inputSchema,
 		},
 	};
 }
