@@ -61,6 +61,7 @@ Team Runtime (experimental):
 ```bash
 npm run team:spike          # Run spike with fixture data (--keyword MED)
 npm run team:spike:real     # Run spike with SearXNG live search
+npm run test:team           # Run team module tests (workspace, gate, orchestrator)
 npm run test:team-lab       # Run all team-related tests
 ```
 
@@ -112,12 +113,12 @@ Fastify Server (src/server.ts)
 
 **Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`, shared response presentation in `*-route-presenters.ts` (e.g., `conn-route-presenters.ts`). API errors use helpers from `http-errors.ts` for consistent error responses. To add a new route group, create the file and call its register function in `buildServer()`.
 
-**Team Runtime** (`src/team/`): Tick-based multi-role pipeline for brand domain investigation (v0.1). `TeamOrchestrator` drives a 5-role state machine: Discovery → Evidence Collector → Classifier → Reviewer → Finalizer. `TeamWorkspace` manages run persistence (atomic JSON writes, JSONL events/streams, cursor-based consumption). Runtime Gate validates payload shape, role→stream permissions, and dedup before any item enters a stream. `CompositeTeamRoleTaskRunner` allows mixing real LLM roles with mock via `TEAM_REAL_ROLES` env var. `src/team-lab/` contains the validated spike experiment — **do not modify `src/team-lab/`**. API routes at `/v1/team/*` support sync execution (`POST /v1/team/runs`). The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=true`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
+**Team Runtime** (`src/team/`): Tick-based multi-role pipeline for brand domain investigation (v0.1). `TeamOrchestrator` drives a 5-role state machine: Discovery → Evidence Collector → Classifier → Reviewer → Finalizer. `TeamWorkspace` manages run persistence (atomic JSON writes, JSONL events/streams, cursor-based consumption). Runtime Gate validates payload shape, role→stream permissions, and dedup before any item enters a stream. `CompositeTeamRoleTaskRunner` allows mixing real LLM roles with mock via `TEAM_REAL_ROLES` env var. Role tasks have configurable timeout (`TEAM_ROLE_TASK_TIMEOUT_MS`) and retry (`TEAM_ROLE_TASK_MAX_RETRIES`). `src/team-lab/` contains the validated spike experiment — **do not modify `src/team-lab/`**. API routes at `/v1/team/*`: `GET /healthz`, `POST /runs` (create run), `GET /runs` (list runnable), `GET /runs/:id` (state+plan), `GET /runs/:id/events`, `GET /runs/:id/streams/:streamName`, `GET /runs/:id/artifacts/:name`. The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=true`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
 
 Team Runtime internals:
-- **LLM calls** (`src/team/llm.ts`): `callLLM()` auto-detects API format by baseUrl — OpenAI format at `api.deepseek.com/chat/completions` vs Anthropic-compatible at `api.deepseek.com/anthropic/v1/messages`. Key loaded from `deepseek.txt` or `DEEPSEEK_API_KEY` env var.
+- **LLM calls** (`src/team/llm.ts`): `callLLM()` auto-detects API format by baseUrl — OpenAI format at `api.deepseek.com/chat/completions` vs Anthropic-compatible at `api.deepseek.com/anthropic/v1/messages`. Key loaded from `deepseek.txt`/`deepseek-api.txt` or `DEEPSEEK_API_KEY` env var.
 - **JSON repair**: DeepSeek occasionally outputs JSON with unescaped quotes. `repairJson()` in `src/team-lab/brand-domain-gate.ts` does char-level repair — always use it when parsing LLM JSON output.
-- **SearXNG endpoints**: host `http://127.0.0.1:48080`, Docker internal `http://ugk-pi-searxng:8080`, env `SEARXNG_BASE_URL` / `SEARXNG_INTERNAL_BASE_URL`. API: `GET /search?q=<query>&format=json&categories=general`.
+- **SearXNG endpoints**: host `http://127.0.0.1:48080`, Docker internal `http://ugk-pi-searxng:8080` (set via `SEARXNG_BASE_URL`). API: `GET /search?q=<query>&format=json&categories=general`.
 - **Feature flag**: `TEAM_RUNTIME_ENABLED` must gate route registration and worker startup; when false, zero impact on rest of system.
 
 ### Architecture Governance
@@ -156,6 +157,12 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 | Team Runtime orchestrator | `src/team/team-orchestrator.ts` |
 | Team Runtime workspace | `src/team/team-workspace.ts` |
 | Team Runtime types | `src/team/types.ts` |
+| Team Runtime gate (validation, permissions) | `src/team/team-gate.ts` |
+| Team Runtime role runners (mock, LLM, composite) | `src/team/team-role-task-runner.ts` |
+| Team Runtime role prompts | `src/team/team-role-prompts.ts` |
+| Team Runtime plan factory | `src/team/team-plan-brand-domain.ts` |
+| Team Runtime config adapter | `src/team/team-config.ts` |
+| Team Runtime LLM client | `src/team/llm.ts` |
 | Team API routes | `src/routes/team.ts` |
 | Team worker | `src/workers/team-worker.ts` |
 | Spike experiment (gate, prompts) | `src/team-lab/` |
@@ -169,6 +176,10 @@ Requires Node.js >= 22. Runtime config comes from env vars, with `.env.example` 
 - `UGK_AGENT_DATA_DIR` / `UGK_AGENTS_DATA_DIR` — persistent state directories (externally mounted in production)
 - `UGK_RUNTIME_SKILLS_USER_DIR` — user skills directory (production: shared volume, not git worktree)
 - `CONN_WORKER_MAX_CONCURRENCY` — max parallel conn runs (default 3)
+- `TEAM_RUNTIME_ENABLED` — enable team runtime routes and worker (must be `"true"`)
+- `TEAM_REAL_ROLES` — comma-separated role IDs using real LLM (e.g., `discovery,evidence_collector`); unset = all mock
+- `TEAM_DATA_DIR` — team data directory (default `.data/team`)
+- `TEAM_ROLE_TASK_TIMEOUT_MS` / `TEAM_ROLE_TASK_MAX_RETRIES` — per-role-task timeout and retry (default 180000ms / 1)
 
 Model source selection persists at `.data/agent/model-settings.json` and can be changed at runtime via Playground.
 
@@ -200,6 +211,8 @@ Uses Node.js native test runner (`node:test` + `node:assert/strict`). Tests run 
     AGENTS.md          # Runtime agent rules (replaces repo AGENTS.md for sessions)
   agents/
     <agentId>/         # Per-agent-profile sessions, rules, skills
+  team/
+    runs/<teamRunId>/  # Per-run state, plan, events, streams, cursors, artifacts
   chrome-sidecar/      # Chrome profile (login-state persistence)
 ```
 
