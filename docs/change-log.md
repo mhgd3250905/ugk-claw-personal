@@ -13,6 +13,93 @@
 ---
 
 ## 2026-05-14
+### Team Discovery submit tracer bullet
+- 日期：2026-05-14
+- 主题：把 Discovery submit tool call 接入 TeamOrchestrator 的统一 stream 提交口，跑通 `submitCandidateDomain` 到 `candidate_domains` stream 再到下游 ready task 消费的最小闭环。
+- 影响范围：
+  - `src/team/team-role-task-runner.ts`：`TeamRoleTaskRunner` 支持可选 `runTaskWithSubmitToolHandler()`；`LLMTeamRoleTaskRunner` 和 `CompositeTeamRoleTaskRunner` 可在 task 级别接收 submit handler，项目统一 LLM 配置会被 tool loop 复用。
+  - `src/team/team-orchestrator.ts`：执行 role task 时为支持 submit tool 的 runner 注入 handler；handler 调用 `submitTeamStreamItem()`，并即时写入 `stream_item_accepted` / `stream_item_rejected` / `stream_item_duplicate_skipped` 事件和 counter。
+  - `test/team-orchestrator.test.ts`：新增 Discovery 在任务过程中 submit candidate 的 tracer bullet，验证候选域名立即落 stream，且 evidence collector 能在同一 tick 通过现有 ready-task 机制消费新增 item。
+  - `docs/team-runtime.md`：更新 submit tool loop 当前边界，明确本阶段只证明 Discovery -> candidate stream -> evidence 消费闭环，不是完整并发 scheduler。
+- 验证：
+  - `node --test --import tsx test/team-orchestrator.test.ts test/team-role-task-runner.test.ts`
+  - `npx tsc --noEmit`
+- 对应入口：
+  - `src/team/team-orchestrator.ts`
+  - `src/team/team-role-task-runner.ts`
+  - `test/team-orchestrator.test.ts`
+
+### Team LLM submit tool loop 底座
+- 日期：2026-05-14
+- 主题：新增 Team LLM submit tool loop 底座，按 provider `api` 字段处理 Anthropic `tool_use` 和 OpenAI-compatible `tool_calls`，并为 Discovery runner 提供可选接入。
+- 影响范围：
+  - `src/team/llm-tool-loop.ts`：新增 `callLLMWithTeamSubmitTools()`，发送 provider-specific tool specs，映射 submit tool 到 stream，并把 handler 结果回传模型。
+  - `src/team/team-role-task-runner.ts`：`LLMTeamRoleTaskRunner` 支持注入 `llmConfig` 和 `submitToolHandler`；存在 handler 时 Discovery prompt 可走 submit tool loop，默认仍保留原 JSON envelope 路径。
+  - `test/team-llm-tool-loop.test.ts`、`test/team-role-task-runner.test.ts`、`package.json`：覆盖 Anthropic `tool_use`、OpenAI-compatible `tool_calls`、forbidden tool rejection 和 Discovery runner 可选接入。
+  - `docs/team-runtime.md`：补充 tool loop 底座边界，明确默认 Team worker 尚未接 orchestrator/workspace handler，不能宣称完整实时 submit 已上线。
+- 验证：
+  - `node --test --import tsx test/team-llm-tool-loop.test.ts test/team-role-task-runner.test.ts`
+  - `npx tsc --noEmit`
+- 对应入口：
+  - `src/team/llm-tool-loop.ts`
+  - `src/team/team-role-task-runner.ts`
+  - `test/team-llm-tool-loop.test.ts`
+
+### Team run 事件实时观察入口
+- 日期：2026-05-14
+- 主题：新增 Team run 事件 SSE 订阅入口，并让 `/playground/team` 在选中 run 后接收 live events。
+- 影响范围：
+  - `src/routes/team.ts`：新增 `GET /v1/team/runs/:teamRunId/events/stream`，订阅时确认 run 存在，随后基于 `events.jsonl` 增量 tail/poll 写出 `text/event-stream`。
+  - `src/ui/team-page.ts`：选中 run 后创建 `EventSource` 订阅事件流；收到 `stream_item_accepted` 时刷新 run detail 和对应 stream，断线时提示退回手动刷新。
+  - `test/team-routes.test.ts`、`test/team-page-ui.test.ts`、`package.json`：补充 SSE 路由、404、页面订阅断言，并纳入 `npm run test:team`。
+  - `docs/team-runtime.md`：补充事件流 API 和“观察层不是持久真源”的运行契约。
+- 验证：
+  - `node --test --import tsx test/team-routes.test.ts`
+  - `node --test --import tsx test/team-page-ui.test.ts`
+  - `npx tsc --noEmit`
+- 对应入口：
+  - `src/routes/team.ts`
+  - `src/ui/team-page.ts`
+  - `test/team-routes.test.ts`
+  - `test/team-page-ui.test.ts`
+
+### Team RoleBox 与 submit tool 规格
+- 日期：2026-05-14
+- 主题：为 Team Runtime 增加 RoleBox 角色契约和 submit tool 静态映射，为后续真实 tool calling 做边界准备，同时保持当前 JSON envelope 兼容模式。
+- 影响范围：
+  - `src/team/team-submit-tools.ts`：新增 role 到 submit tool 的静态规格，并提供 `mapSubmitToolToStream()` 统一映射到 Team stream。
+  - `src/team/role-box.ts`：新增 `buildRoleBox()`，声明角色输入输出流、must-not-do、submit tool、JSON envelope 兼容契约，并包装 LLM prompt。
+  - `src/team/team-role-task-runner.ts`：LLM runner 在完成搜索 / 输入整理后，通过 RoleBox 包装 prompt；mock runner 和 JSON envelope 解析路径不变。
+  - `test/team-submit-tools.test.ts`、`test/team-role-box.test.ts`、`test/team-role-task-runner.test.ts`：覆盖工具映射、角色边界和 runner prompt 接入。
+  - `docs/team-runtime.md`：补充 RoleBox 与 submit tool 规格的运行边界，明确尚未接真实 provider tool loop。
+- 验证：
+  - `node --test --import tsx test/team-submit-tools.test.ts`
+  - `node --test --import tsx test/team-role-box.test.ts`
+  - `node --test --import tsx test/team-role-task-runner.test.ts`
+- 对应入口：
+  - `src/team/team-submit-tools.ts`
+  - `src/team/role-box.ts`
+  - `src/team/team-role-task-runner.ts`
+  - `test/team-role-box.test.ts`
+
+### Team stream 统一提交口
+- 日期：2026-05-14
+- 主题：新增 Team Runtime 的 stream submit gate，把 role emit 的权限校验、payload 校验、candidate 去重和 stream 持久化从 orchestrator 内联逻辑收口到统一入口。
+- 影响范围：
+  - `src/team/team-submit.ts`：新增 `submitTeamStreamItem()`，基于 `TeamTemplate.roles[].outputStreams` 判定写权限，调用模板 validator，跳过重复 `candidate_domains`，并通过 `TeamWorkspace.appendStreamItem()` 写入 stream。
+  - `src/team/team-orchestrator.ts`：`processEmit()` 改为调用 submit gate；仍由 orchestrator 负责 `stream_item_accepted` / `stream_item_rejected` / `stream_item_duplicate_skipped` 事件、counter 和 cursor 语义。
+  - `test/team-submit.test.ts`、`package.json`：新增提交口行为测试，并纳入 `npm run test:team`。
+  - `docs/team-runtime.md`：补充 Team stream 统一提交口运行契约。
+- 验证：
+  - `node --test --import tsx test/team-submit.test.ts`
+  - `npm run test:team`
+  - `npx tsc --noEmit`
+- 对应入口：
+  - `src/team/team-submit.ts`
+  - `src/team/team-orchestrator.ts`
+  - `test/team-submit.test.ts`
+  - `docs/team-runtime.md`
+
 ### 模型源与 Conn 状态传播文档收口
 - 日期：2026-05-14
 - 主题：补齐 DeepSeek Anthropic-compatible 迁移、key 环境变量隔离、`*-api.txt` 非正式配置源、以及 Conn provider error 不得假成功的文档口径。

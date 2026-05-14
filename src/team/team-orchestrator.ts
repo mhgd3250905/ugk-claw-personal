@@ -12,7 +12,9 @@ import type { TeamWorkspace } from "./team-workspace.js";
 import type { TeamRoleTaskRunner } from "./team-role-task-runner.js";
 import type { TeamRoleTaskCandidate, TeamTemplate } from "./team-template.js";
 import { TeamTemplateRegistry, createDefaultTeamTemplateRegistry } from "./team-template-registry.js";
-import { generateTeamEventId, generateStreamItemId, generateRoleTaskId } from "./team-id.js";
+import { generateTeamEventId, generateRoleTaskId } from "./team-id.js";
+import { submitTeamStreamItem, type SubmitTeamStreamItemResult } from "./team-submit.js";
+import type { TeamSubmitToolCall, TeamSubmitToolResult } from "./llm-tool-loop.js";
 
 export interface TeamOrchestratorConfig {
 	workspace: TeamWorkspace;
@@ -117,7 +119,7 @@ export class TeamOrchestrator {
 			state.currentRound++;
 		}
 
-		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, candidate.roleId, candidate.task);
+		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, template, candidate.roleId, candidate.task);
 		if (result.status !== "success") return;
 
 		if (result.emits.length > 0) {
@@ -154,7 +156,7 @@ export class TeamOrchestrator {
 			streamCounts,
 		});
 
-		const { result } = await this.runRoleTask(teamRunId, state, "finalizer", task);
+		const { result } = await this.runRoleTask(teamRunId, state, template, "finalizer", task);
 		if (result.status !== "success") return;
 
 		await template.finalize({ teamRunId, state, plan, streams, workspace: this.workspace });
@@ -168,6 +170,7 @@ export class TeamOrchestrator {
 	private async runRoleTask(
 		teamRunId: string,
 		state: TeamRunState,
+		template: TeamTemplate,
 		roleId: TeamRole["roleId"],
 		task: TeamRoleTaskExecutionInput,
 	): Promise<{ roleTaskId: string; result: TeamRoleTaskExecutionResult }> {
@@ -178,7 +181,7 @@ export class TeamOrchestrator {
 
 		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 			try {
-				const result = await this.runTaskWithTimeout(task);
+				const result = await this.runTaskWithTimeout(task, state, template);
 
 				if (result.status === "failed" && attempt < maxAttempts) {
 					await this.emitEvent(teamRunId, "role_task_retrying", { roleId, attempt, maxAttempts, message: result.message });
@@ -208,15 +211,29 @@ export class TeamOrchestrator {
 		return { roleTaskId: task.roleTaskId, result: lastResult };
 	}
 
-	private async runTaskWithTimeout(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
-		if (this.config.roleTaskTimeoutMs <= 0) {
+	private async runTaskWithTimeout(
+		task: TeamRoleTaskExecutionInput,
+		state: TeamRunState,
+		template: TeamTemplate,
+	): Promise<TeamRoleTaskExecutionResult> {
+		const runTask = () => {
+			if (this.runner.runTaskWithSubmitToolHandler) {
+				return this.runner.runTaskWithSubmitToolHandler(
+					task,
+					this.createSubmitToolHandler(state, template, task),
+				);
+			}
 			return this.runner.runTask(task);
+		};
+
+		if (this.config.roleTaskTimeoutMs <= 0) {
+			return runTask();
 		}
 
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		try {
 			return await Promise.race([
-				this.runner.runTask(task),
+				runTask(),
 				new Promise<never>((_, reject) => {
 					timeout = setTimeout(
 						() => reject(new Error(`role task timed out after ${this.config.roleTaskTimeoutMs}ms`)),
@@ -229,6 +246,37 @@ export class TeamOrchestrator {
 		}
 	}
 
+	private createSubmitToolHandler(
+		state: TeamRunState,
+		template: TeamTemplate,
+		task: TeamRoleTaskExecutionInput,
+	): (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult> {
+		let seenDomains: Set<string> | undefined;
+		return async (call) => {
+			if (!seenDomains) {
+				seenDomains = await this.getSeenNormalizedDomains(task.teamRunId);
+			}
+			const result = await submitTeamStreamItem({
+				workspace: this.workspace,
+				template,
+				teamRunId: task.teamRunId,
+				roleId: call.roleId,
+				producerTaskId: task.roleTaskId,
+				streamName: call.streamName,
+				payload: call.arguments,
+				seenCandidateDomains: seenDomains,
+			});
+			await this.recordSubmitResult(task.teamRunId, state, call.roleId, call.streamName, result);
+			if (result.status === "accepted") {
+				return { ok: true, message: "accepted", streamName: result.item.streamName };
+			}
+			if (result.status === "duplicate_skipped") {
+				return { ok: false, message: `duplicate skipped: ${result.normalizedDomain}`, streamName: call.streamName };
+			}
+			return { ok: false, message: result.errors.join("; "), streamName: call.streamName };
+		};
+	}
+
 	private async processEmit(
 		teamRunId: string,
 		state: TeamRunState,
@@ -238,56 +286,48 @@ export class TeamOrchestrator {
 		emit: { streamName: TeamStreamName; payload: unknown },
 		seenDomains: Set<string>,
 	): Promise<void> {
-		if (!this.canTemplateRoleWriteStream(template, roleId, emit.streamName)) {
-			await this.emitEvent(teamRunId, "stream_item_rejected", { roleId, streamName: emit.streamName, reason: "role not allowed" });
-			return;
-		}
-
-		const validator = template.getStreamValidator(emit.streamName);
-		if (!validator) {
-			await this.emitEvent(teamRunId, "stream_item_rejected", { roleId, streamName: emit.streamName, reason: "unknown stream" });
-			return;
-		}
-
-		const validation = validator(emit.payload);
-		if (!validation.ok) {
-			await this.emitEvent(teamRunId, "stream_item_rejected", { roleId, streamName: emit.streamName, errors: validation.errors });
-			return;
-		}
-
-		if (emit.streamName === "candidate_domains") {
-			const payload = validation.value as { normalizedDomain: string };
-			if (seenDomains.has(payload.normalizedDomain)) {
-				await this.emitEvent(teamRunId, "stream_item_duplicate_skipped", { domain: payload.normalizedDomain });
-				return;
-			}
-			seenDomains.add(payload.normalizedDomain);
-		}
-
-		const itemId = generateStreamItemId();
-		const streamItem: TeamStreamItem = {
-			itemId,
+		const result = await submitTeamStreamItem({
+			workspace: this.workspace,
+			template,
 			teamRunId,
-			streamName: emit.streamName,
-			producerRoleId: roleId,
+			roleId,
 			producerTaskId,
-			payload: validation.value,
-			createdAt: new Date().toISOString(),
-		};
+			streamName: emit.streamName,
+			payload: emit.payload,
+			seenCandidateDomains: seenDomains,
+		});
 
-		await this.workspace.appendStreamItem(teamRunId, emit.streamName, streamItem);
-		await this.emitEvent(teamRunId, "stream_item_accepted", { itemId, streamName: emit.streamName });
-
-		this.incrementCounter(state, emit.streamName);
+		await this.recordSubmitResult(teamRunId, state, roleId, emit.streamName, result);
 	}
 
-	private canTemplateRoleWriteStream(
-		template: TeamTemplate,
+	private async recordSubmitResult(
+		teamRunId: string,
+		state: TeamRunState,
 		roleId: TeamRole["roleId"],
 		streamName: TeamStreamName,
-	): boolean {
-		const role = template.roles.find((item) => item.roleId === roleId);
-		return Boolean(role?.outputStreams.includes(streamName));
+		result: SubmitTeamStreamItemResult,
+	): Promise<void> {
+		if (result.status === "rejected") {
+			await this.emitEvent(teamRunId, "stream_item_rejected", {
+				roleId,
+				streamName,
+				reason: result.reason,
+				errors: result.errors,
+			});
+			return;
+		}
+
+		if (result.status === "duplicate_skipped") {
+			await this.emitEvent(teamRunId, "stream_item_duplicate_skipped", { domain: result.normalizedDomain });
+			return;
+		}
+
+		await this.emitEvent(teamRunId, "stream_item_accepted", {
+			itemId: result.item.itemId,
+			streamName: result.item.streamName,
+		});
+
+		this.incrementCounter(state, result.item.streamName);
 	}
 
 	private incrementCounter(state: TeamRunState, streamName: TeamStreamName): void {

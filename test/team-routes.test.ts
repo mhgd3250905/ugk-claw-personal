@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { registerTeamRoutes } from "../src/routes/team.js";
@@ -188,6 +188,82 @@ describe("team routes", () => {
 
 			assert.equal(response.statusCode, 400);
 			assert.deepEqual(response.json(), { error: "unknown team template: unknown_template" });
+		} finally {
+			await app.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("streams live team run events from events.jsonl", async () => {
+		const dir = join(tmpdir(), `team-routes-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const app = Fastify({ logger: false });
+		const abort = new AbortController();
+		try {
+			registerTeamRoutes(app, { teamDataDir: dir });
+			await app.listen({ port: 0, host: "127.0.0.1" });
+			const address = app.server.address();
+			assert.ok(address && typeof address === "object");
+			const baseUrl = `http://127.0.0.1:${address.port}`;
+
+			const created = await fetch(`${baseUrl}/v1/team/runs`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ keyword: "Medtrum", maxRounds: 1 }),
+			});
+			assert.equal(created.status, 201);
+			const teamRunId = ((await created.json()) as { teamRunId: string }).teamRunId;
+
+			const streamResponse = await fetch(`${baseUrl}/v1/team/runs/${teamRunId}/events/stream`, {
+				signal: abort.signal,
+			});
+			assert.equal(streamResponse.status, 200);
+			assert.match(streamResponse.headers.get("content-type") ?? "", /text\/event-stream/);
+			assert.ok(streamResponse.body);
+
+			appendFileSync(join(dir, "runs", teamRunId, "events.jsonl"), JSON.stringify({
+				eventId: "evt_live_test",
+				teamRunId,
+				eventType: "stream_item_accepted",
+				createdAt: "2026-05-14T00:00:00.000Z",
+				data: { itemId: "si_live_test", streamName: "candidate_domains" },
+			}) + "\n");
+
+			const reader = streamResponse.body.getReader();
+			const decoder = new TextDecoder();
+			let text = "";
+			const deadline = Date.now() + 3000;
+			while (!text.includes("stream_item_accepted") && Date.now() < deadline) {
+				const chunk = await reader.read();
+				if (chunk.done) break;
+				text += decoder.decode(chunk.value, { stream: true });
+			}
+
+			assert.match(text, /data: /);
+			assert.match(text, /stream_item_accepted/);
+			assert.match(text, /si_live_test/);
+			reader.releaseLock();
+		} finally {
+			abort.abort();
+			await app.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("returns 404 when streaming events for an unknown run", async () => {
+		const dir = join(tmpdir(), `team-routes-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const app = Fastify({ logger: false });
+		try {
+			registerTeamRoutes(app, { teamDataDir: dir });
+
+			const response = await app.inject({
+				method: "GET",
+				url: "/v1/team/runs/missing-run/events/stream",
+			});
+
+			assert.equal(response.statusCode, 404);
+			assert.deepEqual(response.json(), { error: "run not found" });
 		} finally {
 			await app.close();
 			rmSync(dir, { recursive: true, force: true });

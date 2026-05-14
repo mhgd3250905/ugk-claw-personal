@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { TeamWorkspace } from "../team/team-workspace.js";
 import { generateTeamEventId } from "../team/team-id.js";
+import { configureSseResponse, endSseResponse, startSseHeartbeat } from "./chat-sse.js";
 import type { CreateBrandDomainDiscoveryPlanInput, TeamTemplateId } from "../team/types.js";
 import {
 	createDefaultTeamTemplateRegistry,
@@ -107,6 +108,58 @@ export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependen
 		} catch {
 			return reply.status(404).send({ error: "run not found" });
 		}
+	});
+
+	app.get("/v1/team/runs/:teamRunId/events/stream", async (
+		request: FastifyRequest<{ Params: { teamRunId: string } }>,
+		reply: FastifyReply,
+	): Promise<void | FastifyReply> => {
+		const { teamRunId } = request.params;
+		try {
+			await workspace.readState(teamRunId);
+		} catch {
+			return reply.status(404).send({ error: "run not found" });
+		}
+
+		const initialEvents = await workspace.readEvents(teamRunId);
+		let sentCount = initialEvents.length;
+		let closed = false;
+
+		reply.hijack();
+		configureSseResponse(reply.raw);
+		reply.raw.write(": connected\n\n");
+		const heartbeat = startSseHeartbeat(reply.raw);
+
+		const closeStream = () => {
+			if (closed) return;
+			closed = true;
+			clearInterval(timer);
+			heartbeat.stop();
+			endSseResponse(reply.raw);
+		};
+
+		const pollEvents = async () => {
+			if (closed || reply.raw.destroyed || reply.raw.writableEnded) return;
+			try {
+				const events = await workspace.readEvents(teamRunId);
+				for (const event of events.slice(sentCount)) {
+					if (reply.raw.destroyed || reply.raw.writableEnded) break;
+					reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+				}
+				sentCount = events.length;
+			} catch (err) {
+				if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+					reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: (err as Error).message })}\n\n`);
+				}
+				closeStream();
+			}
+		};
+
+		const timer = setInterval(() => {
+			void pollEvents();
+		}, 250);
+		timer.unref?.();
+		request.raw.on("close", closeStream);
 	});
 
 	app.get("/v1/team/runs/:teamRunId/streams/:streamName", async (

@@ -291,6 +291,8 @@ function getTeamPageJs(): string {
 			streamItems: {},
 			artifactText: "",
 			activeTab: "plan",
+			eventSource: null,
+			eventStreamStatus: "",
 			loading: false,
 			creating: false,
 		};
@@ -349,6 +351,50 @@ function getTeamPageJs(): string {
 			const res = await fetch("/v1/team/runs/" + encodeURIComponent(teamRunId) + "/artifacts/" + encodeURIComponent(artifactName));
 			if (!res.ok) throw new Error("HTTP " + res.status);
 			state.artifactText = await res.text();
+		}
+
+		function closeRunEventStream() {
+			if (state.eventSource) {
+				state.eventSource.close();
+				state.eventSource = null;
+			}
+		}
+
+		function subscribeRunEvents(teamRunId) {
+			closeRunEventStream();
+			if (!teamRunId || typeof EventSource === "undefined") return;
+			state.eventStreamStatus = "实时接收中";
+			const source = new EventSource("/v1/team/runs/" + encodeURIComponent(teamRunId) + "/events/stream");
+			state.eventSource = source;
+			source.onmessage = function(event) {
+				if (teamRunId !== state.selectedRunId) return;
+				try {
+					const payload = JSON.parse(event.data);
+					if (!state.events.some(function(item) { return item.eventId === payload.eventId; })) {
+						state.events.push(payload);
+					}
+					if (payload.eventType === "stream_item_accepted") {
+						const streamName = payload.data && payload.data.streamName;
+						const refreshes = [apiFetchRunDetail(teamRunId)];
+						if (STREAM_NAMES.includes(streamName)) {
+							refreshes.push(apiFetchStream(teamRunId, streamName));
+						}
+						Promise.all(refreshes).then(function() {
+							renderRunList();
+							renderRunDetail();
+							renderStats();
+						}).catch(function() {});
+					} else {
+						renderRunDetail();
+					}
+				} catch {}
+			};
+			source.onerror = function() {
+				if (teamRunId !== state.selectedRunId) return;
+				state.eventStreamStatus = "事件流已断开，正在使用手动刷新";
+				renderRunDetail();
+			};
+			renderRunDetail();
 		}
 
 		async function apiCreateRun(payload) {
@@ -434,6 +480,7 @@ function getTeamPageJs(): string {
 			actions.innerHTML = '<button id="team-refresh-detail" class="team-btn" type="button"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>刷新</button>';
 			body.innerHTML = ''
 				+ '<div class="team-card"><div class="team-card-title"><span>Run 状态</span><span class="' + statusClass(runState.status) + '">' + escapeHtml(runState.status || "-") + '</span></div>'
+				+ (state.eventStreamStatus ? '<div class="team-run-meta" style="margin-bottom:12px">' + escapeHtml(state.eventStreamStatus) + '</div>' : '')
 				+ '<div class="team-detail-grid">'
 				+ kv("Run ID", state.selectedRunId)
 				+ kv("Template", plan.templateId || runState.templateId || "-")
@@ -508,6 +555,7 @@ function getTeamPageJs(): string {
 			state.streamItems = {};
 			state.artifactText = "";
 			await refreshSelectedRun();
+			subscribeRunEvents(runId);
 		}
 
 		async function refreshSelectedRun() {

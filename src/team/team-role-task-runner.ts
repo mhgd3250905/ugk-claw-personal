@@ -1,5 +1,5 @@
 import type { TeamRoleTaskExecutionInput, TeamRoleTaskExecutionResult, TeamStreamName } from "./types.js";
-import { loadLLMConfig, callLLM } from "./llm.js";
+import { loadLLMConfig, callLLM, type LLMConfig } from "./llm.js";
 import { searchAndFormat } from "./team-search.js";
 import { stripMarkdownFence, repairJson } from "./json-output.js";
 import {
@@ -8,9 +8,20 @@ import {
 	buildClassifierPrompt,
 	buildReviewerPrompt,
 } from "./team-role-prompts.js";
+import { buildRoleBox } from "./role-box.js";
+import { brandDomainDiscoveryTemplate } from "./templates/brand-domain-discovery.js";
+import {
+	callLLMWithTeamSubmitTools,
+	type TeamSubmitToolCall,
+	type TeamSubmitToolResult,
+} from "./llm-tool-loop.js";
 
 export interface TeamRoleTaskRunner {
 	runTask(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult>;
+	runTaskWithSubmitToolHandler?(
+		task: TeamRoleTaskExecutionInput,
+		submitToolHandler: (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult>,
+	): Promise<TeamRoleTaskExecutionResult>;
 }
 
 // --- Mock Runner (Phases 1-6) ---
@@ -103,15 +114,22 @@ function convertDiscoveryEnvelope(raw: unknown): TeamRoleTaskExecutionResult {
 export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 	private callLLMFn: (prompt: string) => Promise<string>;
 	private searchFn: (queries: string[]) => Promise<string>;
+	private llmConfig?: LLMConfig;
+	private submitToolHandler?: (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult>;
 
 	constructor(deps?: {
 		callLLM?: (prompt: string) => Promise<string>;
 		search?: (queries: string[]) => Promise<string>;
+		llmConfig?: LLMConfig;
+		submitToolHandler?: (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult>;
 	}) {
+		this.llmConfig = deps?.llmConfig;
+		this.submitToolHandler = deps?.submitToolHandler;
 		if (deps?.callLLM) {
 			this.callLLMFn = deps.callLLM;
 		} else {
-			const config = loadLLMConfig();
+			const config = this.llmConfig ?? loadLLMConfig();
+			this.llmConfig = config;
 			this.callLLMFn = (prompt) => callLLM(config, prompt);
 		}
 		this.searchFn = deps?.search ?? searchAndFormat;
@@ -128,6 +146,19 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		}
 	}
 
+	async runTaskWithSubmitToolHandler(
+		task: TeamRoleTaskExecutionInput,
+		submitToolHandler: (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult>,
+	): Promise<TeamRoleTaskExecutionResult> {
+		const previousHandler = this.submitToolHandler;
+		this.submitToolHandler = submitToolHandler;
+		try {
+			return await this.runTask(task);
+		} finally {
+			this.submitToolHandler = previousHandler;
+		}
+	}
+
 	private async runDiscovery(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
 		const keyword = (task.inputData.keyword as string) ?? "MED";
 		const queries = (task.inputData.queries as string[]) ?? [`${keyword} official domain`, `${keyword} login`, `${keyword} portal`];
@@ -138,8 +169,8 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 
 		const companyHints = task.inputData.companyHints as { officialDomains?: string[]; companyNames?: string[]; excludedGenericMeanings?: string[] } | undefined;
 
-			const prompt = buildDiscoveryPrompt(keyword, queries, searchContext, companyHints);
-		const raw = await this.callLLMFn(prompt);
+		const roleBox = this.buildRoleBox(task, buildDiscoveryPrompt(keyword, queries, searchContext, companyHints));
+		const raw = await this.callLLMForTask(roleBox.prompt, roleBox);
 
 		const parsed = parseJsonOutput(raw);
 		if (!parsed.ok) {
@@ -169,7 +200,7 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		const keyword = (task.inputData.keyword as string) ?? "MED";
 		const candidates = (task.inputData.candidates as Array<{ domain: string; normalizedDomain: string; sourceType: string; snippet?: string }>) ?? [];
 
-		const prompt = buildEvidenceCollectorPrompt(keyword, candidates);
+		const prompt = this.buildRoleBoxPrompt(task, buildEvidenceCollectorPrompt(keyword, candidates));
 		const raw = await this.callLLMFn(prompt);
 		return this.parseEnvelope(raw);
 	}
@@ -178,7 +209,7 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		const keyword = (task.inputData.keyword as string) ?? "MED";
 		const evidences = (task.inputData.evidences as Array<{ domain: string }>) ?? [];
 
-		const prompt = buildClassifierPrompt(keyword, evidences);
+		const prompt = this.buildRoleBoxPrompt(task, buildClassifierPrompt(keyword, evidences));
 		const raw = await this.callLLMFn(prompt);
 		return this.parseEnvelope(raw);
 	}
@@ -187,9 +218,33 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		const keyword = (task.inputData.keyword as string) ?? "MED";
 		const classifications = (task.inputData.classifications as Array<{ domain: string; category: string; reasons: string[] }>) ?? [];
 
-		const prompt = buildReviewerPrompt(keyword, classifications);
+		const prompt = this.buildRoleBoxPrompt(task, buildReviewerPrompt(keyword, classifications));
 		const raw = await this.callLLMFn(prompt);
 		return this.parseEnvelope(raw);
+	}
+
+	private buildRoleBoxPrompt(task: TeamRoleTaskExecutionInput, prompt: string): string {
+		return this.buildRoleBox(task, prompt).prompt;
+	}
+
+	private buildRoleBox(task: TeamRoleTaskExecutionInput, prompt: string) {
+		const role = brandDomainDiscoveryTemplate.roles.find((item) => item.roleId === task.roleId);
+		if (!role) {
+			throw new Error(`Team role not found for RoleBox: ${task.roleId}`);
+		}
+		return buildRoleBox({ role, task, prompt });
+	}
+
+	private async callLLMForTask(prompt: string, roleBox: ReturnType<typeof buildRoleBox>): Promise<string> {
+		if (!this.llmConfig || !this.submitToolHandler || roleBox.submitTools.length === 0) {
+			return this.callLLMFn(prompt);
+		}
+		const result = await callLLMWithTeamSubmitTools({
+			config: this.llmConfig,
+			roleBox,
+			submitToolHandler: this.submitToolHandler,
+		});
+		return result.finalText;
 	}
 
 	private parseEnvelope(raw: string): TeamRoleTaskExecutionResult {
@@ -225,6 +280,17 @@ export class CompositeTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		if (this.realRoles.has(task.roleId)) {
 			console.log(`[team-runner] using LLM runner for role: ${task.roleId}`);
 			return this.realRunner.runTask(task);
+		}
+		return this.mockRunner.runTask(task);
+	}
+
+	async runTaskWithSubmitToolHandler(
+		task: TeamRoleTaskExecutionInput,
+		submitToolHandler: (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult>,
+	): Promise<TeamRoleTaskExecutionResult> {
+		if (this.realRoles.has(task.roleId)) {
+			console.log(`[team-runner] using LLM runner for role: ${task.roleId}`);
+			return this.realRunner.runTaskWithSubmitToolHandler(task, submitToolHandler);
 		}
 		return this.mockRunner.runTask(task);
 	}

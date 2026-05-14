@@ -35,3 +35,14 @@ test("standalone team page renders run detail surfaces", () => {
 	assert.match(page, /final_report\.md/);
 	assert.match(page, /competitor_domain_report\.md/);
 });
+
+test("standalone team page subscribes to live run events", () => {
+	const page = renderTeamPage();
+
+	assert.match(page, /subscribeRunEvents\(teamRunId\)/);
+	assert.match(page, /new EventSource\("\/v1\/team\/runs\/"/);
+	assert.match(page, /events\/stream"/);
+	assert.match(page, /stream_item_accepted/);
+	assert.match(page, /实时接收中/);
+	assert.match(page, /事件流已断开，正在使用手动刷新/);
+});

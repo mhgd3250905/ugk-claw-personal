@@ -8,6 +8,7 @@ import { TeamOrchestrator } from "../src/team/team-orchestrator.js";
 import { DeterministicMockTeamRoleTaskRunner } from "../src/team/team-role-task-runner.js";
 import { createBrandDomainDiscoveryPlan } from "../src/team/team-plan-brand-domain.js";
 import type { TeamRoleTaskExecutionInput, TeamRoleTaskExecutionResult } from "../src/team/types.js";
+import type { TeamSubmitToolCall, TeamSubmitToolResult } from "../src/team/llm-tool-loop.js";
 
 class RecordingTeamRoleTaskRunner extends DeterministicMockTeamRoleTaskRunner {
 	tasks: TeamRoleTaskExecutionInput[] = [];
@@ -26,6 +27,33 @@ class RecordingTeamRoleTaskRunner extends DeterministicMockTeamRoleTaskRunner {
 			return { status: "failed", emits: [], message: `${task.roleId} failed for test` };
 		}
 		return super.runTask(task);
+	}
+}
+
+class SubmitToolDiscoveryRunner extends DeterministicMockTeamRoleTaskRunner {
+	async runTaskWithSubmitToolHandler(
+		task: TeamRoleTaskExecutionInput,
+		submitToolHandler: (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult>,
+	): Promise<TeamRoleTaskExecutionResult> {
+		if (task.roleId !== "discovery") {
+			return super.runTask(task);
+		}
+		const result = await submitToolHandler({
+			roleId: "discovery",
+			toolName: "submitCandidateDomain",
+			streamName: "candidate_domains",
+			arguments: {
+				domain: "med-tool-submit.com",
+				sourceType: "search_query",
+				query: "MED official domain",
+				matchReason: "Submitted during discovery work",
+				confidence: "medium",
+				discoveredAt: "2026-05-14T00:00:00.000Z",
+			},
+			callId: "toolu_test",
+		});
+		assert.equal(result.ok, true);
+		return { status: "success", emits: [], checkpoint: { submitCalls: 1 } };
 	}
 }
 
@@ -235,5 +263,24 @@ describe("TeamOrchestrator", () => {
 
 		const events = await ws.readEvents(teamRunId);
 		assert.ok(events.some((event) => event.eventType === "stream_item_rejected"));
+	});
+
+	it("accepts discovery submit tool calls and lets downstream roles consume the new stream item", async () => {
+		const runner = new SubmitToolDiscoveryRunner();
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const orchestrator = makeOrchestrator(ws, 1, runner);
+
+		await orchestrator.tick(teamRunId);
+
+		const candidates = await ws.readStreamItems(teamRunId, "candidate_domains");
+		const evidences = await ws.readStreamItems(teamRunId, "domain_evidence");
+		const state = await ws.readState(teamRunId);
+		const events = await ws.readEvents(teamRunId);
+
+		assert.equal(candidates.length, 1);
+		assert.equal((candidates[0].payload as { normalizedDomain: string }).normalizedDomain, "med-tool-submit.com");
+		assert.equal(state.counters.candidateDomains, 1);
+		assert.ok(evidences.length > 0, "evidence collector should consume the submitted candidate in the same tick");
+		assert.ok(events.some((event) => event.eventType === "stream_item_accepted"));
 	});
 });
