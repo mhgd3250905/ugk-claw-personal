@@ -389,7 +389,7 @@ function createModelConfigStoreStub(): ModelConfigStore {
 }
 
 test("GET /healthz returns ok", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -406,7 +406,7 @@ test("GET /healthz returns ok", async () => {
 test("GET /playground can serve externalized runtime assets", async () => {
 	const previousExternalized = process.env.PLAYGROUND_EXTERNALIZED;
 	process.env.PLAYGROUND_EXTERNALIZED = "1";
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -457,7 +457,7 @@ test("GET /playground can serve externalized runtime assets", async () => {
 });
 
 test("POST /playground/reset restores externalized runtime files", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -478,7 +478,7 @@ test("POST /playground/reset restores externalized runtime files", async () => {
 });
 
 test("GET /playground returns the test UI html", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -1156,7 +1156,7 @@ test("GET /playground returns the test UI html", async () => {
 });
 
 test("GET /playground releases panel focus before hiding conn run details", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -1263,7 +1263,7 @@ test("standalone conn page falls back when clipboard API is unavailable", () => 
 });
 
 test("GET /playground defaults runtime append behavior to steer", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -1278,7 +1278,7 @@ test("GET /playground defaults runtime append behavior to steer", async () => {
 });
 
 test("GET /playground renders immersive landing home shell", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -1487,7 +1487,7 @@ test("GET /playground renders immersive landing home shell", async () => {
 });
 
 test("GET /playground embeds syntactically valid browser script", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -1509,7 +1509,7 @@ test("GET /playground embeds syntactically valid browser script", async () => {
 
 test("POST /v1/conns accepts cron timezone and runtime profile ids", async () => {
 	const createdInputs: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		browserRegistry: createBrowserRegistry(
 			[
@@ -1645,7 +1645,7 @@ test("POST /v1/conns accepts cron timezone and runtime profile ids", async () =>
 
 test("POST /v1/conns defaults target to the task inbox when target is omitted", async () => {
 	const createdInputs: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			getConversationCatalog: async () => ({
 				currentConversationId: "manual:current-thread",
@@ -1759,7 +1759,7 @@ test("POST /v1/conns defaults target to the task inbox when target is omitted", 
 
 test("POST /v1/conns validates browserId against the browser registry", async () => {
 	const createdInputs: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		browserRegistry: createBrowserRegistry(
 			[
@@ -1838,7 +1838,7 @@ test("POST /v1/conns validates browserId against the browser registry", async ()
 });
 
 test("POST /v1/conns returns 400 when the once schedule is already in the past", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {} as never,
 		connStore: {
@@ -1891,7 +1891,7 @@ test("POST /v1/conns returns 400 when the once schedule is already in the past",
 
 test("PATCH /v1/conns/:connId rejects a blank title when the field is provided", async () => {
 	const updateCalls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		browserRegistry: createBrowserRegistry(
 			[
@@ -1954,7 +1954,7 @@ test("PATCH /v1/conns/:connId rejects a blank title when the field is provided",
 
 test("PATCH /v1/conns/:connId trims and forwards editable conn fields", async () => {
 	const updateCalls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
 			list: async () => [],
@@ -2046,7 +2046,7 @@ test("PATCH /v1/conns/:connId trims and forwards editable conn fields", async ()
 });
 
 test("GET /playground does not require crypto.randomUUID in non-HTTPS browsers", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2064,7 +2064,7 @@ test("GET /playground does not require crypto.randomUUID in non-HTTPS browsers",
 });
 
 test("GET /playground embeds conversation history restore and message copy controls", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2177,7 +2177,7 @@ test("GET /playground embeds conversation history restore and message copy contr
 });
 
 test("GET /playground ignores stale conversation history responses and clears archived transcript DOM", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2205,7 +2205,7 @@ test("GET /playground ignores stale conversation history responses and clears ar
 });
 
 test("GET /playground unifies conversation sync ownership with invalidation tokens", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2241,7 +2241,7 @@ test("GET /playground unifies conversation sync ownership with invalidation toke
 });
 
 test("GET /playground syncs the current conversation from the server catalog", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2281,7 +2281,7 @@ test("GET /playground syncs the current conversation from the server catalog", a
 });
 
 test("GET /playground activates conversations without redundant state and catalog round-trips", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2340,7 +2340,7 @@ test("GET /playground activates conversations without redundant state and catalo
 });
 
 test("GET /playground uses a compact mobile topbar with overflow actions", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2421,7 +2421,7 @@ test("GET /playground uses a compact mobile topbar with overflow actions", async
 });
 
 test("GET /playground does not ship visible shadow effects", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2459,7 +2459,7 @@ test("GET /playground does not ship visible shadow effects", async () => {
 });
 
 test("GET /playground supports persistent dark and light themes", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2552,7 +2552,7 @@ test("GET /playground supports persistent dark and light themes", async () => {
 });
 
 test("GET /playground uses touch-first mobile panels for library, tasks, conn, and history", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2706,7 +2706,7 @@ test("GET /playground uses touch-first mobile panels for library, tasks, conn, a
 });
 
 test("GET /playground lets conn editor choose a model without hand-written ids", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2727,7 +2727,7 @@ test("GET /playground lets conn editor choose a model without hand-written ids",
 });
 
 test("GET /playground keeps code blocks compact inside the mobile layout only", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2763,7 +2763,7 @@ test("GET /playground keeps code blocks compact inside the mobile layout only", 
 });
 
 test("GET /playground uses icon-only mobile send and interrupt controls", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2787,7 +2787,7 @@ test("GET /playground uses icon-only mobile send and interrupt controls", async 
 });
 
 test("GET /playground keeps the mobile active composer compact", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2823,7 +2823,7 @@ test("GET /playground keeps the mobile active composer compact", async () => {
 });
 
 test("GET /playground keeps the default active composer compact before mobile overrides", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2848,7 +2848,7 @@ test("GET /playground keeps the default active composer compact before mobile ov
 });
 
 test("GET /playground uses a desktop geek cockpit layout", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2901,7 +2901,7 @@ test("GET /playground uses a desktop geek cockpit layout", async () => {
 });
 
 test("GET /playground highlights the composer shell instead of the textarea on focus", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2924,7 +2924,7 @@ test("GET /playground highlights the composer shell instead of the textarea on f
 });
 
 test("GET /playground uses the deeper cosmic palette instead of bright blue neon", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2947,7 +2947,7 @@ test("GET /playground uses the deeper cosmic palette instead of bright blue neon
 });
 
 test("GET /playground shows an explicit assistant loading bubble while a run is in flight", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -2978,7 +2978,7 @@ test("GET /playground shows an explicit assistant loading bubble while a run is 
 });
 
 test("GET /playground does not force-scroll when the user is reading history", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3031,7 +3031,7 @@ test("GET /playground does not force-scroll when the user is reading history", a
 });
 
 test("GET /playground injects layout and scroll runtime from a dedicated controller", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3053,7 +3053,7 @@ test("GET /playground injects layout and scroll runtime from a dedicated control
 });
 
 test("GET /playground grades resume sync by browser lifecycle reason", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3098,7 +3098,7 @@ test("GET /playground grades resume sync by browser lifecycle reason", async () 
 });
 
 test("GET /playground injects transcript rendering from a dedicated renderer", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3119,7 +3119,7 @@ test("GET /playground injects transcript rendering from a dedicated renderer", a
 });
 
 test("GET /playground collects playground linked styles for message image export", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3137,7 +3137,7 @@ test("GET /playground collects playground linked styles for message image export
 });
 
 test("GET /playground injects stream lifecycle runtime from a dedicated controller", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3171,7 +3171,7 @@ test("GET /playground injects stream lifecycle runtime from a dedicated controll
 });
 
 test("GET /playground routes /new through the slash command dispatcher", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3201,7 +3201,7 @@ test("GET /playground routes /new through the slash command dispatcher", async (
 });
 
 test("GET /playground exposes explicit agent switching operations for agents", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3221,7 +3221,7 @@ test("GET /playground exposes explicit agent switching operations for agents", a
 });
 
 test("GET /playground keeps bottom scroll room above the active composer", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3248,7 +3248,7 @@ test("GET /playground keeps bottom scroll room above the active composer", async
 });
 
 test("GET /playground restores running conversations after refresh and avoids reopening the same stream", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3339,7 +3339,7 @@ test("GET /playground restores running conversations after refresh and avoids re
 });
 
 test("GET /playground skips identical conversation state redraws and diffs transcript messages", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3369,7 +3369,7 @@ test("GET /playground skips identical conversation state redraws and diffs trans
 });
 
 test("GET /playground labels timed-out conn runs distinctly in the detail dialog", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3387,7 +3387,7 @@ test("GET /playground labels timed-out conn runs distinctly in the detail dialog
 
 test("GET /v1/chat/history returns the requested conversation transcript", async () => {
 	const calls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			getConversationHistory: async (conversationId, options) => {
 				calls.push(`${conversationId}:${options?.limit ?? ""}:${options?.before ?? ""}`);
@@ -3451,7 +3451,7 @@ test("GET /v1/chat/history returns the requested conversation transcript", async
 
 test("GET /v1/chat/state returns the canonical conversation state", async () => {
 	const calls: Array<{ conversationId: string; viewLimit?: number }> = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			getConversationState: async (conversationId, options) => {
 				calls.push({ conversationId, viewLimit: options?.viewLimit });
@@ -3626,7 +3626,7 @@ test("GET /v1/chat/state returns the canonical conversation state", async () => 
 });
 
 test("GET /v1/chat/conversations returns the server-synced current conversation catalog", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			getConversationCatalog: async () => ({
 				currentConversationId: "manual:thread-2",
@@ -3687,7 +3687,7 @@ test("GET /v1/chat/conversations returns the server-synced current conversation 
 });
 
 test("POST /v1/chat/conversations creates and activates a new conversation", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			createConversation: async () => ({
 				conversationId: "manual:new-2",
@@ -3713,7 +3713,7 @@ test("POST /v1/chat/conversations creates and activates a new conversation", asy
 
 test("POST /v1/chat/current switches the globally active conversation", async () => {
 	const calls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			switchConversation: async (conversationId) => {
 				calls.push(conversationId);
@@ -3746,7 +3746,7 @@ test("POST /v1/chat/current switches the globally active conversation", async ()
 
 test("DELETE /v1/chat/conversations/:conversationId removes a conversation", async () => {
 	const calls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			deleteConversation: async (conversationId) => {
 				calls.push(conversationId);
@@ -3776,7 +3776,7 @@ test("DELETE /v1/chat/conversations/:conversationId removes a conversation", asy
 
 test("PATCH /v1/chat/conversations/:conversationId updates conversation menu metadata", async () => {
 	const calls: Array<{ conversationId: string; patch: { title?: string; pinned?: boolean; backgroundColor?: string } }> = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			updateConversation: async (conversationId, patch) => {
 				calls.push({ conversationId, patch });
@@ -3827,7 +3827,7 @@ test("PATCH /v1/chat/conversations/:conversationId updates conversation menu met
 });
 
 test("GET /assets/fonts/Agave-Regular.ttf returns the bundled Agave font", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3843,7 +3843,7 @@ test("GET /assets/fonts/Agave-Regular.ttf returns the bundled Agave font", async
 });
 
 test("GET /vendor/flatpickr assets serves the bundled time picker", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3873,7 +3873,7 @@ test("GET /vendor/flatpickr assets serves the bundled time picker", async () => 
 });
 
 test("GET /x-api-report-full.png serves public root files over HTTP", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3889,7 +3889,7 @@ test("GET /x-api-report-full.png serves public root files over HTTP", async () =
 });
 
 test("GET /runtime/report-medtrum-v2.html serves runtime report files over HTTP", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3905,7 +3905,7 @@ test("GET /runtime/report-medtrum-v2.html serves runtime report files over HTTP"
 });
 
 test("GET /v1/local-file opens runtime artifacts from container-style paths", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3921,7 +3921,7 @@ test("GET /v1/local-file opens runtime artifacts from container-style paths", as
 });
 
 test("GET /v1/local-file accepts file URLs for runtime artifacts", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3936,7 +3936,7 @@ test("GET /v1/local-file accepts file URLs for runtime artifacts", async () => {
 });
 
 test("GET /v1/local-file unwraps accidentally nested local-file urls", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3951,7 +3951,7 @@ test("GET /v1/local-file unwraps accidentally nested local-file urls", async () 
 });
 
 test("GET /runtime/../package.json does not expose files outside runtime", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3965,7 +3965,7 @@ test("GET /runtime/../package.json does not expose files outside runtime", async
 });
 
 test("GET /v1/local-file does not expose files outside public and runtime", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3979,7 +3979,7 @@ test("GET /v1/local-file does not expose files outside public and runtime", asyn
 });
 
 test("GET /package.json does not expose files outside public", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -3993,7 +3993,7 @@ test("GET /package.json does not expose files outside public", async () => {
 });
 
 test("GET /v1/files/:fileId downloads a stored agent file", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		assetStore: {
 			registerAttachments: async () => [],
@@ -4035,7 +4035,7 @@ test("GET /v1/files/:fileId downloads a stored agent file", async () => {
 });
 
 test("GET /v1/files/:fileId serves markdown text with utf-8 charset", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		assetStore: {
 			registerAttachments: async () => [],
@@ -4077,7 +4077,7 @@ test("GET /v1/files/:fileId serves markdown text with utf-8 charset", async () =
 });
 
 test("GET /v1/files/:fileId serves previewable images inline and still supports forced download", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		assetStore: {
 			registerAttachments: async () => [],
@@ -4129,7 +4129,7 @@ test("GET /v1/files/:fileId serves previewable images inline and still supports 
 });
 
 test("GET /v1/files/:fileId supports non-ascii filenames without invalid header errors", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		assetStore: {
 			registerAttachments: async () => [],
@@ -4175,7 +4175,7 @@ test("GET /v1/files/:fileId supports non-ascii filenames without invalid header 
 });
 
 test("GET /v1/assets returns reusable asset metadata", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		assetStore: {
 			registerAttachments: async () => [],
@@ -4232,7 +4232,7 @@ test("GET /v1/assets returns reusable asset metadata", async () => {
 
 test("DELETE /v1/assets/:assetId removes a reusable asset", async () => {
 	const calls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		assetStore: {
 			registerAttachments: async () => [],
@@ -4269,7 +4269,7 @@ test("DELETE /v1/assets/:assetId removes a reusable asset", async () => {
 });
 
 test("POST /v1/assets no longer accepts JSON attachment uploads", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -4295,7 +4295,7 @@ test("POST /v1/assets no longer accepts JSON attachment uploads", async () => {
 
 test("POST /v1/assets/upload registers multipart files for later reuse", async () => {
 	const calls: Array<{ conversationId: string; attachments: unknown[] }> = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		assetStore: {
 			registerAttachments: async (conversationId, attachments) => {
@@ -4370,7 +4370,7 @@ test("POST /v1/assets/upload returns 413 when a file exceeds the configured size
 	process.env.ASSET_UPLOAD_FILE_LIMIT_BYTES = String(16 * 1024);
 
 	try {
-		const app = buildServer({
+		const app = await buildServer({
 			agentService: createAgentServiceStub(),
 		});
 
@@ -4424,7 +4424,7 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 	const runHistoryCalls: string[] = [];
 	const latestUnreadCalls: string[][] = [];
 	const totalUnreadCalls: string[][] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
 			list: async () => [
@@ -4537,7 +4537,7 @@ test("GET /v1/conns returns scheduled conn tasks", async () => {
 
 test("DELETE /v1/conns/:connId deletes a scheduled conn task", async () => {
 	const deletedConnIds: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
 			list: async () => [],
@@ -4579,7 +4579,7 @@ test("DELETE /v1/conns/:connId deletes a scheduled conn task", async () => {
 
 test("POST /v1/conns/bulk-delete deletes multiple scheduled conn tasks", async () => {
 	const deletedConnIds: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
 			list: async () => [],
@@ -4635,7 +4635,7 @@ test("POST /v1/conns/bulk-delete deletes multiple scheduled conn tasks", async (
 
 test("POST /v1/conns/:connId/run enqueues a background run without invoking the foreground agent", async () => {
 	const createdRuns: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			chat: async () => {
 				throw new Error("foreground agent should not be called");
@@ -4713,7 +4713,7 @@ test("POST /v1/conns/:connId/run enqueues a background run without invoking the 
 });
 
 test("POST /v1/conns/:connId/run reuses an active run instead of creating duplicates", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
 			list: async () => [],
@@ -4782,7 +4782,7 @@ test("POST /v1/conns/:connId/run reuses an active run instead of creating duplic
 });
 
 test("GET /v1/conns/:connId/runs returns background run history for the conn", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
 			list: async () => [],
@@ -4866,7 +4866,7 @@ test("GET /v1/conns/:connId/runs returns background run history for the conn", a
 });
 
 test("GET /v1/conns/:connId/runs/:runId returns run detail with output files", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
 			list: async () => [],
@@ -4995,7 +4995,7 @@ test("GET /v1/conns/:connId/runs/:runId/output/* serves indexed conn output file
 	const outputDir = join(root, "background", "runs", "run-2", "output");
 	await mkdir(outputDir, { recursive: true });
 	await writeFile(join(outputDir, "report.html"), "<h1>report</h1>", "utf8");
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {} as never,
 		backgroundDataDir: join(root, "background"),
@@ -5092,7 +5092,7 @@ test("GET /v1/conns/:connId/output/latest/* serves the newest run output matchin
 	await mkdir(newOutputDir, { recursive: true });
 	await writeFile(join(oldOutputDir, "zhihu-browse-report.html"), "old", "utf8");
 	await writeFile(join(newOutputDir, "zhihu-browse-report.html"), "new", "utf8");
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {} as never,
 		connStore: {
@@ -5181,7 +5181,7 @@ test("GET /v1/conns/:connId/public/* serves only conn public shared files", asyn
 	await mkdir(publicDir, { recursive: true });
 	await writeFile(join(publicDir, "site.html"), "<h1>public</h1>", "utf8");
 	await writeFile(join(root, "background", "shared", "conn-1", "secret.txt"), "secret", "utf8");
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {} as never,
 		backgroundDataDir: join(root, "background"),
@@ -5246,7 +5246,7 @@ test("GET /v1/sites/:siteId/* serves site public files without exposing sibling 
 	await mkdir(publicDir, { recursive: true });
 	await writeFile(join(publicDir, "index.json"), "{\"ok\":true}", "utf8");
 	await writeFile(join(root, "background", "sites", "team-website", "private.json"), "{\"secret\":true}", "utf8");
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {} as never,
 		backgroundDataDir: join(root, "background"),
@@ -5269,7 +5269,7 @@ test("GET /v1/sites/:siteId/* serves site public files without exposing sibling 
 });
 
 test("GET /v1/conns/:connId/runs/:runId/events returns ordered run events", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		connStore: {
 			list: async () => [],
@@ -5356,7 +5356,7 @@ test("GET /v1/conns/:connId/runs/:runId/events returns ordered run events", asyn
 });
 
 test("POST /v1/integrations/feishu/events is not registered on the main server", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -5375,7 +5375,7 @@ test("POST /v1/integrations/feishu/events is not registered on the main server",
 
 test("PUT /v1/integrations/feishu/settings stores dynamic app credentials without echoing the secret", async () => {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-feishu-route-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		feishuSettingsStore: new FeishuSettingsStore({
 			settingsPath: join(root, "settings.json"),
@@ -5412,7 +5412,7 @@ test("PUT /v1/integrations/feishu/settings stores dynamic app credentials withou
 
 test("PUT /v1/integrations/feishu/settings rejects credentials with whitespace", async () => {
 	const root = await mkdtemp(join(tmpdir(), "ugk-pi-feishu-route-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		feishuSettingsStore: new FeishuSettingsStore({
 			settingsPath: join(root, "settings.json"),
@@ -5500,7 +5500,7 @@ test("renderPlaygroundMarkdown renders pipe tables as html tables", () => {
 });
 
 test("POST /v1/chat returns aggregated chat response", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -5525,7 +5525,7 @@ test("POST /v1/chat returns aggregated chat response", async () => {
 
 test("POST /v1/chat passes uploaded file attachments to the agent service", async () => {
 	const calls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			chat: async (input) => {
 				calls.push(input);
@@ -5577,7 +5577,7 @@ test("POST /v1/chat passes uploaded file attachments to the agent service", asyn
 
 test("POST /v1/chat passes reusable asset references to the agent service", async () => {
 	const calls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			chat: async (input) => {
 				calls.push(input);
@@ -5613,7 +5613,7 @@ test("POST /v1/chat passes reusable asset references to the agent service", asyn
 });
 
 test("GET /v1/debug/skills returns the runtime skill registry", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -5635,7 +5635,7 @@ test("GET /v1/debug/skills returns the runtime skill registry", async () => {
 });
 
 test("GET /v1/debug/runtime is registered on the main server", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -5656,7 +5656,7 @@ test("GET /v1/debug/runtime is registered on the main server", async () => {
 });
 
 test("GET /v1/debug/cleanup is registered on the main server", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -5677,7 +5677,7 @@ test("GET /v1/debug/cleanup is registered on the main server", async () => {
 });
 
 test("GET /v1/model-config returns current provider and selectable models", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		modelConfigStore: createModelConfigStoreStub(),
 		modelSelectionValidator: async () => ({ ok: true }),
@@ -5750,7 +5750,7 @@ test("PUT /v1/model-config/default validates before switching default model", as
 		calls.push(selection);
 		return { ok: true };
 	};
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		modelConfigStore: createModelConfigStoreStub(),
 		modelSelectionValidator: validator,
@@ -5779,7 +5779,7 @@ test("PUT /v1/model-config/default validates before switching default model", as
 });
 
 test("PUT /v1/model-config/default does not switch when validation fails", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		modelConfigStore: createModelConfigStoreStub(),
 		modelSelectionValidator: async () => ({
@@ -5816,7 +5816,7 @@ test("PUT /v1/model-config/default does not switch when validation fails", async
 
 test("GET /v1/chat/status returns whether the conversation is currently running", async () => {
 	const calls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			getRunStatus: async (conversationId) => {
 				calls.push(conversationId);
@@ -5868,7 +5868,7 @@ test("GET /v1/chat/status returns whether the conversation is currently running"
 
 test("GET /v1/chat/events attaches to the current active run event stream", async () => {
 	const calls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			subscribeRunEvents: (conversationId, onEvent) => {
 				calls.push(conversationId);
@@ -5913,7 +5913,7 @@ test("GET /v1/chat/events attaches to the current active run event stream", asyn
 
 test("GET /v1/chat/runs/:runId/events returns buffered chat run events", async () => {
 	const calls: Array<{ conversationId: string; runId: string }> = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			getRunEvents: async (conversationId, runId) => {
 				calls.push({ conversationId, runId });
@@ -5974,7 +5974,7 @@ test("GET /v1/chat/runs/:runId/events returns buffered chat run events", async (
 
 test("GET /v1/activity returns global activity items newest-first", async () => {
 	const calls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {
 			list: async (options?: unknown) => {
@@ -6067,7 +6067,7 @@ test("GET /v1/activity returns global activity items newest-first", async () => 
 });
 
 test("GET /v1/activity/summary returns unread counts for the task inbox", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {
 			get: async () => undefined,
@@ -6091,7 +6091,7 @@ test("GET /v1/activity/summary returns unread counts for the task inbox", async 
 
 test("GET /v1/activity supports conversation filters and limits", async () => {
 	const calls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {
 			list: async (options?: unknown) => {
@@ -6124,7 +6124,7 @@ test("GET /v1/activity supports conversation filters and limits", async () => {
 
 test("GET /v1/activity returns pagination metadata when another task inbox page exists", async () => {
 	const calls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {
 			list: async (options?: unknown) => {
@@ -6221,7 +6221,7 @@ test("GET /v1/activity returns pagination metadata when another task inbox page 
 });
 
 test("GET /v1/activity rejects invalid limits", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {
 			list: async () => [],
@@ -6242,7 +6242,7 @@ test("GET /v1/activity rejects invalid limits", async () => {
 
 test("POST /v1/activity/:activityId/read marks an activity item read", async () => {
 	const calls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {
 			list: async () => [],
@@ -6297,7 +6297,7 @@ test("POST /v1/activity/:activityId/read marks an activity item read", async () 
 
 test("POST /v1/activity/read-all marks all task inbox items as read", async () => {
 	const calls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		activityStore: {
 			list: async () => [],
@@ -6331,7 +6331,7 @@ test("POST /v1/internal/notifications/broadcast publishes a notification event t
 	const subscription = hub.subscribe((event) => {
 		events.push(event);
 	});
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 		notificationHub: hub,
 	});
@@ -6371,7 +6371,7 @@ test("POST /v1/internal/notifications/broadcast publishes a notification event t
 });
 
 test("POST /v1/chat/stream returns server-sent events for the agent run", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -6396,7 +6396,7 @@ test("POST /v1/chat/stream returns server-sent events for the agent run", async 
 
 test("POST /v1/chat/queue queues a steer message for an active run", async () => {
 	const calls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			queueMessage: async (input) => {
 				calls.push(input);
@@ -6439,7 +6439,7 @@ test("POST /v1/chat/queue queues a steer message for an active run", async () =>
 
 test("POST /v1/chat/interrupt interrupts an active run", async () => {
 	const calls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			interruptChat: async (input) => {
 				calls.push(input);
@@ -6470,7 +6470,7 @@ test("POST /v1/chat/interrupt interrupts an active run", async () => {
 
 test("POST /v1/chat/reset clears the canonical conversation state", async () => {
 	const calls: unknown[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			resetConversation: async (input) => {
 				calls.push(input);
@@ -6500,7 +6500,7 @@ test("POST /v1/chat/reset clears the canonical conversation state", async () => 
 });
 
 test("POST /v1/chat returns 400 when message is missing", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -6523,7 +6523,7 @@ test("POST /v1/chat returns 400 when message is missing", async () => {
 });
 
 test("POST /v1/chat/stream returns 400 when message is missing", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub(),
 	});
 
@@ -6546,7 +6546,7 @@ test("POST /v1/chat/stream returns 400 when message is missing", async () => {
 });
 
 test("POST /v1/chat returns 500 when agent service throws", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			chat: async () => {
 				throw new Error("boom");
@@ -6574,7 +6574,7 @@ test("POST /v1/chat returns 500 when agent service throws", async () => {
 });
 
 test("POST /v1/chat returns 409 when the main agent is busy", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			chat: async () => {
 				throw new AgentBusyError("main", "manual:active");
@@ -6601,7 +6601,7 @@ test("POST /v1/chat returns 409 when the main agent is busy", async () => {
 });
 
 test("POST /v1/chat/stream returns 409 before SSE hijack when the main agent is busy", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createAgentServiceStub({
 			getAgentRunStatus: () => ({
 				agentId: "main",

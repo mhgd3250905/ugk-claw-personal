@@ -41,7 +41,6 @@ import { registerPlaygroundRoute } from "./routes/playground.js";
 import { registerRuntimeDebugRoutes } from "./routes/runtime-debug.js";
 import { registerStaticRoutes } from "./routes/static.js";
 import { registerArtifactRoutes } from "./routes/artifacts.js";
-import { registerTeamRoutes } from "./routes/team.js";
 import { FeishuSettingsStore } from "./integrations/feishu/settings-store.js";
 
 export interface BuildServerOptions {
@@ -142,7 +141,7 @@ function createDefaultAgentServiceRegistry(assetStore: AssetStoreLike): AgentSer
 	});
 }
 
-export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
+export async function buildServer(options: BuildServerOptions = {}): Promise<FastifyInstance> {
 	const app = Fastify({
 		logger: false,
 	});
@@ -213,17 +212,17 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		publicBaseUrl: config.publicBaseUrl,
 	});
 
-	registerTeamRoutes(app, {
-		dataDir: config.agentDataDir,
-		notificationHub,
-	});
+	if (config.teamRuntimeEnabled) {
+		const { registerTeamRoutes } = await import("./routes/team.js");
+		registerTeamRoutes(app, { teamDataDir: config.teamDataDir });
+	}
 
 	return app;
 }
 
 async function main(): Promise<void> {
 	const config = getAppConfig();
-	const app = buildServer();
+	const app = await buildServer();
 
 	try {
 		await app.listen({

@@ -6,7 +6,7 @@ import { createBrowserRegistryFromEnv } from "../src/browser/browser-registry.js
 import { buildServer } from "../src/server.js";
 
 test("GET /v1/browsers returns configured browser instances", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		browserRegistry: createBrowserRegistryFromEnv({
 			UGK_DEFAULT_BROWSER_ID: "work-01",
 			UGK_BROWSER_INSTANCES_JSON: JSON.stringify([
@@ -55,7 +55,7 @@ test("GET /v1/browsers returns configured browser instances", async () => {
 test("GET /v1/browsers/:browserId/status returns CDP runtime status", async () => {
 	const requestedUrls: string[] = [];
 	const usageRequests: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		browserRegistry: createBrowserRegistryFromEnv({
 			UGK_BROWSER_INSTANCES_JSON: JSON.stringify([
 				{ browserId: "default", name: "Default", cdpHost: "172.31.250.10", cdpPort: 9223 },
@@ -159,7 +159,7 @@ test("GET /v1/browsers/:browserId/status returns CDP runtime status", async () =
 
 test("POST /v1/browsers/:browserId/targets/:targetId/close closes a CDP target", async () => {
 	const requestedUrls: string[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		browserRegistry: createBrowserRegistryFromEnv({
 			UGK_BROWSER_INSTANCES_JSON: JSON.stringify([
 				{ browserId: "default", name: "Default", cdpHost: "172.31.250.10", cdpPort: 9223 },
@@ -188,7 +188,7 @@ test("POST /v1/browsers/:browserId/targets/:targetId/close closes a CDP target",
 });
 
 test("POST /v1/browsers/:browserId/start reports unsupported actuator for now", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		browserRegistry: createBrowserRegistryFromEnv({
 			UGK_BROWSER_INSTANCES_JSON: JSON.stringify([
 				{ browserId: "default", name: "Default", cdpHost: "172.31.250.10", cdpPort: 9223 },
@@ -211,7 +211,7 @@ test("POST /v1/browsers/:browserId/start reports unsupported actuator for now", 
 });
 
 test("GET /v1/browsers/:browserId returns one browser or 404", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		browserRegistry: createBrowserRegistryFromEnv({
 			WEB_ACCESS_CDP_HOST: "172.31.250.10",
 			WEB_ACCESS_CDP_PORT: "9223",

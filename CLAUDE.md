@@ -112,7 +112,13 @@ Fastify Server (src/server.ts)
 
 **Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`, shared response presentation in `*-route-presenters.ts` (e.g., `conn-route-presenters.ts`). API errors use helpers from `http-errors.ts` for consistent error responses. To add a new route group, create the file and call its register function in `buildServer()`.
 
-**Team Runtime** (`src/team/`): Multi-role pipeline for brand domain investigation (experimental). `TeamPipeline` orchestrates Discovery → Reviewer → Finalizer roles using LLM calls. `TeamStore` manages run persistence (atomic writes, JSONL events). `src/team-lab/` contains the spike experiment (gate validators, prompts, fixture data). API routes at `/v1/team/*` support sync (`POST /v1/team/runs`) and async (`?async=true`) execution. The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=1`. Pipeline completion broadcasts via `NotificationHub`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
+**Team Runtime** (`src/team/`): Multi-role pipeline for brand domain investigation (experimental, pending v0.1 refactor). Current `TeamPipeline` orchestrates Discovery → Reviewer → Finalizer via LLM calls. `TeamStore` manages run persistence (atomic writes, JSONL events). `src/team-lab/` contains the validated spike experiment (gate validators, prompts, fixture data) — **do not modify `src/team-lab/`**. API routes at `/v1/team/*` support sync (`POST /v1/team/runs`) and async (`?async=true`) execution. The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=1`. Pipeline completion broadcasts via `NotificationHub`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
+
+Team Runtime internals:
+- **LLM calls** (`src/team/llm.ts`): `callLLM()` auto-detects API format by baseUrl — OpenAI format at `api.deepseek.com/chat/completions` vs Anthropic-compatible at `api.deepseek.com/anthropic/v1/messages`. Key loaded from `deepseek.txt` or `DEEPSEEK_API_KEY` env var.
+- **JSON repair**: DeepSeek occasionally outputs JSON with unescaped quotes. `repairJson()` in `src/team-lab/brand-domain-gate.ts` does char-level repair — always use it when parsing LLM JSON output.
+- **SearXNG endpoints**: host `http://127.0.0.1:48080`, Docker internal `http://ugk-pi-searxng:8080`, env `SEARXNG_BASE_URL` / `SEARXNG_INTERNAL_BASE_URL`. API: `GET /search?q=<query>&format=json&categories=general`.
+- **Feature flag**: `TEAM_RUNTIME_ENABLED` must gate route registration and worker startup; when false, zero impact on rest of system.
 
 ### Architecture Governance
 

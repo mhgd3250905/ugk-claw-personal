@@ -16,7 +16,7 @@ async function createTestEnv() {
 	const connStore = new ConnSqliteStore({ database });
 	const connRunStore = new ConnRunStore({ database });
 	const activityStore = new AgentActivityStore({ database });
-	const app = buildServer({
+	const app = await buildServer({
 		connStore,
 		connRunStore,
 		activityStore,

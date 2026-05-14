@@ -51,7 +51,7 @@ function createTestRegistryForRoot(projectRoot: string, runningAgents = new Set<
 
 test("POST /v1/agents creates agent with model fields", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-model-route-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
 		agentProfileProjectRoot: projectRoot,
@@ -83,7 +83,7 @@ test("POST /v1/agents creates agent with model fields", async () => {
 
 test("POST /v1/agents rejects model-only without provider", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-model-route-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
 		agentProfileProjectRoot: projectRoot,
@@ -108,7 +108,7 @@ test("POST /v1/agents rejects model-only without provider", async () => {
 
 test("POST /v1/agents rejects provider-only without model", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-model-route-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
 		agentProfileProjectRoot: projectRoot,
@@ -133,7 +133,7 @@ test("POST /v1/agents rejects provider-only without model", async () => {
 
 test("PATCH /v1/agents/:agentId updates model fields", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-model-route-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
 		agentProfileProjectRoot: projectRoot,
@@ -164,7 +164,7 @@ test("PATCH /v1/agents/:agentId updates model fields", async () => {
 
 test("PATCH /v1/agents/:agentId clears model fields with null", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-model-route-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
 		agentProfileProjectRoot: projectRoot,
@@ -202,7 +202,7 @@ test("PATCH /v1/agents/:agentId clears model fields with null", async () => {
 test("PATCH /v1/agents/:agentId rejects model change when agent is running", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-model-route-"));
 	const runningRegistry = createTestRegistryForRoot(projectRoot, new Set(["research"]));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: runningRegistry,
 		agentProfileProjectRoot: projectRoot,

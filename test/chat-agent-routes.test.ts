@@ -64,7 +64,7 @@ function createTestRegistryForRoot(projectRoot: string, runningAgents = new Set<
 }
 
 test("agent-scoped debug skills use the requested agent service", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistry(),
 	});
@@ -91,7 +91,7 @@ test("GET /v1/agents/:agentId/rules reads the main runtime AGENTS.md", async () 
 	await mkdir(dirname(mainProfile.runtimeAgentRulesPath), { recursive: true });
 	await writeFile(join(projectRoot, "AGENTS.md"), "# Project rules\n\nDo not expose through main agent rules.\n", "utf8");
 	await writeFile(mainProfile.runtimeAgentRulesPath, "# Main runtime rules\n\nAlways verify.\n", "utf8");
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
 		agentProfileProjectRoot: projectRoot,
@@ -117,7 +117,7 @@ test("GET /v1/agents/:agentId/rules reads a custom agent AGENTS.md", async () =>
 	assert.ok(searchProfile);
 	await mkdir(dirname(searchProfile.runtimeAgentRulesPath), { recursive: true });
 	await writeFile(searchProfile.runtimeAgentRulesPath, "# Search rules\n\nUse scoped skills only.\n", "utf8");
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
 		agentProfileProjectRoot: projectRoot,
@@ -138,7 +138,7 @@ test("PATCH /v1/agents/:agentId/rules saves a custom agent AGENTS.md", async () 
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
 	const searchProfile = createDefaultAgentProfiles(projectRoot).find((profile) => profile.agentId === "search");
 	assert.ok(searchProfile);
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot),
 		agentProfileProjectRoot: projectRoot,
@@ -161,7 +161,7 @@ test("PATCH /v1/agents/:agentId/rules saves a custom agent AGENTS.md", async () 
 });
 
 test("unknown agent-scoped routes do not fall back to main", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistry(),
 	});
@@ -176,7 +176,7 @@ test("unknown agent-scoped routes do not fall back to main", async () => {
 });
 
 test("agent-scoped conversations are served from the requested agent service", async () => {
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistry(),
 	});
@@ -198,7 +198,7 @@ test("agent-scoped conversations are served from the requested agent service", a
 
 test("GET /v1/agents/status returns all agent run statuses", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot, new Set(["search"])),
 		agentProfileProjectRoot: projectRoot,
@@ -239,7 +239,7 @@ test("GET /v1/agents/status returns all agent run statuses", async () => {
 test("POST /v1/agents creates a persisted custom agent profile", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
 	const registry = createTestRegistryForRoot(projectRoot);
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: registry,
 		agentProfileProjectRoot: projectRoot,
@@ -269,7 +269,7 @@ test("POST /v1/agents copies requested initial system skills from main agent", a
 	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });
 	await writeFile(join(projectRoot, ".pi", "skills", "web-access", "SKILL.md"), "# web-access\n", "utf8");
 	const registry = createTestRegistryForRoot(projectRoot);
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: registry,
 		agentProfileProjectRoot: projectRoot,
@@ -297,7 +297,7 @@ test("POST /v1/agents copies requested initial system skills from main agent", a
 test("PATCH /v1/agents/:agentId updates a custom agent profile summary", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
 	const registry = createTestRegistryForRoot(projectRoot);
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: registry,
 		agentProfileProjectRoot: projectRoot,
@@ -349,7 +349,7 @@ test("agent profile mutations invalidate background agent templates", async () =
 	await writeFile(join(projectRoot, ".pi", "skills", "web-access", "SKILL.md"), "# web-access\n", "utf8");
 	const registry = createTestRegistryForRoot(projectRoot);
 	const invalidated: Array<string | undefined> = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: registry,
 		agentProfileProjectRoot: projectRoot,
@@ -403,7 +403,7 @@ test("POST and DELETE /v1/agents/:agentId/skills manage custom agent skill copie
 	await mkdir(join(projectRoot, ".pi", "skills", "web-access"), { recursive: true });
 	await writeFile(join(projectRoot, ".pi", "skills", "web-access", "SKILL.md"), "# web-access\n", "utf8");
 	const registry = createTestRegistryForRoot(projectRoot);
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: registry,
 		agentProfileProjectRoot: projectRoot,
@@ -445,7 +445,7 @@ test("POST and DELETE /v1/agents/:agentId/skills manage custom agent skill copie
 test("agent skill management rejects main and missing main skills", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
 	const registry = createTestRegistryForRoot(projectRoot);
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: registry,
 		agentProfileProjectRoot: projectRoot,
@@ -484,7 +484,7 @@ test("agent skill management rejects main and missing main skills", async () => 
 test("POST /v1/agents/:agentId/archive rejects main and running agents", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-route-"));
 	const runningRegistry = createTestRegistryForRoot(projectRoot, new Set(["search"]));
-	const app = buildServer({
+	const app = await buildServer({
 		agentService: createScopedAgentService("main"),
 		agentServiceRegistry: runningRegistry,
 		agentProfileProjectRoot: projectRoot,

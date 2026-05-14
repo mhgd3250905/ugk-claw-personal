@@ -1,86 +1,79 @@
-import { join } from "node:path";
-import { getAppConfig } from "../config.js";
-import { TeamStore } from "../team/team-store.js";
-import { TeamPipeline } from "../team/team-pipeline.js";
+import { getTeamConfig } from "../team/team-config.js";
+import { TeamWorkspace } from "../team/team-workspace.js";
+import { TeamOrchestrator } from "../team/team-orchestrator.js";
+import { DeterministicMockTeamRoleTaskRunner, CompositeTeamRoleTaskRunner } from "../team/team-role-task-runner.js";
 
-const POLL_INTERVAL_MS = 5000;
-const FEATURE_FLAG = "TEAM_RUNTIME_ENABLED";
+async function main(): Promise<void> {
+	const config = getTeamConfig();
 
-function parseArgs(): { once?: boolean; keyword?: string } {
-  const args = process.argv.slice(2);
-  let once = false;
-  let keyword: string | undefined;
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--once") once = true;
-    else if (args[i] === "--keyword" && args[i + 1]) keyword = args[++i];
-  }
-  return { once, keyword };
-}
+	if (!config.enabled) {
+		console.log("[team-worker] TEAM_RUNTIME_ENABLED is not true, exiting.");
+		process.exit(0);
+	}
 
-async function main() {
-  if (!process.env[FEATURE_FLAG]) {
-    console.error(`[team-worker] ${FEATURE_FLAG} not set, exiting`);
-    process.exit(0);
-  }
+	console.log(`[team-worker] starting (poll: ${config.workerPollIntervalMs}ms, maxConcurrent: ${config.maxConcurrentRuns})`);
 
-  const { once, keyword } = parseArgs();
-  const config = getAppConfig();
-  const store = new TeamStore(join(config.agentDataDir, "team"));
+	const workspace = new TeamWorkspace({ teamDataDir: config.dataDir });
 
-  // CLI mode: run once with given keyword
-  if (keyword) {
-    console.log(`[team-worker] running pipeline for keyword: ${keyword}`);
-    const pipeline = new TeamPipeline(store);
-    const { run } = await pipeline.execute({ keyword, mode: "real" });
-    console.log(`[team-worker] completed: ${run.runId}, status: ${run.status}, candidates: ${run.candidates.length}`);
-    return;
-  }
+	const realRoles = process.env.TEAM_REAL_ROLES?.trim();
+	const runner = realRoles
+		? new CompositeTeamRoleTaskRunner(realRoles.split(",").map((r) => r.trim()))
+		: new DeterministicMockTeamRoleTaskRunner();
 
-  // Worker mode: poll for pending runs
-  console.log(`[team-worker] polling for pending runs (interval: ${POLL_INTERVAL_MS}ms)`);
+	console.log(`[team-worker] runner: ${realRoles ? `composite (real: [${realRoles}])` : "mock"}`);
 
-  async function tick() {
-    const summaries = store.listRuns();
-    const pending = summaries.filter((s) => s.status === "pending");
+	let running = true;
 
-    if (pending.length === 0) return;
+	const shutdown = () => {
+		console.log("[team-worker] shutting down...");
+		running = false;
+	};
 
-    console.log(`[team-worker] found ${pending.length} pending run(s)`);
+	process.on("SIGINT", shutdown);
+	process.on("SIGTERM", shutdown);
 
-    for (const summary of pending) {
-      try {
-        const run = store.readRun(summary.runId);
-        console.log(`[team-worker] executing ${run.runId} (keyword: ${run.keyword})`);
+	while (running) {
+		try {
+			const runIds = await workspace.listRunnableRunIds();
+			if (runIds.length > 0) {
+				console.log(`[team-worker] processing ${runIds.length} run(s)`);
+			}
 
-        const input = {
-          keyword: run.keyword,
-          mode: run.mode,
-          maxRounds: 2,
-          maxCandidates: 10,
-        };
+			const batch = runIds.slice(0, config.maxConcurrentRuns);
+			for (const teamRunId of batch) {
+				if (!running) break;
 
-        const pipeline = new TeamPipeline(store);
-        await pipeline.execute(input);
-        console.log(`[team-worker] completed ${run.runId}`);
-      } catch (err) {
-        console.error(`[team-worker] failed ${summary.runId}: ${(err as Error).message}`);
-      }
-    }
-  }
+				const orchestrator = new TeamOrchestrator({
+					workspace,
+					roleTaskRunner: runner,
+					maxRounds: 5,
+					maxCandidates: 100,
+					maxMinutes: 60,
+					roleTaskTimeoutMs: config.roleTaskTimeoutMs,
+					roleTaskMaxRetries: config.roleTaskMaxRetries,
+				});
 
-  if (once) {
-    await tick();
-    return;
-  }
+				try {
+					await orchestrator.tick(teamRunId);
+					const state = await workspace.readState(teamRunId);
+					console.log(`[team-worker] tick done: ${teamRunId} → ${state.status}`);
+				} catch (err) {
+					console.error(`[team-worker] tick failed: ${teamRunId}: ${(err as Error).message}`);
+				}
+			}
+		} catch (err) {
+			console.error(`[team-worker] poll error: ${(err as Error).message}`);
+		}
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    await tick();
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
+		if (running) {
+			await new Promise((resolve) => setTimeout(resolve, config.workerPollIntervalMs));
+		}
+	}
+
+	console.log("[team-worker] stopped.");
 }
 
 main().catch((err) => {
-  console.error("[team-worker] fatal:", err);
-  process.exit(1);
+	console.error("[team-worker] fatal:", err);
+	process.exit(1);
 });

@@ -51,7 +51,7 @@ function createTestRegistryForRoot(projectRoot: string, runningAgents = new Set<
 
 test("agent profile create and update validate defaultBrowserId against browser registry", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-browser-"));
-	const app = buildServer({
+	const app = await buildServer({
 		agentProfileProjectRoot: projectRoot,
 		browserRegistry: createBrowserRegistryFromEnv({
 			UGK_BROWSER_INSTANCES_JSON: JSON.stringify([
@@ -96,7 +96,7 @@ test("agent profile create and update validate defaultBrowserId against browser 
 test("agent browser binding updates write an audit entry with confirmation state", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-browser-audit-"));
 	const auditEntries: BrowserBindingAuditEntry[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentProfileProjectRoot: projectRoot,
 		browserBindingAuditLog: {
 			record: async (entry) => {
@@ -162,7 +162,7 @@ test("agent browser binding updates write an audit entry with confirmation state
 test("agent browser binding updates reject unconfirmed changes before writing", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-browser-reject-"));
 	const auditEntries: BrowserBindingAuditEntry[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentProfileProjectRoot: projectRoot,
 		browserBindingAuditLog: {
 			record: async (entry) => {
@@ -223,7 +223,7 @@ test("agent browser binding updates reject unconfirmed changes before writing", 
 test("agent browser binding updates reject confirmed changes outside the Playground UI", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-browser-source-"));
 	const auditEntries: BrowserBindingAuditEntry[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentProfileProjectRoot: projectRoot,
 		browserBindingAuditLog: {
 			record: async (entry) => {
@@ -278,7 +278,7 @@ test("agent browser binding updates reject confirmed changes outside the Playgro
 test("agent browser binding updates reject while that agent has a running conversation", async () => {
 	const projectRoot = await mkdtemp(join(tmpdir(), "ugk-pi-agent-browser-running-"));
 	const auditEntries: BrowserBindingAuditEntry[] = [];
-	const app = buildServer({
+	const app = await buildServer({
 		agentProfileProjectRoot: projectRoot,
 		agentServiceRegistry: createTestRegistryForRoot(projectRoot, new Set(["research"])),
 		browserBindingAuditLog: {
@@ -357,7 +357,7 @@ test("conn execution binding updates write one audit entry for agent and browser
 		createdAt: "2026-05-09T00:00:00.000Z",
 		updatedAt: "2026-05-09T00:00:00.000Z",
 	};
-	const app = buildServer({
+	const app = await buildServer({
 		browserBindingAuditLog: {
 			record: async (entry) => {
 				auditEntries.push(entry);
@@ -443,7 +443,7 @@ test("conn execution binding updates reject unconfirmed agent or browser changes
 		createdAt: "2026-05-09T00:00:00.000Z",
 		updatedAt: "2026-05-09T00:00:00.000Z",
 	};
-	const app = buildServer({
+	const app = await buildServer({
 		browserBindingAuditLog: {
 			record: async (entry) => {
 				auditEntries.push(entry);
@@ -518,7 +518,7 @@ test("conn execution binding updates reject confirmed changes outside the Playgr
 		createdAt: "2026-05-09T00:00:00.000Z",
 		updatedAt: "2026-05-09T00:00:00.000Z",
 	};
-	const app = buildServer({
+	const app = await buildServer({
 		browserBindingAuditLog: {
 			record: async (entry) => {
 				auditEntries.push(entry);

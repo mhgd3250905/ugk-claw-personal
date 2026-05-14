@@ -8,7 +8,7 @@
     "start": "tsx src/server.ts",
     "worker:conn": "tsx src/workers/conn-worker.ts",
     "worker:feishu": "tsx src/workers/feishu-worker.ts",
-    "worker:team": "TEAM_RUNTIME_ENABLED=1 tsx src/workers/team-worker.ts",
+    "worker:team": "TEAM_RUNTIME_ENABLED=true tsx src/workers/team-worker.ts",
     "test": "node --test --test-concurrency=1 --import tsx test/**/*.test.ts",
     "design:lint": "node ./node_modules/@google/design.md/dist/index.js lint DESIGN.md",
     "docker:build": "docker build -t ugk-pi:local .",
@@ -29,7 +29,8 @@
     "team:probe-json": "tsx src/team-lab/json-envelope-probe.ts",
     "team:spike": "tsx src/team-lab/brand-domain-spike.ts",
     "team:spike:real": "tsx src/team-lab/brand-domain-spike.ts --mode real",
-    "test:team-lab": "node --test --import tsx test/team-lab-brand-domain-gate.test.ts test/team-lab-workspace.test.ts test/team-lab-search.test.ts test/team-search.test.ts test/team-store.test.ts test/team-pipeline.test.ts test/team-routes.test.ts"
+    "test:team": "node --test --import tsx test/team-workspace.test.ts test/team-gate.test.ts test/team-orchestrator.test.ts",
+    "test:team-lab": "node --test --import tsx test/team-lab-brand-domain-gate.test.ts test/team-lab-workspace.test.ts test/team-lab-search.test.ts test/team-search.test.ts"
   },
   "dependencies": {
     "@fastify/multipart": "^10.0.0",

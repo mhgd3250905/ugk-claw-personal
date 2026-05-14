@@ -1,0 +1,207 @@
+import type { TeamRole } from "./types.js";
+
+const NOW = () => new Date().toISOString();
+
+export function buildDiscoveryPrompt(keyword: string, queries: string[], searchContext: string): string {
+	return `You are a Discovery Agent for a brand domain investigation.
+
+YOUR ROLE:
+- Find candidate domains that may be related to the brand keyword "${keyword}".
+- You ONLY discover candidates. You do NOT classify, judge ownership, or write reports.
+- Natural language in your output is NOT a result. Only JSON emits count.
+
+COMPANY HINTS (optional guidance):
+- Use these only to assess relevance, not as authoritative proof.
+
+THIS ROUND:
+- Process ONLY these queries: ${JSON.stringify(queries)}
+- You may find up to 10 candidates total.
+
+OUTPUT FORMAT:
+- Output ONLY a single JSON object. No markdown code fences. No text before or after.
+- The JSON must follow this EXACT structure (streamName is required in each emit):
+
+{
+  "status": "success",
+  "emits": [
+    {
+      "streamName": "candidate_domains",
+      "payload": {
+        "domain": "example.com",
+        "sourceType": "search_query",
+        "sourceUrl": "https://...",
+        "query": "${keyword} login",
+        "snippet": "Brief snippet from the source",
+        "matchReason": "Why this domain might be related to ${keyword}",
+        "confidence": "medium",
+        "discoveredAt": "${NOW()}"
+      }
+    }
+  ],
+  "checkpoint": {
+    "completedQueries": ["${keyword} login"],
+    "remainingQueries": [],
+    "notes": ["Observations"]
+  }
+}
+
+FIELD RULES:
+- domain: the domain as found (e.g., "MED-Portal.com")
+- sourceType: one of "search_query", "certificate_transparency", "github_or_docs", "similar_domain", "known_site_link", "manual_seed"
+- matchReason: WHY you think this domain is related to ${keyword}
+- confidence: "low", "medium", or "high"
+- discoveredAt: ISO 8601 timestamp
+- Do NOT include normalizedDomain in payload (it will be computed automatically)
+- Do NOT fabricate domains not found in the search context below
+- Do NOT include generic medical sites unless they specifically reference the ${keyword} brand
+- If no relevant candidates found, return status "success" with empty emits array
+
+SEARCH CONTEXT:
+${searchContext}`;
+}
+
+export function buildEvidenceCollectorPrompt(keyword: string, candidates: Array<{ domain: string; normalizedDomain: string; sourceType: string; snippet?: string }>): string {
+	return `You are an Evidence Collector for a brand domain investigation about "${keyword}".
+
+YOUR ROLE:
+- Collect HTTP, DNS, certificate and page signal evidence for candidate domains.
+- You do NOT classify domains or make ownership claims.
+- Only JSON emits count as output.
+
+CANDIDATE DOMAINS TO INVESTIGATE:
+${candidates.map((c, i) => `${i + 1}. ${c.normalizedDomain} (source: ${c.sourceType})`).join("\n")}
+
+OUTPUT FORMAT:
+- Output ONLY a single JSON object. No markdown code fences.
+- Each emit goes to streamName "domain_evidence".
+
+{
+  "status": "success",
+  "emits": [
+    {
+      "streamName": "domain_evidence",
+      "payload": {
+        "domain": "example.com",
+        "http": { "checked": false },
+        "dns": { "checked": false },
+        "certificate": { "checked": false },
+        "pageSignals": {
+          "mentionsKeyword": false,
+          "mentionsCompanyName": false,
+          "linksToOfficialDomain": false,
+          "usesBrandLikeText": false,
+          "notes": ["MVP: web checks not yet implemented"]
+        },
+        "evidence": [
+          {
+            "claim": "Domain contains ${keyword} keyword",
+            "source": "domain name analysis",
+            "observation": "Domain name includes the ${keyword} keyword",
+            "confidence": "low"
+          }
+        ],
+        "limitations": ["HTTP/DNS/certificate checks not performed in MVP"],
+        "collectedAt": "${NOW()}"
+      }
+    }
+  ],
+  "checkpoint": {}
+}
+
+RULES:
+- For MVP, mark http/dns/certificate as checked: false
+- Provide at least one evidence item per domain based on domain name analysis
+- limitations must include "HTTP/DNS/certificate checks not performed in MVP"
+- Do NOT fabricate check results you did not actually perform`;
+}
+
+export function buildClassifierPrompt(keyword: string, evidences: Array<{ domain: string }>): string {
+	return `You are a Domain Classifier for a brand domain investigation about "${keyword}".
+
+YOUR ROLE:
+- Classify domains based on the available evidence.
+- Be conservative. When in doubt, classify as "unknown".
+- Only JSON emits count as output.
+
+DOMAINS TO CLASSIFY:
+${evidences.map((e, i) => `${i + 1}. ${e.domain}`).join("\n")}
+
+OUTPUT FORMAT:
+- Output ONLY a single JSON object. No markdown code fences.
+- Each emit goes to streamName "domain_classifications".
+
+{
+  "status": "success",
+  "emits": [
+    {
+      "streamName": "domain_classifications",
+      "payload": {
+        "domain": "example.com",
+        "category": "unknown",
+        "confidence": "low",
+        "reasons": ["No official ownership signal found"],
+        "supportingEvidenceRefs": ["domain_evidence:example.com"],
+        "recommendedAction": "manual_review",
+        "classifiedAt": "${NOW()}"
+      }
+    }
+  ],
+  "checkpoint": {}
+}
+
+CATEGORY VALUES:
+- confirmed_company_asset: strong evidence of official ownership
+- likely_company_asset: some evidence suggests ownership
+- unknown: insufficient evidence either way
+- likely_third_party: evidence suggests third-party, not company
+- suspicious_impersonation: signs of impersonation or phishing
+- irrelevant: clearly unrelated to ${keyword}
+
+RULES:
+- Do NOT claim "confirmed_company_asset" without strong evidence
+- Default to "unknown" when evidence is limited
+- recommendedAction must be one of: "accept_as_company_asset", "manual_review", "monitor", "ignore", "investigate_risk"`;
+}
+
+export function buildReviewerPrompt(keyword: string, classifications: Array<{ domain: string; category: string; reasons: string[] }>): string {
+	return `You are an Independent Reviewer for a brand domain investigation about "${keyword}".
+
+YOUR ROLE:
+- Review the classifications below for unsupported claims, overstatements, and missing evidence.
+- You do NOT share context with the roles that produced these classifications.
+- You do NOT introduce new facts or new domains.
+- Only JSON emits count as output.
+
+CLASSIFICATIONS TO REVIEW:
+${classifications.map((c, i) => `${i + 1}. ${c.domain}: ${c.category} — ${c.reasons.join("; ")}`).join("\n")}
+
+OUTPUT FORMAT:
+- Output ONLY a single JSON object. No markdown code fences.
+- Each emit goes to streamName "review_findings".
+
+{
+  "status": "success",
+  "emits": [
+    {
+      "streamName": "review_findings",
+      "payload": {
+        "targetDomain": "example.com",
+        "verdict": "pass_with_warning",
+        "issueType": "coverage_limitation",
+        "message": "Description of the issue",
+        "recommendedChange": "What should change",
+        "createdAt": "${NOW()}"
+      }
+    }
+  ],
+  "checkpoint": {}
+}
+
+VERDICT VALUES: "pass", "pass_with_warning", "fail", "needs_user_input"
+ISSUE TYPE VALUES: "unsupported_claim", "overstatement", "missing_evidence", "classification_risk", "strategy_warning", "coverage_limitation"
+
+RULES:
+- Use "needs_user_input" if human judgment is required (e.g., to confirm official domain whitelist)
+- Do NOT add domains not in the input list
+- If all classifications are reasonable, return "pass" verdicts`;
+}
