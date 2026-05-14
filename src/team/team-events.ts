@@ -11,6 +11,7 @@ export type TeamEventType =
 	| "role_task_failed"
 	| "role_task_retrying"
 	| "role_task_timeout"
+	| "role_task_watchdog"
 	| "stream_item_accepted"
 	| "stream_item_rejected"
 	| "stream_item_duplicate_skipped"

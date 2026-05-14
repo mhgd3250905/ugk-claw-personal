@@ -22,13 +22,18 @@ export function buildDiscoveryPrompt(keyword: string, queries: string[], searchC
 
 YOUR ROLE:
 - Find candidate domains that may be related to the brand keyword "${keyword}".
+- The user may not know which investigative methods exist, so you must infer useful discovery paths yourself instead of waiting for the user to name them.
+- Act like a professional domain discovery investigator, not a passive search summarizer.
 - You ONLY discover candidates. You do NOT classify, judge ownership, or write reports.
 - Natural language in your output is NOT a result. Only JSON emits count.
 
 ${hintsSection}
 
 THIS ROUND:
-- Process ONLY these queries: ${JSON.stringify(queries)}
+- Suggested seed queries: ${JSON.stringify(queries)}
+- You may freely use the tools and skills available to this role runner. Do not rely on a single discovery method if other useful methods are available.
+- Consider, when available in your context or tools: search results, official site links and hreflang/footer links, certificate transparency logs such as crt.sh, DNS/subdomain clues, regional TLD patterns, login/portal/app/support pages, public docs, partner/reseller pages, social profiles, app stores, and code/doc references.
+- For certificate transparency evidence, use sourceType "certificate_transparency" and include the concrete sourceUrl or query.
 - You may find up to 10 candidates total.
 
 OUTPUT FORMAT:
@@ -61,7 +66,9 @@ OUTPUT FORMAT:
 
 FIELD RULES:
 - domain: the domain as found (e.g., "MED-Portal.com")
-- sourceType: one of "search_query", "certificate_transparency", "github_or_docs", "similar_domain", "known_site_link", "manual_seed"
+- sourceType: one of "search_query", "certificate_transparency", "github_or_docs", "similar_domain", "known_site_link", "manual_seed"; choose the closest label for how you found the domain
+- Use "search_query" for search engine results, "known_site_link" for links found on known/official sites, "certificate_transparency" for TLS certificate logs, "github_or_docs" for public code/docs/PDFs, "similar_domain" for subdomain or variant expansion, and "manual_seed" for user-provided seeds
+- sourceUrl/query/snippet: include the concrete source whenever available
 - matchReason: WHY you think this domain is related to ${keyword}
 - confidence: "low", "medium", or "high"
 - discoveredAt: ISO 8601 timestamp

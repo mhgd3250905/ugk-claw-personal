@@ -5,6 +5,8 @@ import type {
 	DomainClassificationPayload,
 	TeamPlan,
 	TeamRole,
+	TeamRoleProfileBindings,
+	TeamRolePromptOverrides,
 	TeamRunState,
 	TeamStreamItem,
 	TeamStreamName,
@@ -22,7 +24,7 @@ const BRAND_DOMAIN_ROLES: TeamRole[] = [
 	{
 		roleId: "discovery",
 		name: "Domain Discovery",
-		responsibility: "Search for candidate domains related to the keyword using multiple sources",
+		responsibility: "Act as a professional domain discovery investigator: infer useful discovery methods, search broadly, inspect official links, certificate transparency logs such as crt.sh, DNS/subdomain clues, regional TLDs, login/app/support portals, docs, partners, social profiles, app stores, and other public traces to find candidate domains related to the keyword",
 		mustNotDo: [
 			"Do not claim to have searched the entire internet",
 			"Do not classify or judge domains",
@@ -87,6 +89,14 @@ const ALL_STREAMS: TeamStreamName[] = [
 	"review_findings",
 ];
 
+const ROLE_IDS = new Set<TeamRole["roleId"]>([
+	"discovery",
+	"evidence_collector",
+	"classifier",
+	"reviewer",
+	"finalizer",
+]);
+
 function getStreamItems(
 	streams: Partial<Record<TeamStreamName, TeamStreamItem[]>>,
 	streamName: TeamStreamName,
@@ -145,6 +155,32 @@ function formatVerdict(verdict: string): string {
 		case "needs_user_input": return "需要人工输入";
 		default: return verdict;
 	}
+}
+
+function normalizeRoleProfileIds(input: unknown): TeamRoleProfileBindings | undefined {
+	if (!input || typeof input !== "object" || Array.isArray(input)) return undefined;
+	const output: TeamRoleProfileBindings = {};
+	for (const [roleId, profileId] of Object.entries(input as Record<string, unknown>)) {
+		if (!ROLE_IDS.has(roleId as TeamRole["roleId"]) || typeof profileId !== "string") continue;
+		const normalizedProfileId = profileId.trim();
+		if (normalizedProfileId) {
+			output[roleId as TeamRole["roleId"]] = normalizedProfileId;
+		}
+	}
+	return Object.keys(output).length > 0 ? output : undefined;
+}
+
+function normalizeRolePromptOverrides(input: unknown): TeamRolePromptOverrides | undefined {
+	if (!input || typeof input !== "object" || Array.isArray(input)) return undefined;
+	const output: TeamRolePromptOverrides = {};
+	for (const [roleId, prompt] of Object.entries(input as Record<string, unknown>)) {
+		if (!ROLE_IDS.has(roleId as TeamRole["roleId"]) || typeof prompt !== "string") continue;
+		const normalizedPrompt = prompt.trim();
+		if (normalizedPrompt) {
+			output[roleId as TeamRole["roleId"]] = normalizedPrompt;
+		}
+	}
+	return Object.keys(output).length > 0 ? output : undefined;
 }
 
 export function createBrandDomainDiscoveryTemplateRun(
@@ -217,6 +253,8 @@ export function createBrandDomainDiscoveryTemplateRun(
 
 	const now = new Date().toISOString();
 	const teamRunId = generateTeamRunId();
+	const roleProfileIds = normalizeRoleProfileIds(input.roleProfileIds);
+	const rolePromptOverrides = normalizeRolePromptOverrides(input.rolePromptOverrides);
 
 	const state: TeamRunState = {
 		teamRunId,
@@ -246,6 +284,8 @@ export function createBrandDomainDiscoveryTemplateRun(
 			reviewFindings: 0,
 			failedRoleTasks: 0,
 		},
+		...(roleProfileIds ? { roleProfileIds } : {}),
+		...(rolePromptOverrides ? { rolePromptOverrides } : {}),
 		stopSignals: [],
 	};
 
@@ -354,59 +394,47 @@ export const brandDomainDiscoveryTemplate: TeamTemplate = {
 		const candidateCursor = cursors[cursorKey("evidence_collector", "candidate_domains")];
 		const newCandidates = getItemsAfterCursor(candidates, candidateCursor);
 		if (newCandidates.length > 0) {
-			const canContinueDiscovery =
-				state.currentRound < state.budgets.maxRounds &&
-				state.counters.candidateDomains < state.budgets.maxCandidates &&
-				state.stopSignals.length === 0;
-			if (!(newCandidates.length < 10 && canContinueDiscovery)) {
-				const batch = newCandidates.slice(0, 10);
-				tasks.push({
+			const batch = newCandidates.slice(0, 1);
+			tasks.push({
+				roleId: "evidence_collector" as const,
+				consumes: { streamName: "candidate_domains" as const, items: batch },
+				task: {
+					roleTaskId: generateRoleTaskId(),
 					roleId: "evidence_collector" as const,
-					consumes: { streamName: "candidate_domains" as const, items: batch },
-					task: {
-						roleTaskId: generateRoleTaskId(),
-						roleId: "evidence_collector" as const,
-						teamRunId,
-						inputData: {
-							keyword: state.keyword,
-							candidates: batch.map((item) => item.payload),
-						},
+					teamRunId,
+					inputData: {
+						keyword: state.keyword,
+						candidates: batch.map((item) => item.payload),
 					},
-				});
-			}
+				},
+			});
 		}
 
 		const evidences = getStreamItems(streams, "domain_evidence");
 		const evidenceCursor = cursors[cursorKey("classifier", "domain_evidence")];
 		const newEvidences = getItemsAfterCursor(evidences, evidenceCursor);
 		if (newEvidences.length > 0) {
-			const upstreamDone =
-				state.currentRound >= state.budgets.maxRounds ||
-				state.counters.candidateDomains >= state.budgets.maxCandidates ||
-				state.stopSignals.length > 0;
-			if (newEvidences.length >= 10 || upstreamDone) {
-				const batch = newEvidences.slice(0, 10);
-				tasks.push({
+			const batch = newEvidences.slice(0, 1);
+			tasks.push({
+				roleId: "classifier" as const,
+				consumes: { streamName: "domain_evidence" as const, items: batch },
+				task: {
+					roleTaskId: generateRoleTaskId(),
 					roleId: "classifier" as const,
-					consumes: { streamName: "domain_evidence" as const, items: batch },
-					task: {
-						roleTaskId: generateRoleTaskId(),
-						roleId: "classifier" as const,
-						teamRunId,
-						inputData: {
-							keyword: state.keyword,
-							evidences: batch.map((item) => item.payload),
-						},
+					teamRunId,
+					inputData: {
+						keyword: state.keyword,
+						evidences: batch.map((item) => item.payload),
 					},
-				});
-			}
+				},
+			});
 		}
 
 		const classifications = getStreamItems(streams, "domain_classifications");
 		const classificationCursor = cursors[cursorKey("reviewer", "domain_classifications")];
 		const newClassifications = getItemsAfterCursor(classifications, classificationCursor);
 		if (newClassifications.length > 0) {
-			const batch = newClassifications.slice(0, 20);
+			const batch = newClassifications.slice(0, 1);
 			tasks.push({
 				roleId: "reviewer" as const,
 				consumes: { streamName: "domain_classifications" as const, items: batch },

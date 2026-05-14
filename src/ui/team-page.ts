@@ -222,6 +222,28 @@ function getTeamPageCss(): string {
 		}
 		.team-card + .team-card { margin-top: 16px; }
 		.team-card-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; font-size: 13px; font-weight: 800; color: var(--team-secondary); }
+		.team-role-config-head {
+			display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+			margin-bottom: 14px;
+		}
+		.team-role-config-head strong { display: block; font-size: 13px; color: var(--team-secondary); }
+		.team-role-config-head span { display: block; margin-top: 4px; font-size: 11px; color: var(--team-muted); }
+		.team-role-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+		.team-role-card {
+			display: grid; gap: 10px;
+			padding: 14px;
+			border: 1px solid var(--team-border);
+			border-radius: 8px;
+			background: var(--team-surface);
+		}
+		.team-role-card-head {
+			display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+			min-width: 0;
+		}
+		.team-role-name { min-width: 0; }
+		.team-role-name strong { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.team-role-name span { display: block; margin-top: 3px; font-size: 11px; color: var(--team-muted); }
+		.team-role-prompt { min-height: 138px; font-family: var(--font-mono); font-size: 11px; }
 		.team-detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 		.team-kv { display: grid; gap: 4px; min-width: 0; }
 		.team-kv span { font-size: 11px; color: var(--team-muted); font-weight: 700; }
@@ -271,6 +293,7 @@ function getTeamPageCss(): string {
 			.team-main { grid-template-columns: 1fr; padding: 0 14px 14px; overflow-y: auto; }
 			.team-sidebar, .team-detail { min-height: 420px; }
 			.team-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.team-role-grid { grid-template-columns: 1fr; }
 			.team-form-grid { grid-template-columns: 1fr; }
 			html, body, #app { overflow: auto; height: auto; min-height: 100%; }
 		}
@@ -283,7 +306,9 @@ function getTeamPageJs(): string {
 		const DEFAULT_ARTIFACT_NAMES = ["final_report.md", "competitor_domain_report.md"];
 		const state = {
 			templates: [],
+			agents: [],
 			selectedTemplateId: "",
+			roleConfig: {},
 			runIds: [],
 			runs: {},
 			selectedRunId: "",
@@ -319,6 +344,16 @@ function getTeamPageJs(): string {
 			state.templates = Array.isArray(data.templates) ? data.templates : [];
 			if (!state.selectedTemplateId && state.templates.length) {
 				state.selectedTemplateId = state.templates[0].templateId;
+			}
+			ensureRoleConfigForTemplate();
+		}
+
+		async function apiFetchAgents() {
+			try {
+				const data = await fetchJson("/v1/agents");
+				state.agents = Array.isArray(data.agents) ? data.agents : [];
+			} catch {
+				state.agents = [];
 			}
 		}
 
@@ -413,6 +448,131 @@ function getTeamPageJs(): string {
 			renderTemplateHint();
 		}
 
+		function renderAgentOptions(selectedValue) {
+			var selected = String(selectedValue || "");
+			var options = '<option value="">默认 Team runner</option>' + state.agents.map(function(agent) {
+				var agentId = String(agent.agentId || "").trim();
+				if (!agentId) return "";
+				var label = String(agent.name || agentId);
+				return '<option value="' + escapeHtml(agentId) + '"' + (agentId === selected ? " selected" : "") + '>' + escapeHtml(label) + '</option>';
+			}).join("");
+			if (selected && !state.agents.some(function(agent) { return String(agent.agentId || "").trim() === selected; })) {
+				options += '<option value="' + escapeHtml(selected) + '" selected>' + escapeHtml(selected + "（不可用）") + '</option>';
+			}
+			return options;
+		}
+
+		function renderRoleProfileSelect(select) {
+			if (!select) return;
+			var pendingValue = select.value || "";
+			select.innerHTML = '<option value="">默认 Team runner</option>' + state.agents.map(function(agent) {
+				var agentId = String(agent.agentId || "").trim();
+				if (!agentId) return "";
+				var label = String(agent.name || agentId);
+				return '<option value="' + escapeHtml(agentId) + '">' + escapeHtml(label) + '</option>';
+			}).join("");
+			if (pendingValue && !state.agents.some(function(agent) { return String(agent.agentId || "").trim() === pendingValue; })) {
+				select.innerHTML += '<option value="' + escapeHtml(pendingValue) + '">' + escapeHtml(pendingValue + "（不可用）") + '</option>';
+			}
+			select.value = pendingValue;
+		}
+
+		function renderRoleProfileSelects() {
+			document.querySelectorAll("[data-role-profile]").forEach(function(select) {
+				renderRoleProfileSelect(select);
+			});
+		}
+
+		function getTemplateRoles() {
+			var template = currentTemplate();
+			return template && Array.isArray(template.roles) ? template.roles : [];
+		}
+
+		function buildDefaultRolePrompt(role) {
+			var lines = [
+				"你是 Team 里的 " + (role.name || role.roleId) + "。",
+				"职责：" + (role.responsibility || ""),
+			];
+			if (role.roleId === "discovery") {
+				lines.push("用户不一定知道有哪些调查方法，所以你要自己规划发现路径，而不是等用户点名具体工具。");
+				lines.push("不要只做普通搜索摘要；要像专业域名调查员一样，按需考虑搜索引擎、官网页脚和 hreflang 链接、crt.sh / 证书透明日志、DNS / 子域名线索、区域 TLD、login / portal / app / support 入口、公开文档、合作伙伴 / 经销商页面、社媒、应用商店、代码或文档引用等公开线索。");
+				lines.push("如果使用 crt.sh 或其他证书透明日志，提交候选时把 sourceType 标为 certificate_transparency，并填写具体 sourceUrl 或 query。");
+			}
+			if (Array.isArray(role.allowedInputStreams) && role.allowedInputStreams.length) {
+				lines.push("可读取输入流：" + role.allowedInputStreams.join(", "));
+			}
+			if (Array.isArray(role.outputStreams) && role.outputStreams.length) {
+				lines.push("必须通过工具写入输出流：" + role.outputStreams.join(", "));
+			}
+			if (Array.isArray(role.mustNotDo) && role.mustNotDo.length) {
+				lines.push("禁止：");
+				role.mustNotDo.forEach(function(item) { lines.push("- " + item); });
+			}
+			lines.push("");
+			lines.push("你可以自行选择实现办法，但输出必须遵守 Team 默认契约。");
+			return lines.join("\\n");
+		}
+
+		function ensureRoleConfigForTemplate() {
+			getTemplateRoles().forEach(function(role) {
+				var roleId = String(role.roleId || "");
+				if (!roleId) return;
+				if (!state.roleConfig[roleId]) {
+					state.roleConfig[roleId] = { profileId: "", prompt: buildDefaultRolePrompt(role) };
+				} else if (!state.roleConfig[roleId].prompt) {
+					state.roleConfig[roleId].prompt = buildDefaultRolePrompt(role);
+				}
+			});
+		}
+
+		function renderRoleConfigPanel() {
+			ensureRoleConfigForTemplate();
+			var roles = getTemplateRoles();
+			if (!roles.length) {
+				return '<div class="team-card"><div class="team-empty"><strong>当前模板没有声明角色</strong><span>后端模板需要返回 roles。</span></div></div>';
+			}
+			return '<div class="team-card team-role-config">'
+				+ '<div class="team-role-config-head"><div><strong>角色配置</strong><span>这里按模板动态生成角色。每个角色可以绑定 Agent profile，也可以在运行前改 prompt。</span></div><span class="team-badge team-badge--queued">' + roles.length + ' roles</span></div>'
+				+ '<div class="team-role-grid">' + roles.map(function(role) {
+					var roleId = String(role.roleId || "");
+					var config = state.roleConfig[roleId] || { profileId: "", prompt: buildDefaultRolePrompt(role) };
+					return '<div class="team-role-card" data-role-card="' + escapeHtml(roleId) + '">'
+						+ '<div class="team-role-card-head"><div class="team-role-name"><strong>' + escapeHtml(role.name || roleId) + '</strong><span>' + escapeHtml(roleId) + '</span></div>'
+						+ '<button class="team-btn" type="button" data-role-reset="' + escapeHtml(roleId) + '">重置</button></div>'
+						+ '<label class="team-field"><span>Agent profile</span><select class="team-select" data-role-profile="' + escapeHtml(roleId) + '">' + renderAgentOptions(config.profileId) + '</select></label>'
+						+ '<label class="team-field"><span>Role prompt</span><textarea class="team-textarea team-role-prompt" data-role-prompt="' + escapeHtml(roleId) + '">' + escapeHtml(config.prompt || buildDefaultRolePrompt(role)) + '</textarea></label>'
+						+ '</div>';
+				}).join("") + '</div></div>';
+		}
+
+		function attachRoleConfigHandlers(scope) {
+			if (!scope) return;
+			scope.querySelectorAll("[data-role-profile]").forEach(function(select) {
+				select.addEventListener("change", function() {
+					var roleId = select.getAttribute("data-role-profile");
+					state.roleConfig[roleId] = state.roleConfig[roleId] || { profileId: "", prompt: "" };
+					state.roleConfig[roleId].profileId = String(select.value || "").trim();
+				});
+			});
+			scope.querySelectorAll("[data-role-prompt]").forEach(function(textarea) {
+				textarea.addEventListener("input", function() {
+					var roleId = textarea.getAttribute("data-role-prompt");
+					state.roleConfig[roleId] = state.roleConfig[roleId] || { profileId: "", prompt: "" };
+					state.roleConfig[roleId].prompt = String(textarea.value || "");
+				});
+			});
+			scope.querySelectorAll("[data-role-reset]").forEach(function(button) {
+				button.addEventListener("click", function() {
+					var roleId = button.getAttribute("data-role-reset");
+					var role = getTemplateRoles().find(function(item) { return String(item.roleId || "") === roleId; });
+					if (!role) return;
+					state.roleConfig[roleId] = state.roleConfig[roleId] || { profileId: "", prompt: "" };
+					state.roleConfig[roleId].prompt = buildDefaultRolePrompt(role);
+					renderRunDetail();
+				});
+			});
+		}
+
 		function renderTemplateHint() {
 			var template = currentTemplate();
 			var el = document.getElementById("team-template-hint");
@@ -431,7 +591,7 @@ function getTeamPageJs(): string {
 			var maxRounds = Number(document.getElementById("team-run-max-rounds").value || "1");
 			var maxCandidates = Number(document.getElementById("team-run-max-candidates").value || "20");
 			var maxMinutes = Number(document.getElementById("team-run-max-minutes").value || "15");
-			return {
+			var payload = {
 				templateId: state.selectedTemplateId,
 				keyword: keyword,
 				companyNames: names,
@@ -440,6 +600,24 @@ function getTeamPageJs(): string {
 				maxCandidates: maxCandidates,
 				maxMinutes: maxMinutes,
 			};
+			var roleProfileIds = {};
+			var rolePromptOverrides = {};
+			getTemplateRoles().forEach(function(role) {
+				var roleId = String(role.roleId || "");
+				var config = state.roleConfig[roleId] || {};
+				var profileId = String(config.profileId || "").trim();
+				var prompt = String(config.prompt || "").trim();
+				var defaultPrompt = buildDefaultRolePrompt(role).trim();
+				if (profileId) roleProfileIds[roleId] = profileId;
+				if (prompt && prompt !== defaultPrompt) rolePromptOverrides[roleId] = prompt;
+			});
+			if (Object.keys(roleProfileIds).length) {
+				payload.roleProfileIds = roleProfileIds;
+			}
+			if (Object.keys(rolePromptOverrides).length) {
+				payload.rolePromptOverrides = rolePromptOverrides;
+			}
+			return payload;
 		}
 
 		function renderRunList() {
@@ -468,17 +646,19 @@ function getTeamPageJs(): string {
 			var body = document.getElementById("team-detail-body");
 			var actions = document.getElementById("team-detail-actions");
 			var detail = state.runs[state.selectedRunId];
+			var rolePanel = renderRoleConfigPanel();
 			if (!detail) {
 				title.textContent = "Team Runtime";
 				actions.innerHTML = "";
-				body.innerHTML = '<div class="team-empty"><strong>选择或创建一个 run</strong><span>左侧负责创建和选择，右侧查看计划、事件、streams 和报告。</span></div>';
+				body.innerHTML = rolePanel + '<div class="team-card"><div class="team-empty"><strong>选择或创建一个 run</strong><span>左侧负责创建和选择，右侧查看计划、事件、streams 和报告。</span></div></div>';
+				attachRoleConfigHandlers(body);
 				return;
 			}
 			var runState = detail.state || {};
 			var plan = detail.plan || {};
 			title.textContent = runState.keyword || plan.keyword || state.selectedRunId;
 			actions.innerHTML = '<button id="team-refresh-detail" class="team-btn" type="button"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>刷新</button>';
-			body.innerHTML = ''
+			body.innerHTML = rolePanel
 				+ '<div class="team-card"><div class="team-card-title"><span>Run 状态</span><span class="' + statusClass(runState.status) + '">' + escapeHtml(runState.status || "-") + '</span></div>'
 				+ (state.eventStreamStatus ? '<div class="team-run-meta" style="margin-bottom:12px">' + escapeHtml(state.eventStreamStatus) + '</div>' : '')
 				+ '<div class="team-detail-grid">'
@@ -493,6 +673,7 @@ function getTeamPageJs(): string {
 				+ '</div></div>'
 				+ '<div class="team-card"><div class="team-tabs">' + renderTabs(plan) + '</div><div id="team-tab-body"></div></div>';
 			document.getElementById("team-refresh-detail").addEventListener("click", function() { refreshSelectedRun(); });
+			attachRoleConfigHandlers(body);
 			body.querySelectorAll("[data-tab]").forEach(function(btn) {
 				btn.addEventListener("click", function() {
 					state.activeTab = btn.getAttribute("data-tab");
@@ -612,6 +793,8 @@ function getTeamPageJs(): string {
 			try {
 				await apiFetchTemplates();
 				renderTemplateSelect();
+				await apiFetchAgents();
+				renderRoleProfileSelects();
 				await apiFetchRuns();
 				renderRunList();
 				renderRunDetail();
@@ -627,7 +810,9 @@ function getTeamPageJs(): string {
 			applyTheme(readStoredTheme());
 			document.getElementById("team-template-select").addEventListener("change", function(event) {
 				state.selectedTemplateId = event.target.value;
+				ensureRoleConfigForTemplate();
 				renderTemplateHint();
+				renderRunDetail();
 			});
 			document.getElementById("team-create-run").addEventListener("click", handleCreateRun);
 			document.getElementById("team-refresh").addEventListener("click", loadAll);

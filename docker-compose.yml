@@ -89,10 +89,21 @@ services:
       TEAM_RUNTIME_ENABLED: "true"
       TEAM_DATA_DIR: /app/.data/team
       TEAM_REAL_ROLES: discovery,evidence_collector,classifier,reviewer,finalizer
+      PUBLIC_BASE_URL: http://127.0.0.1:3000
+      WEB_ACCESS_BROWSER_PUBLIC_BASE_URL: http://ugk-pi:3000
+      WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
+      WEB_ACCESS_CDP_HOST: 172.31.250.10
+      WEB_ACCESS_CDP_PORT: 9223
+      UGK_DEFAULT_BROWSER_ID: ${UGK_DEFAULT_BROWSER_ID:-default}
+      UGK_BROWSER_INSTANCES_JSON: ${UGK_BROWSER_INSTANCES_JSON:-[{"browserId":"default","name":"Default","cdpHost":"172.31.250.10","cdpPort":9223,"guiUrl":"https://127.0.0.1:3901/","profileLabel":"chrome-sidecar"},{"browserId":"chrome-01","name":"chrome-01","cdpHost":"172.31.250.11","cdpPort":9223,"guiUrl":"https://127.0.0.1:3902/","profileLabel":"chrome-sidecar-chrome-01"},{"browserId":"chrome-02","name":"chrome-02","cdpHost":"172.31.250.12","cdpPort":9223,"guiUrl":"https://127.0.0.1:3903/","profileLabel":"chrome-sidecar-chrome-02"}]}
+      UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH: /app/.data/browser-scope-routes.json
+      WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
+      WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
       SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
     volumes:
       - .:/app
       - /app/node_modules
+      - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
     command: npm run worker:team
     healthcheck:
       disable: true

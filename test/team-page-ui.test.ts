@@ -14,13 +14,24 @@ test("standalone team page discovers templates and creates runs", () => {
 	const page = renderTeamPage();
 
 	assert.match(page, /apiFetchTemplates\(\)/);
+	assert.match(page, /apiFetchAgents\(\)/);
 	assert.match(page, /fetchJson\("\/v1\/team\/templates"\)/);
+	assert.match(page, /fetchJson\("\/v1\/agents"\)/);
 	assert.match(page, /fetchJson\("\/v1\/team\/runs\?scope=all"\)/);
 	assert.match(page, /apiCreateRun\(payload\)/);
 	assert.match(page, /fetchJson\("\/v1\/team\/runs", \{/);
 	assert.match(page, /templateId: state\.selectedTemplateId/);
 	assert.match(page, /id="team-template-select"/);
 	assert.match(page, /id="team-run-keyword"/);
+	assert.match(page, /team-role-config/);
+	assert.match(page, /data-role-profile/);
+	assert.match(page, /data-role-prompt/);
+	assert.match(page, /getTemplateRoles\(\)/);
+	assert.match(page, /crt\.sh/);
+	assert.match(page, /证书透明日志/);
+	assert.match(page, /payload\.roleProfileIds = roleProfileIds/);
+	assert.match(page, /payload\.rolePromptOverrides = rolePromptOverrides/);
+	assert.doesNotMatch(page, /id="team-run-discovery-profile"/);
 });
 
 test("standalone team page renders run detail surfaces", () => {

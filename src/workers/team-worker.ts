@@ -1,11 +1,17 @@
+import { getAppConfig } from "../config.js";
+import { createBrowserRegistryFromEnv } from "../browser/browser-registry.js";
+import { BackgroundAgentProfileResolver } from "../agent/background-agent-profile.js";
+import { ProjectBackgroundSessionFactory } from "../agent/background-agent-session-factory.js";
 import { getTeamConfig } from "../team/team-config.js";
 import { TeamWorkspace } from "../team/team-workspace.js";
 import { TeamOrchestrator } from "../team/team-orchestrator.js";
 import { DeterministicMockTeamRoleTaskRunner, CompositeTeamRoleTaskRunner } from "../team/team-role-task-runner.js";
 import { createDefaultTeamTemplateRegistry } from "../team/team-template-registry.js";
+import { AgentProfileTeamRoleTaskRunner } from "../team/agent-profile-team-role-task-runner.js";
 
 async function main(): Promise<void> {
-	const config = getTeamConfig();
+	const appConfig = getAppConfig();
+	const config = getTeamConfig(appConfig);
 
 	if (!config.enabled) {
 		console.log("[team-worker] TEAM_RUNTIME_ENABLED is not true, exiting.");
@@ -18,8 +24,16 @@ async function main(): Promise<void> {
 	const templateRegistry = createDefaultTeamTemplateRegistry();
 
 	const realRoles = process.env.TEAM_REAL_ROLES?.trim();
+	const browserRegistry = createBrowserRegistryFromEnv();
+	const agentProfileRunner = new AgentProfileTeamRoleTaskRunner({
+		projectRoot: appConfig.projectRoot,
+		teamDataDir: config.dataDir,
+		profileResolver: new BackgroundAgentProfileResolver({ projectRoot: appConfig.projectRoot }),
+		sessionFactory: new ProjectBackgroundSessionFactory(appConfig.projectRoot),
+		defaultBrowserId: browserRegistry.defaultBrowserId,
+	});
 	const runner = realRoles
-		? new CompositeTeamRoleTaskRunner(realRoles.split(",").map((r) => r.trim()))
+		? new CompositeTeamRoleTaskRunner(realRoles.split(",").map((r) => r.trim()), { agentProfileRunner })
 		: new DeterministicMockTeamRoleTaskRunner();
 
 	console.log(`[team-worker] runner: ${realRoles ? `composite (real: [${realRoles}])` : "mock"}`);

@@ -22,7 +22,12 @@ export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependen
 	});
 
 	app.get("/v1/team/templates", async () => {
-		return { templates: templateRegistry.list() };
+		return {
+			templates: templateRegistry.list().map((metadata) => {
+				const template = templateRegistry.get(metadata.templateId);
+				return { ...metadata, roles: template.roles };
+			}),
+		};
 	});
 
 	app.get("/v1/team/templates/:templateId", async (
@@ -31,7 +36,8 @@ export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependen
 	) => {
 		const { templateId } = request.params;
 		try {
-			return { template: templateRegistry.get(templateId).metadata };
+			const template = templateRegistry.get(templateId);
+			return { template: { ...template.metadata, roles: template.roles } };
 		} catch {
 			return reply.status(404).send({ error: `team template not found: ${templateId}` });
 		}
@@ -62,7 +68,12 @@ export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependen
 			teamRunId: state.teamRunId,
 			eventType: "team_run_created",
 			createdAt: new Date().toISOString(),
-			data: { keyword: input.keyword, templateId: plan.templateId },
+			data: {
+				keyword: input.keyword,
+				templateId: plan.templateId,
+				...(state.roleProfileIds ? { roleProfileIds: state.roleProfileIds } : {}),
+				...(state.rolePromptOverrides ? { rolePromptOverrides: state.rolePromptOverrides } : {}),
+			},
 		});
 
 		return reply.status(201).send({

@@ -13,6 +13,177 @@
 ---
 
 ## 2026-05-14
+### Team Discovery 专业调查员 prompt
+- 日期：2026-05-14
+- 主题：把 Discovery 默认职责从“找关键词相关域名”升级为“专业域名调查员自己规划发现路径”，减少对用户显式点名 `crt.sh`、证书透明日志、DNS 等方法的依赖。
+- 影响范围：
+  - `src/team/templates/brand-domain-discovery.ts`：Discovery role responsibility 明确要求按需考虑搜索、官网链接、`crt.sh` / certificate transparency、DNS / subdomain clues、regional TLD、login / portal / app / support、docs、partners、social profiles、app stores、code/doc references 等公开线索。
+  - `src/team/agent-profile-team-role-task-runner.ts`：绑定 Agent profile 的 Discovery prompt 明确“用户不一定知道调查方法，角色要自己规划策略”，并要求使用 CT 来源时标注 `sourceType: certificate_transparency` 和具体来源。
+  - `src/team/team-role-prompts.ts`：默认 LLM Discovery prompt 同步专业调查员口径，避免退回单一搜索摘要。
+  - `src/ui/team-page.ts`：右侧角色卡的默认 Discovery prompt 显示同样的调查员框架，用户可继续编辑但不必从零写专业方法。
+  - `docs/team-runtime.md`：记录“用户给目标，Discovery 自己选方法；输出结构化提交”的运行口径。
+- 验证：
+  - `node --test --import tsx test/team-agent-profile-role-task-runner.test.ts test/team-role-task-runner.test.ts test/team-template-brand-domain.test.ts test/team-page-ui.test.ts`（28 pass / 0 fail）
+  - `npx tsc --noEmit`
+  - `npm run test:team`（136 pass / 0 fail）
+- 对应入口：
+  - `src/team/agent-profile-team-role-task-runner.ts`
+  - `src/team/team-role-prompts.ts`
+  - `src/ui/team-page.ts`
+  - `docs/team-runtime.md`
+
+### Team 角色配置右侧化与 prompt 可编辑
+- 日期：2026-05-14
+- 主题：把 `/playground/team` 的角色配置从左侧固定下拉框迁到右侧模板驱动角色卡片，并允许用户在创建 run 前编辑每个角色 prompt。
+- 影响范围：
+  - `src/routes/team.ts`：`GET /v1/team/templates*` 返回模板 `roles`，创建事件记录 `rolePromptOverrides`。
+  - `src/team/types.ts`、`src/team/templates/brand-domain-discovery.ts`、`src/team/team-orchestrator.ts`：创建 run 时持久化 `rolePromptOverrides`，并在 role task input 中传入 `rolePromptOverride`。
+  - `src/team/team-role-task-runner.ts`、`src/team/agent-profile-team-role-task-runner.ts`：LLM runner 与 Agent profile runner 都会应用用户 prompt override，同时保留默认 RoleBox / submit tool / stream 契约。
+  - `src/ui/team-page.ts`：左侧保留创建基础表单和 Runs 列表；右侧按当前模板动态渲染角色卡片，每张卡可选择 Agent profile、编辑 prompt、重置 prompt。
+  - `docs/team-runtime.md`：同步模板 roles、`rolePromptOverrides` 和页面交互口径。
+- 验证：
+  - `node --test --import tsx test/team-page-ui.test.ts test/team-routes.test.ts test/team-orchestrator.test.ts test/team-agent-profile-role-task-runner.test.ts test/team-role-task-runner.test.ts`（48 pass / 0 fail）
+  - `npx tsc --noEmit`
+  - `npm run test:team`（136 pass / 0 fail）
+- 对应入口：
+  - `src/ui/team-page.ts`
+  - `src/routes/team.ts`
+  - `src/team/team-orchestrator.ts`
+  - `docs/team-runtime.md`
+
+### Team Discovery 心跳式后台运行
+- 日期：2026-05-14
+- 主题：把绑定 Agent profile 的 Discovery 从固定墙钟超时改为后台活跃任务 + heartbeat watchdog，让它可以持续提交候选域名，同时不阻塞 Evidence 等下游角色推进。
+- 影响范围：
+  - `src/team/team-orchestrator.ts`：profile Discovery 启动后写入 `activeRoleTasks` 并以 `mode: "background"` 运行；`submitCandidateDomain` 接受结果时刷新 `lastHeartbeatAt` / `lastOutputAt`；watchdog 同时把 role task session JSONL 更新时间当作活跃信号；下游 tick 可以继续消费已提交的 `candidate_domains`；Finalizer 会等待 active role task 清空。
+  - `src/team/types.ts`：新增 `TeamActiveRoleTask`，记录后台角色的 `startedAt`、`lastHeartbeatAt`、`lastOutputAt`、`outputCount` 和 profile 信息。
+  - `src/team/team-events.ts`：新增 `role_task_watchdog` 事件，用于记录长时间无 heartbeat 的活跃角色被 watchdog 标记。
+  - `test/team-orchestrator.test.ts`：覆盖 Discovery 未结束时 Evidence 可继续消费已提交候选，以及 watchdog 按 heartbeat / session 写入老化而不是启动时长判断。
+  - `docs/team-runtime.md`：同步 Discovery 持续生产者、heartbeat watchdog 和 `TEAM_ROLE_TASK_TIMEOUT_MS` 新语义。
+- 验证：
+  - `node --test --import tsx test/team-orchestrator.test.ts`
+  - `npx tsc --noEmit`
+  - `npm run test:team`（132 pass / 0 fail）
+- 对应入口：
+  - `src/team/team-orchestrator.ts`
+  - `src/team/types.ts`
+  - `docs/team-runtime.md`
+
+### Team Discovery 来源标签口径收口
+- 日期：2026-05-14
+- 主题：把 Discovery 的任务说明收口为“过程自由、结果结构化”，不硬编码具体找法，但要求提交候选域名时标清来源类型和来源证据。
+- 影响范围：
+  - `src/team/agent-profile-team-role-task-runner.ts`：Agent profile Discovery prompt 明确可自由使用当前 profile 的浏览器、web-access、搜索、shell、文档等能力，并要求 `sourceType` 选择最接近的来源标签。
+  - `src/team/team-role-prompts.ts`：默认 LLM Discovery prompt 不再写成只处理固定 query，而是把 query 作为 seed，并要求不要只依赖单一 discovery method。
+  - `test/team-agent-profile-role-task-runner.test.ts`、`test/team-role-task-runner.test.ts`：覆盖新的 Discovery prompt 口径。
+  - `docs/team-runtime.md`：说明 `sourceType` 是候选域名来源标签，不是硬编码执行步骤。
+- 验证：
+  - `node --test --import tsx test/team-agent-profile-role-task-runner.test.ts test/team-role-task-runner.test.ts`
+  - `npx tsc --noEmit`
+  - `npm run test:team`（129 pass / 0 fail）
+- 对应入口：
+  - `src/team/agent-profile-team-role-task-runner.ts`
+  - `src/team/team-role-prompts.ts`
+  - `docs/team-runtime.md`
+
+### Team 下游角色单条实时接力
+- 日期：2026-05-14
+- 主题：把 Brand Domain Discovery 的下游推进从“小批量消费”收口为“单条上游 item 接力”，让 Evidence / Classifier / Reviewer 的运行状态更容易在页面事件流里观察。
+- 影响范围：
+  - `src/team/templates/brand-domain-discovery.ts`：Evidence Collector、Classifier、Reviewer 每个 role task 只消费 1 条新上游 item，cursor 成功后逐条推进。
+  - `src/team/team-orchestrator.ts`：`role_task_started` 事件增加 `consumes` 摘要，包含消费的 stream、item 数、itemId 和域名，方便 UI / 人类直接看出当前角色正在处理什么。
+  - `test/team-template-brand-domain.test.ts`、`test/team-orchestrator.test.ts`：补充单条消费和事件摘要断言，并把完成态测试改为按真实 worker tick 节奏循环推进。
+  - `docs/team-runtime.md`：同步下游单条接力和 `role_task_started.consumes` 的运行口径。
+- 验证：
+  - `npx tsc --noEmit`
+  - `node --test --import tsx test/team-template-brand-domain.test.ts test/team-orchestrator.test.ts`
+  - `npm run test:team`（129 pass / 0 fail）
+- 对应入口：
+  - `src/team/templates/brand-domain-discovery.ts`
+  - `src/team/team-orchestrator.ts`
+  - `test/team-template-brand-domain.test.ts`
+  - `test/team-orchestrator.test.ts`
+
+### Team 全角色接入 Agent profile
+- 日期：2026-05-14
+- 主题：把 Team role 的 Agent profile 执行化从 Discovery 扩展到 Evidence Collector、Classifier、Reviewer、Finalizer，让每个角色都能通过页面选择独立 Agent profile，继承对应模型源、skills、规则文件和默认 Chrome。
+- 影响范围：
+  - `src/team/agent-profile-team-role-task-runner.ts`：移除只允许 `discovery` 的限制，为 Evidence / Classifier / Reviewer 注入对应 Team submit tool，为 Finalizer 返回 profile 生成的 Markdown 报告。
+  - `src/team/team-role-task-runner.ts`：`CompositeTeamRoleTaskRunner` 对任意绑定 `profileId` 的角色优先走 Agent profile runner；未绑定角色继续走原 Team LLM runner。
+  - `src/ui/team-page.ts`：创建 run 表单增加五个角色的 Agent profile 下拉框，并提交完整 `roleProfileIds`。
+  - `docker-compose.yml`：`ugk-pi-team-worker` 补齐 conn-worker 同口径的浏览器实例、scope route、上传目录和 public URL 环境变量，避免绑定 `chrome-02` 时实际落到默认浏览器。
+  - `test/team-agent-profile-role-task-runner.test.ts`、`test/team-orchestrator.test.ts`、`test/team-page-ui.test.ts`：覆盖非 discovery submit tool、finalizer markdown、全角色 profile 绑定和页面提交字段。
+  - `docs/team-runtime.md`：同步全角色 profile 化后的运行口径和剩余限制。
+- 验证：
+  - `npx tsc --noEmit`
+  - `node --test --import tsx test/team-agent-profile-role-task-runner.test.ts test/team-orchestrator.test.ts test/team-page-ui.test.ts`
+  - `npm run test:team`（127 pass / 0 fail）
+- 对应入口：
+  - `src/team/agent-profile-team-role-task-runner.ts`
+  - `src/team/team-role-task-runner.ts`
+  - `src/ui/team-page.ts`
+  - `docker-compose.yml`
+
+### Team Discovery 接入 Agent profile 执行链路
+- 日期：2026-05-14
+- 主题：让 `roleProfileIds.discovery` 不再只是状态字段，而是按后台任务 conn 的同一口径创建真实 AgentSession，继承绑定 Agent profile 的模型源、模型、skills、规则文件和默认 Chrome，并额外挂载 Team 的 `submitCandidateDomain` 工具。
+- 影响范围：
+  - `src/agent/background-agent-session-factory.ts`：从 conn worker 中抽出共享 `ProjectBackgroundSessionFactory`、resource loader 和模型解析逻辑，支持调用方追加 custom tools。
+  - `src/workers/conn-worker.ts`：改为复用共享 session factory，并保留旧 helper re-export，避免旧测试和外部导入断裂。
+  - `src/team/agent-profile-team-role-task-runner.ts`：新增 Agent profile role runner；当前只执行化 `discovery`，会 resolve profile snapshot、选择 profile/default Chrome、创建 team role workspace、注入 `submitCandidateDomain`，并保留 JSON envelope fallback。
+  - `src/team/team-role-task-runner.ts`：`CompositeTeamRoleTaskRunner` 在 `discovery` 绑定 `profileId` 时优先走 Agent profile runner，未绑定时仍走原 LLM runner。
+  - `src/workers/team-worker.ts`：初始化 Team worker 时创建 profile resolver、共享 session factory、browser registry，并把 profile runner 注入 composite runner。
+  - `src/ui/team-page.ts`：创建 run 表单增加 `Discovery Agent profile` 下拉框，从 `/v1/agents` 拉取已有 Agent profile，选择后提交 `roleProfileIds.discovery`，方便直接在 Playground 测 `TeamAgent`。
+  - `test/team-agent-profile-role-task-runner.test.ts`、`test/team-page-ui.test.ts`、`package.json`：新增覆盖 profile snapshot、模型、Chrome、Team submit tool 注入和页面提交字段的测试，并纳入 `npm run test:team`。
+  - `docs/team-runtime.md`：同步当前能力边界，明确只有 Discovery 已 profile 执行化，其他角色仍未接入。
+- 验证：
+  - `node --test --import tsx test/team-agent-profile-role-task-runner.test.ts test/team-role-task-runner.test.ts`
+  - `npx tsc --noEmit`
+  - `npm run test:team`（125 pass / 0 fail）
+  - `node --test --import tsx test/conn-worker.test.ts test/background-agent-runner.test.ts`
+  - `git diff --check`
+- 对应入口：
+  - `src/team/agent-profile-team-role-task-runner.ts`
+  - `src/agent/background-agent-session-factory.ts`
+  - `src/workers/team-worker.ts`
+
+### Team role 预埋 Agent profile 绑定
+- 日期：2026-05-14
+- 主题：为 Team run 增加 `roleProfileIds` 契约，允许创建 run 时声明某个 Team role 未来应由哪个 Agent profile 执行，为复用后台任务的 Agent 设置、skills、Chrome 和模型源做第一步铺垫。
+- 影响范围：
+  - `src/team/types.ts`：新增 `TeamRoleProfileBindings`，并在 `TeamRunState`、`CreateBrandDomainDiscoveryPlanInput`、`TeamRoleTaskExecutionInput` 中承载 role/profile 绑定。
+  - `src/team/templates/brand-domain-discovery.ts`：创建 run 时规范化并持久化 `roleProfileIds`。
+  - `src/team/team-orchestrator.ts`：执行 role task 前把对应 `profileId` 绑定到 task，并在 `role_task_started` 事件中记录。
+  - `src/routes/team.ts`：`team_run_created` 事件包含本次 run 的 role profile 绑定。
+  - `test/team-template-brand-domain.test.ts`、`test/team-orchestrator.test.ts`、`test/team-routes.test.ts`：覆盖绑定落盘、事件记录和 role task 输入。
+  - `docs/team-runtime.md`：说明这是 Agent profile runner 的预埋契约，尚未真正让角色继承 profile skills / Chrome / 模型源。
+- 验证：
+  - `node --test --import tsx test/team-template-brand-domain.test.ts test/team-orchestrator.test.ts test/team-routes.test.ts`
+  - `npx tsc --noEmit`
+  - `git diff --check`
+  - `npm run test:team`（124 pass / 0 fail）
+- 对应入口：
+  - `src/team/types.ts`
+  - `src/team/templates/brand-domain-discovery.ts`
+  - `src/team/team-orchestrator.ts`
+  - `src/routes/team.ts`
+
+### Team 下游角色低门槛触发
+- 日期：2026-05-14
+- 主题：把 `brand_domain_discovery` 的下游触发门槛从“攒够 10 条再推进”改为“至少 1 条新上游 item 就推进”，方便在 Playground 里观察 `candidate_domains`、`domain_evidence`、`domain_classifications`、`review_findings` 逐步出现。
+- 影响范围：
+  - `src/team/templates/brand-domain-discovery.ts`：Evidence Collector 只要看到 1 条新 `candidate_domains` 就创建任务；Classifier 只要看到 1 条新 `domain_evidence` 就创建任务；单次批处理上限仍保留 10 条。
+  - `test/team-template-brand-domain.test.ts`：更新 readiness 断言，覆盖少量候选和少量证据也会推进下游。
+  - `docs/team-runtime.md`：同步当前运行契约，说明低门槛触发是为了观测链路，不是 durable 并发 scheduler。
+- 验证：
+  - `node --test --import tsx test/team-template-brand-domain.test.ts test/team-orchestrator.test.ts`
+  - `npx tsc --noEmit`
+  - `git diff --check`
+  - `npm run test:team`（121 pass / 0 fail）
+- 对应入口：
+  - `src/team/templates/brand-domain-discovery.ts`
+  - `test/team-template-brand-domain.test.ts`
+
 ### Team Finalizer agent 生成中文最终报告
 - 日期：2026-05-14
 - 主题：激活 Team Runtime 里已有的 `finalizer` 角色，让 finalizer LLM 读取四类 stream 后生成中文 Markdown `final_report.md`；模板报告逻辑只作为 finalizer 失败时的中文 fallback。

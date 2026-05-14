@@ -29,6 +29,12 @@ describe("LLMTeamRoleTaskRunner RoleBox integration", () => {
 		});
 
 		assert.ok(capturedPrompt.includes("You are a Discovery Agent"));
+		assert.ok(capturedPrompt.includes("Suggested seed queries"));
+		assert.ok(capturedPrompt.includes("Do not rely on a single discovery method"));
+		assert.ok(capturedPrompt.includes("choose the closest label for how you found the domain"));
+		assert.ok(capturedPrompt.includes("professional domain discovery investigator"));
+		assert.ok(capturedPrompt.includes("crt.sh"));
+		assert.ok(capturedPrompt.includes("certificate transparency"));
 		assert.ok(capturedPrompt.includes("ROLE BOX CONTRACT"));
 		assert.ok(capturedPrompt.includes("Allowed output streams: candidate_domains"));
 		assert.ok(capturedPrompt.includes("Declared submit tools: submitCandidateDomain"));
@@ -63,6 +69,38 @@ describe("LLMTeamRoleTaskRunner RoleBox integration", () => {
 		assert.ok(capturedPrompt.includes("ROLE BOX CONTRACT"));
 		assert.ok(capturedPrompt.includes("Allowed output streams: review_findings"));
 		assert.ok(capturedPrompt.includes("Declared submit tools: submitReviewFinding"));
+	});
+
+	it("includes editable prompt overrides in LLM role prompts without dropping the RoleBox contract", async () => {
+		let capturedPrompt = "";
+		const runner = new LLMTeamRoleTaskRunner({
+			search: async () => "Search result: med-example.com",
+			callLLM: async (prompt) => {
+				capturedPrompt = prompt;
+				return JSON.stringify({
+					status: "success",
+					emits: [],
+					checkpoint: {},
+				});
+			},
+		});
+
+		await runner.runTask({
+			roleTaskId: "rt_discovery_override",
+			roleId: "discovery",
+			teamRunId: "team_run_test",
+			inputData: {
+				keyword: "MED",
+				queries: ["MED official domain"],
+				rolePromptOverride: "优先尝试浏览器检索、官网页脚和第三方目录。",
+			},
+		});
+
+		assert.match(capturedPrompt, /USER EDITED ROLE PROMPT OVERRIDE/);
+		assert.match(capturedPrompt, /优先尝试浏览器检索、官网页脚和第三方目录/);
+		assert.match(capturedPrompt, /DEFAULT TEAM ROLE CONTRACT/);
+		assert.match(capturedPrompt, /ROLE BOX CONTRACT/);
+		assert.match(capturedPrompt, /submitCandidateDomain/);
 	});
 
 	it("uses the finalizer LLM to produce a Chinese markdown report", async () => {

@@ -20,12 +20,19 @@ describe("team routes", () => {
 			});
 
 			assert.equal(response.statusCode, 200);
-			const body = response.json() as { templates: Array<{ templateId: string; title: string; inputSchema: { required: string[] } }> };
+			const body = response.json() as { templates: Array<{ templateId: string; title: string; roles: Array<{ roleId: string }>; inputSchema: { required: string[] } }> };
 			assert.deepEqual(body.templates.map((template) => template.templateId), [
 				"brand_domain_discovery",
 				"competitor_domain_discovery",
 			]);
 			assert.equal(body.templates[0].title, "Brand Domain Discovery");
+			assert.deepEqual(body.templates[0].roles.map((role) => role.roleId), [
+				"discovery",
+				"evidence_collector",
+				"classifier",
+				"reviewer",
+				"finalizer",
+			]);
 			assert.equal(body.templates[0].inputSchema.required.includes("keyword"), true);
 		} finally {
 			await app.close();
@@ -46,9 +53,10 @@ describe("team routes", () => {
 			});
 
 			assert.equal(response.statusCode, 200);
-			const body = response.json() as { template: { templateId: string; inputSchema: { properties: Record<string, { label: string }> } } };
+			const body = response.json() as { template: { templateId: string; roles: Array<{ roleId: string }>; inputSchema: { properties: Record<string, { label: string }> } } };
 			assert.equal(body.template.templateId, "competitor_domain_discovery");
 			assert.equal(body.template.inputSchema.properties.keyword.label, "Research topic");
+			assert.equal(body.template.roles.some((role) => role.roleId === "discovery"), true);
 		} finally {
 			await app.close();
 			rmSync(dir, { recursive: true, force: true });
@@ -93,6 +101,88 @@ describe("team routes", () => {
 			assert.ok(body.teamRunId);
 			assert.equal(body.status, "queued");
 			assert.equal(body.plan.templateId, "brand_domain_discovery");
+		} finally {
+			await app.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("persists role profile bindings when creating a team run", async () => {
+		const dir = join(tmpdir(), `team-routes-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const app = Fastify({ logger: false });
+		try {
+			registerTeamRoutes(app, { teamDataDir: dir });
+
+			const response = await app.inject({
+				method: "POST",
+				url: "/v1/team/runs",
+				payload: {
+					keyword: "Medtrum",
+					maxRounds: 1,
+					roleProfileIds: {
+						discovery: "TeamAgent",
+						evidence_collector: "EvidenceAgent",
+					},
+				},
+			});
+
+			assert.equal(response.statusCode, 201);
+			const body = response.json() as { teamRunId: string };
+			const state = JSON.parse(readFileSync(join(dir, "runs", body.teamRunId, "state.json"), "utf-8")) as {
+				roleProfileIds?: Record<string, string>;
+			};
+			const events = readFileSync(join(dir, "runs", body.teamRunId, "events.jsonl"), "utf-8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line)) as Array<{ data?: { roleProfileIds?: Record<string, string> } }>;
+			assert.deepEqual(state.roleProfileIds, {
+				discovery: "TeamAgent",
+				evidence_collector: "EvidenceAgent",
+			});
+			assert.deepEqual(events[0].data?.roleProfileIds, state.roleProfileIds);
+		} finally {
+			await app.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("persists editable role prompt overrides when creating a team run", async () => {
+		const dir = join(tmpdir(), `team-routes-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const app = Fastify({ logger: false });
+		try {
+			registerTeamRoutes(app, { teamDataDir: dir });
+
+			const response = await app.inject({
+				method: "POST",
+				url: "/v1/team/runs",
+				payload: {
+					keyword: "Medtrum",
+					maxRounds: 1,
+					rolePromptOverrides: {
+						discovery: "优先使用浏览器和搜索引擎交叉找域名。",
+						evidence_collector: "每个域名查完马上提交 evidence。",
+						not_a_role: "ignore me",
+						classifier: "",
+					},
+				},
+			});
+
+			assert.equal(response.statusCode, 201);
+			const body = response.json() as { teamRunId: string };
+			const state = JSON.parse(readFileSync(join(dir, "runs", body.teamRunId, "state.json"), "utf-8")) as {
+				rolePromptOverrides?: Record<string, string>;
+			};
+			const events = readFileSync(join(dir, "runs", body.teamRunId, "events.jsonl"), "utf-8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line)) as Array<{ data?: { rolePromptOverrides?: Record<string, string> } }>;
+			assert.deepEqual(state.rolePromptOverrides, {
+				discovery: "优先使用浏览器和搜索引擎交叉找域名。",
+				evidence_collector: "每个域名查完马上提交 evidence。",
+			});
+			assert.deepEqual(events[0].data?.rolePromptOverrides, state.rolePromptOverrides);
 		} finally {
 			await app.close();
 			rmSync(dir, { recursive: true, force: true });

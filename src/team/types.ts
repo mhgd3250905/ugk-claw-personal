@@ -35,6 +35,21 @@ export interface TeamRole {
 	outputStreams: TeamStreamName[];
 }
 
+export type TeamRoleProfileBindings = Partial<Record<TeamRole["roleId"], string>>;
+export type TeamRolePromptOverrides = Partial<Record<TeamRole["roleId"], string>>;
+
+export interface TeamActiveRoleTask {
+	roleTaskId: string;
+	roleId: TeamRole["roleId"];
+	status: "running";
+	startedAt: string;
+	updatedAt: string;
+	lastHeartbeatAt: string;
+	profileId?: string;
+	lastOutputAt?: string;
+	outputCount: number;
+}
+
 // --- §5.6 DiscoveryPlan ---
 export interface DiscoveryPlan {
 	searchQueries: string[];
@@ -87,6 +102,9 @@ export interface TeamRunState {
 		reviewFindings: number;
 		failedRoleTasks: number;
 	};
+	roleProfileIds?: TeamRoleProfileBindings;
+	rolePromptOverrides?: TeamRolePromptOverrides;
+	activeRoleTasks?: Partial<Record<TeamRole["roleId"], TeamActiveRoleTask>>;
 	stopSignals: string[];
 	lastError?: string;
 }
@@ -216,6 +234,7 @@ export interface TeamRoleTaskExecutionInput {
 	roleTaskId: string;
 	roleId: TeamRole["roleId"];
 	teamRunId: string;
+	profileId?: string;
 	inputData: Record<string, unknown>;
 }
 
@@ -241,4 +260,6 @@ export interface CreateBrandDomainDiscoveryPlanInput {
 	maxRounds?: number;
 	maxCandidates?: number;
 	maxMinutes?: number;
+	roleProfileIds?: TeamRoleProfileBindings;
+	rolePromptOverrides?: TeamRolePromptOverrides;
 }

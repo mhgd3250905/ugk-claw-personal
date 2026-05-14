@@ -1,13 +1,13 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { TeamWorkspace } from "../src/team/team-workspace.js";
 import { TeamOrchestrator } from "../src/team/team-orchestrator.js";
 import { DeterministicMockTeamRoleTaskRunner } from "../src/team/team-role-task-runner.js";
 import { createBrandDomainDiscoveryPlan } from "../src/team/team-plan-brand-domain.js";
-import type { TeamRoleTaskExecutionInput, TeamRoleTaskExecutionResult } from "../src/team/types.js";
+import type { TeamRoleProfileBindings, TeamRolePromptOverrides, TeamRoleTaskExecutionInput, TeamRoleTaskExecutionResult } from "../src/team/types.js";
 import type { TeamSubmitToolCall, TeamSubmitToolResult } from "../src/team/llm-tool-loop.js";
 
 class RecordingTeamRoleTaskRunner extends DeterministicMockTeamRoleTaskRunner {
@@ -93,6 +93,45 @@ class BlockingSubmitToolDiscoveryRunner extends DeterministicMockTeamRoleTaskRun
 	}
 }
 
+class BlockingDiscoveryThenEvidenceRunner extends DeterministicMockTeamRoleTaskRunner {
+	tasks: TeamRoleTaskExecutionInput[] = [];
+
+	constructor(
+		private onSubmitted: () => void,
+		private release: Promise<void>,
+	) {
+		super();
+	}
+
+	async runTaskWithSubmitToolHandler(
+		task: TeamRoleTaskExecutionInput,
+		submitToolHandler: (call: TeamSubmitToolCall) => Promise<TeamSubmitToolResult>,
+	): Promise<TeamRoleTaskExecutionResult> {
+		this.tasks.push(task);
+		if (task.roleId !== "discovery") {
+			return super.runTask(task);
+		}
+		const result = await submitToolHandler({
+			roleId: "discovery",
+			toolName: "submitCandidateDomain",
+			streamName: "candidate_domains",
+			arguments: {
+				domain: "med-pipeline-submit.com",
+				sourceType: "search_query",
+				query: "MED official domain",
+				matchReason: "Submitted while discovery is still running",
+				confidence: "medium",
+				discoveredAt: "2026-05-14T00:00:00.000Z",
+			},
+			callId: "toolu_pipeline",
+		});
+		assert.equal(result.ok, true);
+		this.onSubmitted();
+		await this.release;
+		return { status: "success", emits: [], checkpoint: { submitCalls: 1 } };
+	}
+}
+
 class FinalizerReportRunner extends DeterministicMockTeamRoleTaskRunner {
 	async runTask(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
 		if (task.roleId === "finalizer") {
@@ -113,8 +152,15 @@ function makeDir(): string {
 	return join(tmpdir(), `team-orch-test-${Date.now()}`);
 }
 
-function createTestRun(ws: TeamWorkspace, keyword = "MED", maxRounds = 1, maxCandidates = 10): Promise<string> {
-	const { plan, state } = createBrandDomainDiscoveryPlan({ keyword, maxRounds, maxCandidates, maxMinutes: 60 });
+function createTestRun(
+	ws: TeamWorkspace,
+	keyword = "MED",
+	maxRounds = 1,
+	maxCandidates = 10,
+	roleProfileIds?: TeamRoleProfileBindings,
+	rolePromptOverrides?: TeamRolePromptOverrides,
+): Promise<string> {
+	const { plan, state } = createBrandDomainDiscoveryPlan({ keyword, maxRounds, maxCandidates, maxMinutes: 60, roleProfileIds, rolePromptOverrides });
 	return ws.createRun({ teamRunId: state.teamRunId, plan, state }).then(() => state.teamRunId);
 }
 
@@ -132,6 +178,22 @@ function makeOrchestrator(
 		roleTaskTimeoutMs: 180000,
 		roleTaskMaxRetries: 1,
 	});
+}
+
+async function tickUntilCompleted(
+	ws: TeamWorkspace,
+	orchestrator: TeamOrchestrator,
+	teamRunId: string,
+	maxTicks = 10,
+) {
+	for (let i = 0; i < maxTicks; i++) {
+		await orchestrator.tick(teamRunId);
+		const state = await ws.readState(teamRunId);
+		if (state.status === "completed") {
+			return state;
+		}
+	}
+	return ws.readState(teamRunId);
 }
 
 describe("TeamOrchestrator", () => {
@@ -152,8 +214,7 @@ describe("TeamOrchestrator", () => {
 		const teamRunId = await createTestRun(ws, "MED", 1);
 		const orchestrator = makeOrchestrator(ws, 1);
 
-		await orchestrator.tick(teamRunId);
-		const state = await ws.readState(teamRunId);
+		const state = await tickUntilCompleted(ws, orchestrator, teamRunId);
 		assert.equal(state.status, "completed");
 		assert.ok(state.startedAt);
 	});
@@ -162,7 +223,7 @@ describe("TeamOrchestrator", () => {
 		const teamRunId = await createTestRun(ws, "MED", 1);
 		const orchestrator = makeOrchestrator(ws, 1);
 
-		await orchestrator.tick(teamRunId);
+		await tickUntilCompleted(ws, orchestrator, teamRunId);
 		const candidates = await ws.readStreamItems(teamRunId, "candidate_domains");
 		assert.ok(candidates.length > 0);
 	});
@@ -171,9 +232,7 @@ describe("TeamOrchestrator", () => {
 		const teamRunId = await createTestRun(ws, "MED", 1);
 		const orchestrator = makeOrchestrator(ws, 1);
 
-		await orchestrator.tick(teamRunId);
-
-		const state = await ws.readState(teamRunId);
+		const state = await tickUntilCompleted(ws, orchestrator, teamRunId);
 		assert.equal(state.status, "completed");
 		assert.ok(state.finishedAt);
 
@@ -200,8 +259,7 @@ describe("TeamOrchestrator", () => {
 		const state = await ws.readState(teamRunId);
 		assert.equal(state.currentRound, 1);
 
-		// Second tick should be no-op
-		await orchestrator.tick(teamRunId);
+		await tickUntilCompleted(ws, orchestrator, teamRunId);
 		const state2 = await ws.readState(teamRunId);
 		assert.equal(state2.currentRound, 1);
 		assert.equal(state2.status, "completed");
@@ -211,8 +269,7 @@ describe("TeamOrchestrator", () => {
 		const teamRunId = await createTestRun(ws, "MED", 1);
 		const orchestrator = makeOrchestrator(ws, 1);
 
-		await orchestrator.tick(teamRunId);
-		const state1 = await ws.readState(teamRunId);
+		const state1 = await tickUntilCompleted(ws, orchestrator, teamRunId);
 		assert.equal(state1.status, "completed");
 
 		await orchestrator.tick(teamRunId);
@@ -225,7 +282,7 @@ describe("TeamOrchestrator", () => {
 		const teamRunId = await createTestRun(ws, "MED", 1);
 		const orchestrator = makeOrchestrator(ws, 1);
 
-		await orchestrator.tick(teamRunId);
+		await tickUntilCompleted(ws, orchestrator, teamRunId);
 		const events = await ws.readEvents(teamRunId);
 		const types = events.map((e) => e.eventType);
 
@@ -234,6 +291,12 @@ describe("TeamOrchestrator", () => {
 		assert.ok(types.includes("stream_item_accepted"), "should have stream_item_accepted");
 		assert.ok(types.includes("team_run_completed"), "should have team_run_completed");
 		assert.ok(types.includes("final_report_created"), "should have final_report_created");
+		assert.ok(events.some((event) =>
+			event.eventType === "role_task_started" &&
+			(event.data as { roleId?: string; consumes?: { itemCount?: number; domains?: string[] } }).roleId === "evidence_collector" &&
+			(event.data as { consumes?: { itemCount?: number; domains?: string[] } }).consumes?.itemCount === 1 &&
+			((event.data as { consumes?: { domains?: string[] } }).consumes?.domains ?? []).length === 1,
+		));
 	});
 
 	it("counters are updated correctly", async () => {
@@ -259,9 +322,7 @@ describe("TeamOrchestrator", () => {
 		assert.equal(state.status, "running");
 		assert.equal(state.currentRound, 1);
 
-		// Second tick: run discovery round 2, then finalize
-		await orchestrator.tick(teamRunId);
-		state = await ws.readState(teamRunId);
+		state = await tickUntilCompleted(ws, orchestrator, teamRunId);
 		assert.equal(state.status, "completed");
 		assert.equal(state.currentRound, 2);
 	});
@@ -272,11 +333,68 @@ describe("TeamOrchestrator", () => {
 		const plan = await ws.readPlan(teamRunId);
 		const orchestrator = makeOrchestrator(ws, 1, runner);
 
-		await orchestrator.tick(teamRunId);
+		await tickUntilCompleted(ws, orchestrator, teamRunId);
 
 		const discoveryTask = runner.tasks.find((task) => task.roleId === "discovery");
 		assert.ok(discoveryTask);
 		assert.deepEqual(discoveryTask.inputData.queries, plan.discoveryPlan.searchQueries);
+	});
+
+	it("passes role profile bindings into role task inputs", async () => {
+		const runner = new RecordingTeamRoleTaskRunner();
+		const roleProfileIds: TeamRoleProfileBindings = {
+			discovery: "DiscoveryAgent",
+			evidence_collector: "EvidenceAgent",
+			classifier: "ClassifierAgent",
+			reviewer: "ReviewerAgent",
+			finalizer: "FinalizerAgent",
+		};
+		const teamRunId = await createTestRun(ws, "MED", 1, 10, roleProfileIds);
+		const orchestrator = makeOrchestrator(ws, 1, runner);
+
+		await tickUntilCompleted(ws, orchestrator, teamRunId);
+
+		const discoveryTask = runner.tasks.find((task) => task.roleId === "discovery");
+		const evidenceTask = runner.tasks.find((task) => task.roleId === "evidence_collector");
+		const classifierTask = runner.tasks.find((task) => task.roleId === "classifier");
+		const reviewerTask = runner.tasks.find((task) => task.roleId === "reviewer");
+		const finalizerTask = runner.tasks.find((task) => task.roleId === "finalizer");
+		const events = await ws.readEvents(teamRunId);
+		assert.ok(discoveryTask);
+		assert.equal(discoveryTask.profileId, "DiscoveryAgent");
+		assert.equal(discoveryTask.inputData.roleProfileId, "DiscoveryAgent");
+		assert.equal(evidenceTask?.profileId, "EvidenceAgent");
+		assert.equal(classifierTask?.profileId, "ClassifierAgent");
+		assert.equal(reviewerTask?.profileId, "ReviewerAgent");
+		assert.equal(finalizerTask?.profileId, "FinalizerAgent");
+		assert.ok(events.some((event) =>
+			event.eventType === "role_task_started" &&
+			(event.data as { profileId?: string }).profileId === "DiscoveryAgent",
+		));
+		assert.ok(events.some((event) =>
+			event.eventType === "role_task_started" &&
+			(event.data as { profileId?: string }).profileId === "FinalizerAgent",
+		));
+	});
+
+	it("passes editable role prompt overrides into role task inputs", async () => {
+		const runner = new RecordingTeamRoleTaskRunner();
+		const rolePromptOverrides: TeamRolePromptOverrides = {
+			discovery: "自定义 discovery prompt",
+			classifier: "自定义 classifier prompt",
+			finalizer: "自定义 finalizer prompt",
+		};
+		const teamRunId = await createTestRun(ws, "MED", 1, 10, undefined, rolePromptOverrides);
+		const orchestrator = makeOrchestrator(ws, 1, runner);
+
+		await tickUntilCompleted(ws, orchestrator, teamRunId);
+
+		const discoveryTask = runner.tasks.find((task) => task.roleId === "discovery");
+		const classifierTask = runner.tasks.find((task) => task.roleId === "classifier");
+		const finalizerTask = runner.tasks.find((task) => task.roleId === "finalizer");
+		assert.equal(discoveryTask?.inputData.rolePromptOverride, "自定义 discovery prompt");
+		assert.equal(classifierTask?.inputData.rolePromptOverride, "自定义 classifier prompt");
+		assert.equal(finalizerTask?.inputData.rolePromptOverride, "自定义 finalizer prompt");
 	});
 
 	it("does not advance evidence cursor when evidence collector fails", async () => {
@@ -357,11 +475,112 @@ describe("TeamOrchestrator", () => {
 		await tickPromise;
 	});
 
+	it("lets evidence consume submitted candidates while discovery is still running", async () => {
+		let resolveSubmitted!: () => void;
+		let resolveRelease!: () => void;
+		const submitted = new Promise<void>((resolve) => { resolveSubmitted = resolve; });
+		const release = new Promise<void>((resolve) => { resolveRelease = resolve; });
+		const runner = new BlockingDiscoveryThenEvidenceRunner(resolveSubmitted, release);
+		const teamRunId = await createTestRun(ws, "MED", 1, 10, { discovery: "DiscoveryAgent" });
+		const orchestrator = makeOrchestrator(ws, 1, runner);
+
+		await orchestrator.tick(teamRunId);
+		await submitted;
+		await orchestrator.tick(teamRunId);
+
+		const evidences = await ws.readStreamItems(teamRunId, "domain_evidence");
+		const state = await ws.readState(teamRunId);
+		assert.equal(evidences.length, 1);
+		assert.equal(state.activeRoleTasks?.discovery?.status, "running");
+		assert.ok(runner.tasks.some((task) => task.roleId === "evidence_collector"));
+
+		resolveRelease();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await orchestrator.tick(teamRunId);
+	});
+
+	it("watchdog marks an active role stale only when its heartbeat is older than the idle timeout", async () => {
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const state = await ws.readState(teamRunId);
+		state.status = "running";
+		state.startedAt = new Date().toISOString();
+		state.activeRoleTasks = {
+			discovery: {
+				roleTaskId: "rt_stale",
+				roleId: "discovery",
+				status: "running",
+				startedAt: new Date(Date.now() - 10_000).toISOString(),
+				updatedAt: new Date(Date.now() - 10_000).toISOString(),
+				lastHeartbeatAt: new Date(Date.now() - 10_000).toISOString(),
+				profileId: "DiscoveryAgent",
+				outputCount: 2,
+			},
+		};
+		await ws.writeState(state);
+		const orchestrator = new TeamOrchestrator({
+			workspace: ws,
+			roleTaskRunner: new DeterministicMockTeamRoleTaskRunner(),
+			maxRounds: 1,
+			maxCandidates: 10,
+			maxMinutes: 60,
+			roleTaskTimeoutMs: 1,
+			roleTaskMaxRetries: 0,
+		});
+
+		await orchestrator.tick(teamRunId);
+
+		const updatedState = await ws.readState(teamRunId);
+		const events = await ws.readEvents(teamRunId);
+		assert.equal(updatedState.activeRoleTasks, undefined);
+		assert.equal(updatedState.counters.failedRoleTasks, 1);
+		assert.ok(events.some((event) =>
+			event.eventType === "role_task_watchdog" &&
+			(event.data as { reason?: string }).reason === "no heartbeat for 1ms",
+		));
+	});
+
+	it("watchdog treats active session writes as role heartbeat", async () => {
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const state = await ws.readState(teamRunId);
+		state.status = "running";
+		state.startedAt = new Date().toISOString();
+		state.activeRoleTasks = {
+			discovery: {
+				roleTaskId: "rt_session_alive",
+				roleId: "discovery",
+				status: "running",
+				startedAt: new Date(Date.now() - 10_000).toISOString(),
+				updatedAt: new Date(Date.now() - 10_000).toISOString(),
+				lastHeartbeatAt: new Date(Date.now() - 10_000).toISOString(),
+				profileId: "DiscoveryAgent",
+				outputCount: 0,
+			},
+		};
+		await ws.writeState(state);
+		const sessionDir = join(ws.getRunDir(teamRunId), "agent-workspaces", "rt_session_alive", "session");
+		mkdirSync(sessionDir, { recursive: true });
+		writeFileSync(join(sessionDir, "alive.jsonl"), JSON.stringify({ type: "message" }) + "\n");
+		const orchestrator = new TeamOrchestrator({
+			workspace: ws,
+			roleTaskRunner: new DeterministicMockTeamRoleTaskRunner(),
+			maxRounds: 1,
+			maxCandidates: 10,
+			maxMinutes: 60,
+			roleTaskTimeoutMs: 60_000,
+			roleTaskMaxRetries: 0,
+		});
+
+		await orchestrator.tick(teamRunId);
+
+		const updatedState = await ws.readState(teamRunId);
+		assert.equal(updatedState.activeRoleTasks?.discovery?.status, "running");
+	});
+
 	it("writes the finalizer agent markdown as final_report.md", async () => {
 		const teamRunId = await createTestRun(ws, "MED", 1);
 		const orchestrator = makeOrchestrator(ws, 1, new FinalizerReportRunner());
 
-		await orchestrator.tick(teamRunId);
+		await tickUntilCompleted(ws, orchestrator, teamRunId);
 
 		const report = await ws.readArtifactText(teamRunId, "final_report.md");
 		assert.equal(report, "# Agent 写出的中文报告\n\n## 摘要\n- finalizer 已接管。");

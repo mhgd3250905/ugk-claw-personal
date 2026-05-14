@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import type { AgentSessionLike, RawAgentSessionEventLike } from "./agent-session-factory.js";
+import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import type {
 	BackgroundAgentProfileRef,
 	ResolvedBackgroundAgentSnapshot,
@@ -33,6 +34,7 @@ export interface BackgroundAgentSessionFactory {
 		browserId?: string;
 		browserScope?: string;
 		sessionFile?: string;
+		customTools?: ToolDefinition[];
 	}): Promise<AgentSessionLike>;
 }
 
@@ -276,7 +278,7 @@ export class BackgroundAgentRunner {
 	}
 }
 
-function resolveBackgroundBrowserId(
+export function resolveBackgroundBrowserId(
 	conn: Pick<ConnDefinition, "browserId">,
 	snapshot: Pick<ResolvedBackgroundAgentSnapshot, "defaultBrowserId">,
 	defaultBrowserId?: string,
@@ -478,7 +480,7 @@ function extractAssistantTextFromSession(session: AgentSessionLike): string {
 	return latestText;
 }
 
-function stringifyVisibleAssistantContent(content: unknown): string {
+export function stringifyVisibleAssistantContent(content: unknown): string {
 	if (typeof content === "string") {
 		return content;
 	}

@@ -1,30 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-	AuthStorage,
-	createAgentSession,
-	createBashToolDefinition,
-	ModelRegistry,
-	SessionManager,
-} from "@mariozechner/pi-coding-agent";
 import { getAppConfig } from "../config.js";
-import { prepareBrowserBoundBashEnvironment } from "../browser/browser-bound-bash.js";
-import { getCurrentBackgroundWorkspaceEnvironment } from "../agent/background-workspace-context.js";
 import { createBrowserRegistryFromEnv } from "../browser/browser-registry.js";
 import {
-	createSkillRestrictedResourceLoader,
-	createProjectSettingsManager,
-	getProjectAgentDirPath,
-	getProjectModelsPath,
-	type AgentSessionLike,
-} from "../agent/agent-session-factory.js";
-import {
 	BackgroundAgentRunner,
-	type BackgroundAgentSessionFactory,
 } from "../agent/background-agent-runner.js";
+import { ProjectBackgroundSessionFactory } from "../agent/background-agent-session-factory.js";
+export {
+	createBackgroundResourceLoader,
+	resolveBackgroundSessionModel,
+} from "../agent/background-agent-session-factory.js";
 import { BackgroundAgentProfileResolver } from "../agent/background-agent-profile.js";
-import { BackgroundWorkspaceManager, type RunWorkspace } from "../agent/background-workspace.js";
+import { BackgroundWorkspaceManager } from "../agent/background-workspace.js";
 import type { AgentActivityItem, AgentActivityStore, CreateAgentActivityInput } from "../agent/agent-activity-store.js";
 import { AgentActivityStore as DefaultAgentActivityStore } from "../agent/agent-activity-store.js";
 import type { ActivityFile } from "../agent/activity-file.js";
@@ -36,7 +24,6 @@ import type { ConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import { ConnSqliteStore as DefaultConnSqliteStore } from "../agent/conn-sqlite-store.js";
 import type { ConnDefinition } from "../agent/conn-store.js";
 import type { NotificationBroadcastEvent } from "../agent/notification-hub.js";
-import type { ResolvedBackgroundAgentSnapshot } from "../agent/background-agent-profile.js";
 import { FeishuClient } from "../integrations/feishu/client.js";
 import { FeishuDeliveryService } from "../integrations/feishu/delivery.js";
 import { FeishuSettingsStore } from "../integrations/feishu/settings-store.js";
@@ -427,137 +414,6 @@ class FeishuActivityNotifier implements ActivityNotifier {
 			),
 		);
 	}
-}
-
-class ProjectBackgroundSessionFactory implements BackgroundAgentSessionFactory {
-	constructor(private readonly projectRoot: string) {}
-
-	async createSession(input: {
-		runId: string;
-		connId: string;
-		workspace: RunWorkspace;
-		snapshot: ResolvedBackgroundAgentSnapshot;
-		browserId?: string;
-		browserScope?: string;
-		sessionFile?: string;
-	}): Promise<AgentSessionLike> {
-		const sessionManager = input.sessionFile
-			? SessionManager.open(input.sessionFile, input.workspace.sessionDir)
-			: SessionManager.create(input.workspace.rootPath, input.workspace.sessionDir);
-		const authStorage = AuthStorage.create();
-		const modelRegistry = ModelRegistry.create(authStorage, getProjectModelsPath(this.projectRoot));
-		const model = resolveBackgroundSessionModel(modelRegistry, input.snapshot);
-		const skillPaths = input.snapshot.skillPaths?.length
-			? input.snapshot.skillPaths
-			: Array.from(new Set(input.snapshot.skills.map((skill) => skill.path.replace(/[\\/][^\\/]+[\\/]SKILL\.md$/, ""))));
-		const resourceLoader = createBackgroundResourceLoader({
-			projectRoot: this.projectRoot,
-			workspaceRoot: input.workspace.rootPath,
-			agentDir: input.snapshot.agentDir,
-			runtimeAgentRulesPath: input.snapshot.rulesPath,
-			skillPaths,
-		});
-		await resourceLoader.reload();
-		const settingsManager = createProjectSettingsManager(this.projectRoot);
-		const browserEnv = await prepareBrowserBoundBashEnvironment({
-			workspaceRoot: input.workspace.rootPath,
-			browserId: input.browserId,
-			browserScope: input.browserScope,
-		});
-
-		const { session } = await createAgentSession({
-			cwd: input.workspace.rootPath,
-			agentDir: input.snapshot.agentDir ?? getProjectAgentDirPath(this.projectRoot),
-			authStorage,
-			customTools: [
-				createBashToolDefinition(input.workspace.rootPath, {
-					commandPrefix: settingsManager.getShellCommandPrefix(),
-					shellPath: settingsManager.getShellPath(),
-					spawnHook: (context) => ({
-						...context,
-						env: {
-							...context.env,
-							...getCurrentBackgroundWorkspaceEnvironment(),
-							...browserEnv,
-						},
-					}),
-				}) as never,
-			],
-			modelRegistry,
-			model,
-			settingsManager,
-			sessionManager,
-			resourceLoader,
-		});
-
-		return session;
-	}
-}
-
-export function createBackgroundResourceLoader(input: {
-	projectRoot: string;
-	workspaceRoot: string;
-	agentDir?: string;
-	runtimeAgentRulesPath?: string;
-	skillPaths: string[];
-}) {
-	return createSkillRestrictedResourceLoader({
-		projectRoot: input.projectRoot,
-		agentDir: input.agentDir ?? getProjectAgentDirPath(input.projectRoot),
-		allowedSkillPaths: input.skillPaths,
-		runtimeAgentRulesPath: input.runtimeAgentRulesPath,
-	});
-}
-
-interface DeprecatedBackgroundModelAlias {
-	provider: string;
-	model: string;
-	replacementProvider: string;
-	replacementModel: string;
-}
-
-const DEPRECATED_BACKGROUND_MODEL_ALIASES: DeprecatedBackgroundModelAlias[] = [
-	{
-		provider: "deepseek-anthropic",
-		model: "deepseek-v4-pro",
-		replacementProvider: "deepseek",
-		replacementModel: "deepseek-v4-pro",
-	},
-	{
-		provider: "deepseek-anthropic",
-		model: "deepseek-v4-flash",
-		replacementProvider: "deepseek",
-		replacementModel: "deepseek-v4-flash",
-	},
-];
-
-function findDeprecatedBackgroundModelAlias(
-	snapshot: Pick<ResolvedBackgroundAgentSnapshot, "provider" | "model">,
-): DeprecatedBackgroundModelAlias | undefined {
-	return DEPRECATED_BACKGROUND_MODEL_ALIASES.find(
-		(alias) => alias.provider === snapshot.provider && alias.model === snapshot.model,
-	);
-}
-
-export function resolveBackgroundSessionModel(
-	modelRegistry: Pick<ModelRegistry, "find">,
-	snapshot: Pick<ResolvedBackgroundAgentSnapshot, "provider" | "model">,
-): NonNullable<ReturnType<ModelRegistry["find"]>> {
-	const model = modelRegistry.find(snapshot.provider, snapshot.model);
-	if (model) {
-		return model;
-	}
-	const alias = findDeprecatedBackgroundModelAlias(snapshot);
-	if (alias) {
-		const replacement = modelRegistry.find(alias.replacementProvider, alias.replacementModel);
-		if (replacement) {
-			return replacement;
-		}
-		throw new Error(
-			`Background agent model not found: ${snapshot.provider}/${snapshot.model}; deprecated alias replacement missing: ${alias.replacementProvider}/${alias.replacementModel}`,
-		);
-	}
-	throw new Error(`Background agent model not found: ${snapshot.provider}/${snapshot.model}`);
 }
 
 async function main(): Promise<void> {
