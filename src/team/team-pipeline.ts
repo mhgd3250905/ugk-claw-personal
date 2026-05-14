@@ -46,17 +46,26 @@ export interface PipelineResult {
 
 export interface PipelineOptions {
   onCompleted?: (run: TeamRun) => void;
+  callLLM?: (config: unknown, prompt: string) => Promise<string>;
+  searchAndFormat?: (queries: string[]) => Promise<string>;
 }
 
 export class TeamPipeline {
   private store: TeamStore;
-  private config: ReturnType<typeof loadLLMConfig>;
   private options: PipelineOptions;
+  private callLLM: (prompt: string) => Promise<string>;
+  private doSearch: (queries: string[]) => Promise<string>;
 
   constructor(store: TeamStore, options?: PipelineOptions) {
     this.store = store;
-    this.config = loadLLMConfig();
     this.options = options ?? {};
+    if (options?.callLLM) {
+      this.callLLM = (prompt) => options.callLLM!(null, prompt);
+    } else {
+      const config = loadLLMConfig();
+      this.callLLM = (prompt) => callLLM(config, prompt);
+    }
+    this.doSearch = options?.searchAndFormat ?? searchAndFormat;
   }
 
   async execute(input: CreateTeamRunInput): Promise<PipelineResult> {
@@ -110,14 +119,14 @@ export class TeamPipeline {
 
       const batch = queryBatches[round];
       const searchContext = mode === "real"
-        ? await searchAndFormat(batch)
+        ? await this.doSearch(batch)
         : FIXTURE_SEARCH_CONTEXT;
       this.store.writeArtifact(runId, `discovery-round-${round + 1}.search-context.txt`, searchContext);
 
       const prompt = buildDiscoveryPrompt(batch, searchContext);
       let raw: string;
       try {
-        raw = await callLLM(this.config, prompt);
+        raw = await this.callLLM(prompt);
       } catch (err) {
         discoveryErrors++;
         this.store.appendEvent(runId, { type: "role_failed", _ts: new Date().toISOString(), role: "discovery", round: round + 1, error: (err as Error).message });
@@ -186,7 +195,7 @@ export class TeamPipeline {
       const reviewPrompt = buildReviewerPrompt(candidatesText, keyword);
       let reviewRaw: string;
       try {
-        reviewRaw = await callLLM(this.config, reviewPrompt);
+        reviewRaw = await this.callLLM(reviewPrompt);
       } catch (err) {
         failRole(reviewerRole, (err as Error).message);
         this.store.writeRun(run);

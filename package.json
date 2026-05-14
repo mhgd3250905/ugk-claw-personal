@@ -29,7 +29,7 @@
     "team:probe-json": "tsx src/team-lab/json-envelope-probe.ts",
     "team:spike": "tsx src/team-lab/brand-domain-spike.ts",
     "team:spike:real": "tsx src/team-lab/brand-domain-spike.ts --mode real",
-    "test:team-lab": "node --test --import tsx test/team-lab-brand-domain-gate.test.ts test/team-lab-workspace.test.ts test/team-lab-search.test.ts test/team-store.test.ts"
+    "test:team-lab": "node --test --import tsx test/team-lab-brand-domain-gate.test.ts test/team-lab-workspace.test.ts test/team-lab-search.test.ts test/team-search.test.ts test/team-store.test.ts test/team-pipeline.test.ts test/team-routes.test.ts"
   },
   "dependencies": {
     "@fastify/multipart": "^10.0.0",
