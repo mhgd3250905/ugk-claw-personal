@@ -145,7 +145,9 @@ describe("brandDomainDiscoveryTemplate", () => {
 			});
 
 			const report = await workspace.readArtifactText(state.teamRunId, "final_report.md");
-			assert.match(report, /Medtrum Domain Discovery Report/);
+			assert.match(report, /Medtrum 域名调查报告/);
+			assert.match(report, /## 1\. 摘要/);
+			assert.match(report, /## 5\. 局限性/);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

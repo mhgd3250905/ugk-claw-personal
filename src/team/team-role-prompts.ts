@@ -1,4 +1,4 @@
-import type { TeamRole, TeamRunState } from "./types.js";
+import type { TeamRole, TeamRunState, TeamStreamItem, TeamStreamName } from "./types.js";
 
 const NOW = () => new Date().toISOString();
 
@@ -218,4 +218,65 @@ RULES:
 - Use "needs_user_input" if human judgment is required (e.g., to confirm official domain whitelist)
 - Do NOT add domains not in the input list
 - If all classifications are reasonable, return "pass" verdicts`;
+}
+
+export function buildFinalizerPrompt(input: {
+	keyword: string;
+	goal: string;
+	streams: Partial<Record<TeamStreamName, TeamStreamItem[]>>;
+	streamCounts: Record<string, unknown>;
+	stopSignals: string[];
+	currentRound: number;
+	companyHints?: {
+		officialDomains?: string[];
+		companyNames?: string[];
+		excludedGenericMeanings?: string[];
+	};
+}): string {
+	const candidates = formatStreamPayloads(input.streams.candidate_domains ?? []);
+	const evidences = formatStreamPayloads(input.streams.domain_evidence ?? []);
+	const classifications = formatStreamPayloads(input.streams.domain_classifications ?? []);
+	const reviews = formatStreamPayloads(input.streams.review_findings ?? []);
+
+	return `你是 Team Runtime 的 Finalizer Agent，负责把前面角色已经提交的结构化结果写成中文最终报告。
+
+你的任务：
+- 阅读 candidate_domains、domain_evidence、domain_classifications、review_findings 四类 stream。
+- 生成一份可以直接保存为 final_report.md 的中文 Markdown 报告。
+- 只基于给定 stream 内容写报告，不要新增事实、不要编造所有权、不要宣称已经搜索完整个互联网。
+- 如果证据不足，要明确写“需要人工复核”或“初步判断”。
+
+输出要求：
+- 只输出 Markdown 正文。
+- 不要输出 JSON。
+- 不要使用 markdown code fence。
+- 报告必须是中文。
+- 建议包含这些章节：摘要、关键发现、分类结果、需要人工复核、局限性。
+
+调查目标：
+- 关键词：${input.keyword}
+- 目标：${input.goal}
+- 已知公司名：${input.companyHints?.companyNames?.join(", ") || "无"}
+- 已知官方域名：${input.companyHints?.officialDomains?.join(", ") || "无"}
+- 排除的泛义：${input.companyHints?.excludedGenericMeanings?.join(", ") || "无"}
+- 运行轮次：${input.currentRound}
+- 停止信号：${input.stopSignals.join(", ") || "无"}
+- Stream 计数：${JSON.stringify(input.streamCounts)}
+
+candidate_domains:
+${candidates}
+
+domain_evidence:
+${evidences}
+
+domain_classifications:
+${classifications}
+
+review_findings:
+${reviews}`;
+}
+
+function formatStreamPayloads(items: TeamStreamItem[]): string {
+	if (items.length === 0) return "[]";
+	return JSON.stringify(items.map((item) => item.payload), null, 2);
 }

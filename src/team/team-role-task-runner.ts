@@ -7,6 +7,7 @@ import {
 	buildEvidenceCollectorPrompt,
 	buildClassifierPrompt,
 	buildReviewerPrompt,
+	buildFinalizerPrompt,
 } from "./team-role-prompts.js";
 import { buildRoleBox } from "./role-box.js";
 import { brandDomainDiscoveryTemplate } from "./templates/brand-domain-discovery.js";
@@ -141,7 +142,7 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 			case "evidence_collector": return this.runEvidence(task);
 			case "classifier": return this.runClassifier(task);
 			case "reviewer": return this.runReviewer(task);
-			case "finalizer": return { status: "success", emits: [], checkpoint: {} };
+			case "finalizer": return this.runFinalizer(task);
 			default: return { status: "failed", emits: [], message: `Unknown role: ${task.roleId}` };
 		}
 	}
@@ -221,6 +222,29 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 		const roleBox = this.buildRoleBox(task, buildReviewerPrompt(keyword, classifications));
 		const llmResult = await this.callLLMForTask(roleBox.prompt, roleBox);
 		return this.parseEnvelope(llmResult);
+	}
+
+	private async runFinalizer(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
+		const prompt = buildFinalizerPrompt({
+			keyword: (task.inputData.keyword as string) ?? "MED",
+			goal: (task.inputData.goal as string) ?? "Domain investigation",
+			streams: task.inputData.streams as Parameters<typeof buildFinalizerPrompt>[0]["streams"],
+			streamCounts: (task.inputData.streamCounts as Record<string, unknown>) ?? {},
+			stopSignals: (task.inputData.stopSignals as string[]) ?? [],
+			currentRound: (task.inputData.currentRound as number) ?? 0,
+			companyHints: task.inputData.companyHints as Parameters<typeof buildFinalizerPrompt>[0]["companyHints"],
+		});
+		const markdown = (await this.callLLMFn(prompt)).trim();
+		if (!markdown) {
+			return { status: "failed", emits: [], message: "Finalizer returned empty report" };
+		}
+		return {
+			status: "success",
+			emits: [],
+			checkpoint: {},
+			finalReportMarkdown: markdown,
+			rawOutput: markdown,
+		};
 	}
 
 	private buildRoleBox(task: TeamRoleTaskExecutionInput, prompt: string) {

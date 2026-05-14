@@ -13,6 +13,29 @@
 ---
 
 ## 2026-05-14
+### Team Finalizer agent 生成中文最终报告
+- 日期：2026-05-14
+- 主题：激活 Team Runtime 里已有的 `finalizer` 角色，让 finalizer LLM 读取四类 stream 后生成中文 Markdown `final_report.md`；模板报告逻辑只作为 finalizer 失败时的中文 fallback。
+- 影响范围：
+  - `src/team/team-role-prompts.ts`：新增 finalizer prompt，明确只输出中文 Markdown，不输出 JSON，不编造未给出的事实。
+  - `src/team/team-role-task-runner.ts`：`finalizer` 从空成功结果改为调用 LLM，并通过 `finalReportMarkdown` 返回报告正文。
+  - `src/team/team-orchestrator.ts`：finalization 阶段把 streams、streamCounts、轮次、停止信号和 company hints 传给 finalizer；finalizer 成功时把 agent 生成的 Markdown 交给 template 写入 artifact，失败时继续走 fallback。
+  - `src/team/templates/brand-domain-discovery.ts`、`src/team/templates/competitor-domain-discovery.ts`：fallback 报告中文化；存在 `finalReportMarkdown` 时优先写 agent 报告。
+  - `docker-compose.yml`：默认真实角色列表增加 `finalizer`。
+  - `test/team-role-task-runner.test.ts`、`test/team-orchestrator.test.ts`、`test/team-template-brand-domain.test.ts`、`test/team-template-competitor-domain.test.ts`：覆盖 finalizer agent 报告、artifact 写入和中文 fallback。
+  - `docs/team-runtime.md`：同步最终报告主路径、fallback 边界和 `TEAM_REAL_ROLES` 配置。
+- 验证：
+  - `git diff --check`
+  - `npx tsc --noEmit`
+  - `npm run test:team`（120 pass / 0 fail）
+  - `npm test`（900 pass / 0 fail）
+- 对应入口：
+  - `src/team/team-role-prompts.ts`
+  - `src/team/team-role-task-runner.ts`
+  - `src/team/team-orchestrator.ts`
+  - `src/team/templates/brand-domain-discovery.ts`
+  - `src/team/templates/competitor-domain-discovery.ts`
+
 ### Team 四角色 submit tool loop 接通
 - 日期：2026-05-14
 - 主题：把 Evidence Collector、Classifier、Reviewer 也接入 Team submit tool loop，让四个产物流角色都能在 tool-calling 模式下即时提交对应 stream item，并补齐真实模型调用所需的 tool 参数 schema 和状态即时落盘。

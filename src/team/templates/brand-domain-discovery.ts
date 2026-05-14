@@ -108,6 +108,45 @@ function cursorKey(roleId: TeamRole["roleId"], streamName: TeamStreamName): stri
 	return `${roleId}_${streamName}`;
 }
 
+function formatClassificationCategory(category: DomainClassificationPayload["category"]): string {
+	switch (category) {
+		case "confirmed_company_asset": return "确认公司资产";
+		case "likely_company_asset": return "可能是公司资产";
+		case "unknown": return "未知";
+		case "likely_third_party": return "可能是第三方";
+		case "suspicious_impersonation": return "疑似仿冒";
+		case "irrelevant": return "无关";
+	}
+}
+
+function formatConfidence(confidence: DomainClassificationPayload["confidence"]): string {
+	switch (confidence) {
+		case "low": return "低";
+		case "medium": return "中";
+		case "high": return "高";
+	}
+}
+
+function formatRecommendedAction(action: DomainClassificationPayload["recommendedAction"]): string {
+	switch (action) {
+		case "accept_as_company_asset": return "按公司资产接受";
+		case "manual_review": return "人工复核";
+		case "monitor": return "持续监控";
+		case "ignore": return "忽略";
+		case "investigate_risk": return "调查风险";
+	}
+}
+
+function formatVerdict(verdict: string): string {
+	switch (verdict) {
+		case "pass": return "通过";
+		case "pass_with_warning": return "带警告通过";
+		case "fail": return "不通过";
+		case "needs_user_input": return "需要人工输入";
+		default: return verdict;
+	}
+}
+
 export function createBrandDomainDiscoveryTemplateRun(
 	input: CreateBrandDomainDiscoveryPlanInput,
 ): { plan: TeamPlan; state: TeamRunState } {
@@ -422,63 +461,63 @@ export const brandDomainDiscoveryTemplate: TeamTemplate = {
 
 		return evUnconsumed === 0 && clUnconsumed === 0 && rvUnconsumed === 0;
 	},
-	async finalize({ teamRunId, state, streams, workspace }) {
+	async finalize({ teamRunId, state, streams, workspace, finalReportMarkdown }) {
 		const candidates = getStreamItems(streams, "candidate_domains");
 		const evidences = getStreamItems(streams, "domain_evidence");
 		const classifications = getStreamItems(streams, "domain_classifications");
 		const reviews = getStreamItems(streams, "review_findings");
 
 		const lines: string[] = [];
-		lines.push(`# ${state.keyword} Domain Discovery Report`);
+		lines.push(`# ${state.keyword} 域名调查报告`);
 		lines.push("");
-		lines.push("## 1. Summary");
-		lines.push(`- Candidate domains: ${candidates.length}`);
-		lines.push(`- Evidence collected: ${evidences.length}`);
-		lines.push(`- Classifications: ${classifications.length}`);
-		lines.push(`- Review findings: ${reviews.length}`);
+		lines.push("## 1. 摘要");
+		lines.push(`- 候选域名：${candidates.length}`);
+		lines.push(`- 已收集证据：${evidences.length}`);
+		lines.push(`- 分类结果：${classifications.length}`);
+		lines.push(`- 审核意见：${reviews.length}`);
 
 		const unknownCount = classifications.filter((item) => (item.payload as DomainClassificationPayload).category === "unknown").length;
 		const suspiciousCount = classifications.filter((item) => (item.payload as DomainClassificationPayload).category === "suspicious_impersonation").length;
-		lines.push(`- Need manual review: ${unknownCount}`);
-		lines.push(`- Suspicious: ${suspiciousCount}`);
+		lines.push(`- 需要人工复核：${unknownCount}`);
+		lines.push(`- 疑似仿冒：${suspiciousCount}`);
 		lines.push("");
 
-		lines.push("## 2. Coverage");
-		lines.push(`- Rounds: ${state.currentRound}`);
-		lines.push(`- Stop signals: ${state.stopSignals.join(", ") || "none"}`);
-		lines.push("- NOT a comprehensive search of the entire internet.");
+		lines.push("## 2. 覆盖范围");
+		lines.push(`- 运行轮次：${state.currentRound}`);
+		lines.push(`- 停止信号：${state.stopSignals.join(", ") || "无"}`);
+		lines.push("- 本报告不是对整个互联网的完整搜索。");
 		lines.push("");
 
-		lines.push("## 3. Classification Results");
-		lines.push("| Domain | Category | Confidence | Action |");
+		lines.push("## 3. 分类结果");
+		lines.push("| 域名 | 分类 | 置信度 | 建议操作 |");
 		lines.push("|--------|----------|------------|--------|");
 		for (const item of classifications) {
 			const payload = item.payload as DomainClassificationPayload;
-			lines.push(`| ${payload.domain} | ${payload.category} | ${payload.confidence} | ${payload.recommendedAction} |`);
+			lines.push(`| ${payload.domain} | ${formatClassificationCategory(payload.category)} | ${formatConfidence(payload.confidence)} | ${formatRecommendedAction(payload.recommendedAction)} |`);
 		}
 		lines.push("");
 
 		if (reviews.length > 0) {
-			lines.push("## 4. Review Findings");
+			lines.push("## 4. 审核意见");
 			for (const item of reviews) {
 				const payload = item.payload as { targetDomain?: string; verdict: string; message: string };
 				const target = payload.targetDomain ? ` (${payload.targetDomain})` : "";
-				lines.push(`- **${payload.verdict}**${target}: ${payload.message}`);
+				lines.push(`- **${formatVerdict(payload.verdict)}**${target}：${payload.message}`);
 			}
 			lines.push("");
 		}
 
-		lines.push("## 5. Limitations");
-		lines.push("- NOT a comprehensive search of the entire internet.");
-		lines.push(`- Does NOT represent all ${state.keyword}-related domains.`);
-		lines.push("- Domain ownership was NOT verified.");
+		lines.push("## 5. 局限性");
+		lines.push("- 本报告不是对整个互联网的完整搜索。");
+		lines.push(`- 本报告不代表所有与 ${state.keyword} 相关的域名。`);
+		lines.push("- 域名所有权尚未完成正式核验。");
 		if (!state.companyHints.officialDomains?.length) {
-			lines.push("- No official domain whitelist was provided; ownership judgments are preliminary only.");
+			lines.push("- 未提供官方域名白名单；所有权判断仅作为初步参考。");
 		}
 		lines.push("");
-		lines.push(`Generated at ${new Date().toISOString()}`);
+		lines.push(`生成时间：${new Date().toISOString()}`);
 
-		await workspace.writeArtifactText(teamRunId, "final_report.md", lines.join("\n"));
+		await workspace.writeArtifactText(teamRunId, "final_report.md", finalReportMarkdown ?? lines.join("\n"));
 
 		await workspace.writeArtifactJson(teamRunId, "candidate_domains.json", candidates.map((item) => item.payload as CandidateDomainPayload));
 		await workspace.writeArtifactJson(teamRunId, "domain_evidence.json", evidences.map((item) => item.payload));

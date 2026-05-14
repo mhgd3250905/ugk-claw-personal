@@ -93,6 +93,22 @@ class BlockingSubmitToolDiscoveryRunner extends DeterministicMockTeamRoleTaskRun
 	}
 }
 
+class FinalizerReportRunner extends DeterministicMockTeamRoleTaskRunner {
+	async runTask(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
+		if (task.roleId === "finalizer") {
+			assert.ok(task.inputData.streams);
+			assert.ok(task.inputData.streamCounts);
+			return {
+				status: "success",
+				emits: [],
+				checkpoint: {},
+				finalReportMarkdown: "# Agent 写出的中文报告\n\n## 摘要\n- finalizer 已接管。",
+			};
+		}
+		return super.runTask(task);
+	}
+}
+
 function makeDir(): string {
 	return join(tmpdir(), `team-orch-test-${Date.now()}`);
 }
@@ -173,7 +189,7 @@ describe("TeamOrchestrator", () => {
 
 		const report = await ws.readArtifactText(teamRunId, "final_report.md");
 		assert.ok(report.includes("MED"));
-		assert.ok(report.includes("Summary"));
+		assert.ok(report.includes("摘要"));
 	});
 
 	it("does not run more discovery after maxRounds", async () => {
@@ -339,5 +355,15 @@ describe("TeamOrchestrator", () => {
 
 		resolveRelease();
 		await tickPromise;
+	});
+
+	it("writes the finalizer agent markdown as final_report.md", async () => {
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const orchestrator = makeOrchestrator(ws, 1, new FinalizerReportRunner());
+
+		await orchestrator.tick(teamRunId);
+
+		const report = await ws.readArtifactText(teamRunId, "final_report.md");
+		assert.equal(report, "# Agent 写出的中文报告\n\n## 摘要\n- finalizer 已接管。");
 	});
 });

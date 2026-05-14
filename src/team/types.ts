@@ -227,6 +227,7 @@ export interface TeamRoleTaskExecutionResult {
 	}>;
 	checkpoint?: Record<string, unknown>;
 	message?: string;
+	finalReportMarkdown?: string;
 	rawOutput?: string;
 }
 

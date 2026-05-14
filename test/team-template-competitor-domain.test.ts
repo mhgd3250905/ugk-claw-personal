@@ -49,7 +49,9 @@ describe("competitorDomainDiscoveryTemplate", () => {
 			});
 
 			const report = await workspace.readArtifactText(state.teamRunId, "competitor_domain_report.md");
-			assert.match(report, /Medtrum Competitor Domain Discovery Report/);
+			assert.match(report, /Medtrum 竞争对手域名调查报告/);
+			assert.match(report, /## 摘要/);
+			assert.match(report, /## 局限性/);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

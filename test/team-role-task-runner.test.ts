@@ -65,6 +65,49 @@ describe("LLMTeamRoleTaskRunner RoleBox integration", () => {
 		assert.ok(capturedPrompt.includes("Declared submit tools: submitReviewFinding"));
 	});
 
+	it("uses the finalizer LLM to produce a Chinese markdown report", async () => {
+		let capturedPrompt = "";
+		const runner = new LLMTeamRoleTaskRunner({
+			callLLM: async (prompt) => {
+				capturedPrompt = prompt;
+				return "# MED 域名调查报告\n\n## 摘要\n- 已生成。";
+			},
+		});
+
+		const result = await runner.runTask({
+			roleTaskId: "rt_finalizer",
+			roleId: "finalizer",
+			teamRunId: "team_run_test",
+			inputData: {
+				keyword: "MED",
+				goal: "Discover MED domains",
+				streamCounts: { candidate_domains: 1 },
+				streams: {
+					candidate_domains: [
+						{
+							itemId: "si_1",
+							teamRunId: "team_run_test",
+							streamName: "candidate_domains",
+							producerRoleId: "discovery",
+							producerTaskId: "rt_1",
+							payload: { domain: "med-example.com", normalizedDomain: "med-example.com" },
+							createdAt: "2026-05-14T00:00:00.000Z",
+						},
+					],
+				},
+				stopSignals: [],
+				currentRound: 1,
+			},
+		});
+
+		assert.equal(result.status, "success");
+		assert.equal(result.finalReportMarkdown, "# MED 域名调查报告\n\n## 摘要\n- 已生成。");
+		assert.match(capturedPrompt, /Finalizer Agent/);
+		assert.match(capturedPrompt, /只输出 Markdown 正文/);
+		assert.match(capturedPrompt, /报告必须是中文/);
+		assert.match(capturedPrompt, /med-example\.com/);
+	});
+
 	it("can use the Discovery submit tool loop when a handler is provided", async () => {
 		const originalFetch = globalThis.fetch;
 		let handled = 0;

@@ -31,6 +31,7 @@ export interface TeamFinalizationInput {
 	plan: TeamPlan;
 	streams: Partial<Record<TeamStreamName, TeamStreamItem[]>>;
 	workspace: TeamWorkspace;
+	finalReportMarkdown?: string;
 }
 
 export interface TeamTemplateInputField {

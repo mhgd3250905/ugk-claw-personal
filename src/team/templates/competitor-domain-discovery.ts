@@ -7,6 +7,38 @@ import type {
 import type { TeamTemplate } from "../team-template.js";
 import { brandDomainDiscoveryTemplate, createBrandDomainDiscoveryTemplateRun } from "./brand-domain-discovery.js";
 
+function formatCompetitorCategory(category: string): string {
+	switch (category) {
+		case "confirmed_company_asset": return "确认公司资产";
+		case "likely_company_asset": return "可能是公司资产";
+		case "unknown": return "未知";
+		case "likely_third_party": return "可能是第三方";
+		case "suspicious_impersonation": return "疑似仿冒";
+		case "irrelevant": return "无关";
+		default: return category;
+	}
+}
+
+function formatCompetitorConfidence(confidence: string): string {
+	switch (confidence) {
+		case "low": return "低";
+		case "medium": return "中";
+		case "high": return "高";
+		default: return confidence;
+	}
+}
+
+function formatCompetitorAction(action: string): string {
+	switch (action) {
+		case "accept_as_company_asset": return "按公司资产接受";
+		case "manual_review": return "人工复核";
+		case "monitor": return "持续监控";
+		case "ignore": return "忽略";
+		case "investigate_risk": return "调查风险";
+		default: return action;
+	}
+}
+
 const COMPETITOR_DOMAIN_ROLES: TeamRole[] = brandDomainDiscoveryTemplate.roles.map((role) => {
 	switch (role.roleId) {
 		case "discovery":
@@ -174,32 +206,36 @@ export const competitorDomainDiscoveryTemplate: TeamTemplate = {
 	shouldFinalize: brandDomainDiscoveryTemplate.shouldFinalize,
 	async finalize(input) {
 		await brandDomainDiscoveryTemplate.finalize(input);
+		if (input.finalReportMarkdown) {
+			await input.workspace.writeArtifactText(input.teamRunId, "competitor_domain_report.md", input.finalReportMarkdown);
+			return;
+		}
 
 		const classifications = input.streams.domain_classifications ?? [];
 		const reviews = input.streams.review_findings ?? [];
 		const lines: string[] = [];
-		lines.push(`# ${input.state.keyword} Competitor Domain Discovery Report`);
+		lines.push(`# ${input.state.keyword} 竞争对手域名调查报告`);
 		lines.push("");
-		lines.push("## Summary");
-		lines.push(`- Candidate domains: ${input.streams.candidate_domains?.length ?? 0}`);
-		lines.push(`- Evidence collected: ${input.streams.domain_evidence?.length ?? 0}`);
-		lines.push(`- Classifications: ${classifications.length}`);
-		lines.push(`- Review findings: ${reviews.length}`);
+		lines.push("## 摘要");
+		lines.push(`- 候选域名：${input.streams.candidate_domains?.length ?? 0}`);
+		lines.push(`- 已收集证据：${input.streams.domain_evidence?.length ?? 0}`);
+		lines.push(`- 分类结果：${classifications.length}`);
+		lines.push(`- 审核意见：${reviews.length}`);
 		lines.push("");
-		lines.push("## Classification Results");
-		lines.push("| Domain | Category | Confidence | Action |");
+		lines.push("## 分类结果");
+		lines.push("| 域名 | 分类 | 置信度 | 建议操作 |");
 		lines.push("|--------|----------|------------|--------|");
 		for (const item of classifications) {
 			const payload = item.payload as { domain: string; category: string; confidence: string; recommendedAction: string };
-			lines.push(`| ${payload.domain} | ${payload.category} | ${payload.confidence} | ${payload.recommendedAction} |`);
+			lines.push(`| ${payload.domain} | ${formatCompetitorCategory(payload.category)} | ${formatCompetitorConfidence(payload.confidence)} | ${formatCompetitorAction(payload.recommendedAction)} |`);
 		}
 		lines.push("");
-		lines.push("## Limitations");
-		lines.push("- This report is a competitor-domain discovery brief, not a market-share analysis.");
-		lines.push("- Domain ownership was NOT verified unless supported by explicit evidence.");
-		lines.push("- Treat all competitor relationships as preliminary until reviewed by a human.");
+		lines.push("## 局限性");
+		lines.push("- 本报告是竞争对手域名发现简报，不是市场份额分析。");
+		lines.push("- 除非有明确证据支持，否则域名所有权尚未正式核验。");
+		lines.push("- 所有竞争关系判断都应视为初步结论，并等待人工复核。");
 		lines.push("");
-		lines.push(`Generated at ${new Date().toISOString()}`);
+		lines.push(`生成时间：${new Date().toISOString()}`);
 
 		await input.workspace.writeArtifactText(input.teamRunId, "competitor_domain_report.md", lines.join("\n"));
 	},

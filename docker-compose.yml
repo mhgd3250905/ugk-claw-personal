@@ -88,7 +88,7 @@ services:
     environment:
       TEAM_RUNTIME_ENABLED: "true"
       TEAM_DATA_DIR: /app/.data/team
-      TEAM_REAL_ROLES: discovery,evidence_collector,classifier,reviewer
+      TEAM_REAL_ROLES: discovery,evidence_collector,classifier,reviewer,finalizer
       SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
     volumes:
       - .:/app

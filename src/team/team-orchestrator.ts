@@ -157,13 +157,25 @@ export class TeamOrchestrator {
 			template.streamNames.map((streamName) => [streamName, streams[streamName]?.length ?? 0]),
 		);
 		const task = this.createTaskInput(teamRunId, "finalizer", {
+			keyword: state.keyword,
+			goal: state.goal,
+			companyHints: state.companyHints,
+			currentRound: state.currentRound,
+			stopSignals: state.stopSignals,
+			streams,
 			streamCounts,
 		});
 
 		const { result } = await this.runRoleTask(teamRunId, state, template, "finalizer", task);
-		if (result.status !== "success") return;
 
-		await template.finalize({ teamRunId, state, plan, streams, workspace: this.workspace });
+		await template.finalize({
+			teamRunId,
+			state,
+			plan,
+			streams,
+			workspace: this.workspace,
+			finalReportMarkdown: result.status === "success" ? result.finalReportMarkdown : undefined,
+		});
 
 		state.status = "completed";
 		state.finishedAt = new Date().toISOString();
