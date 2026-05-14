@@ -73,6 +73,26 @@ export class TeamWorkspace {
 		return result;
 	}
 
+	async listRunIds(): Promise<string[]> {
+		const runsDir = join(this.teamDataDir, "runs");
+		if (!existsSync(runsDir)) return [];
+		const dirs = readdirSync(runsDir, { withFileTypes: true })
+			.filter((d) => d.isDirectory());
+		const result: Array<{ teamRunId: string; updatedAt: string }> = [];
+		for (const d of dirs) {
+			try {
+				const state = await this.readState(d.name);
+				result.push({
+					teamRunId: d.name,
+					updatedAt: state.updatedAt || state.createdAt || "",
+				});
+			} catch { /* skip corrupt */ }
+		}
+		return result
+			.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.teamRunId.localeCompare(a.teamRunId))
+			.map((item) => item.teamRunId);
+	}
+
 	async readPlan(teamRunId: string): Promise<TeamPlan> {
 		const p = join(this.runDir(teamRunId), "plan.json");
 		return this.readJsonFile<TeamPlan>(p);

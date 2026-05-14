@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { renderConnPage } from "../ui/conn-page.js";
 import { renderInboxPage } from "../ui/inbox-page.js";
 import { renderAgentsPage } from "../ui/agents-page.js";
+import { renderTeamPage } from "../ui/team-page.js";
 import { renderPlaygroundPage } from "../ui/playground.js";
 import {
 	isPlaygroundExternalizedEnabled,
@@ -50,6 +51,14 @@ export function registerPlaygroundRoute(app: FastifyInstance, options: Playgroun
 		reply.header("pragma", "no-cache");
 		reply.header("expires", "0");
 		return renderAgentsPage();
+	});
+
+	app.get("/playground/team", async (_request, reply) => {
+		reply.type("text/html; charset=utf-8");
+		reply.header("cache-control", "no-store, no-cache, must-revalidate");
+		reply.header("pragma", "no-cache");
+		reply.header("expires", "0");
+		return renderTeamPage();
 	});
 
 	app.get("/playground/:fileName", async (request, reply) => {

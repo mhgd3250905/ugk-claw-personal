@@ -6,9 +6,10 @@
 
 ## 项目当前状态
 
-- 全部 **828 测试通过**，0 失败
+- Team Runtime 模块测试 **78 个通过**，0 失败
 - Docker 全服务运行正常（main server + 3 Chrome sidecars + conn-worker + feishu-worker + team-worker + SearXNG）
 - Team Runtime 已用真实关键词验证通过
+- 已有独立 Playground 页面：`/playground/team`
 
 ## 怎么跑起来
 
@@ -20,11 +21,22 @@ docker compose up -d
 
 等 Chrome sidecar 健康检查通过后（约 30s），所有服务就绪。访问 `http://127.0.0.1:3000`。
 
+### Playground 页面
+
+访问 `http://127.0.0.1:3000/playground/team` 可以打开 Team Runtime 独立工作台。主 `/playground` 顶部也有 `Team Runtime` 入口，行为和 `/playground/conn`、`/playground/agents` 的独立页面一致。
+
+页面启动时会读取：
+
+- `GET /v1/team/templates`
+- `GET /v1/team/runs?scope=all`
+
+创建 run 时会调用 `POST /v1/team/runs`，并把当前选择的 `templateId` 一起提交。运行详情继续读取 run detail、events、streams 和 artifacts，不在前端硬编码某一条模板流程。
+
 ### 跑测试
 
 ```bash
-npm test                              # 全量测试（828 个）
-npm run test:team                     # Team Runtime 模块测试（workspace, gate, orchestrator）
+npm test                              # 全量测试
+npm run test:team                     # Team Runtime 模块测试（workspace, gate, template, orchestrator, route）
 npx tsc --noEmit                      # 类型检查
 ```
 
@@ -67,8 +79,11 @@ docker compose logs -f ugk-pi-team-worker
 | 方法 | 路径 | 用途 |
 |------|------|------|
 | GET | `/v1/team/healthz` | 健康检查 |
+| GET | `/v1/team/templates` | 列出已注册 TeamTemplate |
+| GET | `/v1/team/templates/:templateId` | 查看单个模板 metadata / inputSchema |
 | POST | `/v1/team/runs` | 创建调查 run |
-| GET | `/v1/team/runs` | 列出可运行的 run |
+| GET | `/v1/team/runs` | 列出可运行的 run，供 worker 轮询 |
+| GET | `/v1/team/runs?scope=all` | 列出全部可读 run id，供 `/playground/team` 刷新历史 |
 | GET | `/v1/team/runs/:id` | 查看状态和计划 |
 | GET | `/v1/team/runs/:id/events` | 事件日志 |
 | GET | `/v1/team/runs/:id/streams/:name` | 查看某个 stream 的数据 |
@@ -106,24 +121,63 @@ POST /v1/team/runs {keyword: "Medtrum"}
   └────────────────────────────┘
 ```
 
+`POST /v1/team/runs` 兼容两种创建方式：
+
+```json
+{"keyword":"Medtrum"}
+```
+
+默认创建 `brand_domain_discovery`。需要指定模板时传 `templateId`：
+
+```json
+{"templateId":"competitor_domain_discovery","keyword":"Medtrum","companyNames":["Dexcom","Abbott"]}
+```
+
+未知模板返回 `400`，不会静默回退到默认模板。
+
+客户端接入前先查模板发现接口：
+
+```bash
+curl http://127.0.0.1:3000/v1/team/templates
+curl http://127.0.0.1:3000/v1/team/templates/brand_domain_discovery
+```
+
+返回的模板 metadata 包含 `templateId`、`title`、`description`、默认预算和 `inputSchema`。当前 `inputSchema` 是运行时自己的轻量 UI/schema 描述，不是完整 JSON Schema；它用于客户端生成表单和校验必填字段，真正的运行约束仍由 route、template 和 stream validator 共同兜底。
+
 ### 文件清单
 
 | 文件 | 职责 |
 |------|------|
 | `src/team/types.ts` | 所有类型定义 |
-| `src/team/team-orchestrator.ts` | 核心状态机，驱动 5 个角色 |
+| `src/team/team-template.ts` | 通用 TeamTemplate seam，定义模板对 runtime 暴露的接口 |
+| `src/team/team-template-registry.ts` | 模板注册表；当前默认注册 `brand_domain_discovery` 和 `competitor_domain_discovery` |
+| `src/team/templates/brand-domain-discovery.ts` | 第一条样板模板：roles、streams、validators、readiness、block policy、finalizer |
+| `src/team/templates/competitor-domain-discovery.ts` | 第二条最小模板：复用域名调查执行链路，验证多模板注册和 API 选择 |
+| `src/team/team-orchestrator.ts` | 通用运行编排：生命周期、role task 执行、timeout/retry、cursor 提交、事件写入 |
 | `src/team/team-workspace.ts` | 文件系统持久化（JSON + JSONL） |
 | `src/team/team-gate.ts` | payload 验证、角色权限、去重 |
 | `src/team/team-role-task-runner.ts` | 三种 runner：mock / LLM / composite |
 | `src/team/team-role-prompts.ts` | 4 个角色的 prompt 模板 |
-| `src/team/team-plan-brand-domain.ts` | 创建调查计划和初始状态 |
+| `src/team/team-plan-brand-domain.ts` | 兼容旧入口，转调 `brand_domain_discovery` template |
+| `src/team/team-search.ts` | 正式 runtime 的 SearXNG 搜索 adapter |
+| `src/team/json-output.ts` | 正式 runtime 的 LLM JSON 输出清洗 / 修复 helper |
 | `src/team/team-config.ts` | 从环境变量读取配置 |
 | `src/team/team-events.ts` | 事件类型定义 |
 | `src/team/team-id.ts` | ID 生成器 |
 | `src/team/llm.ts` | LLM 客户端（DeepSeek API） |
 | `src/routes/team.ts` | HTTP API 路由 |
+| `src/ui/team-page.ts` | `/playground/team` 独立工作台页面 |
 | `src/workers/team-worker.ts` | 后台 worker 进程 |
 | `src/team-lab/` | **不要修改** — spike 实验代码 |
+
+### 当前运行契约
+
+- `plan.json` 是执行契约的一部分，不只是展示文档。Discovery 阶段必须消费 `plan.discoveryPlan.searchQueries`，不能在 runner 内部偷偷重建另一套查询。
+- stream cursor 只代表“上游 item 已被对应角色成功消费”。角色任务失败、超时或返回非 `success` 时，不允许推进 cursor；否则会吞掉待处理输入，最终报告会假完整。
+- 每个 role task 都受 `TEAM_ROLE_TASK_TIMEOUT_MS` 约束；成功、失败或超时后 timeout handle 必须释放，避免测试进程和长期 worker 被悬挂 timer 拖住。
+- 当前 `TeamOrchestrator` 已不再直接持有 `brand_domain_discovery` 的 validators、readiness、block policy 或 final report 生成逻辑；这些属于 `src/team/templates/brand-domain-discovery.ts`。
+- `TeamTemplate` 是后续新增 team 实例的内部扩展 seam；`POST /v1/team/runs` 仍兼容旧请求，并可通过 `templateId` 显式选择已注册模板。
+- 每个 `TeamTemplate` 必须声明 metadata 和 `inputSchema`，`GET /v1/team/templates*` 只读返回这些声明，供 Playground、IM 或外部客户端发现能力。
 
 ### 关键配置
 
@@ -163,10 +217,12 @@ POST /v1/team/runs {keyword: "Medtrum"}
 ## 已知局限（MVP）
 
 1. **Evidence Collector 不做真实 HTTP/DNS/证书检查** — 只做域名分析，全部标记 `checked: false`
-2. **单轮 Discovery 搜索覆盖率有限** — `maxRounds=1` 只跑 3 个查询
-3. **无 UI 页面** — 只能通过 API 操作
+2. **单轮 Discovery 搜索覆盖率有限** — `maxRounds=1` 只跑当前 plan 分配给 Discovery 的查询集合
+3. **UI 仍是运维工作台，不是业务产品页** — `/playground/team` 已能发现模板、创建 run、查看 streams / events / artifacts，但还没有可视化 graph scheduler、批量对比或报告编辑能力
 4. **LLM 依赖 DeepSeek** — `src/team/llm.ts` 硬编码了 DeepSeek API 格式
 5. **JSON 输出可能损坏** — DeepSeek 偶尔输出未转义的引号，`repairJson()` 做字符级修复
+6. **模板 schema 仍是轻量描述** — `/v1/team/templates*` 已暴露模板发现和输入字段，但还不是完整 JSON Schema；`/playground/team` 只按当前轻量 schema 和已知预算字段生成表单
+7. **调度仍是 MVP 顺序执行** — 当前每 tick 最多按模板 roles 顺序各执行一次 ready task，尚未做并行 graph scheduler
 
 ## 数据流示例（Medtrum 测试结果）
 

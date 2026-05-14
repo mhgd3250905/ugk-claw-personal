@@ -1262,6 +1262,40 @@ test("standalone conn page falls back when clipboard API is unavailable", () => 
 	assert.doesNotMatch(response, /navigator\.clipboard\.writeText\(run\.runId\)/);
 });
 
+test("GET /playground/team renders the standalone team runtime page", async () => {
+	const app = await buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground/team",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /Team Runtime 工作台/);
+	assert.match(response.body, /id="team-template-select"/);
+	assert.match(response.body, /\/v1\/team\/templates/);
+	assert.match(response.body, /data-standalone-theme="cockpit"/);
+	await app.close();
+});
+
+test("GET /playground exposes the standalone team runtime page entry", async () => {
+	const app = await buildServer({
+		agentService: createAgentServiceStub(),
+	});
+
+	const response = await app.inject({
+		method: "GET",
+		url: "/playground",
+	});
+
+	assert.equal(response.statusCode, 200);
+	assert.match(response.body, /href="\/playground\/team"/);
+	assert.match(response.body, /Team Runtime/);
+	await app.close();
+});
+
 test("GET /playground defaults runtime append behavior to steer", async () => {
 	const app = await buildServer({
 		agentService: createAgentServiceStub(),

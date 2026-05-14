@@ -1,6 +1,5 @@
 // v0.1 §7 — Runtime Gate
 
-import { normalizeDomain } from "../team-lab/brand-domain-gate.js";
 import type {
 	TeamStreamName,
 	TeamRole,
@@ -10,8 +9,19 @@ import type {
 	ReviewFindingPayload,
 } from "./types.js";
 
-// Re-export for convenience
-export { normalizeDomain };
+export function normalizeDomain(input: string): string | undefined {
+	let domain = input.trim().toLowerCase();
+	domain = domain.replace(/^https?:\/\//, "");
+	const slashIdx = domain.indexOf("/");
+	if (slashIdx >= 0) domain = domain.slice(0, slashIdx);
+	domain = domain.replace(/[#?].*$/, "");
+	domain = domain.replace(/\.$/, "");
+	if (!domain.includes(".")) return undefined;
+	if (domain.includes(" ")) return undefined;
+	if (domain.includes("_")) return undefined;
+	if (domain.length > 253) return undefined;
+	return domain || undefined;
+}
 
 // --- §7.4 Role → Stream permission ---
 

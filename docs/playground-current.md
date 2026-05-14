@@ -1,6 +1,13 @@
 # Playground 当前状态
 
-更新时间：`2026-05-13`
+更新时间：`2026-05-14`
+
+## 2026-05-14 Team Runtime 独立工作台
+
+- Playground 新增 `/playground/team` 独立页面，和 `/playground/conn`、`/playground/agents` 一样复用 standalone cockpit 视觉系统，不嵌进聊天 workspace。
+- 主 `/playground` 桌面顶部操作区和手机更多菜单都提供 `Team Runtime` 入口，打开新标签页，不影响当前聊天、conn 或 agent profile 运行态。
+- 独立页面通过 `GET /v1/team/templates` 发现模板，通过 `GET /v1/team/runs?scope=all` 刷新 run 列表，通过 `POST /v1/team/runs` 创建 run，并按 run detail / events / streams / artifacts 四层查看执行结果；页面不直接绕过 Team API 读 `.data/team`。
+- 相关源码：`src/ui/team-page.ts`、`src/routes/playground.ts`、`src/ui/playground-page-shell.ts`、`src/ui/playground-styles.ts`
 
 ## 2026-05-13 手机首页 Agent 列表滚动
 

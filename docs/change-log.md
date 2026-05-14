@@ -10,6 +10,96 @@
 
 ---
 
+## 2026-05-14
+### Team Runtime 独立 Playground 页面
+- 日期：2026-05-14
+- 主题：新增 `/playground/team` 独立 Team Runtime 工作台，并在主 Playground 桌面入口和手机更多菜单暴露 `Team Runtime` 链接。
+- 影响范围：
+  - `src/ui/team-page.ts`：新增 standalone cockpit 页面，读取模板、创建 run，并查看 run detail、events、streams 和 artifacts。
+  - `src/routes/playground.ts`：注册 `GET /playground/team`，保持 no-store 页面响应。
+  - `src/team/team-workspace.ts`、`src/routes/team.ts`：新增 `GET /v1/team/runs?scope=all` 的 all-run 列表语义，默认 `GET /v1/team/runs` 继续只返回 runnable run，避免影响 worker 轮询。
+  - `src/ui/playground-page-shell.ts`、`src/ui/playground-styles.ts`：主 `/playground` 增加桌面 / 手机入口，并让链接复用现有 telemetry / overflow 样式。
+  - `test/team-page-ui.test.ts`、`test/server.test.ts`、`test/team-routes.test.ts`、`test/team-workspace.test.ts`：覆盖页面契约、Team API 调用点、独立路由、主 Playground 入口和 all-run 列表兼容。
+  - `docs/team-runtime.md`、`docs/playground-current.md`、`docs/traceability-map.md`：同步 Team UI 入口和接手索引。
+- 验证：
+  - `node --test --import tsx test/server.test.ts test/team-page-ui.test.ts`
+- 对应入口：
+  - `src/ui/team-page.ts`
+  - `src/routes/playground.ts`
+  - `src/ui/playground-page-shell.ts`
+
+### Team Runtime 模板发现 API
+- 日期：2026-05-14
+- 主题：补齐 Team Runtime 多模板能力的客户端发现层，新增模板 metadata / inputSchema，并开放只读模板发现接口。
+- 影响范围：
+  - `src/team/team-template.ts`：`TeamTemplate` 增加 metadata 契约，包含标题、描述、默认预算和轻量输入 schema。
+  - `src/team/templates/brand-domain-discovery.ts`、`src/team/templates/competitor-domain-discovery.ts`：两个已注册模板补齐 metadata / inputSchema。
+  - `src/team/team-template-registry.ts`：新增 `list()`，用于按注册顺序返回模板摘要。
+  - `src/routes/team.ts`：新增 `GET /v1/team/templates` 和 `GET /v1/team/templates/:templateId`；未知模板 metadata 返回 `404`。
+  - `test/team-template-registry.test.ts`、`test/team-routes.test.ts`：覆盖模板列表、单模板查询、未知模板查询。
+  - `docs/team-runtime.md`：补充模板发现接口、轻量 schema 边界和客户端接入口径。
+- 验证：
+  - `npm run test:team`
+  - `npx tsc --noEmit`
+- 对应入口：
+  - `src/team/team-template.ts`
+  - `src/team/team-template-registry.ts`
+  - `src/routes/team.ts`
+
+### Team Runtime 第二模板与模板选择 API
+- 日期：2026-05-14
+- 主题：为 Team Runtime 增加第二个最小模板 `competitor_domain_discovery`，并让 `POST /v1/team/runs` 支持可选 `templateId`，旧请求继续默认创建 `brand_domain_discovery`。
+- 影响范围：
+  - `src/team/types.ts`：新增 `TeamTemplateId`，允许 run/plan/state 记录 `competitor_domain_discovery`。
+  - `src/team/templates/competitor-domain-discovery.ts`：新增竞争对手域名调查模板，复用现有域名调查执行链路，输出 `competitor_domain_report.md`。
+  - `src/team/team-template-registry.ts`：默认注册 `brand_domain_discovery` 与 `competitor_domain_discovery`。
+  - `src/routes/team.ts`：`POST /v1/team/runs` 读取可选 `templateId`；未知模板返回 `400`，不再静默按默认模板创建。
+  - `test/team-template-competitor-domain.test.ts`、`test/team-template-registry.test.ts`、`test/team-routes.test.ts`：覆盖第二模板 contract、注册表解析、兼容默认创建和未知模板拒绝。
+  - `docs/team-runtime.md`、`docs/traceability-map.md`：同步多模板入口和接手索引。
+- 验证：
+  - `npm run test:team`
+  - `npx tsc --noEmit`
+- 对应入口：
+  - `src/team/templates/competitor-domain-discovery.ts`
+  - `src/team/team-template-registry.ts`
+  - `src/routes/team.ts`
+
+### TeamTemplate Runtime 基建抽象
+- 日期：2026-05-14
+- 主题：在不改变现有 `/v1/team/*` 外部 API 和 `.data/team` 序列化结构的前提下，为 Team Runtime 引入 `TeamTemplate` seam，把 `brand_domain_discovery` 收口为第一条注册模板。
+- 影响范围：
+  - `src/team/team-template.ts`、`src/team/team-template-registry.ts`：新增模板接口和默认注册表；当前只注册 `brand_domain_discovery`。
+  - `src/team/templates/brand-domain-discovery.ts`：承载样板链路的 roles、streams、stream validators、role readiness、block policy 和 final report 生成。
+  - `src/team/team-orchestrator.ts`：改为通用运行编排，只负责生命周期、role task 执行、timeout/retry、cursor 成功提交和事件写入；不再直接生成品牌域名报告。
+  - `src/routes/team.ts`、`src/workers/team-worker.ts`：使用默认 template registry；`POST /v1/team/runs` 仍默认创建 `brand_domain_discovery`，请求体不变。
+  - `src/team/team-search.ts`、`src/team/json-output.ts`、`src/team/team-gate.ts`、`src/team/team-role-task-runner.ts`：正式 runtime 不再从 `src/team-lab/` 导入搜索、JSON 清洗或域名归一化 helper；`team-lab` 继续作为 spike 实验区保留。
+  - `package.json`：`npm run test:team` 纳入 template、registry、route、search 和 JSON helper 测试。
+  - `docs/team-runtime.md`：更新当前架构、运行契约和剩余 MVP 局限。
+- 验证：
+  - `npm run test:team`
+  - `npm run test:team-lab`
+  - `npx tsc --noEmit`
+- 对应入口：
+  - `src/team/team-template.ts`
+  - `src/team/templates/brand-domain-discovery.ts`
+  - `src/team/team-orchestrator.ts`
+  - `src/routes/team.ts`
+  - `src/workers/team-worker.ts`
+
+### Team Runtime 样板链路执行契约收口
+- 日期：2026-05-14
+- 主题：把 Team Runtime 的第一条 `brand_domain_discovery` 样板链路从“能跑通”推进到更适合作为后续 team 基建的执行契约：计划查询进入 Discovery 执行、角色失败不推进 cursor、role task timeout 成功后释放 timer。
+- 影响范围：
+  - `src/team/team-orchestrator.ts`：Discovery role task 读取 `plan.discoveryPlan.searchQueries`；下游角色只有 `success` 后才推进对应 cursor；role task timeout 改为 `finally` 清理，避免测试和 worker 被悬挂 timer 拖住。
+  - `test/team-orchestrator.test.ts`：新增 plan queries 传递、失败不推进 evidence cursor、timeout 成功路径不拖住进程的回归测试。
+  - `docs/team-runtime.md`：补充当前运行契约和 MVP 局限，明确当前仍是 `brand_domain_discovery` 专用状态机，不是完整通用 template 引擎。
+- 验证：
+  - `npm run test:team`
+- 对应入口：
+  - `src/team/team-orchestrator.ts`
+  - `test/team-orchestrator.test.ts`
+  - `docs/team-runtime.md`
+
 ## 2026-05-13
 ### 新接手 agent 交接快照更新
 - 日期：2026-05-13

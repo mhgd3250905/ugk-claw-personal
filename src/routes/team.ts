@@ -1,18 +1,39 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { TeamWorkspace } from "../team/team-workspace.js";
-import { createBrandDomainDiscoveryPlan } from "../team/team-plan-brand-domain.js";
 import { generateTeamEventId } from "../team/team-id.js";
-import type { CreateBrandDomainDiscoveryPlanInput } from "../team/types.js";
+import type { CreateBrandDomainDiscoveryPlanInput, TeamTemplateId } from "../team/types.js";
+import {
+	createDefaultTeamTemplateRegistry,
+	type TeamTemplateRegistry,
+} from "../team/team-template-registry.js";
 
 interface TeamRouteDependencies {
 	teamDataDir: string;
+	templateRegistry?: TeamTemplateRegistry;
 }
 
 export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependencies): void {
 	const workspace = new TeamWorkspace({ teamDataDir: deps.teamDataDir });
+	const templateRegistry = deps.templateRegistry ?? createDefaultTeamTemplateRegistry();
 
 	app.get("/v1/team/healthz", async () => {
 		return { ok: true, module: "team-runtime" };
+	});
+
+	app.get("/v1/team/templates", async () => {
+		return { templates: templateRegistry.list() };
+	});
+
+	app.get("/v1/team/templates/:templateId", async (
+		request: FastifyRequest<{ Params: { templateId: string } }>,
+		reply: FastifyReply,
+	) => {
+		const { templateId } = request.params;
+		try {
+			return { template: templateRegistry.get(templateId).metadata };
+		} catch {
+			return reply.status(404).send({ error: `team template not found: ${templateId}` });
+		}
 	});
 
 	app.post("/v1/team/runs", async (
@@ -24,7 +45,15 @@ export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependen
 			return reply.status(400).send({ error: "keyword is required" });
 		}
 
-		const { plan, state } = createBrandDomainDiscoveryPlan(input);
+		const templateId = input.templateId ?? "brand_domain_discovery";
+		let template;
+		try {
+			template = templateRegistry.get(templateId as TeamTemplateId);
+		} catch {
+			return reply.status(400).send({ error: `unknown team template: ${templateId}` });
+		}
+
+		const { plan, state } = template.createRun(input);
 		await workspace.createRun({ teamRunId: state.teamRunId, plan, state });
 
 		await workspace.appendEvent(state.teamRunId, {
@@ -32,7 +61,7 @@ export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependen
 			teamRunId: state.teamRunId,
 			eventType: "team_run_created",
 			createdAt: new Date().toISOString(),
-			data: { keyword: input.keyword },
+			data: { keyword: input.keyword, templateId: plan.templateId },
 		});
 
 		return reply.status(201).send({
@@ -42,7 +71,12 @@ export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependen
 		});
 	});
 
-	app.get("/v1/team/runs", async () => {
+	app.get("/v1/team/runs", async (
+		request: FastifyRequest<{ Querystring: { scope?: string } }>,
+	) => {
+		if (request.query.scope === "all") {
+			return { runIds: await workspace.listRunIds() };
+		}
 		return workspace.listRunnableRunIds();
 	});
 

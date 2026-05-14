@@ -45,6 +45,7 @@
 35. [src/ui/playground-panel-focus-controller.ts](/E:/AII/ugk-pi/src/ui/playground-panel-focus-controller.ts)
 36. [src/ui/playground-conn-activity.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity.ts)
 37. [src/ui/playground-conn-activity-controller.ts](/E:/AII/ugk-pi/src/ui/playground-conn-activity-controller.ts)
+38. [src/ui/team-page.ts](/E:/AII/ugk-pi/src/ui/team-page.ts)
 
 当前阶段先记住这句话：`web-access` 默认是 Docker Chrome sidecar，不是 Windows 宿主 IPC。后续看到 `requestHostBrowser()` 这个名字别被它骗了，它在 `direct_cdp` 模式下会直接连 sidecar。
 
@@ -147,10 +148,12 @@
 27. [src/ui/playground-agent-manager.ts](/E:/AII/ugk-pi/src/ui/playground-agent-manager.ts)
 28. [src/ui/playground-workspace-controller.ts](/E:/AII/ugk-pi/src/ui/playground-workspace-controller.ts)
 29. [src/ui/playground-browser-workbench.ts](/E:/AII/ugk-pi/src/ui/playground-browser-workbench.ts)
-30. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
-31. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
-32. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
-33. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
+30. [src/ui/team-page.ts](/E:/AII/ugk-pi/src/ui/team-page.ts)
+31. [test/server.test.ts](/E:/AII/ugk-pi/test/server.test.ts)
+32. [test/team-page-ui.test.ts](/E:/AII/ugk-pi/test/team-page-ui.test.ts)
+33. [docs/playground-current.md](/E:/AII/ugk-pi/docs/playground-current.md)
+34. [src/routes/chat.ts](/E:/AII/ugk-pi/src/routes/chat.ts)
+35. [docs/playground-runtime-refactor-summary-2026-04-22.md](/E:/AII/ugk-pi/docs/playground-runtime-refactor-summary-2026-04-22.md)
 
 适用问题：
 
@@ -366,6 +369,37 @@
 - SSE 断线后页面不重连
 - 当前会话和非当前会话的提示表现不一致
 - conn 结果已经完成，但切换会话后只能靠任务消息页找到
+
+## J. Team Runtime / TeamTemplate
+
+先看：
+
+1. [docs/team-runtime.md](/E:/AII/ugk-pi/docs/team-runtime.md)
+2. [src/team/team-template.ts](/E:/AII/ugk-pi/src/team/team-template.ts)
+3. [src/team/team-template-registry.ts](/E:/AII/ugk-pi/src/team/team-template-registry.ts)
+4. [src/team/templates/brand-domain-discovery.ts](/E:/AII/ugk-pi/src/team/templates/brand-domain-discovery.ts)
+5. [src/team/templates/competitor-domain-discovery.ts](/E:/AII/ugk-pi/src/team/templates/competitor-domain-discovery.ts)
+6. [src/team/team-orchestrator.ts](/E:/AII/ugk-pi/src/team/team-orchestrator.ts)
+7. [src/team/team-workspace.ts](/E:/AII/ugk-pi/src/team/team-workspace.ts)
+8. [src/team/team-role-task-runner.ts](/E:/AII/ugk-pi/src/team/team-role-task-runner.ts)
+9. [src/team/team-search.ts](/E:/AII/ugk-pi/src/team/team-search.ts)
+10. [src/team/json-output.ts](/E:/AII/ugk-pi/src/team/json-output.ts)
+11. [src/routes/team.ts](/E:/AII/ugk-pi/src/routes/team.ts)
+12. [src/ui/team-page.ts](/E:/AII/ugk-pi/src/ui/team-page.ts)
+13. [src/workers/team-worker.ts](/E:/AII/ugk-pi/src/workers/team-worker.ts)
+14. [test/team-template-brand-domain.test.ts](/E:/AII/ugk-pi/test/team-template-brand-domain.test.ts)
+15. [test/team-template-competitor-domain.test.ts](/E:/AII/ugk-pi/test/team-template-competitor-domain.test.ts)
+16. [test/team-orchestrator.test.ts](/E:/AII/ugk-pi/test/team-orchestrator.test.ts)
+17. [test/team-page-ui.test.ts](/E:/AII/ugk-pi/test/team-page-ui.test.ts)
+
+适用问题：
+
+- `POST /v1/team/runs` 创建品牌域名调查或竞争对手域名调查 run
+- `/playground/team` 模板选择、创建 run、查看 stream / event / artifact 的独立页面
+- 新增第三条 team 样板链路前，判断应该扩展 template 还是 runtime
+- role task 失败后 cursor 是否推进
+- template stream validator、role readiness、block policy 和 finalizer 是否生效
+- 正式 Team Runtime 与 `src/team-lab/` spike 实验代码的边界
 
 ## E2. Agent 管理独立页面
 

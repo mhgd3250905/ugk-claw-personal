@@ -7,21 +7,45 @@ import { TeamWorkspace } from "../src/team/team-workspace.js";
 import { TeamOrchestrator } from "../src/team/team-orchestrator.js";
 import { DeterministicMockTeamRoleTaskRunner } from "../src/team/team-role-task-runner.js";
 import { createBrandDomainDiscoveryPlan } from "../src/team/team-plan-brand-domain.js";
+import type { TeamRoleTaskExecutionInput, TeamRoleTaskExecutionResult } from "../src/team/types.js";
 
+class RecordingTeamRoleTaskRunner extends DeterministicMockTeamRoleTaskRunner {
+	tasks: TeamRoleTaskExecutionInput[] = [];
+	failRoles = new Set<string>();
+	badDiscoveryStream = false;
+
+	async runTask(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
+		this.tasks.push(task);
+		if (this.badDiscoveryStream && task.roleId === "discovery") {
+			return {
+				status: "success",
+				emits: [{ streamName: "not_allowed" as any, payload: {} }],
+			};
+		}
+		if (this.failRoles.has(task.roleId)) {
+			return { status: "failed", emits: [], message: `${task.roleId} failed for test` };
+		}
+		return super.runTask(task);
+	}
+}
 
 function makeDir(): string {
 	return join(tmpdir(), `team-orch-test-${Date.now()}`);
 }
 
-function createTestRun(ws: TeamWorkspace, keyword = "MED", maxRounds = 1): Promise<string> {
-	const { plan, state } = createBrandDomainDiscoveryPlan({ keyword, maxRounds, maxCandidates: 10, maxMinutes: 60 });
+function createTestRun(ws: TeamWorkspace, keyword = "MED", maxRounds = 1, maxCandidates = 10): Promise<string> {
+	const { plan, state } = createBrandDomainDiscoveryPlan({ keyword, maxRounds, maxCandidates, maxMinutes: 60 });
 	return ws.createRun({ teamRunId: state.teamRunId, plan, state }).then(() => state.teamRunId);
 }
 
-function makeOrchestrator(ws: TeamWorkspace, maxRounds = 1): TeamOrchestrator {
+function makeOrchestrator(
+	ws: TeamWorkspace,
+	maxRounds = 1,
+	roleTaskRunner = new DeterministicMockTeamRoleTaskRunner(),
+): TeamOrchestrator {
 	return new TeamOrchestrator({
 		workspace: ws,
-		roleTaskRunner: new DeterministicMockTeamRoleTaskRunner(),
+		roleTaskRunner,
 		maxRounds,
 		maxCandidates: 10,
 		maxMinutes: 60,
@@ -160,5 +184,56 @@ describe("TeamOrchestrator", () => {
 		state = await ws.readState(teamRunId);
 		assert.equal(state.status, "completed");
 		assert.equal(state.currentRound, 2);
+	});
+
+	it("passes planned discovery queries to discovery role task", async () => {
+		const runner = new RecordingTeamRoleTaskRunner();
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const plan = await ws.readPlan(teamRunId);
+		const orchestrator = makeOrchestrator(ws, 1, runner);
+
+		await orchestrator.tick(teamRunId);
+
+		const discoveryTask = runner.tasks.find((task) => task.roleId === "discovery");
+		assert.ok(discoveryTask);
+		assert.deepEqual(discoveryTask.inputData.queries, plan.discoveryPlan.searchQueries);
+	});
+
+	it("does not advance evidence cursor when evidence collector fails", async () => {
+		const runner = new RecordingTeamRoleTaskRunner();
+		runner.failRoles.add("evidence_collector");
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const orchestrator = makeOrchestrator(ws, 1, runner);
+
+		await orchestrator.tick(teamRunId);
+
+		const cursor = await ws.readCursor(teamRunId, "evidence_collector", "candidate_domains");
+		const state = await ws.readState(teamRunId);
+		assert.equal(cursor, undefined);
+		assert.equal(state.status, "running");
+		assert.equal(state.counters.failedRoleTasks, 1);
+	});
+
+	it("clears role task timeout after successful tasks so tests can exit quickly", async () => {
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const orchestrator = makeOrchestrator(ws, 1);
+
+		await orchestrator.tick(teamRunId);
+		const startedAt = Date.now();
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		assert.ok(Date.now() - startedAt < 200);
+	});
+
+	it("rejects stream emits not declared by the template role", async () => {
+		const runner = new RecordingTeamRoleTaskRunner();
+		runner.badDiscoveryStream = true;
+		const teamRunId = await createTestRun(ws, "MED", 1);
+		const orchestrator = makeOrchestrator(ws, 1, runner);
+
+		await orchestrator.tick(teamRunId);
+
+		const events = await ws.readEvents(teamRunId);
+		assert.ok(events.some((event) => event.eventType === "stream_item_rejected"));
 	});
 });

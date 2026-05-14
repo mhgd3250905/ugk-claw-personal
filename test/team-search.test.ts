@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { searchSearXNG, searchAndFormat } from "../src/team-lab/search.js";
+import { searchSearXNG, searchAndFormat } from "../src/team/team-search.js";
 
 const ORIGINAL_ENV = process.env.SEARXNG_BASE_URL;
 

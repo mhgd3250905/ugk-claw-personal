@@ -279,6 +279,7 @@ export function getPlaygroundStyles(): string {
 			letter-spacing: 0.04em;
 			text-transform: none;
 			text-align: left;
+			text-decoration: none;
 		}
 
 
@@ -4137,6 +4138,7 @@ export function getPlaygroundStyles(): string {
 			background: transparent;
 			box-shadow: none;
 			text-align: center;
+			text-decoration: none;
 		}
 
 		.telemetry-action:hover:not(:disabled),

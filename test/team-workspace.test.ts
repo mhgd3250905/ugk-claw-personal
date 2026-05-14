@@ -211,6 +211,23 @@ describe("TeamWorkspace", () => {
 		assert.deepEqual(ids.sort(), ["run1", "run2"]);
 	});
 
+	it("listRunIds returns completed and runnable runs newest first", async () => {
+		const plan = makePlan("MED");
+		const s1 = makeState("run1", "MED");
+		s1.status = "completed";
+		s1.updatedAt = "2026-05-14T00:00:00.000Z";
+		s1.finishedAt = "2026-05-14T00:00:00.000Z";
+		await ws.createRun({ teamRunId: "run1", plan, state: s1 });
+
+		const s2 = makeState("run2", "MED");
+		s2.status = "queued";
+		s2.updatedAt = "2026-05-14T00:01:00.000Z";
+		await ws.createRun({ teamRunId: "run2", plan, state: s2 });
+
+		const ids = await ws.listRunIds();
+		assert.deepEqual(ids, ["run2", "run1"]);
+	});
+
 	it("readState throws clear error for corrupt JSON", async () => {
 		await ws.createRun({ teamRunId: "run1", plan: makePlan("MED"), state: makeState("run1", "MED") });
 		const statePath = join(dir, "runs", "run1", "state.json");

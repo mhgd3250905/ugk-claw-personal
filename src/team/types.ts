@@ -16,6 +16,10 @@ export type TeamStreamName =
 	| "domain_classifications"
 	| "review_findings";
 
+export type TeamTemplateId =
+	| "brand_domain_discovery"
+	| "competitor_domain_discovery";
+
 // --- §5.4 TeamRole ---
 export interface TeamRole {
 	roleId:
@@ -42,7 +46,7 @@ export interface DiscoveryPlan {
 
 // --- §5.3 TeamPlan ---
 export interface TeamPlan {
-	templateId: "brand_domain_discovery";
+	templateId: TeamTemplateId;
 	goal: string;
 	keyword: string;
 	roles: TeamRole[];
@@ -55,7 +59,7 @@ export interface TeamPlan {
 // --- §5.2 TeamRunState ---
 export interface TeamRunState {
 	teamRunId: string;
-	templateId: "brand_domain_discovery";
+	templateId: TeamTemplateId;
 	status: TeamRunStatus;
 	goal: string;
 	keyword: string;
@@ -228,6 +232,7 @@ export interface TeamRoleTaskExecutionResult {
 
 // --- API input types ---
 export interface CreateBrandDomainDiscoveryPlanInput {
+	templateId?: TeamTemplateId;
 	keyword: string;
 	companyNames?: string[];
 	officialDomains?: string[];

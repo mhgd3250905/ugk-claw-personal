@@ -1,28 +1,23 @@
-import type { TeamRunState, TeamStreamName, TeamStreamItem, TeamRole, TeamRoleTaskExecutionInput, TeamRoleTaskExecutionResult } from "./types.js";
+import type {
+	TeamRunState,
+	TeamStreamName,
+	TeamStreamItem,
+	TeamRole,
+	TeamRoleTaskExecutionInput,
+	TeamRoleTaskExecutionResult,
+	TeamPlan,
+} from "./types.js";
 import type { TeamEvent } from "./team-events.js";
 import type { TeamWorkspace } from "./team-workspace.js";
 import type { TeamRoleTaskRunner } from "./team-role-task-runner.js";
-import {
-	validateCandidateDomainPayload,
-	validateDomainEvidencePayload,
-	validateDomainClassificationPayload,
-	validateReviewFindingPayload,
-	canRoleWriteStream,
-} from "./team-gate.js";
+import type { TeamRoleTaskCandidate, TeamTemplate } from "./team-template.js";
+import { TeamTemplateRegistry, createDefaultTeamTemplateRegistry } from "./team-template-registry.js";
 import { generateTeamEventId, generateStreamItemId, generateRoleTaskId } from "./team-id.js";
-
-type ValidatorFn = (payload: unknown) => { ok: true; value: any } | { ok: false; errors: string[] };
-
-const STREAM_VALIDATORS: Record<TeamStreamName, ValidatorFn> = {
-	candidate_domains: validateCandidateDomainPayload,
-	domain_evidence: validateDomainEvidencePayload,
-	domain_classifications: validateDomainClassificationPayload,
-	review_findings: validateReviewFindingPayload,
-};
 
 export interface TeamOrchestratorConfig {
 	workspace: TeamWorkspace;
 	roleTaskRunner: TeamRoleTaskRunner;
+	templateRegistry?: TeamTemplateRegistry;
 	maxRounds: number;
 	maxCandidates: number;
 	maxMinutes: number;
@@ -33,11 +28,13 @@ export interface TeamOrchestratorConfig {
 export class TeamOrchestrator {
 	private workspace: TeamWorkspace;
 	private runner: TeamRoleTaskRunner;
-	private config: Omit<TeamOrchestratorConfig, "workspace" | "roleTaskRunner">;
+	private templateRegistry: TeamTemplateRegistry;
+	private config: Omit<TeamOrchestratorConfig, "workspace" | "roleTaskRunner" | "templateRegistry">;
 
 	constructor(input: TeamOrchestratorConfig) {
 		this.workspace = input.workspace;
 		this.runner = input.roleTaskRunner;
+		this.templateRegistry = input.templateRegistry ?? createDefaultTeamTemplateRegistry();
 		this.config = {
 			maxRounds: input.maxRounds,
 			maxCandidates: input.maxCandidates,
@@ -54,13 +51,15 @@ export class TeamOrchestrator {
 			return;
 		}
 
+		const plan = await this.workspace.readPlan(teamRunId);
+		const template = this.templateRegistry.get(plan.templateId);
+
 		if (state.status === "queued") {
 			state.status = "running";
 			state.startedAt = new Date().toISOString();
 			await this.emitEvent(teamRunId, "team_run_started", {});
 		}
 
-		// Check maxMinutes
 		if (state.startedAt) {
 			const elapsed = Date.now() - new Date(state.startedAt).getTime();
 			if (elapsed > state.budgets.maxMinutes * 60 * 1000) {
@@ -68,190 +67,97 @@ export class TeamOrchestrator {
 			}
 		}
 
-		// Discovery
-		await this.maybeRunDiscovery(teamRunId, state);
+		await this.runReadyTemplateTasks(teamRunId, state, plan, template);
 
-		// Evidence Collector
-		await this.maybeRunEvidenceCollector(teamRunId, state);
-
-		// Classifier
-		await this.maybeRunClassifier(teamRunId, state);
-
-		// Reviewer
-		await this.maybeRunReviewer(teamRunId, state);
-
-		// Check for blocked
-		const reviewItems = await this.workspace.readStreamItems(teamRunId, "review_findings");
-		for (const item of reviewItems) {
-			const payload = item.payload as { verdict: string; message?: string };
-			if (payload.verdict === "needs_user_input") {
-				state.status = "blocked";
-				state.stopSignals.push(payload.message ?? "Reviewer needs user input");
-				await this.emitEvent(teamRunId, "team_run_blocked", { reason: payload.message });
-				break;
-			}
+		const streams = await this.readTemplateStreams(teamRunId, template);
+		const cursors = await this.readTemplateCursors(teamRunId, template);
+		const blockResult = template.shouldBlock({ state, streams });
+		if (blockResult.blocked) {
+			state.status = "blocked";
+			state.stopSignals.push(blockResult.reason);
+			await this.emitEvent(teamRunId, "team_run_blocked", { reason: blockResult.reason });
 		}
 
-		// Finalizer
-		if (state.status === "running") {
-			await this.maybeFinalize(teamRunId, state);
+		if (state.status === "running" && template.shouldFinalize({ state, streams, cursors })) {
+			await this.runTemplateFinalizer(teamRunId, state, plan, template, streams);
 		}
 
 		state.updatedAt = new Date().toISOString();
 		await this.workspace.writeState(state);
 	}
 
-	private async maybeRunDiscovery(teamRunId: string, state: TeamRunState): Promise<void> {
-		if (state.stopSignals.length > 0) return;
-		if (state.counters.candidateDomains >= state.budgets.maxCandidates) return;
-		if (state.currentRound >= state.budgets.maxRounds) return;
+	private async runReadyTemplateTasks(
+		teamRunId: string,
+		state: TeamRunState,
+		plan: TeamPlan,
+		template: TeamTemplate,
+	): Promise<void> {
+		const executedRoleIds = new Set<TeamRole["roleId"]>();
+		for (const role of template.roles) {
+			if (executedRoleIds.has(role.roleId)) continue;
 
-		state.currentRound++;
-		const task = this.createTaskInput(teamRunId, "discovery", {
-			keyword: state.keyword,
-			companyHints: state.companyHints,
-		});
-		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, "discovery", task);
+			const streams = await this.readTemplateStreams(teamRunId, template);
+			const cursors = await this.readTemplateCursors(teamRunId, template);
+			const candidates = template.getReadyRoleTasks({ teamRunId, state, plan, streams, cursors });
+			const candidate = candidates.find((task) => task.roleId === role.roleId);
+			if (!candidate) continue;
 
-		if (result.status === "success" && result.emits.length > 0) {
+			await this.runTemplateTask(teamRunId, state, template, candidate);
+			executedRoleIds.add(role.roleId);
+		}
+	}
+
+	private async runTemplateTask(
+		teamRunId: string,
+		state: TeamRunState,
+		template: TeamTemplate,
+		candidate: TeamRoleTaskCandidate,
+	): Promise<void> {
+		if (candidate.updates?.incrementCurrentRound) {
+			state.currentRound++;
+		}
+
+		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, candidate.roleId, candidate.task);
+		if (result.status !== "success") return;
+
+		if (result.emits.length > 0) {
 			const seenDomains = await this.getSeenNormalizedDomains(teamRunId);
 			for (const emit of result.emits) {
-				await this.processEmit(teamRunId, state, "discovery", roleTaskId, emit, seenDomains);
+				await this.processEmit(teamRunId, state, template, candidate.roleId, roleTaskId, emit, seenDomains);
+			}
+		}
+
+		if (candidate.consumes) {
+			const lastItem = candidate.consumes.items[candidate.consumes.items.length - 1];
+			if (lastItem) {
+				await this.workspace.writeCursor(teamRunId, {
+					roleId: candidate.roleId,
+					streamName: candidate.consumes.streamName,
+					lastConsumedItemId: lastItem.itemId,
+					updatedAt: new Date().toISOString(),
+				});
 			}
 		}
 	}
 
-	private async maybeRunEvidenceCollector(teamRunId: string, state: TeamRunState): Promise<void> {
-		const candidates = await this.workspace.readStreamItems(teamRunId, "candidate_domains");
-		const cursor = await this.workspace.readCursor(teamRunId, "evidence_collector", "candidate_domains");
-
-		const newItems = this.getItemsAfterCursor(candidates, cursor);
-		if (newItems.length === 0) return;
-		if (newItems.length < 10 && state.currentRound < state.budgets.maxRounds && state.counters.candidateDomains < state.budgets.maxCandidates) return;
-
-		const batch = newItems.slice(0, 10);
-		const task = this.createTaskInput(teamRunId, "evidence_collector", {
-			keyword: state.keyword,
-			candidates: batch.map((i) => i.payload),
-		});
-
-		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, "evidence_collector", task);
-		if (result.status === "success" && result.emits.length > 0) {
-			for (const emit of result.emits) {
-				await this.processEmit(teamRunId, state, "evidence_collector", roleTaskId, emit, new Set());
-			}
-		}
-
-		// Update cursor
-		const lastItem = batch[batch.length - 1];
-		await this.workspace.writeCursor(teamRunId, {
-			roleId: "evidence_collector",
-			streamName: "candidate_domains",
-			lastConsumedItemId: lastItem.itemId,
-			updatedAt: new Date().toISOString(),
-		});
-	}
-
-	private async maybeRunClassifier(teamRunId: string, state: TeamRunState): Promise<void> {
-		const evidences = await this.workspace.readStreamItems(teamRunId, "domain_evidence");
-		const cursor = await this.workspace.readCursor(teamRunId, "classifier", "domain_evidence");
-
-		const newItems = this.getItemsAfterCursor(evidences, cursor);
-		if (newItems.length === 0) return;
-		if (newItems.length < 10) {
-			// Only run if discovery has stopped
-			if (state.currentRound >= state.budgets.maxRounds || state.counters.candidateDomains >= state.budgets.maxCandidates || state.stopSignals.length > 0) {
-				// ok, run batch
-			} else {
-				return;
-			}
-		}
-
-		const batch = newItems.slice(0, 10);
-		const task = this.createTaskInput(teamRunId, "classifier", {
-			keyword: state.keyword,
-			evidences: batch.map((i) => i.payload),
-		});
-
-		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, "classifier", task);
-		if (result.status === "success" && result.emits.length > 0) {
-			for (const emit of result.emits) {
-				await this.processEmit(teamRunId, state, "classifier", roleTaskId, emit, new Set());
-			}
-		}
-
-		const lastItem = batch[batch.length - 1];
-		await this.workspace.writeCursor(teamRunId, {
-			roleId: "classifier",
-			streamName: "domain_evidence",
-			lastConsumedItemId: lastItem.itemId,
-			updatedAt: new Date().toISOString(),
-		});
-	}
-
-	private async maybeRunReviewer(teamRunId: string, state: TeamRunState): Promise<void> {
-		const classifications = await this.workspace.readStreamItems(teamRunId, "domain_classifications");
-		const cursor = await this.workspace.readCursor(teamRunId, "reviewer", "domain_classifications");
-
-		const newItems = this.getItemsAfterCursor(classifications, cursor);
-		if (newItems.length === 0) return;
-
-		// Run batch of 20, or all remaining if upstream done
-		const batch = newItems.slice(0, 20);
-		const task = this.createTaskInput(teamRunId, "reviewer", {
-			keyword: state.keyword,
-			classifications: batch.map((i) => i.payload),
-		});
-
-		const { roleTaskId, result } = await this.runRoleTask(teamRunId, state, "reviewer", task);
-		if (result.status === "success" && result.emits.length > 0) {
-			for (const emit of result.emits) {
-				await this.processEmit(teamRunId, state, "reviewer", roleTaskId, emit, new Set());
-			}
-		}
-
-		const lastItem = batch[batch.length - 1];
-		await this.workspace.writeCursor(teamRunId, {
-			roleId: "reviewer",
-			streamName: "domain_classifications",
-			lastConsumedItemId: lastItem.itemId,
-			updatedAt: new Date().toISOString(),
-		});
-	}
-
-	private async maybeFinalize(teamRunId: string, state: TeamRunState): Promise<void> {
-		if (state.currentRound < state.budgets.maxRounds && state.counters.candidateDomains < state.budgets.maxCandidates && state.stopSignals.length === 0) {
-			return;
-		}
-
-		// Check all streams consumed
-		const candidates = await this.workspace.readStreamItems(teamRunId, "candidate_domains");
-		const evidences = await this.workspace.readStreamItems(teamRunId, "domain_evidence");
-		const classifications = await this.workspace.readStreamItems(teamRunId, "domain_classifications");
-		const reviews = await this.workspace.readStreamItems(teamRunId, "review_findings");
-
-		const evCursor = await this.workspace.readCursor(teamRunId, "evidence_collector", "candidate_domains");
-		const clCursor = await this.workspace.readCursor(teamRunId, "classifier", "domain_evidence");
-		const rvCursor = await this.workspace.readCursor(teamRunId, "reviewer", "domain_classifications");
-
-		const evUnconsumed = this.getItemsAfterCursor(candidates, evCursor).length;
-		const clUnconsumed = this.getItemsAfterCursor(evidences, clCursor).length;
-		const rvUnconsumed = this.getItemsAfterCursor(classifications, rvCursor).length;
-
-		if (evUnconsumed > 0 || clUnconsumed > 0 || rvUnconsumed > 0) return;
-
-		// Finalize
+	private async runTemplateFinalizer(
+		teamRunId: string,
+		state: TeamRunState,
+		plan: TeamPlan,
+		template: TeamTemplate,
+		streams: Partial<Record<TeamStreamName, TeamStreamItem[]>>,
+	): Promise<void> {
+		const streamCounts = Object.fromEntries(
+			template.streamNames.map((streamName) => [streamName, streams[streamName]?.length ?? 0]),
+		);
 		const task = this.createTaskInput(teamRunId, "finalizer", {
-			candidateCount: candidates.length,
-			evidenceCount: evidences.length,
-			classificationCount: classifications.length,
-			reviewCount: reviews.length,
+			streamCounts,
 		});
 
-		await this.runRoleTask(teamRunId, state, "finalizer", task);
+		const { result } = await this.runRoleTask(teamRunId, state, "finalizer", task);
+		if (result.status !== "success") return;
 
-		// Generate report
-		await this.generateReport(teamRunId, state, candidates, evidences, classifications, reviews);
+		await template.finalize({ teamRunId, state, plan, streams, workspace: this.workspace });
 
 		state.status = "completed";
 		state.finishedAt = new Date().toISOString();
@@ -272,15 +178,7 @@ export class TeamOrchestrator {
 
 		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 			try {
-				const resultPromise = this.runner.runTask(task);
-				const result = this.config.roleTaskTimeoutMs > 0
-					? await Promise.race([
-						resultPromise,
-						new Promise<never>((_, reject) =>
-							setTimeout(() => reject(new Error(`role task timed out after ${this.config.roleTaskTimeoutMs}ms`)), this.config.roleTaskTimeoutMs)
-						),
-					])
-					: await resultPromise;
+				const result = await this.runTaskWithTimeout(task);
 
 				if (result.status === "failed" && attempt < maxAttempts) {
 					await this.emitEvent(teamRunId, "role_task_retrying", { roleId, attempt, maxAttempts, message: result.message });
@@ -310,27 +208,53 @@ export class TeamOrchestrator {
 		return { roleTaskId: task.roleTaskId, result: lastResult };
 	}
 
+	private async runTaskWithTimeout(task: TeamRoleTaskExecutionInput): Promise<TeamRoleTaskExecutionResult> {
+		if (this.config.roleTaskTimeoutMs <= 0) {
+			return this.runner.runTask(task);
+		}
+
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		try {
+			return await Promise.race([
+				this.runner.runTask(task),
+				new Promise<never>((_, reject) => {
+					timeout = setTimeout(
+						() => reject(new Error(`role task timed out after ${this.config.roleTaskTimeoutMs}ms`)),
+						this.config.roleTaskTimeoutMs,
+					);
+				}),
+			]);
+		} finally {
+			if (timeout) clearTimeout(timeout);
+		}
+	}
+
 	private async processEmit(
 		teamRunId: string,
 		state: TeamRunState,
+		template: TeamTemplate,
 		roleId: TeamRole["roleId"],
 		producerTaskId: string,
 		emit: { streamName: TeamStreamName; payload: unknown },
 		seenDomains: Set<string>,
 	): Promise<void> {
-		if (!canRoleWriteStream(roleId, emit.streamName)) {
+		if (!this.canTemplateRoleWriteStream(template, roleId, emit.streamName)) {
 			await this.emitEvent(teamRunId, "stream_item_rejected", { roleId, streamName: emit.streamName, reason: "role not allowed" });
 			return;
 		}
 
-		const validator = STREAM_VALIDATORS[emit.streamName];
+		const validator = template.getStreamValidator(emit.streamName);
+		if (!validator) {
+			await this.emitEvent(teamRunId, "stream_item_rejected", { roleId, streamName: emit.streamName, reason: "unknown stream" });
+			return;
+		}
+
 		const validation = validator(emit.payload);
 		if (!validation.ok) {
 			await this.emitEvent(teamRunId, "stream_item_rejected", { roleId, streamName: emit.streamName, errors: validation.errors });
 			return;
 		}
 
-		// Duplicate check for candidate_domains
 		if (emit.streamName === "candidate_domains") {
 			const payload = validation.value as { normalizedDomain: string };
 			if (seenDomains.has(payload.normalizedDomain)) {
@@ -357,6 +281,15 @@ export class TeamOrchestrator {
 		this.incrementCounter(state, emit.streamName);
 	}
 
+	private canTemplateRoleWriteStream(
+		template: TeamTemplate,
+		roleId: TeamRole["roleId"],
+		streamName: TeamStreamName,
+	): boolean {
+		const role = template.roles.find((item) => item.roleId === roleId);
+		return Boolean(role?.outputStreams.includes(streamName));
+	}
+
 	private incrementCounter(state: TeamRunState, streamName: TeamStreamName): void {
 		switch (streamName) {
 			case "candidate_domains": state.counters.candidateDomains++; break;
@@ -364,6 +297,30 @@ export class TeamOrchestrator {
 			case "domain_classifications": state.counters.classifications++; break;
 			case "review_findings": state.counters.reviewFindings++; break;
 		}
+	}
+
+	private async readTemplateStreams(
+		teamRunId: string,
+		template: TeamTemplate,
+	): Promise<Partial<Record<TeamStreamName, TeamStreamItem[]>>> {
+		const streams: Partial<Record<TeamStreamName, TeamStreamItem[]>> = {};
+		for (const streamName of template.streamNames) {
+			streams[streamName] = await this.workspace.readStreamItems(teamRunId, streamName);
+		}
+		return streams;
+	}
+
+	private async readTemplateCursors(
+		teamRunId: string,
+		template: TeamTemplate,
+	): Promise<Record<string, { lastConsumedItemId?: string } | undefined>> {
+		const cursors: Record<string, { lastConsumedItemId?: string } | undefined> = {};
+		for (const role of template.roles) {
+			for (const streamName of role.allowedInputStreams) {
+				cursors[`${role.roleId}_${streamName}`] = await this.workspace.readCursor(teamRunId, role.roleId, streamName);
+			}
+		}
+		return cursors;
 	}
 
 	private async getSeenNormalizedDomains(teamRunId: string): Promise<Set<string>> {
@@ -374,13 +331,6 @@ export class TeamOrchestrator {
 			seen.add(payload.normalizedDomain);
 		}
 		return seen;
-	}
-
-	private getItemsAfterCursor<T>(items: Array<TeamStreamItem<T>>, cursor: { lastConsumedItemId?: string } | undefined): Array<TeamStreamItem<T>> {
-		if (!cursor?.lastConsumedItemId) return [...items];
-		const idx = items.findIndex((i) => i.itemId === cursor.lastConsumedItemId);
-		if (idx < 0) return [...items];
-		return items.slice(idx + 1);
 	}
 
 	private createTaskInput(teamRunId: string, roleId: TeamRole["roleId"], inputData: Record<string, unknown>): TeamRoleTaskExecutionInput {
@@ -400,71 +350,5 @@ export class TeamOrchestrator {
 			createdAt: new Date().toISOString(),
 			data,
 		});
-	}
-
-	private async generateReport(
-		teamRunId: string,
-		state: TeamRunState,
-		candidates: TeamStreamItem[],
-		evidences: TeamStreamItem[],
-		classifications: TeamStreamItem[],
-		reviews: TeamStreamItem[],
-	): Promise<void> {
-		const lines: string[] = [];
-		lines.push(`# ${state.keyword} Domain Discovery Report`);
-		lines.push("");
-		lines.push("## 1. Summary");
-		lines.push(`- Candidate domains: ${candidates.length}`);
-		lines.push(`- Evidence collected: ${evidences.length}`);
-		lines.push(`- Classifications: ${classifications.length}`);
-		lines.push(`- Review findings: ${reviews.length}`);
-
-		const unknownCount = classifications.filter((c) => (c.payload as any).category === "unknown").length;
-		const suspiciousCount = classifications.filter((c) => (c.payload as any).category === "suspicious_impersonation").length;
-		lines.push(`- Need manual review: ${unknownCount}`);
-		lines.push(`- Suspicious: ${suspiciousCount}`);
-		lines.push("");
-
-		lines.push("## 2. Coverage");
-		lines.push(`- Rounds: ${state.currentRound}`);
-		lines.push(`- Stop signals: ${state.stopSignals.join(", ") || "none"}`);
-		lines.push("- NOT a comprehensive search of the entire internet.");
-		lines.push("");
-
-		lines.push("## 3. Classification Results");
-		lines.push("| Domain | Category | Confidence | Action |");
-		lines.push("|--------|----------|------------|--------|");
-		for (const c of classifications) {
-			const p = c.payload as any;
-			lines.push(`| ${p.domain} | ${p.category} | ${p.confidence} | ${p.recommendedAction} |`);
-		}
-		lines.push("");
-
-		if (reviews.length > 0) {
-			lines.push("## 4. Review Findings");
-			for (const r of reviews) {
-				const p = r.payload as any;
-				const target = p.targetDomain ? ` (${p.targetDomain})` : "";
-				lines.push(`- **${p.verdict}**${target}: ${p.message}`);
-			}
-			lines.push("");
-		}
-
-		lines.push("## 5. Limitations");
-		lines.push("- NOT a comprehensive search of the entire internet.");
-		lines.push(`- Does NOT represent all ${state.keyword}-related domains.`);
-		lines.push("- Domain ownership was NOT verified.");
-		if (!state.companyHints.officialDomains?.length) {
-			lines.push("- No official domain whitelist was provided; ownership judgments are preliminary only.");
-		}
-		lines.push("");
-		lines.push(`Generated at ${new Date().toISOString()}`);
-
-		await this.workspace.writeArtifactText(teamRunId, "final_report.md", lines.join("\n"));
-
-		await this.workspace.writeArtifactJson(teamRunId, "candidate_domains.json", candidates.map((i) => i.payload));
-		await this.workspace.writeArtifactJson(teamRunId, "domain_evidence.json", evidences.map((i) => i.payload));
-		await this.workspace.writeArtifactJson(teamRunId, "domain_classifications.json", classifications.map((i) => i.payload));
-		await this.workspace.writeArtifactJson(teamRunId, "review_report.json", reviews.map((i) => i.payload));
 	}
 }

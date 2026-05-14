@@ -2,6 +2,7 @@ import { getTeamConfig } from "../team/team-config.js";
 import { TeamWorkspace } from "../team/team-workspace.js";
 import { TeamOrchestrator } from "../team/team-orchestrator.js";
 import { DeterministicMockTeamRoleTaskRunner, CompositeTeamRoleTaskRunner } from "../team/team-role-task-runner.js";
+import { createDefaultTeamTemplateRegistry } from "../team/team-template-registry.js";
 
 async function main(): Promise<void> {
 	const config = getTeamConfig();
@@ -14,6 +15,7 @@ async function main(): Promise<void> {
 	console.log(`[team-worker] starting (poll: ${config.workerPollIntervalMs}ms, maxConcurrent: ${config.maxConcurrentRuns})`);
 
 	const workspace = new TeamWorkspace({ teamDataDir: config.dataDir });
+	const templateRegistry = createDefaultTeamTemplateRegistry();
 
 	const realRoles = process.env.TEAM_REAL_ROLES?.trim();
 	const runner = realRoles
@@ -48,6 +50,7 @@ async function main(): Promise<void> {
 				const orchestrator = new TeamOrchestrator({
 					workspace,
 					roleTaskRunner: runner,
+					templateRegistry,
 					maxRounds: state.budgets.maxRounds,
 					maxCandidates: state.budgets.maxCandidates,
 					maxMinutes: state.budgets.maxMinutes,

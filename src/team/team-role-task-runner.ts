@@ -1,7 +1,7 @@
 import type { TeamRoleTaskExecutionInput, TeamRoleTaskExecutionResult, TeamStreamName } from "./types.js";
 import { loadLLMConfig, callLLM } from "./llm.js";
-import { searchAndFormat } from "../team-lab/search.js";
-import { stripMarkdownFence, repairJson } from "../team-lab/brand-domain-gate.js";
+import { searchAndFormat } from "./team-search.js";
+import { stripMarkdownFence, repairJson } from "./json-output.js";
 import {
 	buildDiscoveryPrompt,
 	buildEvidenceCollectorPrompt,
@@ -84,8 +84,8 @@ function parseJsonOutput(raw: string): { ok: true; value: unknown } | { ok: fals
 }
 
 /**
- * Converts team-lab envelope format to v0.1 RoleTaskJsonEnvelope format.
- * team-lab discovery emits: { type, payload } — v0.1 expects { streamName, payload }.
+ * Converts legacy discovery envelope format to v0.1 RoleTaskJsonEnvelope format.
+ * Legacy discovery emits: { type, payload } — v0.1 expects { streamName, payload }.
  */
 function convertDiscoveryEnvelope(raw: unknown): TeamRoleTaskExecutionResult {
 	const obj = raw as { status?: string; emits?: Array<{ type?: string; streamName?: string; payload: unknown }>; checkpoint?: Record<string, unknown>; message?: string };
@@ -146,12 +146,12 @@ export class LLMTeamRoleTaskRunner implements TeamRoleTaskRunner {
 			return { status: "failed", emits: [], message: `JSON parse failed: ${parsed.error}`, rawOutput: raw };
 		}
 
-		// Handle both v0.1 format (streamName) and team-lab format (type)
+		// Handle both v0.1 format (streamName) and legacy format (type)
 		const obj = parsed.value as Record<string, unknown>;
 		if (Array.isArray(obj.emits) && obj.emits.length > 0) {
 			const firstEmit = obj.emits[0] as Record<string, unknown>;
 			if (firstEmit.type && !firstEmit.streamName) {
-				// team-lab format — convert to v0.1
+				// legacy format — convert to v0.1
 				return convertDiscoveryEnvelope(parsed.value);
 			}
 		}
