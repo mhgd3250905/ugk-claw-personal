@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { TeamOrchestrator } from "../src/team/orchestrator.js";
@@ -327,6 +327,50 @@ test("cancel during finalizer does not overwrite cancelled state", async () => {
 
 		const final = await runPromise;
 		assert.equal(final.status, "cancelled", "state should remain cancelled, not completed");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("cancel after checker returns does not write an unreferenced accepted result", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ctrl-"));
+	try {
+		const planStore = new PlanStore(root);
+		const unitStore = new TeamUnitStore(root);
+		const workspace = new RunWorkspace(root);
+		const unit = await unitStore.create({ title: "t", description: "d", watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f" });
+		const plan = await planStore.create({
+			title: "checker cancel result write test",
+			defaultTeamUnitId: unit.teamUnitId,
+			goal: { text: "test" },
+			tasks: [{ id: "task_1", title: "t1", input: { text: "do" }, acceptance: { rules: ["r1"] } }],
+			outputContract: { text: "output" },
+		});
+
+		class CancelAfterCheckerRunner extends MockRoleRunner {
+			constructor(private readonly orchestrator: TeamOrchestrator, private readonly runId: string) {
+				super();
+			}
+
+			override async runChecker(input: import("../src/team/role-runner.js").CheckerInput) {
+				const verdict = await super.runChecker(input);
+				await this.orchestrator.cancelRun(this.runId, "cancel after checker");
+				return verdict;
+			}
+		}
+
+		const placeholderRunner = new MockRoleRunner();
+		const orchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: placeholderRunner, dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60 });
+		const state = await orchestrator.createRun(plan.planId);
+		const runner = new CancelAfterCheckerRunner(orchestrator, state.runId);
+		const activeOrchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: runner, dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60 });
+
+		const final = await activeOrchestrator.runToCompletion(state.runId);
+		assert.equal(final.status, "cancelled");
+		assert.equal(final.taskStates.task_1?.resultRef, null);
+
+		const resultPath = join(root, "runs", state.runId, "tasks", "task_1", "attempts", final.taskStates.task_1?.activeAttemptId ?? "", "accepted-result.md");
+		await assert.rejects(() => access(resultPath));
 	} finally {
 		await rm(root, { recursive: true });
 	}

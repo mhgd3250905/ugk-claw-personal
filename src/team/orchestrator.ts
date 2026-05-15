@@ -352,9 +352,9 @@ export class TeamOrchestrator {
 
 			if (checkerOut.verdict === "pass") {
 				const resultContent = checkerOut.resultContent ?? workerOut.content;
-				const resultRef = await this.workspace.writeAcceptedResult(runId, task.id, attemptId, resultContent);
 				const s = (await this.workspace.getState(runId))!;
 				if (isRunExternallyStopped(s.status)) return "failed";
+				const resultRef = await this.workspace.writeAcceptedResult(runId, task.id, attemptId, resultContent);
 				s.taskStates[task.id]!.resultRef = resultRef;
 				await this.workspace.saveState(s);
 				return "passed";
@@ -362,9 +362,9 @@ export class TeamOrchestrator {
 
 			if (checkerOut.verdict === "fail") {
 				const failContent = checkerOut.resultContent ?? checkerOut.reason;
-				const failRef = await this.workspace.writeFailedResult(runId, task.id, attemptId, failContent);
 				const s = (await this.workspace.getState(runId))!;
 				if (isRunExternallyStopped(s.status)) return "failed";
+				const failRef = await this.workspace.writeFailedResult(runId, task.id, attemptId, failContent);
 				s.taskStates[task.id]!.resultRef = failRef;
 				s.taskStates[task.id]!.errorSummary = checkerOut.reason;
 				await this.workspace.saveState(s);
@@ -374,9 +374,9 @@ export class TeamOrchestrator {
 			checkerRevision++;
 			lastFeedback = checkerOut.feedback;
 			if (checkerRevision >= this.maxCheckerRevisions) {
-				const failRef = await this.workspace.writeFailedResult(runId, task.id, attemptId, `checker revision limit (${this.maxCheckerRevisions}) exceeded`);
 				const s = (await this.workspace.getState(runId))!;
 				if (isRunExternallyStopped(s.status)) return "failed";
+				const failRef = await this.workspace.writeFailedResult(runId, task.id, attemptId, `checker revision limit (${this.maxCheckerRevisions}) exceeded`);
 				s.taskStates[task.id]!.resultRef = failRef;
 				s.taskStates[task.id]!.errorSummary = "checker revision limit exceeded";
 				await this.workspace.saveState(s);
