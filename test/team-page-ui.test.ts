@@ -57,3 +57,15 @@ test("standalone team page subscribes to live run events", () => {
 	assert.match(page, /实时接收中/);
 	assert.match(page, /事件流已断开，正在使用手动刷新/);
 });
+
+test("standalone team page includes cancel run UI elements", () => {
+	const page = renderTeamPage();
+
+	assert.match(page, /handleCancelRun/);
+	assert.match(page, /apiCancelRun/);
+	assert.match(page, /team-cancel-run/);
+	assert.match(page, /team-btn--danger/);
+	assert.match(page, /team-badge--cancelled/);
+	assert.match(page, /confirm-overlay/);
+	assert.match(page, /\/cancel/);
+});

@@ -42,16 +42,14 @@ export function buildRoleBox(input: {
 
 function appendRoleBoxContract(prompt: string, role: TeamRole): string {
 	const outputStreams = role.outputStreams.length ? role.outputStreams.join(", ") : "none";
-	const submitTools = getSubmitToolsForRole(role.roleId).map((tool) => tool.name);
-	const submitToolText = submitTools.length ? submitTools.join(", ") : "none";
 	return `${prompt}
 
 ROLE BOX CONTRACT:
 - Natural language does not count as a result.
-- When submit tools are available, submit each finished stream item immediately through the matching tool.
-- Current compatibility mode still requires a final JSON envelope; do not duplicate already submitted tool results in final emits.
+- Output your results as a single JSON envelope object. Do not wrap in markdown fences.
+- The envelope must have: { status: "success", emits: [{ streamName: "<outputStream>", payload: {...} }] }
+- Do not include any text before or after the JSON object.
 - Allowed output streams: ${outputStreams}.
-- Declared submit tools: ${submitToolText}.
 - Do not violate these role boundaries:
 ${role.mustNotDo.map((rule) => `  - ${rule}`).join("\n")}`;
 }

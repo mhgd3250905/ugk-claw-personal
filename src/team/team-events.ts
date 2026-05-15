@@ -15,6 +15,7 @@ export type TeamEventType =
 	| "stream_item_accepted"
 	| "stream_item_rejected"
 	| "stream_item_duplicate_skipped"
+	| "team_run_cancelled"
 	| "final_report_created";
 
 export interface TeamEvent {

@@ -2,6 +2,7 @@ import {
 	getStandaloneBaseCss,
 	getStandaloneBaseJs,
 	renderStandaloneToastContainer,
+	renderStandaloneConfirmDialog,
 	STANDALONE_FAVICON,
 	STANDALONE_THEME_INLINE_SCRIPT,
 } from "./standalone-page-shared.js";
@@ -199,6 +200,9 @@ function getTeamPageCss(): string {
 		.team-badge--completed { background: var(--team-green-soft); color: var(--team-green); }
 		.team-badge--blocked { background: var(--team-amber-soft); color: var(--team-amber); }
 		.team-badge--failed { background: var(--team-red-soft); color: var(--team-red); }
+			.team-badge--cancelled { background: var(--team-red-soft); color: var(--team-muted); }
+			.team-btn--danger { border-color: var(--team-red); color: var(--team-red); opacity: 0.7; }
+			.team-btn--danger:not(:disabled):hover { background: var(--team-red-soft); color: var(--team-red); opacity: 1; }
 
 		.team-detail {
 			display: grid;
@@ -320,6 +324,7 @@ function getTeamPageJs(): string {
 			eventStreamStatus: "",
 			loading: false,
 			creating: false,
+			cancelling: false,
 		};
 
 		function statusClass(status) {
@@ -502,7 +507,7 @@ function getTeamPageJs(): string {
 				lines.push("可读取输入流：" + role.allowedInputStreams.join(", "));
 			}
 			if (Array.isArray(role.outputStreams) && role.outputStreams.length) {
-				lines.push("必须通过工具写入输出流：" + role.outputStreams.join(", "));
+				lines.push("输出流（JSON envelope）：" + role.outputStreams.join(", "));
 			}
 			if (Array.isArray(role.mustNotDo) && role.mustNotDo.length) {
 				lines.push("禁止：");
@@ -657,7 +662,12 @@ function getTeamPageJs(): string {
 			var runState = detail.state || {};
 			var plan = detail.plan || {};
 			title.textContent = runState.keyword || plan.keyword || state.selectedRunId;
-			actions.innerHTML = '<button id="team-refresh-detail" class="team-btn" type="button"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>刷新</button>';
+			var actionHtml = '<button id="team-refresh-detail" class="team-btn" type="button"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>刷新</button>';
+			if (runState.status === "running" || runState.status === "queued") {
+				var cancelLabel = state.cancelling ? "取消中..." : "取消 Run";
+				actionHtml += ' <button id="team-cancel-run" class="team-btn team-btn--danger" type="button"' + (state.cancelling ? ' disabled' : '') + '><svg viewBox="0 0 24 24" stroke-width="1.8" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>' + cancelLabel + '</button>';
+			}
+			actions.innerHTML = actionHtml;
 			body.innerHTML = rolePanel
 				+ '<div class="team-card"><div class="team-card-title"><span>Run 状态</span><span class="' + statusClass(runState.status) + '">' + escapeHtml(runState.status || "-") + '</span></div>'
 				+ (state.eventStreamStatus ? '<div class="team-run-meta" style="margin-bottom:12px">' + escapeHtml(state.eventStreamStatus) + '</div>' : '')
@@ -673,6 +683,8 @@ function getTeamPageJs(): string {
 				+ '</div></div>'
 				+ '<div class="team-card"><div class="team-tabs">' + renderTabs(plan) + '</div><div id="team-tab-body"></div></div>';
 			document.getElementById("team-refresh-detail").addEventListener("click", function() { refreshSelectedRun(); });
+			var cancelBtn = document.getElementById("team-cancel-run");
+			if (cancelBtn) { cancelBtn.addEventListener("click", handleCancelRun); }
 			attachRoleConfigHandlers(body);
 			body.querySelectorAll("[data-tab]").forEach(function(btn) {
 				btn.addEventListener("click", function() {
@@ -787,6 +799,40 @@ function getTeamPageJs(): string {
 			}
 		}
 
+			async function apiCancelRun(teamRunId) {
+				return fetchJson("/v1/team/runs/" + encodeURIComponent(teamRunId) + "/cancel", {
+					method: "POST",
+				});
+			}
+
+			async function handleCancelRun() {
+				if (state.cancelling || !state.selectedRunId) return;
+				var detail = state.runs[state.selectedRunId];
+				var runState = detail && detail.state;
+				if (!runState || (runState.status !== "running" && runState.status !== "queued")) return;
+
+				var confirmed = await openConfirmDialog({
+					title: "取消 Team Run?",
+					message: "Run: " + (runState.keyword || state.selectedRunId) + " — 取消后，正在执行的后台角色任务将停止处理后续输出，run 状态将变为 cancelled。此操作不可撤销。",
+					confirmLabel: "取消 Run",
+					tone: "danger",
+				});
+				if (!confirmed) return;
+
+				state.cancelling = true;
+				renderRunDetail();
+				try {
+					await apiCancelRun(state.selectedRunId);
+					showToast("Run 已取消", "ok");
+					await refreshSelectedRun();
+				} catch (e) {
+					showToast(e.message || "取消失败", "danger");
+				} finally {
+					state.cancelling = false;
+					renderRunDetail();
+				}
+		}
+
 		async function loadAll() {
 			var error = document.getElementById("team-page-error");
 			error.hidden = true;
@@ -886,8 +932,10 @@ export function renderTeamPage(): string {
 			</section>
 		</div>
 	</div>
+		${renderStandaloneConfirmDialog()}
 	${renderStandaloneToastContainer()}
 	<script>${js}</script>
 </body>
 </html>`;
 }
+

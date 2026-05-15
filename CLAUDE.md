@@ -116,6 +116,9 @@ Fastify Server (src/server.ts)
 **Team Runtime** (`src/team/`): Tick-based multi-role pipeline for brand domain investigation (v0.1). `TeamOrchestrator` drives a 5-role state machine: Discovery → Evidence Collector → Classifier → Reviewer → Finalizer. `TeamWorkspace` manages run persistence (atomic JSON writes, JSONL events/streams, cursor-based consumption). Runtime Gate validates payload shape, role→stream permissions, and dedup before any item enters a stream. `CompositeTeamRoleTaskRunner` allows mixing real LLM roles with mock via `TEAM_REAL_ROLES` env var. Role tasks have configurable timeout (`TEAM_ROLE_TASK_TIMEOUT_MS`) and retry (`TEAM_ROLE_TASK_MAX_RETRIES`). `src/team-lab/` contains the validated spike experiment — **do not modify `src/team-lab/`**. API routes at `/v1/team/*`: `GET /healthz`, `POST /runs` (create run), `GET /runs` (list runnable), `GET /runs/:id` (state+plan), `GET /runs/:id/events`, `GET /runs/:id/streams/:streamName`, `GET /runs/:id/artifacts/:name`. The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=true`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
 
 Team Runtime internals:
+- **Agent profile binding**: Each role can bind to an Agent profile via `roleProfileIds` in `POST /runs`. Bound roles use `AgentProfileTeamRoleTaskRunner` (`src/team/agent-profile-team-role-task-runner.ts`), inheriting the profile's model source, skills, rules file, and default Chrome. Unbound roles fall back to the default LLM runner. The Team page (`src/ui/team-page.ts`) renders per-role cards where users select profiles and edit role prompts.
+- **Templates**: Pipeline definitions live in `src/team/templates/` (e.g., `brand-domain-discovery.ts`). Templates declare roles, streams, allowed permissions, and default prompts. `GET /v1/team/templates` returns template metadata including role definitions.
+- **Realtime submit**: Agent-profile-bound Discovery runs as a background task with heartbeat/watchdog. It can submit candidate domains to its output stream while still running, allowing downstream roles (Evidence, etc.) to start processing items immediately.
 - **LLM calls** (`src/team/llm.ts`): `callLLM()` auto-detects API format by baseUrl — OpenAI format at `api.deepseek.com/chat/completions` vs Anthropic-compatible at `api.deepseek.com/anthropic/v1/messages`. Key loaded from `deepseek.txt`/`deepseek-api.txt` or `DEEPSEEK_API_KEY` env var.
 - **JSON repair**: DeepSeek occasionally outputs JSON with unescaped quotes. `repairJson()` in `src/team-lab/brand-domain-gate.ts` does char-level repair — always use it when parsing LLM JSON output.
 - **SearXNG endpoints**: host `http://127.0.0.1:48080`, Docker internal `http://ugk-pi-searxng:8080` (set via `SEARXNG_BASE_URL`). API: `GET /search?q=<query>&format=json&categories=general`.
@@ -124,6 +127,13 @@ Team Runtime internals:
 ### Architecture Governance
 
 `AgentService` (`src/agent/agent-service.ts`) is the runtime orchestration center. Its `activeRuns` / `terminalRuns` in-memory maps and `runChat()` lifecycle (create session → prepare assets → register active run → subscribe events → execute prompt → persist → terminal snapshot → browser cleanup) are intentionally kept together — splitting them into separate stores would make synchronization boundaries worse, not better. Do not refactor `AgentService` further unless a real bug or new feature demands it. The project has completed its architecture cleanup phase (~85-90%); remaining work should focus on real user scenarios, small-scoped tests for new features, and targeted fixes rather than continued file splitting.
+
+Out of bounds (do not do unless explicitly asked):
+- Do not continue splitting `AgentService` or `src/team/` without a concrete bug or feature driving it.
+- Do not treat mobile Playground as a compressed desktop version.
+- Do not push Feishu as current mainline unless the user re-requests.
+- Do not modify `references/pi-mono/` — reference mirror, not business code.
+- Do not modify `src/team-lab/` — validated spike experiment, frozen.
 
 ### `.pi/` Directory
 
@@ -152,6 +162,7 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 | Standalone conn task page | `src/ui/conn-page.ts` |
 | Standalone task inbox page | `src/ui/inbox-page.ts` |
 | Standalone agent management page | `src/ui/agents-page.ts` |
+| Team page UI | `src/ui/team-page.ts` |
 | pi-coding-agent settings | `.pi/settings.json` |
 | Multi-agent profile definitions | `.pi/agents/` |
 | Team Runtime orchestrator | `src/team/team-orchestrator.ts` |
@@ -159,7 +170,9 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 | Team Runtime types | `src/team/types.ts` |
 | Team Runtime gate (validation, permissions) | `src/team/team-gate.ts` |
 | Team Runtime role runners (mock, LLM, composite) | `src/team/team-role-task-runner.ts` |
+| Team Runtime Agent profile role runner | `src/team/agent-profile-team-role-task-runner.ts` |
 | Team Runtime role prompts | `src/team/team-role-prompts.ts` |
+| Team Runtime templates | `src/team/templates/brand-domain-discovery.ts`, `src/team/templates/competitor-domain-discovery.ts` |
 | Team Runtime plan factory | `src/team/team-plan-brand-domain.ts` |
 | Team Runtime config adapter | `src/team/team-config.ts` |
 | Team Runtime LLM client | `src/team/llm.ts` |
@@ -171,6 +184,7 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 
 Requires Node.js >= 22. Runtime config comes from env vars, with `.env.example` as the template. Key vars:
 - `ANTHROPIC_AUTH_TOKEN` — primary model key; also used for zhipu-glm compatible chain (`https://open.bigmodel.cn/api/anthropic` via `anthropic-messages` provider)
+- `ZHIPU_GLM_API_KEY` — 智谱 GLM model key (separate from `ANTHROPIC_AUTH_TOKEN`; uses `authHeader: true`)
 - `DASHSCOPE_CODING_API_KEY` / `DEEPSEEK_API_KEY` / `XIAOMI_MIMO_API_KEY` — alternative model provider keys
 - `PUBLIC_BASE_URL` — external URL for generated links
 - `UGK_AGENT_DATA_DIR` / `UGK_AGENTS_DATA_DIR` — persistent state directories (externally mounted in production)

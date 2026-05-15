@@ -107,6 +107,28 @@ export function registerTeamRoutes(app: FastifyInstance, deps: TeamRouteDependen
 			return reply.status(404).send({ error: "run not found" });
 		}
 	});
+		app.post("/v1/team/runs/:teamRunId/cancel", async (
+			request: FastifyRequest<{ Params: { teamRunId: string } }>,
+			reply: FastifyReply,
+		) => {
+			const { teamRunId } = request.params;
+			try {
+				const state = await workspace.cancelRun(teamRunId);
+				await workspace.appendEvent(teamRunId, {
+					eventId: generateTeamEventId(),
+					teamRunId,
+					eventType: "team_run_cancelled",
+					createdAt: new Date().toISOString(),
+					data: { reason: "cancelled by user" },
+				});
+				return { state };
+			} catch (err: any) {
+				if (err.message?.includes("cannot cancel")) {
+					return reply.status(409).send({ error: err.message });
+				}
+				return reply.status(404).send({ error: "run not found" });
+			}
+		});
 
 	app.get("/v1/team/runs/:teamRunId/events", async (
 		request: FastifyRequest<{ Params: { teamRunId: string } }>,

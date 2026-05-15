@@ -238,4 +238,70 @@ describe("TeamWorkspace", () => {
 			/Failed to parse JSON/,
 		);
 	});
+
+		it("cancelRun transitions queued run to cancelled", async () => {
+			const plan = makePlan("MED");
+			const s1 = makeState("run1", "MED");
+			s1.status = "queued";
+			await ws.createRun({ teamRunId: "run1", plan, state: s1 });
+
+			const result = await ws.cancelRun("run1");
+			assert.equal(result.status, "cancelled");
+			assert.ok(result.finishedAt);
+			assert.ok(result.stopSignals.includes("cancelled by user"));
+
+			const readBack = await ws.readState("run1");
+			assert.equal(readBack.status, "cancelled");
+			assert.equal(readBack.finishedAt, result.finishedAt);
+		});
+
+		it("cancelRun transitions running run to cancelled", async () => {
+			const plan = makePlan("MED");
+			const s1 = makeState("run1", "MED");
+			s1.status = "running";
+			s1.startedAt = new Date().toISOString();
+			await ws.createRun({ teamRunId: "run1", plan, state: s1 });
+
+			const result = await ws.cancelRun("run1");
+			assert.equal(result.status, "cancelled");
+		});
+
+		it("cancelRun rejects completed run", async () => {
+			const plan = makePlan("MED");
+			const s1 = makeState("run1", "MED");
+			s1.status = "completed";
+			s1.finishedAt = new Date().toISOString();
+			await ws.createRun({ teamRunId: "run1", plan, state: s1 });
+
+			await assert.rejects(
+				() => ws.cancelRun("run1"),
+				/cannot cancel run in status: completed/,
+			);
+		});
+
+		it("cancelRun rejects already cancelled run", async () => {
+			const plan = makePlan("MED");
+			const s1 = makeState("run1", "MED");
+			s1.status = "running";
+			s1.startedAt = new Date().toISOString();
+			await ws.createRun({ teamRunId: "run1", plan, state: s1 });
+
+			await ws.cancelRun("run1");
+			await assert.rejects(
+				() => ws.cancelRun("run1"),
+				/cannot cancel run in status: cancelled/,
+			);
+		});
+
+		it("cancelled runs are excluded from listRunnableRunIds", async () => {
+			const plan = makePlan("MED");
+			const s1 = makeState("run1", "MED");
+			s1.status = "running";
+			s1.startedAt = new Date().toISOString();
+			await ws.createRun({ teamRunId: "run1", plan, state: s1 });
+
+			await ws.cancelRun("run1");
+			const ids = await ws.listRunnableRunIds();
+			assert.deepEqual(ids, []);
+		});
 });

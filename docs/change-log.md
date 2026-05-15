@@ -13,6 +13,34 @@
 ---
 
 ## 2026-05-14
+### Team Run 手动取消功能
+- 日期：2026-05-14
+- 主题：在 `/playground/team` 页面增加手动取消正在运行的 Team run 的能力，补齐交接文档中明确缺失的产品功能。
+- 影响范围：
+  - `src/team/team-events.ts`：新增 `team_run_cancelled` 事件类型。
+  - `src/team/team-workspace.ts`：新增 `cancelRun()` 方法，校验状态、设置 `cancelled`/`finishedAt`/`stopSignals`、原子写入。
+  - `src/team/team-orchestrator.ts`：`runBackgroundRoleTask()` 增加两处 `cancelled` 防御检查，防止已取消 run 的后台任务继续写入。
+  - `src/routes/team.ts`：新增 `POST /v1/team/runs/:teamRunId/cancel`（200 成功、409 状态冲突、404 不存在）。
+  - `src/ui/team-page.ts`：running/queued 状态显示"取消 Run"危险按钮，确认弹窗，防重复点击。
+- 验证：
+  - `npx tsc --noEmit`（0 错误）
+  - `npm run test:team`（145 pass / 0 fail）
+- 对应入口：
+  - `src/routes/team.ts`
+  - `src/ui/team-page.ts`
+
+### Agent 容器补 DNS 查询工具
+- 日期：2026-05-14
+- 主题：在 Dockerfile 中加入 `dnsutils`，让 Team/Agent 运行容器具备 `dig`、`nslookup`、`host`，Evidence Agent 可稳定查询 MX/NS/TXT/CAA/SOA 等记录。
+- 影响范围：
+  - `Dockerfile`：`apt-get install` 列表新增 `dnsutils`。
+- 验证：
+  - `docker compose exec -T ugk-pi-team-worker sh -lc 'dig medtrum.com A +short && dig medtrum.com MX +short && dig medtrum.com NS +short && dig medtrum.com TXT +short'`（A/MX/NS/TXT 全部正常返回）
+  - `curl -s http://127.0.0.1:3000/healthz`（`{"ok":true}`）
+- 对应入口：
+  - `Dockerfile`
+  - `docs/team-runtime.md`
+
 ### Team Discovery 专业调查员 prompt
 - 日期：2026-05-14
 - 主题：把 Discovery 默认职责从“找关键词相关域名”升级为“专业域名调查员自己规划发现路径”，减少对用户显式点名 `crt.sh`、证书透明日志、DNS 等方法的依赖。

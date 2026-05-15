@@ -108,6 +108,21 @@ export class TeamWorkspace {
 		this.writeJsonAtomic(p, state);
 	}
 
+	async cancelRun(teamRunId: string, reason?: string): Promise<TeamRunState> {
+		const state = await this.readState(teamRunId);
+		if (state.status !== "queued" && state.status !== "running") {
+			throw new Error(`cannot cancel run in status: ${state.status}`);
+		}
+		const now = new Date().toISOString();
+		state.status = "cancelled";
+		state.finishedAt = now;
+		state.updatedAt = now;
+		state.stopSignals.push(reason ?? "cancelled by user");
+		const p = join(this.runDir(teamRunId), "state.json");
+		this.writeJsonAtomic(p, state);
+		return state;
+	}
+
 	async appendEvent(teamRunId: string, event: TeamEvent): Promise<void> {
 		const p = join(this.runDir(teamRunId), "events.jsonl");
 		appendFileSync(p, JSON.stringify(event) + "\n");

@@ -359,4 +359,88 @@ describe("team routes", () => {
 			rmSync(dir, { recursive: true, force: true });
 		}
 	});
+
+	it("cancels a queued team run via POST /v1/team/runs/:teamRunId/cancel", async () => {
+		const dir = join(tmpdir(), `team-routes-cancel-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const app = Fastify({ logger: false });
+		try {
+			registerTeamRoutes(app, { teamDataDir: dir });
+
+			const created = await app.inject({
+				method: "POST",
+				url: "/v1/team/runs",
+				payload: { keyword: "Medtrum", maxRounds: 1 },
+			});
+			assert.equal(created.statusCode, 201);
+			const teamRunId = (created.json() as { teamRunId: string }).teamRunId;
+
+			const cancelResponse = await app.inject({
+				method: "POST",
+				url: `/v1/team/runs/${teamRunId}/cancel`,
+			});
+			assert.equal(cancelResponse.statusCode, 200);
+			const body = cancelResponse.json() as { state: { status: string; finishedAt: string; stopSignals: string[] } };
+			assert.equal(body.state.status, "cancelled");
+			assert.ok(body.state.finishedAt);
+			assert.ok(body.state.stopSignals.some((s) => s.includes("cancelled by user")));
+
+			const eventsRaw = readFileSync(join(dir, "runs", teamRunId, "events.jsonl"), "utf-8").trim();
+			const events = eventsRaw.split("\n").map((line) => JSON.parse(line)) as Array<{ eventType: string }>;
+			assert.ok(events.some((e) => e.eventType === "team_run_cancelled"));
+		} finally {
+			await app.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("returns 409 when cancelling a completed run", async () => {
+		const dir = join(tmpdir(), `team-routes-cancel-409-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const app = Fastify({ logger: false });
+		try {
+			registerTeamRoutes(app, { teamDataDir: dir });
+
+			const created = await app.inject({
+				method: "POST",
+				url: "/v1/team/runs",
+				payload: { keyword: "Medtrum", maxRounds: 1 },
+			});
+			const teamRunId = (created.json() as { teamRunId: string }).teamRunId;
+
+			const statePath = join(dir, "runs", teamRunId, "state.json");
+			const state = JSON.parse(readFileSync(statePath, "utf-8"));
+			state.status = "completed";
+			state.finishedAt = new Date().toISOString();
+			writeFileSync(statePath, JSON.stringify(state, null, 2));
+
+			const cancelResponse = await app.inject({
+				method: "POST",
+				url: `/v1/team/runs/${teamRunId}/cancel`,
+			});
+			assert.equal(cancelResponse.statusCode, 409);
+		} finally {
+			await app.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("returns 404 when cancelling a non-existent run", async () => {
+		const dir = join(tmpdir(), `team-routes-cancel-404-${Date.now()}`);
+		mkdirSync(dir, { recursive: true });
+		const app = Fastify({ logger: false });
+		try {
+			registerTeamRoutes(app, { teamDataDir: dir });
+
+			const cancelResponse = await app.inject({
+				method: "POST",
+				url: "/v1/team/runs/nonexistent/cancel",
+			});
+			assert.equal(cancelResponse.statusCode, 404);
+		} finally {
+			await app.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 });

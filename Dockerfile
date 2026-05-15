@@ -12,7 +12,7 @@ RUN set -eux; \
 			/etc/apt/sources.list.d/debian.sources; \
 	fi; \
 	apt-get update \
-	&& apt-get install -y --no-install-recommends git curl ca-certificates python3 python3-cryptography python3-yaml \
+	&& apt-get install -y --no-install-recommends git curl ca-certificates python3 python3-cryptography python3-yaml dnsutils \
 	&& rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
