@@ -25,6 +25,38 @@ function isRunExternallyStopped(status: string): boolean {
 	return status === "cancelled" || status === "paused";
 }
 
+function generateFallbackReport(
+	plan: import("./types.js").TeamPlan,
+	state: TeamRunState,
+	error: unknown,
+): string {
+	const message = error instanceof Error ? error.message : String(error);
+	const lines: string[] = [
+		"# 系统汇总报告",
+		"",
+		"> 注意：这是系统自动生成的 fallback 报告，不是 finalizer Agent 原始输出。",
+		`> finalizer 执行失败：${message}`,
+		"",
+		"## 任务执行结果",
+		"",
+	];
+	for (const task of plan.tasks) {
+		const ts = state.taskStates[task.id];
+		if (!ts) {
+			lines.push(`- ${task.id}（${task.title}）：待执行`);
+		} else if (ts.status === "succeeded") {
+			lines.push(`- ${task.id}（${task.title}）：成功`);
+			if (ts.resultRef) lines.push(`  - 结果：${ts.resultRef}`);
+		} else {
+			lines.push(`- ${task.id}（${task.title}）：${ts.status}`);
+			if (ts.resultRef) lines.push(`  - 结果：${ts.resultRef}`);
+			if (ts.errorSummary) lines.push(`  - 错误：${ts.errorSummary}`);
+		}
+	}
+	lines.push("", `生成时间：${now()}`, "");
+	return lines.join("\n");
+}
+
 export class TeamOrchestrator {
 	private readonly planStore: PlanStore;
 	private readonly teamUnitStore: TeamUnitStore;
@@ -420,17 +452,30 @@ export class TeamOrchestrator {
 			};
 		});
 
-		const finalizerOut = await this.roleRunner.runFinalizer({ runId: state.runId, plan, taskResults, signal });
+		let finalReport: string;
+		let finalizerError: string | null = null;
+		try {
+			const finalizerOut = await this.roleRunner.runFinalizer({ runId: state.runId, plan, taskResults, signal });
+			finalReport = finalizerOut.finalReport;
+		} catch (error) {
+			finalizerError = error instanceof Error ? error.message : String(error);
+			finalReport = generateFallbackReport(plan, state, error);
+		}
 
 		// Re-read state after finalizer returns — external cancel may have landed
 		const freshState = (await this.workspace.getState(staleState.runId))!;
 		if (isRunExternallyStopped(freshState.status)) return;
 
-		await this.workspace.writeFinalReport(freshState.runId, finalizerOut.finalReport);
+		await this.workspace.writeFinalReport(freshState.runId, finalReport);
 
 		freshState.currentTaskId = null;
-		const hasFailures = taskResults.some(r => r.status === "failed");
-		freshState.status = hasFailures ? "completed_with_failures" : "completed";
+		const hasTaskFailures = taskResults.some(r => r.status === "failed");
+		if (finalizerError) {
+			freshState.status = "completed_with_failures";
+			freshState.lastError = finalizerError;
+		} else {
+			freshState.status = hasTaskFailures ? "completed_with_failures" : "completed";
+		}
 		freshState.activeElapsedMs = this.accumulateElapsed(freshState);
 		freshState.finishedAt = now();
 		freshState.updatedAt = now();
