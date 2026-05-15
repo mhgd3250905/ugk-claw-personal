@@ -1,0 +1,67 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
+const SKILL_PATH = join(import.meta.dirname, "../.pi/skills/team-plan-creator/SKILL.md");
+
+async function readSkill(): Promise<string> {
+	return readFile(SKILL_PATH, "utf8");
+}
+
+test("team-plan-creator skill does not contain positive steps to start a Run", async () => {
+	const skill = await readSkill();
+	// The skill should not contain instructions to create a run as a workflow step
+	// It may reference the API path in prohibition context
+	const positivePatterns = [
+		/step.*:\s*.*create.*run/i,
+		/step.*:\s*.*start.*run/i,
+		/workflow.*step.*run/i,
+	];
+	for (const pattern of positivePatterns) {
+		assert.doesNotMatch(skill, pattern, `skill should not contain positive run creation step matching ${pattern}`);
+	}
+});
+
+test("team-plan-creator skill explicitly prohibits POST /v1/team/plans/:planId/runs", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /POST\s+\/v1\/team\/plans\/:planId\/runs/);
+	assert.match(skill, /MUST NOT|must not|禁止/);
+});
+
+test("team-plan-creator skill requires previewing Plan JSON before creation", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /preview/i);
+	assert.match(skill, /confirm/i);
+});
+
+test("team-plan-creator skill requires acceptance rules to be verifiable", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /verifiable|可验证/);
+	assert.match(skill, /acceptance/);
+});
+
+test("team-plan-creator skill requires asking user for goal and deliverable", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /goal|目标/i);
+	assert.match(skill, /deliverable|交付/);
+	assert.match(skill, /ask|问/);
+});
+
+test("team-plan-creator skill requires checking existing resources before creating", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /GET\s+\/v1\/team\/team-units/);
+	assert.match(skill, /GET\s+\/v1\/team\/plans/);
+	assert.match(skill, /existing|已有/);
+});
+
+test("team-plan-creator skill prefers reusing existing TeamUnit", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /reuse|复用/);
+});
+
+test("team-plan-creator skill does not allow direct .data/team editing", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /\.data\/team/);
+	assert.match(skill, /MUST NOT|must not|禁止|do not|不允许/);
+});

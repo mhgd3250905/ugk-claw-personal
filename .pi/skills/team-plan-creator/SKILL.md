@@ -9,16 +9,29 @@ Use this skill to create Team Runtime v2 plans and team presets through the REST
 
 ## Workflow
 
-### 1. Check existing resources
+### Step 1: Ask the user
 
-First, list what's already available:
+Before touching any API, ask the user:
+
+1. **Goal** — What do you want the team to accomplish?
+2. **Deliverable** — What should the final output look like?
+3. **Existing resources** — Do you have a TeamUnit you want to reuse?
+4. **Task granularity** — Roughly how many steps do you want to break this into?
+
+Do not proceed to API calls until the user has answered at least the goal and deliverable questions.
+
+### Step 2: Check existing resources
+
+Before creating anything, list what's already available:
 
 - `GET /v1/team/team-units` — list existing team presets
 - `GET /v1/team/plans` — list existing plans
 
-### 2. Create a TeamUnit (if needed)
+If a suitable TeamUnit already exists, reuse it. Only create a new TeamUnit when no existing one fits the user's needs.
 
-A TeamUnit binds 4 AgentProfile IDs to the 4 roles. If no suitable team exists, create one:
+### Step 3: Create or reuse a TeamUnit (if needed)
+
+A TeamUnit binds 4 AgentProfile IDs to the 4 roles. Create one only if no suitable team exists:
 
 ```
 POST /v1/team/team-units
@@ -32,17 +45,21 @@ POST /v1/team/team-units
 }
 ```
 
-All 4 profile IDs can be the same value if one AgentProfile handles multiple roles.
+All 4 profile IDs can be the same value if one AgentProfile handles multiple roles. Before creating, verify all profile IDs exist via `GET /v1/agents`.
 
-### 3. Create a Plan
+### Step 4: Design tasks and preview Plan JSON
 
-A Plan contains an ordered list of tasks with acceptance criteria:
+Design the task list following the rules below. Before calling the API, show the user the full Plan JSON for review. Do not create the Plan until the user confirms the preview.
+
+### Step 5: Create the Plan
+
+After user confirms the preview:
 
 ```
 POST /v1/team/plans
 {
   "title": "计划名称",
-  "defaultTeamUnitId": "<teamUnitId from step 2>",
+  "defaultTeamUnitId": "<teamUnitId>",
   "goal": { "text": "计划目标描述" },
   "tasks": [
     {
@@ -58,19 +75,31 @@ POST /v1/team/plans
 
 Tasks execute sequentially. Each task goes through worker → checker → watcher phases.
 
-### 4. Verify the Plan
+## Task splitting rules
 
-- `GET /v1/team/runs` — list all runs
-- `GET /v1/team/runs/:runId` — get current state and task progress
-- `POST /v1/team/runs/:runId/cancel` — cancel a running run
-- `GET /v1/team/runs/:runId/final-report` — get the final summary report
+- One task = one coherent unit of work with a clear deliverable.
+- `task.input.text` must be specific and actionable. Never write vague descriptions like "研究所有东西" or "分析一切".
+- `acceptance.rules` must be specific and verifiable. Each rule should be checkable by reading the output. Good: "输出包含至少3个域名候选并标注来源". Bad: "完成分析".
+- `outputContract.text` must clearly describe the expected final format and content.
+- Avoid tasks that are too broad (one task should not try to do everything) or too narrow (one task per trivial step).
+- If a task depends on a previous task's output, state the dependency in `input.text`.
 
-## Guidelines
+## Prohibitions
 
-- Ask the user what they want the team to accomplish before creating tasks.
-- Break work into focused tasks with clear acceptance criteria.
-- One task = one coherent unit of work. Avoid vague tasks like "research everything".
-- Acceptance rules should be specific and verifiable.
-- If the user already has a team preset, reuse it rather than creating a new one.
-- Plans with existing runs cannot have their tasks edited — create a new plan instead.
-- Do not call `POST /v1/team/plans/:planId/runs`; creating or starting a Run is outside this skill.
+This skill MUST NOT:
+
+1. Call `POST /v1/team/plans/:planId/runs` — creating or starting a Run is outside this skill.
+2. Automatically start a Run after creating a Plan.
+3. Directly edit files under `.data/team/` — all changes must go through the REST API.
+
+If the user asks to start a run, tell them to use the `/playground/team` UI or call the Run API directly outside this skill.
+
+## Verification
+
+After creating resources, the user can verify via:
+
+- `GET /v1/team/team-units` — confirm team presets
+- `GET /v1/team/plans` — confirm plans
+- `GET /v1/team/plans/:planId` — inspect plan details
+
+This skill does not verify runs, task progress, or reports. Those are outside its scope.
