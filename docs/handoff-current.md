@@ -70,6 +70,25 @@
 验证记录（2026-05-16）：
 
 - `npx tsc --noEmit`：通过
+- `npm run test:team`：90 pass
+- `npm test`：819 pass
+- 新增测试：
+  - `test/team-orchestrator-controls.test.ts`：cancel during finalizer 不覆盖 cancelled、resume 跳过已成功 task
+  - `test/team-agent-profile-runner.test.ts`：finalizer prompt 包含 resultRef 文件内容
+
+## 2026-05-16 审计修复：stale write-back + finalizer resultRef + resume skip
+
+本轮修复 3 个审计问题。
+
+已完成并验证：
+
+- **Stale write-back 防护**：`runWorkUnit`/`runWatcherPhase`/`runFinalizer` 每个 phase 返回后重新读取 run state，如果已变为 `cancelled` 或 `paused`，立即停止写回并返回。`isRunExternallyStopped()` helper 在关键写点前检查。
+- **Finalizer 读取 resultRef 内容**：`AgentProfileRoleRunner.runFinalizer()` 现在用 `readRefContent()` 读取每个 task 的 `resultRef` 文件内容，传入 `buildFinalizerPrompt()`。文件不存在时 fallback 为 ref 字符串。
+- **Resume 跳过 terminal task**：`runToCompletion()` 遍历 `plan.tasks` 时跳过状态为 `succeeded`/`failed`/`cancelled` 的 task，只执行 pending/interrupted/running 的 task。
+
+验证记录（2026-05-16）：
+
+- `npx tsc --noEmit`：通过
 - `npm run test:team`：87 pass
 - `npm test`：816 pass
 - 新增测试：

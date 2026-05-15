@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AgentProfileRoleRunner } from "../src/team/agent-profile-role-runner.js";
@@ -303,6 +303,60 @@ test("AgentProfileRoleRunner runFinalizer returns final report", async () => {
 			taskResults: [{ taskId: "task_1", status: "succeeded", resultRef: "r.md", errorSummary: null }],
 		});
 		assert.equal(out.finalReport, report);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("finalizer prompt includes resultRef file content", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		// Create a resultRef file
+		const resultsDir = join(root, "runs", "run_ref_test", "results");
+		await mkdir(resultsDir, { recursive: true });
+		const resultContent = "# Worker Result\n\nThis is the actual output from the worker.";
+		await writeFile(join(resultsDir, "accepted-1.md"), resultContent, "utf8");
+
+		let capturedPrompt = "";
+		const sessionFactory = {
+			createSession: async () => ({
+				prompt: async (p: string) => { capturedPrompt = p; },
+				subscribe: () => () => {},
+				messages: [{ role: "assistant", content: [{ type: "text", text: "report" }], stopReason: "end_turn" }],
+			}),
+		} as unknown as BackgroundAgentSessionFactory;
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root,
+			teamDataDir: root,
+			watcherProfileId: "w",
+			workerProfileId: "wo",
+			checkerProfileId: "c",
+			finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory,
+		});
+
+		await runner.runFinalizer({
+			runId: "run_ref_test",
+			plan: {
+				schemaVersion: "team/plan-1",
+				planId: "plan_1",
+				title: "测试计划",
+				defaultTeamUnitId: "tu_1",
+				goal: { text: "目标" },
+				tasks: [{ id: "task_1", title: "任务1", input: { text: "do" }, acceptance: { rules: ["r1"] } }],
+				outputContract: { text: "输出" },
+				runCount: 0,
+				archived: false,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			},
+			taskResults: [{ taskId: "task_1", status: "succeeded", resultRef: "results/accepted-1.md", errorSummary: null }],
+		});
+
+		assert.ok(capturedPrompt.includes("Worker Result"), "prompt should include resultRef file content");
+		assert.ok(capturedPrompt.includes("actual output"), "prompt should include resultRef file content body");
 	} finally {
 		await rm(root, { recursive: true }).catch(() => {});
 	}

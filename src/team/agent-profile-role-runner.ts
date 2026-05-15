@@ -91,8 +91,13 @@ ${errorSummary ? `错误：${errorSummary}` : ""}
 - 如果需要重新执行：{"decision":"request_revision","reason":"重新执行原因","revisionMode":"amend 或 redo","feedback":"给执行 Agent 的补充说明"}`;
 }
 
-function buildFinalizerPrompt(plan: TeamPlan, taskResults: Array<{ taskId: string; status: "succeeded" | "failed"; resultRef: string | null; errorSummary: string | null }>): string {
-	const taskSummary = taskResults.map(r => `- ${r.taskId}: ${r.status === "succeeded" ? "成功" : "失败"}${r.errorSummary ? `（${r.errorSummary}）` : ""}`).join("\n");
+function buildFinalizerPrompt(plan: TeamPlan, taskResults: Array<{ taskId: string; status: "succeeded" | "failed"; resultRef: string | null; errorSummary: string | null; resultContent: string | null }>): string {
+	const taskSummary = taskResults.map(r => {
+		let line = `- ${r.taskId}: ${r.status === "succeeded" ? "成功" : "失败"}`;
+		if (r.errorSummary) line += `（${r.errorSummary}）`;
+		if (r.resultContent) line += `\n  产出：\n${r.resultContent}`;
+		return line;
+	}).join("\n");
 
 	return `你是一个汇总 Agent（finalizer）。请根据任务执行结果生成最终报告。
 
@@ -237,7 +242,16 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 	async runFinalizer(input: FinalizerInput): Promise<FinalizerOutput> {
 		const snapshot = await this.resolveProfile(this.options.finalizerProfileId);
 		const workspace = await this.createRoleWorkspace(input.runId, "finalizer", "finalizer");
-		const prompt = buildFinalizerPrompt(input.plan, input.taskResults);
+
+		const taskResultsWithContent = await Promise.all(input.taskResults.map(async r => {
+			let resultContent: string | null = null;
+			if (r.resultRef) {
+				resultContent = await readRefContent(this.options.teamDataDir, input.runId, r.resultRef);
+			}
+			return { ...r, resultContent };
+		}));
+
+		const prompt = buildFinalizerPrompt(input.plan, taskResultsWithContent);
 
 		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
 

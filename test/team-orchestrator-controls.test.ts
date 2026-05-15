@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { TeamOrchestrator } from "../src/team/orchestrator.js";
@@ -271,6 +271,130 @@ test("pauseRun triggers abort on active runner", async () => {
 		const final = await runPromise;
 		assert.equal(final.status, "paused");
 		assert.equal(abortRequested, true);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("cancel during finalizer does not overwrite cancelled state", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ctrl-"));
+	try {
+		let finalizerSignal: AbortSignal | undefined;
+		let finalizerStarted = false;
+		let finalizerResolve: () => void;
+		const finalizerStartedPromise = new Promise<void>(r => { finalizerResolve = r; });
+
+		// This runner hangs on signal for finalizer, simulating a real agent session
+		class SignalAwareFinalizerRunner extends MockRoleRunner {
+			override async runFinalizer(input: import("../src/team/role-runner.js").FinalizerInput): Promise<import("../src/team/role-runner.js").FinalizerOutput> {
+				finalizerSignal = input.signal;
+				finalizerStarted = true;
+				finalizerResolve!();
+				// If signal exists, hang until aborted
+				if (input.signal) {
+					await new Promise<never>((_, reject) => {
+						if (input.signal!.aborted) { reject(new Error("already aborted")); return; }
+						input.signal!.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+					});
+				}
+				return { finalReport: "report" };
+			}
+		}
+
+		const planStore = new PlanStore(root);
+		const unitStore = new TeamUnitStore(root);
+		const workspace = new RunWorkspace(root);
+		const unit = await unitStore.create({ title: "t", description: "d", watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f" });
+		const plan = await planStore.create({
+			title: "finalizer cancel test",
+			defaultTeamUnitId: unit.teamUnitId,
+			goal: { text: "test" },
+			tasks: [{ id: "task_1", title: "t1", input: { text: "do" }, acceptance: { rules: ["r1"] } }],
+			outputContract: { text: "output" },
+		});
+		const runner = new SignalAwareFinalizerRunner() as unknown as TeamRoleRunner;
+		const orchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: runner, dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60 });
+
+		const state = await orchestrator.createRun(plan.planId);
+		const runPromise = orchestrator.runToCompletion(state.runId);
+
+		// Wait for finalizer to start
+		await finalizerStartedPromise;
+
+		// Cancel via public API — writes cancelled state + aborts internal controller
+		// The finalizer's signal listener fires, rejecting its promise
+		await orchestrator.cancelRun(state.runId, "user cancel");
+
+		const final = await runPromise;
+		assert.equal(final.status, "cancelled", "state should remain cancelled, not completed");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("resume skips already succeeded tasks", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ctrl-"));
+	try {
+		const planStore = new PlanStore(root);
+		const unitStore = new TeamUnitStore(root);
+		const workspace = new RunWorkspace(root);
+		const unit = await unitStore.create({ title: "t", description: "d", watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f" });
+		const plan = await planStore.create({
+			title: "resume skip test",
+			defaultTeamUnitId: unit.teamUnitId,
+			goal: { text: "test" },
+			tasks: [
+				{ id: "task_1", title: "t1", input: { text: "do 1" }, acceptance: { rules: ["r1"] } },
+				{ id: "task_2", title: "t2", input: { text: "do 2" }, acceptance: { rules: ["r2"] } },
+			],
+			outputContract: { text: "output" },
+		});
+
+		let workerCallCount = 0;
+		let hangOnSecondTask = false;
+
+		class CountingRunner extends MockRoleRunner {
+			override async runWorker(input: import("../src/team/role-runner.js").WorkerInput) {
+				workerCallCount++;
+				if (input.task.id === "task_2" && hangOnSecondTask && input.signal) {
+					return await new Promise<never>((_, reject) => {
+						input.signal!.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+					});
+				}
+				return super.runWorker(input);
+			}
+		}
+
+		const runner = new CountingRunner();
+		const orchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: runner, dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60 });
+
+		// First run: complete task_1, hang on task_2, then pause
+		hangOnSecondTask = true;
+		const state = await orchestrator.createRun(plan.planId);
+		const runPromise = orchestrator.runToCompletion(state.runId);
+
+		// Wait for task_2 worker to hang
+		await new Promise<void>((resolve) => {
+			const check = () => { if (workerCallCount >= 2) resolve(); else setTimeout(check, 10); };
+			check();
+		});
+
+		await orchestrator.pauseRun(state.runId, "pause at task 2");
+		const firstResult = await runPromise;
+
+		assert.equal(firstResult.status, "paused");
+		assert.equal(firstResult.taskStates.task_1?.status, "succeeded");
+		assert.equal(firstResult.taskStates.task_2?.status, "interrupted");
+
+		// Resume: task_1 should NOT be re-executed
+		workerCallCount = 0;
+		hangOnSecondTask = false;
+		await orchestrator.resumeRun(state.runId);
+		const resumed = await orchestrator.runToCompletion(state.runId);
+
+		assert.equal(resumed.status, "completed");
+		assert.equal(resumed.summary.succeededTasks, 2, "both tasks should be succeeded");
+		assert.equal(workerCallCount, 1, "only task_2 worker should run, not task_1 again");
 	} finally {
 		await rm(root, { recursive: true });
 	}

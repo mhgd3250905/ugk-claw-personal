@@ -71,11 +71,14 @@
 ### 当前未完成项
 
 1. ~~真实 AgentProfile runner 的 pause / cancel 还不是强中断~~（2026-05-16 已完成：`AbortSignal` 全链路传播，cancel/pause 触发 `session.abort()`，worker 状态 watcher 检测外部 cancel）。
-2. Team worker 仍是轻量轮询，没有 durable lease、heartbeat、crash recovery、并发执行和重复执行防护。（已补状态 watcher 检测外部 cancel/pause，但 lease/crash recovery 仍缺。）
-3. 默认仍走 mock runner；真实 runner 需要显式 `TEAM_USE_MOCK_RUNNER=false` 后做端到端验收。
-4. finalizer 失败后缺少足够强的 deterministic fallback report。
-5. `/playground/team` 只是基础控制台，还缺 attempt 展开、checker/watcher verdict、resultRef 浏览、失败诊断和实时刷新。
-6. 本文件下方大量 v0.1 域名调查内容仍是历史资料，后续应单独重写成纯 v2 文档。
+2. ~~cancel/pause 后迟到 phase 结果覆盖 terminal 状态~~（2026-05-16 已完成：每个 phase 返回后 re-read state，`cancelled`/`paused` 立即停止写回）。
+3. ~~finalizer 不读取 resultRef 文件内容~~（2026-05-16 已完成：`runFinalizer` 读取每个 task 的 `resultRef` 文件内容传入 prompt）。
+4. ~~resume 从第一个 task 重新跑~~（2026-05-16 已完成：`runToCompletion` 遍历时跳过 `succeeded`/`failed`/`cancelled` 的 terminal task）。
+5. Team worker 仍是轻量轮询，没有 durable lease、heartbeat、crash recovery、并发执行和重复执行防护。
+6. 默认仍走 mock runner；真实 runner 需要显式 `TEAM_USE_MOCK_RUNNER=false` 后做端到端验收。
+7. finalizer 失败后缺少足够强的 deterministic fallback report。
+8. `/playground/team` 只是基础控制台，还缺 attempt 展开、checker/watcher verdict、resultRef 浏览、失败诊断和实时刷新。
+9. 本文件下方大量 v0.1 域名调查内容仍是历史资料，后续应单独重写成纯 v2 文档。
 
 剩余执行计划见 `.codex/plans/2026-05-15-team-runtime-v2-next-agent-execution-plan.md`。下面保留的 v0.1 域名调查内容是历史背景，不代表 v2 当前 API 全貌。接手实现时以本节、`src/team/routes.ts`、`src/team/orchestrator.ts`、`src/workers/team-worker.ts` 和 `test/team-*.test.ts` 为准，别拿旧模板接口当真源。说难听点，照着旧段落直接接 API，基本就是踩着地图进坑。
 

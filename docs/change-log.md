@@ -13,6 +13,16 @@
 ---
 
 ## 2026-05-16
+### Team Runtime v2 审计修复：stale write-back、finalizer resultRef、resume 跳过
+- 日期：2026-05-16
+- 主题：修复三个审计发现的问题：(1) cancel/pause 后迟到 phase 结果覆盖 terminal 状态；(2) finalizer 不读取 resultRef 文件内容；(3) resume 从第一个 task 重新跑。
+- 影响范围：
+  - `orchestrator.ts`：`runWorkUnit`/`runWatcherPhase`/`runFinalizer` 每个 phase 返回后 re-read state，发现 `cancelled`/`paused` 立即停止写回。`runToCompletion` 遍历 tasks 时跳过 `succeeded`/`failed`/`cancelled` 的 terminal task。
+  - `agent-profile-role-runner.ts`：`runFinalizer` 读取每个 task 的 `resultRef` 文件内容传入 prompt；`buildFinalizerPrompt` 接受并展示 `resultContent`。文件不存在时 fallback 为 ref 字符串。
+  - 新增 3 个回归测试：finalizer 返回前外部 cancel 不覆盖、finalizer prompt 包含 resultRef 内容、resume 跳过已成功 task 不重复执行。
+  - `npm run test:team` 90 pass，`npm test` 819 pass。
+
+## 2026-05-16
 ### Team Runtime v2 P0：真实 Agent session 强中断与 cancel 语义
 - 日期：2026-05-16
 - 主题：给 Team Runtime v2 补上真实 Agent session 级别的 abort 能力，使 cancel/pause 不再只停留在磁盘状态层面，而是能真正中断底层正在运行的 `session.prompt()`。
