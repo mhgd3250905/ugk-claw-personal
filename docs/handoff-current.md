@@ -13,18 +13,18 @@
 
 开始前先读 `CLAUDE.md`、`docs/handoff-current.md`。如果要跑本地，只用 Docker：`docker compose up -d` 或 `docker compose restart ugk-pi`，标准入口是 `http://127.0.0.1:3000/playground`，健康检查是 `http://127.0.0.1:3000/healthz`。不要把宿主机 `npm start` / `npm run dev` 当正规入口。
 
-开始前执行 `git status --short` 和 `git log -1 --oneline`。截至本交接更新，本地最新提交为 `a2d962c team: remove submit tool mechanism, use JSON envelope output`，工作区应为干净；如果现场不一致，先查清楚是谁的新改动，不要直接回滚。当前生产发布点仍以服务器 `git log -1 --oneline` 为准；本地新提交不要默认已经上线。
+开始前执行 `git status --short` 和 `git log -1 --oneline`。截至本交接更新，本地最新提交为 `a3ce81b fix: complete error format migration in tests and browsers.ts`，工作区应为干净；如果现场不一致，先查清楚是谁的新改动，不要直接回滚。当前生产发布点仍以服务器 `git log -1 --oneline` 为准；本地新提交不要默认已经上线。
 
 服务器发布默认走增量更新。腾讯云拉 GitHub `origin/main`，阿里云拉 Gitee `gitee/main`。不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、`.data/`、Chrome profile、runtime 临时产物或本地截图。
 ```
 
 ## 当前状态
 
-- 当前本地 HEAD：以 `git log -1 --oneline` 为准（本轮提交后更新）
+- 当前本地 HEAD：`a3ce81b fix: complete error format migration in tests and browsers.ts`
 - 当前本地工作区：本快照更新时 `git status --short` 干净
 - 当前 `origin/main` / `gitee/main`：以现场 `git branch -vv` 和远端状态为准；不要假设本地 `a2d962c` 已推送或已部署
 - 当前稳定 tag：`snapshot-20260513-v4.5.0-stable`（在最近 7 个 team 提交之前）
-- 本轮最新功能（2026-05-14 ~ 2026-05-15，共 7 个提交）：
+- 本轮最新功能（2026-05-14 ~ 2026-05-15，共 10 个提交）：
 
 ### 核心架构变更：移除 Submit Tool 机制
 
@@ -49,6 +49,17 @@
 - **Dockerfile 补 dnsutils**：容器内可使用 dig、nslookup
 - **Team 页面角色卡**：每个角色可选择 Agent profile、编辑 role prompt
 - **Discovery 专业调查员 prompt**：自动规划发现路径（搜索、CT、DNS、TLD 等）
+
+### 主体代码核查（3 个提交）
+
+对 Routes / Agent / Browser 主体模块（不含 Team）做全面代码核查：
+
+1. **统一错误响应**：所有路由返回 `{ error: { code, message } }`，`http-errors.ts` 新增 `sendNotFound`/`sendConflict`/`sendNotImplemented`。
+2. **死代码清理**：删除 `conn-run-store.ts` 的 `parseJson<T>`、`conn-db.ts` 重复索引、`api.ts` 未使用类型。
+3. **架构去重**：SSE 基础设施统一到 `chat-sse.ts`；MIME 映射统一到 `file-route-utils.ts`；路由工具函数提取到 `agent-route-utils.ts`；路径检查 `isPathInside` 统一到一处。
+4. **审计补全**：发现 5 个测试文件的断言和 `browsers.ts` 一处错误响应未迁移到新格式，全部修复并通过验证。
+
+涉及提交：`856e253`、`f1e9863`、`a3ce81b`。
 
 ## 已知问题（2026-05-15）
 

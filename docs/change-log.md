@@ -30,6 +30,16 @@
   - `src/routes/http-errors.ts`
   - `src/types/api.ts`
 
+### 审计修复：补全测试断言和 browsers.ts 错误格式
+- 日期：2026-05-15
+- 主题：架构去重后的回归审计发现部分测试文件和 browsers.ts 未完全迁移到新的嵌套错误格式，补全修复。
+- 影响范围：
+  - `test/chat-agent-browser-routes.test.ts`：2 处 `.json().message` → `.json().error.message`
+  - `test/agent-model-chat-routes.test.ts`：3 处 `.json().message` → `.json().error.message`
+  - `src/routes/browsers.ts`：closeTarget catch 块的内联错误响应改用 `sendBadRequest()`
+- 验证：5 个受影响测试文件共 33 个用例全部通过
+- 对应入口：同上
+
 ### 架构去重：SSE 基础设施、MIME 映射、路由工具函数
 - 日期：2026-05-15
 - 主题：架构审查后执行的机械性去重，消除跨文件重复代码。
