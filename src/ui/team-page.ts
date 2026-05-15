@@ -1,941 +1,194 @@
-import {
-	getStandaloneBaseCss,
-	getStandaloneBaseJs,
-	renderStandaloneToastContainer,
-	renderStandaloneConfirmDialog,
-	STANDALONE_FAVICON,
-	STANDALONE_THEME_INLINE_SCRIPT,
-} from "./standalone-page-shared.js";
-
-function getTeamPageCss(): string {
-	return `
-		:root, [data-theme="dark"] {
-			--team-bg: #070A12;
-			--team-surface: #0F1524;
-			--team-surface-2: #121A2B;
-			--team-sidebar: #0B1020;
-			--team-input: #080D18;
-			--team-border: #202A44;
-			--team-border-strong: #334569;
-			--team-fg: #F8FAFC;
-			--team-muted: #64748B;
-			--team-secondary: #CBD5E1;
-			--team-primary: #6366F1;
-			--team-primary-soft: rgba(99, 102, 241, 0.16);
-			--team-green: #22C55E;
-			--team-green-soft: rgba(34, 197, 94, 0.14);
-			--team-amber: #F59E0B;
-			--team-amber-soft: rgba(245, 158, 11, 0.14);
-			--team-red: #FF4D6D;
-			--team-red-soft: rgba(255, 77, 109, 0.14);
-			--team-violet: #8B5CF6;
-			--team-violet-soft: rgba(139, 92, 246, 0.14);
-		}
-		[data-theme="light"] {
-			--team-bg: #F0F2F8;
-			--team-surface: #FFFFFF;
-			--team-surface-2: #F8F9FC;
-			--team-sidebar: #F4F5FA;
-			--team-input: #FFFFFF;
-			--team-border: #D4D9E6;
-			--team-border-strong: #AAB5CA;
-			--team-fg: #1A1F36;
-			--team-muted: #8896AB;
-			--team-secondary: #4A5568;
-			--team-primary: #5B5BD6;
-			--team-primary-soft: rgba(91, 91, 214, 0.10);
-			--team-green: #16A34A;
-			--team-green-soft: rgba(22, 163, 74, 0.10);
-			--team-amber: #D97706;
-			--team-amber-soft: rgba(217, 119, 6, 0.10);
-			--team-red: #E11D48;
-			--team-red-soft: rgba(225, 29, 72, 0.10);
-			--team-violet: #7C3AED;
-			--team-violet-soft: rgba(124, 58, 237, 0.10);
-		}
-
-		html, body { background: var(--team-bg); }
-		#app {
-			display: grid;
-			grid-template-rows: auto auto minmax(0, 1fr);
-			height: 100%;
-			overflow: hidden;
-			background: transparent;
-		}
-		body[data-standalone-theme="cockpit"] .team-stat-card {
-			background: rgba(15, 21, 36, 0.86);
-			backdrop-filter: blur(14px);
-		}
-		[data-theme="light"] body[data-standalone-theme="cockpit"] .team-stat-card,
-		body[data-standalone-theme="cockpit"][data-theme="light"] .team-stat-card {
-			background: rgba(255, 255, 255, 0.86);
-		}
-
-		.team-stats {
-			display: grid;
-			grid-template-columns: repeat(4, minmax(0, 1fr));
-			gap: 16px;
-			padding: 20px 24px;
-		}
-		.team-stat-card {
-			min-height: 104px;
-			padding: 18px 20px;
-			border: 1px solid var(--team-border);
-			border-radius: 8px;
-			background: var(--team-surface);
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			gap: 14px;
-		}
-		.team-stat-label { font-size: 12px; font-weight: 700; color: var(--team-muted); }
-		.team-stat-value { margin-top: 8px; font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-		.team-stat-desc { margin-top: 6px; font-size: 11px; color: var(--team-muted); }
-		.team-stat-icon {
-			width: 44px; height: 44px; border-radius: 8px;
-			display: flex; align-items: center; justify-content: center;
-			flex-shrink: 0;
-		}
-		.team-stat-icon svg { width: 22px; height: 22px; stroke: currentColor; fill: none; }
-		.team-stat-card--blue .team-stat-value, .team-stat-card--blue .team-stat-icon { color: var(--team-primary); }
-		.team-stat-card--blue .team-stat-icon { background: var(--team-primary-soft); }
-		.team-stat-card--green .team-stat-value, .team-stat-card--green .team-stat-icon { color: var(--team-green); }
-		.team-stat-card--green .team-stat-icon { background: var(--team-green-soft); }
-		.team-stat-card--amber .team-stat-value, .team-stat-card--amber .team-stat-icon { color: var(--team-amber); }
-		.team-stat-card--amber .team-stat-icon { background: var(--team-amber-soft); }
-		.team-stat-card--violet .team-stat-value, .team-stat-card--violet .team-stat-icon { color: var(--team-violet); }
-		.team-stat-card--violet .team-stat-icon { background: var(--team-violet-soft); }
-
-		.team-main {
-			display: grid;
-			grid-template-columns: 360px minmax(0, 1fr);
-			gap: 16px;
-			min-height: 0;
-			padding: 0 24px 24px;
-			overflow: hidden;
-		}
-		.team-sidebar,
-		.team-detail {
-			min-height: 0;
-			overflow: hidden;
-			border: 1px solid var(--team-border);
-			border-radius: 8px;
-			background: var(--team-surface);
-		}
-		.team-sidebar {
-			display: grid;
-			grid-template-rows: auto minmax(0, 1fr);
-			background: var(--team-sidebar);
-		}
-		.team-create {
-			border-bottom: 1px solid var(--team-border);
-			padding: 16px;
-			display: grid;
-			gap: 12px;
-		}
-		.team-field { display: grid; gap: 5px; }
-		.team-field span { font-size: 11px; font-weight: 700; color: var(--team-muted); }
-		.team-input,
-		.team-select,
-		.team-textarea {
-			width: 100%;
-			border: 1px solid var(--team-border);
-			border-radius: 8px;
-			background: var(--team-input);
-			color: var(--team-fg);
-			font-family: var(--font-sans);
-			font-size: 12px;
-			outline: none;
-		}
-		.team-input, .team-select { height: 38px; padding: 0 10px; }
-		.team-textarea { min-height: 72px; resize: vertical; padding: 9px 10px; line-height: 1.5; }
-		.team-input:focus,
-		.team-select:focus,
-		.team-textarea:focus { border-color: var(--team-primary); box-shadow: 0 0 0 3px var(--team-primary-soft); }
-		.team-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-		.team-btn {
-			display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-			height: 36px; padding: 0 14px;
-			border: 1px solid var(--team-border);
-			border-radius: 8px;
-			background: transparent;
-			color: var(--team-secondary);
-			font-family: var(--font-sans);
-			font-size: 12px; font-weight: 700;
-			cursor: pointer;
-			white-space: nowrap;
-		}
-		.team-btn:hover { border-color: var(--team-border-strong); background: var(--team-primary-soft); color: var(--team-fg); }
-		.team-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-		.team-btn--primary { border-color: var(--team-primary); background: linear-gradient(135deg, var(--team-primary), var(--team-violet)); color: #fff; }
-		.team-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
-		.team-runs-head {
-			display: flex; align-items: center; justify-content: space-between; gap: 10px;
-			padding: 14px 16px 10px;
-		}
-		.team-runs-head strong { font-size: 13px; }
-		.team-run-list { min-height: 0; overflow-y: auto; padding: 0 8px 8px; }
-		.team-run-item {
-			display: grid; gap: 6px;
-			width: 100%; margin-bottom: 6px; padding: 13px 14px;
-			border: 1px solid transparent; border-radius: 8px;
-			background: rgba(18, 26, 43, 0.88);
-			color: var(--team-fg);
-			text-align: left; cursor: pointer;
-			font-family: var(--font-sans);
-		}
-		[data-theme="light"] .team-run-item { background: #fff; }
-		.team-run-item:hover,
-		.team-run-item.selected { border-color: var(--team-primary); background: var(--team-primary-soft); }
-		.team-run-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
-		.team-run-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-		.team-run-meta { font-size: 11px; color: var(--team-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		.team-badge {
-			display: inline-flex; align-items: center; padding: 3px 9px;
-			border-radius: 999px; font-size: 10px; font-weight: 800;
-			letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
-		}
-		.team-badge--queued { background: rgba(100,116,139,0.16); color: var(--team-muted); }
-		.team-badge--running { background: var(--team-primary-soft); color: var(--team-primary); }
-		.team-badge--completed { background: var(--team-green-soft); color: var(--team-green); }
-		.team-badge--blocked { background: var(--team-amber-soft); color: var(--team-amber); }
-		.team-badge--failed { background: var(--team-red-soft); color: var(--team-red); }
-			.team-badge--cancelled { background: var(--team-red-soft); color: var(--team-muted); }
-			.team-btn--danger { border-color: var(--team-red); color: var(--team-red); opacity: 0.7; }
-			.team-btn--danger:not(:disabled):hover { background: var(--team-red-soft); color: var(--team-red); opacity: 1; }
-
-		.team-detail {
-			display: grid;
-			grid-template-rows: auto minmax(0, 1fr);
-		}
-		.team-detail-head {
-			display: flex; align-items: center; gap: 10px;
-			border-bottom: 1px solid var(--team-border);
-			padding: 16px 20px;
-		}
-		.team-detail-title {
-			font-size: 16px; font-weight: 800; flex: 1; min-width: 0;
-			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-		}
-		.team-detail-body { min-height: 0; overflow-y: auto; padding: 20px; }
-		.team-card {
-			border: 1px solid var(--team-border);
-			border-radius: 8px;
-			background: var(--team-surface-2);
-			padding: 18px;
-		}
-		.team-card + .team-card { margin-top: 16px; }
-		.team-card-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; font-size: 13px; font-weight: 800; color: var(--team-secondary); }
-		.team-role-config-head {
-			display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-			margin-bottom: 14px;
-		}
-		.team-role-config-head strong { display: block; font-size: 13px; color: var(--team-secondary); }
-		.team-role-config-head span { display: block; margin-top: 4px; font-size: 11px; color: var(--team-muted); }
-		.team-role-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-		.team-role-card {
-			display: grid; gap: 10px;
-			padding: 14px;
-			border: 1px solid var(--team-border);
-			border-radius: 8px;
-			background: var(--team-surface);
-		}
-		.team-role-card-head {
-			display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
-			min-width: 0;
-		}
-		.team-role-name { min-width: 0; }
-		.team-role-name strong { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		.team-role-name span { display: block; margin-top: 3px; font-size: 11px; color: var(--team-muted); }
-		.team-role-prompt { min-height: 138px; font-family: var(--font-mono); font-size: 11px; }
-		.team-detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-		.team-kv { display: grid; gap: 4px; min-width: 0; }
-		.team-kv span { font-size: 11px; color: var(--team-muted); font-weight: 700; }
-		.team-kv strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		.team-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-		.team-tab {
-			height: 30px; padding: 0 11px;
-			border-radius: 999px; border: 1px solid var(--team-border);
-			background: transparent; color: var(--team-muted);
-			font-family: var(--font-sans); font-size: 11px; font-weight: 800;
-			cursor: pointer;
-		}
-		.team-tab.active { background: var(--team-primary); border-color: var(--team-primary); color: #fff; }
-		.team-code {
-			width: 100%;
-			max-height: 360px;
-			overflow: auto;
-			padding: 14px;
-			border: 1px solid var(--team-border);
-			border-radius: 8px;
-			background: var(--team-input);
-			color: var(--team-secondary);
-			font-family: var(--font-mono);
-			font-size: 12px;
-			line-height: 1.55;
-			white-space: pre-wrap;
-			word-break: break-word;
-		}
-		.team-event-list { display: grid; gap: 8px; }
-		.team-event-item {
-			display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 10px;
-			padding: 10px 12px; border: 1px solid var(--team-border); border-radius: 8px;
-			background: var(--team-surface);
-		}
-		.team-event-time { color: var(--team-muted); font-family: var(--font-mono); font-size: 11px; }
-		.team-event-type { font-weight: 800; }
-		.team-empty { padding: 64px 18px; text-align: center; color: var(--team-muted); }
-		.team-empty strong { display: block; color: var(--team-secondary); font-size: 15px; margin-bottom: 4px; }
-		.team-error {
-			padding: 10px 12px; border: 1px solid var(--team-red-soft); border-radius: 8px;
-			background: var(--team-red-soft); color: var(--team-red); font-size: 12px;
-		}
-		.team-error[hidden] { display: none; }
-
-		@media (max-width: 900px) {
-			.team-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px; gap: 10px; }
-			.team-main { grid-template-columns: 1fr; padding: 0 14px 14px; overflow-y: auto; }
-			.team-sidebar, .team-detail { min-height: 420px; }
-			.team-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-			.team-role-grid { grid-template-columns: 1fr; }
-			.team-form-grid { grid-template-columns: 1fr; }
-			html, body, #app { overflow: auto; height: auto; min-height: 100%; }
-		}
-	`;
-}
-
-function getTeamPageJs(): string {
-	return `
-		const STREAM_NAMES = ["candidate_domains", "domain_evidence", "domain_classifications", "review_findings"];
-		const DEFAULT_ARTIFACT_NAMES = ["final_report.md", "competitor_domain_report.md"];
-		const state = {
-			templates: [],
-			agents: [],
-			selectedTemplateId: "",
-			roleConfig: {},
-			runIds: [],
-			runs: {},
-			selectedRunId: "",
-			events: [],
-			streamItems: {},
-			artifactText: "",
-			activeTab: "plan",
-			eventSource: null,
-			eventStreamStatus: "",
-			loading: false,
-			creating: false,
-			cancelling: false,
-		};
-
-		function statusClass(status) {
-			return "team-badge team-badge--" + String(status || "queued");
-		}
-
-		function currentTemplate() {
-			return state.templates.find(function(template) { return template.templateId === state.selectedTemplateId; }) || state.templates[0] || null;
-		}
-
-		function renderStats() {
-			document.getElementById("team-stat-templates").textContent = String(state.templates.length);
-			document.getElementById("team-stat-runs").textContent = String(state.runIds.length);
-			var running = Object.values(state.runs).filter(function(item) { return item && item.state && item.state.status === "running"; }).length;
-			var completed = Object.values(state.runs).filter(function(item) { return item && item.state && item.state.status === "completed"; }).length;
-			document.getElementById("team-stat-running").textContent = String(running);
-			document.getElementById("team-stat-completed").textContent = String(completed);
-		}
-
-		async function apiFetchTemplates() {
-			const data = await fetchJson("/v1/team/templates");
-			state.templates = Array.isArray(data.templates) ? data.templates : [];
-			if (!state.selectedTemplateId && state.templates.length) {
-				state.selectedTemplateId = state.templates[0].templateId;
-			}
-			ensureRoleConfigForTemplate();
-		}
-
-		async function apiFetchAgents() {
-			try {
-				const data = await fetchJson("/v1/agents");
-				state.agents = Array.isArray(data.agents) ? data.agents : [];
-			} catch {
-				state.agents = [];
-			}
-		}
-
-	async function apiFetchRuns() {
-			const data = await fetchJson("/v1/team/runs?scope=all");
-			state.runIds = Array.isArray(data) ? data : (Array.isArray(data.runIds) ? data.runIds : []);
-			await Promise.all(state.runIds.map(function(runId) {
-				return apiFetchRunDetail(runId).catch(function() {});
-			}));
-		}
-
-		async function apiFetchRunDetail(teamRunId) {
-			const data = await fetchJson("/v1/team/runs/" + encodeURIComponent(teamRunId));
-			state.runs[teamRunId] = data;
-			return data;
-		}
-
-		async function apiFetchRunEvents(teamRunId) {
-			const data = await fetchJson("/v1/team/runs/" + encodeURIComponent(teamRunId) + "/events");
-			state.events = Array.isArray(data.events) ? data.events : [];
-		}
-
-		async function apiFetchStream(teamRunId, streamName) {
-			const data = await fetchJson("/v1/team/runs/" + encodeURIComponent(teamRunId) + "/streams/" + encodeURIComponent(streamName));
-			state.streamItems[streamName] = Array.isArray(data.items) ? data.items : [];
-			return state.streamItems[streamName];
-		}
-
-		async function apiFetchArtifact(teamRunId, artifactName) {
-			const res = await fetch("/v1/team/runs/" + encodeURIComponent(teamRunId) + "/artifacts/" + encodeURIComponent(artifactName));
-			if (!res.ok) throw new Error("HTTP " + res.status);
-			state.artifactText = await res.text();
-		}
-
-		function closeRunEventStream() {
-			if (state.eventSource) {
-				state.eventSource.close();
-				state.eventSource = null;
-			}
-		}
-
-		function subscribeRunEvents(teamRunId) {
-			closeRunEventStream();
-			if (!teamRunId || typeof EventSource === "undefined") return;
-			state.eventStreamStatus = "实时接收中";
-			const source = new EventSource("/v1/team/runs/" + encodeURIComponent(teamRunId) + "/events/stream");
-			state.eventSource = source;
-			source.onmessage = function(event) {
-				if (teamRunId !== state.selectedRunId) return;
-				try {
-					const payload = JSON.parse(event.data);
-					if (!state.events.some(function(item) { return item.eventId === payload.eventId; })) {
-						state.events.push(payload);
-					}
-					if (payload.eventType === "stream_item_accepted") {
-						const streamName = payload.data && payload.data.streamName;
-						const refreshes = [apiFetchRunDetail(teamRunId)];
-						if (STREAM_NAMES.includes(streamName)) {
-							refreshes.push(apiFetchStream(teamRunId, streamName));
-						}
-						Promise.all(refreshes).then(function() {
-							renderRunList();
-							renderRunDetail();
-							renderStats();
-						}).catch(function() {});
-					} else {
-						renderRunDetail();
-					}
-				} catch {}
-			};
-			source.onerror = function() {
-				if (teamRunId !== state.selectedRunId) return;
-				state.eventStreamStatus = "事件流已断开，正在使用手动刷新";
-				renderRunDetail();
-			};
-			renderRunDetail();
-		}
-
-		async function apiCreateRun(payload) {
-			return fetchJson("/v1/team/runs", {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify(payload),
-			});
-		}
-
-		function renderTemplateSelect() {
-			var select = document.getElementById("team-template-select");
-			select.innerHTML = state.templates.map(function(template) {
-				return '<option value="' + escapeHtml(template.templateId) + '"' + (template.templateId === state.selectedTemplateId ? " selected" : "") + '>' + escapeHtml(template.title || template.templateId) + '</option>';
-			}).join("");
-			renderTemplateHint();
-		}
-
-		function renderAgentOptions(selectedValue) {
-			var selected = String(selectedValue || "");
-			var options = '<option value="">默认 Team runner</option>' + state.agents.map(function(agent) {
-				var agentId = String(agent.agentId || "").trim();
-				if (!agentId) return "";
-				var label = String(agent.name || agentId);
-				return '<option value="' + escapeHtml(agentId) + '"' + (agentId === selected ? " selected" : "") + '>' + escapeHtml(label) + '</option>';
-			}).join("");
-			if (selected && !state.agents.some(function(agent) { return String(agent.agentId || "").trim() === selected; })) {
-				options += '<option value="' + escapeHtml(selected) + '" selected>' + escapeHtml(selected + "（不可用）") + '</option>';
-			}
-			return options;
-		}
-
-		function renderRoleProfileSelect(select) {
-			if (!select) return;
-			var pendingValue = select.value || "";
-			select.innerHTML = '<option value="">默认 Team runner</option>' + state.agents.map(function(agent) {
-				var agentId = String(agent.agentId || "").trim();
-				if (!agentId) return "";
-				var label = String(agent.name || agentId);
-				return '<option value="' + escapeHtml(agentId) + '">' + escapeHtml(label) + '</option>';
-			}).join("");
-			if (pendingValue && !state.agents.some(function(agent) { return String(agent.agentId || "").trim() === pendingValue; })) {
-				select.innerHTML += '<option value="' + escapeHtml(pendingValue) + '">' + escapeHtml(pendingValue + "（不可用）") + '</option>';
-			}
-			select.value = pendingValue;
-		}
-
-		function renderRoleProfileSelects() {
-			document.querySelectorAll("[data-role-profile]").forEach(function(select) {
-				renderRoleProfileSelect(select);
-			});
-		}
-
-		function getTemplateRoles() {
-			var template = currentTemplate();
-			return template && Array.isArray(template.roles) ? template.roles : [];
-		}
-
-		function buildDefaultRolePrompt(role) {
-			var lines = [
-				"你是 Team 里的 " + (role.name || role.roleId) + "。",
-				"职责：" + (role.responsibility || ""),
-			];
-			if (role.roleId === "discovery") {
-				lines.push("用户不一定知道有哪些调查方法，所以你要自己规划发现路径，而不是等用户点名具体工具。");
-				lines.push("不要只做普通搜索摘要；要像专业域名调查员一样，按需考虑搜索引擎、官网页脚和 hreflang 链接、crt.sh / 证书透明日志、DNS / 子域名线索、区域 TLD、login / portal / app / support 入口、公开文档、合作伙伴 / 经销商页面、社媒、应用商店、代码或文档引用等公开线索。");
-				lines.push("如果使用 crt.sh 或其他证书透明日志，提交候选时把 sourceType 标为 certificate_transparency，并填写具体 sourceUrl 或 query。");
-			}
-			if (Array.isArray(role.allowedInputStreams) && role.allowedInputStreams.length) {
-				lines.push("可读取输入流：" + role.allowedInputStreams.join(", "));
-			}
-			if (Array.isArray(role.outputStreams) && role.outputStreams.length) {
-				lines.push("输出流（JSON envelope）：" + role.outputStreams.join(", "));
-			}
-			if (Array.isArray(role.mustNotDo) && role.mustNotDo.length) {
-				lines.push("禁止：");
-				role.mustNotDo.forEach(function(item) { lines.push("- " + item); });
-			}
-			lines.push("");
-			lines.push("你可以自行选择实现办法，但输出必须遵守 Team 默认契约。");
-			return lines.join("\\n");
-		}
-
-		function ensureRoleConfigForTemplate() {
-			getTemplateRoles().forEach(function(role) {
-				var roleId = String(role.roleId || "");
-				if (!roleId) return;
-				if (!state.roleConfig[roleId]) {
-					state.roleConfig[roleId] = { profileId: "", prompt: buildDefaultRolePrompt(role) };
-				} else if (!state.roleConfig[roleId].prompt) {
-					state.roleConfig[roleId].prompt = buildDefaultRolePrompt(role);
-				}
-			});
-		}
-
-		function renderRoleConfigPanel() {
-			ensureRoleConfigForTemplate();
-			var roles = getTemplateRoles();
-			if (!roles.length) {
-				return '<div class="team-card"><div class="team-empty"><strong>当前模板没有声明角色</strong><span>后端模板需要返回 roles。</span></div></div>';
-			}
-			return '<div class="team-card team-role-config">'
-				+ '<div class="team-role-config-head"><div><strong>角色配置</strong><span>这里按模板动态生成角色。每个角色可以绑定 Agent profile，也可以在运行前改 prompt。</span></div><span class="team-badge team-badge--queued">' + roles.length + ' roles</span></div>'
-				+ '<div class="team-role-grid">' + roles.map(function(role) {
-					var roleId = String(role.roleId || "");
-					var config = state.roleConfig[roleId] || { profileId: "", prompt: buildDefaultRolePrompt(role) };
-					return '<div class="team-role-card" data-role-card="' + escapeHtml(roleId) + '">'
-						+ '<div class="team-role-card-head"><div class="team-role-name"><strong>' + escapeHtml(role.name || roleId) + '</strong><span>' + escapeHtml(roleId) + '</span></div>'
-						+ '<button class="team-btn" type="button" data-role-reset="' + escapeHtml(roleId) + '">重置</button></div>'
-						+ '<label class="team-field"><span>Agent profile</span><select class="team-select" data-role-profile="' + escapeHtml(roleId) + '">' + renderAgentOptions(config.profileId) + '</select></label>'
-						+ '<label class="team-field"><span>Role prompt</span><textarea class="team-textarea team-role-prompt" data-role-prompt="' + escapeHtml(roleId) + '">' + escapeHtml(config.prompt || buildDefaultRolePrompt(role)) + '</textarea></label>'
-						+ '</div>';
-				}).join("") + '</div></div>';
-		}
-
-		function attachRoleConfigHandlers(scope) {
-			if (!scope) return;
-			scope.querySelectorAll("[data-role-profile]").forEach(function(select) {
-				select.addEventListener("change", function() {
-					var roleId = select.getAttribute("data-role-profile");
-					state.roleConfig[roleId] = state.roleConfig[roleId] || { profileId: "", prompt: "" };
-					state.roleConfig[roleId].profileId = String(select.value || "").trim();
-				});
-			});
-			scope.querySelectorAll("[data-role-prompt]").forEach(function(textarea) {
-				textarea.addEventListener("input", function() {
-					var roleId = textarea.getAttribute("data-role-prompt");
-					state.roleConfig[roleId] = state.roleConfig[roleId] || { profileId: "", prompt: "" };
-					state.roleConfig[roleId].prompt = String(textarea.value || "");
-				});
-			});
-			scope.querySelectorAll("[data-role-reset]").forEach(function(button) {
-				button.addEventListener("click", function() {
-					var roleId = button.getAttribute("data-role-reset");
-					var role = getTemplateRoles().find(function(item) { return String(item.roleId || "") === roleId; });
-					if (!role) return;
-					state.roleConfig[roleId] = state.roleConfig[roleId] || { profileId: "", prompt: "" };
-					state.roleConfig[roleId].prompt = buildDefaultRolePrompt(role);
-					renderRunDetail();
-				});
-			});
-		}
-
-		function renderTemplateHint() {
-			var template = currentTemplate();
-			var el = document.getElementById("team-template-hint");
-			if (!el) return;
-			if (!template) {
-				el.textContent = "Team Runtime API 未返回可用模板。";
-				return;
-			}
-			el.textContent = (template.description || "") + " 默认预算：" + template.defaults.maxRounds + " rounds / " + template.defaults.maxCandidates + " candidates / " + template.defaults.maxMinutes + " minutes";
-		}
-
-		function getCreatePayload() {
-			var keyword = (document.getElementById("team-run-keyword").value || "").trim();
-			var names = (document.getElementById("team-run-company-names").value || "").split(/\\n|,/).map(function(item) { return item.trim(); }).filter(Boolean);
-			var officialDomains = (document.getElementById("team-run-official-domains").value || "").split(/\\n|,/).map(function(item) { return item.trim(); }).filter(Boolean);
-			var maxRounds = Number(document.getElementById("team-run-max-rounds").value || "1");
-			var maxCandidates = Number(document.getElementById("team-run-max-candidates").value || "20");
-			var maxMinutes = Number(document.getElementById("team-run-max-minutes").value || "15");
-			var payload = {
-				templateId: state.selectedTemplateId,
-				keyword: keyword,
-				companyNames: names,
-				officialDomains: officialDomains,
-				maxRounds: maxRounds,
-				maxCandidates: maxCandidates,
-				maxMinutes: maxMinutes,
-			};
-			var roleProfileIds = {};
-			var rolePromptOverrides = {};
-			getTemplateRoles().forEach(function(role) {
-				var roleId = String(role.roleId || "");
-				var config = state.roleConfig[roleId] || {};
-				var profileId = String(config.profileId || "").trim();
-				var prompt = String(config.prompt || "").trim();
-				var defaultPrompt = buildDefaultRolePrompt(role).trim();
-				if (profileId) roleProfileIds[roleId] = profileId;
-				if (prompt && prompt !== defaultPrompt) rolePromptOverrides[roleId] = prompt;
-			});
-			if (Object.keys(roleProfileIds).length) {
-				payload.roleProfileIds = roleProfileIds;
-			}
-			if (Object.keys(rolePromptOverrides).length) {
-				payload.rolePromptOverrides = rolePromptOverrides;
-			}
-			return payload;
-		}
-
-		function renderRunList() {
-			var list = document.getElementById("team-run-list");
-			if (!state.runIds.length) {
-				list.innerHTML = '<div class="team-empty"><strong>暂无 Team Run</strong><span>创建一个 run 后会显示在这里。</span></div>';
-				return;
-			}
-			list.innerHTML = state.runIds.map(function(runId) {
-				var detail = state.runs[runId] || {};
-				var stateBody = detail.state || {};
-				var plan = detail.plan || {};
-				return '<button class="team-run-item' + (runId === state.selectedRunId ? ' selected' : '') + '" type="button" data-run-id="' + escapeHtml(runId) + '">'
-					+ '<div class="team-run-title"><strong>' + escapeHtml(stateBody.keyword || plan.keyword || runId) + '</strong><span class="' + statusClass(stateBody.status) + '">' + escapeHtml(stateBody.status || "queued") + '</span></div>'
-					+ '<div class="team-run-meta">' + escapeHtml(plan.templateId || stateBody.templateId || "-") + '</div>'
-					+ '<div class="team-run-meta">' + escapeHtml(runId) + '</div>'
-					+ '</button>';
-			}).join("");
-			list.querySelectorAll("[data-run-id]").forEach(function(button) {
-				button.addEventListener("click", function() { selectRun(button.getAttribute("data-run-id")); });
-			});
-		}
-
-		function renderRunDetail() {
-			var title = document.getElementById("team-detail-title");
-			var body = document.getElementById("team-detail-body");
-			var actions = document.getElementById("team-detail-actions");
-			var detail = state.runs[state.selectedRunId];
-			var rolePanel = renderRoleConfigPanel();
-			if (!detail) {
-				title.textContent = "Team Runtime";
-				actions.innerHTML = "";
-				body.innerHTML = rolePanel + '<div class="team-card"><div class="team-empty"><strong>选择或创建一个 run</strong><span>左侧负责创建和选择，右侧查看计划、事件、streams 和报告。</span></div></div>';
-				attachRoleConfigHandlers(body);
-				return;
-			}
-			var runState = detail.state || {};
-			var plan = detail.plan || {};
-			title.textContent = runState.keyword || plan.keyword || state.selectedRunId;
-			var actionHtml = '<button id="team-refresh-detail" class="team-btn" type="button"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>刷新</button>';
-			if (runState.status === "running" || runState.status === "queued") {
-				var cancelLabel = state.cancelling ? "取消中..." : "取消 Run";
-				actionHtml += ' <button id="team-cancel-run" class="team-btn team-btn--danger" type="button"' + (state.cancelling ? ' disabled' : '') + '><svg viewBox="0 0 24 24" stroke-width="1.8" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>' + cancelLabel + '</button>';
-			}
-			actions.innerHTML = actionHtml;
-			body.innerHTML = rolePanel
-				+ '<div class="team-card"><div class="team-card-title"><span>Run 状态</span><span class="' + statusClass(runState.status) + '">' + escapeHtml(runState.status || "-") + '</span></div>'
-				+ (state.eventStreamStatus ? '<div class="team-run-meta" style="margin-bottom:12px">' + escapeHtml(state.eventStreamStatus) + '</div>' : '')
-				+ '<div class="team-detail-grid">'
-				+ kv("Run ID", state.selectedRunId)
-				+ kv("Template", plan.templateId || runState.templateId || "-")
-				+ kv("Round", String(runState.currentRound || 0) + " / " + String((runState.budgets || {}).maxRounds || "-"))
-				+ kv("Created", formatTimestamp(runState.createdAt))
-				+ kv("Candidates", String(((runState.counters || {}).candidateDomains) || 0))
-				+ kv("Evidence", String(((runState.counters || {}).domainEvidence) || 0))
-				+ kv("Classifications", String(((runState.counters || {}).classifications) || 0))
-				+ kv("Review", String(((runState.counters || {}).reviewFindings) || 0))
-				+ '</div></div>'
-				+ '<div class="team-card"><div class="team-tabs">' + renderTabs(plan) + '</div><div id="team-tab-body"></div></div>';
-			document.getElementById("team-refresh-detail").addEventListener("click", function() { refreshSelectedRun(); });
-			var cancelBtn = document.getElementById("team-cancel-run");
-			if (cancelBtn) { cancelBtn.addEventListener("click", handleCancelRun); }
-			attachRoleConfigHandlers(body);
-			body.querySelectorAll("[data-tab]").forEach(function(btn) {
-				btn.addEventListener("click", function() {
-					state.activeTab = btn.getAttribute("data-tab");
-					renderRunDetail();
-				});
-			});
-			renderTabBody(plan);
-		}
-
-		function kv(label, value) {
-			return '<div class="team-kv"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(value) + '</strong></div>';
-		}
-
-		function renderTabs(plan) {
-			var tabs = ["plan", "events"].concat(STREAM_NAMES);
-			var deliverables = Array.isArray(plan.deliverables) && plan.deliverables.length ? plan.deliverables : DEFAULT_ARTIFACT_NAMES;
-			deliverables.forEach(function(name) {
-				if (/\\.md$/.test(name)) tabs.push("artifact:" + name);
-			});
-			return tabs.map(function(tab) {
-				var label = tab === "plan" ? "Plan" : tab === "events" ? "Events" : tab.indexOf("artifact:") === 0 ? tab.slice(9) : tab;
-				return '<button class="team-tab' + (state.activeTab === tab ? ' active' : '') + '" type="button" data-tab="' + escapeHtml(tab) + '">' + escapeHtml(label) + '</button>';
-			}).join("");
-		}
-
-		function renderTabBody(plan) {
-			var el = document.getElementById("team-tab-body");
-			if (!el) return;
-			if (state.activeTab === "plan") {
-				el.innerHTML = '<pre class="team-code">' + escapeHtml(JSON.stringify(plan, null, 2)) + '</pre>';
-				return;
-			}
-			if (state.activeTab === "events") {
-				if (!state.events.length) {
-					el.innerHTML = '<div class="team-empty"><strong>暂无事件</strong><span>点击刷新会重新读取 events。</span></div>';
-					return;
-				}
-				el.innerHTML = '<div class="team-event-list">' + state.events.map(function(event) {
-					return '<div class="team-event-item"><div class="team-event-time">' + escapeHtml(formatTimestamp(event.createdAt)) + '</div><div><div class="team-event-type">' + escapeHtml(event.eventType) + '</div><pre class="team-code" style="max-height:160px;margin-top:6px">' + escapeHtml(JSON.stringify(event.data || {}, null, 2)) + '</pre></div></div>';
-				}).join("") + '</div>';
-				return;
-			}
-			if (state.activeTab.indexOf("artifact:") === 0) {
-				el.innerHTML = state.artifactText
-					? '<pre class="team-code">' + escapeHtml(state.artifactText) + '</pre>'
-					: '<div class="team-empty"><strong>报告尚未生成</strong><span>run 完成后再刷新查看 artifact。</span></div>';
-				return;
-			}
-			var items = state.streamItems[state.activeTab] || [];
-			el.innerHTML = items.length
-				? '<pre class="team-code">' + escapeHtml(JSON.stringify(items, null, 2)) + '</pre>'
-				: '<div class="team-empty"><strong>暂无 stream item</strong><span>' + escapeHtml(state.activeTab) + ' 还没有数据。</span></div>';
-		}
-
-		async function selectRun(runId) {
-			if (!runId) return;
-			state.selectedRunId = runId;
-			state.activeTab = "plan";
-			state.events = [];
-			state.streamItems = {};
-			state.artifactText = "";
-			await refreshSelectedRun();
-			subscribeRunEvents(runId);
-		}
-
-		async function refreshSelectedRun() {
-			if (!state.selectedRunId) return;
-			try {
-				await apiFetchRunDetail(state.selectedRunId);
-				await apiFetchRunEvents(state.selectedRunId).catch(function() {});
-				await Promise.all(STREAM_NAMES.map(function(streamName) {
-					return apiFetchStream(state.selectedRunId, streamName).catch(function() {});
-				}));
-				var detail = state.runs[state.selectedRunId] || {};
-				var deliverables = (((detail.plan || {}).deliverables || DEFAULT_ARTIFACT_NAMES)).filter(function(name) { return /\\.md$/.test(name); });
-				var artifactName = state.activeTab.indexOf("artifact:") === 0 ? state.activeTab.slice(9) : deliverables[0];
-				if (artifactName) {
-					await apiFetchArtifact(state.selectedRunId, artifactName).catch(function() { state.artifactText = ""; });
-				}
-				renderRunList();
-				renderRunDetail();
-				renderStats();
-			} catch (e) {
-				showToast(e.message || "读取 run 失败", "danger");
-			}
-		}
-
-		async function handleCreateRun() {
-			if (state.creating) return;
-			var payload = getCreatePayload();
-			if (!payload.keyword) {
-				showToast("keyword 不能为空", "danger");
-				return;
-			}
-			var btn = document.getElementById("team-create-run");
-			state.creating = true;
-			btn.disabled = true;
-			btn.textContent = "创建中...";
-			try {
-				var result = await apiCreateRun(payload);
-				state.selectedRunId = result.teamRunId;
-				showToast("Team run 已创建", "ok");
-				await loadAll();
-				await selectRun(result.teamRunId);
-			} catch (e) {
-				showToast(e.message || "创建失败，请确认 TEAM_RUNTIME_ENABLED 已开启", "danger");
-			} finally {
-				state.creating = false;
-				btn.disabled = false;
-				btn.textContent = "创建 Run";
-			}
-		}
-
-			async function apiCancelRun(teamRunId) {
-				return fetchJson("/v1/team/runs/" + encodeURIComponent(teamRunId) + "/cancel", {
-					method: "POST",
-				});
-			}
-
-			async function handleCancelRun() {
-				if (state.cancelling || !state.selectedRunId) return;
-				var detail = state.runs[state.selectedRunId];
-				var runState = detail && detail.state;
-				if (!runState || (runState.status !== "running" && runState.status !== "queued")) return;
-
-				var confirmed = await openConfirmDialog({
-					title: "取消 Team Run?",
-					message: "Run: " + (runState.keyword || state.selectedRunId) + " — 取消后，正在执行的后台角色任务将停止处理后续输出，run 状态将变为 cancelled。此操作不可撤销。",
-					confirmLabel: "取消 Run",
-					tone: "danger",
-				});
-				if (!confirmed) return;
-
-				state.cancelling = true;
-				renderRunDetail();
-				try {
-					await apiCancelRun(state.selectedRunId);
-					showToast("Run 已取消", "ok");
-					await refreshSelectedRun();
-				} catch (e) {
-					showToast(e.message || "取消失败", "danger");
-				} finally {
-					state.cancelling = false;
-					renderRunDetail();
-				}
-		}
-
-		async function loadAll() {
-			var error = document.getElementById("team-page-error");
-			error.hidden = true;
-			try {
-				await apiFetchTemplates();
-				renderTemplateSelect();
-				await apiFetchAgents();
-				renderRoleProfileSelects();
-				await apiFetchRuns();
-				renderRunList();
-				renderRunDetail();
-				renderStats();
-			} catch (e) {
-				error.textContent = (e.message || "Team Runtime API 不可用") + "。请确认服务端已启用 TEAM_RUNTIME_ENABLED。";
-				error.hidden = false;
-				renderStats();
-			}
-		}
-
-		document.addEventListener("DOMContentLoaded", function() {
-			applyTheme(readStoredTheme());
-			document.getElementById("team-template-select").addEventListener("change", function(event) {
-				state.selectedTemplateId = event.target.value;
-				ensureRoleConfigForTemplate();
-				renderTemplateHint();
-				renderRunDetail();
-			});
-			document.getElementById("team-create-run").addEventListener("click", handleCreateRun);
-			document.getElementById("team-refresh").addEventListener("click", loadAll);
-			loadAll();
-		});
-	`;
-}
-
 export function renderTeamPage(): string {
-	const css = getStandaloneBaseCss() + getTeamPageCss();
-	const js = getStandaloneBaseJs() + getTeamPageJs();
-
 	return `<!doctype html>
 <html lang="zh-CN" data-theme="dark">
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	${STANDALONE_THEME_INLINE_SCRIPT}
-	<title>Team Runtime 工作台 - UGK Claw</title>
-	<link rel="icon" href="${STANDALONE_FAVICON}" />
-	<style>${css}</style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Team Runtime v2</title>
+<style>
+:root { --bg: #0a0a0a; --surface: #141414; --border: #262626; --text: #e5e5e5; --muted: #737373; --accent: #3b82f6; --accent-hover: #2563eb; --success: #22c55e; --fail: #ef4444; --warn: #f59e0b; }
+[data-theme="light"] { --bg: #fafafa; --surface: #fff; --border: #e5e5e5; --text: #171717; --muted: #737373; --accent: #2563eb; --accent-hover: #1d4ed8; --success: #16a34a; --fail: #dc2626; --warn: #d97706; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.topbar h1 { font-size: 16px; font-weight: 600; }
+.topbar nav { display: flex; gap: 8px; }
+.topbar button { padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; font-size: 13px; }
+.topbar button:hover, .topbar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.main { max-width: 960px; margin: 0 auto; padding: 20px; }
+.section { display: none; }
+.section.active { display: block; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+.card h3 { font-size: 14px; margin-bottom: 8px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+.badge-fail { background: rgba(239,68,68,0.15); color: var(--fail); }
+.badge-warn { background: rgba(245,158,11,0.15); color: var(--warn); }
+.badge-muted { background: rgba(115,115,115,0.15); color: var(--muted); }
+.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { background: var(--fail); color: #fff; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; font-size: 12px; }
+.empty { text-align: center; color: var(--muted); padding: 40px 0; font-size: 14px; }
+.progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+.progress-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+.timing { font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 8px; }
+</style>
 </head>
-<body data-standalone-theme="cockpit">
-	<div id="app">
-		<header class="sp-topbar">
-			<a class="sp-topbar-back" href="/playground" title="返回">
-				<svg viewBox="0 0 20 20" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l-6 6 6 6"/></svg>
-			</a>
-			<strong class="sp-topbar-title">Team Runtime 工作台</strong>
-			<div class="sp-topbar-spacer"></div>
-			<button id="team-refresh" class="sp-topbar-btn" type="button">
-				<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-			</button>
-			<button class="sp-topbar-btn" type="button" onclick="toggleTheme()" title="切换主题">
-				<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.4M12 18.8v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>
-			</button>
-		</header>
+<body>
+<div class="topbar">
+	<h1>Team Runtime v2</h1>
+	<nav>
+		<button class="active" onclick="showSection('plans', event)">计划</button>
+		<button onclick="showSection('teams', event)">预设团队</button>
+		<button onclick="showSection('runs', event)">运行记录</button>
+	</nav>
+</div>
 
-		<section class="team-stats">
-			<div class="team-stat-card team-stat-card--blue"><div><div class="team-stat-label">模板</div><div id="team-stat-templates" class="team-stat-value">0</div><div class="team-stat-desc">已注册 TeamTemplate</div></div><div class="team-stat-icon"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M4 5h16M4 12h16M4 19h10"/></svg></div></div>
-			<div class="team-stat-card team-stat-card--green"><div><div class="team-stat-label">运行中</div><div id="team-stat-running" class="team-stat-value">0</div><div class="team-stat-desc">当前 runnable run</div></div><div class="team-stat-icon"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div></div>
-			<div class="team-stat-card team-stat-card--amber"><div><div class="team-stat-label">Run</div><div id="team-stat-runs" class="team-stat-value">0</div><div class="team-stat-desc">队列 / 运行中 run</div></div><div class="team-stat-icon"><svg viewBox="0 0 24 24" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 15h5"/></svg></div></div>
-			<div class="team-stat-card team-stat-card--violet"><div><div class="team-stat-label">完成</div><div id="team-stat-completed" class="team-stat-value">0</div><div class="team-stat-desc">当前列表中的完成数</div></div><div class="team-stat-icon"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M20 6L9 17l-5-5"/></svg></div></div>
-		</section>
-
-		<div class="team-main">
-			<aside class="team-sidebar">
-				<div class="team-create">
-					<div id="team-page-error" class="team-error" hidden></div>
-					<label class="team-field"><span>模板</span><select id="team-template-select" class="team-select"></select></label>
-					<div id="team-template-hint" class="team-run-meta"></div>
-					<label class="team-field"><span>Keyword</span><input id="team-run-keyword" class="team-input" placeholder="Medtrum" autocomplete="off" /></label>
-					<label class="team-field"><span>公司 / 竞争对手名称</span><textarea id="team-run-company-names" class="team-textarea" placeholder="一行一个，或用逗号分隔"></textarea></label>
-					<label class="team-field"><span>官方 / 已知域名</span><textarea id="team-run-official-domains" class="team-textarea" placeholder="example.com"></textarea></label>
-					<div class="team-form-grid">
-						<label class="team-field"><span>Rounds</span><input id="team-run-max-rounds" class="team-input" type="number" min="1" value="1" /></label>
-						<label class="team-field"><span>Candidates</span><input id="team-run-max-candidates" class="team-input" type="number" min="1" value="20" /></label>
-						<label class="team-field"><span>Minutes</span><input id="team-run-max-minutes" class="team-input" type="number" min="1" value="15" /></label>
-					</div>
-					<button id="team-create-run" class="team-btn team-btn--primary" type="button">创建 Run</button>
-				</div>
-				<div class="team-runs-head"><strong>Runs</strong><button class="team-btn" type="button" onclick="loadAll()">刷新</button></div>
-				<div id="team-run-list" class="team-run-list"></div>
-			</aside>
-			<section class="team-detail">
-				<div class="team-detail-head">
-					<strong id="team-detail-title" class="team-detail-title">Team Runtime</strong>
-					<div id="team-detail-actions"></div>
-				</div>
-				<div id="team-detail-body" class="team-detail-body"></div>
-			</section>
+<div class="main">
+	<!-- Plans -->
+	<div id="section-plans" class="section active">
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+			<h2>计划</h2>
+			<button class="btn btn-primary" onclick="createPlan()">新建计划</button>
 		</div>
+		<div id="plans-list"></div>
 	</div>
-		${renderStandaloneConfirmDialog()}
-	${renderStandaloneToastContainer()}
-	<script>${js}</script>
+
+	<!-- Teams -->
+	<div id="section-teams" class="section">
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+			<h2>预设团队</h2>
+			<button class="btn btn-primary" onclick="createTeamUnit()">新建预设团队</button>
+		</div>
+		<div id="teams-list"></div>
+	</div>
+
+	<!-- Runs -->
+	<div id="section-runs" class="section">
+		<div style="margin-bottom:16px"><h2>运行记录</h2></div>
+		<div id="runs-list"></div>
+	</div>
+</div>
+
+<script>
+const API = '/v1/team';
+
+function showSection(name, evt) {
+	document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+	document.getElementById('section-' + name).classList.add('active');
+	document.querySelectorAll('.topbar button').forEach(b => b.classList.remove('active'));
+	if (evt && evt.target) {
+		evt.target.classList.add('active');
+	} else {
+		var idx = { plans: 0, teams: 1, runs: 2 }[name];
+		if (idx !== undefined) document.querySelectorAll('.topbar button')[idx].classList.add('active');
+	}
+	if (name === 'plans') loadPlans();
+	if (name === 'teams') loadTeams();
+	if (name === 'runs') loadRuns();
+}
+
+function statusBadge(status) {
+	const map = { completed: 'badge-success', completed_with_failures: 'badge-warn', failed: 'badge-fail', running: 'badge-warn', queued: 'badge-muted', paused: 'badge-warn', cancelled: 'badge-muted' };
+	return '<span class="badge ' + (map[status] || 'badge-muted') + '">' + status + '</span>';
+}
+
+async function api(path, opts = {}) {
+	const res = await fetch(API + path, opts);
+	if (!res.ok && res.status !== 204) { const e = await res.json().catch(() => ({})); throw new Error(e.error || res.statusText); }
+	return res.status === 204 ? null : res.json();
+}
+
+async function loadPlans() {
+	const plans = await api('/plans');
+	const el = document.getElementById('plans-list');
+	if (!plans.length) { el.innerHTML = '<div class="empty">暂无计划。点击「新建计划」开始。</div>'; return; }
+	el.innerHTML = plans.map(p => '<div class="card"><h3>' + p.title + ' <span class="badge badge-muted">' + p.tasks.length + ' 个任务</span></h3><p style="font-size:13px;color:var(--muted)">目标：' + p.goal.text + '</p><div style="margin-top:8px;display:flex;gap:8px"><button class="btn btn-primary" onclick="startRun(\\'' + p.planId + '\\')">创建运行</button>' + (p.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\'' + p.planId + '\\')">删除</button>' : '') + '</div></div>').join('');
+}
+
+async function loadTeams() {
+	const teams = await api('/team-units');
+	const el = document.getElementById('teams-list');
+	if (!teams.length) { el.innerHTML = '<div class="empty">暂无预设团队。点击「新建预设团队」开始。</div>'; return; }
+	el.innerHTML = teams.map(t => '<div class="card"><h3>' + t.title + (t.archived ? ' <span class="badge badge-muted">已归档</span>' : '') + '</h3><table><tr><td>执行 Agent</td><td>' + t.workerProfileId + '</td></tr><tr><td>验收 Agent</td><td>' + t.checkerProfileId + '</td></tr><tr><td>复盘 Agent</td><td>' + t.watcherProfileId + '</td></tr><tr><td>汇总 Agent</td><td>' + t.finalizerProfileId + '</td></tr></table></div>').join('');
+}
+
+async function loadRuns() {
+	const runs = await api('/runs');
+	const el = document.getElementById('runs-list');
+	if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。</div>'; return; }
+	el.innerHTML = runs.map(r => {
+		const total = r.summary.totalTasks;
+		const done = r.summary.succeededTasks + r.summary.failedTasks + r.summary.cancelledTasks;
+		const pct = total ? Math.round(done / total * 100) : 0;
+		return '<div class="card"><h3>运行 ' + r.runId.slice(0, 16) + '... ' + statusBadge(r.status) + '</h3><p style="font-size:13px;color:var(--muted)">进度：' + done + '/' + total + ' 个任务</p><div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div><div style="margin-top:8px;display:flex;gap:8px">' + (r.status === 'running' ? '<button class="btn btn-danger" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>' : '') + (r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed' ? '<button class="btn btn-primary" onclick="viewReport(\\'' + r.runId + '\\')">查看报告</button><button class="btn btn-danger" onclick="deleteRun(\\'' + r.runId + '\\')">删除</button>' : '') + '</div></div>';
+	}).join('');
+}
+
+async function createTeamUnit() {
+	const title = prompt('预设团队名称：');
+	if (!title) return;
+	const desc = prompt('描述：') || '';
+	const w = prompt('执行 Agent Profile ID：') || 'default';
+	const c = prompt('验收 Agent Profile ID：') || 'default';
+	const wt = prompt('复盘 Agent Profile ID：') || 'default';
+	const f = prompt('汇总 Agent Profile ID：') || 'default';
+	await api('/team-units', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, description: desc, workerProfileId: w, checkerProfileId: c, watcherProfileId: wt, finalizerProfileId: f }) });
+	loadTeams();
+}
+
+async function createPlan() {
+	const teams = await api('/team-units');
+	if (!teams.length) { alert('请先创建预设团队。'); return; }
+	const active = teams.filter(t => !t.archived);
+	if (!active.length) { alert('没有可用的预设团队（全部已归档）。'); return; }
+	const unitId = active[0].teamUnitId;
+	const title = prompt('计划名称：');
+	if (!title) return;
+	const goalText = prompt('目标：') || '';
+	await api('/plans', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, defaultTeamUnitId: unitId, goal: { text: goalText }, tasks: [{ id: 'task_1', title: '任务1', input: { text: goalText }, acceptance: { rules: ['完成目标'] } }], outputContract: { text: '中文汇总' } }) });
+	loadPlans();
+}
+
+async function startRun(planId) {
+	try {
+		const run = await api('/plans/' + planId + '/runs', { method: 'POST' });
+		showSection('runs');
+		loadRuns();
+		setTimeout(loadRuns, 2000);
+	} catch (e) { alert(e.message); }
+}
+
+async function deletePlan(planId) {
+	if (!confirm('确认删除此计划？')) return;
+	await api('/plans/' + planId, { method: 'DELETE' });
+	loadPlans();
+}
+
+async function controlRun(runId, action) {
+	await api('/runs/' + runId + '/' + action, { method: 'POST' });
+	loadRuns();
+}
+
+async function deleteRun(runId) {
+	if (!confirm('确认删除此运行记录？')) return;
+	await api('/runs/' + runId, { method: 'DELETE' });
+	loadRuns();
+}
+
+async function viewReport(runId) {
+	const res = await fetch(API + '/runs/' + runId + '/final-report');
+	if (res.ok) { const text = await res.text(); const w = window.open('', '_blank'); w.document.write('<pre style="white-space:pre-wrap;font-family:sans-serif;padding:20px">' + text.replace(/</g, '&lt;') + '</pre>'); }
+	else alert('报告未找到。');
+}
+
+// Initial load
+loadPlans();
+</script>
 </body>
 </html>`;
 }
-

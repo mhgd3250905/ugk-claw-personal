@@ -213,8 +213,8 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
 	});
 
 	if (config.teamRuntimeEnabled) {
-		const { registerTeamRoutes } = await import("./routes/team.js");
-		registerTeamRoutes(app, { teamDataDir: config.teamDataDir });
+		const { registerTeamRoutes } = await import("./team/routes.js");
+		registerTeamRoutes(app, { teamDataDir: config.teamDataDir, projectRoot: config.projectRoot });
 	}
 
 	return app;

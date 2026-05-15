@@ -1,0 +1,118 @@
+import type { TeamTask, TeamPlan } from "./types.js";
+
+export interface WorkerInput {
+	runId: string;
+	task: TeamTask;
+	attemptId: string;
+	workDir: string;
+	outputDir: string;
+	acceptanceRules: string[];
+	feedback?: string;
+}
+
+export interface WorkerOutput {
+	content: string;
+	artifactRefs: string[];
+}
+
+export interface CheckerInput {
+	runId: string;
+	task: TeamTask;
+	attemptId: string;
+	workerOutputRef: string;
+	acceptanceRules: string[];
+}
+
+export interface CheckerOutput {
+	verdict: "pass" | "revise" | "fail";
+	reason: string;
+	feedback?: string;
+	resultContent?: string;
+}
+
+export interface WatcherInput {
+	runId: string;
+	task: TeamTask;
+	attemptId: string;
+	workUnitStatus: "passed" | "failed";
+	resultRef: string | null;
+	errorSummary: string | null;
+}
+
+export interface WatcherOutput {
+	decision: "accept_task" | "confirm_failed" | "request_revision";
+	reason: string;
+	revisionMode?: "amend" | "redo";
+	feedback?: string;
+}
+
+export interface FinalizerInput {
+	runId: string;
+	plan: TeamPlan;
+	taskResults: Array<{ taskId: string; status: "succeeded" | "failed"; resultRef: string | null; errorSummary: string | null }>;
+}
+
+export interface FinalizerOutput {
+	finalReport: string;
+}
+
+export interface TeamRoleRunner {
+	runWorker(input: WorkerInput): Promise<WorkerOutput>;
+	runChecker(input: CheckerInput): Promise<CheckerOutput>;
+	runWatcher(input: WatcherInput): Promise<WatcherOutput>;
+	runFinalizer(input: FinalizerInput): Promise<FinalizerOutput>;
+}
+
+export interface MockRoleRunnerConfig {
+	workerOutputs?: string[];
+	checkerOutputs?: CheckerOutput[];
+	watcherOutputs?: WatcherOutput[];
+	finalReport?: string;
+}
+
+export class MockRoleRunner implements TeamRoleRunner {
+	private workerCallIndex = 0;
+	private checkerCallIndex = 0;
+	private watcherCallIndex = 0;
+	private readonly workerOutputs: string[];
+	private readonly checkerOutputs: CheckerOutput[];
+	private readonly watcherOutputs: WatcherOutput[];
+	private readonly finalReportContent: string;
+
+	constructor(config: MockRoleRunnerConfig = {}) {
+		this.workerOutputs = config.workerOutputs ?? [];
+		this.checkerOutputs = config.checkerOutputs ?? [];
+		this.watcherOutputs = config.watcherOutputs ?? [];
+		this.finalReportContent = config.finalReport ?? "# 最终汇总\n\n全部任务已完成。";
+	}
+
+	async runWorker(input: WorkerInput): Promise<WorkerOutput> {
+		const content = this.workerOutputs[this.workerCallIndex] ?? `任务 ${input.task.id} 已完成`;
+		this.workerCallIndex++;
+		return { content, artifactRefs: [] };
+	}
+
+	async runChecker(_input: CheckerInput): Promise<CheckerOutput> {
+		const output = this.checkerOutputs[this.checkerCallIndex] ?? { verdict: "pass" as const, reason: "ok", resultContent: "accepted result" };
+		this.checkerCallIndex++;
+		return output;
+	}
+
+	async runWatcher(_input: WatcherInput): Promise<WatcherOutput> {
+		const output = this.watcherOutputs[this.watcherCallIndex] ?? { decision: "accept_task" as const, reason: "ok" };
+		this.watcherCallIndex++;
+		return output;
+	}
+
+	async runFinalizer(input: FinalizerInput): Promise<FinalizerOutput> {
+		const lines = input.taskResults.map(r => `- ${r.taskId}: ${r.status}`);
+		const report = `${this.finalReportContent}\n\n${lines.join("\n")}`;
+		return { finalReport: report };
+	}
+
+	reset(): void {
+		this.workerCallIndex = 0;
+		this.checkerCallIndex = 0;
+		this.watcherCallIndex = 0;
+	}
+}

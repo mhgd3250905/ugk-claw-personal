@@ -1,0 +1,300 @@
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { PlanStore } from "./plan-store.js";
+import { TeamUnitStore } from "./team-unit-store.js";
+import { RunWorkspace } from "./run-workspace.js";
+import { TeamOrchestrator } from "./orchestrator.js";
+import { computeTeamConfigLocks } from "./config-locks.js";
+import { MockRoleRunner } from "./role-runner.js";
+import type { TeamRoleRunner } from "./role-runner.js";
+import { AgentProfileRoleRunner } from "./agent-profile-role-runner.js";
+
+export interface TeamRouteOptions {
+	teamDataDir: string;
+	projectRoot: string;
+}
+
+function createRoleRunner(options: TeamRouteOptions): TeamRoleRunner {
+	if (process.env.TEAM_USE_MOCK_RUNNER === "true") {
+		return new MockRoleRunner();
+	}
+	return new AgentProfileRoleRunner({
+		projectRoot: options.projectRoot,
+		teamDataDir: options.teamDataDir,
+		watcherProfileId: "watcher",
+		workerProfileId: "worker",
+		checkerProfileId: "checker",
+		finalizerProfileId: "finalizer",
+	});
+}
+
+export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptions): void {
+	const planStore = new PlanStore(options.teamDataDir);
+	const unitStore = new TeamUnitStore(options.teamDataDir);
+	const workspace = new RunWorkspace(options.teamDataDir);
+
+	function makeOrchestrator(): TeamOrchestrator {
+		const roleRunner = createRoleRunner(options);
+		return new TeamOrchestrator({
+			planStore,
+			teamUnitStore: unitStore,
+			workspace,
+			roleRunner,
+			dataDir: options.teamDataDir,
+			maxCheckerRevisions: 3,
+			maxWatcherRevisions: 1,
+			maxRunDurationMinutes: 60,
+		});
+	}
+
+	// healthz
+	app.get("/v1/team/healthz", async (_request, reply) => {
+		reply.send({ status: "ok", version: "v2" });
+	});
+
+	// ── Plans ──
+
+	app.get("/v1/team/plans", async (_request, reply) => {
+		const plans = await planStore.list();
+		reply.send(plans);
+	});
+
+	app.post("/v1/team/plans", async (request, reply) => {
+		const body = request.body as Record<string, unknown>;
+		try {
+			const plan = await planStore.create({
+				title: body.title as string,
+				defaultTeamUnitId: body.defaultTeamUnitId as string,
+				goal: body.goal as { text: string },
+				tasks: body.tasks as Array<{ id: string; title: string; input: { text: string; payload?: Record<string, unknown> }; acceptance: { rules: string[] } }>,
+				outputContract: body.outputContract as { text: string },
+			});
+			reply.code(201).send(plan);
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	app.get("/v1/team/plans/:planId", async (request, reply) => {
+		const { planId } = request.params as { planId: string };
+		const plan = await planStore.get(planId);
+		if (!plan) { reply.code(404).send({ error: "plan not found" }); return; }
+		reply.send(plan);
+	});
+
+	app.patch("/v1/team/plans/:planId", async (request, reply) => {
+		const { planId } = request.params as { planId: string };
+		const body = request.body as Record<string, unknown>;
+		try {
+			const plan = await planStore.updateEditablePlan(planId, {
+				title: body.title as string | undefined,
+				goal: body.goal as { text: string } | undefined,
+				tasks: body.tasks as Array<{ id: string; title: string; input: { text: string; payload?: Record<string, unknown> }; acceptance: { rules: string[] } }> | undefined,
+				outputContract: body.outputContract as { text: string } | undefined,
+			} as Parameters<typeof planStore.updateEditablePlan>[1]);
+			reply.send(plan);
+		} catch (err) {
+			const msg = (err as Error).message;
+			reply.code(msg.includes("immutable") ? 409 : 400).send({ error: msg });
+		}
+	});
+
+	app.patch("/v1/team/plans/:planId/default-team", async (request, reply) => {
+		const { planId } = request.params as { planId: string };
+		const body = request.body as { defaultTeamUnitId?: string };
+		if (!body.defaultTeamUnitId) { reply.code(400).send({ error: "defaultTeamUnitId is required" }); return; }
+		try {
+			const locks = computeTeamConfigLocks(await workspace.listStates(), await unitStore.list());
+			if (locks.lockedPlanIds.has(planId)) { reply.code(409).send({ error: "locked by active run" }); return; }
+			const plan = await planStore.updateDefaultTeam(planId, body.defaultTeamUnitId);
+			reply.send(plan);
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	app.post("/v1/team/plans/:planId/archive", async (request, reply) => {
+		const { planId } = request.params as { planId: string };
+		try {
+			const locks = computeTeamConfigLocks(await workspace.listStates(), await unitStore.list());
+			if (locks.lockedPlanIds.has(planId)) { reply.code(409).send({ error: "locked by active run" }); return; }
+			const plan = await planStore.archive(planId);
+			reply.send(plan);
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	app.delete("/v1/team/plans/:planId", async (request, reply) => {
+		const { planId } = request.params as { planId: string };
+		try {
+			await planStore.deleteUnused(planId);
+			reply.code(204).send();
+		} catch (err) {
+			const msg = (err as Error).message;
+			reply.code(msg.includes("used plan") ? 409 : 404).send({ error: msg });
+		}
+	});
+
+	app.post("/v1/team/plans/:planId/runs", async (request, reply) => {
+		const { planId } = request.params as { planId: string };
+		try {
+			const orchestrator = makeOrchestrator();
+			const state = await orchestrator.createRun(planId);
+			orchestrator.runToCompletion(state.runId).catch(() => {});
+			reply.code(201).send(state);
+		} catch (err) {
+			const msg = (err as Error).message;
+			reply.code(msg.includes("active run") ? 409 : 400).send({ error: msg });
+		}
+	});
+
+	// ── Team Units ──
+
+	app.get("/v1/team/team-units", async (_request, reply) => {
+		const units = await unitStore.list();
+		reply.send(units);
+	});
+
+	app.post("/v1/team/team-units", async (request, reply) => {
+		const body = request.body as Record<string, unknown>;
+		try {
+			const unit = await unitStore.create({
+				title: body.title as string,
+				description: body.description as string,
+				watcherProfileId: body.watcherProfileId as string,
+				workerProfileId: body.workerProfileId as string,
+				checkerProfileId: body.checkerProfileId as string,
+				finalizerProfileId: body.finalizerProfileId as string,
+			});
+			reply.code(201).send(unit);
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	app.get("/v1/team/team-units/:teamUnitId", async (request, reply) => {
+		const { teamUnitId } = request.params as { teamUnitId: string };
+		const unit = await unitStore.get(teamUnitId);
+		if (!unit) { reply.code(404).send({ error: "team unit not found" }); return; }
+		reply.send(unit);
+	});
+
+	app.patch("/v1/team/team-units/:teamUnitId", async (request, reply) => {
+		const { teamUnitId } = request.params as { teamUnitId: string };
+		const body = request.body as Record<string, unknown>;
+		try {
+			const locks = computeTeamConfigLocks(await workspace.listStates(), await unitStore.list());
+			if (locks.lockedTeamUnitIds.has(teamUnitId)) { reply.code(409).send({ error: "locked by active run" }); return; }
+			const unit = await unitStore.update(teamUnitId, {
+				title: body.title as string | undefined,
+				description: body.description as string | undefined,
+				watcherProfileId: body.watcherProfileId as string | undefined,
+				workerProfileId: body.workerProfileId as string | undefined,
+				checkerProfileId: body.checkerProfileId as string | undefined,
+				finalizerProfileId: body.finalizerProfileId as string | undefined,
+			});
+			reply.send(unit);
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	app.delete("/v1/team/team-units/:teamUnitId", async (request, reply) => {
+		const { teamUnitId } = request.params as { teamUnitId: string };
+		try {
+			const locks = computeTeamConfigLocks(await workspace.listStates(), await unitStore.list());
+			if (locks.lockedTeamUnitIds.has(teamUnitId)) { reply.code(409).send({ error: "locked by active run" }); return; }
+			await unitStore.delete(teamUnitId);
+			reply.code(204).send();
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	app.post("/v1/team/team-units/:teamUnitId/archive", async (request, reply) => {
+		const { teamUnitId } = request.params as { teamUnitId: string };
+		try {
+			const locks = computeTeamConfigLocks(await workspace.listStates(), await unitStore.list());
+			if (locks.lockedTeamUnitIds.has(teamUnitId)) { reply.code(409).send({ error: "locked by active run" }); return; }
+			const unit = await unitStore.archive(teamUnitId);
+			reply.send(unit);
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	// ── Runs ──
+
+	app.get("/v1/team/runs", async (_request, reply) => {
+		const states = await workspace.listStates();
+		reply.send(states);
+	});
+
+	app.get("/v1/team/runs/:runId", async (request, reply) => {
+		const { runId } = request.params as { runId: string };
+		const state = await workspace.getState(runId);
+		if (!state) { reply.code(404).send({ error: "run not found" }); return; }
+		reply.send(state);
+	});
+
+	app.post("/v1/team/runs/:runId/pause", async (request, reply) => {
+		const { runId } = request.params as { runId: string };
+		try {
+			const orchestrator = makeOrchestrator();
+			const state = await orchestrator.pauseRun(runId, "user pause");
+			reply.send(state);
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	app.post("/v1/team/runs/:runId/resume", async (request, reply) => {
+		const { runId } = request.params as { runId: string };
+		try {
+			const orchestrator = makeOrchestrator();
+			const state = await orchestrator.resumeRun(runId);
+			orchestrator.runToCompletion(runId).catch(() => {});
+			reply.send(state);
+		} catch (err) {
+			reply.code(400).send({ error: (err as Error).message });
+		}
+	});
+
+	app.post("/v1/team/runs/:runId/cancel", async (request, reply) => {
+		const { runId } = request.params as { runId: string };
+		try {
+			const orchestrator = makeOrchestrator();
+			const state = await orchestrator.cancelRun(runId, "user cancel");
+			reply.send(state);
+		} catch (err) {
+			const msg = (err as Error).message;
+			reply.code(msg.includes("terminal") ? 409 : 400).send({ error: msg });
+		}
+	});
+
+	app.delete("/v1/team/runs/:runId", async (request, reply) => {
+		const { runId } = request.params as { runId: string };
+		try {
+			const orchestrator = makeOrchestrator();
+			await orchestrator.deleteTerminalRun(runId);
+			reply.code(204).send();
+		} catch (err) {
+			const msg = (err as Error).message;
+			reply.code(msg.includes("non-terminal") ? 409 : 404).send({ error: msg });
+		}
+	});
+
+	app.get("/v1/team/runs/:runId/final-report", async (request, reply) => {
+		const { runId } = request.params as { runId: string };
+		const state = await workspace.getState(runId);
+		if (!state) { reply.code(404).send({ error: "run not found" }); return; }
+		try {
+			const { readFile } = await import("node:fs/promises");
+			const { join } = await import("node:path");
+			const report = await readFile(join(options.teamDataDir, "runs", runId, "final-report.md"), "utf8");
+			reply.type("text/markdown; charset=utf-8").send(report);
+		} catch {
+			reply.code(404).send({ error: "final report not found" });
+		}
+	});
+}

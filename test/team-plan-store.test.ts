@@ -1,0 +1,134 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { PlanStore } from "../src/team/plan-store.js";
+
+const validInput = {
+	title: "Medtrum 域名调查",
+	defaultTeamUnitId: "team_web",
+	goal: { text: "调查 Medtrum 相关域名" },
+	tasks: [{ id: "t1", title: "核查 medtrum.com", input: { text: "核查" }, acceptance: { rules: ["必须说明来源"] } }],
+	outputContract: { text: "中文汇总" },
+};
+
+test("PlanStore create validates required fields", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		await assert.rejects(() => store.create({ ...validInput, title: "" }), { message: "plan title is required" });
+		await assert.rejects(() => store.create({ ...validInput, defaultTeamUnitId: "" }), { message: "defaultTeamUnitId is required" });
+		await assert.rejects(() => store.create({ ...validInput, goal: { text: "" } }), { message: "goal text is required" });
+		await assert.rejects(() => store.create({ ...validInput, tasks: [] }), { message: "at least one task is required" });
+		await assert.rejects(() => store.create({ ...validInput, outputContract: { text: "" } }), { message: "outputContract text is required" });
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("PlanStore create rejects task without acceptance rules", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		await assert.rejects(
+			() => store.create({ ...validInput, tasks: [{ id: "t1", title: "t", input: { text: "t" }, acceptance: { rules: [] } }] }),
+			{ message: "task acceptance rules are required" },
+		);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("runCount=0 allows editing title, goal, tasks, outputContract", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		const plan = await store.create(validInput);
+		const updated = await store.updateEditablePlan(plan.planId, { title: "新标题", goal: { text: "新目标" } });
+		assert.equal(updated.title, "新标题");
+		assert.equal(updated.goal.text, "新目标");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("runCount>0 forbids editing tasks, goal, outputContract", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		const plan = await store.create(validInput);
+		await store.incrementRunCount(plan.planId);
+		await assert.rejects(
+			() => store.updateEditablePlan(plan.planId, { tasks: [] }),
+			{ message: "used plan content is immutable" },
+		);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("runCount>0 allows changing defaultTeamUnitId", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		const plan = await store.create(validInput);
+		await store.incrementRunCount(plan.planId);
+		const updated = await store.updateDefaultTeam(plan.planId, "team_other");
+		assert.equal(updated.defaultTeamUnitId, "team_other");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("runCount=0 can hard delete", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		const plan = await store.create(validInput);
+		await store.deleteUnused(plan.planId);
+		const got = await store.get(plan.planId);
+		assert.equal(got, null);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("runCount>0 cannot hard delete", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		const plan = await store.create(validInput);
+		await store.incrementRunCount(plan.planId);
+		await assert.rejects(() => store.deleteUnused(plan.planId), { message: "used plan cannot be deleted" });
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("runCount>0 can archive", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		const plan = await store.create(validInput);
+		await store.incrementRunCount(plan.planId);
+		const archived = await store.archive(plan.planId);
+		assert.equal(archived.archived, true);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("list returns plans sorted by updatedAt desc", async () => {
+	const root = await mkdtemp(join(tmpdir(), "plan-store-"));
+	try {
+		const store = new PlanStore(root);
+		await store.create({ ...validInput, title: "first" });
+		await store.create({ ...validInput, title: "second" });
+		const list = await store.list();
+		assert.equal(list.length, 2);
+		assert.equal(list[0]!.title, "second");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});

@@ -1,0 +1,9 @@
+import { randomUUID } from "node:crypto";
+
+const compact = (): string => randomUUID().replaceAll("-", "").slice(0, 12);
+
+export const generateTeamUnitId = (): string => `team_${compact()}`;
+export const generatePlanId = (): string => `plan_${compact()}`;
+export const generateRunId = (): string => `run_${compact()}`;
+export const generateAttemptId = (): string => `attempt_${compact()}`;
+export const generateTimingSpanId = (): string => `timing_${compact()}`;

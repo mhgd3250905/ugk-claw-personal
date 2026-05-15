@@ -53,6 +53,7 @@ export function registerPlaygroundRoute(app: FastifyInstance, options: Playgroun
 		return renderAgentsPage();
 	});
 
+
 	app.get("/playground/team", async (_request, reply) => {
 		reply.type("text/html; charset=utf-8");
 		reply.header("cache-control", "no-store, no-cache, must-revalidate");

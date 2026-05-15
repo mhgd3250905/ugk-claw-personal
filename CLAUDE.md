@@ -113,18 +113,19 @@ Fastify Server (src/server.ts)
 
 **Route Pattern**: All route modules export a `register*Routes(app, options)` function called from `buildServer()` in `server.ts`. Shared parsing logic lives in `*-route-parsers.ts`, shared response formatting in `*-route-utils.ts`, shared response presentation in `*-route-presenters.ts` (e.g., `conn-route-presenters.ts`). API errors use helpers from `http-errors.ts` for consistent error responses. To add a new route group, create the file and call its register function in `buildServer()`.
 
-**Team Runtime** (`src/team/`): Tick-based multi-role pipeline for brand domain investigation (v0.1). `TeamOrchestrator` drives a 5-role state machine: Discovery → Evidence Collector → Classifier → Reviewer → Finalizer. `TeamWorkspace` manages run persistence (atomic JSON writes, JSONL events/streams, cursor-based consumption). Runtime Gate validates payload shape, role→stream permissions, and dedup before any item enters a stream. `CompositeTeamRoleTaskRunner` allows mixing real LLM roles with mock via `TEAM_REAL_ROLES` env var. Role tasks have configurable timeout (`TEAM_ROLE_TASK_TIMEOUT_MS`) and retry (`TEAM_ROLE_TASK_MAX_RETRIES`). `src/team-lab/` contains the validated spike experiment — **do not modify `src/team-lab/`**. API routes at `/v1/team/*`: `GET /healthz`, `POST /runs` (create run), `GET /runs` (list runnable), `GET /runs/:id` (state+plan), `GET /runs/:id/events`, `GET /runs/:id/streams/:streamName`, `GET /runs/:id/artifacts/:name`, `POST /runs/:id/cancel` (cancel running run). The `team-worker` process polls for pending runs when `TEAM_RUNTIME_ENABLED=true`. SearXNG integration (`src/team-lab/search.ts`) provides real search context.
+**Team Runtime v2** (`src/team/`): Plan-driven sequential multi-role pipeline. Core concepts: Plan → TeamUnit → Run → Task → Attempt → WorkUnit. Four roles: **worker** (executes task), **checker** (reviews output: pass/revise/fail, max 3 revisions), **watcher** (post-task review: accept_task/confirm_failed/request_revision, max 1 revision), **finalizer** (generates summary report). `TeamOrchestrator` drives sequential task execution with work-unit loops; `RunWorkspace` manages run persistence (atomic JSON state + per-attempt files). API routes at `/v1/team/*`: Plans CRUD, TeamUnits CRUD, Runs with pause/resume/cancel controls, healthz, final-report. The `team-worker` process polls for queued runs when `TEAM_RUNTIME_ENABLED=true`.
 
-Team Runtime internals:
-- **Agent profile binding**: Each role can bind to an Agent profile via `roleProfileIds` in `POST /runs`. Bound roles use `AgentProfileTeamRoleTaskRunner` (`src/team/agent-profile-team-role-task-runner.ts`), inheriting the profile's model source, skills, rules file, and default Chrome. Unbound roles fall back to the default LLM runner. The Team page (`src/ui/team-page.ts`) renders per-role cards where users select profiles and edit role prompts.
-- **Templates**: Pipeline definitions live in `src/team/templates/` (e.g., `brand-domain-discovery.ts`). Templates declare roles, streams, allowed permissions, and default prompts. `GET /v1/team/templates` returns template metadata including role definitions.
-- **JSON envelope output**: Agent-profile-bound roles output a JSON envelope after completion (no realtime submit). The agent runs to completion, then `parseAgentJsonEnvelope` in `agent-profile-team-role-task-runner.ts` extracts structured results. Discovery still runs as a background task with heartbeat/watchdog, but results are parsed from the final output rather than streamed via submit tools. The old submit tool mechanism (`team-submit.ts`, `team-submit-tools.ts`, `llm-tool-loop.ts`) remains for LLM runner path but is no longer used by agent profile runners.
-- **Parallel pipeline**: Roles execute in parallel via `Promise.all` — any role with available data runs immediately, not sequentially. Each tick reads `freshState` from disk to avoid stale in-memory state.
-- **Manual cancel**: `POST /v1/team/runs/:teamRunId/cancel` allows cancelling a running team run; the Team page exposes a cancel button.
-- **LLM calls** (`src/team/llm.ts`): `callLLM()` auto-detects API format by baseUrl — OpenAI format at `api.deepseek.com/chat/completions` vs Anthropic-compatible at `api.deepseek.com/anthropic/v1/messages`. Key loaded from `deepseek.txt`/`deepseek-api.txt` or `DEEPSEEK_API_KEY` env var.
-- **JSON repair**: DeepSeek occasionally outputs JSON with unescaped quotes. `repairJson()` in `src/team-lab/brand-domain-gate.ts` does char-level repair — always use it when parsing LLM JSON output.
-- **SearXNG endpoints**: host `http://127.0.0.1:48080`, Docker internal `http://ugk-pi-searxng:8080` (set via `SEARXNG_BASE_URL`). API: `GET /search?q=<query>&format=json&categories=general`.
-- **Feature flag**: `TEAM_RUNTIME_ENABLED` must gate route registration and worker startup; when false, zero impact on rest of system.
+Team Runtime v2 internals:
+- **TeamUnit**: Reusable preset team binding 4 AgentProfile slots (watcher, worker, checker, finalizer). Archived units cannot be used for new runs.
+- **Plan**: Ordered task list with acceptance criteria, goal, and output contract. Plans with runs are content-immutable; unused plans can be deleted.
+- **Run lifecycle**: queued → running → completed/completed_with_failures/failed/cancelled. Pause/resume interrupts mid-task.
+- **WorkUnit loop**: worker runs → checker reviews (pass → accepted, revise → worker retries with feedback, fail → work unit fails) → watcher reviews (accept → task done, confirm_failed → task fails, request_revision → new attempt with feedback).
+- **Config locks**: Active runs lock their Plan, TeamUnit, and all 4 AgentProfiles to prevent mutation during execution.
+- **AgentProfile integration**: `AgentProfileRoleRunner` (`src/team/agent-profile-role-runner.ts`) implements `TeamRoleRunner` using real AgentProfile sessions via `BackgroundAgentSessionFactory`. Checker/watcher agents output JSON; parse errors default to safe fallbacks.
+- **Mock mode**: `TEAM_USE_MOCK_RUNNER=true` uses `MockRoleRunner` for testing; unset or false uses `AgentProfileRoleRunner`.
+- **Stale state**: Orchestrator re-reads state from disk after every async mutation to avoid stale references.
+- **Timeout**: Max run duration 60 minutes; timed-out runs are marked failed.
+- **Feature flag**: `TEAM_RUNTIME_ENABLED` gates route registration and worker startup; when false, zero impact on rest of system.
 
 ### Architecture Governance
 
@@ -135,7 +136,6 @@ Out of bounds (do not do unless explicitly asked):
 - Do not treat mobile Playground as a compressed desktop version.
 - Do not push Feishu as current mainline unless the user re-requests.
 - Do not modify `references/pi-mono/` — reference mirror, not business code.
-- Do not modify `src/team-lab/` — validated spike experiment, frozen.
 
 ### `.pi/` Directory
 
@@ -167,20 +167,19 @@ The `.pi/` directory holds agent configuration tracked in git (except `.pi/sessi
 | Team page UI | `src/ui/team-page.ts` |
 | pi-coding-agent settings | `.pi/settings.json` |
 | Multi-agent profile definitions | `.pi/agents/` |
-| Team Runtime orchestrator | `src/team/team-orchestrator.ts` |
-| Team Runtime workspace | `src/team/team-workspace.ts` |
 | Team Runtime types | `src/team/types.ts` |
-| Team Runtime gate (validation, permissions) | `src/team/team-gate.ts` |
-| Team Runtime role runners (mock, LLM, composite) | `src/team/team-role-task-runner.ts` |
-| Team Runtime Agent profile role runner | `src/team/agent-profile-team-role-task-runner.ts` |
-| Team Runtime role prompts | `src/team/team-role-prompts.ts` |
-| Team Runtime templates | `src/team/templates/brand-domain-discovery.ts`, `src/team/templates/competitor-domain-discovery.ts` |
-| Team Runtime plan factory | `src/team/team-plan-brand-domain.ts` |
-| Team Runtime config adapter | `src/team/team-config.ts` |
-| Team Runtime LLM client | `src/team/llm.ts` |
-| Team API routes | `src/routes/team.ts` |
+| Team Runtime orchestrator | `src/team/orchestrator.ts` |
+| Team Runtime run workspace | `src/team/run-workspace.ts` |
+| Team Runtime plan store | `src/team/plan-store.ts` |
+| Team Runtime team unit store | `src/team/team-unit-store.ts` |
+| Team Runtime config locks | `src/team/config-locks.ts` |
+| Team Runtime role runner interface + mock | `src/team/role-runner.ts` |
+| Team Runtime AgentProfile role runner | `src/team/agent-profile-role-runner.ts` |
+| Team Runtime progress/timing | `src/team/progress.ts`, `src/team/timing.ts` |
+| Team Runtime path validation | `src/team/path-refs.ts` |
+| Team Runtime ID generation | `src/team/ids.ts` |
+| Team API routes | `src/team/routes.ts` |
 | Team worker | `src/workers/team-worker.ts` |
-| Spike experiment (gate, prompts) | `src/team-lab/` |
 
 ### Configuration
 
@@ -193,9 +192,10 @@ Requires Node.js >= 22. Runtime config comes from env vars, with `.env.example` 
 - `UGK_RUNTIME_SKILLS_USER_DIR` — user skills directory (production: shared volume, not git worktree)
 - `CONN_WORKER_MAX_CONCURRENCY` — max parallel conn runs (default 3)
 - `TEAM_RUNTIME_ENABLED` — enable team runtime routes and worker (must be `"true"`)
-- `TEAM_REAL_ROLES` — comma-separated role IDs using real LLM (e.g., `discovery,evidence_collector`); unset = all mock
+- `TEAM_USE_MOCK_RUNNER` — use mock role runner instead of real AgentProfile sessions (default false)
 - `TEAM_DATA_DIR` — team data directory (default `.data/team`)
-- `TEAM_ROLE_TASK_TIMEOUT_MS` / `TEAM_ROLE_TASK_MAX_RETRIES` — per-role-task timeout and retry (default 180000ms / 1)
+- `TEAM_WORKER_POLL_INTERVAL_MS` — worker poll interval (default 3000)
+- `TEAM_MAX_CONCURRENT_RUNS` — max concurrent runs (default 1)
 
 Model source selection persists at `.data/agent/model-settings.json` and can be changed at runtime via Playground.
 
