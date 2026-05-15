@@ -34,7 +34,7 @@ import type {
 	UpdateAgentSkillRequestBody,
 	UpdateAgentSkillResponseBody,
 } from "../types/api.js";
-import { sendBadRequest, sendInternalError } from "./http-errors.js";
+import { sendBadRequest, sendConflict, sendInternalError, sendNotImplemented, sendNotFound } from "./http-errors.js";
 
 export interface AgentProfileRouteDependencies {
 	agentServiceRegistry?: AgentServiceRegistry<AgentService>;
@@ -59,10 +59,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 	}
 
 	function sendUnknownAgent(reply: FastifyReply, agentId: string | undefined): FastifyReply {
-		return reply.status(404).send({
-			error: "NOT_FOUND",
-			message: `Unknown agentId: ${agentId ?? ""}`,
-		});
+		return sendNotFound(reply, `Unknown agentId: ${agentId ?? ""}`);
 	}
 
 	function resolveScopedAgentServiceOrSend(reply: FastifyReply, agentId: string | undefined): AgentService | undefined {
@@ -80,10 +77,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			return undefined;
 		}
 		if (!deps.browserRegistry?.get(normalized)) {
-			return reply.status(400).send({
-				error: "BAD_REQUEST",
-				message: `Unknown browserId: ${normalized}`,
-			});
+			return sendBadRequest(reply, `Unknown browserId: ${normalized}`);
 		}
 		return undefined;
 	}
@@ -108,17 +102,11 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 	}
 
 	function sendRunningBrowserBindingChange(reply: FastifyReply, agentId: string): FastifyReply {
-		return reply.status(409).send({
-			error: "CONFLICT",
-			message: `Agent ${agentId} has a running conversation. Stop the current run before changing its default browser.`,
-		});
+		return sendConflict(reply, `Agent ${agentId} has a running conversation. Stop the current run before changing its default browser.`);
 	}
 
 	function sendRunningModelBindingChange(reply: FastifyReply, agentId: string): FastifyReply {
-		return reply.status(409).send({
-			error: "CONFLICT",
-			message: `Agent ${agentId} has a running conversation. Stop the current run before changing its default model.`,
-		});
+		return sendConflict(reply, `Agent ${agentId} has a running conversation. Stop the current run before changing its default model.`);
 	}
 
 	function hasModelSelectionPatch(body: Record<string, unknown>): boolean {
@@ -133,27 +121,18 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			return undefined;
 		}
 		if (!deps.modelConfigStore || !deps.modelSelectionValidator) {
-			return reply.status(501).send({
-				error: "NOT_IMPLEMENTED",
-				message: "Model config validator is not available.",
-			});
+			return sendNotImplemented(reply, "Model config validator is not available.");
 		}
 		const modelSelection = {
 			provider: selection.defaultModelProvider!,
 			model: selection.defaultModelId!,
 		};
 		if (!(await deps.modelConfigStore.hasModel(modelSelection))) {
-			return reply.status(400).send({
-				error: "BAD_REQUEST",
-				message: `Model not found: ${modelSelection.provider}/${modelSelection.model}`,
-			});
+			return sendBadRequest(reply, `Model not found: ${modelSelection.provider}/${modelSelection.model}`);
 		}
 		const validation = await deps.modelSelectionValidator(modelSelection);
 		if (!validation.ok) {
-			return reply.status(400).send({
-				error: "BAD_REQUEST",
-				message: validation.message,
-			});
+			return sendBadRequest(reply, validation.message);
 		}
 		return undefined;
 	}
@@ -191,10 +170,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			reply,
 		): Promise<{ agent: { agentId: string; name: string; description: string; defaultBrowserId?: string; defaultModelProvider?: string; defaultModelId?: string } } | FastifyReply> => {
 			if (!deps.projectRoot || !deps.agentServiceRegistry) {
-				return reply.status(501).send({
-					error: "NOT_IMPLEMENTED",
-					message: "Agent profile catalog is not available.",
-				});
+				return sendNotImplemented(reply, "Agent profile catalog is not available.");
 			}
 			try {
 				const body = request.body ?? {};
@@ -227,10 +203,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 					agent: presentAgentSummary(profile),
 				};
 			} catch (error) {
-				return reply.status(400).send({
-					error: "BAD_REQUEST",
-					message: error instanceof Error ? error.message : "Unable to create agent profile.",
-				});
+				return sendBadRequest(reply, error instanceof Error ? error.message : "Unable to create agent profile.");
 			}
 		},
 	);
@@ -346,10 +319,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 					agent: presentAgentSummary(profile),
 				};
 			} catch (error) {
-				return reply.status(400).send({
-					error: "BAD_REQUEST",
-					message: error instanceof Error ? error.message : "Unable to update agent profile.",
-				});
+				return sendBadRequest(reply, error instanceof Error ? error.message : "Unable to update agent profile.");
 			}
 		},
 	);
@@ -371,10 +341,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			try {
 				const catalog = await service.getConversationCatalog();
 				if (catalog.conversations.some((conversation) => conversation.running)) {
-					return reply.status(409).send({
-						error: "CONFLICT",
-						message: `Agent ${agentId} has a running conversation and cannot be archived.`,
-					});
+					return sendConflict(reply, `Agent ${agentId} has a running conversation and cannot be archived.`);
 				}
 				const archived = await archiveStoredAgentProfile(deps.projectRoot, agentId);
 				deps.agentServiceRegistry.remove(agentId);
@@ -385,10 +352,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 					archivedPath: archived.archivedPath,
 				};
 			} catch (error) {
-				return reply.status(400).send({
-					error: "BAD_REQUEST",
-					message: error instanceof Error ? error.message : "Unable to archive agent profile.",
-				});
+				return sendBadRequest(reply, error instanceof Error ? error.message : "Unable to archive agent profile.");
 			}
 		},
 	);
@@ -436,10 +400,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 				deps.agentTemplateRegistry?.invalidate(agentId);
 				return result;
 			} catch (error) {
-				return reply.status(400).send({
-					error: "BAD_REQUEST",
-					message: error instanceof Error ? error.message : "Unable to install agent skill.",
-				});
+				return sendBadRequest(reply, error instanceof Error ? error.message : "Unable to install agent skill.");
 			}
 		},
 	);
@@ -471,10 +432,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 				deps.agentTemplateRegistry?.invalidate(agentId);
 				return { removed: true, ...removed };
 			} catch (error) {
-				return reply.status(400).send({
-					error: "BAD_REQUEST",
-					message: error instanceof Error ? error.message : "Unable to remove agent skill.",
-				});
+				return sendBadRequest(reply, error instanceof Error ? error.message : "Unable to remove agent skill.");
 			}
 		},
 	);
@@ -495,10 +453,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			try {
 				return listStoredAgentProfileSkills(deps.projectRoot, agentId);
 			} catch (error) {
-				return reply.status(400).send({
-					error: "BAD_REQUEST",
-					message: error instanceof Error ? error.message : "Unable to list agent skills.",
-				});
+				return sendBadRequest(reply, error instanceof Error ? error.message : "Unable to list agent skills.");
 			}
 		},
 	);
@@ -522,10 +477,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			}
 			const catalog = await service.getConversationCatalog();
 			if (catalog.conversations.some((conversation) => conversation.running)) {
-				return reply.status(409).send({
-					error: "CONFLICT",
-					message: `Agent ${agentId} has a running conversation. Stop the current run before changing skill enablement.`,
-				});
+				return sendConflict(reply, `Agent ${agentId} has a running conversation. Stop the current run before changing skill enablement.`);
 			}
 			try {
 				const result = await updateStoredAgentProfileSkillEnabled(
@@ -542,10 +494,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 					enabled: result.enabled,
 				};
 			} catch (error) {
-				return reply.status(400).send({
-					error: "BAD_REQUEST",
-					message: error instanceof Error ? error.message : "Unable to update agent skill.",
-				});
+				return sendBadRequest(reply, error instanceof Error ? error.message : "Unable to update agent skill.");
 			}
 		},
 	);

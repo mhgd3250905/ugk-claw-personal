@@ -8,6 +8,7 @@ import type {
 	BrowserStartResponseBody,
 	BrowserStatusResponseBody,
 } from "../types/api.js";
+import { sendBadRequest, sendNotFound } from "./http-errors.js";
 
 interface BrowserRouteDependencies {
 	browserRegistry: BrowserRegistry;
@@ -91,10 +92,7 @@ export function registerBrowserRoutes(app: FastifyInstance, deps: BrowserRouteDe
 }
 
 function sendUnknownBrowser(reply: FastifyReply, browserId: string): FastifyReply {
-	return reply.status(404).send({
-		error: "NOT_FOUND",
-		message: `Unknown browserId: ${browserId}`,
-	});
+	return sendNotFound(reply, `Unknown browserId: ${browserId}`);
 }
 
 function resolveBrowserOrReply(

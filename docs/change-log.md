@@ -12,6 +12,24 @@
 
 ---
 
+## 2026-05-15
+### 主体代码核查：统一错误响应、清理死代码、消除重复
+- 日期：2026-05-15
+- 主题：对 Routes / Agent / Browser 主体模块做全面代码核查，统一 API 错误响应格式，清理死代码和重复实现，为后续开发扫清隐患。
+- 影响范围：
+  - **错误响应契约统一**：所有路由现在返回统一的 `{ error: { code, message } }` 结构。`http-errors.ts` 新增 `sendNotFound`（404）、`sendConflict`（409）、`sendNotImplemented`（501）辅助函数。涉及 `artifacts.ts`（12 处）、`agent-profiles.ts`（11 处）、`browsers.ts`（2 处）。
+  - **`src/types/api.ts`**：`ErrorResponseBody` 增加 `NOT_FOUND | CONFLICT | NOT_IMPLEMENTED` code；删除未使用的 `NotificationStreamEventBody` 类型。
+  - **死代码清理**：`conn-run-store.ts` 删除从未调用的 `parseJson<T>`；`conn-db.ts` 删除重复创建的 `idx_conn_runs_unread` 索引。
+  - **路径检查统一**：`isPathInside` 从三处重复实现合并到 `file-route-utils.ts` 一处导出（改用更健壮的 `relative()` 实现）。`static.ts` 和 `artifacts.ts` 改为导入。
+  - **格式修复**：`conn-db.ts`、`background-workspace.ts` 缩进修正；`agent-profile-catalog.ts` 消除同一表达式内双重 `normalizeOptionalBrowserId` 调用。
+- 验证：
+  - `npx tsc --noEmit`（0 错误）
+  - `server.test.ts`（126 pass）、`chat-agent-routes.test.ts`（14 pass）、`browser-routes.test.ts`（5 pass）、`artifact-routes.test.ts`（10 pass）
+  - `npm run design:lint`（0 errors / 0 warnings）
+- 对应入口：
+  - `src/routes/http-errors.ts`
+  - `src/types/api.ts`
+
 ## 2026-05-14
 ### Team Run 手动取消功能
 - 日期：2026-05-14

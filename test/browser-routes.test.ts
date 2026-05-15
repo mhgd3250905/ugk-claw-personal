@@ -226,8 +226,10 @@ test("GET /v1/browsers/:browserId returns one browser or 404", async () => {
 		const missing = await app.inject({ method: "GET", url: "/v1/browsers/missing" });
 		assert.equal(missing.statusCode, 404);
 		assert.deepEqual(missing.json(), {
-			error: "NOT_FOUND",
-			message: "Unknown browserId: missing",
+			error: {
+				code: "NOT_FOUND",
+				message: "Unknown browserId: missing",
+			},
 		});
 	} finally {
 		await app.close();

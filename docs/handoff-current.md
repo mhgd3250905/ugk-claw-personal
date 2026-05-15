@@ -20,7 +20,7 @@
 
 ## 当前状态
 
-- 当前本地 HEAD：`a2d962c team: remove submit tool mechanism, use JSON envelope output`
+- 当前本地 HEAD：以 `git log -1 --oneline` 为准（本轮提交后更新）
 - 当前本地工作区：本快照更新时 `git status --short` 干净
 - 当前 `origin/main` / `gitee/main`：以现场 `git branch -vv` 和远端状态为准；不要假设本地 `a2d962c` 已推送或已部署
 - 当前稳定 tag：`snapshot-20260513-v4.5.0-stable`（在最近 7 个 team 提交之前）

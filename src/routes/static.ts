@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { isPathInside } from "./file-route-utils.js";
 
 export interface StaticRouteOptions {
 	projectRoot: string;
@@ -104,14 +105,4 @@ async function sendStaticFile(
 
 function resolveContentType(filePath: string): string {
 	return CONTENT_TYPES[extname(filePath).toLowerCase()] ?? "application/octet-stream";
-}
-
-function isPathInside(filePath: string, parentDir: string): boolean {
-	const normalizedFilePath = resolve(filePath);
-	const normalizedParentDir = resolve(parentDir);
-	return (
-		normalizedFilePath === normalizedParentDir ||
-		normalizedFilePath.startsWith(`${normalizedParentDir}\\`) ||
-		normalizedFilePath.startsWith(`${normalizedParentDir}/`)
-	);
 }

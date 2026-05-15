@@ -210,16 +210,6 @@ export interface ConnRunEventsResponseBody {
 	limit?: number;
 }
 
-export interface NotificationStreamEventBody {
-	notificationId: string;
-	conversationId: string;
-	source: string;
-	sourceId: string;
-	runId?: string;
-	kind: string;
-	title: string;
-	createdAt: string;
-}
 
 export interface AgentActivityFileBody {
 	fileName: string;
@@ -692,7 +682,14 @@ export type ChatStreamEvent =
 
 export interface ErrorResponseBody {
 	error: {
-		code: "BAD_REQUEST" | "PAYLOAD_TOO_LARGE" | "INTERNAL_ERROR" | "AGENT_BUSY";
+		code:
+			| "BAD_REQUEST"
+			| "PAYLOAD_TOO_LARGE"
+			| "INTERNAL_ERROR"
+			| "AGENT_BUSY"
+			| "NOT_FOUND"
+			| "CONFLICT"
+			| "NOT_IMPLEMENTED";
 		message: string;
 		agentId?: string;
 		activeConversationId?: string;

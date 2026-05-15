@@ -172,7 +172,7 @@ test("unknown agent-scoped routes do not fall back to main", async () => {
 	});
 
 	assert.equal(response.statusCode, 404);
-	assert.match(response.json().message, /missing/);
+	assert.match(response.json().error.message, /missing/);
 });
 
 test("agent-scoped conversations are served from the requested agent service", async () => {
@@ -476,9 +476,9 @@ test("agent skill management rejects main and missing main skills", async () => 
 	});
 
 	assert.equal(missing.statusCode, 400);
-	assert.match(missing.json().message, /main agent does not have skill missing-skill/);
+	assert.match(missing.json().error.message, /main agent does not have skill missing-skill/);
 	assert.equal(main.statusCode, 400);
-	assert.match(main.json().message, /main agent skills cannot be managed/);
+	assert.match(main.json().error.message, /main agent skills cannot be managed/);
 });
 
 test("POST /v1/agents/:agentId/archive rejects main and running agents", async () => {

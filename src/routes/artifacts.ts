@@ -1,9 +1,11 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
-import { extname, isAbsolute, join, relative, resolve } from "node:path";
+import { extname, join, resolve } from "node:path";
 import type { ConnRunStore } from "../agent/conn-run-store.js";
 import type { ConnSqliteStore } from "../agent/conn-sqlite-store.js";
+import { isPathInside } from "./file-route-utils.js";
+import { sendNotFound } from "./http-errors.js";
 
 export interface ArtifactRouteOptions {
 	connStore: ConnSqliteStore;
@@ -51,7 +53,7 @@ export function registerArtifactRoutes(
 			const subPath = request.params["*"];
 			const artifactDir = await resolveRunArtifactDir(connId, runId);
 			if (!artifactDir) {
-				return reply.code(404).send({ error: "Not found" });
+				return sendNotFound(reply, "Not found");
 			}
 
 			const targetFile = subPath
@@ -68,13 +70,13 @@ export function registerArtifactRoutes(
 			const { connId, runId } = request.params;
 			const artifactDir = await resolveRunArtifactDir(connId, runId);
 			if (!artifactDir) {
-				return reply.code(404).send({ error: "Not found" });
+				return sendNotFound(reply, "Not found");
 			}
 			const indexPath = resolve(join(artifactDir, "index.html"));
 			if (existsSync(indexPath)) {
 				return serveArtifactFile(reply, artifactDir, indexPath);
 			}
-			return reply.code(404).send({ error: "Not found" });
+			return sendNotFound(reply, "Not found");
 		},
 	);
 
@@ -106,7 +108,7 @@ export function registerArtifactRoutes(
 			const runs = await connRunStore.listRunsForConn(connId);
 			const latestSucceeded = runs.find((r) => r.status === "succeeded");
 			if (!latestSucceeded) {
-				return reply.code(404).send({ error: "No succeeded run found" });
+				return sendNotFound(reply, "No succeeded run found");
 			}
 
 			const artifactDir = resolveArtifactDir(
@@ -114,7 +116,7 @@ export function registerArtifactRoutes(
 				latestSucceeded.workspacePath,
 			);
 			if (!artifactDir) {
-				return reply.code(404).send({ error: "Not found" });
+				return sendNotFound(reply, "Not found");
 			}
 
 			const targetFile = subPath
@@ -133,7 +135,7 @@ export function registerArtifactRoutes(
 			const runs = await connRunStore.listRunsForConn(connId);
 			const latestSucceeded = runs.find((r) => r.status === "succeeded");
 			if (!latestSucceeded) {
-				return reply.code(404).send({ error: "No succeeded run found" });
+				return sendNotFound(reply, "No succeeded run found");
 			}
 
 			const artifactDir = resolveArtifactDir(
@@ -141,14 +143,14 @@ export function registerArtifactRoutes(
 				latestSucceeded.workspacePath,
 			);
 			if (!artifactDir) {
-				return reply.code(404).send({ error: "Not found" });
+				return sendNotFound(reply, "Not found");
 			}
 
 			const indexPath = resolve(join(artifactDir, "index.html"));
 			if (existsSync(indexPath)) {
 				return serveArtifactFile(reply, artifactDir, indexPath);
 			}
-			return reply.code(404).send({ error: "Not found" });
+			return sendNotFound(reply, "Not found");
 		},
 	);
 
@@ -187,41 +189,35 @@ export function resolveArtifactDir(
 ): string | undefined {
 	const resolvedBackgroundDir = resolve(backgroundDataDir);
 	const resolvedWorkspacePath = resolve(workspacePath);
-	if (resolvedWorkspacePath === resolvedBackgroundDir || !isPathWithin(resolvedBackgroundDir, resolvedWorkspacePath)) {
+	if (resolvedWorkspacePath === resolvedBackgroundDir || !isPathInside(resolvedWorkspacePath, resolvedBackgroundDir)) {
 		return undefined;
 	}
 	return resolve(join(resolvedWorkspacePath, "artifact-public"));
 }
-
-function isPathWithin(parentPath: string, candidatePath: string): boolean {
-	const relativePath = relative(resolve(parentPath), resolve(candidatePath));
-	return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
-}
-
 async function serveArtifactFile(
-	reply: any,
+	reply: FastifyReply,
 	artifactDir: string,
 	targetFile: string,
-): Promise<any> {
+): Promise<FastifyReply> {
 	const resolvedTarget = resolve(targetFile);
 	const resolvedArtifactDir = resolve(artifactDir);
-	if (!isPathWithin(resolvedArtifactDir, resolvedTarget)) {
-		return reply.code(404).send({ error: "Not found" });
+	if (!isPathInside(resolvedTarget, resolvedArtifactDir)) {
+		return sendNotFound(reply, "Not found");
 	}
 
 	const fileName = resolvedTarget.split(/[/\\]/).pop() ?? "";
 	if (!fileName || fileName.startsWith(".")) {
-		return reply.code(404).send({ error: "Not found" });
+		return sendNotFound(reply, "Not found");
 	}
 
 	let fileStat;
 	try {
 		fileStat = await stat(resolvedTarget);
 	} catch {
-		return reply.code(404).send({ error: "Not found" });
+		return sendNotFound(reply, "Not found");
 	}
 	if (!fileStat.isFile()) {
-		return reply.code(404).send({ error: "Not found" });
+		return sendNotFound(reply, "Not found");
 	}
 
 	const ext = extname(resolvedTarget).toLowerCase();
@@ -252,7 +248,7 @@ async function listArtifactFiles(dir: string): Promise<string[]> {
 				await scan(fullPath);
 			} else if (entry.isFile()) {
 				const resolved = resolve(fullPath);
-				if (isPathWithin(dir, resolved)) {
+				if (isPathInside(resolved, dir)) {
 					results.push(fullPath);
 				}
 			}

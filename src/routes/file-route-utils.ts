@@ -1,4 +1,4 @@
-import { extname, resolve } from "node:path";
+import { extname, isAbsolute, relative, resolve } from "node:path";
 import type { ChatAttachment } from "../agent/asset-store.js";
 
 export const DEFAULT_MULTIPART_ASSET_FILE_LIMIT_BYTES = 64 * 1024 * 1024;
@@ -196,14 +196,9 @@ function decodeFileUrlPath(fileUrl: string): string | undefined {
 	}
 }
 
-function isPathInside(filePath: string, parentDir: string): boolean {
-	const normalizedFilePath = resolve(filePath);
-	const normalizedParentDir = resolve(parentDir);
-	return (
-		normalizedFilePath === normalizedParentDir ||
-		normalizedFilePath.startsWith(`${normalizedParentDir}\\`) ||
-		normalizedFilePath.startsWith(`${normalizedParentDir}/`)
-	);
+export function isPathInside(filePath: string, parentDir: string): boolean {
+	const rel = relative(resolve(parentDir), resolve(filePath));
+	return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 function stripMimeParameters(mimeType: string): string {

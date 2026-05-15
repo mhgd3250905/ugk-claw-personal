@@ -194,7 +194,7 @@ export class ConnDatabase {
 		}
 		if (userVersion < 9 && !this.hasColumn("conn_runs", "read_at")) {
 			db.exec("ALTER TABLE conn_runs ADD COLUMN read_at TEXT");
-				db.exec("CREATE INDEX IF NOT EXISTS idx_conn_runs_unread ON conn_runs(conn_id, status, read_at)");
+			db.exec("CREATE INDEX IF NOT EXISTS idx_conn_runs_unread ON conn_runs(conn_id, status, read_at)");
 		}
 		if (userVersion < 10 && !this.hasColumn("conns", "artifact_delivery_json")) {
 			db.exec("ALTER TABLE conns ADD COLUMN artifact_delivery_json TEXT");
@@ -220,9 +220,7 @@ export class ConnDatabase {
 				"ON agent_activity_items(source, source_id, run_id)",
 				"WHERE run_id IS NOT NULL",
 			].join(" "),
-		);
-			db.exec("CREATE INDEX IF NOT EXISTS idx_conn_runs_unread ON conn_runs(conn_id, status, read_at)");
-	}
+		);	}
 
 	private hasColumn(tableName: string, columnName: string): boolean {
 		const rows = this.all<{ name: string }>(`PRAGMA table_info(${tableName})`);

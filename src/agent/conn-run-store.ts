@@ -924,14 +924,6 @@ function sanitizeEventValue(value: unknown, depth: number): unknown {
 	return result;
 }
 
-function parseJson<T>(value: string, fieldName: string): T {
-	try {
-		return JSON.parse(value) as T;
-	} catch {
-		throw new Error(`Invalid JSON in conn run database field ${fieldName}`);
-	}
-}
-
 function parseJsonOrUndefined<T>(value: string): T | undefined {
 	try {
 		return JSON.parse(value) as T;

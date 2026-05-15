@@ -75,7 +75,7 @@ export class BackgroundWorkspaceManager {
 			mkdir(workspace.sessionDir, { recursive: true }),
 			mkdir(workspace.sharedDir, { recursive: true }),
 			mkdir(workspace.publicDir, { recursive: true }),
-		mkdir(workspace.artifactPublicDir, { recursive: true }),
+			mkdir(workspace.artifactPublicDir, { recursive: true }),
 			...(workspace.sitePublicDir ? [mkdir(workspace.sitePublicDir, { recursive: true })] : []),
 		]);
 
@@ -95,7 +95,7 @@ export class BackgroundWorkspaceManager {
 				session: "session",
 				shared: relative(workspace.rootPath, workspace.sharedDir).replace(/\\/g, "/"),
 				public: relative(workspace.rootPath, workspace.publicDir).replace(/\\/g, "/"),
-			artifactPublic: "artifact-public",
+				artifactPublic: "artifact-public",
 				...(workspace.sitePublicDir ? { sitePublic: relative(workspace.rootPath, workspace.sitePublicDir).replace(/\\/g, "/") } : {}),
 			},
 		};

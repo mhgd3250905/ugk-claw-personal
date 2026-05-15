@@ -5,6 +5,18 @@ export function sendBadRequest(reply: FastifyReply, message: string): FastifyRep
 	return sendErrorResponse(reply, 400, "BAD_REQUEST", message);
 }
 
+export function sendNotFound(reply: FastifyReply, message: string): FastifyReply {
+	return sendErrorResponse(reply, 404, "NOT_FOUND", message);
+}
+
+export function sendConflict(reply: FastifyReply, message: string): FastifyReply {
+	return sendErrorResponse(reply, 409, "CONFLICT", message);
+}
+
+export function sendNotImplemented(reply: FastifyReply, message: string): FastifyReply {
+	return sendErrorResponse(reply, 501, "NOT_IMPLEMENTED", message);
+}
+
 export function sendPayloadTooLarge(reply: FastifyReply, message: string): FastifyReply {
 	return sendErrorResponse(reply, 413, "PAYLOAD_TOO_LARGE", message);
 }
@@ -36,7 +48,7 @@ export function sendAgentBusyError(
 
 function sendErrorResponse(
 	reply: FastifyReply,
-	statusCode: 400 | 413 | 500,
+	statusCode: 400 | 404 | 409 | 413 | 500 | 501,
 	code: ErrorResponseBody["error"]["code"],
 	message: string,
 ): FastifyReply {

@@ -202,9 +202,7 @@ export function normalizeAgentProfileInput(input: CreateAgentProfileInput): Agen
 		agentId,
 		name: normalizeAgentName(agentId, input.name),
 		description: normalizeAgentDescription(input.description),
-		...(normalizeOptionalBrowserId(input.defaultBrowserId)
-			? { defaultBrowserId: normalizeOptionalBrowserId(input.defaultBrowserId) }
-			: {}),
+		...((() => { const id = normalizeOptionalBrowserId(input.defaultBrowserId); return id ? { defaultBrowserId: id } : {}; })()),
 		...modelSelection,
 	};
 }
@@ -568,9 +566,7 @@ export async function updateStoredAgentProfile(
 			name: normalizeAgentName(agentId, input.name ?? currentProfile.name),
 			description: normalizeAgentDescription(input.description ?? currentProfile.description),
 			...(Object.hasOwn(input, "defaultBrowserId")
-				? normalizeOptionalBrowserId(input.defaultBrowserId)
-					? { defaultBrowserId: normalizeOptionalBrowserId(input.defaultBrowserId) }
-					: {}
+				? (() => { const id = normalizeOptionalBrowserId(input.defaultBrowserId); return id ? { defaultBrowserId: id } : {}; })()
 				: currentProfile.defaultBrowserId
 					? { defaultBrowserId: currentProfile.defaultBrowserId }
 					: {}),
