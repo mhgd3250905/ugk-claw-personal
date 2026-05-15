@@ -64,10 +64,7 @@ export function registerBrowserRoutes(app: FastifyInstance, deps: BrowserRouteDe
 			try {
 				return await browserControl.closeTarget(browser, request.params?.targetId ?? "");
 			} catch (error) {
-				return reply.status(400).send({
-					error: "BAD_REQUEST",
-					message: error instanceof Error ? error.message : "Unable to close browser target",
-				});
+				return sendBadRequest(reply, error instanceof Error ? error.message : "Unable to close browser target");
 			}
 		},
 	);

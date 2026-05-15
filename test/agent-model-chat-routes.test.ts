@@ -103,7 +103,7 @@ test("POST /v1/agents rejects model-only without provider", async () => {
 	});
 
 	assert.equal(response.statusCode, 400);
-	assert.match(response.json().message, /must be provided together/);
+	assert.match(response.json().error.message, /must be provided together/);
 });
 
 test("POST /v1/agents rejects provider-only without model", async () => {
@@ -128,7 +128,7 @@ test("POST /v1/agents rejects provider-only without model", async () => {
 	});
 
 	assert.equal(response.statusCode, 400);
-	assert.match(response.json().message, /must be provided together/);
+	assert.match(response.json().error.message, /must be provided together/);
 });
 
 test("PATCH /v1/agents/:agentId updates model fields", async () => {
@@ -229,5 +229,5 @@ test("PATCH /v1/agents/:agentId rejects model change when agent is running", asy
 	});
 
 	assert.equal(response.statusCode, 409);
-	assert.match(response.json().message, /running/i);
+	assert.match(response.json().error.message, /running/i);
 });

@@ -87,7 +87,7 @@ test("agent profile create and update validate defaultBrowserId against browser 
 			},
 		});
 		assert.equal(rejected.statusCode, 400);
-		assert.match(rejected.json().message, /Unknown browserId: missing/);
+		assert.match(rejected.json().error.message, /Unknown browserId: missing/);
 	} finally {
 		await app.close();
 	}
@@ -321,7 +321,7 @@ test("agent browser binding updates reject while that agent has a running conver
 		const research = list.json().agents.find((agent: { agentId: string }) => agent.agentId === "research");
 
 		assert.equal(response.statusCode, 409);
-		assert.match(response.json().message, /running conversation/);
+		assert.match(response.json().error.message, /running conversation/);
 		assert.equal(research.defaultBrowserId, "work-01");
 		assert.equal(auditEntries.length, 1);
 		assert.deepEqual({ ...auditEntries[0], createdAt: undefined }, {
