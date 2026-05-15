@@ -18,6 +18,7 @@ import {
 	parseQueueMessageBody,
 } from "./chat-route-parsers.js";
 import { registerAgentProfileRoutes } from "./agent-profiles.js";
+import { resolveScopedAgentServiceOrSend, sendUnknownAgent, validateBrowserId } from "./agent-route-utils.js";
 import { sendAgentBusyError, sendBadRequest, sendInternalError } from "./http-errors.js";
 import type { ModelConfigStore, ModelSelectionValidator } from "../agent/model-config.js";
 import type {
@@ -146,46 +147,15 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 		modelSelectionValidator: deps.modelSelectionValidator,
 	});
 
-	function resolveScopedAgentService(agentId: string | undefined): AgentService | undefined {
-		return deps.agentServiceRegistry?.get(agentId);
-	}
-
-	function sendUnknownAgent(reply: FastifyReply, agentId: string | undefined): FastifyReply {
-		return reply.status(404).send({
-			error: "NOT_FOUND",
-			message: `Unknown agentId: ${agentId ?? ""}`,
-		});
-	}
-
-	function resolveScopedAgentServiceOrSend(reply: FastifyReply, agentId: string | undefined): AgentService | undefined {
-		const service = resolveScopedAgentService(agentId);
-		if (!service) {
-			sendUnknownAgent(reply, agentId);
-			return undefined;
-		}
-		return service;
-	}
-
-	function validateBrowserId(reply: FastifyReply, browserId: string | undefined | null): FastifyReply | undefined {
-		const normalized = String(browserId ?? "").trim();
-		if (!normalized) {
-			return undefined;
-		}
-		if (!deps.browserRegistry?.get(normalized)) {
-			return reply.status(400).send({
-				error: "BAD_REQUEST",
-				message: `Unknown browserId: ${normalized}`,
-			});
-		}
-		return undefined;
-	}
+
+
 
 	function resolveBrowserIdForRequest(
 		reply: FastifyReply,
 		agentId: string | undefined,
 		requestedBrowserId: string | undefined,
 	): { browserId?: string; response?: FastifyReply } {
-		const browserValidation = validateBrowserId(reply, requestedBrowserId);
+		const browserValidation = validateBrowserId(deps.browserRegistry, reply, requestedBrowserId);
 		if (browserValidation) {
 			return { response: browserValidation };
 		}
@@ -193,7 +163,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			return { browserId: requestedBrowserId };
 		}
 		const profileBrowserId = agentId ? deps.agentServiceRegistry?.getProfile(agentId)?.defaultBrowserId : undefined;
-		const profileValidation = validateBrowserId(reply, profileBrowserId);
+		const profileValidation = validateBrowserId(deps.browserRegistry, reply, profileBrowserId);
 		if (profileValidation) {
 			return { response: profileValidation };
 		}
@@ -229,7 +199,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			request: FastifyRequest<{ Params: { agentId?: string } }>,
 			reply,
 		): Promise<ConversationCatalogResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -243,7 +213,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			request: FastifyRequest<{ Params: { agentId?: string } }>,
 			reply,
 		): Promise<CreateConversationResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -259,7 +229,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<DeleteConversationResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -284,7 +254,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<UpdateConversationResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -313,7 +283,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<SwitchConversationResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -338,7 +308,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<ConversationStateResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -369,7 +339,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<ChatStatusResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -394,7 +364,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<ChatHistoryResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -426,7 +396,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<FastifyReply | void> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -479,7 +449,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<ChatRunEventsResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -520,7 +490,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<ChatResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -560,7 +530,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<FastifyReply | void> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -626,7 +596,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<QueueMessageResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -664,7 +634,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<ResetConversationResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -689,7 +659,7 @@ export function registerChatRoutes(app: FastifyInstance, deps: ChatRouteDependen
 			}>,
 			reply,
 		): Promise<InterruptChatResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}

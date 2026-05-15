@@ -4,7 +4,7 @@ import { readFile, stat } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import type { ConnRunStore } from "../agent/conn-run-store.js";
 import type { ConnSqliteStore } from "../agent/conn-sqlite-store.js";
-import { isPathInside } from "./file-route-utils.js";
+import { isPathInside, resolveContentType } from "./file-route-utils.js";
 import { sendNotFound } from "./http-errors.js";
 
 export interface ArtifactRouteOptions {
@@ -14,23 +14,6 @@ export interface ArtifactRouteOptions {
 	publicBaseUrl?: string;
 }
 
-const CONTENT_TYPES: Record<string, string> = {
-	".html": "text/html; charset=utf-8",
-	".css": "text/css; charset=utf-8",
-	".js": "text/javascript; charset=utf-8",
-	".json": "application/json; charset=utf-8",
-	".csv": "text/csv; charset=utf-8",
-	".md": "text/markdown; charset=utf-8",
-	".txt": "text/plain; charset=utf-8",
-	".pdf": "application/pdf",
-	".png": "image/png",
-	".jpg": "image/jpeg",
-	".jpeg": "image/jpeg",
-	".webp": "image/webp",
-	".svg": "image/svg+xml; charset=utf-8",
-	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	".htm": "text/html; charset=utf-8",
-};
 
 export function registerArtifactRoutes(
 	app: FastifyInstance,
@@ -221,7 +204,7 @@ async function serveArtifactFile(
 	}
 
 	const ext = extname(resolvedTarget).toLowerCase();
-	const contentType = CONTENT_TYPES[ext] || "application/octet-stream";
+	const contentType = resolveContentType(resolvedTarget);
 
 	const content = await readFile(resolvedTarget);
 	return reply

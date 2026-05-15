@@ -34,6 +34,7 @@ import type {
 	UpdateAgentSkillRequestBody,
 	UpdateAgentSkillResponseBody,
 } from "../types/api.js";
+import { resolveScopedAgentServiceOrSend, sendUnknownAgent, validateBrowserId } from "./agent-route-utils.js";
 import { sendBadRequest, sendConflict, sendInternalError, sendNotImplemented, sendNotFound } from "./http-errors.js";
 
 export interface AgentProfileRouteDependencies {
@@ -47,10 +48,6 @@ export interface AgentProfileRouteDependencies {
 }
 
 export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProfileRouteDependencies): void {
-	function resolveScopedAgentService(agentId: string | undefined): AgentService | undefined {
-		return deps.agentServiceRegistry?.get(agentId);
-	}
-
 	function resolveAgentRulesPath(agentId: string | undefined): string | undefined {
 		if (!agentId || !deps.projectRoot) {
 			return undefined;
@@ -60,26 +57,6 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 
 	function sendUnknownAgent(reply: FastifyReply, agentId: string | undefined): FastifyReply {
 		return sendNotFound(reply, `Unknown agentId: ${agentId ?? ""}`);
-	}
-
-	function resolveScopedAgentServiceOrSend(reply: FastifyReply, agentId: string | undefined): AgentService | undefined {
-		const service = resolveScopedAgentService(agentId);
-		if (!service) {
-			sendUnknownAgent(reply, agentId);
-			return undefined;
-		}
-		return service;
-	}
-
-	function validateBrowserId(reply: FastifyReply, browserId: string | undefined | null): FastifyReply | undefined {
-		const normalized = String(browserId ?? "").trim();
-		if (!normalized) {
-			return undefined;
-		}
-		if (!deps.browserRegistry?.get(normalized)) {
-			return sendBadRequest(reply, `Unknown browserId: ${normalized}`);
-		}
-		return undefined;
 	}
 
 	function presentAgentSummary(agent: { agentId: string; name: string; description: string; defaultBrowserId?: string; defaultModelProvider?: string; defaultModelId?: string }): {
@@ -174,7 +151,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			}
 			try {
 				const body = request.body ?? {};
-				const browserValidation = validateBrowserId(reply, body.defaultBrowserId);
+				const browserValidation = validateBrowserId(deps.browserRegistry, reply, body.defaultBrowserId);
 				if (browserValidation) {
 					return browserValidation;
 				}
@@ -221,13 +198,13 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
 			}
-			const service = resolveScopedAgentServiceOrSend(reply, agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId);
 			if (!service) {
 				return reply;
 			}
 			try {
 				const body = request.body ?? {};
-				const browserValidation = validateBrowserId(reply, body.defaultBrowserId);
+				const browserValidation = validateBrowserId(deps.browserRegistry, reply, body.defaultBrowserId);
 				if (browserValidation) {
 					return browserValidation;
 				}
@@ -334,7 +311,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
 			}
-			const service = resolveScopedAgentServiceOrSend(reply, agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId);
 			if (!service) {
 				return reply;
 			}
@@ -363,7 +340,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			request: FastifyRequest<{ Params: { agentId?: string } }>,
 			reply,
 		): Promise<DebugSkillsResponseBody | FastifyReply> => {
-			const service = resolveScopedAgentServiceOrSend(reply, request.params?.agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, request.params?.agentId);
 			if (!service) {
 				return reply;
 			}
@@ -392,7 +369,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
 			}
-			if (!resolveScopedAgentServiceOrSend(reply, agentId)) {
+			if (!resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId)) {
 				return reply;
 			}
 			try {
@@ -424,7 +401,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
 			}
-			if (!resolveScopedAgentServiceOrSend(reply, agentId)) {
+			if (!resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId)) {
 				return reply;
 			}
 			try {
@@ -471,7 +448,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
 			}
-			const service = resolveScopedAgentServiceOrSend(reply, agentId);
+			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId);
 			if (!service) {
 				return reply;
 			}
@@ -518,7 +495,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId) {
 				return sendUnknownAgent(reply, agentId);
 			}
-			if (!resolveScopedAgentServiceOrSend(reply, agentId)) {
+			if (!resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId)) {
 				return reply;
 			}
 			const rulesPath = resolveAgentRulesPath(agentId);
@@ -570,7 +547,7 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId) {
 				return sendUnknownAgent(reply, agentId);
 			}
-			if (!resolveScopedAgentServiceOrSend(reply, agentId)) {
+			if (!resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId)) {
 				return reply;
 			}
 			const rulesPath = resolveAgentRulesPath(agentId);

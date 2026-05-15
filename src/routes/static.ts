@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
 import type { FastifyInstance, FastifyReply } from "fastify";
-import { isPathInside } from "./file-route-utils.js";
+import { isPathInside, resolveContentType } from "./file-route-utils.js";
 
 export interface StaticRouteOptions {
 	projectRoot: string;
@@ -10,19 +10,6 @@ export interface StaticRouteOptions {
 	runtimeDir?: string;
 }
 
-const CONTENT_TYPES: Record<string, string> = {
-	".css": "text/css; charset=utf-8",
-	".gif": "image/gif",
-	".html": "text/html; charset=utf-8",
-	".jpeg": "image/jpeg",
-	".jpg": "image/jpeg",
-	".js": "text/javascript; charset=utf-8",
-	".json": "application/json; charset=utf-8",
-	".png": "image/png",
-	".svg": "image/svg+xml; charset=utf-8",
-	".txt": "text/plain; charset=utf-8",
-	".webp": "image/webp",
-};
 
 export function registerStaticRoutes(app: FastifyInstance, options: StaticRouteOptions): void {
 	const publicDir = resolve(options.publicDir ?? join(options.projectRoot, "public"));
@@ -101,8 +88,4 @@ async function sendStaticFile(
 	} catch {
 		return reply.status(404).send();
 	}
-}
-
-function resolveContentType(filePath: string): string {
-	return CONTENT_TYPES[extname(filePath).toLowerCase()] ?? "application/octet-stream";
 }

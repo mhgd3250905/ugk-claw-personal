@@ -30,6 +30,20 @@
   - `src/routes/http-errors.ts`
   - `src/types/api.ts`
 
+### 架构去重：SSE 基础设施、MIME 映射、路由工具函数
+- 日期：2026-05-15
+- 主题：架构审查后执行的机械性去重，消除跨文件重复代码。
+- 影响范围：
+  - **SSE 去重**：`notifications.ts` 删除本地 `writeSseEvent`/`endSseResponse`/SSE header 设置，改用 `chat-sse.ts` 的导出函数。`chat-sse.ts` 的 `writeSseEvent` 改为泛型以兼容不同事件类型。
+  - **MIME 映射统一**：`file-route-utils.ts` 的 `CONTENT_TYPES` 扩展为超集（新增 `.htm`、`.xlsx`）。`static.ts` 和 `artifacts.ts` 删除本地映射，改为导入 `resolveContentType()`。
+  - **路由工具函数提取**：新增 `src/routes/agent-route-utils.ts`，集中导出 `resolveScopedAgentServiceOrSend`、`sendUnknownAgent`、`validateBrowserId`。`chat.ts` 和 `agent-profiles.ts` 删除本地重复定义。
+- 验证：
+  - `npx tsc --noEmit`（0 错误）
+  - server（126 pass）、chat-agent-routes（14 pass）、browser-routes（5 pass）、artifact-routes（10 pass）
+- 对应入口：
+  - `src/routes/agent-route-utils.ts`
+  - `src/routes/chat-sse.ts`
+
 ## 2026-05-14
 ### Team Run 手动取消功能
 - 日期：2026-05-14

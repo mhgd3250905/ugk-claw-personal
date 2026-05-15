@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { ServerResponse } from "node:http";
 import type { NotificationBroadcastEvent, NotificationHub } from "../agent/notification-hub.js";
+import { configureSseResponse, endSseResponse, writeSseEvent } from "./chat-sse.js";
 import { sendBadRequest } from "./http-errors.js";
 import { parseNotificationBroadcastEvent } from "./notification-route-utils.js";
 
@@ -8,32 +8,10 @@ interface NotificationRouteDependencies {
 	notificationHub: NotificationHub;
 }
 
-function writeSseEvent(raw: ServerResponse, event: NotificationBroadcastEvent): void {
-	if (raw.destroyed || raw.writableEnded) {
-		return;
-	}
-
-	try {
-		raw.write(`data: ${JSON.stringify(event)}\n\n`);
-	} catch {
-		// Browser refresh closes the SSE response, but the notification hub should keep working.
-	}
-}
-
-function endSseResponse(raw: ServerResponse): void {
-	if (!raw.destroyed && !raw.writableEnded) {
-		raw.end();
-	}
-}
-
 export function registerNotificationRoutes(app: FastifyInstance, deps: NotificationRouteDependencies): void {
 	app.get("/v1/notifications/stream", async (_request, reply): Promise<FastifyReply | void> => {
 		reply.hijack();
-		reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-		reply.raw.setHeader("Cache-Control", "no-cache, no-transform");
-		reply.raw.setHeader("Connection", "keep-alive");
-		reply.raw.setHeader("X-Accel-Buffering", "no");
-		reply.raw.flushHeaders?.();
+		configureSseResponse(reply.raw);
 		reply.raw.write(": connected\n\n");
 
 		let closed = false;

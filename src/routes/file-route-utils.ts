@@ -209,6 +209,7 @@ const CONTENT_TYPES: Record<string, string> = {
 	".csv": "text/csv; charset=utf-8",
 	".css": "text/css; charset=utf-8",
 	".gif": "image/gif",
+	".htm": "text/html; charset=utf-8",
 	".html": "text/html; charset=utf-8",
 	".jpeg": "image/jpeg",
 	".jpg": "image/jpeg",
@@ -220,6 +221,7 @@ const CONTENT_TYPES: Record<string, string> = {
 	".svg": "image/svg+xml; charset=utf-8",
 	".txt": "text/plain; charset=utf-8",
 	".webp": "image/webp",
+	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 
 const UTF8_TEXT_MIME_TYPES = new Set([

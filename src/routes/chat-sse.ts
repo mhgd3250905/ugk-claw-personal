@@ -20,7 +20,7 @@ export function configureSseResponse(raw: SseHeaderResponse): void {
 	raw.flushHeaders?.();
 }
 
-export function writeSseEvent(raw: SseResponse, event: ChatStreamEvent): void {
+export function writeSseEvent<T = ChatStreamEvent>(raw: SseResponse, event: T): void {
 	if (raw.destroyed || raw.writableEnded) {
 		return;
 	}
