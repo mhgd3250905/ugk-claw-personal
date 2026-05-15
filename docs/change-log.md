@@ -13,6 +13,15 @@
 ---
 
 ## 2026-05-16
+### Team Runtime v2 UI observability + docs rewrite to pure v2
+- 日期：2026-05-16
+- 主题：(1) 增强 /playground/team 可观测性 UI；(2) 重写 docs/team-runtime.md 为纯 v2 文档。
+- 影响范围：
+  - team-page.ts：Run 列表展示 lastError、currentTaskId、summary 细分。新增可展开 task detail panel，显示 title/status/phase/message/attemptCount/activeAttemptId/resultRef/errorSummary。新增刷新按钮和 cancelled run 删除。所有动态文本走 escapeHtml。
+  - docs/team-runtime.md：重写为纯 v2 结构。v0.1 域名调查历史压缩到归档章节。
+  - 8 个新 UI 断言测试。npm run test:team 101 pass。
+
+## 2026-05-16
 ### Team Runtime v2 审计修复：stale write-back、finalizer resultRef、resume 跳过
 - 日期：2026-05-16
 - 主题：修复三个审计发现的问题：(1) cancel/pause 后迟到 phase 结果覆盖 terminal 状态；(2) finalizer 不读取 resultRef 文件内容；(3) resume 从第一个 task 重新跑。
