@@ -361,3 +361,69 @@ test("finalizer prompt includes resultRef file content", async () => {
 		await rm(root, { recursive: true }).catch(() => {});
 	}
 });
+
+test("AgentProfileRoleRunner runChecker parses pass from mixed text with fenced JSON", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const mixedOutput = `以下是 checker 的验收意见：
+
+worker 的输出基本满足验收标准，代码结构清晰。
+
+\`\`\`json
+{"verdict":"pass","reason":"代码满足所有验收标准","resultContent":"验收通过"}
+\`\`\`
+
+如有疑问请联系。`;
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root,
+			teamDataDir: root,
+			watcherProfileId: "w",
+			workerProfileId: "wo",
+			checkerProfileId: "c",
+			finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory([mixedOutput]),
+		});
+
+		const out = await runner.runChecker({
+			runId: "run_mixed",
+			task: { id: "task_1", title: "测试", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1",
+			workerOutputRef: "output/worker-1.md",
+			acceptanceRules: ["r1"],
+		});
+		assert.equal(out.verdict, "pass");
+		assert.equal(out.reason, "代码满足所有验收标准");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("AgentProfileRoleRunner runChecker parses bare JSON object embedded in text", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const embeddedOutput = `Based on my review, the verdict is {"verdict":"revise","reason":"needs work","feedback":"add more tests"} and that's my conclusion.`;
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root,
+			teamDataDir: root,
+			watcherProfileId: "w",
+			workerProfileId: "wo",
+			checkerProfileId: "c",
+			finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory([embeddedOutput]),
+		});
+
+		const out = await runner.runChecker({
+			runId: "run_embedded",
+			task: { id: "task_1", title: "测试", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1",
+			workerOutputRef: "output/worker-1.md",
+			acceptanceRules: ["r1"],
+		});
+		assert.equal(out.verdict, "revise");
+		assert.equal(out.feedback, "add more tests");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});

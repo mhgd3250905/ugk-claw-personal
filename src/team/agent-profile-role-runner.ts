@@ -119,8 +119,34 @@ ${taskSummary}
 }
 
 function parseJsonResponse<T>(text: string): T {
-	const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-	return JSON.parse(cleaned) as T;
+	// Fast path: entire text is JSON after stripping fences
+	const stripped = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+	try {
+		return JSON.parse(stripped) as T;
+	} catch {
+		// Fall through to extraction
+	}
+
+	// Extract fenced ```json ... ``` block
+	const fenceMatch = text.match(/```json\s*\n([\s\S]*?)\n\s*```/);
+	if (fenceMatch) {
+		return JSON.parse(fenceMatch[1].trim()) as T;
+	}
+
+	// Extract first balanced { ... } from text
+	const firstBrace = text.indexOf("{");
+	if (firstBrace !== -1) {
+		let depth = 0;
+		for (let i = firstBrace; i < text.length; i++) {
+			if (text[i] === "{") depth++;
+			else if (text[i] === "}") depth--;
+			if (depth === 0) {
+				return JSON.parse(text.slice(firstBrace, i + 1)) as T;
+			}
+		}
+	}
+
+	throw new Error(`no JSON found in response: ${text.slice(0, 100)}`);
 }
 
 interface CheckerJsonOutput {
