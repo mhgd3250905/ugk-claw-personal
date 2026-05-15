@@ -127,6 +127,15 @@ var agentCatalog = [];
 
 function $(id) { return document.getElementById(id); }
 
+function escapeHtml(value) {
+	return String(value == null ? '' : value)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
 function showSection(name, evt) {
 	document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
 	$('section-' + name).classList.add('active');
@@ -233,8 +242,8 @@ async function loadPlans() {
 	var el = $('plans-list');
 	if (!plans.length) { el.innerHTML = '<div class="empty">暂无计划。点击「新建计划」开始。</div>'; return; }
 	el.innerHTML = plans.map(function(p) {
-		return '<div class="card"><h3>' + p.title + ' <span class="badge badge-muted">' + p.tasks.length + ' 个任务</span></h3>' +
-			'<p style="font-size:13px;color:var(--muted)">目标：' + p.goal.text + '</p>' +
+		return '<div class="card"><h3>' + escapeHtml(p.title) + ' <span class="badge badge-muted">' + p.tasks.length + ' 个任务</span></h3>' +
+			'<p style="font-size:13px;color:var(--muted)">目标：' + escapeHtml(p.goal.text) + '</p>' +
 			'<div style="margin-top:8px;display:flex;gap:8px">' +
 			'<button class="btn btn-primary" onclick="startRun(\\'' + p.planId + '\\')">创建运行</button>' +
 			(p.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\'' + p.planId + '\\')">删除</button>' : '') +
@@ -247,11 +256,11 @@ async function loadTeams() {
 	var el = $('teams-list');
 	if (!teams.length) { el.innerHTML = '<div class="empty">暂无预设团队。点击「新建预设团队」开始。</div>'; return; }
 	el.innerHTML = teams.map(function(t) {
-		return '<div class="card"><h3>' + t.title + (t.archived ? ' <span class="badge badge-muted">已归档</span>' : '') + '</h3>' +
-			'<table><tr><td>执行 Agent</td><td>' + profileName(t.workerProfileId) + '</td></tr>' +
-			'<tr><td>验收 Agent</td><td>' + profileName(t.checkerProfileId) + '</td></tr>' +
-			'<tr><td>复盘 Agent</td><td>' + profileName(t.watcherProfileId) + '</td></tr>' +
-			'<tr><td>汇总 Agent</td><td>' + profileName(t.finalizerProfileId) + '</td></tr></table>' +
+		return '<div class="card"><h3>' + escapeHtml(t.title) + (t.archived ? ' <span class="badge badge-muted">已归档</span>' : '') + '</h3>' +
+			'<table><tr><td>执行 Agent</td><td>' + escapeHtml(profileName(t.workerProfileId)) + '</td></tr>' +
+			'<tr><td>验收 Agent</td><td>' + escapeHtml(profileName(t.checkerProfileId)) + '</td></tr>' +
+			'<tr><td>复盘 Agent</td><td>' + escapeHtml(profileName(t.watcherProfileId)) + '</td></tr>' +
+			'<tr><td>汇总 Agent</td><td>' + escapeHtml(profileName(t.finalizerProfileId)) + '</td></tr></table>' +
 			'<div style="margin-top:8px;display:flex;gap:8px">' +
 			(!t.archived ? '<button class="btn btn-sm" style="background:var(--border);color:var(--text)" onclick="editTeamUnit(\\'' + t.teamUnitId + '\\')">编辑</button>' +
 			'<button class="btn btn-sm btn-primary" onclick="archiveTeamUnit(\\'' + t.teamUnitId + '\\')">归档</button>' : '') +
@@ -268,10 +277,12 @@ async function loadRuns() {
 		var done = r.summary.succeededTasks + r.summary.failedTasks + r.summary.cancelledTasks;
 		var pct = total ? Math.round(done / total * 100) : 0;
 		return '<div class="card"><h3>运行 ' + r.runId.slice(0, 16) + '... ' + statusBadge(r.status) + '</h3>' +
-			'<p style="font-size:13px;color:var(--muted)">进度：' + done + '/' + total + ' 个任务</p>' +
+			'<p style="font-size:13px;color:var(--muted)">任务进度：' + done + '/' + total + ' 个任务</p>' +
+			'<p style="font-size:13px;color:var(--muted)">耗时统计：' + Math.round((r.activeElapsedMs || 0) / 1000) + ' 秒</p>' +
 			'<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
 			'<div style="margin-top:8px;display:flex;gap:8px">' +
-			(r.status === 'running' ? '<button class="btn btn-danger" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>' : '') +
+			(r.status === 'running' ? '<button class="btn btn-primary" onclick="controlRun(\\'' + r.runId + '\\', \\'pause\\')">暂停</button><button class="btn btn-danger" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>' : '') +
+			(r.status === 'paused' ? '<button class="btn btn-primary" onclick="controlRun(\\'' + r.runId + '\\', \\'resume\\')">恢复</button><button class="btn btn-danger" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>' : '') +
 			(r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed' ? '<button class="btn btn-primary" onclick="viewReport(\\'' + r.runId + '\\')">查看报告</button><button class="btn btn-danger" onclick="deleteRun(\\'' + r.runId + '\\')">删除</button>' : '') +
 			'</div></div>';
 	}).join('');
@@ -330,7 +341,7 @@ async function deleteRun(runId) {
 
 async function viewReport(runId) {
 	var res = await fetch(API + '/runs/' + runId + '/final-report');
-	if (res.ok) { var text = await res.text(); var w = window.open('', '_blank'); w.document.write('<pre style="white-space:pre-wrap;font-family:sans-serif;padding:20px">' + text.replace(/</g, '&lt;') + '</pre>'); }
+	if (res.ok) { var text = await res.text(); var w = window.open('', '_blank'); w.document.write('<pre style="white-space:pre-wrap;font-family:sans-serif;padding:20px">' + escapeHtml(text) + '</pre>'); }
 	else alert('报告未找到。');
 }
 

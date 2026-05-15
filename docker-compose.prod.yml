@@ -24,10 +24,14 @@ services:
       UGK_MODEL_SETTINGS_PATH: /app/.data/agent/model-settings.json
       PLAYGROUND_EXTERNALIZED: ${PLAYGROUND_EXTERNALIZED:-0}
       SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
+      TEAM_RUNTIME_ENABLED: "true"
+      TEAM_DATA_DIR: /app/.data/team
+      TEAM_USE_MOCK_RUNNER: ${TEAM_USE_MOCK_RUNNER:-true}
     volumes:
       - ${UGK_APP_LOG_DIR:-./logs/app}:/var/log/ugk-pi
       - ${UGK_AGENT_DATA_DIR:-./.data/agent}:/app/.data/agent
       - ${UGK_AGENTS_DATA_DIR:-./.data/agents}:/app/.data/agents
+      - ${UGK_TEAM_DATA_DIR:-./.data/team}:/app/.data/team
       - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
       - ${UGK_RUNTIME_SKILLS_USER_DIR:-./runtime/skills-user}:/app/runtime/skills-user
     depends_on:
@@ -89,6 +93,47 @@ services:
         condition: service_started
     restart: unless-stopped
     command: /bin/sh -lc "mkdir -p /var/log/ugk-pi && npm run worker:conn 2>&1 | tee -a /var/log/ugk-pi/conn-worker.log"
+    healthcheck:
+      disable: true
+    networks:
+      - ugk-pi-net
+  ugk-pi-team-worker:
+    image: ugk-pi:prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APT_MIRROR_HOST: ${APT_MIRROR_HOST:-}
+    init: true
+    env_file:
+      - ${UGK_APP_ENV_FILE:-.env}
+    environment:
+      TEAM_RUNTIME_ENABLED: "true"
+      TEAM_DATA_DIR: /app/.data/team
+      TEAM_USE_MOCK_RUNNER: ${TEAM_USE_MOCK_RUNNER:-true}
+      UGK_MODEL_SETTINGS_PATH: /app/.data/agent/model-settings.json
+      PLAYGROUND_EXTERNALIZED: ${PLAYGROUND_EXTERNALIZED:-0}
+      WEB_ACCESS_BROWSER_PUBLIC_BASE_URL: http://ugk-pi:3000
+      WEB_ACCESS_BROWSER_PROVIDER: direct_cdp
+      WEB_ACCESS_CDP_HOST: 172.31.250.10
+      WEB_ACCESS_CDP_PORT: 9223
+      UGK_DEFAULT_BROWSER_ID: ${UGK_DEFAULT_BROWSER_ID:-default}
+      UGK_BROWSER_INSTANCES_JSON: ${UGK_BROWSER_INSTANCES_JSON:-[{"browserId":"default","name":"Default","cdpHost":"172.31.250.10","cdpPort":9223,"guiUrl":"https://127.0.0.1:3901/","profileLabel":"chrome-sidecar"},{"browserId":"chrome-01","name":"chrome-01","cdpHost":"172.31.250.11","cdpPort":9223,"guiUrl":"https://127.0.0.1:3902/","profileLabel":"chrome-sidecar-chrome-01"},{"browserId":"chrome-02","name":"chrome-02","cdpHost":"172.31.250.12","cdpPort":9223,"guiUrl":"https://127.0.0.1:3903/","profileLabel":"chrome-sidecar-chrome-02"}]}
+      UGK_BROWSER_SCOPE_ROUTE_CACHE_PATH: /app/.data/browser-scope-routes.json
+      WEB_ACCESS_BROWSER_UPLOAD_APP_DIR: /app/.data/browser-upload
+      WEB_ACCESS_BROWSER_UPLOAD_BROWSER_DIR: /config/upload
+    volumes:
+      - ${UGK_APP_LOG_DIR:-./logs/app}:/var/log/ugk-pi
+      - ${UGK_AGENT_DATA_DIR:-./.data/agent}:/app/.data/agent
+      - ${UGK_AGENTS_DATA_DIR:-./.data/agents}:/app/.data/agents
+      - ${UGK_TEAM_DATA_DIR:-./.data/team}:/app/.data/team
+      - ${UGK_BROWSER_UPLOAD_DIR:-./.data/chrome-sidecar/upload}:/app/.data/browser-upload
+      - ${UGK_RUNTIME_SKILLS_USER_DIR:-./runtime/skills-user}:/app/runtime/skills-user
+    depends_on:
+      ugk-pi:
+        condition: service_healthy
+    restart: unless-stopped
+    command: /bin/sh -lc "mkdir -p /var/log/ugk-pi && npm run worker:team 2>&1 | tee -a /var/log/ugk-pi/team-worker.log"
     healthcheck:
       disable: true
     networks:

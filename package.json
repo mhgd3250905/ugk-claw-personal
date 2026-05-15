@@ -26,7 +26,7 @@
     "docker:chrome:open": "node scripts/sidecar-chrome.mjs open",
     "server:ops": "node scripts/server-ops.mjs",
     "worker:team": "tsx src/workers/team-worker.ts",
-    "test:team": "node --test --import tsx test/team-*.test.ts"
+    "test:team": "node --test --test-concurrency=1 --import tsx test/team-*.test.ts"
   },
   "dependencies": {
     "@fastify/multipart": "^10.0.0",

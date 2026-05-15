@@ -1,4 +1,83 @@
-# Team Runtime v0.1 — 交接文档
+# Team Runtime — 交接文档
+
+## 2026-05-15 v2 执行口径修正
+
+当前 `src/team/` 已进入 Team Runtime v2 骨架，核心 API 是 TeamUnit / Plan / Run 三类资源：
+
+- `POST /v1/team/team-units` 只接受已存在的 4 个 AgentProfile ID；不存在的 profile 会返回 `400`，别再把拼错的角色 ID 写进团队预设里。
+- `POST /v1/team/plans` 会校验 `defaultTeamUnitId` 存在且未归档；Plan 创建只落计划，不启动执行。
+- `POST /v1/team/plans/:planId/runs` 只创建 `queued` run；真正执行由 `ugk-pi-team-worker` 轮询 `npm run worker:team` 接管，HTTP 路由不再偷偷 inline 执行。
+- 活跃 run 状态包括 `queued`、`running`、`paused`。这些 run 会锁住对应 Plan、TeamUnit，以及 TeamUnit 里四个 AgentProfile；锁住期间不允许编辑 / 归档 profile、安装 / 删除 / 启停技能或改规则文件。
+- `TEAM_USE_MOCK_RUNNER` 默认是 `true`。要跑真实 AgentProfile runner，必须显式设置 `TEAM_USE_MOCK_RUNNER=false`，否则本地和生产默认都走 mock，避免一启用 Team 就误烧真实模型。
+- worker / runner 异常会把 run 收口为 `failed` 或 `completed_with_failures`，不会继续卡在 `running`。
+- watcher JSON 解析失败按 `confirm_failed` 处理，不再默认通过。
+- finalizer 会读取每个 task 的 `resultRef` 文件内容后再生成最终报告，不能只看 state 摘要。
+- `/playground/team` 渲染来自 API 的标题、目标、任务和报告内容时必须 HTML escape；运行列表显示任务进度、耗时统计，并提供暂停 / 恢复 / 取消入口。
+- `team-plan-creator` skill 只能创建 / 更新 TeamUnit 和 Plan，禁止调用 run 创建接口。
+
+本轮修复已验证：
+
+- `node --test --import tsx test/team-routes.test.ts test/team-orchestrator-controls.test.ts test/team-agent-profile-runner.test.ts test/team-page-ui.test.ts test/containerization.test.ts test/team-agent-profile-locks.test.ts`：35 pass
+- `npx tsc --noEmit`
+- `npm run test:team`：83 pass
+- `npm test`：812 pass
+- `git diff --check`
+
+### v2 当前接口真源
+
+| 方法 | 路径 | 当前语义 |
+|------|------|----------|
+| GET | `/v1/team/healthz` | Team Runtime v2 健康检查 |
+| GET | `/v1/team/team-units` | 列出团队预设 |
+| POST | `/v1/team/team-units` | 创建 TeamUnit；4 个角色 profile 必须存在 |
+| GET | `/v1/team/team-units/:teamUnitId` | 查看 TeamUnit |
+| PATCH | `/v1/team/team-units/:teamUnitId` | 修改未归档、未被活跃 run 锁住的 TeamUnit |
+| POST | `/v1/team/team-units/:teamUnitId/archive` | 归档未被活跃 run 锁住的 TeamUnit |
+| DELETE | `/v1/team/team-units/:teamUnitId` | 删除未被活跃 run 锁住的 TeamUnit |
+| GET | `/v1/team/plans` | 列出 Plans |
+| POST | `/v1/team/plans` | 创建 Plan；`defaultTeamUnitId` 必须存在且未归档 |
+| GET | `/v1/team/plans/:planId` | 查看 Plan |
+| PATCH | `/v1/team/plans/:planId` | 修改未归档 Plan；已有 run 后任务主体不可改 |
+| PATCH | `/v1/team/plans/:planId/default-team` | 切换默认 TeamUnit；目标 TeamUnit 必须可用 |
+| POST | `/v1/team/plans/:planId/archive` | 归档未被活跃 run 锁住的 Plan |
+| DELETE | `/v1/team/plans/:planId` | 删除未产生 run 的 Plan |
+| POST | `/v1/team/plans/:planId/runs` | 只创建 queued run；不内联执行 |
+| GET | `/v1/team/runs` | 列出 run states |
+| GET | `/v1/team/runs/:runId` | 查看 run state |
+| POST | `/v1/team/runs/:runId/pause` | 将 running run 标记为 paused；当前仍是阶段边界协作暂停 |
+| POST | `/v1/team/runs/:runId/resume` | 将 paused run 恢复为 queued，等待 worker 接管 |
+| POST | `/v1/team/runs/:runId/cancel` | 标记取消；触发 `AbortSignal` 中断底层真实 Agent session |
+| DELETE | `/v1/team/runs/:runId` | 删除 terminal run |
+| GET | `/v1/team/runs/:runId/final-report` | 读取 v2 final report |
+
+### v2 当前文件真源
+
+| 文件 | 职责 |
+|------|------|
+| `src/team/types.ts` | TeamUnit / Plan / Run / role result 类型 |
+| `src/team/routes.ts` | v2 TeamUnit / Plan / Run HTTP API |
+| `src/team/orchestrator.ts` | run 创建、状态迁移、worker/checker/watcher/finalizer 编排 |
+| `src/team/run-workspace.ts` | run 目录、state、attempt、resultRef、final-report 持久化 |
+| `src/team/team-unit-store.ts` | TeamUnit 存储 |
+| `src/team/plan-store.ts` | Plan 存储和 runCount 不变式 |
+| `src/team/config-locks.ts` | 活跃 run 对 Plan / TeamUnit / AgentProfile 的锁计算 |
+| `src/team/agent-profile-role-runner.ts` | v2 真实 AgentProfile runner |
+| `src/team/role-runner.ts` | mock runner 与 runner interface |
+| `src/workers/team-worker.ts` | 独立 Team worker 轮询 queued run |
+| `src/routes/agent-profiles.ts` | AgentProfile 写接口上的 Team active-run 锁 |
+| `src/ui/team-page.ts` | `/playground/team` v2 基础控制台 |
+| `.pi/skills/team-plan-creator/SKILL.md` | 只创建 TeamUnit / Plan 的运行时 skill |
+
+### 当前未完成项
+
+1. ~~真实 AgentProfile runner 的 pause / cancel 还不是强中断~~（2026-05-16 已完成：`AbortSignal` 全链路传播，cancel/pause 触发 `session.abort()`，worker 状态 watcher 检测外部 cancel）。
+2. Team worker 仍是轻量轮询，没有 durable lease、heartbeat、crash recovery、并发执行和重复执行防护。（已补状态 watcher 检测外部 cancel/pause，但 lease/crash recovery 仍缺。）
+3. 默认仍走 mock runner；真实 runner 需要显式 `TEAM_USE_MOCK_RUNNER=false` 后做端到端验收。
+4. finalizer 失败后缺少足够强的 deterministic fallback report。
+5. `/playground/team` 只是基础控制台，还缺 attempt 展开、checker/watcher verdict、resultRef 浏览、失败诊断和实时刷新。
+6. 本文件下方大量 v0.1 域名调查内容仍是历史资料，后续应单独重写成纯 v2 文档。
+
+剩余执行计划见 `.codex/plans/2026-05-15-team-runtime-v2-next-agent-execution-plan.md`。下面保留的 v0.1 域名调查内容是历史背景，不代表 v2 当前 API 全貌。接手实现时以本节、`src/team/routes.ts`、`src/team/orchestrator.ts`、`src/workers/team-worker.ts` 和 `test/team-*.test.ts` 为准，别拿旧模板接口当真源。说难听点，照着旧段落直接接 API，基本就是踩着地图进坑。
 
 ## 一句话概述
 

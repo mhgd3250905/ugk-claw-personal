@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { TeamRoleRunner, WorkerInput, WorkerOutput, CheckerInput, CheckerOutput, WatcherInput, WatcherOutput, FinalizerInput, FinalizerOutput } from "./role-runner.js";
 import type { TeamTask, TeamPlan } from "./types.js";
@@ -10,6 +10,7 @@ import { findLastAssistantMessage, assertAssistantMessageSucceeded } from "../ag
 import { stringifyVisibleAssistantContent } from "../agent/background-agent-runner.js";
 import { createBrowserCleanupScope, runWithScopedAgentEnvironment } from "../agent/agent-run-scope.js";
 import { runWithBackgroundWorkspaceContext } from "../agent/background-workspace-context.js";
+import type { AgentSessionLike } from "../agent/agent-session-factory.js";
 
 export interface AgentProfileRoleRunnerOptions {
 	projectRoot: string;
@@ -132,12 +133,35 @@ interface WatcherJsonOutput {
 }
 
 async function readRefContent(teamDataDir: string, runId: string, ref: string): Promise<string> {
-	const { readFile } = await import("node:fs/promises");
-	const { join } = await import("node:path");
 	try {
 		return await readFile(join(teamDataDir, "runs", runId, ref), "utf8");
 	} catch {
 		return ref;
+	}
+}
+
+async function promptWithAbort(session: AgentSessionLike, prompt: string, signal?: AbortSignal): Promise<void> {
+	if (!signal) {
+		await session.prompt(prompt);
+		return;
+	}
+	if (signal.aborted) {
+		await session.abort?.();
+		throw signal.reason instanceof Error ? signal.reason : new Error(typeof signal.reason === "string" ? signal.reason : "Team role session aborted");
+	}
+	let removeAbortListener = (): undefined => undefined;
+	const aborted = new Promise<never>((_resolve, reject) => {
+		const onAbort = () => {
+			void session.abort?.();
+			reject(signal.reason instanceof Error ? signal.reason : new Error(typeof signal.reason === "string" ? signal.reason : "Team role session aborted"));
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+		removeAbortListener = () => { signal.removeEventListener("abort", onAbort); return undefined; };
+	});
+	try {
+		await Promise.race([session.prompt(prompt), aborted]);
+	} finally {
+		removeAbortListener();
 	}
 }
 
@@ -164,7 +188,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workspace = await this.createRoleWorkspace(input.runId, input.attemptId, "worker");
 		const prompt = buildWorkerPrompt(input.task, input.acceptanceRules, input.feedback);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt);
+		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
 
 		return { content, artifactRefs: [] };
 	}
@@ -175,7 +199,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workerOutput = await readRefContent(this.options.teamDataDir, input.runId, input.workerOutputRef);
 		const prompt = buildCheckerPrompt(input.task, input.acceptanceRules, workerOutput);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt);
+		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
 
 		try {
 			const parsed = parseJsonResponse<CheckerJsonOutput>(content);
@@ -195,7 +219,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workspace = await this.createRoleWorkspace(input.runId, input.attemptId, "watcher");
 		const prompt = buildWatcherPrompt(input.task, input.workUnitStatus, input.resultRef, input.errorSummary);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt);
+		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
 
 		try {
 			const parsed = parseJsonResponse<WatcherJsonOutput>(content);
@@ -206,7 +230,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 				feedback: parsed.feedback,
 			};
 		} catch {
-			return { decision: "accept_task", reason: "watcher output parse error, defaulting to accept" };
+			return { decision: "confirm_failed", reason: "watcher output parse error" };
 		}
 	}
 
@@ -215,7 +239,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workspace = await this.createRoleWorkspace(input.runId, "finalizer", "finalizer");
 		const prompt = buildFinalizerPrompt(input.plan, input.taskResults);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt);
+		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
 
 		return { finalReport: content };
 	}
@@ -240,6 +264,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		runId: string,
 		workspace: { rootPath: string; workDir: string; outputDir: string; sessionDir: string },
 		prompt: string,
+		signal?: AbortSignal,
 	): Promise<string> {
 		const browserId = this.options.defaultBrowserId;
 		const browserScope = `team:${runId}`;
@@ -272,17 +297,15 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 			LOGS_DIR: workspace.outputDir,
 		};
 
+		const doPrompt = () => promptWithAbort(session, prompt, signal);
+
 		try {
 			if (scopeId) {
 				await runWithScopedAgentEnvironment(scopeId, async () => {
-					await runWithBackgroundWorkspaceContext(wsEnv, async () => {
-						await session.prompt(prompt);
-					});
+					await runWithBackgroundWorkspaceContext(wsEnv, doPrompt);
 				});
 			} else {
-				await runWithBackgroundWorkspaceContext(wsEnv, async () => {
-					await session.prompt(prompt);
-				});
+				await runWithBackgroundWorkspaceContext(wsEnv, doPrompt);
 			}
 		} finally {
 			if (this.options.closeBrowserTargetsForScope && browserScope) {

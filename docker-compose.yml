@@ -28,7 +28,7 @@ services:
       SEARXNG_BASE_URL: http://ugk-pi-searxng:8080
       TEAM_RUNTIME_ENABLED: "true"
       TEAM_DATA_DIR: /app/.data/team
-      TEAM_USE_MOCK_RUNNER: ${TEAM_USE_MOCK_RUNNER:-false}
+      TEAM_USE_MOCK_RUNNER: ${TEAM_USE_MOCK_RUNNER:-true}
     ports:
       - "3000:3000"
     volumes:
@@ -89,7 +89,7 @@ services:
     environment:
       TEAM_RUNTIME_ENABLED: "true"
       TEAM_DATA_DIR: /app/.data/team
-      TEAM_USE_MOCK_RUNNER: ${TEAM_USE_MOCK_RUNNER:-false}
+      TEAM_USE_MOCK_RUNNER: ${TEAM_USE_MOCK_RUNNER:-true}
       PUBLIC_BASE_URL: http://127.0.0.1:3000
     volumes:
       - .:/app

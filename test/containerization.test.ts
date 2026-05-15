@@ -49,6 +49,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /services:/);
 	assert.match(compose, /ugk-pi:/);
 	assert.match(compose, /ugk-pi-conn-worker:/);
+	assert.match(compose, /ugk-pi-team-worker:/);
 	assert.match(compose, /ugk-pi-browser:/);
 	assert.match(compose, /ugk-pi-browser-cdp:/);
 	assert.match(compose, /ugk-pi-browser-chrome-01:/);
@@ -61,6 +62,9 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /HOST:\s*0\.0\.0\.0/);
 	assert.match(compose, /CONN_DATABASE_PATH:\s*\/var\/lib\/ugk-pi\/conn\/conn\.sqlite/);
 	assert.match(compose, /UGK_MODEL_SETTINGS_PATH:\s*\/app\/\.data\/agent\/model-settings\.json/);
+	assert.match(compose, /TEAM_RUNTIME_ENABLED:\s*"true"/);
+	assert.match(compose, /TEAM_DATA_DIR:\s*\/app\/\.data\/team/);
+	assert.match(compose, /TEAM_USE_MOCK_RUNNER:\s*\$\{TEAM_USE_MOCK_RUNNER:-true\}/);
 	assert.match(compose, /CONN_WORKER_MAX_CONCURRENCY:\s*\$\{CONN_WORKER_MAX_CONCURRENCY:-3\}/);
 	assert.match(compose, /NOTIFICATION_BROADCAST_URL:\s*http:\/\/ugk-pi:3000\/v1\/internal\/notifications\/broadcast/);
 	assert.match(compose, /WEB_ACCESS_BROWSER_PROVIDER:\s*direct_cdp/);
@@ -99,6 +103,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(compose, /TCP-LISTEN:9223,fork,bind=0\.0\.0\.0,reuseaddr/);
 	assert.match(compose, /command:\s*npm start/);
 	assert.match(compose, /npm run worker:conn/);
+	assert.match(compose, /npm run worker:team/);
 	assert.match(compose, /ugk-pi-conn-db:\/var\/lib\/ugk-pi\/conn/);
 	assert.match(compose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/app\/\.data\/browser-upload/);
 	assert.match(compose, /\$\{UGK_BROWSER_UPLOAD_DIR:-\.\/\.data\/chrome-sidecar\/upload\}:\/config\/upload/);
@@ -123,6 +128,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /ugk-pi:/);
 	assert.match(prodCompose, /args:\s*\n\s*APT_MIRROR_HOST:\s*\$\{APT_MIRROR_HOST:-\}/);
 	assert.match(prodCompose, /ugk-pi-conn-worker:/);
+	assert.match(prodCompose, /ugk-pi-team-worker:/);
 	assert.match(prodCompose, /ugk-pi-browser:/);
 	assert.match(prodCompose, /ugk-pi-browser-cdp:/);
 	assert.match(prodCompose, /ugk-pi-browser-chrome-01:/);
@@ -135,6 +141,9 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /env_file:/);
 	assert.match(prodCompose, /\.env/);
 	assert.match(prodCompose, /UGK_MODEL_SETTINGS_PATH:\s*\/app\/\.data\/agent\/model-settings\.json/);
+	assert.match(prodCompose, /TEAM_RUNTIME_ENABLED:\s*"true"/);
+	assert.match(prodCompose, /TEAM_DATA_DIR:\s*\/app\/\.data\/team/);
+	assert.match(prodCompose, /TEAM_USE_MOCK_RUNNER:\s*\$\{TEAM_USE_MOCK_RUNNER:-true\}/);
 	assert.match(prodCompose, /WEB_ACCESS_BROWSER_PROVIDER:\s*direct_cdp/);
 	assert.match(prodCompose, /CONN_WORKER_MAX_CONCURRENCY:\s*\$\{CONN_WORKER_MAX_CONCURRENCY:-3\}/);
 	assert.match(prodCompose, /NOTIFICATION_BROADCAST_URL:\s*http:\/\/ugk-pi:3000\/v1\/internal\/notifications\/broadcast/);
@@ -174,6 +183,7 @@ test("container runtime files exist with the expected base configuration", () =>
 	assert.match(prodCompose, /TCP-LISTEN:9223,fork,bind=0\.0\.0\.0,reuseaddr/);
 	assert.match(prodCompose, /npm start/);
 	assert.match(prodCompose, /npm run worker:conn/);
+	assert.match(prodCompose, /npm run worker:team/);
 	assert.match(prodCompose, /healthcheck:/);
 	assert.match(prodCompose, /logs\/app/);
 	assert.match(prodCompose, /logs\/nginx/);

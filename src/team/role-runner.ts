@@ -8,6 +8,7 @@ export interface WorkerInput {
 	outputDir: string;
 	acceptanceRules: string[];
 	feedback?: string;
+	signal?: AbortSignal;
 }
 
 export interface WorkerOutput {
@@ -21,6 +22,7 @@ export interface CheckerInput {
 	attemptId: string;
 	workerOutputRef: string;
 	acceptanceRules: string[];
+	signal?: AbortSignal;
 }
 
 export interface CheckerOutput {
@@ -37,6 +39,7 @@ export interface WatcherInput {
 	workUnitStatus: "passed" | "failed";
 	resultRef: string | null;
 	errorSummary: string | null;
+	signal?: AbortSignal;
 }
 
 export interface WatcherOutput {
@@ -50,6 +53,7 @@ export interface FinalizerInput {
 	runId: string;
 	plan: TeamPlan;
 	taskResults: Array<{ taskId: string; status: "succeeded" | "failed"; resultRef: string | null; errorSummary: string | null }>;
+	signal?: AbortSignal;
 }
 
 export interface FinalizerOutput {

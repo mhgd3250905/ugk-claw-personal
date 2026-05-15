@@ -29,6 +29,7 @@ export class TeamOrchestrator {
 	private readonly maxWatcherRevisions: number;
 	private readonly maxRunDurationMs: number;
 	private elapsedOffset = 0;
+	private abortController: AbortController | null = null;
 
 	constructor(options: TeamOrchestratorOptions) {
 		this.planStore = options.planStore;
@@ -65,9 +66,21 @@ export class TeamOrchestrator {
 		return this.runToCompletion(queued.runId);
 	}
 
-	async runToCompletion(runId: string): Promise<TeamRunState> {
+	async runToCompletion(runId: string, options?: { signal?: AbortSignal }): Promise<TeamRunState> {
 		let state = await this.workspace.getState(runId);
 		if (!state) throw new Error(`run not found: ${runId}`);
+
+		this.abortController = new AbortController();
+		if (options?.signal) {
+			if (options.signal.aborted) {
+				this.abortController = null;
+				throw options.signal.reason instanceof Error ? options.signal.reason : new Error("aborted before start");
+			}
+			options.signal.addEventListener("abort", () => {
+				this.abortController?.abort(options.signal!.reason);
+			}, { once: true });
+		}
+		const signal = this.abortController.signal;
 
 		const teamUnit = await this.teamUnitStore.get(state.teamUnitId);
 		if (teamUnit && "setProfileIds" in this.roleRunner) {
@@ -79,30 +92,43 @@ export class TeamOrchestrator {
 			});
 		}
 
-		state = await this.transitionToRunning(state);
-		this.elapsedOffset = state.activeElapsedMs;
+		try {
+			state = await this.transitionToRunning(state);
+			this.elapsedOffset = state.activeElapsedMs;
 
-		const plan = await this.planStore.get(state.planId);
-		if (!plan) throw new Error(`plan not found: ${state.planId}`);
+			const plan = await this.planStore.get(state.planId);
+			if (!plan) throw new Error(`plan not found: ${state.planId}`);
 
-		for (const task of plan.tasks) {
-			state = await this.workspace.getState(runId) as TeamRunState;
-			if (state.status !== "running") break;
+			for (const task of plan.tasks) {
+				state = await this.workspace.getState(runId) as TeamRunState;
+				if (state.status !== "running") break;
 
-			if (this.isTimedOut(state)) {
-				await this.handleTimeout(state, plan);
-				return (await this.workspace.getState(runId))!;
+				if (this.isTimedOut(state)) {
+					await this.handleTimeout(state, plan);
+					return (await this.workspace.getState(runId))!;
+				}
+
+				if (signal.aborted) break;
+				await this.executeTask(state, task, signal);
 			}
 
-			await this.executeTask(state, task);
-		}
+			state = (await this.workspace.getState(runId))!;
+			if (state.status === "running") {
+				await this.runFinalizer(state, plan, signal);
+			}
 
-		state = (await this.workspace.getState(runId))!;
-		if (state.status === "running") {
-			await this.runFinalizer(state, plan);
+			return (await this.workspace.getState(runId))!;
+		} catch (error) {
+			if (signal.aborted) {
+				const current = await this.workspace.getState(runId);
+				if (current && (current.status === "cancelled" || current.status === "paused")) {
+					return current;
+				}
+			}
+			return await this.failRun(runId, error);
+		} finally {
+			this.abortController = null;
 		}
-
-		return (await this.workspace.getState(runId))!;
 	}
 
 	async pauseRun(runId: string, reason: string): Promise<TeamRunState> {
@@ -125,6 +151,9 @@ export class TeamOrchestrator {
 		}
 
 		await this.workspace.saveState(state);
+
+		this.abortController?.abort(new Error(reason));
+
 		return state;
 	}
 
@@ -163,6 +192,9 @@ export class TeamOrchestrator {
 		}
 
 		await this.workspace.saveState(state);
+
+		this.abortController?.abort(new Error(reason));
+
 		return state;
 	}
 
@@ -185,7 +217,7 @@ export class TeamOrchestrator {
 		return state;
 	}
 
-	private async executeTask(initialState: TeamRunState, task: TeamTask): Promise<void> {
+	private async executeTask(initialState: TeamRunState, task: TeamTask, signal: AbortSignal): Promise<void> {
 		let state = initialState;
 		state.currentTaskId = task.id;
 		state.taskStates[task.id]!.status = "running";
@@ -205,14 +237,14 @@ export class TeamOrchestrator {
 			state.taskStates[task.id]!.activeAttemptId = attemptId;
 			await this.workspace.saveState(state);
 
-			const workUnitResult = await this.runWorkUnit(state, task, attemptId, attemptRoot);
+			const workUnitResult = await this.runWorkUnit(state, task, attemptId, attemptRoot, signal);
 
 			state = (await this.workspace.getState(state.runId))!;
 			const currentTs = state.taskStates[task.id]!;
 
 			if (currentTs.status === "interrupted" || currentTs.status === "cancelled") return;
 
-			const watcherResult = await this.runWatcherPhase(state, task, attemptId, workUnitResult);
+			const watcherResult = await this.runWatcherPhase(state, task, attemptId, workUnitResult, signal);
 
 			state = (await this.workspace.getState(state.runId))!;
 			const ts = state.taskStates[task.id]!;
@@ -249,7 +281,7 @@ export class TeamOrchestrator {
 		}
 	}
 
-	private async runWorkUnit(state: TeamRunState, task: TeamTask, attemptId: string, attemptRoot: string): Promise<"passed" | "failed"> {
+	private async runWorkUnit(state: TeamRunState, task: TeamTask, attemptId: string, attemptRoot: string, signal: AbortSignal): Promise<"passed" | "failed"> {
 		const runId = state.runId;
 		let checkerRevision = 0;
 		let lastFeedback: string | undefined;
@@ -266,6 +298,7 @@ export class TeamOrchestrator {
 				outputDir: `${attemptRoot}/output`,
 				acceptanceRules: task.acceptance.rules,
 				feedback: lastFeedback,
+				signal,
 			});
 
 			const workerOutputIdx = checkerRevision + 1;
@@ -282,6 +315,7 @@ export class TeamOrchestrator {
 				attemptId,
 				workerOutputRef: workerRef,
 				acceptanceRules: task.acceptance.rules,
+				signal,
 			});
 
 			await this.workspace.writeCheckerVerdict(runId, task.id, attemptId, checkerRevision + 1, checkerOut);
@@ -326,7 +360,7 @@ export class TeamOrchestrator {
 		}
 	}
 
-	private async runWatcherPhase(state: TeamRunState, task: TeamTask, attemptId: string, workUnitStatus: "passed" | "failed") {
+	private async runWatcherPhase(state: TeamRunState, task: TeamTask, attemptId: string, workUnitStatus: "passed" | "failed", signal: AbortSignal) {
 		const ts = state.taskStates[task.id];
 		const watcherOut = await this.roleRunner.runWatcher({
 			runId: state.runId,
@@ -335,6 +369,7 @@ export class TeamOrchestrator {
 			workUnitStatus,
 			resultRef: ts?.resultRef ?? null,
 			errorSummary: ts?.errorSummary ?? null,
+			signal,
 		});
 
 		await this.workspace.writeWatcherReview(state.runId, task.id, attemptId, watcherOut);
@@ -346,7 +381,7 @@ export class TeamOrchestrator {
 		return watcherOut;
 	}
 
-	private async runFinalizer(staleState: TeamRunState, plan: import("./types.js").TeamPlan): Promise<void> {
+	private async runFinalizer(staleState: TeamRunState, plan: import("./types.js").TeamPlan, signal: AbortSignal): Promise<void> {
 		const state = (await this.workspace.getState(staleState.runId))!;
 		const taskResults = plan.tasks.map(t => {
 			const ts = state.taskStates[t.id]!;
@@ -358,7 +393,7 @@ export class TeamOrchestrator {
 			};
 		});
 
-		const finalizerOut = await this.roleRunner.runFinalizer({ runId: state.runId, plan, taskResults });
+		const finalizerOut = await this.roleRunner.runFinalizer({ runId: state.runId, plan, taskResults, signal });
 		await this.workspace.writeFinalReport(state.runId, finalizerOut.finalReport);
 
 		state.currentTaskId = null;
@@ -391,6 +426,40 @@ export class TeamOrchestrator {
 		state.finishedAt = now();
 		state.updatedAt = now();
 		await this.workspace.saveState(state);
+	}
+
+	private async failRun(runId: string, error: unknown): Promise<TeamRunState> {
+		const state = await this.workspace.getState(runId);
+		if (!state) {
+			throw error instanceof Error ? error : new Error("run failed");
+		}
+		const message = error instanceof Error ? error.message : String(error);
+		if (state.status === "completed" || state.status === "completed_with_failures" || state.status === "failed" || state.status === "cancelled") {
+			return state;
+		}
+		for (const taskState of Object.values(state.taskStates)) {
+			if (taskState.status === "pending" || taskState.status === "running" || taskState.status === "interrupted") {
+				taskState.status = "failed";
+				taskState.errorSummary = taskState.errorSummary ?? message;
+				taskState.progress = { phase: "failed", message: progressMessages.failed, updatedAt: now() };
+			}
+		}
+		const failedTasks = Object.values(state.taskStates).filter((taskState) => taskState.status === "failed").length;
+		const succeededTasks = Object.values(state.taskStates).filter((taskState) => taskState.status === "succeeded").length;
+		const cancelledTasks = Object.values(state.taskStates).filter((taskState) => taskState.status === "cancelled").length;
+		state.summary = {
+			totalTasks: state.summary.totalTasks,
+			succeededTasks,
+			failedTasks,
+			cancelledTasks,
+		};
+		state.status = succeededTasks > 0 ? "completed_with_failures" : "failed";
+		state.lastError = message;
+		state.activeElapsedMs = this.accumulateElapsed(state);
+		state.finishedAt = now();
+		state.updatedAt = now();
+		await this.workspace.saveState(state);
+		return state;
 	}
 
 	private accumulateElapsed(state: TeamRunState): number {

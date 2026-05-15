@@ -8,7 +8,7 @@ import type { TeamRoleRunner } from "../team/role-runner.js";
 import { AgentProfileRoleRunner } from "../team/agent-profile-role-runner.js";
 
 function createRoleRunner(config: ReturnType<typeof getAppConfig>): TeamRoleRunner {
-	if (process.env.TEAM_USE_MOCK_RUNNER === "true") {
+	if (process.env.TEAM_USE_MOCK_RUNNER !== "false") {
 		return new MockRoleRunner();
 	}
 	return new AgentProfileRoleRunner({
@@ -20,6 +20,8 @@ function createRoleRunner(config: ReturnType<typeof getAppConfig>): TeamRoleRunn
 		finalizerProfileId: "main",
 	});
 }
+
+const STATE_WATCH_INTERVAL_MS = 2000;
 
 async function main() {
 	const config = getAppConfig();
@@ -50,8 +52,26 @@ async function main() {
 				maxRunDurationMinutes: 60,
 			});
 
-			const final = await orchestrator.runToCompletion(queued.runId);
-			console.log("[team-worker] run completed:", queued.runId, "status:", final.status);
+			const abortController = new AbortController();
+			const watcher = setInterval(async () => {
+				try {
+					const current = await workspace.getState(queued.runId);
+					if (!current) return;
+					if (current.status === "cancelled" || current.status === "paused") {
+						abortController.abort(new Error(`run externally ${current.status}`));
+						clearInterval(watcher);
+					}
+				} catch {
+					// watcher errors should not crash the worker
+				}
+			}, STATE_WATCH_INTERVAL_MS);
+
+			try {
+				const final = await orchestrator.runToCompletion(queued.runId, { signal: abortController.signal });
+				console.log("[team-worker] run completed:", queued.runId, "status:", final.status);
+			} finally {
+				clearInterval(watcher);
+			}
 		} catch (err) {
 			console.error("[team-worker] tick error:", err);
 		}

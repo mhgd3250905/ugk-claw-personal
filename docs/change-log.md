@@ -12,7 +12,52 @@
 
 ---
 
+## 2026-05-16
+### Team Runtime v2 P0：真实 Agent session 强中断与 cancel 语义
+- 日期：2026-05-16
+- 主题：给 Team Runtime v2 补上真实 Agent session 级别的 abort 能力，使 cancel/pause 不再只停留在磁盘状态层面，而是能真正中断底层正在运行的 `session.prompt()`。
+- 影响范围：
+  - `WorkerInput`/`CheckerInput`/`WatcherInput`/`FinalizerInput` 新增可选 `signal?: AbortSignal` 字段。
+  - `AgentProfileRoleRunner` 内部新增 `promptWithAbort()` 辅助函数，用 `Promise.race` 模式让 `session.prompt()` 与 `AbortSignal` 竞争；signal 触发时调用 `session.abort()` 强制中止 session。
+  - `TeamOrchestrator.runToCompletion()` 接受可选 `{ signal?: AbortSignal }` 参数，内部创建 `AbortController` 并链接外部 signal。signal 通过 `executeTask` → `runWorkUnit` → `runWatcherPhase` → `runFinalizer` 全链路传播到每个 runner 调用。
+  - `cancelRun()` 和 `pauseRun()` 在更新磁盘状态后，同时触发内部 `AbortController.abort()`，中断正在执行的 agent session。
+  - `team-worker` tick 中创建 `AbortController`，并启动 2 秒间隔的状态轮询 watcher：检测到外部 cancel/pause 写入的状态变更后自动 abort 当前 run。
+  - runner 返回后 orchestrator 重新读取磁盘状态，避免 aborted 后的迟到结果写回已 cancelled/paused run。
+  - 新增 4 个测试：abort 时 session.abort() 被调用、外部 signal 传播、cancel 触发 abort、pause 触发 abort。`npm run test:team` 87 pass，`npm test` 816 pass。
+
 ## 2026-05-15
+### Team Runtime v2 执行链路收口
+- 日期：2026-05-15
+- 主题：按 Team Runtime v2 设计 / 执行计划审计实现后，修复“看似完成、实际只是骨架”的高风险问题，收口 Run 执行所有权、AgentProfile 锁、生产 worker、真实 runner 结果输入和页面安全。
+- 影响范围：
+  - `POST /v1/team/plans/:planId/runs` 现在只创建 `queued` run，不再由 HTTP 请求内联执行；`resume` 也只恢复为 queued，执行交给 `ugk-pi-team-worker`。
+  - `TeamOrchestrator.runToCompletion()` 捕获 runner 异常并把 run 收口为 `failed` / `completed_with_failures`，避免任务抛错后长期卡在 `running`。
+  - TeamUnit 创建 / 修改会校验四个 AgentProfile ID；Plan 创建 / 切换默认团队会校验 TeamUnit 存在且未归档。
+  - 活跃 Team run 会锁住对应 AgentProfile，阻止 profile 编辑、归档、技能安装 / 删除 / 启停和规则文件修改。
+  - `TEAM_USE_MOCK_RUNNER` 默认改为 `true`；生产 compose 补齐 `ugk-pi-team-worker`、Team 数据挂载和 Team 环境变量，真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。
+  - AgentProfile runner 的 watcher JSON 解析失败改为 `confirm_failed`；finalizer prompt 读取 task `resultRef` 文件内容，不再只看 state 摘要。
+  - `/playground/team` 对 API 动态文本做 HTML escape，并补充任务进度、耗时统计、暂停 / 恢复 / 取消入口。
+  - `team-plan-creator` skill 明确只创建 / 更新 TeamUnit 和 Plan，不得创建 / 启动 Run。
+  - `npm run test:team` 改为串行执行，避免多个 Fastify 实例并发初始化 SQLite 时随机 `database is locked`。
+  - `docs/team-runtime.md` 顶部补充 v2 当前接口、文件真源、验证记录和剩余限制；`docs/handoff-current.md` 补充本轮审计修复现场。
+  - 新增 `.codex/plans/2026-05-15-team-runtime-v2-next-agent-execution-plan.md`，把剩余 P0/P1/P2 任务拆成下个 agent 可直接执行的交接计划。
+- 验证：
+  - `node --test --import tsx test/team-routes.test.ts test/team-orchestrator-controls.test.ts test/team-agent-profile-runner.test.ts test/team-page-ui.test.ts test/containerization.test.ts test/team-agent-profile-locks.test.ts`（35 pass / 0 fail）
+  - `npx tsc --noEmit`
+  - `npm run test:team`（83 pass / 0 fail）
+- 对应入口：
+  - `src/team/routes.ts`
+  - `src/team/orchestrator.ts`
+  - `src/team/agent-profile-role-runner.ts`
+  - `src/routes/agent-profiles.ts`
+  - `src/workers/team-worker.ts`
+  - `docker-compose.prod.yml`
+  - `src/ui/team-page.ts`
+  - `.pi/skills/team-plan-creator/SKILL.md`
+  - `docs/team-runtime.md`
+  - `docs/handoff-current.md`
+  - `.codex/plans/2026-05-15-team-runtime-v2-next-agent-execution-plan.md`
+
 ### 主体代码核查：统一错误响应、清理死代码、消除重复
 - 日期：2026-05-15
 - 主题：对 Routes / Agent / Browser 主体模块做全面代码核查，统一 API 错误响应格式，清理死代码和重复实现，为后续开发扫清隐患。

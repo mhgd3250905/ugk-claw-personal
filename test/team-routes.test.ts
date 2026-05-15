@@ -37,10 +37,19 @@ async function buildTestServer() {
 const unitBody = {
 	title: "调研团队",
 	description: "测试用",
-	watcherProfileId: "w",
-	workerProfileId: "wo",
-	checkerProfileId: "c",
-	finalizerProfileId: "f",
+	watcherProfileId: "main",
+	workerProfileId: "main",
+	checkerProfileId: "main",
+	finalizerProfileId: "main",
+};
+
+const missingProfileUnitBody = {
+	title: "坏团队",
+	description: "测试用",
+	watcherProfileId: "missing-watcher",
+	workerProfileId: "missing-worker",
+	checkerProfileId: "missing-checker",
+	finalizerProfileId: "missing-finalizer",
 };
 
 const planBody = (teamUnitId: string) => ({
@@ -79,6 +88,18 @@ test("TeamUnit CRUD via API", async () => {
 		assert.equal(listRes.statusCode, 200);
 		assert.equal(listRes.json().length, 1);
 
+		await app.close();
+	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
+	}
+});
+
+test("TeamUnit create rejects unknown AgentProfile ids", async () => {
+	const { app, root } = await buildTestServer();
+	try {
+		const createRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: missingProfileUnitBody });
+		assert.equal(createRes.statusCode, 400);
+		assert.match(createRes.json().error, /agent profile not found/i);
 		await app.close();
 	} finally {
 		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
@@ -134,9 +155,34 @@ test("POST /v1/team/plans/:planId/runs creates run", async () => {
 		assert.equal(runRes.statusCode, 201);
 		const run = runRes.json();
 		assert.ok(run.runId.startsWith("run_"));
+		const stateRes = await app.inject({ method: "GET", url: `/v1/team/runs/${run.runId}` });
+		assert.equal(stateRes.statusCode, 200);
+		assert.equal(stateRes.json().status, "queued");
 
 		await app.close();
 	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
+	}
+});
+
+test("POST /v1/team/plans/:planId/runs only enqueues and does not execute inline", async () => {
+	const { app, root } = await buildTestServer();
+	try {
+		process.env.TEAM_USE_MOCK_RUNNER = "true";
+		const unitRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: unitBody });
+		const planRes = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody(unitRes.json().teamUnitId) });
+
+		const runRes = await app.inject({ method: "POST", url: `/v1/team/plans/${planRes.json().planId}/runs` });
+		assert.equal(runRes.statusCode, 201);
+		await new Promise((resolve) => setTimeout(resolve, 30));
+
+		const stateRes = await app.inject({ method: "GET", url: `/v1/team/runs/${runRes.json().runId}` });
+		assert.equal(stateRes.statusCode, 200);
+		assert.equal(stateRes.json().status, "queued");
+
+		await app.close();
+	} finally {
+		delete process.env.TEAM_USE_MOCK_RUNNER;
 		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
 	}
 });
@@ -187,6 +233,18 @@ test("POST plan with missing fields returns 400", async () => {
 		const res = await app.inject({ method: "POST", url: "/v1/team/plans", payload: { title: "" } });
 		assert.equal(res.statusCode, 400);
 		assert.match(res.json().error, /required/);
+		await app.close();
+	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
+	}
+});
+
+test("POST plan rejects missing default TeamUnit", async () => {
+	const { app, root } = await buildTestServer();
+	try {
+		const res = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody("team_missing") });
+		assert.equal(res.statusCode, 400);
+		assert.match(res.json().error, /team unit not found/i);
 		await app.close();
 	} finally {
 		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }

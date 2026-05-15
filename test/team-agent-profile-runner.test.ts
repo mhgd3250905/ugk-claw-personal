@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AgentProfileRoleRunner } from "../src/team/agent-profile-role-runner.js";
@@ -142,7 +142,7 @@ test("AgentProfileRoleRunner runWatcher parses accept_task JSON", async () => {
 	}
 });
 
-test("AgentProfileRoleRunner runWatcher defaults to accept_task on parse error", async () => {
+test("AgentProfileRoleRunner runWatcher confirms failure on parse error", async () => {
 	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
 	try {
 		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
@@ -164,7 +164,107 @@ test("AgentProfileRoleRunner runWatcher defaults to accept_task on parse error",
 			resultRef: null,
 			errorSummary: null,
 		});
-		assert.equal(out.decision, "accept_task");
+		assert.equal(out.decision, "confirm_failed");
+		assert.match(out.reason, /parse error/);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("AgentProfileRoleRunner aborts session when AbortSignal fires during runWorker", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		let abortCalled = false;
+		let promptPromiseResolve: () => void;
+		const promptPromise = new Promise<void>(r => { promptPromiseResolve = r; });
+		const sessionFactory = {
+			createSession: async () => ({
+				prompt: async () => {
+					await promptPromise;
+				},
+				subscribe: () => () => {},
+				abort: async () => {
+					abortCalled = true;
+					promptPromiseResolve!();
+				},
+				messages: [{ role: "assistant", content: [{ type: "text", text: "aborted output" }], stopReason: "end_turn" }],
+			}),
+		} as unknown as BackgroundAgentSessionFactory;
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root,
+			teamDataDir: root,
+			watcherProfileId: "w",
+			workerProfileId: "wo",
+			checkerProfileId: "c",
+			finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory,
+		});
+
+		const controller = new AbortController();
+		const workerPromise = runner.runWorker({
+			runId: "run_abort1",
+			task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1",
+			workDir: join(root, "work"),
+			outputDir: join(root, "output"),
+			acceptanceRules: ["r1"],
+			signal: controller.signal,
+		});
+
+		controller.abort(new Error("user cancel"));
+		await assert.rejects(() => workerPromise, { message: "user cancel" });
+
+		assert.equal(abortCalled, true);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("AgentProfileRoleRunner aborts session when AbortSignal fires during runChecker", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		let abortCalled = false;
+		let promptPromiseResolve: () => void;
+		const promptPromise = new Promise<void>(r => { promptPromiseResolve = r; });
+		const sessionFactory = {
+			createSession: async () => ({
+				prompt: async () => { await promptPromise; },
+				subscribe: () => () => {},
+				abort: async () => {
+					abortCalled = true;
+					promptPromiseResolve!();
+				},
+				messages: [{ role: "assistant", content: [{ type: "text", text: "aborted" }], stopReason: "end_turn" }],
+			}),
+		} as unknown as BackgroundAgentSessionFactory;
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root,
+			teamDataDir: root,
+			watcherProfileId: "w",
+			workerProfileId: "wo",
+			checkerProfileId: "c",
+			finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory,
+		});
+
+		const controller = new AbortController();
+		const checkerPromise = runner.runChecker({
+			runId: "run_abort2",
+			task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1",
+			workerOutputRef: "output/w1.md",
+			acceptanceRules: ["r1"],
+			signal: controller.signal,
+		});
+
+		controller.abort(new Error("user cancel"));
+		await assert.rejects(() => checkerPromise, { message: "user cancel" });
+
+		assert.equal(abortCalled, true);
 	} finally {
 		await rm(root, { recursive: true }).catch(() => {});
 	}

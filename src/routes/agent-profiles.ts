@@ -15,6 +15,8 @@ import {
 } from "../agent/agent-profile-catalog.js";
 import type { ModelConfigStore, ModelSelectionValidator } from "../agent/model-config.js";
 import type { BrowserRegistry } from "../browser/browser-registry.js";
+import { getAppConfig } from "../config.js";
+import { getActiveTeamProfileLocks } from "../team/config-locks.js";
 import {
 	normalizeBrowserBindingAuditValue,
 	recordBrowserBindingAudit,
@@ -88,6 +90,17 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 
 	function hasModelSelectionPatch(body: Record<string, unknown>): boolean {
 		return Object.hasOwn(body, "defaultModelProvider") || Object.hasOwn(body, "defaultModelId");
+	}
+
+	async function sendTeamProfileLockIfNeeded(agentId: string | undefined, reply: FastifyReply): Promise<FastifyReply | undefined> {
+		if (!agentId || !deps.projectRoot) {
+			return undefined;
+		}
+		const lockedProfileIds = await getActiveTeamProfileLocks(getAppConfig(deps.projectRoot).teamDataDir);
+		if (!lockedProfileIds.has(agentId)) {
+			return undefined;
+		}
+		return sendConflict(reply, `Agent ${agentId} is locked by an active Team run.`);
 	}
 
 	async function validateAgentModelSelectionOrSend(
@@ -197,6 +210,10 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			const { agentId } = request.params ?? {};
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
+			}
+			const teamLockResponse = await sendTeamProfileLockIfNeeded(agentId, reply);
+			if (teamLockResponse) {
+				return teamLockResponse;
 			}
 			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId);
 			if (!service) {
@@ -311,6 +328,10 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
 			}
+			const teamLockResponse = await sendTeamProfileLockIfNeeded(agentId, reply);
+			if (teamLockResponse) {
+				return teamLockResponse;
+			}
 			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId);
 			if (!service) {
 				return reply;
@@ -369,6 +390,10 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
 			}
+			const teamLockResponse = await sendTeamProfileLockIfNeeded(agentId, reply);
+			if (teamLockResponse) {
+				return teamLockResponse;
+			}
 			if (!resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId)) {
 				return reply;
 			}
@@ -400,6 +425,10 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			const { agentId, skillName } = request.params ?? {};
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
+			}
+			const teamLockResponse = await sendTeamProfileLockIfNeeded(agentId, reply);
+			if (teamLockResponse) {
+				return teamLockResponse;
 			}
 			if (!resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId)) {
 				return reply;
@@ -447,6 +476,10 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			const { agentId, skillName } = request.params ?? {};
 			if (!agentId || !deps.projectRoot || !deps.agentServiceRegistry) {
 				return sendUnknownAgent(reply, agentId);
+			}
+			const teamLockResponse = await sendTeamProfileLockIfNeeded(agentId, reply);
+			if (teamLockResponse) {
+				return teamLockResponse;
 			}
 			const service = resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId);
 			if (!service) {
@@ -546,6 +579,10 @@ export function registerAgentProfileRoutes(app: FastifyInstance, deps: AgentProf
 			const agentId = request.params?.agentId;
 			if (!agentId) {
 				return sendUnknownAgent(reply, agentId);
+			}
+			const teamLockResponse = await sendTeamProfileLockIfNeeded(agentId, reply);
+			if (teamLockResponse) {
+				return teamLockResponse;
 			}
 			if (!resolveScopedAgentServiceOrSend(deps.agentServiceRegistry, reply, agentId)) {
 				return reply;

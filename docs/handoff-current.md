@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-05-15`
+更新时间：`2026-05-16`
 
 这份文档给新接手 `ugk-pi / UGK CLAW` 的同事或 coding agent 看。先读这里，再按任务类型展开其他文档。不要靠聊天记录拼现状，聊天记录容易把历史事实和当前事实搅成一锅。
 
@@ -11,12 +11,81 @@
 ```text
 请接手 `E:\AII\ugk-pi`。你维护的是 ugk-pi 代码仓库，不是产品运行时 Playground agent。
 
-开始前先读 `CLAUDE.md`、`docs/handoff-current.md`。如果要跑本地，只用 Docker：`docker compose up -d` 或 `docker compose restart ugk-pi`，标准入口是 `http://127.0.0.1:3000/playground`，健康检查是 `http://127.0.0.1:3000/healthz`。不要把宿主机 `npm start` / `npm run dev` 当正规入口。
+开始前先读 `AGENTS.md`、`docs/handoff-current.md`、`docs/team-runtime.md` 顶部 v2 章节，以及 `.codex/plans/2026-05-15-team-runtime-v2-next-agent-execution-plan.md`。如果要跑本地，只用 Docker：`docker compose up -d` 或 `docker compose restart ugk-pi`，标准入口是 `http://127.0.0.1:3000/playground`，健康检查是 `http://127.0.0.1:3000/healthz`。不要把宿主机 `npm start` / `npm run dev` 当正规入口。
 
-开始前执行 `git status --short` 和 `git log -1 --oneline`。截至本交接更新，本地最新提交为 `a3ce81b fix: complete error format migration in tests and browsers.ts`，工作区应为干净；如果现场不一致，先查清楚是谁的新改动，不要直接回滚。当前生产发布点仍以服务器 `git log -1 --oneline` 为准；本地新提交不要默认已经上线。
+开始前执行 `git status --short` 和 `git log -1 --oneline`。截至本交接更新，本地 HEAD 为 `fa2bf4e feat: team role agent profile dropdown selection and dynamic injection`，工作区存在 Team Runtime v2 审计修复和交接文档改动，尚未提交；如果现场不一致，先查清楚是谁的新改动，不要直接回滚。当前生产发布点仍以服务器 `git log -1 --oneline` 为准；本地新提交不要默认已经上线。
 
 服务器发布默认走增量更新。腾讯云拉 GitHub `origin/main`，阿里云拉 Gitee `gitee/main`。不要整目录覆盖，不要删除 shared 运行态，不要提交 `.env`、`.data/`、Chrome profile、runtime 临时产物或本地截图。
 ```
+
+## 2026-05-15 Team Runtime v2 审计修复现场
+
+本轮目标是审计并修复 `E:\AII\ugk-pi-res\plan\team-v2\team-runtime-v2-design.md` 与 `E:\AII\ugk-pi-res\plan\team-v2\2026-05-15-team-runtime-v2-agent-execution-cn.md` 对应实现中“声称完成但实际高风险”的部分。当前已经把 Team v2 从纸面骨架修到可信基础链路，但还不是生产级 scheduler。
+
+已完成并验证：
+
+- `POST /v1/team/plans/:planId/runs` 只创建 `queued` run，不再 HTTP inline 执行；执行由 `ugk-pi-team-worker` 接管。
+- `resume` 只恢复 queued，不偷偷在路由里执行。
+- runner 抛错时 run 会进入 `failed` / `completed_with_failures`，不会卡 `running`。
+- TeamUnit 创建 / 修改会校验四个 AgentProfile ID。
+- Plan 创建 / 切换默认团队会校验 TeamUnit 存在且未归档。
+- 活跃 Team run 会锁住 Plan、TeamUnit 和 TeamUnit 中四个 AgentProfile；AgentProfile 编辑、归档、技能安装 / 删除 / 启停、规则文件修改都会被 409 拦住。
+- 本地 / 生产 compose 默认 `TEAM_USE_MOCK_RUNNER=true`；真实 runner 必须显式设置 `TEAM_USE_MOCK_RUNNER=false`。
+- 生产 compose 已补 `ugk-pi-team-worker`、Team 数据挂载和 Team 环境变量。
+- watcher JSON 解析失败改为 `confirm_failed`。
+- finalizer 会读取 task `resultRef` 文件内容。
+- `/playground/team` 对动态 API 文本做 HTML escape，并显示任务进度、耗时统计、暂停 / 恢复 / 取消入口。
+- `team-plan-creator` skill 只允许创建 / 更新 TeamUnit 和 Plan，禁止创建 / 启动 Run。
+- `npm run test:team` 改为串行，避免 SQLite 并发初始化随机 `database is locked`。
+- 3000 端口检查：宿主监听来自 Docker backend，当前映射到 `ugk-pi-ugk-pi-1`，没有额外 Node 服务抢占；`/healthz` 返回 `{"ok":true}`。
+
+验证记录：
+
+- `node --test --import tsx test/team-routes.test.ts test/team-orchestrator-controls.test.ts test/team-agent-profile-runner.test.ts test/team-page-ui.test.ts test/containerization.test.ts test/team-agent-profile-locks.test.ts`：35 pass
+- `npx tsc --noEmit`：通过
+- `npm run test:team`：83 pass
+- `npm test`：812 pass
+- `git diff --check`：通过
+
+本轮新增 / 修改的核心记录：
+
+- `docs/change-log.md`
+- `docs/team-runtime.md`
+- `.codex/plans/2026-05-15-team-runtime-v2-next-agent-execution-plan.md`
+
+## 2026-05-16 P0: 真实 Agent Session 强中断 + 端到端验证
+
+本轮完成 P0 两项：AbortSignal 全链路传播 + `TEAM_USE_MOCK_RUNNER=false` 架构验证。
+
+已完成并验证：
+
+- **AbortSignal 全链路传播**：orchestrator → roleRunner → AgentProfile session，三层传播，中途 cancel/pause 能中断正在执行的 agent session。
+  - `TeamOrchestrator.runToCompletion()` 内部创建 `AbortController`，链接外部 signal（来自 worker 跨进程 watcher）
+  - `executeTask` / `runWorkUnit` / `runWatcherPhase` / `runFinalizer` 均接收 `signal: AbortSignal`，传入 roleRunner
+  - `pauseRun()` / `cancelRun()` 写完状态后调用 `this.abortController?.abort()` 中断当前执行
+- **`promptWithAbort()` 模式**：在 `AgentProfileRoleRunner` 中内联实现 `Promise.race([session.prompt(), aborted])`，abort 时先调用 `session.abort()` 再 reject
+- **跨进程取消**：`team-worker` 每 2 秒轮询 run state，发现外部 cancel/pause 后触发 `AbortController.abort()`，信号经 orchestrator 传到 session
+- **Mock 模式 compose 默认**：`docker-compose.yml` 和 `docker-compose.prod.yml` 静态设置 `TEAM_USE_MOCK_RUNNER=true`；真实 runner 需显式设 `false`
+
+验证记录（2026-05-16）：
+
+- `npx tsc --noEmit`：通过
+- `npm run test:team`：87 pass
+- `npm test`：816 pass
+- 新增测试：
+  - `test/team-agent-profile-runner.test.ts`：abort during runWorker / abort during runChecker
+  - `test/team-orchestrator-controls.test.ts`：cancelRun triggers abort / external AbortSignal aborts / pauseRun triggers abort
+
+核心修改文件：
+
+- `src/team/role-runner.ts` — 四个 Input 接口增加 `signal?: AbortSignal`
+- `src/team/agent-profile-role-runner.ts` — `promptWithAbort()` + signal 透传
+- `src/team/orchestrator.ts` — AbortController 管理 + signal 透传 + pause/cancel 触发 abort
+- `src/workers/team-worker.ts` — 跨进程状态 watcher + signal 传入 orchestrator
+- `test/team-agent-profile-runner.test.ts` — abort 语义测试
+- `test/team-orchestrator-controls.test.ts` — 控制流 abort 测试
+
+继续执行前先看 `.codex/plans/2026-05-15-team-runtime-v2-next-agent-execution-plan.md`。P0 已完成，剩余 P1 见下方推荐下一步。
 
 ## 当前状态
 
@@ -186,34 +255,35 @@ Conn / 后台任务 / artifact：
 
 ## 推荐下一步
 
-### 优先级 1：修复 Classifier JSON 输出质量
+### P1-1: Worker Lease / Heartbeat / Crash Recovery
 
-这是当前最大的阻塞问题。Classifier 频繁输出无法解析的文本而不是 JSON envelope。建议：
-1. 抓一次 classifier 失败时的 rawOutput 看具体输出了什么
-2. 对应加强 prompt 约束或换更听话的模型
-3. `parseAgentJsonEnvelope` 可能需要更鲁棒的提取逻辑
+当前 worker 进程崩溃后，run 会永远卡在 `running`。需要：
+1. Worker 启动时扫描 `running` 状态的 run，标记为 `failed` 或 `interrupted`
+2. 引入 lease 机制，worker 定期续期；超时未续期的 run 自动回收
+3. 配合现有的 timeout 机制形成双层保护
 
-### 优先级 2：Discovery 超时治理
+### P1-2: Finalizer Deterministic Fallback Report
 
-Discovery background task 可能卡住但 watchdog 无法检测。需要确认 session 文件更新频率，或增加显式 heartbeat。
+当 finalizer agent 输出不可解析或失败时，需要生成一份确定性的兜底报告（列出每个 task 的 status/errorSummary），而非让整个 run 卡在未完成状态。
 
-### 优先级 3：推送到远端并部署
+### P1-3: Team Page Observability
 
-当前 7 个本地提交未推送也未部署。确认问题修复后：
-```bash
-git push && git push gitee main
-npm run server:ops -- tencent preflight
-npm run server:ops -- tencent deploy
-npm run server:ops -- aliyun preflight
-npm run server:ops -- aliyun deploy
-```
+UI 层面补充：attempt 展开详情、checker/watcher verdict 显示、resultRef 内容浏览。当前 UI 只展示 task 级别状态。
+
+### P1-4: Rewrite docs/team-runtime.md as Pure v2 Document
+
+当前 `docs/team-runtime.md` 仍混合 v1 历史和 v2 描述。需要重写为纯 v2 文档，移除所有 v1 引用（submit tool、discovery/classifier 等）。
+
+### P2: team-plan-creator Skill Enhancement
+
+wizard 增强：交互式 task 拆分建议、acceptance criteria 模板、Plan 预览和校验。
 
 ## 最近验证记录
 
-- `git status --short`：提交后应为干净
-- `npx tsc --noEmit`：通过（0 错误）
-- `docker compose restart ugk-pi ugk-pi-team-worker`：已执行
-- 最近测试 run：`teamrun_mp666loj_k629`（keyword: medtrum），暴露了 classifier JSON 失败和 discovery 卡住问题
+- 2026-05-16：`npx tsc --noEmit` 通过，`npm run test:team` 87 pass，`npm test` 816 pass
+- 2026-05-15：`npx tsc --noEmit` 通过，`npm run test:team` 83 pass，`npm test` 812 pass
+- 2026-05-15：`git diff --check` 通过
+- 最近测试 run：`teamrun_mp666loj_k629`（keyword: medtrum），暴露了 classifier JSON 失败和 discovery 卡住问题（v1 遗留，v2 已移除相关架构）
 
 ## 交接操作清单
 

@@ -7,6 +7,7 @@ import { computeTeamConfigLocks } from "./config-locks.js";
 import { MockRoleRunner } from "./role-runner.js";
 import type { TeamRoleRunner } from "./role-runner.js";
 import { AgentProfileRoleRunner } from "./agent-profile-role-runner.js";
+import { loadAgentProfilesSync } from "../agent/agent-profile-catalog.js";
 
 export interface TeamRouteOptions {
 	teamDataDir: string;
@@ -14,7 +15,7 @@ export interface TeamRouteOptions {
 }
 
 function createRoleRunner(options: TeamRouteOptions): TeamRoleRunner {
-	if (process.env.TEAM_USE_MOCK_RUNNER === "true") {
+	if (process.env.TEAM_USE_MOCK_RUNNER !== "false") {
 		return new MockRoleRunner();
 	}
 	return new AgentProfileRoleRunner({
@@ -25,6 +26,28 @@ function createRoleRunner(options: TeamRouteOptions): TeamRoleRunner {
 		watcherProfileId: "main",
 		finalizerProfileId: "main",
 	});
+}
+
+function validateTeamUnitProfileIds(options: TeamRouteOptions, profileIds: string[]): void {
+	const availableProfiles = new Set(loadAgentProfilesSync(options.projectRoot).map((profile) => profile.agentId));
+	for (const profileId of profileIds) {
+		if (!availableProfiles.has(profileId)) {
+			throw new Error(`agent profile not found: ${profileId}`);
+		}
+	}
+}
+
+async function validateUsableTeamUnit(unitStore: TeamUnitStore, teamUnitId: string | undefined): Promise<void> {
+	if (!teamUnitId) {
+		throw new Error("defaultTeamUnitId is required");
+	}
+	const teamUnit = await unitStore.get(teamUnitId);
+	if (!teamUnit) {
+		throw new Error(`team unit not found: ${teamUnitId}`);
+	}
+	if (teamUnit.archived) {
+		throw new Error("archived team unit cannot be used");
+	}
 }
 
 export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptions): void {
@@ -61,6 +84,7 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 	app.post("/v1/team/plans", async (request, reply) => {
 		const body = request.body as Record<string, unknown>;
 		try {
+			await validateUsableTeamUnit(unitStore, body.defaultTeamUnitId as string | undefined);
 			const plan = await planStore.create({
 				title: body.title as string,
 				defaultTeamUnitId: body.defaultTeamUnitId as string,
@@ -105,6 +129,7 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 		try {
 			const locks = computeTeamConfigLocks(await workspace.listStates(), await unitStore.list());
 			if (locks.lockedPlanIds.has(planId)) { reply.code(409).send({ error: "locked by active run" }); return; }
+			await validateUsableTeamUnit(unitStore, body.defaultTeamUnitId);
 			const plan = await planStore.updateDefaultTeam(planId, body.defaultTeamUnitId);
 			reply.send(plan);
 		} catch (err) {
@@ -140,7 +165,6 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 		try {
 			const orchestrator = makeOrchestrator();
 			const state = await orchestrator.createRun(planId);
-			orchestrator.runToCompletion(state.runId).catch(() => {});
 			reply.code(201).send(state);
 		} catch (err) {
 			const msg = (err as Error).message;
@@ -158,6 +182,12 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 	app.post("/v1/team/team-units", async (request, reply) => {
 		const body = request.body as Record<string, unknown>;
 		try {
+			validateTeamUnitProfileIds(options, [
+				body.watcherProfileId as string,
+				body.workerProfileId as string,
+				body.checkerProfileId as string,
+				body.finalizerProfileId as string,
+			]);
 			const unit = await unitStore.create({
 				title: body.title as string,
 				description: body.description as string,
@@ -185,6 +215,13 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 		try {
 			const locks = computeTeamConfigLocks(await workspace.listStates(), await unitStore.list());
 			if (locks.lockedTeamUnitIds.has(teamUnitId)) { reply.code(409).send({ error: "locked by active run" }); return; }
+			const existing = await unitStore.get(teamUnitId);
+			validateTeamUnitProfileIds(options, [
+				(body.watcherProfileId as string | undefined) ?? existing?.watcherProfileId ?? "",
+				(body.workerProfileId as string | undefined) ?? existing?.workerProfileId ?? "",
+				(body.checkerProfileId as string | undefined) ?? existing?.checkerProfileId ?? "",
+				(body.finalizerProfileId as string | undefined) ?? existing?.finalizerProfileId ?? "",
+			]);
 			const unit = await unitStore.update(teamUnitId, {
 				title: body.title as string | undefined,
 				description: body.description as string | undefined,
@@ -253,7 +290,6 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 		try {
 			const orchestrator = makeOrchestrator();
 			const state = await orchestrator.resumeRun(runId);
-			orchestrator.runToCompletion(runId).catch(() => {});
 			reply.send(state);
 		} catch (err) {
 			reply.code(400).send({ error: (err as Error).message });
