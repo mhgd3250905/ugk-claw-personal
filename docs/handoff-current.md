@@ -106,6 +106,23 @@
 
 继续执行前先看 `.codex/plans/2026-05-15-team-runtime-v2-next-agent-execution-plan.md`。P0 已完成，剩余 P1 见下方推荐下一步。
 
+## 2026-05-16 P1: UI 可观测性 + 文档收口 + Skill 增强 + Finalizer Fallback
+
+本轮完成 4 个 P1 任务。
+
+已完成并验证：
+
+- **UI 可观测性增强**：`/playground/team` Run 列表展示 lastError、currentTaskId、summary 细分。可展开 task detail panel 显示 title/status/phase/message/attemptCount/activeAttemptId/resultRef/errorSummary。刷新按钮和 cancelled run 删除按钮。所有动态文本走 escapeHtml。8 个新 UI 测试。
+- **文档收口**：`docs/team-runtime.md` 重写为纯 v2 参考文档。v0.1 域名调查历史压缩到文末归档章节。
+- **Skill 增强**：`team-plan-creator` 改为交互式向导，先问目标/交付物，查已有资源，优先复用，创建前预览 JSON。明确禁止启动 Run 和编辑 .data/team。8 个静态断言测试。
+- **Finalizer Fallback Report**：finalizer agent 失败时生成确定性 fallback markdown 报告，列出每个 task 的 status/resultRef/errorSummary。报告明确标注为系统生成。cancelled/paused run 不写 fallback report。lastError 保留 finalizer 错误。4 个新测试。
+
+验证记录（2026-05-16）：
+
+- `npx tsc --noEmit`：通过
+- `npm run test:team`：113 pass
+- `npm test`：未全量重跑（只改 Team 模块，不涉及其他 route/server/docker 行为）
+
 ## 当前状态
 
 - 当前本地 HEAD：`a3ce81b fix: complete error format migration in tests and browsers.ts`

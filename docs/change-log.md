@@ -13,6 +13,15 @@
 ---
 
 ## 2026-05-16
+### Team Runtime v2 finalizer fallback report + skill enhancement
+- 日期：2026-05-16
+- 主题：(1) Finalizer 失败时生成确定性 fallback report；(2) 增强 team-plan-creator skill 为交互式向导。
+- 影响范围：
+  - orchestrator.ts：runFinalizer 内部 catch finalizer 错误，调用 generateFallbackReport 生成包含 task status/resultRef/errorSummary 的系统报告。finalizer 失败时 run 状态为 completed_with_failures，lastError 保留错误信息。cancelled/paused 不写 fallback。
+  - SKILL.md：重写为 5 步交互式向导（先问目标 -> 查已有 -> 复用/创建 TeamUnit -> 预览 JSON -> 创建 Plan）。增加任务拆分规则和禁止项。
+  - 新增 test/team-finalizer-fallback.test.ts（4 个测试）和 test/team-plan-creator-skill.test.ts（8 个测试）。npm run test:team 113 pass。
+
+## 2026-05-16
 ### Team Runtime v2 UI observability + docs rewrite to pure v2
 - 日期：2026-05-16
 - 主题：(1) 增强 /playground/team 可观测性 UI；(2) 重写 docs/team-runtime.md 为纯 v2 文档。
