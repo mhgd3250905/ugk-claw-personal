@@ -20,10 +20,10 @@ function createRoleRunner(options: TeamRouteOptions): TeamRoleRunner {
 	return new AgentProfileRoleRunner({
 		projectRoot: options.projectRoot,
 		teamDataDir: options.teamDataDir,
-		watcherProfileId: "watcher",
 		workerProfileId: "worker",
-		checkerProfileId: "checker",
-		finalizerProfileId: "finalizer",
+		checkerProfileId: "reviewer",
+		watcherProfileId: "reviewer",
+		finalizerProfileId: "planner",
 	});
 }
 

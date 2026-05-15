@@ -14,10 +14,10 @@ function createRoleRunner(config: ReturnType<typeof getAppConfig>): TeamRoleRunn
 	return new AgentProfileRoleRunner({
 		projectRoot: config.projectRoot,
 		teamDataDir: config.teamDataDir,
-		watcherProfileId: "watcher",
 		workerProfileId: "worker",
-		checkerProfileId: "checker",
-		finalizerProfileId: "finalizer",
+		checkerProfileId: "reviewer",
+		watcherProfileId: "reviewer",
+		finalizerProfileId: "planner",
 	});
 }
 

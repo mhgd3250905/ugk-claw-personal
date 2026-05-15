@@ -3,27 +3,35 @@ import { join } from "node:path";
 import type { TeamRoleRunner, WorkerInput, WorkerOutput, CheckerInput, CheckerOutput, WatcherInput, WatcherOutput, FinalizerInput, FinalizerOutput } from "./role-runner.js";
 import type { TeamTask, TeamPlan } from "./types.js";
 import type { BackgroundAgentSessionFactory } from "../agent/background-agent-runner.js";
+import { BackgroundAgentProfileResolver } from "../agent/background-agent-profile.js";
+import type { ResolvedBackgroundAgentSnapshot, BackgroundAgentProfileRef } from "../agent/background-agent-profile.js";
 import { ProjectBackgroundSessionFactory } from "../agent/background-agent-session-factory.js";
 import { findLastAssistantMessage, assertAssistantMessageSucceeded } from "../agent/agent-run-result.js";
 import { stringifyVisibleAssistantContent } from "../agent/background-agent-runner.js";
 import { createBrowserCleanupScope, runWithScopedAgentEnvironment } from "../agent/agent-run-scope.js";
 import { runWithBackgroundWorkspaceContext } from "../agent/background-workspace-context.js";
 
-export interface TeamProfileResolver {
-	resolve(profileId: string): Promise<unknown>;
-}
-
 export interface AgentProfileRoleRunnerOptions {
 	projectRoot: string;
 	teamDataDir: string;
-	watcherProfileId: string;
 	workerProfileId: string;
 	checkerProfileId: string;
+	watcherProfileId: string;
 	finalizerProfileId: string;
-	profileResolver?: TeamProfileResolver;
+	profileResolver?: BackgroundAgentProfileResolver;
 	sessionFactory?: BackgroundAgentSessionFactory;
 	defaultBrowserId?: string;
 	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
+}
+
+function buildDefaultRef(profileId: string): BackgroundAgentProfileRef {
+	return {
+		profileId,
+		agentSpecId: "team-default",
+		skillSetId: "team-default",
+		modelPolicyId: "team-default",
+		upgradePolicy: "latest",
+	};
 }
 
 function buildWorkerPrompt(task: TeamTask, acceptanceRules: string[], feedback?: string): string {
@@ -136,14 +144,19 @@ async function readRefContent(teamDataDir: string, runId: string, ref: string): 
 export class AgentProfileRoleRunner implements TeamRoleRunner {
 	private readonly options: AgentProfileRoleRunnerOptions;
 	private readonly sessionFactory: BackgroundAgentSessionFactory;
-	private readonly profileResolver: TeamProfileResolver;
+	private readonly profileResolver: BackgroundAgentProfileResolver;
 
 	constructor(options: AgentProfileRoleRunnerOptions) {
 		this.options = options;
 		this.sessionFactory = options.sessionFactory ?? new ProjectBackgroundSessionFactory(options.projectRoot);
-		this.profileResolver = options.profileResolver ?? {
-			resolve: async () => ({}),
-		};
+		this.profileResolver = options.profileResolver ?? new BackgroundAgentProfileResolver({ projectRoot: options.projectRoot });
+	}
+
+	setProfileIds(profiles: { workerProfileId: string; checkerProfileId: string; watcherProfileId: string; finalizerProfileId: string }): void {
+		this.options.workerProfileId = profiles.workerProfileId;
+		this.options.checkerProfileId = profiles.checkerProfileId;
+		this.options.watcherProfileId = profiles.watcherProfileId;
+		this.options.finalizerProfileId = profiles.finalizerProfileId;
 	}
 
 	async runWorker(input: WorkerInput): Promise<WorkerOutput> {
@@ -207,8 +220,8 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		return { finalReport: content };
 	}
 
-	private async resolveProfile(profileId: string): Promise<unknown> {
-		return this.profileResolver.resolve(profileId);
+	private async resolveProfile(profileId: string): Promise<ResolvedBackgroundAgentSnapshot> {
+		return this.profileResolver.resolve(buildDefaultRef(profileId));
 	}
 
 	private async createRoleWorkspace(runId: string, roleKey: string, role: string) {
@@ -223,7 +236,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 	}
 
 	private async runSession(
-		snapshot: unknown,
+		snapshot: ResolvedBackgroundAgentSnapshot,
 		runId: string,
 		workspace: { rootPath: string; workDir: string; outputDir: string; sessionDir: string },
 		prompt: string,
@@ -247,7 +260,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 				artifactPublicDir: workspace.outputDir,
 				manifestPath: join(workspace.rootPath, "manifest.json"),
 			},
-			snapshot: snapshot as import("../agent/background-agent-profile.js").ResolvedBackgroundAgentSnapshot,
+			snapshot,
 			browserId,
 			browserScope,
 		});
