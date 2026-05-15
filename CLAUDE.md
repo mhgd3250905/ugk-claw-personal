@@ -116,16 +116,18 @@ Fastify Server (src/server.ts)
 **Team Runtime v2** (`src/team/`): Plan-driven sequential multi-role pipeline. Core concepts: Plan → TeamUnit → Run → Task → Attempt → WorkUnit. Four roles: **worker** (executes task), **checker** (reviews output: pass/revise/fail, max 3 revisions), **watcher** (post-task review: accept_task/confirm_failed/request_revision, max 1 revision), **finalizer** (generates summary report). `TeamOrchestrator` drives sequential task execution with work-unit loops; `RunWorkspace` manages run persistence (atomic JSON state + per-attempt files). API routes at `/v1/team/*`: Plans CRUD, TeamUnits CRUD, Runs with pause/resume/cancel controls, healthz, final-report. The `team-worker` process polls for queued runs when `TEAM_RUNTIME_ENABLED=true`.
 
 Team Runtime v2 internals:
-- **TeamUnit**: Reusable preset team binding 4 AgentProfile slots (watcher, worker, checker, finalizer). Archived units cannot be used for new runs.
+- **TeamUnit**: Reusable preset team binding 4 AgentProfile slots (worker, checker, watcher, finalizer). Each slot stores an `agentId` referencing a system agent profile (same profiles used by conn tasks). Users select profiles from a dropdown in the UI (fetched via `GET /v1/agents`). Archived units cannot be used for new runs.
 - **Plan**: Ordered task list with acceptance criteria, goal, and output contract. Plans with runs are content-immutable; unused plans can be deleted.
 - **Run lifecycle**: queued → running → completed/completed_with_failures/failed/cancelled. Pause/resume interrupts mid-task.
 - **WorkUnit loop**: worker runs → checker reviews (pass → accepted, revise → worker retries with feedback, fail → work unit fails) → watcher reviews (accept → task done, confirm_failed → task fails, request_revision → new attempt with feedback).
 - **Config locks**: Active runs lock their Plan, TeamUnit, and all 4 AgentProfiles to prevent mutation during execution.
+- **Profile resolution flow**: `TeamOrchestrator.runToCompletion()` loads the run's TeamUnit and injects its 4 profile IDs into `AgentProfileRoleRunner.setProfileIds()` before execution. The role runner resolves each ID via `BackgroundAgentProfileResolver` → `AgentTemplateRegistry` → playground profile lookup (`.data/agents/profiles.json`). If a profile ID is not found, falls back to "main". `createRoleRunner()` defaults all 4 slots to "main" as safe baseline; orchestrator overrides at runtime.
 - **AgentProfile integration**: `AgentProfileRoleRunner` (`src/team/agent-profile-role-runner.ts`) implements `TeamRoleRunner` using real AgentProfile sessions via `BackgroundAgentSessionFactory`. Checker/watcher agents output JSON; parse errors default to safe fallbacks.
 - **Mock mode**: `TEAM_USE_MOCK_RUNNER=true` uses `MockRoleRunner` for testing; unset or false uses `AgentProfileRoleRunner`.
 - **Stale state**: Orchestrator re-reads state from disk after every async mutation to avoid stale references.
 - **Timeout**: Max run duration 60 minutes; timed-out runs are marked failed.
 - **Feature flag**: `TEAM_RUNTIME_ENABLED` gates route registration and worker startup; when false, zero impact on rest of system.
+- **UI**: Team page (`src/ui/team-page.ts`) provides a modal form for creating/editing TeamUnits with agent profile `<select>` dropdowns (same pattern as conn task editor). Displays profile names (not raw IDs) in the team list. Supports edit and archive operations.
 
 ### Architecture Governance
 

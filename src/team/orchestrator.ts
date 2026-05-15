@@ -69,6 +69,16 @@ export class TeamOrchestrator {
 		let state = await this.workspace.getState(runId);
 		if (!state) throw new Error(`run not found: ${runId}`);
 
+		const teamUnit = await this.teamUnitStore.get(state.teamUnitId);
+		if (teamUnit && "setProfileIds" in this.roleRunner) {
+			(this.roleRunner as import("./agent-profile-role-runner.js").AgentProfileRoleRunner).setProfileIds({
+				workerProfileId: teamUnit.workerProfileId,
+				checkerProfileId: teamUnit.checkerProfileId,
+				watcherProfileId: teamUnit.watcherProfileId,
+				finalizerProfileId: teamUnit.finalizerProfileId,
+			});
+		}
+
 		state = await this.transitionToRunning(state);
 		this.elapsedOffset = state.activeElapsedMs;
 
