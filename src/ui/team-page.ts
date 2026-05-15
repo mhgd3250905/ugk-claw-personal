@@ -36,6 +36,13 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 .empty { text-align: center; color: var(--muted); padding: 40px 0; font-size: 14px; }
 .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
 .progress-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+.run-detail { display: none; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.task-table th { width: 30%; }
+.task-table td { word-break: break-all; }
+.detail-toggle { cursor: pointer; color: var(--accent); font-size: 12px; }
+.detail-toggle:hover { text-decoration: underline; }
+.refresh-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; font-size: 13px; }
+.refresh-btn:hover { background: var(--surface); }
 
 /* Modal */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
@@ -82,7 +89,7 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 
 	<!-- Runs -->
 	<div id="section-runs" class="section">
-		<div style="margin-bottom:16px"><h2>运行记录</h2></div>
+		<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center"><h2>运行记录</h2><button class="refresh-btn" onclick="loadRuns()">刷新</button></div>
 		<div id="runs-list"></div>
 	</div>
 </div>
@@ -269,26 +276,86 @@ async function loadTeams() {
 }
 
 async function loadRuns() {
-	var runs = await api('/runs');
-	var el = $('runs-list');
-	if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。</div>'; return; }
-	el.innerHTML = runs.map(function(r) {
-		var total = r.summary.totalTasks;
-		var done = r.summary.succeededTasks + r.summary.failedTasks + r.summary.cancelledTasks;
-		var pct = total ? Math.round(done / total * 100) : 0;
-		return '<div class="card"><h3>运行 ' + r.runId.slice(0, 16) + '... ' + statusBadge(r.status) + '</h3>' +
-			'<p style="font-size:13px;color:var(--muted)">任务进度：' + done + '/' + total + ' 个任务</p>' +
-			'<p style="font-size:13px;color:var(--muted)">耗时统计：' + Math.round((r.activeElapsedMs || 0) / 1000) + ' 秒</p>' +
-			'<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
-			'<div style="margin-top:8px;display:flex;gap:8px">' +
-			(r.status === 'running' ? '<button class="btn btn-primary" onclick="controlRun(\\'' + r.runId + '\\', \\'pause\\')">暂停</button><button class="btn btn-danger" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>' : '') +
-			(r.status === 'paused' ? '<button class="btn btn-primary" onclick="controlRun(\\'' + r.runId + '\\', \\'resume\\')">恢复</button><button class="btn btn-danger" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>' : '') +
-			(r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed' ? '<button class="btn btn-primary" onclick="viewReport(\\'' + r.runId + '\\')">查看报告</button><button class="btn btn-danger" onclick="deleteRun(\\'' + r.runId + '\\')">删除</button>' : '') +
-			'</div></div>';
-	}).join('');
-}
+		var runs = await api('/runs');
+		var el = $('runs-list');
+		if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。</div>'; return; }
+		el.innerHTML = runs.map(function(r) {
+			var total = r.summary.totalTasks;
+			var done = r.summary.succeededTasks + r.summary.failedTasks + r.summary.cancelledTasks;
+			var pct = total ? Math.round(done / total * 100) : 0;
+			var summaryParts = [];
+			if (r.summary.succeededTasks) summaryParts.push('成功 ' + r.summary.succeededTasks);
+			if (r.summary.failedTasks) summaryParts.push('失败 ' + r.summary.failedTasks);
+			if (r.summary.cancelledTasks) summaryParts.push('取消 ' + r.summary.cancelledTasks);
+			var summaryStr = summaryParts.length ? summaryParts.join(' / ') : '无完成';
+			var errorHtml = r.lastError ? '<p style="font-size:12px;color:var(--fail);margin-top:4px">错误：' + escapeHtml(r.lastError) + '</p>' : '';
+			var currentTask = r.currentTaskId ? '<p style="font-size:12px;color:var(--muted)">当前任务：' + escapeHtml(r.currentTaskId) + '</p>' : '';
+			return '<div class="card">' +
+				'<h3>运行 <span style="font-family:monospace">' + escapeHtml(r.runId.slice(0, 16)) + '</span>... ' + statusBadge(r.status) + '</h3>' +
+				'<p style="font-size:13px;color:var(--muted)">任务进度：' + done + '/' + total + '（' + summaryStr + '）</p>' +
+				'<p style="font-size:13px;color:var(--muted)">耗时统计：' + Math.round((r.activeElapsedMs || 0) / 1000) + ' 秒</p>' +
+				currentTask + errorHtml +
+				'<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
+				'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+				'<span class="detail-toggle" onclick="toggleRunDetail(\'' + r.runId + '\')">展开任务详情</span>' +
+				(r.status === 'running' ? '<button class="btn btn-primary btn-sm" onclick="controlRun(\'' + r.runId + '\', 'pause\')"  >暂停</button><button class="btn btn-danger btn-sm" onclick="controlRun(\'' + r.runId + '\', 'cancel\')"  >取消</button>' : '') +
+				(r.status === 'paused' ? '<button class="btn btn-primary btn-sm" onclick="controlRun(\'' + r.runId + '\', 'resume\')"  >恢复</button><button class="btn btn-danger btn-sm" onclick="controlRun(\'' + r.runId + '\', 'cancel\')"  >取消</button>' : '') +
+				(r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed' ? '<button class="btn btn-primary btn-sm" onclick="viewReport(\'' + r.runId + '\')"  >查看报告</button><button class="btn btn-danger btn-sm" onclick="deleteRun(\'' + r.runId + '\')"  >删除</button>' : '') +
+				(r.status === 'cancelled' ? '<button class="btn btn-danger btn-sm" onclick="deleteRun(\'' + r.runId + '\')"  >删除</button>' : '') +
+				'</div>' +
+				'<div id="run-detail-' + r.runId + '" class="run-detail"></div>' +
+				'</div>';
+		}).join('');
+	}
 
-async function editTeamUnit(id) {
+	var _planCache = {};
+	async function toggleRunDetail(runId) {
+		var detailEl = $('run-detail-' + runId);
+		if (!detailEl) return;
+		if (detailEl.style.display === 'block') {
+			detailEl.style.display = 'none';
+			return;
+		}
+		try {
+			var state = await api('/runs/' + runId);
+			if (!_planCache[state.planId]) {
+				_planCache[state.planId] = await api('/plans/' + state.planId);
+			}
+			var plan = _planCache[state.planId];
+			detailEl.innerHTML = renderTaskDetail(state, plan);
+			detailEl.style.display = 'block';
+		} catch (e) {
+			detailEl.innerHTML = '<p style="color:var(--fail);font-size:13px">加载失败：' + escapeHtml(e.message) + '</p>';
+			detailEl.style.display = 'block';
+		}
+	}
+
+	function renderTaskDetail(state, plan) {
+		if (!plan || !plan.tasks || !plan.tasks.length) return '<p style="color:var(--muted);font-size:13px">无任务数据。</p>';
+		return '<table class="task-table">' +
+			'<tr><th>任务</th><th>状态</th><th>详情</th></tr>' +
+			plan.tasks.map(function(task) {
+				var ts = state.taskStates[task.id];
+				if (!ts) return '<tr><td>' + escapeHtml(task.title) + '</td><td colspan="2">待执行</td></tr>';
+				var phaseStr = ts.progress ? escapeHtml(ts.progress.phase) : '';
+				var msgStr = ts.progress ? escapeHtml(ts.progress.message) : '';
+				var detailParts = [];
+				if (ts.attemptCount > 0) detailParts.push('尝试 ' + ts.attemptCount + ' 次');
+				if (ts.activeAttemptId) detailParts.push('尝试ID: ' + escapeHtml(ts.activeAttemptId.slice(0, 12)) + '...');
+				if (ts.resultRef) detailParts.push('结果: ' + escapeHtml(ts.resultRef));
+				if (ts.errorSummary) detailParts.push('<span style="color:var(--fail)">错误: ' + escapeHtml(ts.errorSummary) + '</span>');
+				return '<tr>' +
+					'<td>' + escapeHtml(task.title) + '</td>' +
+					'<td>' + statusBadge(ts.status) + '<br/><span style="font-size:11px;color:var(--muted)">' + phaseStr + '</span></td>' +
+					'<td style="font-size:12px">' +
+					(msgStr ? '<div style="color:var(--muted)">' + msgStr + '</div>' : '') +
+					(detailParts.length ? '<div>' + detailParts.join(' / ') + '</div>' : '') +
+					'</td></tr>';
+			}).join('') +
+			'</table>';
+	}
+
+	async function editTeamUnit(id) {
 	var teams = await api('/team-units');
 	var unit = teams.find(function(t) { return t.teamUnitId === id; });
 	if (unit) openTeamUnitModal(unit);
