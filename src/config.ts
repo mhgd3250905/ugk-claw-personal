@@ -24,9 +24,6 @@ export interface AppConfig {
 	teamDataDir: string;
 	teamWorkerPollIntervalMs: number;
 	teamMaxConcurrentRuns: number;
-	teamMaxConcurrentRoleTasks: number;
-	teamRoleTaskTimeoutMs: number;
-	teamRoleTaskMaxRetries: number;
 }
 
 export function loadApiKeyFromApiTxt(
@@ -114,8 +111,5 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 		teamDataDir: process.env.TEAM_DATA_DIR?.trim() || join(dataDir, "team"),
 		teamWorkerPollIntervalMs: Number(process.env.TEAM_WORKER_POLL_INTERVAL_MS ?? "3000"),
 		teamMaxConcurrentRuns: Number(process.env.TEAM_MAX_CONCURRENT_RUNS ?? "1"),
-		teamMaxConcurrentRoleTasks: Number(process.env.TEAM_MAX_CONCURRENT_ROLE_TASKS ?? "1"),
-		teamRoleTaskTimeoutMs: Number(process.env.TEAM_ROLE_TASK_TIMEOUT_MS ?? "180000"),
-		teamRoleTaskMaxRetries: Number(process.env.TEAM_ROLE_TASK_MAX_RETRIES ?? "1"),
 	};
 }
