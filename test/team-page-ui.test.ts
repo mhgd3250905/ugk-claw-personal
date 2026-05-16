@@ -485,3 +485,62 @@ test("P4: inline scripts are still valid JavaScript with P4 changes", () => {
 		assert.doesNotThrow(() => new Function(script), "inline script should be valid JS after P4 changes");
 	}
 });
+
+
+// ── P5: attempt lifecycle UI tests ──
+
+test("P5: PHASE_LABELS includes attempt lifecycle phases", () => {
+	const html = renderTeamPage();
+	assert.match(html, /worker_completed.*执行完成/);
+	assert.match(html, /checker_passed.*验收通过/);
+	assert.match(html, /checker_revising.*验收修改/);
+	assert.match(html, /checker_failed.*验收失败/);
+	assert.match(html, /watcher_accepted.*复盘通过/);
+	assert.match(html, /watcher_revision_requested.*复盘请求重做/);
+	assert.match(html, /watcher_confirmed_failed.*复盘确认失败/);
+	assert.match(html, /created.*已创建/);
+});
+
+test("P5: attempt card renders lifecycle summary lines", () => {
+	const script = extractScript();
+	assert.match(script, /lcLines/);
+	assert.match(script, /a\.phase/);
+	assert.match(script, /a\.worker/);
+	assert.match(script, /a\.checker/);
+	assert.match(script, /a\.watcher/);
+	assert.match(script, /phaseLabel\(a\.phase\)/);
+});
+
+test("P5: checker verdict chain uses escapeHtml", () => {
+	const script = extractScript();
+	assert.match(script, /escapeHtml\(c\.verdict\)/);
+});
+
+test("P5: watcher decision uses escapeHtml", () => {
+	const script = extractScript();
+	assert.match(script, /escapeHtml\(a\.watcher\.decision\)/);
+});
+
+test("P5: resultRef and errorSummary use escapeHtml", () => {
+	const script = extractScript();
+	assert.match(script, /escapeHtml\(a\.resultRef\)/);
+	assert.match(script, /escapeHtml\(a\.errorSummary\)/);
+});
+
+test("P5: PHASE_COLORS includes attempt lifecycle phases", () => {
+	const html = renderTeamPage();
+	assert.match(html, /checker_passed.*phase-success/);
+	assert.match(html, /checker_failed.*phase-fail/);
+	assert.match(html, /watcher_accepted.*phase-success/);
+	assert.match(html, /watcher_revision_requested.*phase-warn/);
+	assert.match(html, /watcher_confirmed_failed.*phase-fail/);
+});
+
+test("P5: inline scripts remain valid JavaScript after P5 changes", () => {
+	const html = renderTeamPage();
+	const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
+	assert.ok(scripts.length > 0);
+	for (const script of scripts) {
+		assert.doesNotThrow(() => new Function(script), "inline script should be valid JS after P5 changes");
+	}
+});

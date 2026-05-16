@@ -233,16 +233,22 @@ function formatTimestamp(iso) {
 
 var PHASE_LABELS = {
 	pending: '等待执行', creating_workunit: '创建工作单元', creating_worker_session: '创建执行 Agent',
-	worker_running: '执行中', checker_reviewing: '验收中', worker_revising: '修改中',
-	watcher_reviewing: '复盘中', finalizer_running: '生成报告', writing_result: '写入结果',
-	succeeded: '已通过', failed: '失败', interrupted: '已中断', cancelled: '已取消'
+	worker_running: '执行中', worker_completed: '执行完成',
+	checker_reviewing: '验收中', checker_passed: '验收通过', checker_revising: '验收修改', checker_failed: '验收失败',
+	worker_revising: '修改中',
+	watcher_reviewing: '复盘中', watcher_accepted: '复盘通过', watcher_revision_requested: '复盘请求重做', watcher_confirmed_failed: '复盘确认失败',
+	finalizer_running: '生成报告', writing_result: '写入结果',
+	created: '已创建', succeeded: '已通过', failed: '失败', interrupted: '已中断', cancelled: '已取消'
 };
 
 var PHASE_COLORS = {
 	pending: 'phase-muted', creating_workunit: 'phase-running', creating_worker_session: 'phase-running',
-	worker_running: 'phase-running', checker_reviewing: 'phase-running', worker_revising: 'phase-running',
-	watcher_reviewing: 'phase-running', finalizer_running: 'phase-running', writing_result: 'phase-running',
-	succeeded: 'phase-success', failed: 'phase-fail', interrupted: 'phase-warn', cancelled: 'phase-muted'
+	worker_running: 'phase-running', worker_completed: 'phase-running',
+	checker_reviewing: 'phase-running', checker_passed: 'phase-success', checker_revising: 'phase-running', checker_failed: 'phase-fail',
+	worker_revising: 'phase-running',
+	watcher_reviewing: 'phase-running', watcher_accepted: 'phase-success', watcher_revision_requested: 'phase-warn', watcher_confirmed_failed: 'phase-fail',
+	finalizer_running: 'phase-running', writing_result: 'phase-running',
+	created: 'phase-muted', succeeded: 'phase-success', failed: 'phase-fail', interrupted: 'phase-warn', cancelled: 'phase-muted'
 };
 
 function phaseLabel(phase) {
@@ -509,10 +515,22 @@ function renderTaskDetail(state, plan, attemptsMap) {
 					var filesHtml = a.files.map(function(f) {
 						return '<span class="attempt-file" onclick="viewAttemptFile(' + jsArg(state.runId) + ',' + jsArg(task.id) + ',' + jsArg(a.attemptId) + ',' + jsArg(f) + ')">' + escapeHtml(f) + '</span>';
 					}).join('');
+					var lcLines = [];
+					if (a.phase) lcLines.push('阶段: ' + escapeHtml(phaseLabel(a.phase)));
+					if (a.worker && a.worker.length) lcLines.push('worker: ' + a.worker.length + ' 次输出');
+					if (a.checker && a.checker.length) {
+						var verdicts = a.checker.map(function(c) { return escapeHtml(c.verdict); }).join(' → ');
+						lcLines.push('checker: ' + verdicts);
+					}
+					if (a.watcher) lcLines.push('watcher: ' + escapeHtml(a.watcher.decision));
+					if (a.resultRef) lcLines.push('结果: ' + escapeHtml(a.resultRef));
+					if (a.errorSummary) lcLines.push('<span style="color:var(--fail)">错误: ' + escapeHtml(a.errorSummary) + '</span>');
+					var lcHtml = lcLines.length ? '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + lcLines.join(' / ') + '</div>' : '';
 					return '<div class="attempt-card">' +
 						'<span style="color:' + statusColor + '">' + escapeHtml(a.status) + '</span> ' +
 						escapeHtml(a.attemptId.slice(0, 12)) + '... ' +
 						'<span class="ts">' + formatTimestamp(a.createdAt) + '</span>' +
+						lcHtml +
 						(a.files.length > 0 ? '<div class="attempt-files">' + filesHtml + '</div>' : '') +
 						'</div>';
 				}).join('');
