@@ -663,12 +663,14 @@ export class TeamOrchestrator {
 
 		let finalReport: string;
 		let finalizerError: string | null = null;
+		let finalizerRuntimeContext: import("./types.js").TeamRoleRuntimeContext | null = null;
 		const finalizerStarted = new Date();
 		try {
 			const finalizerOut = await runWithTimeout("finalizer", this.phaseTimeouts.finalizerMs, signal, async (localSignal) => {
 				return this.roleRunner.runFinalizer({ runId: state.runId, plan, taskResults, signal: localSignal });
 			});
 			finalReport = finalizerOut.finalReport;
+			finalizerRuntimeContext = finalizerOut.runtimeContext ?? null;
 		} catch (error) {
 			finalizerError = error instanceof Error ? error.message : String(error);
 			finalReport = generateFallbackReport(plan, state, error);
@@ -687,6 +689,7 @@ export class TeamOrchestrator {
 		await this.workspace.writeFinalReport(freshState.runId, finalReport);
 
 		freshState.currentTaskId = null;
+		freshState.finalizerRuntimeContext = finalizerRuntimeContext;
 		const hasTaskFailures = taskResults.some(r => r.status === "failed");
 		if (finalizerError) {
 			freshState.status = "completed_with_failures";

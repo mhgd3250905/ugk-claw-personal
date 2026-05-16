@@ -152,6 +152,7 @@ export interface TeamRunState {
 	summary: { totalTasks: number; succeededTasks: number; failedTasks: number; cancelledTasks: number };
 	pauseReason: string | null;
 	lastError: string | null;
+	finalizerRuntimeContext?: TeamRoleRuntimeContext | null;
 	lease?: TeamRunLease | null;
 	updatedAt: string;
 }

@@ -511,7 +511,8 @@ async function toggleRunDetail(runId) {
 
 function renderTaskDetail(state, plan, attemptsMap) {
 	if (!plan || !plan.tasks || !plan.tasks.length) return '<p style="color:var(--muted);font-size:13px">无任务数据。</p>';
-	return '<table class="task-table">' +
+	var finalizerRuntimeHtml = state.finalizerRuntimeContext ? '<div class="finalizer-runtime" style="margin-bottom:8px">' + renderRuntimeContext('finalizer', state.finalizerRuntimeContext) + '</div>' : '';
+	return finalizerRuntimeHtml + '<table class="task-table">' +
 		'<tr><th>任务</th><th>状态</th><th>详情</th></tr>' +
 		plan.tasks.map(function(task) {
 			var ts = state.taskStates[task.id];

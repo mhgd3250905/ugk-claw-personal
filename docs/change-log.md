@@ -12,6 +12,22 @@
 
 ---
 
+## 2026-05-16 — P8-D: Persist Finalizer Runtime Context
+
+- **主题**: 将 finalizer session 的 profile/browser 解析结果持久化到 run state，并在 Team UI 展示
+- **影响范围**: `src/team/types.ts`, `src/team/run-workspace.ts`, `src/team/orchestrator.ts`, `src/ui/team-page.ts`, Team 测试, `docs/team-runtime.md`
+- **变更**:
+  - `TeamRunState` 新增可选 `finalizerRuntimeContext`
+  - 新 run 初始化 `finalizerRuntimeContext: null`
+  - finalizer 成功返回后，orchestrator 将 `finalizerOut.runtimeContext` 写入 run state
+  - finalizer 抛错或超时时保留 `null`，fallback report 行为不变
+  - `/playground/team` 任务详情展示 run 级 finalizer runtime context
+  - 新增测试覆盖 finalizer context 持久化、类型字段和 UI 展示
+- **测试**: 265 pass
+- **源码入口**: `src/team/orchestrator.ts:runFinalizer`, `src/ui/team-page.ts:renderTaskDetail`
+
+---
+
 ## 2026-05-16 — P8-C: Surface Role Runtime Context In Team UI
 
 - **主题**: 在 `/playground/team` attempt 详情中展示 P8-B 写入的角色运行上下文

@@ -458,3 +458,44 @@ test("lifecycle: records role runtime context in attempt metadata", async () => 
 		await rm(root, { recursive: true });
 	}
 });
+
+test("lifecycle: records finalizer runtime context in run state", async () => {
+	const { root, plan, workspace } = await setup();
+	const runner = new (class extends MockRoleRunner {
+		override async runFinalizer(input: import("../src/team/role-runner.js").FinalizerInput) {
+			const out = await super.runFinalizer(input);
+			return {
+				...out,
+				runtimeContext: {
+					requestedProfileId: "missing_finalizer",
+					resolvedProfileId: "main",
+					fallbackUsed: true,
+					fallbackReason: "profile_not_found" as const,
+					browserId: "browser_finalizer",
+					browserScope: "team:run_ctx:finalizer:finalizer:main",
+				},
+			};
+		}
+	})();
+	const orc = new TeamOrchestrator({
+		planStore: new PlanStore(root),
+		teamUnitStore: new TeamUnitStore(root),
+		workspace,
+		roleRunner: runner,
+		dataDir: root,
+		maxCheckerRevisions: 3,
+		maxWatcherRevisions: 1,
+		maxRunDurationMinutes: 60,
+	});
+	try {
+		const state = await orc.createRun(plan.planId);
+		const result = await orc.runToCompletion(state.runId);
+
+		assert.equal(result.finalizerRuntimeContext?.requestedProfileId, "missing_finalizer");
+		assert.equal(result.finalizerRuntimeContext?.resolvedProfileId, "main");
+		assert.equal(result.finalizerRuntimeContext?.fallbackReason, "profile_not_found");
+		assert.equal(result.finalizerRuntimeContext?.browserId, "browser_finalizer");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});

@@ -69,6 +69,7 @@ export class RunWorkspace {
 			},
 			pauseReason: null,
 			lastError: null,
+			finalizerRuntimeContext: null,
 			lease: null,
 			updatedAt: now,
 		};

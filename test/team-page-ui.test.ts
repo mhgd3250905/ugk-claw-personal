@@ -578,3 +578,12 @@ test("P8-C: runtime context has compact CSS and fallback badge", () => {
 	assert.match(html, /\.runtime-context-fallback/);
 	assert.match(html, /fallback/);
 });
+
+// ── P8-D: finalizer runtime context UI ──
+
+test("P8-D: task detail renders finalizer runtime context from run state", () => {
+	const script = extractScript();
+	assert.match(script, /finalizerRuntimeContext/);
+	assert.match(script, /renderRuntimeContext\('finalizer',\s*state\.finalizerRuntimeContext\)/);
+	assert.match(script, /finalizer-runtime/);
+});

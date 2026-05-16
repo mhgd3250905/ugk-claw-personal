@@ -75,10 +75,19 @@ test("Run state stores refs instead of large outputs", () => {
 		summary: { totalTasks: 1, succeededTasks: 0, failedTasks: 0, cancelledTasks: 0 },
 		pauseReason: null,
 		lastError: null,
+		finalizerRuntimeContext: {
+			requestedProfileId: "finalizer_profile",
+			resolvedProfileId: "main",
+			fallbackUsed: true,
+			fallbackReason: "profile_not_found",
+			browserId: "browser_finalizer",
+			browserScope: "team:run_001:finalizer:finalizer:main",
+		},
 		updatedAt: "2026-05-15T00:00:02.000Z",
 	};
 	assert.equal(state.taskStates.task_medtrum_com?.activeAttemptId, "attempt_001");
 	assert.equal(state.status, "running");
+	assert.equal(state.finalizerRuntimeContext?.resolvedProfileId, "main");
 });
 
 test("RunStatus covers all expected statuses", () => {
