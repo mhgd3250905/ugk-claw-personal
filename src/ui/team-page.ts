@@ -30,6 +30,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-danger { background: var(--fail); color: #fff; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
+	.summary-item { text-align: center; font-size: 18px; font-weight: 600; }
 .btn:disabled, .btn:disabled:hover { opacity: 0.5; cursor: not-allowed; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
@@ -99,6 +100,7 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 
 /* Run card run-id */
 .run-id { font-family: monospace; font-size: 12px; color: var(--muted); }
+.summary-item { text-align: center; font-size: 18px; font-weight: 600; }
 
 /* Toast */
 #team-toast-root { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
@@ -118,7 +120,15 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 </head>
 <body>
 <div class="topbar">
-	<h1>Team Runtime v2</h1>
+	<div>
+		<h1>Team 控制台</h1>
+		<p style="font-size:12px;color:var(--muted)">计划 → 多角色执行 → 报告</p>
+	</div>
+	<div class="team-summary" style="display:flex;gap:16px">
+		<div class="summary-item"><span class="summary-plans" id="summary-plans">0</span><span style="font-size:11px;color:var(--muted)"> 计划</span></div>
+		<div class="summary-item"><span class="summary-teams" id="summary-teams">0</span><span style="font-size:11px;color:var(--muted)"> 团队</span></div>
+		<div class="summary-item"><span class="summary-active-runs" id="summary-active-runs">0</span><span style="font-size:11px;color:var(--muted)"> 活跃运行</span></div>
+	</div>
 	<nav>
 		<button class="active" onclick="showSection('plans', event)">计划</button>
 		<button onclick="showSection('teams', event)">预设团队</button>
@@ -236,6 +246,10 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 <script>
 const API = '/v1/team';
 var agentCatalog = [];
+
+var _latestPlans = [];
+var _latestTeams = [];
+var _latestRuns = [];
 
 function $(id) { return document.getElementById(id); }
 
@@ -356,6 +370,26 @@ function showSection(name, evt) {
 	if (name === 'runs') loadRuns();
 }
 
+function updateSummary(plans, teams, runs) {
+	var plansEl = $("summary-plans");
+	var teamsEl = $("summary-teams");
+	var runsEl = $("summary-active-runs");
+	if (plansEl) plansEl.textContent = plans ? plans.length : 0;
+	if (teamsEl) teamsEl.textContent = teams ? teams.length : 0;
+	var activeRuns = runs ? runs.filter(function(r) { return r.status === "queued" || r.status === "running" || r.status === "paused"; }).length : 0;
+	if (runsEl) runsEl.textContent = activeRuns;
+}
+
+function updateSummary(plans, teams, runs) {
+	var plansEl = $('summary-plans');
+	var teamsEl = $('summary-teams');
+	var runsEl = $('summary-active-runs');
+	if (plansEl) plansEl.textContent = plans ? plans.length : 0;
+	if (teamsEl) teamsEl.textContent = teams ? teams.length : 0;
+	var activeRuns = runs ? runs.filter(function(r) { return r.status === 'queued' || r.status === 'running' || r.status === 'paused'; }).length : 0;
+	if (runsEl) runsEl.textContent = activeRuns;
+}
+
 function statusBadge(status) {
 	var map = { completed: 'badge-success', completed_with_failures: 'badge-warn', failed: 'badge-fail', running: 'badge-warn', queued: 'badge-muted', paused: 'badge-warn', cancelled: 'badge-muted' };
 	return '<span class="badge ' + (map[status] || 'badge-muted') + '">' + escapeHtml(status) + '</span>';
@@ -461,7 +495,8 @@ async function loadPlans() {
 	el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
 	try {
 		var plans = await api('/plans');
-		if (!plans.length) { el.innerHTML = '<div class="empty">暂无计划。点击「新建计划」开始。</div>'; return; }
+		_latestPlans = plans; updateSummary(plans, _latestTeams, _latestRuns);
+		if (!plans.length) { el.innerHTML = '<div class="empty">暂无计划。<span class="detail-toggle" onclick="createPlan()">新建计划</span> 开始。</div>'; return; }
 		el.innerHTML = plans.map(function(p) {
 			return '<div class="card"><h3>' + escapeHtml(p.title) + ' <span class="badge badge-muted">' + p.tasks.length + ' 个任务</span></h3>' +
 				'<p style="font-size:13px;color:var(--muted)">目标：' + escapeHtml(p.goal.text) + '</p>' +
@@ -480,7 +515,8 @@ async function loadTeams() {
 	el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
 	try {
 		var teams = await api('/team-units');
-		if (!teams.length) { el.innerHTML = '<div class="empty">暂无预设团队。点击「新建预设团队」开始。</div>'; return; }
+		_latestTeams = teams; updateSummary(_latestPlans, teams, _latestRuns);
+		if (!teams.length) { el.innerHTML = '<div class="empty">暂无预设团队。<span class="detail-toggle" onclick="openTeamUnitModal()">新建团队</span> 开始。</div>'; return; }
 		el.innerHTML = teams.map(function(t) {
 			return '<div class="card"><h3>' + escapeHtml(t.title) + (t.archived ? ' <span class="badge badge-muted">已归档</span>' : '') + '</h3>' +
 				'<table><tr><td>执行 Agent</td><td>' + escapeHtml(profileName(t.workerProfileId)) + '</td></tr>' +
@@ -504,7 +540,10 @@ async function loadRuns() {
 	el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
 	try {
 		var runs = await api('/runs');
-		if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。</div>'; unsubscribeAllSSE(); return; }
+		_latestRuns = runs; updateSummary(_latestPlans, _latestTeams, runs);
+		var ACTIVE_STATUS = { queued: 1, running: 1, paused: 1 };
+		runs.sort(function(a, b) { return (ACTIVE_STATUS[b.status] ? 0 : 1) - (ACTIVE_STATUS[a.status] ? 0 : 1); });
+		if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。从计划页面 <span class="detail-toggle" onclick="showSection(&#39;plans&#39;)">创建运行</span>。</div>'; unsubscribeAllSSE(); return; }
 		var planIds = [];
 		runs.forEach(function(r) { if (r.planId && planIds.indexOf(r.planId) === -1) planIds.push(r.planId); });
 		await Promise.all(planIds.map(async function(pid) {

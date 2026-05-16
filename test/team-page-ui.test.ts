@@ -778,3 +778,47 @@ test("P12-T2: savePlan escapes dynamic values in acceptance rules", () => {
 	assert.match(match[0], /\$\('plan-title'\)\.value/);
 	assert.match(match[0], /\$\('plan-goal'\)\.value/);
 });
+
+// ── P12 Task 3: Console overview and summary ──
+
+test("P12-T3: page has console header with subtitle", () => {
+	const html = renderTeamPage();
+	assert.match(html, /Team 控制台/);
+	assert.match(html, /多角色执行/);
+});
+
+test("P12-T3: page has summary nodes with correct IDs", () => {
+	const html = renderTeamPage();
+	assert.match(html, /id="summary-plans"/);
+	assert.match(html, /id="summary-teams"/);
+	assert.match(html, /id="summary-active-runs"/);
+	assert.match(html, /team-summary/);
+});
+
+test("P12-T3: updateSummary function exists", () => {
+	const script = extractScript();
+	assert.match(script, /function updateSummary\(plans,\s*teams,\s*runs\)/);
+});
+
+test("P12-T3: loadPlans calls updateSummary", () => {
+	const script = extractScript();
+	const loadPlansMatch = script.match(/async function loadPlans[\s\S]*?^}/m);
+	assert.ok(loadPlansMatch, "should find loadPlans");
+	assert.match(loadPlansMatch[0], /updateSummary/);
+});
+
+test("P12-T3: loadRuns calls updateSummary and sorts active first", () => {
+	const script = extractScript();
+	const loadRunsMatch = script.match(/async function loadRuns[\s\S]*?^}/m);
+	assert.ok(loadRunsMatch, "should find loadRuns");
+	assert.match(loadRunsMatch[0], /updateSummary/);
+	assert.match(loadRunsMatch[0], /ACTIVE_STATUS/);
+	assert.match(loadRunsMatch[0], /runs\.sort/);
+});
+
+test("P12-T3: empty states include action links", () => {
+	const script = extractScript();
+	assert.match(script, /detail-toggle.*createPlan/);
+	assert.match(script, /detail-toggle.*openTeamUnitModal/);
+	assert.match(script, /showSection.*plans/);
+});
