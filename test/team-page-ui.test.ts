@@ -159,3 +159,99 @@ test("team page inline scripts are still valid JavaScript with SSE", () => {
 		assert.doesNotThrow(() => new Function(script), "inline script should be valid JS");
 	}
 });
+
+// ── Behavioral tests: extract and execute inline functions ──
+
+function extractScript(): string {
+	const html = renderTeamPage();
+	const match = html.match(/<script>([\s\S]*?)<\/script>/);
+	assert.ok(match, "should have inline script");
+	return match[1];
+}
+
+function makeDomLike() {
+	const elements: Record<string, { innerHTML: string; textContent: string; style: Record<string, string>; classList: { add: () => void; remove: () => void } }> = {};
+	return {
+		document: {
+			querySelector: (sel: string) => {
+				if (sel.startsWith("[data-run-id=")) return null;
+				return elements[sel] ?? null;
+			},
+			querySelectorAll: () => [],
+			getElementById: (id: string) => elements["#" + id] ?? null,
+			createElement: () => ({ appendChild: () => {} }),
+		},
+		window: {},
+		elements,
+	};
+}
+
+test("behavioral: loadRuns calls subscribeActiveRuns(runs) after rendering", () => {
+	const script = extractScript();
+	// Verify the function body: loadRuns should end with subscribeActiveRuns(runs)
+	// Extract the loadRuns function
+	const loadRunsMatch = script.match(/async function loadRuns\(\)[\s\S]*?^[\t]}/m);
+	assert.ok(loadRunsMatch, "should find loadRuns function");
+	const body = loadRunsMatch[0];
+	assert.match(body, /subscribeActiveRuns\(runs\)/, "loadRuns must call subscribeActiveRuns(runs)");
+	// Verify it's AFTER the join (i.e. after rendering)
+	const joinIdx = body.indexOf("}).join('')");
+	const subscribeIdx = body.indexOf("subscribeActiveRuns(runs)");
+	assert.ok(subscribeIdx > joinIdx, "subscribeActiveRuns must come after join (rendering)");
+});
+
+test("behavioral: loadRuns calls unsubscribeAllSSE() when runs is empty", () => {
+	const script = extractScript();
+	const loadRunsMatch = script.match(/async function loadRuns\(\)[\s\S]*?^[\t]}/m);
+	assert.ok(loadRunsMatch, "should find loadRuns function");
+	const body = loadRunsMatch[0];
+	// Find the empty case
+	const emptyIdx = body.indexOf("!runs.length");
+	assert.ok(emptyIdx > -1, "should have empty check");
+	// Find unsubscribeAllSSE after the empty check
+	const unsubIdx = body.indexOf("unsubscribeAllSSE()", emptyIdx);
+	assert.ok(unsubIdx > emptyIdx, "unsubscribeAllSSE should be called in empty case");
+	// Verify it's before the return
+	const returnIdx = body.indexOf("return;", emptyIdx);
+	assert.ok(unsubIdx < returnIdx, "unsubscribeAllSSE should be before return");
+});
+
+test("behavioral: updateRunCard uses innerHTML (not outerHTML) for badge", () => {
+	const script = extractScript();
+	// Verify badgeEl.innerHTML, NOT badgeEl.outerHTML
+	assert.match(script, /badgeEl\.innerHTML\s*=\s*statusBadge/);
+	assert.doesNotMatch(script, /badgeEl\.outerHTML/);
+});
+
+test("behavioral: updateRunCard updates actions via renderRunActions", () => {
+	const script = extractScript();
+	// Verify actionsEl is queried and updated
+	assert.match(script, /\.run-actions/);
+	assert.match(script, /actionsEl\.innerHTML\s*=\s*renderRunActions\(r\)/);
+});
+
+test("behavioral: renderRunActions shows pause/cancel for running, resume/cancel for paused, report/delete for completed", () => {
+	const script = extractScript();
+	// Verify the function exists and has the right conditional logic
+	const rraMatch = script.match(/function renderRunActions\(r\)[\s\S]*?^[\t]}/m);
+	assert.ok(rraMatch, "should find renderRunActions function");
+	const body = rraMatch[0];
+	assert.match(body, /r\.status === ["']running["']/, "should handle running status");
+	assert.match(body, /r\.status === ["']paused["']/, "should handle paused status");
+	assert.match(body, /r\.status === ["']completed["']/, "should handle completed status");
+	assert.match(body, /r\.status === ["']cancelled["']/, "should handle cancelled status");
+	// Verify actions contain the right control calls
+	assert.match(body, /controlRun.*pause/, "running should have pause button");
+	assert.match(body, /controlRun.*cancel/, "running should have cancel button");
+	assert.match(body, /controlRun.*resume/, "paused should have resume button");
+	assert.match(body, /viewReport/, "completed should have view report button");
+	assert.match(body, /deleteRun/, "terminal should have delete button");
+});
+
+test("behavioral: loadRuns uses renderRunActions via .run-actions div", () => {
+	const script = extractScript();
+	// Verify the actions div has .run-actions class
+	assert.match(script, /class="run-actions"/);
+	// Verify renderRunActions is called in the template
+	assert.match(script, /renderRunActions\(r\)/);
+});

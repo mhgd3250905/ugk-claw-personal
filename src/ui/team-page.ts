@@ -278,7 +278,7 @@ async function loadTeams() {
 async function loadRuns() {
 		var runs = await api('/runs');
 		var el = $('runs-list');
-		if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。</div>'; return; }
+		if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。</div>'; unsubscribeAllSSE(); return; }
 		el.innerHTML = runs.map(function(r) {
 			var total = r.summary.totalTasks;
 			var done = r.summary.succeededTasks + r.summary.failedTasks + r.summary.cancelledTasks;
@@ -296,16 +296,13 @@ async function loadRuns() {
 				'<p class="run-elapsed" style="font-size:13px;color:var(--muted)">耗时统计：' + Math.round((r.activeElapsedMs || 0) / 1000) + ' 秒</p>' +
 				currentTask + errorHtml +
 				'<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
-				'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
-				'<span class="detail-toggle" onclick="toggleRunDetail(\\'' + r.runId + '\\')">展开任务详情</span>' +
-				(r.status === 'running' ? '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'pause\\')"  >暂停</button><button class="btn btn-danger btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')"  >取消</button>' : '') +
-				(r.status === 'paused' ? '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'resume\\')"  >恢复</button><button class="btn btn-danger btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')"  >取消</button>' : '') +
-				(r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed' ? '<button class="btn btn-primary btn-sm" onclick="viewReport(\\'' + r.runId + '\\')"  >查看报告</button><button class="btn btn-danger btn-sm" onclick="deleteRun(\\'' + r.runId + '\\')"  >删除</button>' : '') +
-				(r.status === 'cancelled' ? '<button class="btn btn-danger btn-sm" onclick="deleteRun(\\'' + r.runId + '\\')"  >删除</button>' : '') +
+				'<div class="run-actions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+				renderRunActions(r) +
 				'</div>' +
 				'<div id="run-detail-' + r.runId + '" class="run-detail"></div>' +
 				'</div>';
 		}).join('');
+		subscribeActiveRuns(runs);
 	}
 
 	var _planCache = {};
@@ -475,6 +472,15 @@ function unsubscribeAllSSE() {
 	_sseConnections = {};
 }
 
+function renderRunActions(r) {
+	var html = '<span class="detail-toggle" onclick="toggleRunDetail(\\'' + r.runId + '\\')">展开任务详情</span>';
+	if (r.status === 'running') html += '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'pause\\')">暂停</button><button class="btn btn-danger btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>';
+	if (r.status === 'paused') html += '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'resume\\')">恢复</button><button class="btn btn-danger btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>';
+	if (r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed') html += '<button class="btn btn-primary btn-sm" onclick="viewReport(\\'' + r.runId + '\\')">查看报告</button><button class="btn btn-danger btn-sm" onclick="deleteRun(\\'' + r.runId + '\\')">删除</button>';
+	if (r.status === 'cancelled') html += '<button class="btn btn-danger btn-sm" onclick="deleteRun(\\'' + r.runId + '\\')">删除</button>';
+	return html;
+}
+
 function updateRunCard(r) {
 	var card = document.querySelector("[data-run-id='" + r.runId + "']");
 	if (!card) return;
@@ -488,7 +494,7 @@ function updateRunCard(r) {
 	var summaryStr = summaryParts.length ? summaryParts.join(" / ") : "\u65E0\u5B8C\u6210";
 
 	var badgeEl = card.querySelector(".run-badge");
-	if (badgeEl) badgeEl.outerHTML = statusBadge(r.status);
+	if (badgeEl) badgeEl.innerHTML = statusBadge(r.status);
 	var progressText = card.querySelector(".run-progress");
 	if (progressText) progressText.textContent = "\u4EFB\u52A1\u8FDB\u5EA6\uFF1A" + done + "/" + total + "\uFF08" + summaryStr + "\uFF09";
 	var elapsedEl = card.querySelector(".run-elapsed");
@@ -506,7 +512,11 @@ function updateRunCard(r) {
 	var barFill = card.querySelector(".progress-bar-fill");
 	if (barFill) barFill.style.width = pct + "%";
 
-	// Update task detail if expanded
+			// Update action buttons
+		var actionsEl = card.querySelector(".run-actions");
+		if (actionsEl) actionsEl.innerHTML = renderRunActions(r);
+
+// Update task detail if expanded
 	var detailEl = card.querySelector(".run-detail");
 	if (detailEl && detailEl.style.display === "block" && window._latestPlanForRun) {
 		var plan = window._latestPlanForRun[r.runId];
