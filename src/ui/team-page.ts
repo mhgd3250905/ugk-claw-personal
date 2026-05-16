@@ -519,6 +519,8 @@ async function saveTeamUnit() {
 	} catch (e) { showError(e.message); }
 }
 
+		var PLAN_TASK_PREVIEW_LIMIT = 3;
+
 		function truncateText(text, maxLen) {
 			if (!text) return '';
 			var str = String(text);
@@ -545,18 +547,32 @@ async function saveTeamUnit() {
 				'</div>';
 		}
 
+		function togglePlanTasks(btn, planId) {
+			var extra = document.querySelector('[data-plan-extra="' + planId + '"]');
+			if (!extra) return;
+			var expanded = extra.style.display !== 'none';
+			extra.style.display = expanded ? 'none' : 'block';
+			btn.textContent = expanded ? '展开全部任务' : '收起任务';
+		}
+
 		function renderPlanCard(plan) {
 			var safePlan = plan || {};
 			var tasks = Array.isArray(safePlan.tasks) ? safePlan.tasks : [];
 			var goalText = safePlan.goal && safePlan.goal.text ? safePlan.goal.text : '';
 			var outputText = safePlan.outputContract && safePlan.outputContract.text ? safePlan.outputContract.text : '';
-			var tasksHtml = tasks.map(function(t, i) { return renderPlanTaskPreview(t, i); }).join('');
+			var preview = tasks.slice(0, PLAN_TASK_PREVIEW_LIMIT);
+			var extra = tasks.slice(PLAN_TASK_PREVIEW_LIMIT);
+			var hasExtra = extra.length > 0;
+			var previewHtml = preview.map(function(t, i) { return renderPlanTaskPreview(t, i); }).join('');
+			var extraHtml = hasExtra ? extra.map(function(t, i) { return renderPlanTaskPreview(t, PLAN_TASK_PREVIEW_LIMIT + i); }).join('') : '';
 			return '<div class="card plan-card">' +
 				'<h3>' + escapeHtml(safePlan.title || '') + ' <span class="badge badge-muted">' + tasks.length + ' 个任务</span></h3>' +
 				(goalText ? '<p class="plan-goal">' + escapeHtml(goalText) + '</p>' : '') +
 				'<div class="plan-meta"><span>运行：' + (safePlan.runCount || 0) + '</span></div>' +
 				(outputText ? '<p class="plan-output">输出：' + escapeHtml(outputText) + '</p>' : '') +
-				'<div class="plan-task-list">' + tasksHtml + '</div>' +
+				'<div class="plan-task-list">' + previewHtml + '</div>' +
+				(hasExtra ? '<div class="plan-task-extra" data-plan-extra="' + escapeHtml(safePlan.planId || '') + '" style="display:none">' + extraHtml + '</div>' +
+					'<button class="btn btn-sm detail-toggle" onclick="togglePlanTasks(this, ' + jsArg(safePlan.planId) + ')">展开全部任务</button>' : '') +
 				'<div style="margin-top:8px;display:flex;gap:8px">' +
 				'<button class="btn btn-primary" onclick="startRun(\\x27' + safePlan.planId + '\\x27)">创建运行</button>' +
 				(safePlan.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\x27' + safePlan.planId + '\\x27)">删除</button>' : '') +

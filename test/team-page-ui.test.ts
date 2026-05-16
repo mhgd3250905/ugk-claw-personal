@@ -907,6 +907,30 @@ test("P13-fix: structured plan card guards non-array acceptance rules", () => {
 	assert.doesNotMatch(script, /if \(!rules \|\| !rules\.length\)/);
 });
 
+// ── P13 Task 2: Expand/Collapse Long Task Lists ──
+
+test("P13-T2: togglePlanTasks function exists", () => {
+	const script = extractScript();
+	assert.match(script, /function togglePlanTasks\(/);
+});
+
+test("P13-T2: PLAN_TASK_PREVIEW_LIMIT constant limits default rendering", () => {
+	const script = extractScript();
+	assert.match(script, /PLAN_TASK_PREVIEW_LIMIT\s*=\s*3/);
+	assert.match(script, /\.slice\(0,\s*PLAN_TASK_PREVIEW_LIMIT\)/);
+});
+
+test("P13-T2: expand button shows when tasks exceed limit", () => {
+	const script = extractScript();
+	assert.match(script, /展开全部任务/);
+	assert.match(script, /收起任务/);
+});
+
+test("P13-T2: planId uses jsArg for safe onclick", () => {
+	const script = extractScript();
+	assert.match(script, /togglePlanTasks[\s\S]*?jsArg/);
+});
+
 // ── P12 Bug fixes ──
 
 test("P12-fix: initial load fetches plans, teams, and runs", () => {
