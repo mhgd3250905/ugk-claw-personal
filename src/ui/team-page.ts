@@ -332,26 +332,37 @@ async function loadRuns() {
 		}
 	}
 
-	function renderTaskDetail(state, plan) {
-		if (!plan || !plan.tasks || !plan.tasks.length) return '<p style="color:var(--muted);font-size:13px">无任务数据。</p>';
+	function renderTaskDetail(state, plan, attemptsMap) {
+		if (!plan || !plan.tasks || !plan.tasks.length) return '<p style="color:var(--muted);font-size:13px">\u65E0\u4EFB\u52A1\u6570\u636E\u3002</p>';
 		return '<table class="task-table">' +
-			'<tr><th>任务</th><th>状态</th><th>详情</th></tr>' +
+			'<tr><th>\u4EFB\u52A1</th><th>\u72B6\u6001</th><th>\u8BE6\u60C5</th></tr>' +
 			plan.tasks.map(function(task) {
 				var ts = state.taskStates[task.id];
-				if (!ts) return '<tr><td>' + escapeHtml(task.title) + '</td><td colspan="2">待执行</td></tr>';
+				if (!ts) return '<tr><td>' + escapeHtml(task.title) + '</td><td colspan="2">\u5F85\u6267\u884C</td></tr>';
 				var phaseStr = ts.progress ? escapeHtml(ts.progress.phase) : '';
 				var msgStr = ts.progress ? escapeHtml(ts.progress.message) : '';
 				var detailParts = [];
-				if (ts.attemptCount > 0) detailParts.push('尝试 ' + ts.attemptCount + ' 次');
-				if (ts.activeAttemptId) detailParts.push('尝试ID: ' + escapeHtml(ts.activeAttemptId.slice(0, 12)) + '...');
-				if (ts.resultRef) detailParts.push('结果: ' + escapeHtml(ts.resultRef));
-				if (ts.errorSummary) detailParts.push('<span style="color:var(--fail)">错误: ' + escapeHtml(ts.errorSummary) + '</span>');
+				if (ts.attemptCount > 0) detailParts.push('\u5C1D\u8BD5 ' + ts.attemptCount + ' \u6B21');
+				if (ts.activeAttemptId) detailParts.push('\u5C1D\u8BD5ID: ' + escapeHtml(ts.activeAttemptId.slice(0, 12)) + '...');
+				if (ts.resultRef) detailParts.push('\u7ED3\u679C: ' + escapeHtml(ts.resultRef));
+				if (ts.errorSummary) detailParts.push('<span style="color:var(--fail)">\u9519\u8BEF: ' + escapeHtml(ts.errorSummary) + '</span>');
+				var attemptsHtml = '';
+				var attempts = attemptsMap && attemptsMap[task.id];
+				if (attempts && attempts.length > 0) {
+					attemptsHtml = '<div style="margin-top:4px;font-size:11px;color:var(--muted)">';
+					attemptsHtml += attempts.map(function(a) {
+						var statusColor = a.status === 'succeeded' ? 'var(--success)' : a.status === 'failed' ? 'var(--fail)' : 'var(--muted)';
+						return '<span style="margin-right:8px">[' + escapeHtml(a.attemptId.slice(0, 12)) + '... <span style="color:' + statusColor + '">' + escapeHtml(a.status) + '</span>] ' + a.files.length + ' \u6587\u4EF6</span>';
+					}).join('');
+					attemptsHtml += '</div>';
+				}
 				return '<tr>' +
 					'<td>' + escapeHtml(task.title) + '</td>' +
 					'<td>' + statusBadge(ts.status) + '<br/><span style="font-size:11px;color:var(--muted)">' + phaseStr + '</span></td>' +
 					'<td style="font-size:12px">' +
 					(msgStr ? '<div style="color:var(--muted)">' + msgStr + '</div>' : '') +
 					(detailParts.length ? '<div>' + detailParts.join(' / ') + '</div>' : '') +
+					attemptsHtml +
 					'</td></tr>';
 			}).join('') +
 			'</table>';
