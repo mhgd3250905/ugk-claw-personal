@@ -540,27 +540,34 @@ async function loadPlans() {
 }
 
 async function loadTeams() {
-	var el = $('teams-list');
-	el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
-	try {
-		var teams = await api('/team-units');
-		_latestTeams = teams; updateSummary(_latestPlans, teams, _latestRuns);
-		if (!teams.length) { el.innerHTML = '<div class="empty">暂无预设团队。<span class="detail-toggle" onclick="openTeamUnitModal()">新建团队</span> 开始。</div>'; return; }
-		el.innerHTML = teams.map(function(t) {
-			return '<div class="card"><h3>' + escapeHtml(t.title) + (t.archived ? ' <span class="badge badge-muted">已归档</span>' : '') + '</h3>' +
-				'<table><tr><td>执行 Agent</td><td>' + escapeHtml(profileName(t.workerProfileId)) + '</td></tr>' +
-				'<tr><td>验收 Agent</td><td>' + escapeHtml(profileName(t.checkerProfileId)) + '</td></tr>' +
-				'<tr><td>复盘 Agent</td><td>' + escapeHtml(profileName(t.watcherProfileId)) + '</td></tr>' +
-				'<tr><td>汇总 Agent</td><td>' + escapeHtml(profileName(t.finalizerProfileId)) + '</td></tr></table>' +
-				'<div style="margin-top:8px;display:flex;gap:8px">' +
-				(!t.archived ? '<button class="btn btn-sm" style="background:var(--border);color:var(--text)" onclick="editTeamUnit(\\'' + t.teamUnitId + '\\')">编辑</button>' +
-				'<button class="btn btn-sm btn-primary" onclick="archiveTeamUnit(\\'' + t.teamUnitId + '\\')">归档</button>' : '') +
-				'</div></div>';
-		}).join('');
-	} catch (e) {
-		el.innerHTML = '<div class="empty" style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + ' <span class="detail-toggle" onclick="loadTeams()">重试</span></div>';
+		var el = $('teams-list');
+		el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
+		try {
+			var teams = await api('/team-units');
+			_latestTeams = teams; updateSummary(_latestPlans, teams, _latestRuns);
+			if (!teams.length) { el.innerHTML = '<div class="empty">暂无预设团队。<span class="detail-toggle" onclick="openTeamUnitModal()">新建团队</span> 开始。</div>'; return; }
+			var active = teams.filter(function(t) { return !t.archived; });
+			var archived = teams.filter(function(t) { return t.archived; });
+			function renderTeamCard(t, showActions) {
+				return '<div class="card"><h3>' + escapeHtml(t.title) + (t.archived ? ' <span class="badge badge-muted">已归档</span>' : '') + '</h3>' +
+					'<table><tr><td>执行 Agent</td><td>' + escapeHtml(profileName(t.workerProfileId)) + '</td></tr>' +
+					'<tr><td>验收 Agent</td><td>' + escapeHtml(profileName(t.checkerProfileId)) + '</td></tr>' +
+					'<tr><td>复盘 Agent</td><td>' + escapeHtml(profileName(t.watcherProfileId)) + '</td></tr>' +
+					'<tr><td>汇总 Agent</td><td>' + escapeHtml(profileName(t.finalizerProfileId)) + '</td></tr></table>' +
+					(showActions ? '<div style="margin-top:8px;display:flex;gap:8px"><button class="btn btn-sm" style="background:var(--border);color:var(--text)" onclick="editTeamUnit(\\'' + t.teamUnitId + '\\')">编辑</button>' +
+					'<button class="btn btn-sm btn-primary" onclick="archiveTeamUnit(\\'' + t.teamUnitId + '\\')">归档</button></div>' : '') +
+					'</div>';
+			}
+			var html = '';
+			if (active.length) html += active.map(function(t) { return renderTeamCard(t, true); }).join('');
+			else html += '<div class="empty">暂无活跃团队。<span class="detail-toggle" onclick="openTeamUnitModal()">新建团队</span>。</div>';
+			if (archived.length) html += '<details style="margin-top:16px"><summary style="cursor:pointer;color:var(--muted);font-size:13px">已归档（' + archived.length + '）</summary>' +
+				archived.map(function(t) { return renderTeamCard(t, false); }).join('') + '</details>';
+			el.innerHTML = html;
+		} catch (e) {
+			el.innerHTML = '<div class="empty" style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + ' <span class="detail-toggle" onclick="loadTeams()">重试</span></div>';
+		}
 	}
-}
 
 var _planCache = {};
 
