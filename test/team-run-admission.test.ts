@@ -160,6 +160,31 @@ test("concurrent admission with limit 2 produces exactly two successes", async (
 	}
 });
 
+test("concurrent admission does not reject while capacity remains available", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-admit-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const limit = 80;
+		const attempts = await Promise.allSettled(
+			Array.from({ length: limit }, (_, i) =>
+				ws.createRunWithAdmission(
+					{ ...plan, planId: `plan_capacity_${i}` },
+					"team_1",
+					limit,
+				),
+			),
+		);
+
+		const rejected = attempts.filter(r => r.status === "rejected");
+		assert.deepEqual(rejected, []);
+
+		const states = await ws.listStates();
+		assert.equal(states.length, limit);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
 test("queued, running, and paused all count as active for admission", async () => {
 	const root = await mkdtemp(join(tmpdir(), "team-admit-"));
 	try {

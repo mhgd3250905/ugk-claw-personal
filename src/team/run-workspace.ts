@@ -22,6 +22,8 @@ function initialTaskStates(plan: TeamPlan): Record<string, TeamTaskState> {
 }
 
 const now = () => new Date().toISOString();
+const ADMISSION_LOCK_TIMEOUT_MS = 10_000;
+const ADMISSION_LOCK_RETRY_INTERVAL_MS = 10;
 
 function leaseExpiresAt(ttlMs: number): string {
 	return new Date(Date.now() + ttlMs).toISOString();
@@ -327,7 +329,8 @@ export class RunWorkspace {
 		const runsDir = join(this.rootDir, "runs");
 		await mkdir(runsDir, { recursive: true });
 		const lockDir = join(runsDir, ".admission.lock");
-		for (let attempt = 0; attempt < 50; attempt++) {
+		const deadline = Date.now() + ADMISSION_LOCK_TIMEOUT_MS;
+		while (Date.now() < deadline) {
 			try {
 				await mkdir(lockDir);
 				try {
@@ -338,7 +341,7 @@ export class RunWorkspace {
 			} catch (error) {
 				const code = (error as NodeJS.ErrnoException).code;
 				if (code !== "EEXIST") throw error;
-				await new Promise(resolve => setTimeout(resolve, 10));
+				await new Promise(resolve => setTimeout(resolve, ADMISSION_LOCK_RETRY_INTERVAL_MS));
 			}
 		}
 		throw new Error("admission lock busy");

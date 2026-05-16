@@ -87,6 +87,7 @@ Require tests for:
 - happy path
 - ordinary throw/error path
 - timeout path when relevant
+- contention/concurrency boundaries when adding locks, leases, admission limits, queues, or schedulers; verify capacity-available requests do not fail with lock-busy errors
 - cancel/pause/stale write-back when relevant
 - old data compatibility when changing persisted data
 - API response shape when changing routes

@@ -172,7 +172,7 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 			reply.code(201).send(state);
 		} catch (err) {
 			const msg = (err as Error).message;
-			reply.code(msg.includes("active run") ? 409 : 400).send({ error: msg });
+			reply.code(msg.includes("active run") || msg.includes("admission lock busy") ? 409 : 400).send({ error: msg });
 		}
 	});
 

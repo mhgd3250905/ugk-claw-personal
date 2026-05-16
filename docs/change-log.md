@@ -12,6 +12,19 @@
 
 ---
 
+## 2026-05-16 — P6-A admission lock 高并发补强
+
+- **主题**: 修复 admission lock 在容量未满的高并发创建下过早返回 `admission lock busy` 的问题
+- **影响范围**: `src/team/run-workspace.ts`, `src/team/routes.ts`, `test/team-run-admission.test.ts`, `.codex/skills/glm-plan/SKILL.md`
+- **变更**:
+  - `withAdmissionLock()` 从固定 500ms 自旋改为 10 秒等待窗口，避免高并发但容量未满时误拒绝
+  - run 创建路由将 `admission lock busy` 也映射为 409，避免暴露为普通 400
+  - 补充容量未满高并发 admission 回归测试
+  - `glm-plan` 技能补充锁/lease/admission/队列任务的并发边界测试要求
+- **源码入口**: `src/team/run-workspace.ts:withAdmissionLock`
+
+---
+
 ## 2026-05-16 — P6-A: Bounded Run Admission
 
 - **主题**: 将 `TEAM_MAX_CONCURRENT_RUNS` 从已记录但未生效的配置变为真实的 run admission 限制
