@@ -33,6 +33,11 @@
 - **测试**: 193 pass（新增 P4 测试 27 个，适配旧测试 3 个）
 - **源码入口**: `src/ui/team-page.ts`, `test/team-page-ui.test.ts`
 
+### 审计补充
+- attempt 文件查看的 inline `onclick` 参数改为 `JSON.stringify` 后再 `escapeHtml`，避免 task id / 文件名里的引号破坏事件处理器。
+- `viewAttemptFile()` 请求路径段改为 `encodeURIComponent`，避免特殊字符导致 URL 断链或路径歧义。
+- 补充 2 个回归测试锁定 attempt 文件链接的 JS 参数转义和 URL path segment 编码。
+
 ## 2026-05-16 — P3/P7: 输出可靠性 + Phase Timeout
 
 - **主题**: checker/watcher 严格 JSON 输出校验 + phase 级超时 + 真实 timing duration

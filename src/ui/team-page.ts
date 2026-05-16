@@ -205,6 +205,14 @@ function escapeHtml(value) {
 		.replace(/'/g, '&#39;');
 }
 
+function jsArg(value) {
+	return escapeHtml(JSON.stringify(String(value == null ? '' : value)));
+}
+
+function pathSegment(value) {
+	return encodeURIComponent(String(value == null ? '' : value));
+}
+
 function formatDuration(ms) {
 	if (!ms || ms <= 0) return '0秒';
 	var s = Math.floor(ms / 1000);
@@ -499,7 +507,7 @@ function renderTaskDetail(state, plan, attemptsMap) {
 				attemptsHtml = attempts.map(function(a) {
 					var statusColor = a.status === 'succeeded' ? 'var(--success)' : a.status === 'failed' ? 'var(--fail)' : 'var(--muted)';
 					var filesHtml = a.files.map(function(f) {
-						return '<span class="attempt-file" onclick="viewAttemptFile(\\'' + state.runId + '\\',\\'' + task.id + '\\',\\'' + a.attemptId + '\\',\\'' + f + '\\')">' + escapeHtml(f) + '</span>';
+						return '<span class="attempt-file" onclick="viewAttemptFile(' + jsArg(state.runId) + ',' + jsArg(task.id) + ',' + jsArg(a.attemptId) + ',' + jsArg(f) + ')">' + escapeHtml(f) + '</span>';
 					}).join('');
 					return '<div class="attempt-card">' +
 						'<span style="color:' + statusColor + '">' + escapeHtml(a.status) + '</span> ' +
@@ -613,7 +621,7 @@ async function viewAttemptFile(runId, taskId, attemptId, fileName) {
 	body.textContent = '加载中...';
 	viewer.classList.add('open');
 	try {
-		var res = await fetch(API + '/runs/' + runId + '/tasks/' + taskId + '/attempts/' + attemptId + '/files/' + fileName);
+		var res = await fetch(API + '/runs/' + pathSegment(runId) + '/tasks/' + pathSegment(taskId) + '/attempts/' + pathSegment(attemptId) + '/files/' + pathSegment(fileName));
 		if (res.ok) {
 			var text = await res.text();
 			body.textContent = text;

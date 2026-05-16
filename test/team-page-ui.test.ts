@@ -394,6 +394,21 @@ test("P4: escapeHtml used on file names in attempt display", () => {
 	assert.match(script, /escapeHtml\(f\)/);
 });
 
+test("P4: attempt file onclick arguments are JS-string and HTML escaped", () => {
+	const script = extractScript();
+	assert.match(script, /function jsArg\(value\)/);
+	assert.match(script, /JSON\.stringify\(String\(value/);
+	assert.match(script, /viewAttemptFile\(' \+ jsArg\(state\.runId\) \+ ',' \+ jsArg\(task\.id\) \+ ',' \+ jsArg\(a\.attemptId\) \+ ',' \+ jsArg\(f\) \+ '\)/);
+	assert.doesNotMatch(script, /viewAttemptFile\\\(\\\\'' \+ state\.runId/);
+});
+
+test("P4: attempt file URL path segments are encoded", () => {
+	const script = extractScript();
+	assert.match(script, /function pathSegment\(value\)/);
+	assert.match(script, /encodeURIComponent\(String\(value/);
+	assert.match(script, /pathSegment\(runId\).*pathSegment\(taskId\).*pathSegment\(attemptId\).*pathSegment\(fileName\)/s);
+});
+
 test("P4: escapeHtml used on report body content", () => {
 	const script = extractScript();
 	assert.match(script, /escapeHtml\(text\)/);
