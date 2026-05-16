@@ -389,7 +389,7 @@ docker compose up -d --scale ugk-pi-team-worker=2  # 多 worker 验证
 
 ### /playground/team 控制台
 
-独立页面提供 Team Runtime 的可视化管理（P12 Console UX Refresh + P13 Structured Plan Cards）：
+独立页面提供 Team Runtime 的可视化管理（P12 Console UX Refresh + P13 Structured Plan Cards + P14 Compact Card Layout）：
 
 - **控制台头部**：标题 + 副标题 + 三个摘要计数器（计划/团队/活跃运行），实时更新
 - **页面内反馈**：所有操作反馈通过 toast 通知（success/error/info），不再使用浏览器原生 `alert()`/`confirm()`/`prompt()`
@@ -398,6 +398,7 @@ docker compose up -d --scale ugk-pi-team-worker=2  # 多 worker 验证
   - 页面内 modal 表单创建计划（名称、目标、任务、验收标准、输出契约）
   - 验收标准按行拆分为 `acceptance.rules`
   - 结构化 Plan 卡片：每个计划直接展示 goal、outputContract、每个 Task 的 title / input.text 摘要 / acceptance.rules 验收标准清单
+  - P14 紧凑信息架构：卡片默认展示标题+芯片（任务数/运行数），goal/output 截断为摘要行，任务行显示元数据（字数/验收数），长文本通过 `<details>` 折叠
   - 长任务列表默认展示 3 个，超过时显示「展开全部任务」按钮
   - 「查看 JSON」弹层：使用 `textContent` 安全展示完整 Plan JSON
   - 删除未使用计划（需确认）

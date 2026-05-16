@@ -12,6 +12,23 @@
 
 ---
 
+## 2026-05-16 — P14: Compact Plan Card Layout
+
+- **主题**: `/playground/team` 计划卡片从文本墙升级为紧凑、分层、可扫描的信息架构
+- **影响范围**: `src/ui/team-page.ts`, `test/team-page-ui.test.ts`, `docs/team-runtime.md`, `docs/change-log.md`
+- **变更**:
+  - 卡片默认视图：标题 + 芯片（N 个任务、N 次运行），取代平铺文本
+  - 新增 `renderPlanSummary()`：目标截断至 120 字，输出契约截断至 80 字，显示为标签+摘要行
+  - 新增 `firstLine()` helper，辅助截取首行
+  - 任务行显示任务号 + 标题 + 元数据（字数 / 验收数），长输入和验收规则通过 `<details>/<summary>` 折叠
+  - 保留所有既有行为：创建运行、删除未使用计划、查看 JSON、展开全部任务、防御性渲染
+  - 12 个新增行为测试：紧凑结构、截断文本、元数据芯片、折叠控件、展开全部、缺失字段、XSS 转义
+- **提交**:
+  - `feat(team-ui): compact plan card information hierarchy`
+- **测试**: `npm run test:team` (345 pass)
+
+---
+
 ## 2026-05-16 — P13: Structured Plan Cards
 
 - **主题**: `/playground/team` 计划列表从简单标题卡片升级为结构化任务详情卡片
