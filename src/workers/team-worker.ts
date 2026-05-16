@@ -1,4 +1,5 @@
 import { getAppConfig } from "../config.js";
+import { pathToFileURL } from "node:url";
 import { PlanStore } from "../team/plan-store.js";
 import { TeamUnitStore } from "../team/team-unit-store.js";
 import { RunWorkspace } from "../team/run-workspace.js";
@@ -6,9 +7,24 @@ import { TeamOrchestrator, DEFAULT_PHASE_TIMEOUTS } from "../team/orchestrator.j
 import { MockRoleRunner } from "../team/role-runner.js";
 import type { TeamRoleRunner } from "../team/role-runner.js";
 import { AgentProfileRoleRunner } from "../team/agent-profile-role-runner.js";
+import { closeBrowserTargetsForScope } from "../agent/browser-cleanup.js";
+import { setBrowserScopeRoute } from "../browser/browser-scope-routes.js";
+import type { BackgroundAgentSessionFactory } from "../agent/background-agent-runner.js";
+import type { BackgroundAgentProfileResolver } from "../agent/background-agent-profile.js";
 
-function createRoleRunner(config: ReturnType<typeof getAppConfig>): TeamRoleRunner {
-	if (process.env.TEAM_USE_MOCK_RUNNER !== "false") {
+interface TeamWorkerRoleRunnerDeps {
+	setBrowserScopeRoute?: (scope: string, browserId: string | undefined) => Promise<void>;
+	closeBrowserTargetsForScope?: (scope: string, options?: { browserId?: string }) => Promise<void>;
+	sessionFactory?: BackgroundAgentSessionFactory;
+	profileResolver?: BackgroundAgentProfileResolver;
+}
+
+export function createTeamWorkerRoleRunner(
+	config: ReturnType<typeof getAppConfig>,
+	env: Record<string, string | undefined> = process.env,
+	deps: TeamWorkerRoleRunnerDeps = {},
+): TeamRoleRunner {
+	if (env.TEAM_USE_MOCK_RUNNER !== "false") {
 		return new MockRoleRunner();
 	}
 	return new AgentProfileRoleRunner({
@@ -18,6 +34,10 @@ function createRoleRunner(config: ReturnType<typeof getAppConfig>): TeamRoleRunn
 		checkerProfileId: "main",
 		watcherProfileId: "main",
 		finalizerProfileId: "main",
+		...(deps.profileResolver ? { profileResolver: deps.profileResolver } : {}),
+		...(deps.sessionFactory ? { sessionFactory: deps.sessionFactory } : {}),
+		setBrowserScopeRoute: deps.setBrowserScopeRoute ?? setBrowserScopeRoute,
+		closeBrowserTargetsForScope: deps.closeBrowserTargetsForScope ?? closeBrowserTargetsForScope,
 	});
 }
 
@@ -48,7 +68,7 @@ async function main() {
 			if (!claimed) return;
 
 			console.log("[team-worker] claimed run:", claimed.runId);
-			const roleRunner = createRoleRunner(config);
+			const roleRunner = createTeamWorkerRoleRunner(config);
 			const orchestrator = new TeamOrchestrator({
 				planStore,
 				teamUnitStore: unitStore,
@@ -113,7 +133,10 @@ async function main() {
 	loop();
 }
 
-main().catch(err => {
-	console.error("[team-worker] fatal:", err);
-	process.exit(1);
-});
+const entrypoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : undefined;
+if (import.meta.url === entrypoint) {
+	main().catch(err => {
+		console.error("[team-worker] fatal:", err);
+		process.exit(1);
+	});
+}

@@ -12,6 +12,20 @@
 
 ---
 
+## 2026-05-16 — P10: Team Worker Operations Parity
+
+- **主题**: 补齐独立 Team worker 的真实 runner browser binding 接线，并明确多 worker 运维口径
+- **影响范围**: `src/workers/team-worker.ts`, Team worker 测试, `docs/team-runtime.md`
+- **变更**:
+  - `ugk-pi-team-worker` 的真实 runner 入口显式注入既有 `setBrowserScopeRoute()` 和 `closeBrowserTargetsForScope()`
+  - `createTeamWorkerRoleRunner()` 导出为可测试工厂；导入 worker 模块不再自动启动无限轮询
+  - 新增测试覆盖默认 mock runner、`TEAM_USE_MOCK_RUNNER=false` 时的 route 写入/清理、cleanup browserId 与 runtime context scope 一致性
+  - 文档补充多 worker 扩容口径：`TEAM_MAX_CONCURRENT_RUNS`、`--scale ugk-pi-team-worker=N`、共享 `TEAM_DATA_DIR`、不要在共享 `.env` 写死同一个 `TEAM_WORKER_ID`
+- **测试**: `node --test --test-concurrency=1 --import tsx test/team-worker.test.ts` 2 pass
+- **源码入口**: `src/workers/team-worker.ts`, `test/team-worker.test.ts`, `docs/team-runtime.md`
+
+---
+
 ## 2026-05-16 — P9: Team Browser Binding Parity
 
 - **主题**: 对齐 Team role runner 与 chat agent / conn worker 的 browser scope route 生命周期，避免重新造浏览器资源系统

@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 270 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 272 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -202,6 +202,16 @@ worker 会为每个 claim 到的 run 写入 `state.lease`：
 
 跨进程取消机制：worker 内部 watcher 每 2 秒检测 run state 变化，发现外部 cancel/pause 后触发 `AbortController.abort()`，信号经 orchestrator 传到 agent session。
 
+P10 已补齐独立 worker 的真实 runner 接线：`src/workers/team-worker.ts` 与 HTTP route 使用同一套 browser binding lifecycle。生产 worker 在 `TEAM_USE_MOCK_RUNNER=false` 时会把 canonical scope 贯穿 `setBrowserScopeRoute()`、session factory、scoped agent env、`closeBrowserTargetsForScope()` 和 route 清理。注意：Team run 的实际执行者是独立 worker，不是 HTTP route；后续改真实 runner 接线必须同时覆盖 worker 入口。
+
+多 worker 运维口径：
+
+- 单个 worker 进程一次只 claim 并执行一个 run。
+- 需要并发执行多个 run 时，先把 `TEAM_MAX_CONCURRENT_RUNS` 设为大于 1，再启动多个 `ugk-pi-team-worker` 实例。
+- 本地 compose 可用 `docker compose up -d --scale ugk-pi-team-worker=2` 扩容；生产 compose 同理，但必须确认共享的 `TEAM_DATA_DIR` 是同一个持久目录。
+- 多 worker 扩容时不要在共享 `.env` 里写死同一个 `TEAM_WORKER_ID`；默认自动生成 ID 更安全。只有单 worker 排障时才建议手动指定 `TEAM_WORKER_ID`。
+- worker 崩溃后，其他 worker 会在 `TEAM_WORKER_LEASE_TTL_MS` 到期后 reclaim `running` run；TTL 不要设得比真实 phase timeout 还激进，否则慢任务会被误抢。
+
 ### worker → checker → watcher
 
 每个 task 的执行流程：
@@ -305,6 +315,7 @@ checker 和 watcher 输出 JSON。`parseJsonResponse` 使用三层提取：
 | `TEAM_WORKER_LEASE_TTL_MS` | 60000 | run lease 过期时间；worker 崩溃超过该时间后可被其他 worker 接走 |
 | `TEAM_WORKER_HEARTBEAT_INTERVAL_MS` | 10000 | worker heartbeat 间隔；实际值会被限制在 lease TTL 的一半以内 |
 | `TEAM_MAX_CONCURRENT_RUNS` | 1 | 最大并发 active run 数（queued/running/paused）；通过原子 admission lock 执行；多个 worker 进程可通过 lease 机制 claim 不同的 queued run |
+| `TEAM_WORKER_ID` | 自动生成 | 单 worker 排障时可覆盖；多 worker 扩容时不要在共享 `.env` 中写死同一个值 |
 
 Docker Compose 默认设置：
 
@@ -319,6 +330,7 @@ npm run test:team
 
 # 跑单个测试文件
 node --test --import tsx test/team-orchestrator-controls.test.ts
+node --test --test-concurrency=1 --import tsx test/team-worker.test.ts
 
 # 类型检查
 npx tsc --noEmit
@@ -330,6 +342,7 @@ npm test
 docker compose up -d
 docker compose restart ugk-pi      # 代码改动后
 docker compose restart ugk-pi-team-worker  # worker 改动后
+docker compose up -d --scale ugk-pi-team-worker=2  # 多 worker 验证
 ```
 
 ## 真实 runner smoke test 记录
