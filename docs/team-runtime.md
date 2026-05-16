@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 228 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 244 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -279,7 +279,7 @@ checker 和 watcher 输出 JSON。`parseJsonResponse` 使用三层提取：
 | `TEAM_WORKER_POLL_INTERVAL_MS` | 3000 | worker 轮询间隔 |
 | `TEAM_WORKER_LEASE_TTL_MS` | 60000 | run lease 过期时间；worker 崩溃超过该时间后可被其他 worker 接走 |
 | `TEAM_WORKER_HEARTBEAT_INTERVAL_MS` | 10000 | worker heartbeat 间隔；实际值会被限制在 lease TTL 的一半以内 |
-| `TEAM_MAX_CONCURRENT_RUNS` | 1 | 最大并发 run 数 |
+| `TEAM_MAX_CONCURRENT_RUNS` | 1 | 最大并发 active run 数（queued/running/paused）；通过原子 admission lock 执行；多个 worker 进程可通过 lease 机制 claim 不同的 queued run |
 
 Docker Compose 默认设置：
 
@@ -421,13 +421,14 @@ Cancel/pause always takes priority over phase timeout — if a run is already ca
 
 1. **默认 mock runner** — 真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。
 2. **SSE 轮询间隔** — SSE 基于服务端 2 秒轮询 state 文件，不是事件驱动推送。对高频状态变化有短暂延迟。
-3. **单活跃 run 策略** — 当前 `createRun()` 仍限制全局只有一个 queued/running/paused run；lease 解决 worker 抢占和崩溃恢复，不等于开放多 run 并发。
+3. **默认单活跃 run** — `TEAM_MAX_CONCURRENT_RUNS` 默认为 `1`，即全局只允许一个 queued/running/paused run。设置为更大的值可允许并发 active run，但单个 worker 进程仍顺序执行；多 worker 进程可通过 lease 机制分别 claim 不同的 queued run。
 4. **Timeout 60 分钟** — 超时 run 标记为 failed。
+5. **无 per-profile 并发隔离** — 并发 run 共享 AgentProfile，不保证浏览器/session 独立。
 
 ## 后续计划
 
 1. 事件驱动 SSE（orchestrator 直接推送，而非轮询）
-2. 并发 run 调度策略（放开当前单活跃 run 限制前需重新设计资源锁）
+2. Per-profile 资源隔离（浏览器/session 独立）
 
 ---
 

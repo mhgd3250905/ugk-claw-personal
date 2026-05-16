@@ -12,6 +12,24 @@
 
 ---
 
+## 2026-05-16 — P6-A: Bounded Run Admission
+
+- **主题**: 将 `TEAM_MAX_CONCURRENT_RUNS` 从已记录但未生效的配置变为真实的 run admission 限制
+- **影响范围**: `src/team/run-workspace.ts`, `src/team/orchestrator.ts`, `src/team/routes.ts`, `src/server.ts`, 测试文件
+- **变更**:
+  - `RunWorkspace` 新增 `createRunWithAdmission(plan, teamUnitId, maxConcurrentRuns)` 方法，通过 admission lock 目录实现原子并发控制
+  - `RunWorkspace` 新增 `withAdmissionLock()` 私有方法，复用 lock-directory 模式
+  - `TeamOrchestratorOptions` 新增 `maxConcurrentRuns?: number`，默认 1 保持旧行为
+  - `TeamOrchestrator.createRun()` 替换原有的非原子 active-run 检查，改用 `createRunWithAdmission()`
+  - `TeamRouteOptions` 新增 `maxConcurrentRuns?: number`
+  - `registerTeamRoutes()` 将 `maxConcurrentRuns` 传入 `makeOrchestrator()`
+  - `buildServer()` 将 `config.teamMaxConcurrentRuns` 传入 `registerTeamRoutes()`
+  - 错误消息统一为 `active run limit reached`，路由返回 HTTP 409
+- **测试**: 244 pass（新增 14 个测试覆盖 admission 原子性、orchestrator limit、路由 409、multi-run lease claim）
+- **源码入口**: `src/team/run-workspace.ts:createRunWithAdmission`, `src/team/orchestrator.ts:createRun`
+
+---
+
 ## 2026-05-16 — P5: Attempt Lifecycle 重建
 
 - **主题**: 为每个 attempt 添加结构化生命周期元数据，替代原有扁平 status-only 模型
