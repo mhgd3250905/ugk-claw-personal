@@ -12,6 +12,27 @@
 
 ---
 
+## 2026-05-16 — P5: Attempt Lifecycle 重建
+
+- **主题**: 为每个 attempt 添加结构化生命周期元数据，替代原有扁平 status-only 模型
+- **影响范围**: `src/team/types.ts`, `src/team/run-workspace.ts`, `src/team/orchestrator.ts`, `src/ui/team-page.ts`, `src/team/routes.ts`, 测试文件
+- **变更**:
+  - 新增 `TeamAttemptMetadata` 类型，包含 `phase`、`worker[]`、`checker[]`、`watcher`、`resultRef`、`errorSummary`、`finishedAt`
+  - `AttemptLifecyclePhase` 覆盖 worker/checker/watcher 全链路 15 个阶段
+  - `RunWorkspace` 新增 `updateAttemptPhase`、`recordAttemptWorkerOutput`、`recordAttemptCheckerResult`、`recordAttemptWatcherResult`、`finishAttempt` 方法
+  - `normalizeAttempt()` 兼容读取旧格式 attempt.json，补默认值
+  - Orchestrator 在 worker/checker/watcher 各阶段写入生命周期元数据
+  - checker pass 延迟到 watcher accept_task 后才 finishAttempt(succeeded)
+  - 已 finished 的 attempt 不会被后续 watcher 阶段覆盖
+  - pauseRun/cancelRun 对 active attempt 做 best-effort 标记（interrupted/cancelled）
+  - Attempt API 返回完整 `TeamAttemptMetadata` 结构
+  - UI attempt card 展示阶段标签、worker 输出次数、checker verdict 链、watcher decision
+  - PHASE_LABELS/PHASE_COLORS 扩展覆盖所有 P5 阶段
+- **测试**: 228 pass（新增 32 个测试覆盖类型、workspace、orchestrator lifecycle、API、UI）
+- **源码入口**: `src/team/types.ts:TeamAttemptMetadata`, `src/team/run-workspace.ts:normalizeAttempt`, `src/team/orchestrator.ts:runWorkUnit`
+
+---
+
 ## 2026-05-16 — P4: Team UI 可用性完善
 
 - **主题**: `/playground/team` 控制台可用性全面提升

@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 101 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 228 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -76,6 +76,34 @@ queued → running → completed / completed_with_failures / failed / cancelled
 ### Attempt
 
 一次 worker + checker + watcher 的完整循环。watcher 可请求 revision，触发新 attempt。
+
+#### Attempt Lifecycle Metadata
+
+每个 attempt 维护结构化生命周期元数据（`TeamAttemptMetadata`）：
+
+- `phase` — 当前生命周期阶段：`created → worker_running → worker_completed → checker_reviewing → checker_passed/checker_revising/checker_failed → watcher_reviewing → watcher_accepted/watcher_revision_requested/watcher_confirmed_failed → succeeded/failed/interrupted/cancelled`
+- `worker[]` — worker 输出摘要数组，每次 worker 执行追加一条 `{ outputRef, outputIndex }`
+- `checker[]` — checker 评审摘要数组，每次 checker 评审追加一条 `{ verdict, reason, feedback, revisionIndex, recordRef, feedbackRef }`
+- `watcher` — watcher 评审摘要（单条，后写覆盖），`{ decision, reason, revisionMode, feedback, recordRef }`
+- `resultRef` — 最终结果文件引用
+- `errorSummary` — 错误摘要
+- `finishedAt` — 完成时间
+
+#### checker revise vs watcher request_revision
+
+- **checker revise**：同一个 attempt 内 worker 重新执行。checker 每次评审结果追加到 `checker[]`，worker 输出追加到 `worker[]`。attempt 不变。
+- **watcher request_revision**：当前 attempt 结束（status=`interrupted`，phase=`watcher_revision_requested`），创建新 attempt 从头开始。旧 attempt 的 watcher summary 记录在 `watcher` 字段。
+
+#### Attempt 终态
+
+- `succeeded` — checker pass + watcher accept_task
+- `failed` — checker fail / checker revision limit / watcher confirm_failed / worker timeout / checker timeout / watcher revision limit
+- `interrupted` — watcher request_revision / run paused
+- `cancelled` — run cancelled
+
+#### 旧 attempt.json 兼容
+
+缺少 lifecycle 字段的旧 `attempt.json` 通过 `normalizeAttempt()` 补默认值：`phase` 从 `status` 推导，`worker`/`checker` 为空数组，`watcher` 为 null。API 不会 500。
 
 ### resultRef
 
@@ -146,7 +174,7 @@ final report 优先由 finalizer agent 生成。若 finalizer 失败，orchestra
 | GET | `/v1/team/runs/:runId/tasks/:taskId/attempts` | 列出 task 的所有 attempts |
 | GET | `/v1/team/runs/:runId/tasks/:taskId/attempts/:attemptId/files/:fileName` | 读取 attempt 文件 |
 
-- `listAttempts` 返回每个 attempt 的 `attemptId`、`status`、`createdAt`、`files[]`
+- `listAttempts` 返回每个 attempt 的完整 `TeamAttemptMetadata`（`attemptId`、`status`、`phase`、`worker[]`、`checker[]`、`watcher`、`resultRef`、`errorSummary`、`finishedAt`、`updatedAt`）以及 `files[]`
 - `readAttemptFile` 只允许安全文件名（`[a-zA-Z0-9._-]`），路径不能逃逸 run 目录
 - 缺失的 run/task/file 返回 404；非法文件名返回 400
 
