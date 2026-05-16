@@ -138,6 +138,20 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 /* Attempt error highlight */
 .attempt-error { color: var(--fail); font-weight: 500; }
 
+/* Plan card structured layout */
+.plan-card .plan-goal { font-size: 13px; color: var(--muted); margin-bottom: 8px; overflow-wrap: break-word; }
+.plan-card .plan-meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.plan-card .plan-output { font-size: 13px; color: var(--text); margin-bottom: 8px; overflow-wrap: break-word; }
+.plan-task-list { margin-bottom: 4px; }
+.plan-task-extra { margin-bottom: 4px; }
+.plan-task-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; }
+.plan-task-head { font-size: 13px; font-weight: 500; margin-bottom: 4px; overflow-wrap: break-word; }
+.plan-task-num { color: var(--muted); font-size: 11px; margin-right: 4px; }
+.plan-task-input { font-size: 12px; color: var(--muted); margin-bottom: 4px; overflow-wrap: break-word; word-break: break-word; }
+.acceptance-list { list-style: none; padding: 0; margin: 4px 0 0; }
+.acceptance-list .acceptance-rule { font-size: 12px; color: var(--muted); padding: 1px 0 1px 16px; position: relative; overflow-wrap: break-word; }
+.acceptance-list .acceptance-rule::before { content: "\\2713"; position: absolute; left: 0; color: var(--success); font-size: 11px; }
+
 /* Mobile responsive */
 @media (max-width: 720px) {
 	.modal-panel, .report-content, .file-viewer-content, .modal, .confirm-box { width: 100% !important; max-width: 100% !important; border-radius: 0 !important; max-height: 100vh !important; }
@@ -149,7 +163,9 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 	.main { padding: 12px; }
 	.card { padding: 12px; }
 	.profile-grid { grid-template-columns: 1fr; }
-}
+	.plan-task-card { padding: 6px 8px; }
+	.plan-card .plan-goal, .plan-card .plan-output, .plan-task-input { font-size: 12px; }
+	}
 </style>
 </head>
 <body>

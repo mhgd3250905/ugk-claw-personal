@@ -954,6 +954,30 @@ test("P13-T3: card action area includes JSON viewer button", () => {
 	assert.match(script, /renderPlanCard[\s\S]*?查看 JSON/);
 });
 
+// ── P13 Task 4: Plan Card Visual Polish ──
+
+test("P13-T4: key CSS classes exist for plan card structure", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\.plan-card/);
+	assert.match(html, /\.plan-task-card/);
+	assert.match(html, /\.plan-task-head/);
+	assert.match(html, /\.plan-goal/);
+	assert.match(html, /\.plan-output/);
+	assert.match(html, /\.plan-task-list/);
+	assert.match(html, /\.acceptance-list/);
+	assert.match(html, /\.acceptance-rule/);
+});
+
+test("P13-T4: plan card has mobile responsive rules", () => {
+	const html = renderTeamPage();
+	assert.match(html, /@media\s*\(max-width:\s*720px\)[\s\S]*?plan-task/);
+});
+
+test("P13-T4: long text has overflow-wrap or word-break constraints", () => {
+	const html = renderTeamPage();
+	assert.match(html, /overflow-wrap:\s*break-word|word-break:\s*break-word/);
+});
+
 // ── P12 Bug fixes ──
 
 test("P12-fix: initial load fetches plans, teams, and runs", () => {
