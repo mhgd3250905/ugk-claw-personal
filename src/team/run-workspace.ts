@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { join } from "node:path";
-import type { TeamPlan, TeamProgress, TeamRunState, TeamTaskState } from "./types.js";
+import type { TeamPlan, TeamProgress, TeamRunState, TeamTaskState, TeamAttemptMetadata, AttemptStatus, AttemptLifecyclePhase } from "./types.js";
 import { generateRunId, generateAttemptId } from "./ids.js";
 import { progressMessages } from "./progress.js";
 
@@ -173,15 +173,30 @@ export class RunWorkspace {
 		const attemptRoot = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts", attemptId);
 		await mkdir(join(attemptRoot, "work"), { recursive: true });
 		await mkdir(join(attemptRoot, "output"), { recursive: true });
-		await writeFile(join(attemptRoot, "attempt.json"), JSON.stringify({ attemptId, taskId, status: "running", createdAt: new Date().toISOString() }, null, 2), "utf8");
+		const metadata: TeamAttemptMetadata = {
+			attemptId,
+			taskId,
+			status: "running",
+			phase: "created",
+			createdAt: now(),
+			updatedAt: now(),
+			finishedAt: null,
+			worker: [],
+			checker: [],
+			watcher: null,
+			resultRef: null,
+			errorSummary: null,
+		};
+		await writeFile(join(attemptRoot, "attempt.json"), JSON.stringify(metadata, null, 2), "utf8");
 		return { attemptId, attemptRoot };
 	}
 
 	async updateAttemptStatus(runId: string, taskId: string, attemptId: string, status: string): Promise<void> {
-		const attemptFile = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts", attemptId, "attempt.json");
-		const existing = await this.readJson<Record<string, unknown>>(attemptFile);
-		if (!existing) return;
-		await writeFile(attemptFile, JSON.stringify({ ...existing, status, updatedAt: now() }, null, 2), "utf8");
+		await this.mutateAttempt(runId, taskId, attemptId, (attempt) => {
+			attempt.status = status as AttemptStatus;
+			attempt.updatedAt = now();
+			return attempt;
+		});
 	}
 
 	async writeWorkerOutput(runId: string, taskId: string, attemptId: string, index: number, content: string): Promise<string> {
@@ -246,21 +261,16 @@ export class RunWorkspace {
 		}
 		throw new Error(`run lock busy: ${runId}`);
 	}
-	async listAttempts(runId: string, taskId: string): Promise<Array<{ attemptId: string; status: string; createdAt: string; files: string[] }>> {
+	async listAttempts(runId: string, taskId: string): Promise<Array<TeamAttemptMetadata & { files: string[] }>> {
 		const attemptsDir = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts");
 		let dirs: string[];
 		try { dirs = await readdir(attemptsDir); } catch { return []; }
-		const results: Array<{ attemptId: string; status: string; createdAt: string; files: string[] }> = [];
+		const results: Array<TeamAttemptMetadata & { files: string[] }> = [];
 		for (const d of dirs) {
-			const meta = await this.readJson<{ attemptId: string; status: string; createdAt: string }>(join(attemptsDir, d, "attempt.json"));
+			const raw = await this.readJson<Record<string, unknown>>(join(attemptsDir, d, "attempt.json"));
 			let files: string[] = [];
 			try { files = (await readdir(join(attemptsDir, d))).filter(f => f !== "attempt.json" && f !== "work" && f !== "output"); } catch { /* empty */ }
-			results.push({
-				attemptId: meta?.attemptId ?? d,
-				status: meta?.status ?? "unknown",
-				createdAt: meta?.createdAt ?? "",
-				files,
-			});
+			results.push({ ...this.normalizeAttempt(raw ?? {}, d, taskId), files });
 		}
 		return results;
 	}
@@ -281,6 +291,50 @@ export class RunWorkspace {
 		const dir = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts", attemptId);
 		await mkdir(dir, { recursive: true });
 		await writeFile(join(dir, fileName), content, "utf8");
+	}
+
+	private normalizeAttempt(raw: Record<string, unknown>, fallbackAttemptId: string, fallbackTaskId: string): TeamAttemptMetadata {
+		const validStatuses: AttemptStatus[] = ["running", "succeeded", "failed", "interrupted", "cancelled"];
+		const rawStatus = raw.status as string | undefined;
+		const status: AttemptStatus = validStatuses.includes(rawStatus as AttemptStatus) ? (rawStatus as AttemptStatus) : "running";
+		const phaseFallback: AttemptLifecyclePhase = status === "running" ? "created" : status;
+		const rawPhase = raw.phase as string | undefined;
+		const validPhases: AttemptLifecyclePhase[] = [
+			"created", "worker_running", "worker_completed", "checker_reviewing", "checker_passed",
+			"checker_revising", "checker_failed", "watcher_reviewing", "watcher_accepted",
+			"watcher_revision_requested", "watcher_confirmed_failed", "succeeded", "failed", "interrupted", "cancelled",
+		];
+		const phase: AttemptLifecyclePhase = validPhases.includes(rawPhase as AttemptLifecyclePhase) ? (rawPhase as AttemptLifecyclePhase) : phaseFallback;
+		const createdAt = (raw.createdAt as string) || "";
+		const updatedAt = (raw.updatedAt as string) || createdAt;
+		return {
+			attemptId: (raw.attemptId as string) || fallbackAttemptId,
+			taskId: (raw.taskId as string) || fallbackTaskId,
+			status,
+			phase,
+			createdAt,
+			updatedAt,
+			finishedAt: (raw.finishedAt as string | null) ?? null,
+			worker: Array.isArray(raw.worker) ? raw.worker as TeamAttemptMetadata["worker"] : [],
+			checker: Array.isArray(raw.checker) ? raw.checker as TeamAttemptMetadata["checker"] : [],
+			watcher: raw.watcher && typeof raw.watcher === "object" && !Array.isArray(raw.watcher) ? raw.watcher as TeamAttemptMetadata["watcher"] : null,
+			resultRef: (raw.resultRef as string | null) ?? null,
+			errorSummary: (raw.errorSummary as string | null) ?? null,
+		};
+	}
+
+	private async mutateAttempt(
+		runId: string,
+		taskId: string,
+		attemptId: string,
+		mutate: (attempt: TeamAttemptMetadata) => TeamAttemptMetadata,
+	): Promise<void> {
+		const attemptFile = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts", attemptId, "attempt.json");
+		const raw = await this.readJson<Record<string, unknown>>(attemptFile);
+		if (!raw) return;
+		const normalized = this.normalizeAttempt(raw, attemptId, taskId);
+		const result = mutate(normalized);
+		await writeFile(attemptFile, JSON.stringify(result, null, 2), "utf8");
 	}
 
 	private async readJson<T>(filePath: string): Promise<T | null> {

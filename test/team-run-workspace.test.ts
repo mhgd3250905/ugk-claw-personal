@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { RunWorkspace } from "../src/team/run-workspace.js";
@@ -124,6 +124,103 @@ test("listStates returns created runs", async () => {
 		await ws.createRun(plan, "team_1");
 		const list = await ws.listStates();
 		assert.equal(list.length, 2);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+// ── P5: attempt metadata tests ──
+
+test("createAttempt writes full metadata defaults", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		const { attemptId } = await ws.createAttempt(state.runId, "task_1");
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.equal(attempts.length, 1);
+		const a = attempts[0]!;
+		assert.equal(a.attemptId, attemptId);
+		assert.equal(a.taskId, "task_1");
+		assert.equal(a.status, "running");
+		assert.equal(a.phase, "created");
+		assert.equal(a.finishedAt, null);
+		assert.deepEqual(a.worker, []);
+		assert.deepEqual(a.checker, []);
+		assert.equal(a.watcher, null);
+		assert.equal(a.resultRef, null);
+		assert.equal(a.errorSummary, null);
+		assert.ok(a.updatedAt.length > 0);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("listAttempts reads old format attempt.json with defaults", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		// Manually create old-format attempt
+		const attemptDir = join(root, "runs", state.runId, "tasks", "task_1", "attempts", "attempt_old123");
+		await mkdir(attemptDir, { recursive: true });
+		await writeFile(join(attemptDir, "attempt.json"), JSON.stringify({
+			attemptId: "attempt_old123",
+			taskId: "task_1",
+			status: "succeeded",
+			createdAt: "2026-05-15T00:00:00.000Z",
+		}), "utf8");
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.equal(attempts.length, 1);
+		const a = attempts[0]!;
+		assert.equal(a.attemptId, "attempt_old123");
+		assert.equal(a.status, "succeeded");
+		assert.equal(a.phase, "succeeded"); // fallback from status
+		assert.equal(a.finishedAt, null);
+		assert.deepEqual(a.worker, []);
+		assert.deepEqual(a.checker, []);
+		assert.equal(a.watcher, null);
+		assert.equal(a.resultRef, null);
+		assert.equal(a.errorSummary, null);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("updateAttemptStatus preserves metadata fields", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		const { attemptId } = await ws.createAttempt(state.runId, "task_1");
+		await ws.updateAttemptStatus(state.runId, "task_1", attemptId, "succeeded");
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		const a = attempts[0]!;
+		assert.equal(a.status, "succeeded");
+		// Metadata fields preserved
+		assert.deepEqual(a.worker, []);
+		assert.deepEqual(a.checker, []);
+		assert.equal(a.watcher, null);
+		assert.equal(a.resultRef, null);
+		assert.equal(a.errorSummary, null);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("listAttempts handles missing attempt.json with fallback", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		// Create directory without attempt.json
+		const attemptDir = join(root, "runs", state.runId, "tasks", "task_1", "attempts", "attempt_nofile");
+		await mkdir(attemptDir, { recursive: true });
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.equal(attempts.length, 1);
+		const a = attempts[0]!;
+		assert.equal(a.attemptId, "attempt_nofile");
+		assert.equal(a.status, "running"); // default
 	} finally {
 		await rm(root, { recursive: true });
 	}

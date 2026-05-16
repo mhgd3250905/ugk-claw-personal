@@ -1,6 +1,61 @@
 export type RunStatus = "queued" | "running" | "paused" | "completed" | "completed_with_failures" | "failed" | "cancelled";
 export type TaskStatus = "pending" | "running" | "interrupted" | "succeeded" | "failed" | "cancelled";
 export type AttemptStatus = "running" | "succeeded" | "failed" | "interrupted" | "cancelled";
+
+export type AttemptLifecyclePhase =
+	| "created"
+	| "worker_running"
+	| "worker_completed"
+	| "checker_reviewing"
+	| "checker_passed"
+	| "checker_revising"
+	| "checker_failed"
+	| "watcher_reviewing"
+	| "watcher_accepted"
+	| "watcher_revision_requested"
+	| "watcher_confirmed_failed"
+	| "succeeded"
+	| "failed"
+	| "interrupted"
+	| "cancelled";
+
+export interface TeamAttemptWorkerSummary {
+	outputRef: string | null;
+	outputIndex: number;
+}
+
+export interface TeamAttemptCheckerSummary {
+	verdict: CheckerVerdict;
+	reason: string;
+	feedback?: string;
+	resultContentRef?: string | null;
+	revisionIndex: number;
+	recordRef: string | null;
+	feedbackRef: string | null;
+}
+
+export interface TeamAttemptWatcherSummary {
+	decision: WatcherDecision;
+	reason: string;
+	revisionMode?: WatcherRevisionMode;
+	feedback?: string;
+	recordRef: string | null;
+}
+
+export interface TeamAttemptMetadata {
+	attemptId: string;
+	taskId: string;
+	status: AttemptStatus;
+	phase: AttemptLifecyclePhase;
+	createdAt: string;
+	updatedAt: string;
+	finishedAt: string | null;
+	worker: TeamAttemptWorkerSummary[];
+	checker: TeamAttemptCheckerSummary[];
+	watcher: TeamAttemptWatcherSummary | null;
+	resultRef: string | null;
+	errorSummary: string | null;
+}
 export type CheckerVerdict = "pass" | "revise" | "fail";
 export type WatcherDecision = "accept_task" | "confirm_failed" | "request_revision";
 export type WatcherRevisionMode = "amend" | "redo";

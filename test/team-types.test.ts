@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { TeamPlan, TeamRunState, TeamUnit } from "../src/team/types.js";
+import type { TeamPlan, TeamRunState, TeamUnit, TeamAttemptMetadata, AttemptLifecyclePhase, AttemptStatus } from "../src/team/types.js";
 
 test("TeamUnit has exactly four role profile slots", () => {
 	const team: TeamUnit = {
@@ -95,4 +95,77 @@ test("CheckerVerdict is pass revise or fail", () => {
 test("WatcherDecision is accept_task confirm_failed or request_revision", () => {
 	const decisions: string[] = ["accept_task", "confirm_failed", "request_revision"];
 	assert.equal(decisions.length, 3);
+});
+
+// ── P5: Attempt lifecycle metadata types ──
+
+test("TeamAttemptMetadata has lifecycle fields", () => {
+	const meta: TeamAttemptMetadata = {
+		attemptId: "attempt_001",
+		taskId: "task_1",
+		status: "running",
+		phase: "created",
+		createdAt: "2026-05-16T00:00:00.000Z",
+		updatedAt: "2026-05-16T00:00:00.000Z",
+		finishedAt: null,
+		worker: [],
+		checker: [],
+		watcher: null,
+		resultRef: null,
+		errorSummary: null,
+	};
+	assert.equal(meta.phase, "created");
+	assert.deepEqual(meta.worker, []);
+	assert.deepEqual(meta.checker, []);
+	assert.equal(meta.watcher, null);
+	assert.equal(meta.resultRef, null);
+	assert.equal(meta.errorSummary, null);
+	assert.equal(meta.finishedAt, null);
+});
+
+test("AttemptLifecyclePhase covers worker/checker/watcher/succeeded/failed", () => {
+	const phases: AttemptLifecyclePhase[] = [
+		"created", "worker_running", "worker_completed",
+		"checker_reviewing", "checker_passed", "checker_revising", "checker_failed",
+		"watcher_reviewing", "watcher_accepted", "watcher_revision_requested", "watcher_confirmed_failed",
+		"succeeded", "failed", "interrupted", "cancelled",
+	];
+	assert.equal(phases.length, 15);
+	assert.ok(phases.includes("worker_running"));
+	assert.ok(phases.includes("checker_reviewing"));
+	assert.ok(phases.includes("watcher_reviewing"));
+	assert.ok(phases.includes("succeeded"));
+	assert.ok(phases.includes("failed"));
+});
+
+test("AttemptStatus covers all terminal and non-terminal states", () => {
+	const statuses: AttemptStatus[] = ["running", "succeeded", "failed", "interrupted", "cancelled"];
+	assert.equal(statuses.length, 5);
+});
+
+test("TeamAttemptMetadata worker and checker are arrays", () => {
+	const meta: TeamAttemptMetadata = {
+		attemptId: "a1", taskId: "t1", status: "running", phase: "worker_running",
+		createdAt: "", updatedAt: "", finishedAt: null,
+		worker: [{ outputRef: "ref.md", outputIndex: 1 }],
+		checker: [{ verdict: "pass", reason: "ok", revisionIndex: 1, recordRef: "v.json", feedbackRef: null }],
+		watcher: null, resultRef: null, errorSummary: null,
+	};
+	assert.equal(Array.isArray(meta.worker), true);
+	assert.equal(Array.isArray(meta.checker), true);
+	assert.equal(meta.worker.length, 1);
+	assert.equal(meta.checker.length, 1);
+});
+
+test("TeamAttemptMetadata watcher can be set to a summary object", () => {
+	const meta: TeamAttemptMetadata = {
+		attemptId: "a1", taskId: "t1", status: "succeeded", phase: "watcher_accepted",
+		createdAt: "", updatedAt: "", finishedAt: "2026-05-16T01:00:00.000Z",
+		worker: [], checker: [],
+		watcher: { decision: "accept_task", reason: "looks good", recordRef: "w.json" },
+		resultRef: "accepted-result.md", errorSummary: null,
+	};
+	assert.ok(meta.watcher);
+	assert.equal(meta.watcher.decision, "accept_task");
+	assert.equal(meta.finishedAt, "2026-05-16T01:00:00.000Z");
 });
