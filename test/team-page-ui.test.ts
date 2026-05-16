@@ -931,6 +931,29 @@ test("P13-T2: planId uses jsArg for safe onclick", () => {
 	assert.match(script, /togglePlanTasks[\s\S]*?jsArg/);
 });
 
+// ── P13 Task 3: Plan JSON Viewer ──
+
+test("P13-T3: plan-json-modal element exists in HTML", () => {
+	const html = renderTeamPage();
+	assert.match(html, /id="plan-json-modal"/);
+});
+
+test("P13-T3: viewPlanJson uses _latestPlans", () => {
+	const script = extractScript();
+	assert.match(script, /function viewPlanJson\(/);
+	assert.match(script, /viewPlanJson[\s\S]*?_latestPlans/);
+});
+
+test("P13-T3: JSON rendering uses textContent for safety", () => {
+	const script = extractScript();
+	assert.match(script, /viewPlanJson[\s\S]*?textContent[\s\S]*?JSON\.stringify/);
+});
+
+test("P13-T3: card action area includes JSON viewer button", () => {
+	const script = extractScript();
+	assert.match(script, /renderPlanCard[\s\S]*?查看 JSON/);
+});
+
 // ── P12 Bug fixes ──
 
 test("P12-fix: initial load fetches plans, teams, and runs", () => {

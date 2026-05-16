@@ -269,6 +269,17 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 	</div>
 </div>
 
+<!-- Plan JSON Viewer -->
+<div id="plan-json-modal" class="modal-overlay">
+	<div class="modal-panel">
+		<div class="modal-header">
+			<h2>Plan JSON</h2>
+			<button class="btn" style="background:var(--border);color:var(--text)" onclick="closePlanJsonModal()">关闭</button>
+		</div>
+		<div class="modal-body" id="plan-json-body"></div>
+	</div>
+</div>
+
 <!-- File Viewer -->
 <div id="file-viewer" class="file-viewer">
 	<div class="modal-panel">
@@ -555,6 +566,22 @@ async function saveTeamUnit() {
 			btn.textContent = expanded ? '展开全部任务' : '收起任务';
 		}
 
+		function viewPlanJson(planId) {
+			var plan = _latestPlans.find(function(p) { return p.planId === planId; });
+			if (!plan) { showError('Plan 未找到'); return; }
+			var body = $('plan-json-body');
+			body.innerHTML = '';
+			var pre = document.createElement('pre');
+			pre.textContent = JSON.stringify(plan, null, 2);
+			body.appendChild(pre);
+			$('plan-json-modal').classList.add('open');
+		}
+
+		function closePlanJsonModal() {
+			$('plan-json-modal').classList.remove('open');
+		}
+
+
 		function renderPlanCard(plan) {
 			var safePlan = plan || {};
 			var tasks = Array.isArray(safePlan.tasks) ? safePlan.tasks : [];
@@ -574,6 +601,7 @@ async function saveTeamUnit() {
 				(hasExtra ? '<div class="plan-task-extra" data-plan-extra="' + escapeHtml(safePlan.planId || '') + '" style="display:none">' + extraHtml + '</div>' +
 					'<button class="btn btn-sm detail-toggle" onclick="togglePlanTasks(this, ' + jsArg(safePlan.planId) + ')">展开全部任务</button>' : '') +
 				'<div style="margin-top:8px;display:flex;gap:8px">' +
+				'<button class="btn btn-sm" onclick="viewPlanJson(' + jsArg(safePlan.planId) + ')">查看 JSON</button>' +
 				'<button class="btn btn-primary" onclick="startRun(\\x27' + safePlan.planId + '\\x27)">创建运行</button>' +
 				(safePlan.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\x27' + safePlan.planId + '\\x27)">删除</button>' : '') +
 				'</div></div>';
