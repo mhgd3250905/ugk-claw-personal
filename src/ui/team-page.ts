@@ -571,7 +571,7 @@ async function loadRuns() {
 		var runs = await api('/runs');
 		_latestRuns = runs; updateSummary(_latestPlans, _latestTeams, runs);
 		var ACTIVE_STATUS = { queued: 1, running: 1, paused: 1 };
-		runs.sort(function(a, b) { return (ACTIVE_STATUS[b.status] ? 0 : 1) - (ACTIVE_STATUS[a.status] ? 0 : 1); });
+		runs.sort(function(a, b) { return (ACTIVE_STATUS[a.status] ? 0 : 1) - (ACTIVE_STATUS[b.status] ? 0 : 1); });
 		if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。从计划页面 <span class="detail-toggle" onclick="showSection(&#39;plans&#39;)">创建运行</span>。</div>'; unsubscribeAllSSE(); return; }
 		var planIds = [];
 		runs.forEach(function(r) { if (r.planId && planIds.indexOf(r.planId) === -1) planIds.push(r.planId); });
@@ -734,7 +734,8 @@ async function archiveTeamUnit(id) {
 }
 
 async function createPlan() {
-	var teams = await api('/team-units');
+	var teams;
+	try { teams = await api('/team-units'); } catch (e) { showError(e.message); return; }
 	var active = teams.filter(function(t) { return !t.archived; });
 	if (!active.length) { showError('没有可用的预设团队。请先在预设团队中创建。'); return; }
 	var sel = $('plan-teamunit');
@@ -1026,6 +1027,8 @@ $('file-viewer').addEventListener('click', function(e) {
 	// Initial load
 loadAgents().then(function() {
 	loadPlans();
+	loadTeams();
+	loadRuns();
 });
 </script>
 <!-- Toast Root -->

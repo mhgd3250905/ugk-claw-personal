@@ -809,11 +809,10 @@ test("P12-T3: loadPlans calls updateSummary", () => {
 
 test("P12-T3: loadRuns calls updateSummary and sorts active first", () => {
 	const script = extractScript();
-	const loadRunsMatch = script.match(/async function loadRuns[\s\S]*?^}/m);
-	assert.ok(loadRunsMatch, "should find loadRuns");
-	assert.match(loadRunsMatch[0], /updateSummary/);
-	assert.match(loadRunsMatch[0], /ACTIVE_STATUS/);
-	assert.match(loadRunsMatch[0], /runs\.sort/);
+	assert.match(script, /loadRuns[\s\S]*?updateSummary/);
+	// Verify sort puts active runs before inactive: ACTIVE_STATUS[a] ? 0 : 1 minus ACTIVE_STATUS[b]
+	// i.e. (active_a ? 0 : 1) - (active_b ? 0 : 1) => active items get 0, sorted to front
+	assert.match(script, /ACTIVE_STATUS\[a\.status\] \? 0 : 1\) - \(ACTIVE_STATUS\[b\.status\]/);
 });
 
 test("P12-T3: empty states include action links", () => {
@@ -854,6 +853,18 @@ test("P12-T4: delete buttons use confirmAction via deleteRun", () => {
 test("P12-T4: cancel confirm has clear impact description", () => {
 	const script = extractScript();
 	assert.match(script, /cancelRunWithConfirm[\s\S]*?不可恢复/);
+});
+
+// ── P12 Bug fixes ──
+
+test("P12-fix: initial load fetches plans, teams, and runs", () => {
+	const script = extractScript();
+	assert.match(script, /loadAgents[\s\S]*?loadPlans[\s\S]*?loadTeams[\s\S]*?loadRuns/);
+});
+
+test("P12-fix: createPlan wraps team-units API call in try/catch", () => {
+	const script = extractScript();
+	assert.match(script, /createPlan[\s\S]*?try.*api.*team-units.*catch.*showError/);
 });
 
 // ── P12 Task 5: Detail modal polish and readability ──
