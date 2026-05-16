@@ -37,8 +37,8 @@ test("team page has plan, team, run sections", () => {
 
 test("team page escapes dynamic API values before inserting HTML", () => {
 	const html = renderTeamPage();
-	assert.match(html, /escapeHtml\(p\.title\)/);
-	assert.match(html, /escapeHtml\(p\.goal\.text\)/);
+	assert.match(html, /escapeHtml\(safePlan\.title/);
+	assert.match(html, /escapeHtml\(goalText\)/);
 	assert.match(html, /escapeHtml\(t\.title\)/);
 	assert.match(html, /escapeHtml\(text\)/);
 });
@@ -853,6 +853,58 @@ test("P12-T4: delete buttons use confirmAction via deleteRun", () => {
 test("P12-T4: cancel confirm has clear impact description", () => {
 	const script = extractScript();
 	assert.match(script, /cancelRunWithConfirm[\s\S]*?不可恢复/);
+});
+
+// ── P13 Task 1: Structured Plan Cards ──
+
+test("P13-T1: renderPlanCard function exists and renders structured card", () => {
+	const script = extractScript();
+	assert.match(script, /function renderPlanCard\(plan\)/);
+});
+
+test("P13-T1: renderPlanTaskPreview renders task with title and input", () => {
+	const script = extractScript();
+	assert.match(script, /function renderPlanTaskPreview\(task/);
+	assert.match(script, /renderPlanTaskPreview[\s\S]*?escapeHtml.*task/);
+});
+
+test("P13-T1: renderAcceptanceRules renders rule list with escapeHtml", () => {
+	const script = extractScript();
+	assert.match(script, /function renderAcceptanceRules\(rules\)/);
+	assert.match(script, /renderAcceptanceRules[\s\S]*?escapeHtml/);
+});
+
+test("P13-T1: truncateText function exists", () => {
+	const script = extractScript();
+	assert.match(script, /function truncateText\(text/);
+});
+
+test("P13-T1: loadPlans uses renderPlanCard", () => {
+	const script = extractScript();
+	assert.match(script, /plans\.map\(renderPlanCard\)/);
+});
+
+test("P13-T1: plan card renders outputContract", () => {
+	const script = extractScript();
+	assert.match(script, /renderPlanCard[\s\S]*?outputContract/);
+});
+
+test("P13-T1: plan card escapes goal and output text", () => {
+	const script = extractScript();
+	assert.match(script, /renderPlanCard[\s\S]*?escapeHtml.*goal/);
+	assert.match(script, /renderPlanCard[\s\S]*?escapeHtml.*output/);
+});
+
+test("P13-T1: plan card handles missing fields", () => {
+	const script = extractScript();
+	assert.match(script, /Array\.isArray\(safePlan\.tasks\)/);
+	assert.match(script, /safePlan\.goal && safePlan\.goal\.text/);
+});
+
+test("P13-fix: structured plan card guards non-array acceptance rules", () => {
+	const script = extractScript();
+	assert.match(script, /Array\.isArray\(rules\)/);
+	assert.doesNotMatch(script, /if \(!rules \|\| !rules\.length\)/);
 });
 
 // ── P12 Bug fixes ──

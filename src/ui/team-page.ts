@@ -519,6 +519,50 @@ async function saveTeamUnit() {
 	} catch (e) { showError(e.message); }
 }
 
+		function truncateText(text, maxLen) {
+			if (!text) return '';
+			var str = String(text);
+			if (str.length <= maxLen) return str;
+			return str.slice(0, maxLen) + '...';
+		}
+
+		function renderAcceptanceRules(rules) {
+			var safeRules = Array.isArray(rules) ? rules : [];
+			if (!safeRules.length) return '';
+			return '<ul class="acceptance-list">' + safeRules.map(function(r) {
+				return '<li class="acceptance-rule">' + escapeHtml(r) + '</li>';
+			}).join('') + '</ul>';
+		}
+
+		function renderPlanTaskPreview(task, index) {
+			var safeTask = task || {};
+			var inputText = truncateText(safeTask.input && safeTask.input.text ? safeTask.input.text : '', 120);
+			var rules = safeTask.acceptance && Array.isArray(safeTask.acceptance.rules) ? safeTask.acceptance.rules : [];
+			return '<div class="plan-task-card">' +
+				'<div class="plan-task-head"><span class="plan-task-num">#' + (index + 1) + '</span> ' + escapeHtml(safeTask.title || safeTask.id || '') + '</div>' +
+				(inputText ? '<p class="plan-task-input">' + escapeHtml(inputText) + '</p>' : '') +
+				renderAcceptanceRules(rules) +
+				'</div>';
+		}
+
+		function renderPlanCard(plan) {
+			var safePlan = plan || {};
+			var tasks = Array.isArray(safePlan.tasks) ? safePlan.tasks : [];
+			var goalText = safePlan.goal && safePlan.goal.text ? safePlan.goal.text : '';
+			var outputText = safePlan.outputContract && safePlan.outputContract.text ? safePlan.outputContract.text : '';
+			var tasksHtml = tasks.map(function(t, i) { return renderPlanTaskPreview(t, i); }).join('');
+			return '<div class="card plan-card">' +
+				'<h3>' + escapeHtml(safePlan.title || '') + ' <span class="badge badge-muted">' + tasks.length + ' 个任务</span></h3>' +
+				(goalText ? '<p class="plan-goal">' + escapeHtml(goalText) + '</p>' : '') +
+				'<div class="plan-meta"><span>运行：' + (safePlan.runCount || 0) + '</span></div>' +
+				(outputText ? '<p class="plan-output">输出：' + escapeHtml(outputText) + '</p>' : '') +
+				'<div class="plan-task-list">' + tasksHtml + '</div>' +
+				'<div style="margin-top:8px;display:flex;gap:8px">' +
+				'<button class="btn btn-primary" onclick="startRun(\\x27' + safePlan.planId + '\\x27)">创建运行</button>' +
+				(safePlan.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\x27' + safePlan.planId + '\\x27)">删除</button>' : '') +
+				'</div></div>';
+		}
+
 async function loadPlans() {
 	var el = $('plans-list');
 	el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
@@ -526,14 +570,7 @@ async function loadPlans() {
 		var plans = await api('/plans');
 		_latestPlans = plans; updateSummary(plans, _latestTeams, _latestRuns);
 		if (!plans.length) { el.innerHTML = '<div class="empty">暂无计划。<span class="detail-toggle" onclick="createPlan()">新建计划</span> 开始。</div>'; return; }
-		el.innerHTML = plans.map(function(p) {
-			return '<div class="card"><h3>' + escapeHtml(p.title) + ' <span class="badge badge-muted">' + p.tasks.length + ' 个任务</span></h3>' +
-				'<p style="font-size:13px;color:var(--muted)">目标：' + escapeHtml(p.goal.text) + '</p>' +
-				'<div style="margin-top:8px;display:flex;gap:8px">' +
-				'<button class="btn btn-primary" onclick="startRun(\\'' + p.planId + '\\')">创建运行</button>' +
-				(p.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\'' + p.planId + '\\')">删除</button>' : '') +
-				'</div></div>';
-		}).join('');
+		el.innerHTML = plans.map(renderPlanCard).join('');
 	} catch (e) {
 		el.innerHTML = '<div class="empty" style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + ' <span class="detail-toggle" onclick="loadPlans()">重试</span></div>';
 	}
