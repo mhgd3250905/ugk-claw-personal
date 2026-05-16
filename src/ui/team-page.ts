@@ -99,6 +99,21 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 
 /* Run card run-id */
 .run-id { font-family: monospace; font-size: 12px; color: var(--muted); }
+
+/* Toast */
+#team-toast-root { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { padding: 10px 16px; border-radius: 6px; font-size: 13px; max-width: 360px; pointer-events: auto; animation: toastIn 0.2s ease; }
+.toast-success { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+.toast-error { background: rgba(239,68,68,0.15); color: var(--fail); border: 1px solid rgba(239,68,68,0.3); }
+.toast-info { background: rgba(59,130,246,0.15); color: var(--accent); border: 1px solid rgba(59,130,246,0.3); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Confirm modal */
+#team-confirm-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; justify-content: center; align-items: center; }
+#team-confirm-modal.open { display: flex; }
+.confirm-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 400px; max-width: 95vw; padding: 24px; }
+.confirm-box p { font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
 </style>
 </head>
 <body>
@@ -214,6 +229,45 @@ function jsArg(value) {
 
 function pathSegment(value) {
 	return encodeURIComponent(String(value == null ? '' : value));
+}
+
+function showToast(message, type) {
+	var root = $('team-toast-root');
+	if (!root) return;
+	var el = document.createElement('div');
+	el.className = 'toast toast-' + (type || 'info');
+	el.textContent = message;
+	root.appendChild(el);
+	setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 4000);
+}
+
+function showError(message) { showToast(message, 'error'); }
+function showSuccess(message) { showToast(message, 'success'); }
+
+function confirmAction(opts) {
+	return new Promise(function(resolve) {
+		var modal = $('team-confirm-modal');
+		var msg = $('confirm-message');
+		var okBtn = $('confirm-ok');
+		var cancelBtn = $('confirm-cancel');
+		if (!modal || !msg || !okBtn || !cancelBtn) { resolve(false); return; }
+		msg.textContent = opts.message || '确认执行此操作？';
+		okBtn.className = opts.danger ? 'btn btn-danger' : 'btn btn-primary';
+		okBtn.textContent = opts.confirmText || '确认';
+		modal.classList.add('open');
+		function cleanup() {
+			modal.classList.remove('open');
+			okBtn.removeEventListener('click', onOk);
+			cancelBtn.removeEventListener('click', onCancel);
+			modal.removeEventListener('click', onBg);
+		}
+		function onOk() { cleanup(); resolve(true); }
+		function onCancel() { cleanup(); resolve(false); }
+		function onBg(e) { if (e.target === modal) { cleanup(); resolve(false); } }
+		okBtn.addEventListener('click', onOk);
+		cancelBtn.addEventListener('click', onCancel);
+		modal.addEventListener('click', onBg);
+	});
 }
 
 function formatDuration(ms) {
@@ -364,7 +418,7 @@ async function saveTeamUnit() {
 		watcherProfileId: $('tu-watcher').value,
 		finalizerProfileId: $('tu-finalizer').value,
 	};
-	if (!payload.title) { alert('请输入名称'); return; }
+	if (!payload.title) { showError('请输入名称'); return; }
 	try {
 		if (editingId) {
 			await api('/team-units/' + editingId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -372,8 +426,9 @@ async function saveTeamUnit() {
 			await api('/team-units', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 		}
 		closeTeamUnitModal();
+		showSuccess(editingId ? '已更新' : '已创建');
 		loadTeams();
-	} catch (e) { alert(e.message); }
+	} catch (e) { showError(e.message); }
 }
 
 async function loadPlans() {
@@ -576,16 +631,20 @@ async function editTeamUnit(id) {
 }
 
 async function archiveTeamUnit(id) {
-	if (!confirm('确认归档此预设团队？')) return;
-	await api('/team-units/' + id + '/archive', { method: 'POST' });
+	var ok = await confirmAction({ message: '确认归档此预设团队？归档后不可用于新运行。', confirmText: '归档', danger: true });
+	if (!ok) return;
+	try {
+		await api('/team-units/' + id + '/archive', { method: 'POST' });
+		showSuccess('已归档');
+	} catch (e) { showError(e.message); }
 	loadTeams();
 }
 
 async function createPlan() {
 	var teams = await api('/team-units');
-	if (!teams.length) { alert('请先创建预设团队。'); return; }
+	if (!teams.length) { showError('请先创建预设团队。'); return; }
 	var active = teams.filter(function(t) { return !t.archived; });
-	if (!active.length) { alert('没有可用的预设团队（全部已归档）。'); return; }
+	if (!active.length) { showError('没有可用的预设团队（全部已归档）。'); return; }
 	var unitId = active[0].teamUnitId;
 	var title = prompt('计划名称：');
 	if (!title) return;
@@ -600,12 +659,16 @@ async function startRun(planId) {
 		showSection('runs');
 		loadRuns();
 		setTimeout(loadRuns, 2000);
-	} catch (e) { alert(e.message); }
+	} catch (e) { showError(e.message); }
 }
 
 async function deletePlan(planId) {
-	if (!confirm('确认删除此计划？')) return;
-	await api('/plans/' + planId, { method: 'DELETE' });
+	var ok = await confirmAction({ message: '确认删除此计划？删除后不可恢复。', confirmText: '删除', danger: true });
+	if (!ok) return;
+	try {
+		await api('/plans/' + planId, { method: 'DELETE' });
+		showSuccess('已删除');
+	} catch (e) { showError(e.message); }
 	loadPlans();
 }
 
@@ -615,19 +678,20 @@ async function controlRun(runId, action) {
 	try {
 		await api('/runs/' + runId + '/' + action, { method: 'POST' });
 	} catch (e) {
-		alert(e.message);
+		showError(e.message);
 	}
 	loadRuns();
 }
 
 async function deleteRun(runId) {
-	if (!confirm('确认删除此运行记录？')) return;
+	var ok = await confirmAction({ message: '确认删除此运行记录？删除后不可恢复。', confirmText: '删除', danger: true });
+	if (!ok) return;
 	var btn = document.querySelector('[data-run-id="' + runId + '"] .run-actions');
 	if (btn) btn.querySelectorAll('button').forEach(function(b) { b.disabled = true; });
 	try {
 		await api('/runs/' + runId, { method: 'DELETE' });
 	} catch (e) {
-		alert(e.message);
+		showError(e.message);
 	}
 	loadRuns();
 }
@@ -808,11 +872,24 @@ $('file-viewer').addEventListener('click', function(e) {
 	if (e.target === $('file-viewer')) closeFileViewer();
 });
 
-// Initial load
+
+	// Initial load
 loadAgents().then(function() {
 	loadPlans();
 });
 </script>
+<!-- Toast Root -->
+<div id="team-toast-root"></div>
+<!-- Confirm Modal -->
+<div id="team-confirm-modal">
+	<div class="confirm-box">
+		<p id="confirm-message"></p>
+		<div class="confirm-actions">
+			<button class="btn" style="background:var(--border);color:var(--text)" id="confirm-cancel">取消</button>
+			<button class="btn btn-primary" id="confirm-ok">确认</button>
+		</div>
+	</div>
+</div>
 </body>
 </html>`;
 }

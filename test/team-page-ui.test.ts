@@ -636,3 +636,87 @@ test("P8-E: renderTaskDetail escapes role runtime context values", () => {
 	assert.match(html, /scope&quot; onmouseover=&quot;bad/);
 	assert.match(html, /&lt;img src=x onerror=bad&gt;/);
 });
+
+// ── P12 Task 1: toast + confirmAction replaces system dialogs ──
+
+test("P12-T1: page has toast root container", () => {
+	const html = renderTeamPage();
+	assert.match(html, /id="team-toast-root"/);
+});
+
+test("P12-T1: page has confirm modal", () => {
+	const html = renderTeamPage();
+	assert.match(html, /id="team-confirm-modal"/);
+	assert.match(html, /id="confirm-message"/);
+	assert.match(html, /id="confirm-ok"/);
+	assert.match(html, /id="confirm-cancel"/);
+});
+
+test("P12-T1: inline script contains no native alert()", () => {
+	const html = renderTeamPage();
+	const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+	const scriptContent = scripts.join('');
+	assert.doesNotMatch(scriptContent, /\balert\s*\(/, "script must not contain native alert()");
+});
+
+test("P12-T1: inline script contains no native confirm()", () => {
+	const html = renderTeamPage();
+	const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+	const scriptContent = scripts.join('');
+	assert.doesNotMatch(scriptContent, /\bconfirm\s*\(/, "script must not contain native confirm()");
+});
+
+test("P12-T1: showToast and showError and showSuccess helpers exist", () => {
+	const script = extractScript();
+	assert.match(script, /function showToast\(message,\s*type\)/);
+	assert.match(script, /function showError\(message\)/);
+	assert.match(script, /function showSuccess\(message\)/);
+});
+
+test("P12-T1: confirmAction returns Promise and uses confirm modal", () => {
+	const script = extractScript();
+	assert.match(script, /function confirmAction\(opts\)/);
+	assert.match(script, /return new Promise/);
+	assert.match(script, /confirm-ok/);
+	assert.match(script, /confirm-cancel/);
+});
+
+test("P12-T1: confirmAction used in archiveTeamUnit", () => {
+	const script = extractScript();
+	const match = script.match(/async function archiveTeamUnit[\s\S]*?^}/m);
+	assert.ok(match, "should find archiveTeamUnit");
+	assert.match(match[0], /confirmAction/);
+	assert.match(match[0], /danger:\s*true/);
+});
+
+test("P12-T1: confirmAction used in deletePlan", () => {
+	const script = extractScript();
+	const match = script.match(/async function deletePlan[\s\S]*?^}/m);
+	assert.ok(match, "should find deletePlan");
+	assert.match(match[0], /confirmAction/);
+	assert.match(match[0], /danger:\s*true/);
+});
+
+test("P12-T1: confirmAction used in deleteRun", () => {
+	const script = extractScript();
+	const match = script.match(/async function deleteRun[\s\S]*?^}/m);
+	assert.ok(match, "should find deleteRun");
+	assert.match(match[0], /confirmAction/);
+	assert.match(match[0], /danger:\s*true/);
+});
+
+test("P12-T1: toast uses textContent not innerHTML for safety", () => {
+	const script = extractScript();
+	const showToastMatch = script.match(/function showToast\(message,\s*type\)[\s\S]*?^}/m);
+	assert.ok(showToastMatch, "should find showToast");
+	assert.match(showToastMatch[0], /textContent/);
+});
+
+test("P12-T1: CSS defines toast and confirm styles", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\.toast-success/);
+	assert.match(html, /\.toast-error/);
+	assert.match(html, /\.toast-info/);
+	assert.match(html, /\.confirm-box/);
+	assert.match(html, /#team-confirm-modal/);
+});
