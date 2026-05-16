@@ -306,12 +306,82 @@ test("lifecycle: cancel marks active attempt as cancelled", async () => {
 			const ts = final.taskStates["task_1"];
 			if (ts?.activeAttemptId) {
 				const attempts = await workspace.listAttempts(state.runId, "task_1");
-				if (attempts.length > 0) {
-					const a = attempts[0]!;
-					assert.ok(a.status === "cancelled" || a.status === "failed" || a.status === "interrupted" || a.status === "running");
-				}
+				assert.equal(attempts.length, 1);
+				const a = attempts[0]!;
+				assert.equal(a.status, "cancelled");
+				assert.equal(a.phase, "cancelled");
+				assert.equal(a.errorSummary, "run cancelled");
+				assert.ok(a.finishedAt, "cancelled active attempt should be finished");
 			}
 		}
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("lifecycle: generic worker error finishes active attempt as failed", async () => {
+	const { root, plan, workspace } = await setup();
+	const runner = new (class extends MockRoleRunner {
+		override async runWorker(): Promise<never> {
+			throw new Error("worker exploded");
+		}
+	})();
+	const orc = new TeamOrchestrator({
+		planStore: new PlanStore(root),
+		teamUnitStore: new TeamUnitStore(root),
+		workspace,
+		roleRunner: runner,
+		dataDir: root,
+		maxCheckerRevisions: 3,
+		maxWatcherRevisions: 1,
+		maxRunDurationMinutes: 60,
+	});
+	try {
+		const state = await orc.createRun(plan.planId);
+		const result = await orc.runToCompletion(state.runId);
+
+		assert.equal(result.status, "failed");
+		const attempts = await workspace.listAttempts(state.runId, "task_1");
+		assert.equal(attempts.length, 1);
+		const attempt = attempts[0]!;
+		assert.equal(attempt.status, "failed");
+		assert.equal(attempt.phase, "failed");
+		assert.equal(attempt.errorSummary, "worker exploded");
+		assert.ok(attempt.finishedAt, "failed active attempt should be finished");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("lifecycle: generic watcher error finishes active attempt as failed", async () => {
+	const { root, plan, workspace } = await setup();
+	const runner = new (class extends MockRoleRunner {
+		override async runWatcher(): Promise<never> {
+			throw new Error("watcher exploded");
+		}
+	})();
+	const orc = new TeamOrchestrator({
+		planStore: new PlanStore(root),
+		teamUnitStore: new TeamUnitStore(root),
+		workspace,
+		roleRunner: runner,
+		dataDir: root,
+		maxCheckerRevisions: 3,
+		maxWatcherRevisions: 1,
+		maxRunDurationMinutes: 60,
+	});
+	try {
+		const state = await orc.createRun(plan.planId);
+		const result = await orc.runToCompletion(state.runId);
+
+		assert.equal(result.status, "failed");
+		const attempts = await workspace.listAttempts(state.runId, "task_1");
+		assert.equal(attempts.length, 1);
+		const attempt = attempts[0]!;
+		assert.equal(attempt.status, "failed");
+		assert.equal(attempt.phase, "failed");
+		assert.equal(attempt.errorSummary, "watcher exploded");
+		assert.ok(attempt.finishedAt, "failed active attempt should be finished");
 	} finally {
 		await rm(root, { recursive: true });
 	}

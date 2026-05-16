@@ -31,6 +31,11 @@
 - **测试**: 228 pass（新增 32 个测试覆盖类型、workspace、orchestrator lifecycle、API、UI）
 - **源码入口**: `src/team/types.ts:TeamAttemptMetadata`, `src/team/run-workspace.ts:normalizeAttempt`, `src/team/orchestrator.ts:runWorkUnit`
 
+### 审计补充
+- `failRun()` 和 run timeout 现在会把未完成的 active attempt 收口为 `failed`，避免 run/task 已失败但 attempt 仍停在 `running` 或中间 phase。
+- 收紧 cancel lifecycle 回归测试，不再允许 active attempt 仍为 `running` 也通过。
+- 补充 worker/watcher 普通异常的回归测试，确保 active attempt 写入 `status=failed`、`phase=failed`、`finishedAt` 和错误摘要。
+
 ---
 
 ## 2026-05-16 — P4: Team UI 可用性完善

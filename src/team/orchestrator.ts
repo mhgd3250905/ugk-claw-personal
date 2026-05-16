@@ -716,6 +716,7 @@ export class TeamOrchestrator {
 		state.finishedAt = now();
 		state.lease = null;
 		state.updatedAt = now();
+		await this.finishUnfinishedActiveAttempts(state, "run timeout");
 		await this.workspace.saveState(state);
 	}
 
@@ -750,8 +751,24 @@ export class TeamOrchestrator {
 		state.finishedAt = now();
 		state.lease = null;
 		state.updatedAt = now();
+		await this.finishUnfinishedActiveAttempts(state, message);
 		await this.workspace.saveState(state);
 		return state;
+	}
+
+	private async finishUnfinishedActiveAttempts(state: TeamRunState, errorSummary: string): Promise<void> {
+		for (const [taskId, taskState] of Object.entries(state.taskStates)) {
+			const attemptId = taskState.activeAttemptId;
+			if (!attemptId) continue;
+			const attempts = await this.workspace.listAttempts(state.runId, taskId);
+			const attempt = attempts.find(a => a.attemptId === attemptId);
+			if (!attempt || attempt.finishedAt) continue;
+			await this.workspace.finishAttempt(state.runId, taskId, attemptId, {
+				status: "failed",
+				phase: "failed",
+				errorSummary,
+			});
+		}
 	}
 
 	private shouldStop(state: TeamRunState | null | undefined): boolean {
