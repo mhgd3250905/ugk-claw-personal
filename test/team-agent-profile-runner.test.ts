@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { AgentProfileRoleRunner } from "../src/team/agent-profile-role-runner.js";
 import type { TeamRoleRunner } from "../src/team/role-runner.js";
 import type { BackgroundAgentSessionFactory } from "../src/agent/background-agent-runner.js";
+import type { ResolvedBackgroundAgentSnapshot } from "../src/agent/background-agent-profile.js";
 
 function makeFakeSessionFactory(responses: string[]): BackgroundAgentSessionFactory {
 	let callIndex = 0;
@@ -28,6 +29,68 @@ function makeFakeSessionFactory(responses: string[]): BackgroundAgentSessionFact
 const fakeProfileResolver = {
 	resolve: async () => ({}),
 };
+
+function makeFakeProfileResolver(snapshotsByProfileId: Record<string, Partial<ResolvedBackgroundAgentSnapshot>>) {
+	return {
+		resolve: async (ref: { profileId: string }) => {
+			const partial = snapshotsByProfileId[ref.profileId] ?? {};
+			return {
+				profileId: ref.profileId,
+				profileVersion: "1",
+				agentSpecId: "team-default",
+				agentSpecVersion: "1",
+				skillSetId: "team-default",
+				skillSetVersion: "1",
+				skills: [],
+				modelPolicyId: "team-default",
+				modelPolicyVersion: "1",
+				provider: "test",
+				model: "test-model",
+				upgradePolicy: "latest" as const,
+				resolvedAt: new Date().toISOString(),
+				...partial,
+			};
+		},
+	};
+}
+
+interface CapturedSessionInput {
+	runId: string;
+	connId: string;
+	browserId?: string;
+	browserScope?: string;
+	snapshot: ResolvedBackgroundAgentSnapshot;
+}
+
+function makeCapturingSessionFactory(responses: string[]) {
+	const captured: CapturedSessionInput[] = [];
+	let callIndex = 0;
+	const factory = {
+		createSession: async (input: {
+			runId: string;
+			connId: string;
+			browserId?: string;
+			browserScope?: string;
+			snapshot: ResolvedBackgroundAgentSnapshot;
+		}) => {
+			captured.push({
+				runId: input.runId,
+				connId: input.connId,
+				browserId: input.browserId,
+				browserScope: input.browserScope,
+				snapshot: input.snapshot,
+			});
+			const content = responses[callIndex] ?? "ok";
+			callIndex++;
+			return {
+				prompt: async () => {},
+				subscribe: () => () => {},
+				messages: [{ role: "assistant", content: [{ type: "text", text: content }], stopReason: "end_turn" }],
+			};
+		},
+	};
+	return { factory: factory as unknown as BackgroundAgentSessionFactory, captured };
+}
 
 test("AgentProfileRoleRunner runWorker returns content", async () => {
 	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
@@ -641,6 +704,143 @@ test("watcher ignores invalid revisionMode", async () => {
 		});
 		assert.equal(out.decision, "accept_task");
 		assert.equal(out.revisionMode, undefined);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+// ── P8-A: profile-aware browser binding ──
+
+test("session receives snapshot.defaultBrowserId when profile has one", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const { factory, captured } = makeCapturingSessionFactory(["done"]);
+		const resolver = makeFakeProfileResolver({ wo: { defaultBrowserId: "browser_profile_a" } });
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory: factory,
+			defaultBrowserId: "fallback_browser",
+		});
+
+		await runner.runWorker({
+			runId: "run_br_1", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		assert.equal(captured.length, 1);
+		assert.equal(captured[0]!.browserId, "browser_profile_a");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("session falls back to options.defaultBrowserId when profile has none", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const { factory, captured } = makeCapturingSessionFactory(["done"]);
+		const resolver = makeFakeProfileResolver({});
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory: factory,
+			defaultBrowserId: "fallback_browser",
+		});
+
+		await runner.runWorker({
+			runId: "run_br_2", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		assert.equal(captured.length, 1);
+		assert.equal(captured[0]!.browserId, "fallback_browser");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("worker and checker in same run get different browserScope", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const { factory, captured } = makeCapturingSessionFactory(["worker out", '{"verdict":"pass","reason":"ok"}']);
+		const resolver = makeFakeProfileResolver({});
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory: factory,
+		});
+
+		await runner.runWorker({
+			runId: "run_scope_1", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		await runner.runChecker({
+			runId: "run_scope_1", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workerOutputRef: "output/w1.md", acceptanceRules: ["r1"],
+		});
+
+		assert.equal(captured.length, 2);
+		assert.notEqual(captured[0]!.browserScope, captured[1]!.browserScope);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("two worker attempts get different browserScope", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const { factory, captured } = makeCapturingSessionFactory(["att1", "att2"]);
+		const resolver = makeFakeProfileResolver({});
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory: factory,
+		});
+
+		await runner.runWorker({
+			runId: "run_scope_2", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		await runner.runWorker({
+			runId: "run_scope_2", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_2", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		assert.equal(captured.length, 2);
+		assert.notEqual(captured[0]!.browserScope, captured[1]!.browserScope);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("cleanup receives same browserScope as session", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const { factory, captured } = makeCapturingSessionFactory(["done"]);
+		const resolver = makeFakeProfileResolver({ wo: { defaultBrowserId: "chrome-01" } });
+
+		const cleanupScopes: string[] = [];
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory: factory,
+			closeBrowserTargetsForScope: async (scope: string) => { cleanupScopes.push(scope); },
+		});
+
+		await runner.runWorker({
+			runId: "run_cleanup_1", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		assert.equal(captured.length, 1);
+		assert.equal(cleanupScopes.length, 1);
+		assert.equal(cleanupScopes[0], captured[0]!.browserScope);
 	} finally {
 		await rm(root, { recursive: true }).catch(() => {});
 	}

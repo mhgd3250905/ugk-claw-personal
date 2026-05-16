@@ -270,6 +270,20 @@ function normalizeWatcherOutput(parsed: unknown): WatcherOutput | null {
 	return { decision, reason, revisionMode, feedback };
 }
 
+function sanitizeScopePart(value: string): string {
+	return value.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function buildTeamBrowserScope(input: { runId: string; role: string; roleKey: string; profileId?: string }): string {
+	return [
+		"team",
+		sanitizeScopePart(input.runId),
+		sanitizeScopePart(input.role),
+		sanitizeScopePart(input.roleKey),
+		sanitizeScopePart(input.profileId ?? "unknown"),
+	].join(":");
+}
+
 async function readRefContent(teamDataDir: string, runId: string, ref: string): Promise<string> {
 	try {
 		return await readFile(join(teamDataDir, "runs", runId, ref), "utf8");
@@ -326,7 +340,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workspace = await this.createRoleWorkspace(input.runId, input.attemptId, "worker");
 		const prompt = buildWorkerPrompt(input.task, input.acceptanceRules, input.feedback);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
+		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal, { role: "worker", roleKey: input.attemptId });
 
 		return { content, artifactRefs: [] };
 	}
@@ -337,7 +351,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workerOutput = await readRefContent(this.options.teamDataDir, input.runId, input.workerOutputRef);
 		const prompt = buildCheckerPrompt(input.task, input.acceptanceRules, workerOutput);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
+		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal, { role: "checker", roleKey: input.attemptId });
 
 		try {
 			const parsed = parseJsonResponse<CheckerJsonOutput>(content);
@@ -359,7 +373,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workspace = await this.createRoleWorkspace(input.runId, input.attemptId, "watcher");
 		const prompt = buildWatcherPrompt(input.task, input.workUnitStatus, input.resultRef, input.errorSummary);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
+		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal, { role: "watcher", roleKey: input.attemptId });
 
 		try {
 			const parsed = parseJsonResponse<WatcherJsonOutput>(content);
@@ -390,7 +404,7 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 
 		const prompt = buildFinalizerPrompt(input.plan, taskResultsWithContent);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal);
+		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal, { role: "finalizer", roleKey: "finalizer" });
 
 		return { finalReport: content };
 	}
@@ -415,10 +429,16 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		runId: string,
 		workspace: { rootPath: string; workDir: string; outputDir: string; sessionDir: string },
 		prompt: string,
-		signal?: AbortSignal,
+		signal: AbortSignal | undefined,
+		roleContext: { role: string; roleKey: string },
 	): Promise<string> {
-		const browserId = this.options.defaultBrowserId;
-		const browserScope = `team:${runId}`;
+		const browserId = snapshot.defaultBrowserId ?? this.options.defaultBrowserId;
+		const browserScope = buildTeamBrowserScope({
+			runId,
+			role: roleContext.role,
+			roleKey: roleContext.roleKey,
+			profileId: snapshot.profileId,
+		});
 		const scopeId = browserId ? createBrowserCleanupScope(browserScope, browserId) : undefined;
 
 		const session = await this.sessionFactory.createSession({
