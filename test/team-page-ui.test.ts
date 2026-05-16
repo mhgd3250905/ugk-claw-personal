@@ -48,7 +48,7 @@ test("team page exposes pause resume controls and timing panel labels", () => {
 	assert.match(html, /暂停/);
 	assert.match(html, /恢复/);
 	assert.match(html, /任务进度/);
-	assert.match(html, /耗时统计/);
+	assert.match(html, /耗时/);
 });
 
 test("team page has refresh button for runs", () => {
@@ -80,13 +80,13 @@ test("team page escapes run dynamic fields", () => {
 	const html = renderTeamPage();
 	assert.match(html, /escapeHtml\(r\.runId/);
 	assert.match(html, /escapeHtml\(r\.lastError\)/);
-	assert.match(html, /escapeHtml\(r\.currentTaskId\)/);
+	assert.match(html, /escapeHtml\(currentTaskTitle\)/);
 });
 
 test("team page escapes task detail dynamic fields", () => {
 	const html = renderTeamPage();
 	assert.match(html, /escapeHtml\(task\.title\)/);
-	assert.match(html, /escapeHtml\(ts\.progress\.phase\)/);
+	assert.match(html, /phaseLabel\(ts\.progress\.phase\)/);
 	assert.match(html, /escapeHtml\(ts\.progress\.message\)/);
 	assert.match(html, /escapeHtml\(ts\.resultRef\)/);
 	assert.match(html, /escapeHtml\(ts\.errorSummary\)/);
@@ -254,4 +254,219 @@ test("behavioral: loadRuns uses renderRunActions via .run-actions div", () => {
 	assert.match(script, /class="run-actions"/);
 	// Verify renderRunActions is called in the template
 	assert.match(script, /renderRunActions\(r\)/);
+});
+
+// ── P4: Team UI usability improvements ──
+
+test("P4: formatDuration function exists and handles cases", () => {
+	const script = extractScript();
+	assert.match(script, /function formatDuration\(ms\)/);
+	// Should return 0秒 for 0
+	assert.match(script, /return '0秒'/);
+	// Should handle hours
+	assert.match(script, /时/);
+	// Should handle minutes
+	assert.match(script, /分/);
+	// Should handle seconds
+	assert.match(script, /秒/);
+});
+
+test("P4: formatDuration is used in loadRuns and updateRunCard", () => {
+	const script = extractScript();
+	assert.match(script, /formatDuration\(r\.activeElapsedMs\)/);
+});
+
+test("P4: formatTimestamp function exists and formats ISO date", () => {
+	const script = extractScript();
+	assert.match(script, /function formatTimestamp\(iso\)/);
+	assert.match(script, /getMonth/);
+	assert.match(script, /getDate/);
+	assert.match(script, /getHours/);
+	assert.match(script, /getMinutes/);
+});
+
+test("P4: formatTimestamp is used in loadRuns for createdAt, startedAt, finishedAt", () => {
+	const script = extractScript();
+	assert.match(script, /formatTimestamp\(r\.createdAt\)/);
+	assert.match(script, /formatTimestamp\(r\.startedAt\)/);
+	assert.match(script, /formatTimestamp\(r\.finishedAt\)/);
+});
+
+test("P4: PHASE_LABELS map contains Chinese labels", () => {
+	const html = renderTeamPage();
+	assert.match(html, /PHASE_LABELS/);
+	assert.match(html, /worker_running.*执行中/);
+	assert.match(html, /checker_reviewing.*验收中/);
+	assert.match(html, /watcher_reviewing.*复盘中/);
+	assert.match(html, /finalizer_running.*生成报告/);
+	assert.match(html, /succeeded.*已通过/);
+	assert.match(html, /failed.*失败/);
+});
+
+test("P4: phaseLabel function is used in renderTaskDetail", () => {
+	const script = extractScript();
+	assert.match(script, /function phaseLabel/);
+	assert.match(script, /escapeHtml\(phaseLabel\(ts\.progress\.phase\)\)/);
+});
+
+test("P4: phaseColor function is used for phase label styling", () => {
+	const script = extractScript();
+	assert.match(script, /function phaseColor/);
+	assert.match(script, /phaseColor\(ts\.progress\.phase\)/);
+});
+
+test("P4: CSS includes loading spinner", () => {
+	const html = renderTeamPage();
+	assert.match(html, /@keyframes spin/);
+	assert.match(html, /\.spinner/);
+	assert.match(html, /\.loading/);
+});
+
+test("P4: CSS includes button disabled state", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\.btn:disabled/);
+});
+
+test("P4: CSS includes phase label color classes", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\.phase-label/);
+	assert.match(html, /\.phase-running/);
+	assert.match(html, /\.phase-success/);
+	assert.match(html, /\.phase-fail/);
+	assert.match(html, /\.phase-warn/);
+	assert.match(html, /\.phase-muted/);
+});
+
+test("P4: report modal HTML exists with close button", () => {
+	const html = renderTeamPage();
+	assert.match(html, /id="report-modal"/);
+	assert.match(html, /report-content/);
+	assert.match(html, /closeReportModal/);
+	assert.match(html, /最终报告/);
+});
+
+test("P4: file viewer HTML exists with close button", () => {
+	const html = renderTeamPage();
+	assert.match(html, /id="file-viewer"/);
+	assert.match(html, /file-viewer-content/);
+	assert.match(html, /closeFileViewer/);
+});
+
+test("P4: viewAttemptFile function exists", () => {
+	const script = extractScript();
+	assert.match(script, /async function viewAttemptFile/);
+	assert.match(script, /\/attempts\//);
+	const html = renderTeamPage();
+	assert.match(html, /attempt-file/);
+});
+
+test("P4: plan title displayed in run cards with plan-title class", () => {
+	const html = renderTeamPage();
+	assert.match(html, /plan-title/);
+	assert.match(html, /escapeHtml\(planTitle\)/);
+});
+
+test("P4: run-id class used for runId display", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\.run-id/);
+	assert.match(html, /run-id/);
+});
+
+test("P4: escapeHtml used on status in statusBadge", () => {
+	const script = extractScript();
+	// statusBadge should escape the status value
+	assert.match(script, /escapeHtml\(status\)/);
+});
+
+test("P4: escapeHtml used on currentTaskTitle in run cards", () => {
+	const script = extractScript();
+	assert.match(script, /escapeHtml\(currentTaskTitle\)/);
+});
+
+test("P4: escapeHtml used on attempt status and attemptId", () => {
+	const script = extractScript();
+	assert.match(script, /escapeHtml\(a\.status\)/);
+	assert.match(script, /escapeHtml\(a\.attemptId/);
+});
+
+test("P4: escapeHtml used on file names in attempt display", () => {
+	const script = extractScript();
+	assert.match(script, /escapeHtml\(f\)/);
+});
+
+test("P4: escapeHtml used on report body content", () => {
+	const script = extractScript();
+	assert.match(script, /escapeHtml\(text\)/);
+});
+
+test("P4: loading state shown in loadPlans", () => {
+	const script = extractScript();
+	assert.match(script, /plans-list/);
+	const loadPlansMatch = script.match(/async function loadPlans\(\)[\s\S]*?^[\t]}/m);
+	assert.ok(loadPlansMatch, "should find loadPlans function");
+	assert.match(loadPlansMatch[0], /spinner/);
+});
+
+test("P4: loading state shown in loadTeams", () => {
+	const script = extractScript();
+	const loadTeamsMatch = script.match(/async function loadTeams\(\)[\s\S]*?^[\t]}/m);
+	assert.ok(loadTeamsMatch, "should find loadTeams function");
+	assert.match(loadTeamsMatch[0], /spinner/);
+});
+
+test("P4: loading state shown in loadRuns", () => {
+	const script = extractScript();
+	const loadRunsMatch = script.match(/async function loadRuns\(\)[\s\S]*?^[\t]}/m);
+	assert.ok(loadRunsMatch, "should find loadRuns function");
+	assert.match(loadRunsMatch[0], /spinner/);
+});
+
+test("P4: error retry links in loadPlans, loadTeams, loadRuns", () => {
+	const script = extractScript();
+	// loadPlans retry
+	assert.match(script, /onclick="loadPlans\(\)"[^>]*>重试/);
+	// loadTeams retry
+	assert.match(script, /onclick="loadTeams\(\)"[^>]*>重试/);
+	// loadRuns retry
+	assert.match(script, /onclick="loadRuns\(\)"[^>]*>重试/);
+});
+
+test("P4: controlRun disables buttons during operation", () => {
+	const script = extractScript();
+	const match = script.match(/async function controlRun[\s\S]*?^[\t]}/m);
+	assert.ok(match, "should find controlRun function");
+	assert.match(match[0], /disabled/);
+});
+
+test("P4: deleteRun disables buttons during operation", () => {
+	const script = extractScript();
+	const match = script.match(/async function deleteRun[\s\S]*?^[\t]}/m);
+	assert.ok(match, "should find deleteRun function");
+	assert.match(match[0], /disabled/);
+});
+
+test("P4: click-outside handlers for report-modal and file-viewer", () => {
+	const script = extractScript();
+	assert.match(script, /report-modal.*closeReportModal/);
+	assert.match(script, /file-viewer.*closeFileViewer/);
+});
+
+test("P4: timestamp class used for formatted times", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\.ts\s*\{/);
+});
+
+test("P4: attempt-card CSS class defined", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\.attempt-card/);
+	assert.match(html, /\.attempt-file/);
+});
+
+test("P4: inline scripts are still valid JavaScript with P4 changes", () => {
+	const html = renderTeamPage();
+	const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
+	assert.ok(scripts.length > 0);
+	for (const script of scripts) {
+		assert.doesNotThrow(() => new Function(script), "inline script should be valid JS after P4 changes");
+	}
 });

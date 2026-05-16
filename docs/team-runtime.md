@@ -317,8 +317,31 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 | `src/team/timing.ts` | timing span 写入 |
 | `src/workers/team-worker.ts` | 独立 Team worker 轮询 queued run |
 | `src/routes/agent-profiles.ts` | AgentProfile 写接口上的 Team active-run 锁 |
-| `src/ui/team-page.ts` | `/playground/team` 控制台（含 SSE 实时更新） |
+| `src/ui/team-page.ts` | `/playground/team` 控制台（含 SSE 实时更新、中文 phase 标签、弹窗报告/文件查看） |
 | `.pi/skills/team-plan-creator/SKILL.md` | 只创建 TeamUnit / Plan 的运行时 skill |
+
+### /playground/team 控制台
+
+独立页面提供 Team Runtime 的可视化管理：
+
+- **计划管理**：列表展示、新建计划、删除未使用计划
+- **预设团队管理**：CRUD + 归档，每个角色绑定 AgentProfile
+- **运行记录**：
+  - 显示关联 Plan 标题、runId、状态 badge
+  - 人性化耗时格式（X时Y分 / X分Y秒）
+  - 格式化时间戳（创建/开始/完成）
+  - 任务进度条 + 成功/失败/取消统计
+  - SSE 实时更新（active run 自动订阅，terminal 自动断开）
+  - 展开/收起任务详情表格
+- **任务详情**：
+  - 中文 phase 标签（执行中/验收中/复盘中/生成报告等），带颜色编码
+  - 尝试历史卡片（状态、ID、时间戳、可点击文件列表）
+  - 文件内容弹窗查看（调用 Attempt API）
+- **最终报告**：页面内弹窗展示，不再打开新窗口
+- **状态管理**：
+  - 加载 spinner、错误信息 + 重试链接
+  - 操作按钮在异步操作期间禁用
+  - 所有动态文本经过 escapeHtml 转义
 
 ### Checker/Watcher JSON Output Format
 

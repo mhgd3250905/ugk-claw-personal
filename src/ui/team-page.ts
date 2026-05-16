@@ -30,6 +30,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-danger { background: var(--fail); color: #fff; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled, .btn:disabled:hover { opacity: 0.5; cursor: not-allowed; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 500; font-size: 12px; }
@@ -44,9 +45,46 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 .refresh-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; font-size: 13px; }
 .refresh-btn:hover { background: var(--surface); }
 
-/* Modal */
+/* Loading spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
+.loading { text-align: center; padding: 40px 0; color: var(--muted); font-size: 14px; }
+
+/* Phase label */
+.phase-label { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-top: 2px; }
+.phase-running { background: rgba(59,130,246,0.15); color: var(--accent); }
+.phase-success { background: rgba(34,197,94,0.15); color: var(--success); }
+.phase-fail { background: rgba(239,68,68,0.15); color: var(--fail); }
+.phase-warn { background: rgba(245,158,11,0.15); color: var(--warn); }
+.phase-muted { background: rgba(115,115,115,0.15); color: var(--muted); }
+
+/* Timestamp */
+.ts { font-size: 11px; color: var(--muted); font-family: monospace; margin-right: 8px; }
+
+/* Plan title */
+.plan-title { font-size: 14px; font-weight: 600; }
+
+/* Attempt card */
+.attempt-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-top: 4px; font-size: 12px; }
+.attempt-files { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.attempt-file { color: var(--accent); cursor: pointer; font-size: 11px; text-decoration: underline; }
+.attempt-file:hover { color: var(--accent-hover); }
+
+/* Modal overlay base */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
 .modal-overlay.open { display: flex; }
+
+/* Report modal */
+.report-content { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 720px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px; }
+.report-content pre { white-space: pre-wrap; font-family: inherit; font-size: 13px; line-height: 1.6; }
+
+/* File viewer */
+.file-viewer { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 110; justify-content: center; align-items: center; }
+.file-viewer.open { display: flex; }
+.file-viewer-content { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 640px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px; }
+.file-viewer-content pre { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.5; }
+
+/* TeamUnit Modal */
 .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px; }
 .modal h2 { font-size: 16px; margin-bottom: 16px; }
 .modal label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
@@ -54,8 +92,10 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 .modal textarea { min-height: 60px; resize: vertical; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.profile-grid .field { }
 .profile-grid label { margin-top: 0; }
+
+/* Run card run-id */
+.run-id { font-family: monospace; font-size: 12px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -75,7 +115,7 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 			<h2>计划</h2>
 			<button class="btn btn-primary" onclick="createPlan()">新建计划</button>
 		</div>
-		<div id="plans-list"></div>
+		<div id="plans-list"><div class="loading"><div class="spinner"></div> 加载中...</div></div>
 	</div>
 
 	<!-- Teams -->
@@ -128,6 +168,28 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 	</div>
 </div>
 
+<!-- Report Modal -->
+<div id="report-modal" class="modal-overlay">
+	<div class="report-content">
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+			<h2>最终报告</h2>
+			<button class="btn" style="background:var(--border);color:var(--text)" onclick="closeReportModal()">关闭</button>
+		</div>
+		<div id="report-body"><div class="loading"><div class="spinner"></div> 加载中...</div></div>
+	</div>
+</div>
+
+<!-- File Viewer -->
+<div id="file-viewer" class="file-viewer">
+	<div class="file-viewer-content">
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+			<h3 id="file-viewer-title">文件内容</h3>
+			<button class="btn" style="background:var(--border);color:var(--text)" onclick="closeFileViewer()">关闭</button>
+		</div>
+		<pre id="file-viewer-body"></pre>
+	</div>
+</div>
+
 <script>
 const API = '/v1/team';
 var agentCatalog = [];
@@ -141,6 +203,46 @@ function escapeHtml(value) {
 		.replace(/>/g, '&gt;')
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
+}
+
+function formatDuration(ms) {
+	if (!ms || ms <= 0) return '0秒';
+	var s = Math.floor(ms / 1000);
+	var h = Math.floor(s / 3600);
+	var m = Math.floor((s % 3600) / 60);
+	s = s % 60;
+	if (h > 0) return h + '时' + (m > 0 ? m + '分' : '');
+	if (m > 0) return m + '分' + (s > 0 ? s + '秒' : '');
+	return s + '秒';
+}
+
+function formatTimestamp(iso) {
+	if (!iso) return '';
+	var d = new Date(iso);
+	var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+	return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+var PHASE_LABELS = {
+	pending: '等待执行', creating_workunit: '创建工作单元', creating_worker_session: '创建执行 Agent',
+	worker_running: '执行中', checker_reviewing: '验收中', worker_revising: '修改中',
+	watcher_reviewing: '复盘中', finalizer_running: '生成报告', writing_result: '写入结果',
+	succeeded: '已通过', failed: '失败', interrupted: '已中断', cancelled: '已取消'
+};
+
+var PHASE_COLORS = {
+	pending: 'phase-muted', creating_workunit: 'phase-running', creating_worker_session: 'phase-running',
+	worker_running: 'phase-running', checker_reviewing: 'phase-running', worker_revising: 'phase-running',
+	watcher_reviewing: 'phase-running', finalizer_running: 'phase-running', writing_result: 'phase-running',
+	succeeded: 'phase-success', failed: 'phase-fail', interrupted: 'phase-warn', cancelled: 'phase-muted'
+};
+
+function phaseLabel(phase) {
+	return PHASE_LABELS[phase] || phase;
+}
+
+function phaseColor(phase) {
+	return PHASE_COLORS[phase] || 'phase-muted';
 }
 
 function showSection(name, evt) {
@@ -160,7 +262,7 @@ function showSection(name, evt) {
 
 function statusBadge(status) {
 	var map = { completed: 'badge-success', completed_with_failures: 'badge-warn', failed: 'badge-fail', running: 'badge-warn', queued: 'badge-muted', paused: 'badge-warn', cancelled: 'badge-muted' };
-	return '<span class="badge ' + (map[status] || 'badge-muted') + '">' + status + '</span>';
+	return '<span class="badge ' + (map[status] || 'badge-muted') + '">' + escapeHtml(status) + '</span>';
 }
 
 function profileName(id) {
@@ -245,41 +347,64 @@ async function saveTeamUnit() {
 }
 
 async function loadPlans() {
-	var plans = await api('/plans');
 	var el = $('plans-list');
-	if (!plans.length) { el.innerHTML = '<div class="empty">暂无计划。点击「新建计划」开始。</div>'; return; }
-	el.innerHTML = plans.map(function(p) {
-		return '<div class="card"><h3>' + escapeHtml(p.title) + ' <span class="badge badge-muted">' + p.tasks.length + ' 个任务</span></h3>' +
-			'<p style="font-size:13px;color:var(--muted)">目标：' + escapeHtml(p.goal.text) + '</p>' +
-			'<div style="margin-top:8px;display:flex;gap:8px">' +
-			'<button class="btn btn-primary" onclick="startRun(\\'' + p.planId + '\\')">创建运行</button>' +
-			(p.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\'' + p.planId + '\\')">删除</button>' : '') +
-			'</div></div>';
-	}).join('');
+	el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
+	try {
+		var plans = await api('/plans');
+		if (!plans.length) { el.innerHTML = '<div class="empty">暂无计划。点击「新建计划」开始。</div>'; return; }
+		el.innerHTML = plans.map(function(p) {
+			return '<div class="card"><h3>' + escapeHtml(p.title) + ' <span class="badge badge-muted">' + p.tasks.length + ' 个任务</span></h3>' +
+				'<p style="font-size:13px;color:var(--muted)">目标：' + escapeHtml(p.goal.text) + '</p>' +
+				'<div style="margin-top:8px;display:flex;gap:8px">' +
+				'<button class="btn btn-primary" onclick="startRun(\\'' + p.planId + '\\')">创建运行</button>' +
+				(p.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\'' + p.planId + '\\')">删除</button>' : '') +
+				'</div></div>';
+		}).join('');
+	} catch (e) {
+		el.innerHTML = '<div class="empty" style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + ' <span class="detail-toggle" onclick="loadPlans()">重试</span></div>';
+	}
 }
 
 async function loadTeams() {
-	var teams = await api('/team-units');
 	var el = $('teams-list');
-	if (!teams.length) { el.innerHTML = '<div class="empty">暂无预设团队。点击「新建预设团队」开始。</div>'; return; }
-	el.innerHTML = teams.map(function(t) {
-		return '<div class="card"><h3>' + escapeHtml(t.title) + (t.archived ? ' <span class="badge badge-muted">已归档</span>' : '') + '</h3>' +
-			'<table><tr><td>执行 Agent</td><td>' + escapeHtml(profileName(t.workerProfileId)) + '</td></tr>' +
-			'<tr><td>验收 Agent</td><td>' + escapeHtml(profileName(t.checkerProfileId)) + '</td></tr>' +
-			'<tr><td>复盘 Agent</td><td>' + escapeHtml(profileName(t.watcherProfileId)) + '</td></tr>' +
-			'<tr><td>汇总 Agent</td><td>' + escapeHtml(profileName(t.finalizerProfileId)) + '</td></tr></table>' +
-			'<div style="margin-top:8px;display:flex;gap:8px">' +
-			(!t.archived ? '<button class="btn btn-sm" style="background:var(--border);color:var(--text)" onclick="editTeamUnit(\\'' + t.teamUnitId + '\\')">编辑</button>' +
-			'<button class="btn btn-sm btn-primary" onclick="archiveTeamUnit(\\'' + t.teamUnitId + '\\')">归档</button>' : '') +
-			'</div></div>';
-	}).join('');
+	el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
+	try {
+		var teams = await api('/team-units');
+		if (!teams.length) { el.innerHTML = '<div class="empty">暂无预设团队。点击「新建预设团队」开始。</div>'; return; }
+		el.innerHTML = teams.map(function(t) {
+			return '<div class="card"><h3>' + escapeHtml(t.title) + (t.archived ? ' <span class="badge badge-muted">已归档</span>' : '') + '</h3>' +
+				'<table><tr><td>执行 Agent</td><td>' + escapeHtml(profileName(t.workerProfileId)) + '</td></tr>' +
+				'<tr><td>验收 Agent</td><td>' + escapeHtml(profileName(t.checkerProfileId)) + '</td></tr>' +
+				'<tr><td>复盘 Agent</td><td>' + escapeHtml(profileName(t.watcherProfileId)) + '</td></tr>' +
+				'<tr><td>汇总 Agent</td><td>' + escapeHtml(profileName(t.finalizerProfileId)) + '</td></tr></table>' +
+				'<div style="margin-top:8px;display:flex;gap:8px">' +
+				(!t.archived ? '<button class="btn btn-sm" style="background:var(--border);color:var(--text)" onclick="editTeamUnit(\\'' + t.teamUnitId + '\\')">编辑</button>' +
+				'<button class="btn btn-sm btn-primary" onclick="archiveTeamUnit(\\'' + t.teamUnitId + '\\')">归档</button>' : '') +
+				'</div></div>';
+		}).join('');
+	} catch (e) {
+		el.innerHTML = '<div class="empty" style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + ' <span class="detail-toggle" onclick="loadTeams()">重试</span></div>';
+	}
 }
 
+var _planCache = {};
+
 async function loadRuns() {
+	var el = $('runs-list');
+	el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
+	try {
 		var runs = await api('/runs');
-		var el = $('runs-list');
 		if (!runs.length) { el.innerHTML = '<div class="empty">暂无运行记录。</div>'; unsubscribeAllSSE(); return; }
+		var planIds = [];
+		runs.forEach(function(r) { if (r.planId && planIds.indexOf(r.planId) === -1) planIds.push(r.planId); });
+		await Promise.all(planIds.map(async function(pid) {
+			if (!_planCache[pid]) {
+				try { _planCache[pid] = await api('/plans/' + pid); } catch (e) { /* ignore */ }
+			}
+		}));
 		el.innerHTML = runs.map(function(r) {
+			var plan = _planCache[r.planId];
+			var planTitle = plan ? plan.title : '';
 			var total = r.summary.totalTasks;
 			var done = r.summary.succeededTasks + r.summary.failedTasks + r.summary.cancelledTasks;
 			var pct = total ? Math.round(done / total * 100) : 0;
@@ -289,11 +414,23 @@ async function loadRuns() {
 			if (r.summary.cancelledTasks) summaryParts.push('取消 ' + r.summary.cancelledTasks);
 			var summaryStr = summaryParts.length ? summaryParts.join(' / ') : '无完成';
 			var errorHtml = r.lastError ? '<p class="run-error" style="font-size:12px;color:var(--fail);margin-top:4px">错误：' + escapeHtml(r.lastError) + '</p>' : '<p class="run-error" style="display:none;font-size:12px;color:var(--fail);margin-top:4px"></p>';
-			var currentTask = r.currentTaskId ? '<p class="run-current" style="font-size:12px;color:var(--muted)">当前任务：' + escapeHtml(r.currentTaskId) + '</p>' : '<p class="run-current" style="display:none;font-size:12px;color:var(--muted)"></p>';
+			var currentTaskTitle = '';
+			if (r.currentTaskId && plan) {
+				var task = plan.tasks.find(function(t) { return t.id === r.currentTaskId; });
+				currentTaskTitle = task ? task.title : r.currentTaskId;
+			} else if (r.currentTaskId) {
+				currentTaskTitle = r.currentTaskId;
+			}
+			var currentTask = currentTaskTitle ? '<p class="run-current" style="font-size:12px;color:var(--muted)">当前任务：' + escapeHtml(currentTaskTitle) + '</p>' : '<p class="run-current" style="display:none;font-size:12px;color:var(--muted)"></p>';
+			var timesHtml = '<p class="run-times" style="font-size:11px;color:var(--muted)"><span class="ts">创建：' + formatTimestamp(r.createdAt) + '</span>';
+			if (r.startedAt) timesHtml += '<span class="ts">开始：' + formatTimestamp(r.startedAt) + '</span>';
+			if (r.finishedAt) timesHtml += '<span class="ts">完成：' + formatTimestamp(r.finishedAt) + '</span>';
+			timesHtml += '</p>';
 			return '<div class="card" data-run-id="' + r.runId + '">' +
-				'<h3>运行 <span style="font-family:monospace">' + escapeHtml(r.runId.slice(0, 16)) + '</span>... <span class="run-badge">' + statusBadge(r.status) + '</span></h3>' +
+				'<h3>' + (planTitle ? '<span class="plan-title">' + escapeHtml(planTitle) + '</span> ' : '') + '<span class="run-id">' + escapeHtml(r.runId.slice(0, 12)) + '...</span> <span class="run-badge">' + statusBadge(r.status) + '</span></h3>' +
 				'<p class="run-progress" style="font-size:13px;color:var(--muted)">任务进度：' + done + '/' + total + '（' + summaryStr + '）</p>' +
-				'<p class="run-elapsed" style="font-size:13px;color:var(--muted)">耗时统计：' + Math.round((r.activeElapsedMs || 0) / 1000) + ' 秒</p>' +
+				'<p class="run-elapsed" style="font-size:13px;color:var(--muted)">耗时：' + formatDuration(r.activeElapsedMs) + '</p>' +
+				timesHtml +
 				currentTask + errorHtml +
 				'<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
 				'<div class="run-actions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
@@ -303,79 +440,88 @@ async function loadRuns() {
 				'</div>';
 		}).join('');
 		subscribeActiveRuns(runs);
+	} catch (e) {
+		el.innerHTML = '<div class="empty" style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + ' <span class="detail-toggle" onclick="loadRuns()">重试</span></div>';
+		unsubscribeAllSSE();
 	}
+}
 
-	var _planCache = {};
-	async function toggleRunDetail(runId) {
-		var detailEl = $('run-detail-' + runId);
-		if (!detailEl) return;
-		if (detailEl.style.display === 'block') {
-			detailEl.style.display = 'none';
-			return;
+async function toggleRunDetail(runId) {
+	var detailEl = $('run-detail-' + runId);
+	if (!detailEl) return;
+	if (detailEl.style.display === 'block') {
+		detailEl.style.display = 'none';
+		return;
+	}
+	try {
+		var state = await api('/runs/' + runId);
+		if (!_planCache[state.planId]) {
+			_planCache[state.planId] = await api('/plans/' + state.planId);
 		}
+		var plan = _planCache[state.planId];
+		if (!window._latestPlanForRun) window._latestPlanForRun = {};
+		window._latestPlanForRun[runId] = plan;
+		var attemptsMap = {};
 		try {
-			var state = await api('/runs/' + runId);
-			if (!_planCache[state.planId]) {
-				_planCache[state.planId] = await api('/plans/' + state.planId);
-			}
-			var plan = _planCache[state.planId];
-				if (!window._latestPlanForRun) window._latestPlanForRun = {};
-				window._latestPlanForRun[runId] = plan;
-			var attemptsMap = {};
-				try {
-					var taskIds = plan.tasks ? plan.tasks.map(function(t) { return t.id; }) : [];
-					await Promise.all(taskIds.map(async function(tid) {
-						var res = await api('/runs/' + runId + '/tasks/' + tid + '/attempts');
-						attemptsMap[tid] = res.attempts || [];
-					}));
-				} catch(e) {}
-				if (!window._latestAttemptsForRun) window._latestAttemptsForRun = {};
-				window._latestAttemptsForRun[runId] = attemptsMap;
-				detailEl.innerHTML = renderTaskDetail(state, plan, attemptsMap);
-			detailEl.style.display = 'block';
-		} catch (e) {
-			detailEl.innerHTML = '<p style="color:var(--fail);font-size:13px">加载失败：' + escapeHtml(e.message) + '</p>';
-			detailEl.style.display = 'block';
-		}
+			var taskIds = plan.tasks ? plan.tasks.map(function(t) { return t.id; }) : [];
+			await Promise.all(taskIds.map(async function(tid) {
+				var res = await api('/runs/' + runId + '/tasks/' + tid + '/attempts');
+				attemptsMap[tid] = res.attempts || [];
+			}));
+		} catch (e) { /* ignore */ }
+		if (!window._latestAttemptsForRun) window._latestAttemptsForRun = {};
+		window._latestAttemptsForRun[runId] = attemptsMap;
+		detailEl.innerHTML = renderTaskDetail(state, plan, attemptsMap);
+		detailEl.style.display = 'block';
+	} catch (e) {
+		detailEl.innerHTML = '<p style="color:var(--fail);font-size:13px">加载失败：' + escapeHtml(e.message) + '</p>';
+		detailEl.style.display = 'block';
 	}
+}
 
-	function renderTaskDetail(state, plan, attemptsMap) {
-		if (!plan || !plan.tasks || !plan.tasks.length) return '<p style="color:var(--muted);font-size:13px">\u65E0\u4EFB\u52A1\u6570\u636E\u3002</p>';
-		return '<table class="task-table">' +
-			'<tr><th>\u4EFB\u52A1</th><th>\u72B6\u6001</th><th>\u8BE6\u60C5</th></tr>' +
-			plan.tasks.map(function(task) {
-				var ts = state.taskStates[task.id];
-				if (!ts) return '<tr><td>' + escapeHtml(task.title) + '</td><td colspan="2">\u5F85\u6267\u884C</td></tr>';
-				var phaseStr = ts.progress ? escapeHtml(ts.progress.phase) : '';
-				var msgStr = ts.progress ? escapeHtml(ts.progress.message) : '';
-				var detailParts = [];
-				if (ts.attemptCount > 0) detailParts.push('\u5C1D\u8BD5 ' + ts.attemptCount + ' \u6B21');
-				if (ts.activeAttemptId) detailParts.push('\u5C1D\u8BD5ID: ' + escapeHtml(ts.activeAttemptId.slice(0, 12)) + '...');
-				if (ts.resultRef) detailParts.push('\u7ED3\u679C: ' + escapeHtml(ts.resultRef));
-				if (ts.errorSummary) detailParts.push('<span style="color:var(--fail)">\u9519\u8BEF: ' + escapeHtml(ts.errorSummary) + '</span>');
-				var attemptsHtml = '';
-				var attempts = attemptsMap && attemptsMap[task.id];
-				if (attempts && attempts.length > 0) {
-					attemptsHtml = '<div style="margin-top:4px;font-size:11px;color:var(--muted)">';
-					attemptsHtml += attempts.map(function(a) {
-						var statusColor = a.status === 'succeeded' ? 'var(--success)' : a.status === 'failed' ? 'var(--fail)' : 'var(--muted)';
-						return '<span style="margin-right:8px">[' + escapeHtml(a.attemptId.slice(0, 12)) + '... <span style="color:' + statusColor + '">' + escapeHtml(a.status) + '</span>] ' + a.files.length + ' \u6587\u4EF6</span>';
+function renderTaskDetail(state, plan, attemptsMap) {
+	if (!plan || !plan.tasks || !plan.tasks.length) return '<p style="color:var(--muted);font-size:13px">无任务数据。</p>';
+	return '<table class="task-table">' +
+		'<tr><th>任务</th><th>状态</th><th>详情</th></tr>' +
+		plan.tasks.map(function(task) {
+			var ts = state.taskStates[task.id];
+			if (!ts) return '<tr><td>' + escapeHtml(task.title) + '</td><td colspan="2">待执行</td></tr>';
+			var phaseHtml = ts.progress ? '<span class="phase-label ' + phaseColor(ts.progress.phase) + '">' + escapeHtml(phaseLabel(ts.progress.phase)) + '</span>' : '';
+			var msgStr = ts.progress ? escapeHtml(ts.progress.message) : '';
+			var detailParts = [];
+			if (ts.attemptCount > 0) detailParts.push('尝试 ' + ts.attemptCount + ' 次');
+			if (ts.activeAttemptId) detailParts.push('尝试ID: ' + escapeHtml(ts.activeAttemptId.slice(0, 12)) + '...');
+			if (ts.resultRef) detailParts.push('<span style="color:var(--success)">结果: ' + escapeHtml(ts.resultRef) + '</span>');
+			if (ts.errorSummary) detailParts.push('<span style="color:var(--fail)">错误: ' + escapeHtml(ts.errorSummary) + '</span>');
+			var attemptsHtml = '';
+			var attempts = attemptsMap && attemptsMap[task.id];
+			if (attempts && attempts.length > 0) {
+				attemptsHtml = attempts.map(function(a) {
+					var statusColor = a.status === 'succeeded' ? 'var(--success)' : a.status === 'failed' ? 'var(--fail)' : 'var(--muted)';
+					var filesHtml = a.files.map(function(f) {
+						return '<span class="attempt-file" onclick="viewAttemptFile(\\'' + state.runId + '\\',\\'' + task.id + '\\',\\'' + a.attemptId + '\\',\\'' + f + '\\')">' + escapeHtml(f) + '</span>';
 					}).join('');
-					attemptsHtml += '</div>';
-				}
-				return '<tr>' +
-					'<td>' + escapeHtml(task.title) + '</td>' +
-					'<td>' + statusBadge(ts.status) + '<br/><span style="font-size:11px;color:var(--muted)">' + phaseStr + '</span></td>' +
-					'<td style="font-size:12px">' +
-					(msgStr ? '<div style="color:var(--muted)">' + msgStr + '</div>' : '') +
-					(detailParts.length ? '<div>' + detailParts.join(' / ') + '</div>' : '') +
-					attemptsHtml +
-					'</td></tr>';
-			}).join('') +
-			'</table>';
-	}
+					return '<div class="attempt-card">' +
+						'<span style="color:' + statusColor + '">' + escapeHtml(a.status) + '</span> ' +
+						escapeHtml(a.attemptId.slice(0, 12)) + '... ' +
+						'<span class="ts">' + formatTimestamp(a.createdAt) + '</span>' +
+						(a.files.length > 0 ? '<div class="attempt-files">' + filesHtml + '</div>' : '') +
+						'</div>';
+				}).join('');
+			}
+			return '<tr>' +
+				'<td>' + escapeHtml(task.title) + '</td>' +
+				'<td>' + statusBadge(ts.status) + '<br/>' + phaseHtml + '</td>' +
+				'<td style="font-size:12px">' +
+				(msgStr ? '<div style="color:var(--muted)">' + msgStr + '</div>' : '') +
+				(detailParts.length ? '<div>' + detailParts.join(' / ') + '</div>' : '') +
+				attemptsHtml +
+				'</td></tr>';
+		}).join('') +
+		'</table>';
+}
 
-	async function editTeamUnit(id) {
+async function editTeamUnit(id) {
 	var teams = await api('/team-units');
 	var unit = teams.find(function(t) { return t.teamUnitId === id; });
 	if (unit) openTeamUnitModal(unit);
@@ -416,20 +562,71 @@ async function deletePlan(planId) {
 }
 
 async function controlRun(runId, action) {
-	await api('/runs/' + runId + '/' + action, { method: 'POST' });
+	var btn = document.querySelector('[data-run-id="' + runId + '"] .run-actions');
+	if (btn) btn.querySelectorAll('button').forEach(function(b) { b.disabled = true; });
+	try {
+		await api('/runs/' + runId + '/' + action, { method: 'POST' });
+	} catch (e) {
+		alert(e.message);
+	}
 	loadRuns();
 }
 
 async function deleteRun(runId) {
 	if (!confirm('确认删除此运行记录？')) return;
-	await api('/runs/' + runId, { method: 'DELETE' });
+	var btn = document.querySelector('[data-run-id="' + runId + '"] .run-actions');
+	if (btn) btn.querySelectorAll('button').forEach(function(b) { b.disabled = true; });
+	try {
+		await api('/runs/' + runId, { method: 'DELETE' });
+	} catch (e) {
+		alert(e.message);
+	}
 	loadRuns();
 }
 
 async function viewReport(runId) {
-	var res = await fetch(API + '/runs/' + runId + '/final-report');
-	if (res.ok) { var text = await res.text(); var w = window.open('', '_blank'); w.document.write('<pre style="white-space:pre-wrap;font-family:sans-serif;padding:20px">' + escapeHtml(text) + '</pre>'); }
-	else alert('报告未找到。');
+	var body = $('report-body');
+	$('report-modal').classList.add('open');
+	body.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中...</div>';
+	try {
+		var res = await fetch(API + '/runs/' + runId + '/final-report');
+		if (res.ok) {
+			var text = await res.text();
+			body.innerHTML = '<pre>' + escapeHtml(text) + '</pre>';
+		} else {
+			body.innerHTML = '<p style="color:var(--fail)">报告未找到。</p>';
+		}
+	} catch (e) {
+		body.innerHTML = '<p style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + '</p>';
+	}
+}
+
+function closeReportModal() {
+	$('report-modal').classList.remove('open');
+}
+
+async function viewAttemptFile(runId, taskId, attemptId, fileName) {
+	var viewer = $('file-viewer');
+	var title = $('file-viewer-title');
+	var body = $('file-viewer-body');
+	title.textContent = fileName;
+	body.textContent = '加载中...';
+	viewer.classList.add('open');
+	try {
+		var res = await fetch(API + '/runs/' + runId + '/tasks/' + taskId + '/attempts/' + attemptId + '/files/' + fileName);
+		if (res.ok) {
+			var text = await res.text();
+			body.textContent = text;
+		} else {
+			body.innerHTML = '<span style="color:var(--fail)">文件未找到。</span>';
+		}
+	} catch (e) {
+		body.innerHTML = '<span style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + '</span>';
+	}
+}
+
+function closeFileViewer() {
+	$('file-viewer').classList.remove('open');
 }
 
 
@@ -488,40 +685,46 @@ function updateRunCard(r) {
 	var done = r.summary.succeededTasks + r.summary.failedTasks + r.summary.cancelledTasks;
 	var pct = total ? Math.round(done / total * 100) : 0;
 	var summaryParts = [];
-	if (r.summary.succeededTasks) summaryParts.push("\u6210\u529F " + r.summary.succeededTasks);
-	if (r.summary.failedTasks) summaryParts.push("\u5931\u8D25 " + r.summary.failedTasks);
-	if (r.summary.cancelledTasks) summaryParts.push("\u53D6\u6D88 " + r.summary.cancelledTasks);
-	var summaryStr = summaryParts.length ? summaryParts.join(" / ") : "\u65E0\u5B8C\u6210";
+	if (r.summary.succeededTasks) summaryParts.push("成功 " + r.summary.succeededTasks);
+	if (r.summary.failedTasks) summaryParts.push("失败 " + r.summary.failedTasks);
+	if (r.summary.cancelledTasks) summaryParts.push("取消 " + r.summary.cancelledTasks);
+	var summaryStr = summaryParts.length ? summaryParts.join(" / ") : "无完成";
 
 	var badgeEl = card.querySelector(".run-badge");
 	if (badgeEl) badgeEl.innerHTML = statusBadge(r.status);
 	var progressText = card.querySelector(".run-progress");
-	if (progressText) progressText.textContent = "\u4EFB\u52A1\u8FDB\u5EA6\uFF1A" + done + "/" + total + "\uFF08" + summaryStr + "\uFF09";
+	if (progressText) progressText.textContent = "任务进度：" + done + "/" + total + "（" + summaryStr + "）";
 	var elapsedEl = card.querySelector(".run-elapsed");
-	if (elapsedEl) elapsedEl.textContent = "\u8017\u65F6\u7EDF\u8BA1\uFF1A" + Math.round((r.activeElapsedMs || 0) / 1000) + " \u79D2";
+	if (elapsedEl) elapsedEl.textContent = "耗时：" + formatDuration(r.activeElapsedMs);
 	var currentEl = card.querySelector(".run-current");
 	if (currentEl) {
-		currentEl.textContent = r.currentTaskId ? "\u5F53\u524D\u4EFB\u52A1\uFF1A" + r.currentTaskId : "";
-		currentEl.style.display = r.currentTaskId ? "" : "none";
+		var plan = _planCache[r.planId];
+		var taskTitle = r.currentTaskId;
+		if (plan && r.currentTaskId) {
+			var task = plan.tasks.find(function(t) { return t.id === r.currentTaskId; });
+			if (task) taskTitle = task.title;
+		}
+		currentEl.textContent = taskTitle ? "当前任务：" + taskTitle : "";
+		currentEl.style.display = taskTitle ? "" : "none";
 	}
 	var errorEl = card.querySelector(".run-error");
 	if (errorEl) {
-		if (r.lastError) { errorEl.textContent = "\u9519\u8BEF\uFF1A" + r.lastError; errorEl.style.display = ""; }
+		if (r.lastError) { errorEl.textContent = "错误：" + r.lastError; errorEl.style.display = ""; }
 		else { errorEl.style.display = "none"; }
 	}
 	var barFill = card.querySelector(".progress-bar-fill");
 	if (barFill) barFill.style.width = pct + "%";
 
-			// Update action buttons
-		var actionsEl = card.querySelector(".run-actions");
-		if (actionsEl) actionsEl.innerHTML = renderRunActions(r);
+	// Update action buttons
+	var actionsEl = card.querySelector(".run-actions");
+	if (actionsEl) actionsEl.innerHTML = renderRunActions(r);
 
-// Update task detail if expanded
+	// Update task detail if expanded
 	var detailEl = card.querySelector(".run-detail");
 	if (detailEl && detailEl.style.display === "block" && window._latestPlanForRun) {
-		var plan = window._latestPlanForRun[r.runId];
-		if (plan) {
-			detailEl.innerHTML = renderTaskDetail(r, plan, window._latestAttemptsForRun ? window._latestAttemptsForRun[r.runId] : null);
+		var plan2 = window._latestPlanForRun[r.runId];
+		if (plan2) {
+			detailEl.innerHTML = renderTaskDetail(r, plan2, window._latestAttemptsForRun ? window._latestAttemptsForRun[r.runId] : null);
 		}
 	}
 
@@ -546,9 +749,15 @@ function subscribeActiveRuns(runs) {
 	});
 }
 
-// Click outside modal to close
+// Click outside modals to close
 $('teamunit-modal').addEventListener('click', function(e) {
 	if (e.target === $('teamunit-modal')) closeTeamUnitModal();
+});
+$('report-modal').addEventListener('click', function(e) {
+	if (e.target === $('report-modal')) closeReportModal();
+});
+$('file-viewer').addEventListener('click', function(e) {
+	if (e.target === $('file-viewer')) closeFileViewer();
 });
 
 // Initial load

@@ -12,6 +12,27 @@
 
 ---
 
+## 2026-05-16 — P4: Team UI 可用性完善
+
+- **主题**: `/playground/team` 控制台可用性全面提升
+- **影响范围**: `src/ui/team-page.ts`, `test/team-page-ui.test.ts`
+- **变更**:
+  - Run 列表显示关联 Plan 标题（从 plan cache 获取）
+  - 耗时显示从原始秒数改为人性化格式（`formatDuration`: X时Y分 / X分Y秒）
+  - 时间戳格式化显示（`formatTimestamp`: MM-DD HH:MM:SS）
+  - Task progress phase 显示中文标签（`PHASE_LABELS` 映射 + 彩色 phase-label 徽标）
+  - Attempt 详情改为独立卡片，展示状态、ID、创建时间和可点击文件列表
+  - 文件内容弹窗查看（`viewAttemptFile` + file-viewer overlay）
+  - 最终报告改为页面内弹窗展示（`viewReport` + report-modal），替代新窗口
+  - 所有数据加载显示 spinner loading 状态
+  - 加载失败显示错误信息和重试链接
+  - 控制按钮（暂停/恢复/取消/删除）在操作期间禁用
+  - `statusBadge` 输出经过 `escapeHtml` 转义
+  - `escapeHtml` 覆盖所有动态文本：planTitle、currentTaskTitle、attempt status/ID、file name、report content
+  - SSE `updateRunCard` 适配新的 run card 结构（formatDuration、task title 查找）
+- **测试**: 193 pass（新增 P4 测试 27 个，适配旧测试 3 个）
+- **源码入口**: `src/ui/team-page.ts`, `test/team-page-ui.test.ts`
+
 ## 2026-05-16 — P3/P7: 输出可靠性 + Phase Timeout
 
 - **主题**: checker/watcher 严格 JSON 输出校验 + phase 级超时 + 真实 timing duration
