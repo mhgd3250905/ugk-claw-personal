@@ -324,7 +324,17 @@ async function loadRuns() {
 			var plan = _planCache[state.planId];
 				if (!window._latestPlanForRun) window._latestPlanForRun = {};
 				window._latestPlanForRun[runId] = plan;
-			detailEl.innerHTML = renderTaskDetail(state, plan);
+			var attemptsMap = {};
+				try {
+					var taskIds = plan.tasks ? plan.tasks.map(function(t) { return t.id; }) : [];
+					await Promise.all(taskIds.map(async function(tid) {
+						var res = await api('/runs/' + runId + '/tasks/' + tid + '/attempts');
+						attemptsMap[tid] = res.attempts || [];
+					}));
+				} catch(e) {}
+				if (!window._latestAttemptsForRun) window._latestAttemptsForRun = {};
+				window._latestAttemptsForRun[runId] = attemptsMap;
+				detailEl.innerHTML = renderTaskDetail(state, plan, attemptsMap);
 			detailEl.style.display = 'block';
 		} catch (e) {
 			detailEl.innerHTML = '<p style="color:var(--fail);font-size:13px">加载失败：' + escapeHtml(e.message) + '</p>';
@@ -501,7 +511,7 @@ function updateRunCard(r) {
 	if (detailEl && detailEl.style.display === "block" && window._latestPlanForRun) {
 		var plan = window._latestPlanForRun[r.runId];
 		if (plan) {
-			detailEl.innerHTML = renderTaskDetail(r, plan);
+			detailEl.innerHTML = renderTaskDetail(r, plan, window._latestAttemptsForRun ? window._latestAttemptsForRun[r.runId] : null);
 		}
 	}
 

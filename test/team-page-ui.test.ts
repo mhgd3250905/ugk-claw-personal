@@ -110,3 +110,52 @@ test("team page has final report endpoint handler", () => {
 	assert.match(html, /final-report/);
 	assert.match(html, /报告未找到/);
 });
+
+test("team page contains SSE/EventSource logic", () => {
+	const html = renderTeamPage();
+	assert.match(html, /EventSource/);
+	assert.match(html, /subscribeRunSSE/);
+	assert.match(html, /updateRunCard/);
+	assert.match(html, /_sseConnections/);
+});
+
+test("team page SSE subscribes to active runs and unsubscribes terminal", () => {
+	const html = renderTeamPage();
+	assert.match(html, /subscribeActiveRuns/);
+	assert.match(html, /unsubscribeRunSSE/);
+	assert.match(html, /unsubscribeAllSSE/);
+});
+
+test("team page SSE updates run card elements by class", () => {
+	const html = renderTeamPage();
+	assert.match(html, /run-badge/);
+	assert.match(html, /run-progress/);
+	assert.match(html, /run-elapsed/);
+	assert.match(html, /run-current/);
+	assert.match(html, /run-error/);
+});
+
+test("team page run cards have data-run-id attribute", () => {
+	const html = renderTeamPage();
+	assert.match(html, /data-run-id/);
+});
+
+test("team page fetches attempts for task detail", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\/attempts/);
+	assert.match(html, /attemptsMap/);
+});
+
+test("team page renderTaskDetail accepts attemptsMap parameter", () => {
+	const html = renderTeamPage();
+	assert.match(html, /renderTaskDetail\(state,\s*plan,\s*attemptsMap\)/);
+});
+
+test("team page inline scripts are still valid JavaScript with SSE", () => {
+	const html = renderTeamPage();
+	const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
+	assert.ok(scripts.length > 0);
+	for (const script of scripts) {
+		assert.doesNotThrow(() => new Function(script), "inline script should be valid JS");
+	}
+});
