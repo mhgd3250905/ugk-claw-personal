@@ -13,6 +13,20 @@
 ---
 
 ## 2026-05-16
+### Team Runtime v2 P2 worker lease / heartbeat / crash recovery
+- 日期：2026-05-16
+- 主题：为 Team worker 增加 durable run lease、heartbeat 和 stale running 恢复，避免多 worker 抢同一 run，并让 worker 崩溃后的 running run 可被重新接管。
+- 影响范围：
+  - `TeamRunState` 新增可选 `lease` 元数据：`ownerId`、`acquiredAt`、`heartbeatAt`、`expiresAt`。
+  - `RunWorkspace` 新增 `claimNextRunnableRun()`、`claimRun()`、`heartbeatRunLease()`、`releaseRunLease()` 和 `clearRunLease()`；claim 使用 run 目录 `.lock` 原子互斥。
+  - `team-worker` 不再直接找第一个 queued run，而是先 claim lease；执行期间 heartbeat，lease 丢失时 abort 当前 run。
+  - `TeamOrchestrator.runToCompletion()` 可接收 `leaseOwnerId`，phase 写回前校验 lease owner，避免旧 worker 迟到写回。
+  - `orchestrator.ts` 在 worker/checker/watcher 阶段推进 task progress，并写回 attempt 状态，避免 UI 长时间停在 `worker_running`。
+  - `AgentProfileRoleRunner` 增加 checker/watcher JSONish 解析 fallback，兼容模型在 JSON 字符串字段里裸写中文引号的真实输出。
+  - 新增 `TEAM_WORKER_LEASE_TTL_MS` 和 `TEAM_WORKER_HEARTBEAT_INTERVAL_MS` 环境变量。
+  - 新增 `test/team-run-lease.test.ts`，并补充 lease 丢失后不写 accepted result、checker JSONish 输出解析的回归测试。
+
+## 2026-05-16
 ### P1.5 Team Runtime 实时可观测性收口
 - 日期：2026-05-16
 - 主题：为 /playground/team 添加 SSE 实时状态更新和 attempt 级详情展示。

@@ -149,6 +149,58 @@ function parseJsonResponse<T>(text: string): T {
 	throw new Error(`no JSON found in response: ${text.slice(0, 100)}`);
 }
 
+function extractJsonishField(text: string, field: string): string | undefined {
+	const startToken = `"${field}"`;
+	const start = text.indexOf(startToken);
+	if (start === -1) return undefined;
+	const colon = text.indexOf(":", start + startToken.length);
+	if (colon === -1) return undefined;
+	const firstQuote = text.indexOf('"', colon + 1);
+	if (firstQuote === -1) return undefined;
+
+	const nextField = text.slice(firstQuote + 1).match(/",\s*"([A-Za-z][A-Za-z0-9_]*)"\s*:/);
+	if (nextField?.index !== undefined) {
+		return text.slice(firstQuote + 1, firstQuote + 1 + nextField.index);
+	}
+	const lastQuote = text.lastIndexOf('"');
+	if (lastQuote > firstQuote) {
+		return text.slice(firstQuote + 1, lastQuote);
+	}
+	return undefined;
+}
+
+function unescapeJsonishString(value: string | undefined): string | undefined {
+	if (value === undefined) return undefined;
+	try {
+		return JSON.parse(`"${value.replace(/(^|[^\\])"/g, '$1\\"')}"`) as string;
+	} catch {
+		return value;
+	}
+}
+
+function parseCheckerJsonish(text: string): CheckerJsonOutput | null {
+	const verdict = text.match(/"verdict"\s*:\s*"(pass|revise|fail)"/)?.[1] as CheckerJsonOutput["verdict"] | undefined;
+	if (!verdict) return null;
+	return {
+		verdict,
+		reason: unescapeJsonishString(extractJsonishField(text, "reason")) ?? "",
+		feedback: unescapeJsonishString(extractJsonishField(text, "feedback")),
+		resultContent: unescapeJsonishString(extractJsonishField(text, "resultContent")),
+	};
+}
+
+function parseWatcherJsonish(text: string): WatcherJsonOutput | null {
+	const decision = text.match(/"decision"\s*:\s*"(accept_task|confirm_failed|request_revision)"/)?.[1] as WatcherJsonOutput["decision"] | undefined;
+	if (!decision) return null;
+	const revisionMode = text.match(/"revisionMode"\s*:\s*"(amend|redo)"/)?.[1] as WatcherJsonOutput["revisionMode"] | undefined;
+	return {
+		decision,
+		reason: unescapeJsonishString(extractJsonishField(text, "reason")) ?? "",
+		revisionMode,
+		feedback: unescapeJsonishString(extractJsonishField(text, "feedback")),
+	};
+}
+
 interface CheckerJsonOutput {
 	verdict: "pass" | "revise" | "fail";
 	reason: string;
@@ -241,6 +293,8 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 				resultContent: parsed.resultContent,
 			};
 		} catch {
+			const parsed = parseCheckerJsonish(content);
+			if (parsed) return parsed;
 			return { verdict: "fail", reason: "checker output parse error", resultContent: content };
 		}
 	}
@@ -261,6 +315,8 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 				feedback: parsed.feedback,
 			};
 		} catch {
+			const parsed = parseWatcherJsonish(content);
+			if (parsed) return parsed;
 			return { decision: "confirm_failed", reason: "watcher output parse error" };
 		}
 	}

@@ -85,5 +85,13 @@ export interface TeamRunState {
 	summary: { totalTasks: number; succeededTasks: number; failedTasks: number; cancelledTasks: number };
 	pauseReason: string | null;
 	lastError: string | null;
+	lease?: TeamRunLease | null;
 	updatedAt: string;
+}
+
+export interface TeamRunLease {
+	ownerId: string;
+	acquiredAt: string;
+	heartbeatAt: string;
+	expiresAt: string;
 }

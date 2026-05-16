@@ -376,6 +376,59 @@ test("cancel after checker returns does not write an unreferenced accepted resul
 	}
 });
 
+test("lease lost after checker returns does not write an unowned accepted result", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ctrl-"));
+	try {
+		const planStore = new PlanStore(root);
+		const unitStore = new TeamUnitStore(root);
+		const workspace = new RunWorkspace(root);
+		const unit = await unitStore.create({ title: "t", description: "d", watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f" });
+		const plan = await planStore.create({
+			title: "lease lost result write test",
+			defaultTeamUnitId: unit.teamUnitId,
+			goal: { text: "test" },
+			tasks: [{ id: "task_1", title: "t1", input: { text: "do" }, acceptance: { rules: ["r1"] } }],
+			outputContract: { text: "output" },
+		});
+
+		class StealLeaseAfterCheckerRunner extends MockRoleRunner {
+			constructor(private readonly runId: string) {
+				super();
+			}
+
+			override async runChecker(input: import("../src/team/role-runner.js").CheckerInput) {
+				const verdict = await super.runChecker(input);
+				const state = await workspace.getState(this.runId);
+				assert.ok(state?.lease);
+				state.lease = {
+					ownerId: "worker_b",
+					acquiredAt: new Date().toISOString(),
+					heartbeatAt: new Date().toISOString(),
+					expiresAt: new Date(Date.now() + 60_000).toISOString(),
+				};
+				await workspace.saveState(state);
+				return verdict;
+			}
+		}
+
+		const creator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: new MockRoleRunner(), dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60 });
+		const state = await creator.createRun(plan.planId);
+		await workspace.claimRun(state.runId, "worker_a", 60_000);
+		const runner = new StealLeaseAfterCheckerRunner(state.runId);
+		const activeOrchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: runner, dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60 });
+
+		const final = await activeOrchestrator.runToCompletion(state.runId, { leaseOwnerId: "worker_a" });
+		assert.equal(final.status, "running");
+		assert.equal(final.lease?.ownerId, "worker_b");
+		assert.equal(final.taskStates.task_1?.resultRef, null);
+
+		const resultPath = join(root, "runs", state.runId, "tasks", "task_1", "attempts", final.taskStates.task_1?.activeAttemptId ?? "", "accepted-result.md");
+		await assert.rejects(() => access(resultPath));
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
 test("resume skips already succeeded tasks", async () => {
 	const root = await mkdtemp(join(tmpdir(), "team-ctrl-"));
 	try {

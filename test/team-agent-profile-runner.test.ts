@@ -427,3 +427,33 @@ test("AgentProfileRoleRunner runChecker parses bare JSON object embedded in text
 		await rm(root, { recursive: true }).catch(() => {});
 	}
 });
+
+test("AgentProfileRoleRunner runChecker tolerates unescaped quotes inside reason", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const jsonishOutput = `{"verdict":"pass","reason":"符合"连续3次问好"的核心目标","resultContent":"## 验收通过\\n\\n完成。"}`;
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root,
+			teamDataDir: root,
+			watcherProfileId: "w",
+			workerProfileId: "wo",
+			checkerProfileId: "c",
+			finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory([jsonishOutput]),
+		});
+
+		const out = await runner.runChecker({
+			runId: "run_jsonish_checker",
+			task: { id: "task_1", title: "测试", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1",
+			workerOutputRef: "output/worker-1.md",
+			acceptanceRules: ["r1"],
+		});
+		assert.equal(out.verdict, "pass");
+		assert.match(out.reason, /连续3次问好/);
+		assert.match(out.resultContent ?? "", /验收通过/);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});

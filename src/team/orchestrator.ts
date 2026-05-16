@@ -68,6 +68,7 @@ export class TeamOrchestrator {
 	private readonly maxRunDurationMs: number;
 	private elapsedOffset = 0;
 	private abortController: AbortController | null = null;
+	private leaseOwnerId: string | null = null;
 
 	constructor(options: TeamOrchestratorOptions) {
 		this.planStore = options.planStore;
@@ -104,10 +105,11 @@ export class TeamOrchestrator {
 		return this.runToCompletion(queued.runId);
 	}
 
-	async runToCompletion(runId: string, options?: { signal?: AbortSignal }): Promise<TeamRunState> {
+	async runToCompletion(runId: string, options?: { signal?: AbortSignal; leaseOwnerId?: string }): Promise<TeamRunState> {
 		let state = await this.workspace.getState(runId);
 		if (!state) throw new Error(`run not found: ${runId}`);
 
+		this.leaseOwnerId = options?.leaseOwnerId ?? null;
 		this.abortController = new AbortController();
 		if (options?.signal) {
 			if (options.signal.aborted) {
@@ -139,7 +141,7 @@ export class TeamOrchestrator {
 
 			for (const task of plan.tasks) {
 				state = (await this.workspace.getState(runId))!;
-				if (state.status !== "running") break;
+				if (state.status !== "running" || this.shouldStop(state)) break;
 
 				// Skip tasks that already reached a terminal state (resume safety)
 				const taskState = state.taskStates[task.id];
@@ -157,7 +159,7 @@ export class TeamOrchestrator {
 			}
 
 			state = (await this.workspace.getState(runId))!;
-			if (state.status === "running") {
+			if (state.status === "running" && !this.shouldStop(state)) {
 				await this.runFinalizer(state, plan, signal);
 			}
 
@@ -165,13 +167,14 @@ export class TeamOrchestrator {
 		} catch (error) {
 			if (signal.aborted) {
 				const current = await this.workspace.getState(runId);
-				if (current && isRunExternallyStopped(current.status)) {
+				if (current && this.shouldStop(current)) {
 					return current;
 				}
 			}
 			return await this.failRun(runId, error);
 		} finally {
 			this.abortController = null;
+			this.leaseOwnerId = null;
 		}
 	}
 
@@ -184,6 +187,7 @@ export class TeamOrchestrator {
 		state.pauseReason = reason;
 		state.lastError = reason;
 		state.activeElapsedMs = this.accumulateElapsed(state);
+		state.lease = null;
 		state.updatedAt = now();
 
 		if (state.currentTaskId) {
@@ -208,6 +212,7 @@ export class TeamOrchestrator {
 
 		this.elapsedOffset = state.activeElapsedMs;
 		state.status = "queued";
+		state.lease = null;
 		state.pauseReason = null;
 		state.updatedAt = now();
 		await this.workspace.saveState(state);
@@ -225,6 +230,7 @@ export class TeamOrchestrator {
 		state.lastError = reason;
 		state.activeElapsedMs = this.accumulateElapsed(state);
 		state.finishedAt = now();
+		state.lease = null;
 		state.updatedAt = now();
 
 		for (const [tid, ts] of Object.entries(state.taskStates)) {
@@ -276,7 +282,7 @@ export class TeamOrchestrator {
 		while (!taskDone && watcherRevisions <= this.maxWatcherRevisions) {
 			attemptCount++;
 			state = (await this.workspace.getState(state.runId))!;
-			if (isRunExternallyStopped(state.status)) return;
+			if (this.shouldStop(state)) return;
 			state.taskStates[task.id]!.attemptCount = attemptCount;
 			const { attemptId, attemptRoot } = await this.workspace.createAttempt(state.runId, task.id);
 			state.taskStates[task.id]!.activeAttemptId = attemptId;
@@ -288,13 +294,13 @@ export class TeamOrchestrator {
 			const currentTs = state.taskStates[task.id]!;
 
 			if (currentTs.status === "interrupted" || currentTs.status === "cancelled") return;
-			if (isRunExternallyStopped(state.status)) return;
+			if (this.shouldStop(state)) return;
 
 			const watcherResult = await this.runWatcherPhase(state, task, attemptId, workUnitResult, signal);
 
 			// Re-read state after watcher returns — external cancel may have landed
 			state = (await this.workspace.getState(state.runId))!;
-			if (isRunExternallyStopped(state.status)) return;
+			if (this.shouldStop(state)) return;
 			const ts = state.taskStates[task.id]!;
 
 			if (watcherResult.decision === "accept_task") {
@@ -336,7 +342,7 @@ export class TeamOrchestrator {
 
 		while (true) {
 			const freshState = await this.workspace.getState(runId);
-			if (!freshState || freshState.status !== "running") return "failed";
+			if (!freshState || freshState.status !== "running" || this.shouldStop(freshState)) return "failed";
 
 			const workerOut = await this.roleRunner.runWorker({
 				runId,
@@ -350,7 +356,7 @@ export class TeamOrchestrator {
 			});
 
 			// Re-read after worker returns — cancel may have landed during execution
-			if (isRunExternallyStopped((await this.workspace.getState(runId))?.status ?? "")) return "failed";
+			if (this.shouldStop((await this.workspace.getState(runId)))) return "failed";
 
 			const workerOutputIdx = checkerRevision + 1;
 			const workerRef = await this.workspace.writeWorkerOutput(runId, task.id, attemptId, workerOutputIdx, workerOut.content);
@@ -359,6 +365,13 @@ export class TeamOrchestrator {
 				runId, taskId: task.id, attemptId, phase: "worker",
 				startedAt: now(), finishedAt: now(), durationMs: 0,
 			});
+
+			const checkingState = await this.workspace.getState(runId);
+			if (checkingState && !this.shouldStop(checkingState)) {
+				checkingState.taskStates[task.id]!.progress = { phase: "checker_reviewing", message: progressMessages.checker_reviewing, updatedAt: now() };
+				checkingState.updatedAt = now();
+				await this.workspace.saveState(checkingState);
+			}
 
 			const checkerOut = await this.roleRunner.runChecker({
 				runId,
@@ -370,7 +383,7 @@ export class TeamOrchestrator {
 			});
 
 			// Re-read after checker returns — cancel may have landed during execution
-			if (isRunExternallyStopped((await this.workspace.getState(runId))?.status ?? "")) return "failed";
+			if (this.shouldStop((await this.workspace.getState(runId)))) return "failed";
 
 			await this.workspace.writeCheckerVerdict(runId, task.id, attemptId, checkerRevision + 1, checkerOut);
 			if (checkerOut.feedback) {
@@ -385,8 +398,9 @@ export class TeamOrchestrator {
 			if (checkerOut.verdict === "pass") {
 				const resultContent = checkerOut.resultContent ?? workerOut.content;
 				const s = (await this.workspace.getState(runId))!;
-				if (isRunExternallyStopped(s.status)) return "failed";
+				if (this.shouldStop(s)) return "failed";
 				const resultRef = await this.workspace.writeAcceptedResult(runId, task.id, attemptId, resultContent);
+				await this.workspace.updateAttemptStatus(runId, task.id, attemptId, "succeeded");
 				s.taskStates[task.id]!.resultRef = resultRef;
 				await this.workspace.saveState(s);
 				return "passed";
@@ -395,8 +409,9 @@ export class TeamOrchestrator {
 			if (checkerOut.verdict === "fail") {
 				const failContent = checkerOut.resultContent ?? checkerOut.reason;
 				const s = (await this.workspace.getState(runId))!;
-				if (isRunExternallyStopped(s.status)) return "failed";
+				if (this.shouldStop(s)) return "failed";
 				const failRef = await this.workspace.writeFailedResult(runId, task.id, attemptId, failContent);
+				await this.workspace.updateAttemptStatus(runId, task.id, attemptId, "failed");
 				s.taskStates[task.id]!.resultRef = failRef;
 				s.taskStates[task.id]!.errorSummary = checkerOut.reason;
 				await this.workspace.saveState(s);
@@ -407,8 +422,9 @@ export class TeamOrchestrator {
 			lastFeedback = checkerOut.feedback;
 			if (checkerRevision >= this.maxCheckerRevisions) {
 				const s = (await this.workspace.getState(runId))!;
-				if (isRunExternallyStopped(s.status)) return "failed";
+				if (this.shouldStop(s)) return "failed";
 				const failRef = await this.workspace.writeFailedResult(runId, task.id, attemptId, `checker revision limit (${this.maxCheckerRevisions}) exceeded`);
+				await this.workspace.updateAttemptStatus(runId, task.id, attemptId, "failed");
 				s.taskStates[task.id]!.resultRef = failRef;
 				s.taskStates[task.id]!.errorSummary = "checker revision limit exceeded";
 				await this.workspace.saveState(s);
@@ -418,6 +434,12 @@ export class TeamOrchestrator {
 	}
 
 	private async runWatcherPhase(state: TeamRunState, task: TeamTask, attemptId: string, workUnitStatus: "passed" | "failed", signal: AbortSignal) {
+		const current = await this.workspace.getState(state.runId);
+		if (current && !this.shouldStop(current)) {
+			current.taskStates[task.id]!.progress = { phase: "watcher_reviewing", message: progressMessages.watcher_reviewing, updatedAt: now() };
+			current.updatedAt = now();
+			await this.workspace.saveState(current);
+		}
 		const ts = state.taskStates[task.id];
 		const watcherOut = await this.roleRunner.runWatcher({
 			runId: state.runId,
@@ -440,7 +462,7 @@ export class TeamOrchestrator {
 
 	private async runFinalizer(staleState: TeamRunState, plan: import("./types.js").TeamPlan, signal: AbortSignal): Promise<void> {
 		const state = (await this.workspace.getState(staleState.runId))!;
-		if (isRunExternallyStopped(state.status)) return;
+		if (this.shouldStop(state)) return;
 
 		const taskResults = plan.tasks.map(t => {
 			const ts = state.taskStates[t.id]!;
@@ -464,7 +486,7 @@ export class TeamOrchestrator {
 
 		// Re-read state after finalizer returns — external cancel may have landed
 		const freshState = (await this.workspace.getState(staleState.runId))!;
-		if (isRunExternallyStopped(freshState.status)) return;
+		if (this.shouldStop(freshState)) return;
 
 		await this.workspace.writeFinalReport(freshState.runId, finalReport);
 
@@ -478,6 +500,7 @@ export class TeamOrchestrator {
 		}
 		freshState.activeElapsedMs = this.accumulateElapsed(freshState);
 		freshState.finishedAt = now();
+		freshState.lease = null;
 		freshState.updatedAt = now();
 		await this.workspace.saveState(freshState);
 	}
@@ -501,6 +524,7 @@ export class TeamOrchestrator {
 		state.lastError = "run timeout";
 		state.activeElapsedMs = this.accumulateElapsed(state);
 		state.finishedAt = now();
+		state.lease = null;
 		state.updatedAt = now();
 		await this.workspace.saveState(state);
 	}
@@ -534,9 +558,17 @@ export class TeamOrchestrator {
 		state.lastError = message;
 		state.activeElapsedMs = this.accumulateElapsed(state);
 		state.finishedAt = now();
+		state.lease = null;
 		state.updatedAt = now();
 		await this.workspace.saveState(state);
 		return state;
+	}
+
+	private shouldStop(state: TeamRunState | null | undefined): boolean {
+		if (!state) return true;
+		if (isRunExternallyStopped(state.status)) return true;
+		if (this.leaseOwnerId && state.lease?.ownerId !== this.leaseOwnerId) return true;
+		return false;
 	}
 
 	private accumulateElapsed(state: TeamRunState): number {

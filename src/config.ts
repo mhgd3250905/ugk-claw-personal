@@ -23,6 +23,8 @@ export interface AppConfig {
 	teamRuntimeEnabled: boolean;
 	teamDataDir: string;
 	teamWorkerPollIntervalMs: number;
+	teamWorkerLeaseTtlMs: number;
+	teamWorkerHeartbeatIntervalMs: number;
 	teamMaxConcurrentRuns: number;
 }
 
@@ -110,6 +112,8 @@ export function getAppConfig(projectRoot: string = process.cwd()): AppConfig {
 		teamRuntimeEnabled: process.env.TEAM_RUNTIME_ENABLED === "true",
 		teamDataDir: process.env.TEAM_DATA_DIR?.trim() || join(dataDir, "team"),
 		teamWorkerPollIntervalMs: Number(process.env.TEAM_WORKER_POLL_INTERVAL_MS ?? "3000"),
+		teamWorkerLeaseTtlMs: Number(process.env.TEAM_WORKER_LEASE_TTL_MS ?? "60000"),
+		teamWorkerHeartbeatIntervalMs: Number(process.env.TEAM_WORKER_HEARTBEAT_INTERVAL_MS ?? "10000"),
 		teamMaxConcurrentRuns: Number(process.env.TEAM_MAX_CONCURRENT_RUNS ?? "1"),
 	};
 }

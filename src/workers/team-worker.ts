@@ -23,6 +23,10 @@ function createRoleRunner(config: ReturnType<typeof getAppConfig>): TeamRoleRunn
 
 const STATE_WATCH_INTERVAL_MS = 2000;
 
+function createWorkerId(): string {
+	return `worker_${process.pid}_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
 async function main() {
 	const config = getAppConfig();
 	console.log("[team-worker] starting, dataDir:", config.teamDataDir);
@@ -32,14 +36,18 @@ async function main() {
 	const workspace = new RunWorkspace(config.teamDataDir);
 
 	const pollIntervalMs = config.teamWorkerPollIntervalMs;
+	const leaseTtlMs = Number.isFinite(config.teamWorkerLeaseTtlMs) && config.teamWorkerLeaseTtlMs > 0 ? config.teamWorkerLeaseTtlMs : 60_000;
+	const configuredHeartbeatMs = Number.isFinite(config.teamWorkerHeartbeatIntervalMs) && config.teamWorkerHeartbeatIntervalMs > 0 ? config.teamWorkerHeartbeatIntervalMs : 10_000;
+	const heartbeatIntervalMs = Math.min(configuredHeartbeatMs, Math.max(1000, Math.floor(leaseTtlMs / 2)));
+	const workerId = process.env.TEAM_WORKER_ID?.trim() || createWorkerId();
+	console.log("[team-worker] workerId:", workerId, "leaseTtlMs:", leaseTtlMs, "heartbeatIntervalMs:", heartbeatIntervalMs);
 
 	async function tick() {
 		try {
-			const states = await workspace.listStates();
-			const queued = states.find(s => s.status === "queued");
-			if (!queued) return;
+			const claimed = await workspace.claimNextRunnableRun(workerId, leaseTtlMs);
+			if (!claimed) return;
 
-			console.log("[team-worker] found queued run:", queued.runId);
+			console.log("[team-worker] claimed run:", claimed.runId);
 			const roleRunner = createRoleRunner(config);
 			const orchestrator = new TeamOrchestrator({
 				planStore,
@@ -53,9 +61,21 @@ async function main() {
 			});
 
 			const abortController = new AbortController();
+			const heartbeat = setInterval(async () => {
+				try {
+					const ok = await workspace.heartbeatRunLease(claimed.runId, workerId, leaseTtlMs);
+					if (!ok) {
+						abortController.abort(new Error("run lease lost"));
+						clearInterval(heartbeat);
+					}
+				} catch {
+					// heartbeat errors should not crash the worker; next tick will retry or abort.
+				}
+			}, heartbeatIntervalMs);
+			heartbeat.unref?.();
 			const watcher = setInterval(async () => {
 				try {
-					const current = await workspace.getState(queued.runId);
+					const current = await workspace.getState(claimed.runId);
 					if (!current) return;
 					if (current.status === "cancelled" || current.status === "paused") {
 						abortController.abort(new Error(`run externally ${current.status}`));
@@ -67,10 +87,12 @@ async function main() {
 			}, STATE_WATCH_INTERVAL_MS);
 
 			try {
-				const final = await orchestrator.runToCompletion(queued.runId, { signal: abortController.signal });
-				console.log("[team-worker] run completed:", queued.runId, "status:", final.status);
+				const final = await orchestrator.runToCompletion(claimed.runId, { signal: abortController.signal, leaseOwnerId: workerId });
+				console.log("[team-worker] run completed:", claimed.runId, "status:", final.status);
 			} finally {
 				clearInterval(watcher);
+				clearInterval(heartbeat);
+				await workspace.releaseRunLease(claimed.runId, workerId);
 			}
 		} catch (err) {
 			console.error("[team-worker] tick error:", err);

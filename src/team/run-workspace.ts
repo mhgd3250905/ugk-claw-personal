@@ -21,6 +21,16 @@ function initialTaskStates(plan: TeamPlan): Record<string, TeamTaskState> {
 	return states;
 }
 
+const now = () => new Date().toISOString();
+
+function leaseExpiresAt(ttlMs: number): string {
+	return new Date(Date.now() + ttlMs).toISOString();
+}
+
+function isLeaseExpired(state: TeamRunState): boolean {
+	return !state.lease || new Date(state.lease.expiresAt).getTime() <= Date.now();
+}
+
 export class RunWorkspace {
 	constructor(private readonly rootDir: string) {}
 
@@ -54,6 +64,7 @@ export class RunWorkspace {
 			},
 			pauseReason: null,
 			lastError: null,
+			lease: null,
 			updatedAt: now,
 		};
 
@@ -70,6 +81,75 @@ export class RunWorkspace {
 		const tmp = filePath + ".tmp";
 		await writeFile(tmp, JSON.stringify(state, null, 2), "utf8");
 		await rename(tmp, filePath);
+	}
+
+	async claimNextRunnableRun(ownerId: string, leaseTtlMs: number): Promise<TeamRunState | null> {
+		const states = await this.listStates();
+		const candidates = states.filter(state =>
+			state.status === "queued" ||
+			(state.status === "running" && isLeaseExpired(state)),
+		);
+		for (const candidate of candidates) {
+			const claimed = await this.claimRun(candidate.runId, ownerId, leaseTtlMs);
+			if (claimed) return claimed;
+		}
+		return null;
+	}
+
+	async claimRun(runId: string, ownerId: string, leaseTtlMs: number): Promise<TeamRunState | null> {
+		return this.withRunLock(runId, async () => {
+			const state = await this.getState(runId);
+			if (!state) return null;
+			if (state.status === "queued" || (state.status === "running" && isLeaseExpired(state))) {
+				const timestamp = now();
+				state.status = "running";
+				state.startedAt = state.startedAt ?? timestamp;
+				state.lease = {
+					ownerId,
+					acquiredAt: timestamp,
+					heartbeatAt: timestamp,
+					expiresAt: leaseExpiresAt(leaseTtlMs),
+				};
+				state.updatedAt = timestamp;
+				await this.saveState(state);
+				return state;
+			}
+			return null;
+		});
+	}
+
+	async heartbeatRunLease(runId: string, ownerId: string, leaseTtlMs: number): Promise<boolean> {
+		return this.withRunLock(runId, async () => {
+			const state = await this.getState(runId);
+			if (!state || state.lease?.ownerId !== ownerId) return false;
+			if (state.status !== "running") return false;
+			const timestamp = now();
+			state.lease.heartbeatAt = timestamp;
+			state.lease.expiresAt = leaseExpiresAt(leaseTtlMs);
+			state.updatedAt = timestamp;
+			await this.saveState(state);
+			return true;
+		});
+	}
+
+	async releaseRunLease(runId: string, ownerId: string): Promise<void> {
+		await this.withRunLock(runId, async () => {
+			const state = await this.getState(runId);
+			if (!state || state.lease?.ownerId !== ownerId) return;
+			state.lease = null;
+			state.updatedAt = now();
+			await this.saveState(state);
+		});
+	}
+
+	async clearRunLease(runId: string): Promise<void> {
+		await this.withRunLock(runId, async () => {
+			const state = await this.getState(runId);
+			if (!state || !state.lease) return;
+			state.lease = null;
+			state.updatedAt = now();
+			await this.saveState(state);
+		});
 	}
 
 	async listStates(): Promise<TeamRunState[]> {
@@ -95,6 +175,13 @@ export class RunWorkspace {
 		await mkdir(join(attemptRoot, "output"), { recursive: true });
 		await writeFile(join(attemptRoot, "attempt.json"), JSON.stringify({ attemptId, taskId, status: "running", createdAt: new Date().toISOString() }, null, 2), "utf8");
 		return { attemptId, attemptRoot };
+	}
+
+	async updateAttemptStatus(runId: string, taskId: string, attemptId: string, status: string): Promise<void> {
+		const attemptFile = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts", attemptId, "attempt.json");
+		const existing = await this.readJson<Record<string, unknown>>(attemptFile);
+		if (!existing) return;
+		await writeFile(attemptFile, JSON.stringify({ ...existing, status, updatedAt: now() }, null, 2), "utf8");
 	}
 
 	async writeWorkerOutput(runId: string, taskId: string, attemptId: string, index: number, content: string): Promise<string> {
@@ -139,6 +226,25 @@ export class RunWorkspace {
 	async deleteRun(runId: string): Promise<void> {
 		const runDir = join(this.rootDir, "runs", runId);
 		await rm(runDir, { recursive: true, force: true });
+	}
+
+	private async withRunLock<T>(runId: string, fn: () => Promise<T>): Promise<T> {
+		const lockDir = join(this.rootDir, "runs", runId, ".lock");
+		for (let attempt = 0; attempt < 20; attempt++) {
+			try {
+				await mkdir(lockDir);
+				try {
+					return await fn();
+				} finally {
+					await rm(lockDir, { recursive: true, force: true });
+				}
+			} catch (error) {
+				const code = (error as NodeJS.ErrnoException).code;
+				if (code !== "EEXIST") throw error;
+				await new Promise(resolve => setTimeout(resolve, 10));
+			}
+		}
+		throw new Error(`run lock busy: ${runId}`);
 	}
 	async listAttempts(runId: string, taskId: string): Promise<Array<{ attemptId: string; status: string; createdAt: string; files: string[] }>> {
 		const attemptsDir = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts");

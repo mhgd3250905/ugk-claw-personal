@@ -158,7 +158,16 @@ final report 优先由 finalizer agent 生成。若 finalizer 失败，orchestra
 
 ### ugk-pi-team-worker 接管
 
-独立 Node 进程 `src/workers/team-worker.ts`，通过 `npm run worker:team` 启动。每 3 秒轮询 queued run，调用 `TeamOrchestrator.runToCompletion()` 执行。
+独立 Node 进程 `src/workers/team-worker.ts`，通过 `npm run worker:team` 启动。每 3 秒轮询 runnable run，通过 run lease 原子 claim 后调用 `TeamOrchestrator.runToCompletion()` 执行。
+
+worker 会为每个 claim 到的 run 写入 `state.lease`：
+
+- `ownerId`：当前 worker 实例 ID，默认由进程号 + 时间戳生成；可用 `TEAM_WORKER_ID` 覆盖。
+- `acquiredAt`：lease 获取时间。
+- `heartbeatAt`：最近一次 heartbeat。
+- `expiresAt`：lease 过期时间。
+
+只有 `queued` run 或 `running` 且 lease 过期的 run 可被 claim。claim 使用 run 目录下的临时 lock 目录做原子互斥，避免多个 worker 同时抢同一个 run。worker 执行期间定期 heartbeat；如果 heartbeat 发现 lease 已被其他 worker 接走，会 abort 当前 run。orchestrator 在 phase 写回前也会校验 lease owner，防止旧 worker 迟到写回。
 
 跨进程取消机制：worker 内部 watcher 每 2 秒检测 run state 变化，发现外部 cancel/pause 后触发 `AbortController.abort()`，信号经 orchestrator 传到 agent session。
 
@@ -240,6 +249,8 @@ checker 和 watcher 输出 JSON。`parseJsonResponse` 使用三层提取：
 | `TEAM_USE_MOCK_RUNNER` | `true` | mock runner；真实 runner 需显式设 `"false"` |
 | `TEAM_DATA_DIR` | `.data/team` | Team 数据目录 |
 | `TEAM_WORKER_POLL_INTERVAL_MS` | 3000 | worker 轮询间隔 |
+| `TEAM_WORKER_LEASE_TTL_MS` | 60000 | run lease 过期时间；worker 崩溃超过该时间后可被其他 worker 接走 |
+| `TEAM_WORKER_HEARTBEAT_INTERVAL_MS` | 10000 | worker heartbeat 间隔；实际值会被限制在 lease TTL 的一半以内 |
 | `TEAM_MAX_CONCURRENT_RUNS` | 1 | 最大并发 run 数 |
 
 Docker Compose 默认设置：
@@ -311,17 +322,15 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 
 ## 已知限制
 
-1. **Worker 无 durable lease** — worker 崩溃后 run 会卡在 running。没有 heartbeat、crash recovery 或重复执行防护。
-2. **默认 mock runner** — 真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。
-3. **SSE 轮询间隔** — SSE 基于服务端 2 秒轮询 state 文件，不是事件驱动推送。对高频状态变化有短暂延迟。
-4. **单 worker** — 当前只支持一个 worker 进程轮询。
-5. **Timeout 60 分钟** — 超时 run 标记为 failed。
+1. **默认 mock runner** — 真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。
+2. **SSE 轮询间隔** — SSE 基于服务端 2 秒轮询 state 文件，不是事件驱动推送。对高频状态变化有短暂延迟。
+3. **单活跃 run 策略** — 当前 `createRun()` 仍限制全局只有一个 queued/running/paused run；lease 解决 worker 抢占和崩溃恢复，不等于开放多 run 并发。
+4. **Timeout 60 分钟** — 超时 run 标记为 failed。
 
 ## 后续计划
 
-1. Worker lease / heartbeat / crash recovery
-2. 事件驱动 SSE（orchestrator 直接推送，而非轮询）
-3. 并发 worker 支持
+1. 事件驱动 SSE（orchestrator 直接推送，而非轮询）
+2. 并发 run 调度策略（放开当前单活跃 run 限制前需重新设计资源锁）
 
 ---
 
