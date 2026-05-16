@@ -5,6 +5,7 @@ import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildServer } from "../src/server.js";
+import { RunWorkspace } from "../src/team/run-workspace.js";
 import type { AgentService } from "../src/agent/agent-service.js";
 
 function createAgentServiceStub() {
@@ -456,6 +457,39 @@ test("SSE receives cancelled snapshot within 300ms via event notification", asyn
 		const elapsed = Date.now() - start;
 		assert.ok(elapsed < 300, `expected update within 300ms, got ${elapsed}ms`);
 		assert.ok(event.includes("cancelled"), "should contain cancelled status");
+
+		sse.close();
+		await app.close();
+	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch {}
+	}
+});
+
+test("SSE receives state saved by another workspace instance via fallback polling", async () => {
+	const { app, root, teamDir } = await buildTestServer();
+	try {
+		const unitRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: unitBody });
+		const planRes = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody(unitRes.json().teamUnitId) });
+		const runRes = await app.inject({ method: "POST", url: `/v1/team/plans/${planRes.json().planId}/runs` });
+		const runId = runRes.json().runId;
+
+		await app.listen({ port: 0, host: "127.0.0.1" });
+		const port = (app.server.address() as { port: number }).port;
+
+		const sse = await connectSSE(port, `/v1/team/runs/${runId}/events`);
+		const initial = await sse.nextEvent();
+		assert.ok(initial.includes("queued"), "initial snapshot should show queued status");
+
+		const externalWorkspace = new RunWorkspace(teamDir);
+		const state = await externalWorkspace.getState(runId);
+		assert.ok(state);
+		state.status = "running";
+		state.startedAt = new Date().toISOString();
+		state.updatedAt = new Date().toISOString();
+		await externalWorkspace.saveState(state);
+
+		const event = await sse.nextEvent(1800);
+		assert.ok(event.includes("running"), "should contain externally saved running status");
 
 		sse.close();
 		await app.close();

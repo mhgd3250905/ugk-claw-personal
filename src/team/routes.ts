@@ -351,6 +351,7 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 			};
 
 			sendSnapshot(state);
+			let lastSnapshotJson = JSON.stringify(state);
 
 			const TERMINAL = new Set(["completed", "completed_with_failures", "failed", "cancelled"]);
 			if (TERMINAL.has(state.status)) {
@@ -361,21 +362,50 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 			const heartbeat = startSseHeartbeat(reply.raw, 15_000);
 
 			let stopped = false;
-			const subscription = workspace.events.subscribe(runId, (fresh) => {
+			let subscription: { unsubscribe(): void } | null = null;
+			let fallbackPoll: ReturnType<typeof setInterval> | null = null;
+			const stopStream = () => {
+				if (stopped) return;
+				stopped = true;
+				subscription?.unsubscribe();
+				heartbeat.stop();
+				if (fallbackPoll) clearInterval(fallbackPoll);
+			};
+			const sendIfChanged = (fresh: TeamRunState) => {
 				if (stopped || reply.raw.destroyed || reply.raw.writableEnded) return;
+				const snapshotJson = JSON.stringify(fresh);
+				if (snapshotJson === lastSnapshotJson) return;
+				lastSnapshotJson = snapshotJson;
 				sendSnapshot(fresh);
 				if (TERMINAL.has(fresh.status)) {
-					stopped = true;
-					subscription.unsubscribe();
-					heartbeat.stop();
+					stopStream();
 					endSseResponse(reply.raw);
 				}
+			};
+			subscription = workspace.events.subscribe(runId, (fresh) => {
+				sendIfChanged(fresh);
 			});
+			fallbackPoll = setInterval(async () => {
+				if (stopped || reply.raw.destroyed || reply.raw.writableEnded) {
+					stopStream();
+					return;
+				}
+				try {
+					const fresh = await workspace.getState(runId);
+					if (!fresh) {
+						stopStream();
+						endSseResponse(reply.raw);
+						return;
+					}
+					sendIfChanged(fresh);
+				} catch {
+					// A transient disk read failure should not kill the SSE stream.
+				}
+			}, 1000);
+			fallbackPoll.unref?.();
 
 			request.raw.on("close", () => {
-				stopped = true;
-				subscription.unsubscribe();
-				heartbeat.stop();
+				stopStream();
 			});
 		});
 

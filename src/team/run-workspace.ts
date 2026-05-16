@@ -344,7 +344,7 @@ export class RunWorkspace {
 				}
 			} catch (error) {
 				const code = (error as NodeJS.ErrnoException).code;
-				if (code !== "EEXIST") throw error;
+				if (code !== "EEXIST" && code !== "EPERM") throw error;
 				await new Promise(resolve => setTimeout(resolve, ADMISSION_LOCK_RETRY_INTERVAL_MS));
 			}
 		}

@@ -12,6 +12,19 @@
 
 ---
 
+## 2026-05-16 — P6-B SSE 跨进程 fallback 修复
+
+- **主题**: 修复事件驱动 SSE 只覆盖 HTTP 进程内状态写入、无法感知独立 worker 进程推进 run 的问题
+- **影响范围**: `src/team/routes.ts`, `test/team-sse-attempt-api.test.ts`, `docs/team-runtime.md`
+- **变更**:
+  - Team run SSE 在 `RunStateEvents` 快路径之外增加 1 秒 change-detect fallback，只在磁盘 state 发生变化时推送 snapshot
+  - 补充使用另一个 `RunWorkspace` 实例写入 state 的回归测试，模拟独立 worker 进程写入
+  - 文档改为说明同进程立即推送、跨进程最多有短暂 fallback 延迟
+  - admission lock 在 Windows 高并发下将临时 `EPERM` 也视为锁竞争并重试，避免 `.admission.lock` 创建/删除窗口造成随机失败
+- **源码入口**: `src/team/routes.ts:/v1/team/runs/:runId/events`
+
+---
+
 ## 2026-05-16 — P6-B: Event-Driven Run SSE
 
 - **主题**: 将 `/v1/team/runs/:runId/events` 从 2 秒轮询改为事件驱动推送

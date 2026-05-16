@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 252 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 253 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -162,7 +162,7 @@ final report 优先由 finalizer agent 生成。若 finalizer 失败，orchestra
 
 - Content-Type: `text/event-stream`
 - 连接建立后立即发送当前 state snapshot（`{ type: "snapshot", data: <TeamRunState> }`）
-- 对于 active run（queued/running/paused），服务端通过 `RunStateEvents` 订阅 `saveState()` 通知，状态变更后立即推送 snapshot（事件驱动，非轮询）
+- 对于 active run（queued/running/paused），服务端优先通过 `RunStateEvents` 订阅同进程 `saveState()` 通知，状态变更后立即推送 snapshot；同时保留 1 秒 change-detect fallback 读取磁盘 state，覆盖独立 worker 进程写入的状态变更
 - run 进入 terminal 状态后发送最终 snapshot 并关闭连接
 - 15 秒 SSE heartbeat 保持连接活跃
 - 客户端断开自动清理 subscription 和 heartbeat
@@ -421,7 +421,7 @@ Cancel/pause always takes priority over phase timeout — if a run is already ca
 ## 已知限制
 
 1. **默认 mock runner** — 真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。
-2. **SSE 单进程通知** — SSE 基于进程内 `RunStateEvents` 推送，仅在同一 HTTP 服务器进程内有效。跨进程（独立 worker）的状态变更不触发通知；生产环境 worker 进程独立运行时，SSE 客户端在 worker 完成后需等待前端列表刷新。
+2. **SSE 跨进程 fallback 延迟** — 同进程状态变更通过 `RunStateEvents` 立即推送；独立 worker 进程写入的状态变更通过 1 秒 change-detect fallback 捕获，因此跨进程更新可能有短暂延迟。
 3. **默认单活跃 run** — `TEAM_MAX_CONCURRENT_RUNS` 默认为 `1`，即全局只允许一个 queued/running/paused run。设置为更大的值可允许并发 active run，但单个 worker 进程仍顺序执行；多 worker 进程可通过 lease 机制分别 claim 不同的 queued run。
 4. **Timeout 60 分钟** — 超时 run 标记为 failed。
 5. **无 per-profile 并发隔离** — 并发 run 共享 AgentProfile，不保证浏览器/session 独立。
