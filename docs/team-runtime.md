@@ -126,6 +126,30 @@ run 内相对路径，指向 accepted 或 failed 结果文件。格式如 `tasks
 
 final report 优先由 finalizer agent 生成。若 finalizer 失败，orchestrator 会写入 deterministic fallback report，并把 run 标记为 `completed_with_failures`；只有 run 尚未完成或报告文件不存在时返回 404。
 
+### SSE 事件流
+
+| 方法 | 路径 | 语义 |
+|------|------|------|
+| GET | `/v1/team/runs/:runId/events` | SSE 端点，推送 run state snapshot |
+
+- Content-Type: `text/event-stream`
+- 连接建立后立即发送当前 state snapshot（`{ type: "snapshot", data: <TeamRunState> }`）
+- 对于 active run（queued/running/paused），每 2 秒轮询 state 并推送 snapshot
+- run 进入 terminal 状态后发送最终 snapshot 并关闭连接
+- 15 秒 SSE heartbeat 保持连接活跃
+- 客户端断开自动清理 interval 和 listener
+
+### Attempt 只读 API
+
+| 方法 | 路径 | 语义 |
+|------|------|------|
+| GET | `/v1/team/runs/:runId/tasks/:taskId/attempts` | 列出 task 的所有 attempts |
+| GET | `/v1/team/runs/:runId/tasks/:taskId/attempts/:attemptId/files/:fileName` | 读取 attempt 文件 |
+
+- `listAttempts` 返回每个 attempt 的 `attemptId`、`status`、`createdAt`、`files[]`
+- `readAttemptFile` 只允许安全文件名（`[a-zA-Z0-9._-]`），路径不能逃逸 run 目录
+- 缺失的 run/task/file 返回 404；非法文件名返回 400
+
 ## 执行链路
 
 ### HTTP 只入队
@@ -260,7 +284,7 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 验证结果：
 
 - `npx tsc --noEmit`：通过
-- `npm run test:team`：101 pass
+- `npm run test:team`：101 pass（P1.5 后更新为 133 pass）
 - `npm test`：819 pass
 
 ## 文件清单
@@ -268,9 +292,9 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 | 文件 | 职责 |
 |------|------|
 | `src/team/types.ts` | TeamUnit / Plan / Run / role result 类型 |
-| `src/team/routes.ts` | v2 TeamUnit / Plan / Run HTTP API |
+| `src/team/routes.ts` | v2 TeamUnit / Plan / Run / SSE / Attempt HTTP API |
 | `src/team/orchestrator.ts` | run 创建、状态迁移、worker/checker/watcher/finalizer 编排 |
-| `src/team/run-workspace.ts` | run 目录、state、attempt、resultRef、final-report 持久化 |
+| `src/team/run-workspace.ts` | run 目录、state、attempt、resultRef、final-report、attempt 文件读取 持久化 |
 | `src/team/team-unit-store.ts` | TeamUnit 存储 |
 | `src/team/plan-store.ts` | Plan 存储和 runCount 不变式 |
 | `src/team/config-locks.ts` | 活跃 run 对 Plan / TeamUnit / AgentProfile 的锁计算 |
@@ -282,21 +306,21 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 | `src/team/timing.ts` | timing span 写入 |
 | `src/workers/team-worker.ts` | 独立 Team worker 轮询 queued run |
 | `src/routes/agent-profiles.ts` | AgentProfile 写接口上的 Team active-run 锁 |
-| `src/ui/team-page.ts` | `/playground/team` 控制台 |
+| `src/ui/team-page.ts` | `/playground/team` 控制台（含 SSE 实时更新） |
 | `.pi/skills/team-plan-creator/SKILL.md` | 只创建 TeamUnit / Plan 的运行时 skill |
 
 ## 已知限制
 
 1. **Worker 无 durable lease** — worker 崩溃后 run 会卡在 running。没有 heartbeat、crash recovery 或重复执行防护。
 2. **默认 mock runner** — 真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。
-3. **UI 基础** — 有任务详情展开和操作入口，但缺少 SSE 实时刷新和 attempt 级详情。
+3. **SSE 轮询间隔** — SSE 基于服务端 2 秒轮询 state 文件，不是事件驱动推送。对高频状态变化有短暂延迟。
 4. **单 worker** — 当前只支持一个 worker 进程轮询。
 5. **Timeout 60 分钟** — 超时 run 标记为 failed。
 
 ## 后续计划
 
 1. Worker lease / heartbeat / crash recovery
-2. SSE 实时刷新
+2. 事件驱动 SSE（orchestrator 直接推送，而非轮询）
 3. 并发 worker 支持
 
 ---

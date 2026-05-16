@@ -13,6 +13,17 @@
 ---
 
 ## 2026-05-16
+### P1.5 Team Runtime 实时可观测性收口
+- 日期：2026-05-16
+- 主题：为 /playground/team 添加 SSE 实时状态更新和 attempt 级详情展示。
+- 影响范围：
+  - 新增 SSE 端点 `GET /v1/team/runs/:runId/events`：推送 run state snapshot，active run 每 2 秒轮询推送，terminal 后发送最终 snapshot 并关闭。15 秒 heartbeat 保持连接。客户端断开自动清理。
+  - 新增 Attempt 只读 API：`GET .../tasks/:taskId/attempts`（列出 attempts 和文件）和 `GET .../attempts/:attemptId/files/:fileName`（安全文件读取，含路径遍历防护）。
+  - `RunWorkspace` 新增 `listAttempts()` 和 `readAttemptFile()` 方法，含路径包含验证。
+  - UI：active run 自动订阅 SSE，增量更新 badge/progress/elapsed/currentTask/error/progress bar。展开任务详情时获取 attempts 列表并展示。保留手动刷新按钮作为 fallback。
+  - 新增 `test/team-sse-attempt-api.test.ts`（12 个测试）和 `test/team-page-ui.test.ts` 新增 8 个测试。npm run test:team 133 pass。
+
+## 2026-05-16
 ### Team Runtime v2 finalizer fallback report + skill enhancement
 - 日期：2026-05-16
 - 主题：(1) Finalizer 失败时生成确定性 fallback report；(2) 增强 team-plan-creator skill 为交互式向导。
