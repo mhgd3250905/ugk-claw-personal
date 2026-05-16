@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import http from "node:http";
 import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -370,5 +371,123 @@ test("GET attempts returns defaults for old-format attempt.json", async () => {
 		await app.close();
 	} finally {
 		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
+	}
+});
+
+// ── Event-driven SSE tests ──
+
+function connectSSE(port: number, path: string): Promise<{
+	nextEvent: (timeoutMs?: number) => Promise<string>;
+	close: () => void;
+}> {
+	return new Promise((resolve, reject) => {
+		const events: string[] = [];
+		let buffer = "";
+		let settled = false;
+
+		const req = http.request({
+			hostname: "127.0.0.1",
+			port,
+			path,
+			method: "GET",
+			headers: { Accept: "text/event-stream" },
+		});
+
+		req.on("response", (res) => {
+			res.on("data", (chunk: Buffer) => {
+				buffer += chunk.toString();
+				while (true) {
+					const idx = buffer.indexOf("\n\n");
+					if (idx === -1) break;
+					const raw = buffer.substring(0, idx);
+					buffer = buffer.substring(idx + 2);
+					const lines = raw.split("\n").filter(l => !l.startsWith(":"));
+					if (lines.some(l => l.startsWith("data:"))) {
+						events.push(lines.join("\n"));
+					}
+				}
+			});
+			if (!settled) {
+				settled = true;
+				resolve({
+					nextEvent: (timeoutMs = 5000) => new Promise<string>((resolve, reject) => {
+						const timer = setTimeout(() => reject(new Error(`SSE timeout after ${timeoutMs}ms`)), timeoutMs);
+						const check = () => {
+							if (events.length > 0) {
+								clearTimeout(timer);
+								resolve(events.shift()!);
+							} else {
+								setTimeout(check, 5);
+							}
+						};
+						check();
+					}),
+					close: () => req.destroy(),
+				});
+			}
+		});
+
+		req.on("error", (err) => {
+			if (!settled) { settled = true; reject(err); }
+		});
+		req.end();
+	});
+}
+
+test("SSE receives cancelled snapshot within 300ms via event notification", async () => {
+	const { app, root } = await buildTestServer();
+	try {
+		const unitRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: unitBody });
+		const planRes = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody(unitRes.json().teamUnitId) });
+		const runRes = await app.inject({ method: "POST", url: `/v1/team/plans/${planRes.json().planId}/runs` });
+		const runId = runRes.json().runId;
+
+		await app.listen({ port: 0, host: "127.0.0.1" });
+		const port = (app.server.address() as { port: number }).port;
+
+		const sse = await connectSSE(port, `/v1/team/runs/${runId}/events`);
+		const initial = await sse.nextEvent();
+		assert.ok(initial.includes("queued"), "initial snapshot should show queued status");
+
+		const start = Date.now();
+		await app.inject({ method: "POST", url: `/v1/team/runs/${runId}/cancel`, payload: { reason: "event test" } });
+
+		const event = await sse.nextEvent(300);
+		const elapsed = Date.now() - start;
+		assert.ok(elapsed < 300, `expected update within 300ms, got ${elapsed}ms`);
+		assert.ok(event.includes("cancelled"), "should contain cancelled status");
+
+		sse.close();
+		await app.close();
+	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch {}
+	}
+});
+
+test("SSE client disconnect unsubscribes and server remains stable", async () => {
+	const { app, root } = await buildTestServer();
+	try {
+		const unitRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: unitBody });
+		const planRes = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody(unitRes.json().teamUnitId) });
+		const runRes = await app.inject({ method: "POST", url: `/v1/team/plans/${planRes.json().planId}/runs` });
+		const runId = runRes.json().runId;
+
+		await app.listen({ port: 0, host: "127.0.0.1" });
+		const port = (app.server.address() as { port: number }).port;
+
+		const sse = await connectSSE(port, `/v1/team/runs/${runId}/events`);
+		await sse.nextEvent(); // consume initial snapshot
+
+		sse.close();
+		await new Promise(resolve => setTimeout(resolve, 20));
+
+		await app.inject({ method: "POST", url: `/v1/team/runs/${runId}/cancel`, payload: { reason: "after disconnect" } });
+
+		const healthz = await app.inject({ method: "GET", url: "/v1/team/healthz" });
+		assert.equal(healthz.statusCode, 200);
+
+		await app.close();
+	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch {}
 	}
 });

@@ -360,32 +360,21 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 
 			const heartbeat = startSseHeartbeat(reply.raw, 15_000);
 
-			const POLL_INTERVAL = 2000;
 			let stopped = false;
-			const poll = setInterval(async () => {
-				if (stopped || reply.raw.destroyed || reply.raw.writableEnded) {
-					clearInterval(poll);
-					return;
+			const subscription = workspace.events.subscribe(runId, (fresh) => {
+				if (stopped || reply.raw.destroyed || reply.raw.writableEnded) return;
+				sendSnapshot(fresh);
+				if (TERMINAL.has(fresh.status)) {
+					stopped = true;
+					subscription.unsubscribe();
+					heartbeat.stop();
+					endSseResponse(reply.raw);
 				}
-				try {
-					const fresh = await workspace.getState(runId);
-					if (!fresh) { stopped = true; clearInterval(poll); heartbeat.stop(); endSseResponse(reply.raw); return; }
-					sendSnapshot(fresh);
-					if (TERMINAL.has(fresh.status)) {
-						stopped = true;
-						clearInterval(poll);
-						heartbeat.stop();
-						endSseResponse(reply.raw);
-					}
-				} catch {
-					// state read failed; skip this tick
-				}
-			}, POLL_INTERVAL);
-			poll.unref?.();
+			});
 
 			request.raw.on("close", () => {
 				stopped = true;
-				clearInterval(poll);
+				subscription.unsubscribe();
 				heartbeat.stop();
 			});
 		});
