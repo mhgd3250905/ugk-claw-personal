@@ -119,6 +119,31 @@ test("watcher timing records real duration", async () => {
 	}
 });
 
+test("finalizer timing records real duration", async () => {
+	const { root, plan, planStore, unitStore, workspace } = await setup();
+	try {
+		class DelayedFinalizer extends MockRoleRunner {
+			override async runFinalizer(input: FinalizerInput) {
+				await new Promise(r => setTimeout(r, 30));
+				return super.runFinalizer(input);
+			}
+		}
+		const runner = new DelayedFinalizer();
+		const orchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: runner, dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60 });
+		const state = await orchestrator.createRun(plan.planId);
+		const result = await orchestrator.runToCompletion(state.runId);
+		assert.equal(result.status, "completed");
+
+		const timings = await readTimings(root, state.runId);
+		const lines = timings.trim().split("\n").filter(Boolean);
+		const finalizerSpan = lines.map(l => JSON.parse(l)).find((s: any) => s.phase === "finalizer");
+		assert.ok(finalizerSpan, "finalizer timing span should exist");
+		assert.ok(finalizerSpan.durationMs >= 15, `finalizer durationMs should be >= 15, got ${finalizerSpan.durationMs}`);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
 test("checker timeout writes failed state and does not hang", async () => {
 	const { root, plan, planStore, unitStore, workspace } = await setup();
 	try {
@@ -128,6 +153,30 @@ test("checker timeout writes failed state and does not hang", async () => {
 			}
 		}
 		const runner = new HangingChecker();
+		const orchestrator = new TeamOrchestrator({
+			planStore, teamUnitStore: unitStore, workspace, roleRunner: runner, dataDir: root,
+			maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60,
+			phaseTimeouts: { workerMs: 600_000, checkerMs: 100, watcherMs: 600_000, finalizerMs: 600_000 },
+		});
+		const state = await orchestrator.createRun(plan.planId);
+		const result = await orchestrator.runToCompletion(state.runId);
+		assert.equal(result.status, "completed_with_failures");
+		assert.equal(result.taskStates.task_1?.status, "failed");
+		assert.equal(result.taskStates.task_1?.errorSummary, "checker timeout");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("checker timeout resolves even when runner ignores AbortSignal", async () => {
+	const { root, plan, planStore, unitStore, workspace } = await setup();
+	try {
+		class SignalIgnoringChecker extends MockRoleRunner {
+			override async runChecker(_input: CheckerInput): Promise<any> {
+				await new Promise(() => {});
+			}
+		}
+		const runner = new SignalIgnoringChecker();
 		const orchestrator = new TeamOrchestrator({
 			planStore, teamUnitStore: unitStore, workspace, roleRunner: runner, dataDir: root,
 			maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60,

@@ -79,7 +79,7 @@ async function runWithTimeout<T>(
 	fn: (signal: AbortSignal) => Promise<T>,
 ): Promise<T> {
 	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(new Error(`${phase} timeout`)), timeoutMs);
+	let timeout: NodeJS.Timeout | null = null;
 	let removeParentListener = (): void => {};
 	try {
 		if (parentSignal.aborted) {
@@ -88,10 +88,17 @@ async function runWithTimeout<T>(
 		const onParentAbort = () => controller.abort(parentSignal.reason instanceof Error ? parentSignal.reason : new Error("aborted"));
 		parentSignal.addEventListener("abort", onParentAbort, { once: true });
 		removeParentListener = () => parentSignal.removeEventListener("abort", onParentAbort);
-		return await fn(controller.signal);
+		const timeoutPromise = new Promise<never>((_, reject) => {
+			timeout = setTimeout(() => {
+				const error = new Error(`${phase} timeout`);
+				controller.abort(error);
+				reject(error);
+			}, timeoutMs);
+		});
+		return await Promise.race([fn(controller.signal), timeoutPromise]);
 	} finally {
 		removeParentListener();
-		clearTimeout(timer);
+		if (timeout) clearTimeout(timeout);
 	}
 }
 
@@ -586,6 +593,7 @@ export class TeamOrchestrator {
 
 		let finalReport: string;
 		let finalizerError: string | null = null;
+		const finalizerStarted = new Date();
 		try {
 			const finalizerOut = await runWithTimeout("finalizer", this.phaseTimeouts.finalizerMs, signal, async (localSignal) => {
 				return this.roleRunner.runFinalizer({ runId: state.runId, plan, taskResults, signal: localSignal });
@@ -595,6 +603,12 @@ export class TeamOrchestrator {
 			finalizerError = error instanceof Error ? error.message : String(error);
 			finalReport = generateFallbackReport(plan, state, error);
 		}
+		const finalizerFinished = new Date();
+		await writeTimingSpan(this.dataDir, {
+			runId: state.runId, taskId: null, attemptId: null, phase: "finalizer",
+			startedAt: finalizerStarted.toISOString(), finishedAt: finalizerFinished.toISOString(),
+			durationMs: finalizerFinished.getTime() - finalizerStarted.getTime(),
+		});
 
 		// Re-read state after finalizer returns — external cancel may have landed
 		const freshState = (await this.workspace.getState(staleState.runId))!;

@@ -27,6 +27,12 @@
 - **测试**: 161 pass (新增 P3 测试 8 个 + P7 测试 8 个)
 - **源码入口**: `src/team/agent-profile-role-runner.ts`, `src/team/orchestrator.ts`, `test/team-agent-profile-runner.test.ts`, `test/team-orchestrator-timeout.test.ts`
 
+### 审计补充
+- `runWithTimeout` 改为真正的 `Promise.race` 超时，不再只依赖 runner 响应 `AbortSignal`。
+- finalizer phase 现在也写入 `timings.jsonl`，使用 `taskId: null` / `attemptId: null` 表示 run-level span。
+- 补充 2 个回归测试：signal-ignoring runner 仍会超时返回、finalizer timing span 存在且记录真实 duration。
+- 验证：`npm run test:team` 163 pass，`npx tsc --noEmit` 通过，`git diff --check` 通过。
+
 ## 2026-05-16
 ### Team Runtime v2 P2 worker lease / heartbeat / crash recovery
 - 日期：2026-05-16
