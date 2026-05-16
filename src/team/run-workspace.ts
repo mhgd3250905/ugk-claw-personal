@@ -199,6 +199,67 @@ export class RunWorkspace {
 		});
 	}
 
+	async updateAttemptPhase(runId: string, taskId: string, attemptId: string, phase: AttemptLifecyclePhase): Promise<void> {
+		await this.mutateAttempt(runId, taskId, attemptId, (attempt) => {
+			attempt.phase = phase;
+			attempt.updatedAt = now();
+			return attempt;
+		});
+	}
+
+	async recordAttemptWorkerOutput(
+		runId: string, taskId: string, attemptId: string,
+		summary: import("./types.js").TeamAttemptWorkerSummary,
+	): Promise<void> {
+		await this.mutateAttempt(runId, taskId, attemptId, (attempt) => {
+			attempt.worker.push(summary);
+			attempt.updatedAt = now();
+			return attempt;
+		});
+	}
+
+	async recordAttemptCheckerResult(
+		runId: string, taskId: string, attemptId: string,
+		summary: import("./types.js").TeamAttemptCheckerSummary,
+	): Promise<void> {
+		await this.mutateAttempt(runId, taskId, attemptId, (attempt) => {
+			attempt.checker.push(summary);
+			attempt.updatedAt = now();
+			return attempt;
+		});
+	}
+
+	async recordAttemptWatcherResult(
+		runId: string, taskId: string, attemptId: string,
+		summary: import("./types.js").TeamAttemptWatcherSummary,
+	): Promise<void> {
+		await this.mutateAttempt(runId, taskId, attemptId, (attempt) => {
+			attempt.watcher = summary;
+			attempt.updatedAt = now();
+			return attempt;
+		});
+	}
+
+	async finishAttempt(
+		runId: string, taskId: string, attemptId: string,
+		input: {
+			status: AttemptStatus;
+			phase: AttemptLifecyclePhase;
+			resultRef?: string | null;
+			errorSummary?: string | null;
+		},
+	): Promise<void> {
+		await this.mutateAttempt(runId, taskId, attemptId, (attempt) => {
+			attempt.status = input.status;
+			attempt.phase = input.phase;
+			if (input.resultRef !== undefined) attempt.resultRef = input.resultRef;
+			if (input.errorSummary !== undefined) attempt.errorSummary = input.errorSummary;
+			attempt.finishedAt = now();
+			attempt.updatedAt = now();
+			return attempt;
+		});
+	}
+
 	async writeWorkerOutput(runId: string, taskId: string, attemptId: string, index: number, content: string): Promise<string> {
 		const fileName = `worker-output-${String(index).padStart(3, "0")}.md`;
 		await this.writeAttemptFile(runId, taskId, attemptId, fileName, content);

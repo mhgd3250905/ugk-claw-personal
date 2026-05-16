@@ -225,3 +225,122 @@ test("listAttempts handles missing attempt.json with fallback", async () => {
 		await rm(root, { recursive: true });
 	}
 });
+
+// ── P5 Task 2: lifecycle write API tests ──
+
+test("updateAttemptPhase writes phase and updatedAt", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		const { attemptId } = await ws.createAttempt(state.runId, "task_1");
+		await ws.updateAttemptPhase(state.runId, "task_1", attemptId, "worker_running");
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.equal(attempts[0]!.phase, "worker_running");
+		assert.ok(attempts[0]!.updatedAt.length > 0);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("recordAttemptWorkerOutput appends to worker array", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		const { attemptId } = await ws.createAttempt(state.runId, "task_1");
+		await ws.recordAttemptWorkerOutput(state.runId, "task_1", attemptId, { outputRef: "w1.md", outputIndex: 1 });
+		await ws.recordAttemptWorkerOutput(state.runId, "task_1", attemptId, { outputRef: "w2.md", outputIndex: 2 });
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.equal(attempts[0]!.worker.length, 2);
+		assert.equal(attempts[0]!.worker[0]!.outputRef, "w1.md");
+		assert.equal(attempts[0]!.worker[1]!.outputIndex, 2);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("recordAttemptCheckerResult appends to checker array", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		const { attemptId } = await ws.createAttempt(state.runId, "task_1");
+		await ws.recordAttemptCheckerResult(state.runId, "task_1", attemptId, {
+			verdict: "revise", reason: "fix X", feedback: "do Y", revisionIndex: 1, recordRef: "v1.json", feedbackRef: "f1.md",
+		});
+		await ws.recordAttemptCheckerResult(state.runId, "task_1", attemptId, {
+			verdict: "pass", reason: "ok", revisionIndex: 2, recordRef: "v2.json", feedbackRef: null,
+		});
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.equal(attempts[0]!.checker.length, 2);
+		assert.equal(attempts[0]!.checker[0]!.verdict, "revise");
+		assert.equal(attempts[0]!.checker[0]!.feedback, "do Y");
+		assert.equal(attempts[0]!.checker[1]!.verdict, "pass");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("recordAttemptWatcherResult sets watcher (not append)", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		const { attemptId } = await ws.createAttempt(state.runId, "task_1");
+		await ws.recordAttemptWatcherResult(state.runId, "task_1", attemptId, {
+			decision: "accept_task", reason: "good", recordRef: "w.json",
+		});
+		let attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.ok(attempts[0]!.watcher);
+		assert.equal(attempts[0]!.watcher!.decision, "accept_task");
+		// Second call overwrites
+		await ws.recordAttemptWatcherResult(state.runId, "task_1", attemptId, {
+			decision: "confirm_failed", reason: "bad", recordRef: "w2.json",
+		});
+		attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.equal(attempts[0]!.watcher!.decision, "confirm_failed");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("finishAttempt writes finishedAt and terminal fields", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		const { attemptId } = await ws.createAttempt(state.runId, "task_1");
+		await ws.finishAttempt(state.runId, "task_1", attemptId, {
+			status: "succeeded", phase: "succeeded", resultRef: "accepted.md", errorSummary: null,
+		});
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		const a = attempts[0]!;
+		assert.equal(a.status, "succeeded");
+		assert.equal(a.phase, "succeeded");
+		assert.equal(a.resultRef, "accepted.md");
+		assert.ok(a.finishedAt !== null);
+		assert.ok(a.finishedAt!.length > 0);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("lifecycle methods are no-op for non-existent attempt", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ws-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const state = await ws.createRun(plan, "team_1");
+		// These should not throw
+		await ws.updateAttemptPhase(state.runId, "task_1", "attempt_ghost", "worker_running");
+		await ws.recordAttemptWorkerOutput(state.runId, "task_1", "attempt_ghost", { outputRef: "x", outputIndex: 1 });
+		await ws.recordAttemptCheckerResult(state.runId, "task_1", "attempt_ghost", { verdict: "pass", reason: "ok", revisionIndex: 1, recordRef: "v.json", feedbackRef: null });
+		await ws.recordAttemptWatcherResult(state.runId, "task_1", "attempt_ghost", { decision: "accept_task", reason: "ok", recordRef: "w.json" });
+		await ws.finishAttempt(state.runId, "task_1", "attempt_ghost", { status: "succeeded", phase: "succeeded" });
+		// No attempt created, listAttempts should be empty
+		const attempts = await ws.listAttempts(state.runId, "task_1");
+		assert.equal(attempts.length, 0);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
