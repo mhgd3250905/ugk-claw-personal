@@ -288,12 +288,12 @@ async function loadRuns() {
 			if (r.summary.failedTasks) summaryParts.push('失败 ' + r.summary.failedTasks);
 			if (r.summary.cancelledTasks) summaryParts.push('取消 ' + r.summary.cancelledTasks);
 			var summaryStr = summaryParts.length ? summaryParts.join(' / ') : '无完成';
-			var errorHtml = r.lastError ? '<p style="font-size:12px;color:var(--fail);margin-top:4px">错误：' + escapeHtml(r.lastError) + '</p>' : '';
-			var currentTask = r.currentTaskId ? '<p style="font-size:12px;color:var(--muted)">当前任务：' + escapeHtml(r.currentTaskId) + '</p>' : '';
-			return '<div class="card">' +
-				'<h3>运行 <span style="font-family:monospace">' + escapeHtml(r.runId.slice(0, 16)) + '</span>... ' + statusBadge(r.status) + '</h3>' +
-				'<p style="font-size:13px;color:var(--muted)">任务进度：' + done + '/' + total + '（' + summaryStr + '）</p>' +
-				'<p style="font-size:13px;color:var(--muted)">耗时统计：' + Math.round((r.activeElapsedMs || 0) / 1000) + ' 秒</p>' +
+			var errorHtml = r.lastError ? '<p class="run-error" style="font-size:12px;color:var(--fail);margin-top:4px">错误：' + escapeHtml(r.lastError) + '</p>' : '<p class="run-error" style="display:none;font-size:12px;color:var(--fail);margin-top:4px"></p>';
+			var currentTask = r.currentTaskId ? '<p class="run-current" style="font-size:12px;color:var(--muted)">当前任务：' + escapeHtml(r.currentTaskId) + '</p>' : '<p class="run-current" style="display:none;font-size:12px;color:var(--muted)"></p>';
+			return '<div class="card" data-run-id="' + r.runId + '">' +
+				'<h3>运行 <span style="font-family:monospace">' + escapeHtml(r.runId.slice(0, 16)) + '</span>... <span class="run-badge">' + statusBadge(r.status) + '</span></h3>' +
+				'<p class="run-progress" style="font-size:13px;color:var(--muted)">任务进度：' + done + '/' + total + '（' + summaryStr + '）</p>' +
+				'<p class="run-elapsed" style="font-size:13px;color:var(--muted)">耗时统计：' + Math.round((r.activeElapsedMs || 0) / 1000) + ' 秒</p>' +
 				currentTask + errorHtml +
 				'<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
 				'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
@@ -322,6 +322,8 @@ async function loadRuns() {
 				_planCache[state.planId] = await api('/plans/' + state.planId);
 			}
 			var plan = _planCache[state.planId];
+				if (!window._latestPlanForRun) window._latestPlanForRun = {};
+				window._latestPlanForRun[runId] = plan;
 			detailEl.innerHTML = renderTaskDetail(state, plan);
 			detailEl.style.display = 'block';
 		} catch (e) {
@@ -410,6 +412,107 @@ async function viewReport(runId) {
 	var res = await fetch(API + '/runs/' + runId + '/final-report');
 	if (res.ok) { var text = await res.text(); var w = window.open('', '_blank'); w.document.write('<pre style="white-space:pre-wrap;font-family:sans-serif;padding:20px">' + escapeHtml(text) + '</pre>'); }
 	else alert('报告未找到。');
+}
+
+
+// SSE management
+var _sseConnections = {};
+
+function subscribeRunSSE(runId) {
+	if (_sseConnections[runId]) return;
+	try {
+		var es = new EventSource(API + "/runs/" + runId + "/events");
+		_sseConnections[runId] = es;
+		es.onmessage = function(evt) {
+			try {
+				var payload = JSON.parse(evt.data);
+				if (payload.type === "snapshot" && payload.data) {
+					updateRunCard(payload.data);
+				}
+			} catch(e) {}
+		};
+		es.onerror = function() {
+			es.close();
+			delete _sseConnections[runId];
+		};
+	} catch(e) {
+		// SSE not supported or failed; silent fallback
+	}
+}
+
+function unsubscribeRunSSE(runId) {
+	if (_sseConnections[runId]) {
+		_sseConnections[runId].close();
+		delete _sseConnections[runId];
+	}
+}
+
+function unsubscribeAllSSE() {
+	Object.keys(_sseConnections).forEach(function(k) {
+		_sseConnections[k].close();
+	});
+	_sseConnections = {};
+}
+
+function updateRunCard(r) {
+	var card = document.querySelector("[data-run-id='" + r.runId + "']");
+	if (!card) return;
+	var total = r.summary.totalTasks;
+	var done = r.summary.succeededTasks + r.summary.failedTasks + r.summary.cancelledTasks;
+	var pct = total ? Math.round(done / total * 100) : 0;
+	var summaryParts = [];
+	if (r.summary.succeededTasks) summaryParts.push("\u6210\u529F " + r.summary.succeededTasks);
+	if (r.summary.failedTasks) summaryParts.push("\u5931\u8D25 " + r.summary.failedTasks);
+	if (r.summary.cancelledTasks) summaryParts.push("\u53D6\u6D88 " + r.summary.cancelledTasks);
+	var summaryStr = summaryParts.length ? summaryParts.join(" / ") : "\u65E0\u5B8C\u6210";
+
+	var badgeEl = card.querySelector(".run-badge");
+	if (badgeEl) badgeEl.outerHTML = statusBadge(r.status);
+	var progressText = card.querySelector(".run-progress");
+	if (progressText) progressText.textContent = "\u4EFB\u52A1\u8FDB\u5EA6\uFF1A" + done + "/" + total + "\uFF08" + summaryStr + "\uFF09";
+	var elapsedEl = card.querySelector(".run-elapsed");
+	if (elapsedEl) elapsedEl.textContent = "\u8017\u65F6\u7EDF\u8BA1\uFF1A" + Math.round((r.activeElapsedMs || 0) / 1000) + " \u79D2";
+	var currentEl = card.querySelector(".run-current");
+	if (currentEl) {
+		currentEl.textContent = r.currentTaskId ? "\u5F53\u524D\u4EFB\u52A1\uFF1A" + r.currentTaskId : "";
+		currentEl.style.display = r.currentTaskId ? "" : "none";
+	}
+	var errorEl = card.querySelector(".run-error");
+	if (errorEl) {
+		if (r.lastError) { errorEl.textContent = "\u9519\u8BEF\uFF1A" + r.lastError; errorEl.style.display = ""; }
+		else { errorEl.style.display = "none"; }
+	}
+	var barFill = card.querySelector(".progress-bar-fill");
+	if (barFill) barFill.style.width = pct + "%";
+
+	// Update task detail if expanded
+	var detailEl = card.querySelector(".run-detail");
+	if (detailEl && detailEl.style.display === "block" && window._latestPlanForRun) {
+		var plan = window._latestPlanForRun[r.runId];
+		if (plan) {
+			detailEl.innerHTML = renderTaskDetail(r, plan);
+		}
+	}
+
+	var TERMINAL = { completed: 1, completed_with_failures: 1, failed: 1, cancelled: 1 };
+	if (TERMINAL[r.status]) {
+		unsubscribeRunSSE(r.runId);
+		loadRuns();
+	}
+}
+
+function subscribeActiveRuns(runs) {
+	var ACTIVE = { queued: 1, running: 1, paused: 1 };
+	var currentActiveIds = {};
+	runs.forEach(function(r) {
+		if (ACTIVE[r.status]) {
+			currentActiveIds[r.runId] = 1;
+			subscribeRunSSE(r.runId);
+		}
+	});
+	Object.keys(_sseConnections).forEach(function(k) {
+		if (!currentActiveIds[k]) unsubscribeRunSSE(k);
+	});
 }
 
 // Click outside modal to close
