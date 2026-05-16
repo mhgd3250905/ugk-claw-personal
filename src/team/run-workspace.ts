@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { TeamPlan, TeamProgress, TeamRunState, TeamTaskState, TeamAttemptMetadata, AttemptStatus, AttemptLifecyclePhase } from "./types.js";
 import { generateRunId, generateAttemptId } from "./ids.js";
 import { progressMessages } from "./progress.js";
+import { RunStateEvents } from "./run-state-events.js";
 
 function initialTaskStates(plan: TeamPlan): Record<string, TeamTaskState> {
 	const states: Record<string, TeamTaskState> = {};
@@ -34,6 +35,8 @@ function isLeaseExpired(state: TeamRunState): boolean {
 }
 
 export class RunWorkspace {
+	readonly events = new RunStateEvents();
+
 	constructor(private readonly rootDir: string) {}
 
 	async createRun(plan: TeamPlan, teamUnitId: string): Promise<TeamRunState> {
@@ -102,6 +105,7 @@ export class RunWorkspace {
 		const tmp = filePath + ".tmp";
 		await writeFile(tmp, JSON.stringify(state, null, 2), "utf8");
 		await rename(tmp, filePath);
+		this.events.notify(state);
 	}
 
 	async claimNextRunnableRun(ownerId: string, leaseTtlMs: number): Promise<TeamRunState | null> {
