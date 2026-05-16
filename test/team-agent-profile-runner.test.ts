@@ -457,3 +457,191 @@ test("AgentProfileRoleRunner runChecker tolerates unescaped quotes inside reason
 		await rm(root, { recursive: true }).catch(() => {});
 	}
 });
+
+// ── P3 tests: strict prompt + normalize output ──
+
+test("checker prompt contains strict JSON constraints", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		let capturedPrompt = "";
+		const sessionFactory = {
+			createSession: async () => ({
+				prompt: async (p: string) => { capturedPrompt = p; },
+				subscribe: () => () => {},
+				messages: [{ role: "assistant", content: [{ type: "text", text: '{"verdict":"pass","reason":"ok"}' }], stopReason: "end_turn" }],
+			}),
+		} as unknown as BackgroundAgentSessionFactory;
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never, sessionFactory,
+		});
+
+		await runner.runChecker({
+			runId: "run_prompt_check", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workerOutputRef: "output/w1.md", acceptanceRules: ["r1"],
+		});
+
+		assert.ok(capturedPrompt.includes("字符串中的双引号必须转义"), "checker prompt must mention quote escaping");
+		assert.ok(capturedPrompt.includes("不要在 JSON 前后添加任何文字"), "checker prompt must say no extra text");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("watcher prompt contains strict JSON constraints", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		let capturedPrompt = "";
+		const sessionFactory = {
+			createSession: async () => ({
+				prompt: async (p: string) => { capturedPrompt = p; },
+				subscribe: () => () => {},
+				messages: [{ role: "assistant", content: [{ type: "text", text: '{"decision":"accept_task","reason":"ok"}' }], stopReason: "end_turn" }],
+			}),
+		} as unknown as BackgroundAgentSessionFactory;
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never, sessionFactory,
+		});
+
+		await runner.runWatcher({
+			runId: "run_prompt_check2", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workUnitStatus: "passed", resultRef: null, errorSummary: null,
+		});
+
+		assert.ok(capturedPrompt.includes("字符串中的双引号必须转义"), "watcher prompt must mention quote escaping");
+		assert.ok(capturedPrompt.includes("不要在 JSON 前后添加任何文字"), "watcher prompt must say no extra text");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("checker rejects invalid verdict and returns fail parse error", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory(['{"verdict":"ok","reason":"bad"}']),
+		});
+
+		const out = await runner.runChecker({
+			runId: "run_bad_verdict", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workerOutputRef: "output/w1.md", acceptanceRules: ["r1"],
+		});
+		assert.equal(out.verdict, "fail");
+		assert.match(out.reason, /parse error/);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("checker uppercase verdict PASS is rejected as parse error", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory(['{"verdict":"PASS","reason":"looks good"}']),
+		});
+
+		const out = await runner.runChecker({
+			runId: "run_upper_verdict", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workerOutputRef: "output/w1.md", acceptanceRules: ["r1"],
+		});
+		assert.equal(out.verdict, "fail");
+		assert.match(out.reason, /parse error/);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("watcher rejects invalid decision and returns confirm_failed parse error", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory(['{"decision":"yes","reason":"bad"}']),
+		});
+
+		const out = await runner.runWatcher({
+			runId: "run_bad_decision", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workUnitStatus: "passed", resultRef: null, errorSummary: null,
+		});
+		assert.equal(out.decision, "confirm_failed");
+		assert.match(out.reason, /parse error/);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("checker revise without feedback gets default feedback", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory(['{"verdict":"revise","reason":"needs improvement"}']),
+		});
+
+		const out = await runner.runChecker({
+			runId: "run_no_feedback", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workerOutputRef: "output/w1.md", acceptanceRules: ["r1"],
+		});
+		assert.equal(out.verdict, "revise");
+		assert.equal(out.feedback, "checker requested revision");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("watcher request_revision without feedback gets default feedback", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory(['{"decision":"request_revision","reason":"redo it"}']),
+		});
+
+		const out = await runner.runWatcher({
+			runId: "run_no_watcher_feedback", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workUnitStatus: "failed", resultRef: null, errorSummary: null,
+		});
+		assert.equal(out.decision, "request_revision");
+		assert.equal(out.feedback, "watcher requested revision");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("watcher ignores invalid revisionMode", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
+	try {
+		const runner: TeamRoleRunner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			watcherProfileId: "w", workerProfileId: "wo", checkerProfileId: "c", finalizerProfileId: "f",
+			profileResolver: fakeProfileResolver as never,
+			sessionFactory: makeFakeSessionFactory(['{"decision":"accept_task","reason":"ok","revisionMode":"invalid"}']),
+		});
+
+		const out = await runner.runWatcher({
+			runId: "run_bad_mode", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workUnitStatus: "passed", resultRef: null, errorSummary: null,
+		});
+		assert.equal(out.decision, "accept_task");
+		assert.equal(out.revisionMode, undefined);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});

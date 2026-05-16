@@ -2,7 +2,7 @@ import { getAppConfig } from "../config.js";
 import { PlanStore } from "../team/plan-store.js";
 import { TeamUnitStore } from "../team/team-unit-store.js";
 import { RunWorkspace } from "../team/run-workspace.js";
-import { TeamOrchestrator } from "../team/orchestrator.js";
+import { TeamOrchestrator, DEFAULT_PHASE_TIMEOUTS } from "../team/orchestrator.js";
 import { MockRoleRunner } from "../team/role-runner.js";
 import type { TeamRoleRunner } from "../team/role-runner.js";
 import { AgentProfileRoleRunner } from "../team/agent-profile-role-runner.js";
@@ -58,6 +58,12 @@ async function main() {
 				maxCheckerRevisions: 3,
 				maxWatcherRevisions: 1,
 				maxRunDurationMinutes: 60,
+				phaseTimeouts: {
+					workerMs: config.teamWorkerPhaseTimeoutMs,
+					checkerMs: config.teamCheckerPhaseTimeoutMs,
+					watcherMs: config.teamWatcherPhaseTimeoutMs,
+					finalizerMs: config.teamFinalizerPhaseTimeoutMs,
+				},
 			});
 
 			const abortController = new AbortController();

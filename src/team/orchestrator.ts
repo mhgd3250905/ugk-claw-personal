@@ -6,6 +6,20 @@ import type { TeamRoleRunner } from "./role-runner.js";
 import { writeTimingSpan } from "./timing.js";
 import { progressMessages } from "./progress.js";
 
+export interface PhaseTimeouts {
+	workerMs: number;
+	checkerMs: number;
+	watcherMs: number;
+	finalizerMs: number;
+}
+
+export const DEFAULT_PHASE_TIMEOUTS: PhaseTimeouts = {
+	workerMs: 600_000,
+	checkerMs: 300_000,
+	watcherMs: 300_000,
+	finalizerMs: 300_000,
+};
+
 export interface TeamOrchestratorOptions {
 	planStore: PlanStore;
 	teamUnitStore: TeamUnitStore;
@@ -15,6 +29,7 @@ export interface TeamOrchestratorOptions {
 	maxCheckerRevisions: number;
 	maxWatcherRevisions: number;
 	maxRunDurationMinutes: number;
+	phaseTimeouts?: PhaseTimeouts;
 }
 
 const now = () => new Date().toISOString();
@@ -57,6 +72,29 @@ function generateFallbackReport(
 	return lines.join("\n");
 }
 
+async function runWithTimeout<T>(
+	phase: string,
+	timeoutMs: number,
+	parentSignal: AbortSignal,
+	fn: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(new Error(`${phase} timeout`)), timeoutMs);
+	let removeParentListener = (): void => {};
+	try {
+		if (parentSignal.aborted) {
+			throw parentSignal.reason instanceof Error ? parentSignal.reason : new Error("aborted");
+		}
+		const onParentAbort = () => controller.abort(parentSignal.reason instanceof Error ? parentSignal.reason : new Error("aborted"));
+		parentSignal.addEventListener("abort", onParentAbort, { once: true });
+		removeParentListener = () => parentSignal.removeEventListener("abort", onParentAbort);
+		return await fn(controller.signal);
+	} finally {
+		removeParentListener();
+		clearTimeout(timer);
+	}
+}
+
 export class TeamOrchestrator {
 	private readonly planStore: PlanStore;
 	private readonly teamUnitStore: TeamUnitStore;
@@ -66,6 +104,7 @@ export class TeamOrchestrator {
 	private readonly maxCheckerRevisions: number;
 	private readonly maxWatcherRevisions: number;
 	private readonly maxRunDurationMs: number;
+	private readonly phaseTimeouts: PhaseTimeouts;
 	private elapsedOffset = 0;
 	private abortController: AbortController | null = null;
 	private leaseOwnerId: string | null = null;
@@ -79,6 +118,7 @@ export class TeamOrchestrator {
 		this.maxCheckerRevisions = options.maxCheckerRevisions;
 		this.maxWatcherRevisions = options.maxWatcherRevisions;
 		this.maxRunDurationMs = options.maxRunDurationMinutes * 60 * 1000;
+		this.phaseTimeouts = options.phaseTimeouts ?? DEFAULT_PHASE_TIMEOUTS;
 	}
 
 	async createRun(planId: string): Promise<TeamRunState> {
@@ -344,16 +384,38 @@ export class TeamOrchestrator {
 			const freshState = await this.workspace.getState(runId);
 			if (!freshState || freshState.status !== "running" || this.shouldStop(freshState)) return "failed";
 
-			const workerOut = await this.roleRunner.runWorker({
-				runId,
-				task,
-				attemptId,
-				workDir: `${attemptRoot}/work`,
-				outputDir: `${attemptRoot}/output`,
-				acceptanceRules: task.acceptance.rules,
-				feedback: lastFeedback,
-				signal,
-			});
+			const workerStarted = new Date();
+			let workerOut: import("./role-runner.js").WorkerOutput;
+			try {
+				workerOut = await runWithTimeout("worker", this.phaseTimeouts.workerMs, signal, async (localSignal) => {
+					return this.roleRunner.runWorker({
+						runId, task, attemptId,
+						workDir: `${attemptRoot}/work`,
+						outputDir: `${attemptRoot}/output`,
+						acceptanceRules: task.acceptance.rules,
+						feedback: lastFeedback,
+						signal: localSignal,
+					});
+				});
+			} catch (error) {
+				const workerFinished = new Date();
+				await writeTimingSpan(this.dataDir, {
+					runId, taskId: task.id, attemptId, phase: "worker",
+					startedAt: workerStarted.toISOString(), finishedAt: workerFinished.toISOString(),
+					durationMs: workerFinished.getTime() - workerStarted.getTime(),
+				});
+				if (error instanceof Error && error.message === "worker timeout") {
+					const s = (await this.workspace.getState(runId))!;
+					if (this.shouldStop(s)) return "failed";
+					const failRef = await this.workspace.writeFailedResult(runId, task.id, attemptId, "worker timeout");
+					await this.workspace.updateAttemptStatus(runId, task.id, attemptId, "failed");
+					s.taskStates[task.id]!.resultRef = failRef;
+					s.taskStates[task.id]!.errorSummary = "worker timeout";
+					await this.workspace.saveState(s);
+					return "failed";
+				}
+				throw error;
+			}
 
 			// Re-read after worker returns — cancel may have landed during execution
 			if (this.shouldStop((await this.workspace.getState(runId)))) return "failed";
@@ -361,9 +423,11 @@ export class TeamOrchestrator {
 			const workerOutputIdx = checkerRevision + 1;
 			const workerRef = await this.workspace.writeWorkerOutput(runId, task.id, attemptId, workerOutputIdx, workerOut.content);
 
+			const workerFinished = new Date();
 			await writeTimingSpan(this.dataDir, {
 				runId, taskId: task.id, attemptId, phase: "worker",
-				startedAt: now(), finishedAt: now(), durationMs: 0,
+				startedAt: workerStarted.toISOString(), finishedAt: workerFinished.toISOString(),
+				durationMs: workerFinished.getTime() - workerStarted.getTime(),
 			});
 
 			const checkingState = await this.workspace.getState(runId);
@@ -373,14 +437,36 @@ export class TeamOrchestrator {
 				await this.workspace.saveState(checkingState);
 			}
 
-			const checkerOut = await this.roleRunner.runChecker({
-				runId,
-				task,
-				attemptId,
-				workerOutputRef: workerRef,
-				acceptanceRules: task.acceptance.rules,
-				signal,
-			});
+			const checkerStarted = new Date();
+			let checkerOut: import("./role-runner.js").CheckerOutput;
+			try {
+				checkerOut = await runWithTimeout("checker", this.phaseTimeouts.checkerMs, signal, async (localSignal) => {
+					return this.roleRunner.runChecker({
+						runId, task, attemptId,
+						workerOutputRef: workerRef,
+						acceptanceRules: task.acceptance.rules,
+						signal: localSignal,
+					});
+				});
+			} catch (error) {
+				const checkerFinished = new Date();
+				await writeTimingSpan(this.dataDir, {
+					runId, taskId: task.id, attemptId, phase: "checker",
+					startedAt: checkerStarted.toISOString(), finishedAt: checkerFinished.toISOString(),
+					durationMs: checkerFinished.getTime() - checkerStarted.getTime(),
+				});
+				if (error instanceof Error && error.message === "checker timeout") {
+					const s = (await this.workspace.getState(runId))!;
+					if (this.shouldStop(s)) return "failed";
+					const failRef = await this.workspace.writeFailedResult(runId, task.id, attemptId, "checker timeout");
+					await this.workspace.updateAttemptStatus(runId, task.id, attemptId, "failed");
+					s.taskStates[task.id]!.resultRef = failRef;
+					s.taskStates[task.id]!.errorSummary = "checker timeout";
+					await this.workspace.saveState(s);
+					return "failed";
+				}
+				throw error;
+			}
 
 			// Re-read after checker returns — cancel may have landed during execution
 			if (this.shouldStop((await this.workspace.getState(runId)))) return "failed";
@@ -390,9 +476,11 @@ export class TeamOrchestrator {
 				await this.workspace.writeCheckerOutput(runId, task.id, attemptId, checkerRevision + 1, checkerOut.feedback);
 			}
 
+			const checkerFinished = new Date();
 			await writeTimingSpan(this.dataDir, {
 				runId, taskId: task.id, attemptId, phase: "checker",
-				startedAt: now(), finishedAt: now(), durationMs: 0,
+				startedAt: checkerStarted.toISOString(), finishedAt: checkerFinished.toISOString(),
+				durationMs: checkerFinished.getTime() - checkerStarted.getTime(),
 			});
 
 			if (checkerOut.verdict === "pass") {
@@ -441,20 +529,42 @@ export class TeamOrchestrator {
 			await this.workspace.saveState(current);
 		}
 		const ts = state.taskStates[task.id];
-		const watcherOut = await this.roleRunner.runWatcher({
-			runId: state.runId,
-			task,
-			attemptId,
-			workUnitStatus,
-			resultRef: ts?.resultRef ?? null,
-			errorSummary: ts?.errorSummary ?? null,
-			signal,
-		});
+
+		const watcherStarted = new Date();
+		let watcherOut: import("./role-runner.js").WatcherOutput;
+		try {
+			watcherOut = await runWithTimeout("watcher", this.phaseTimeouts.watcherMs, signal, async (localSignal) => {
+				return this.roleRunner.runWatcher({
+					runId: state.runId,
+					task,
+					attemptId,
+					workUnitStatus,
+					resultRef: ts?.resultRef ?? null,
+					errorSummary: ts?.errorSummary ?? null,
+					signal: localSignal,
+				});
+			});
+		} catch (error) {
+			const watcherFinished = new Date();
+			await writeTimingSpan(this.dataDir, {
+				runId: state.runId, taskId: task.id, attemptId, phase: "watcher",
+				startedAt: watcherStarted.toISOString(), finishedAt: watcherFinished.toISOString(),
+				durationMs: watcherFinished.getTime() - watcherStarted.getTime(),
+			});
+			if (error instanceof Error && error.message === "watcher timeout") {
+				watcherOut = { decision: "confirm_failed", reason: "watcher timeout" };
+				await this.workspace.writeWatcherReview(state.runId, task.id, attemptId, watcherOut);
+				return watcherOut;
+			}
+			throw error;
+		}
 
 		await this.workspace.writeWatcherReview(state.runId, task.id, attemptId, watcherOut);
+		const watcherFinished = new Date();
 		await writeTimingSpan(this.dataDir, {
 			runId: state.runId, taskId: task.id, attemptId, phase: "watcher",
-			startedAt: now(), finishedAt: now(), durationMs: 0,
+			startedAt: watcherStarted.toISOString(), finishedAt: watcherFinished.toISOString(),
+			durationMs: watcherFinished.getTime() - watcherStarted.getTime(),
 		});
 
 		return watcherOut;
@@ -477,7 +587,9 @@ export class TeamOrchestrator {
 		let finalReport: string;
 		let finalizerError: string | null = null;
 		try {
-			const finalizerOut = await this.roleRunner.runFinalizer({ runId: state.runId, plan, taskResults, signal });
+			const finalizerOut = await runWithTimeout("finalizer", this.phaseTimeouts.finalizerMs, signal, async (localSignal) => {
+				return this.roleRunner.runFinalizer({ runId: state.runId, plan, taskResults, signal: localSignal });
+			});
 			finalReport = finalizerOut.finalReport;
 		} catch (error) {
 			finalizerError = error instanceof Error ? error.message : String(error);

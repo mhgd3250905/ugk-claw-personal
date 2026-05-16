@@ -12,6 +12,21 @@
 
 ---
 
+## 2026-05-16 — P3/P7: 输出可靠性 + Phase Timeout
+
+- **主题**: checker/watcher 严格 JSON 输出校验 + phase 级超时 + 真实 timing duration
+- **影响范围**: `src/team/agent-profile-role-runner.ts`, `src/team/orchestrator.ts`, `src/config.ts`, `src/team/routes.ts`, `src/workers/team-worker.ts`
+- **变更**:
+  - checker/watcher prompt 强化严格 JSON 要求
+  - 新增 `normalizeCheckerOutput`/`normalizeWatcherOutput` 结构校验
+  - 非法 verdict/decision 降级为 fail/confirm_failed parse error
+  - revise/request_revision 缺失 feedback 时提供默认值
+  - 新增 `runWithTimeout` helper，worker/checker/watcher/finalizer 各自独立超时
+  - 4 个新环境变量: `TEAM_WORKER_PHASE_TIMEOUT_MS`, `TEAM_CHECKER_PHASE_TIMEOUT_MS`, `TEAM_WATCHER_PHASE_TIMEOUT_MS`, `TEAM_FINALIZER_PHASE_TIMEOUT_MS`
+  - timing span 改用真实时间戳和 duration
+- **测试**: 161 pass (新增 P3 测试 8 个 + P7 测试 8 个)
+- **源码入口**: `src/team/agent-profile-role-runner.ts`, `src/team/orchestrator.ts`, `test/team-agent-profile-runner.test.ts`, `test/team-orchestrator-timeout.test.ts`
+
 ## 2026-05-16
 ### Team Runtime v2 P2 worker lease / heartbeat / crash recovery
 - 日期：2026-05-16

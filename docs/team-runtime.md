@@ -320,6 +320,52 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 | `src/ui/team-page.ts` | `/playground/team` 控制台（含 SSE 实时更新） |
 | `.pi/skills/team-plan-creator/SKILL.md` | 只创建 TeamUnit / Plan 的运行时 skill |
 
+### Checker/Watcher JSON Output Format
+
+Both checker and watcher agents must output **strict JSON only** — no markdown, no surrounding text.
+
+**Checker output schema:**
+```json
+{"verdict": "pass|revise|fail", "reason": "...", "resultContent": "...", "feedback": "..."}
+```
+- `verdict` must be lowercase: `pass`, `revise`, or `fail`
+- `feedback` is required when `verdict=revise` (default: "checker requested revision")
+- `resultContent` is optional for pass/fail
+
+**Watcher output schema:**
+```json
+{"decision": "accept_task|confirm_failed|request_revision", "reason": "...", "revisionMode": "amend|redo", "feedback": "..."}
+```
+- `decision` must be lowercase: `accept_task`, `confirm_failed`, or `request_revision`
+- `feedback` is required when `decision=request_revision` (default: "watcher requested revision")
+- `revisionMode` only `amend` or `redo`; invalid values are ignored
+
+**JSONish fallback:** When strict JSON parsing fails, the system uses a regex-based fallback extractor for common model quirks (e.g., unescaped Chinese quotes in string values). This is not a general JSON repair tool — if both strict and JSONish parsing fail:
+- Checker → `verdict=fail, reason="checker output parse error"`
+- Watcher → `decision=confirm_failed, reason="watcher output parse error"`
+
+**Limitation:** The fallback does not handle arbitrary malformed JSON.
+
+### Phase Timeout
+
+Each role phase has an independent timeout:
+- `TEAM_WORKER_PHASE_TIMEOUT_MS` (default 600000 = 10 min)
+- `TEAM_CHECKER_PHASE_TIMEOUT_MS` (default 300000 = 5 min)
+- `TEAM_WATCHER_PHASE_TIMEOUT_MS` (default 300000 = 5 min)
+- `TEAM_FINALIZER_PHASE_TIMEOUT_MS` (default 300000 = 5 min)
+
+Timeout behavior:
+- Worker timeout: task marked failed, `errorSummary="worker timeout"`
+- Checker timeout: work unit failed, `errorSummary="checker timeout"`
+- Watcher timeout: treated as `confirm_failed` with `reason="watcher timeout"`
+- Finalizer timeout: deterministic fallback report, run status `completed_with_failures`, `lastError="finalizer timeout"`
+
+Cancel/pause always takes priority over phase timeout — if a run is already cancelled/paused when timeout resolves, the cancelled/paused status is preserved.
+
+### Timing Spans
+
+`timings.jsonl` now records **real elapsed time** for each phase (worker, checker, watcher, finalizer). Each span includes `startedAt`, `finishedAt` (ISO timestamps), and `durationMs` (real milliseconds). Previously all spans had `durationMs: 0`.
+
 ## 已知限制
 
 1. **默认 mock runner** — 真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。

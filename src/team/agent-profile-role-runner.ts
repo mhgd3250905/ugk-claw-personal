@@ -68,10 +68,20 @@ ${acceptanceRules.map((r, i) => `${i + 1}. ${r}`).join("\n")}
 ${workerOutput}
 
 ## 输出要求
-请严格按以下 JSON 格式输出（不要输出其他内容）：
-- 如果通过：{"verdict":"pass","reason":"通过原因","resultContent":"最终验收内容（markdown）"}
+只输出一个 JSON object，不要输出其他任何内容（不要输出 markdown、解释文字或代码围栏）。
+
+JSON 格式：
+- 如果通过：{"verdict":"pass","reason":"通过原因","resultContent":"最终验收内容"}
 - 如果需要修改：{"verdict":"revise","reason":"需要修改的原因","feedback":"具体修改建议"}
-- 如果失败：{"verdict":"fail","reason":"失败原因","resultContent":"失败说明"}`;
+- 如果失败：{"verdict":"fail","reason":"失败原因","resultContent":"失败说明"}
+
+约束：
+- 顶层必须是 JSON object
+- verdict 只能是 "pass"、"revise" 或 "fail"（小写）
+- reason 必须是 string
+- resultContent / feedback 如存在必须是 string
+- 字符串中的双引号必须转义为 \\"
+- 不要在 JSON 前后添加任何文字`;
 }
 
 function buildWatcherPrompt(task: TeamTask, workUnitStatus: "passed" | "failed", resultRef: string | null, errorSummary: string | null): string {
@@ -85,10 +95,20 @@ function buildWatcherPrompt(task: TeamTask, workUnitStatus: "passed" | "failed",
 ${errorSummary ? `错误：${errorSummary}` : ""}
 
 ## 输出要求
-请严格按以下 JSON 格式输出（不要输出其他内容）：
+只输出一个 JSON object，不要输出其他任何内容（不要输出 markdown、解释文字或代码围栏）。
+
+JSON 格式：
 - 如果认可结果：{"decision":"accept_task","reason":"认可原因"}
 - 如果确认失败：{"decision":"confirm_failed","reason":"确认失败原因"}
-- 如果需要重新执行：{"decision":"request_revision","reason":"重新执行原因","revisionMode":"amend 或 redo","feedback":"给执行 Agent 的补充说明"}`;
+- 如果需要重新执行：{"decision":"request_revision","reason":"重新执行原因","revisionMode":"amend 或 redo","feedback":"给执行 Agent 的补充说明"}
+
+约束：
+- 顶层必须是 JSON object
+- decision 只能是 "accept_task"、"confirm_failed" 或 "request_revision"（小写）
+- reason 必须是 string
+- revisionMode 只能是 "amend" 或 "redo"
+- 字符串中的双引号必须转义为 \\"
+- 不要在 JSON 前后添加任何文字`;
 }
 
 function buildFinalizerPrompt(plan: TeamPlan, taskResults: Array<{ taskId: string; status: "succeeded" | "failed"; resultRef: string | null; errorSummary: string | null; resultContent: string | null }>): string {
@@ -215,6 +235,41 @@ interface WatcherJsonOutput {
 	feedback?: string;
 }
 
+const VALID_CHECKER_VERDICTS = new Set<string>(["pass", "revise", "fail"]);
+const VALID_WATCHER_DECISIONS = new Set<string>(["accept_task", "confirm_failed", "request_revision"]);
+const VALID_REVISION_MODES = new Set<string>(["amend", "redo"]);
+
+function normalizeCheckerOutput(parsed: unknown): CheckerOutput | null {
+	if (!parsed || typeof parsed !== "object") return null;
+	const obj = parsed as Record<string, unknown>;
+	const rawVerdict = typeof obj.verdict === "string" ? obj.verdict : "";
+	if (!VALID_CHECKER_VERDICTS.has(rawVerdict)) return null;
+	const verdict = rawVerdict as CheckerOutput["verdict"];
+	const reason = typeof obj.reason === "string" ? obj.reason : "";
+	const feedback = typeof obj.feedback === "string" ? obj.feedback : undefined;
+	const resultContent = typeof obj.resultContent === "string" ? obj.resultContent : undefined;
+	if (verdict === "revise" && !feedback) {
+		return { verdict, reason, feedback: "checker requested revision", resultContent };
+	}
+	return { verdict, reason, feedback, resultContent };
+}
+
+function normalizeWatcherOutput(parsed: unknown): WatcherOutput | null {
+	if (!parsed || typeof parsed !== "object") return null;
+	const obj = parsed as Record<string, unknown>;
+	const rawDecision = typeof obj.decision === "string" ? obj.decision : "";
+	if (!VALID_WATCHER_DECISIONS.has(rawDecision)) return null;
+	const decision = rawDecision as WatcherOutput["decision"];
+	const reason = typeof obj.reason === "string" ? obj.reason : "";
+	const rawRevisionMode = typeof obj.revisionMode === "string" ? obj.revisionMode : undefined;
+	const revisionMode = rawRevisionMode && VALID_REVISION_MODES.has(rawRevisionMode) ? rawRevisionMode as "amend" | "redo" : undefined;
+	const feedback = typeof obj.feedback === "string" ? obj.feedback : undefined;
+	if (decision === "request_revision" && !feedback) {
+		return { decision, reason, revisionMode, feedback: "watcher requested revision" };
+	}
+	return { decision, reason, revisionMode, feedback };
+}
+
 async function readRefContent(teamDataDir: string, runId: string, ref: string): Promise<string> {
 	try {
 		return await readFile(join(teamDataDir, "runs", runId, ref), "utf8");
@@ -286,15 +341,15 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 
 		try {
 			const parsed = parseJsonResponse<CheckerJsonOutput>(content);
-			return {
-				verdict: parsed.verdict,
-				reason: parsed.reason ?? "",
-				feedback: parsed.feedback,
-				resultContent: parsed.resultContent,
-			};
+			const normalized = normalizeCheckerOutput(parsed);
+			if (normalized) return normalized;
+			return { verdict: "fail", reason: "checker output parse error: invalid verdict", resultContent: content };
 		} catch {
 			const parsed = parseCheckerJsonish(content);
-			if (parsed) return parsed;
+			if (parsed) {
+				const normalized = normalizeCheckerOutput(parsed);
+				if (normalized) return normalized;
+			}
 			return { verdict: "fail", reason: "checker output parse error", resultContent: content };
 		}
 	}
@@ -308,15 +363,15 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 
 		try {
 			const parsed = parseJsonResponse<WatcherJsonOutput>(content);
-			return {
-				decision: parsed.decision,
-				reason: parsed.reason ?? "",
-				revisionMode: parsed.revisionMode,
-				feedback: parsed.feedback,
-			};
+			const normalized = normalizeWatcherOutput(parsed);
+			if (normalized) return normalized;
+			return { decision: "confirm_failed", reason: "watcher output parse error: invalid decision" };
 		} catch {
 			const parsed = parseWatcherJsonish(content);
-			if (parsed) return parsed;
+			if (parsed) {
+				const normalized = normalizeWatcherOutput(parsed);
+				if (normalized) return normalized;
+			}
 			return { decision: "confirm_failed", reason: "watcher output parse error" };
 		}
 	}
