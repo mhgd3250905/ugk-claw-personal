@@ -12,6 +12,37 @@
 
 ---
 
+## 2026-05-16 — P13: Structured Plan Cards
+
+- **主题**: `/playground/team` 计划列表从简单标题卡片升级为结构化任务详情卡片
+- **影响范围**: `src/ui/team-page.ts`, `test/team-page-ui.test.ts`, `docs/team-runtime.md`, `docs/change-log.md`
+- **变更**:
+  - 抽出 `renderPlanCard` / `renderPlanTaskPreview` / `renderAcceptanceRules` / `truncateText` 四个渲染 helper
+  - 每个 Plan 卡片展示 goal、outputContract、每条 Task 的 title / input.text 摘要 / acceptance.rules 验收清单
+  - 默认展示 3 条任务，超出时提供「展开全部任务」/「收起任务」切换
+  - 「查看 JSON」弹层使用 `textContent` 安全展示完整 Plan JSON
+  - 所有动态值经 `escapeHtml` 处理，planId 通过 `jsArg` 安全传入 onclick
+  - 新增 `.plan-card` / `.plan-task-card` / `.acceptance-list` 等 CSS，含移动端响应式规则
+- **提交**:
+  - `feat(team-ui): render structured plan cards`
+  - `feat(team-ui): expand long plan task lists`
+  - `feat(team-ui): add plan json viewer`
+  - `style(team-ui): polish structured plan cards`
+- **测试**: `npm run test:team` (334 pass)
+
+---
+
+## 2026-05-16 — Team plan structured card defensive rendering
+
+- **主题**: 修复 `/playground/team` 计划页在历史/不完整 Plan JSON 下加载失败的问题
+- **影响范围**: `src/ui/team-page.ts`, `test/team-page-ui.test.ts`
+- **变更**:
+  - 结构化计划卡片渲染时，对缺失或非数组的 `tasks`、`acceptance.rules` 做防御性默认值处理
+  - 缺失 `goal` / `outputContract` 时继续渲染卡片，不再让单个脏 Plan 阻断整个计划列表
+- **测试**: `node --test --test-concurrency=1 --import tsx test/team-page-ui.test.ts`
+
+---
+
 ## 2026-05-16 — Team Plan Creator explicit `/team-plan` trigger
 
 - **主题**: 收紧 Team Plan 创建技能的触发边界，避免普通聊天里提到 team plan 时 Agent 直接开始创建或执行工作

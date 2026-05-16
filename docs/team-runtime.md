@@ -384,12 +384,12 @@ docker compose up -d --scale ugk-pi-team-worker=2  # 多 worker 验证
 | `src/team/timing.ts` | timing span 写入 |
 | `src/workers/team-worker.ts` | 独立 Team worker 轮询 queued run |
 | `src/routes/agent-profiles.ts` | AgentProfile 写接口上的 Team active-run 锁 |
-| `src/ui/team-page.ts` | `/playground/team` 控制台（含 SSE 实时更新、中文 phase 标签、页面内 toast/confirm、Plan modal 表单） |
+| `src/ui/team-page.ts` | `/playground/team` 控制台（含 SSE 实时更新、中文 phase 标签、页面内 toast/confirm、Plan modal 表单、结构化 Plan 卡片、JSON 查看器） |
 | `.pi/skills/team-plan-creator/SKILL.md` | 只创建 TeamUnit / Plan 的运行时 skill |
 
 ### /playground/team 控制台
 
-独立页面提供 Team Runtime 的可视化管理（P12 Console UX Refresh）：
+独立页面提供 Team Runtime 的可视化管理（P12 Console UX Refresh + P13 Structured Plan Cards）：
 
 - **控制台头部**：标题 + 副标题 + 三个摘要计数器（计划/团队/活跃运行），实时更新
 - **页面内反馈**：所有操作反馈通过 toast 通知（success/error/info），不再使用浏览器原生 `alert()`/`confirm()`/`prompt()`
@@ -397,7 +397,10 @@ docker compose up -d --scale ugk-pi-team-worker=2  # 多 worker 验证
 - **计划管理**：
   - 页面内 modal 表单创建计划（名称、目标、任务、验收标准、输出契约）
   - 验收标准按行拆分为 `acceptance.rules`
-  - 列表展示、删除未使用计划（需确认）
+  - 结构化 Plan 卡片：每个计划直接展示 goal、outputContract、每个 Task 的 title / input.text 摘要 / acceptance.rules 验收标准清单
+  - 长任务列表默认展示 3 个，超过时显示「展开全部任务」按钮
+  - 「查看 JSON」弹层：使用 `textContent` 安全展示完整 Plan JSON
+  - 删除未使用计划（需确认）
 - **预设团队管理**：CRUD + 归档，每个角色绑定 AgentProfile 下拉选择
 - **运行记录**：
   - 显示关联 Plan 标题、runId、状态 badge
