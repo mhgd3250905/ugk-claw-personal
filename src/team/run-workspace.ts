@@ -72,6 +72,25 @@ export class RunWorkspace {
 		return state;
 	}
 
+	private static readonly ACTIVE_STATUSES = new Set(["queued", "running", "paused"]);
+
+	async createRunWithAdmission(
+		plan: TeamPlan,
+		teamUnitId: string,
+		maxConcurrentRuns: number,
+	): Promise<TeamRunState> {
+		const effectiveLimit = Math.max(1, Math.floor(maxConcurrentRuns || 1));
+		return this.withAdmissionLock(async () => {
+			const states = await this.listStates();
+			const activeCount = states.filter(s => RunWorkspace.ACTIVE_STATUSES.has(s.status)).length;
+			if (activeCount >= effectiveLimit) {
+				throw new Error("active run limit reached");
+			}
+
+			return this.createRun(plan, teamUnitId);
+		});
+	}
+
 	async getState(runId: string): Promise<TeamRunState | null> {
 		return this.readJson<TeamRunState>(join(this.rootDir, "runs", runId, "state.json"));
 	}
@@ -302,6 +321,27 @@ export class RunWorkspace {
 	async deleteRun(runId: string): Promise<void> {
 		const runDir = join(this.rootDir, "runs", runId);
 		await rm(runDir, { recursive: true, force: true });
+	}
+
+	private async withAdmissionLock<T>(fn: () => Promise<T>): Promise<T> {
+		const runsDir = join(this.rootDir, "runs");
+		await mkdir(runsDir, { recursive: true });
+		const lockDir = join(runsDir, ".admission.lock");
+		for (let attempt = 0; attempt < 50; attempt++) {
+			try {
+				await mkdir(lockDir);
+				try {
+					return await fn();
+				} finally {
+					await rm(lockDir, { recursive: true, force: true });
+				}
+			} catch (error) {
+				const code = (error as NodeJS.ErrnoException).code;
+				if (code !== "EEXIST") throw error;
+				await new Promise(resolve => setTimeout(resolve, 10));
+			}
+		}
+		throw new Error("admission lock busy");
 	}
 
 	private async withRunLock<T>(runId: string, fn: () => Promise<T>): Promise<T> {
