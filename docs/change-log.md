@@ -12,6 +12,24 @@
 
 ---
 
+## 2026-05-16 — P12: Team Console UX Refresh
+
+- **主题**: 把 `/playground/team` 从工程调试页优化为可用 Team 控制台
+- **影响范围**: `src/ui/team-page.ts`, `test/team-page-ui.test.ts`, `docs/team-runtime.md`
+- **变更**:
+  - 移除所有 `alert()`/`confirm()`/`prompt()` 系统弹窗，改为页面内 toast 通知 + 自定义确认 modal
+  - 新增 Plan 创建 modal 表单（名称、目标、任务、验收标准、输出契约），替代 `prompt()` 逐步输入
+  - 新增控制台头部（标题 + 摘要计数器：计划/团队/活跃运行）
+  - 运行操作区分 primary/danger，取消/删除使用 `confirmAction()` 二次确认
+  - 统一 report/file modal 为 `modal-panel` 样式，报告支持一键复制
+  - `runtimeContext` 改为 `<details>/<summary>` 折叠显示
+  - 文件列表改用 `file-chip` 按钮样式，错误摘要高亮
+  - 新增 `@media (max-width: 720px)` 移动端适配
+  - 新增 9 个 P12-T5 测试，累计 109 个 UI 测试通过
+- **提交**: 6 commits (`fix(team-ui): replace system dialogs`, `feat(team-ui): add plan creation modal`, `feat(team-ui): improve console overview`, `fix(team-ui): clarify run actions`, `style(team-ui): polish run detail modals`, `docs(team): document console ux refresh`)
+
+---
+
 ## 2026-05-16 — P10: Team Worker Operations Parity
 
 - **主题**: 补齐独立 Team worker 的真实 runner browser binding 接线，并明确多 worker 运维口径

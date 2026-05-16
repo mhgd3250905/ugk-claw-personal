@@ -384,15 +384,21 @@ docker compose up -d --scale ugk-pi-team-worker=2  # 多 worker 验证
 | `src/team/timing.ts` | timing span 写入 |
 | `src/workers/team-worker.ts` | 独立 Team worker 轮询 queued run |
 | `src/routes/agent-profiles.ts` | AgentProfile 写接口上的 Team active-run 锁 |
-| `src/ui/team-page.ts` | `/playground/team` 控制台（含 SSE 实时更新、中文 phase 标签、弹窗报告/文件查看） |
+| `src/ui/team-page.ts` | `/playground/team` 控制台（含 SSE 实时更新、中文 phase 标签、页面内 toast/confirm、Plan modal 表单） |
 | `.pi/skills/team-plan-creator/SKILL.md` | 只创建 TeamUnit / Plan 的运行时 skill |
 
 ### /playground/team 控制台
 
-独立页面提供 Team Runtime 的可视化管理：
+独立页面提供 Team Runtime 的可视化管理（P12 Console UX Refresh）：
 
-- **计划管理**：列表展示、新建计划、删除未使用计划
-- **预设团队管理**：CRUD + 归档，每个角色绑定 AgentProfile
+- **控制台头部**：标题 + 副标题 + 三个摘要计数器（计划/团队/活跃运行），实时更新
+- **页面内反馈**：所有操作反馈通过 toast 通知（success/error/info），不再使用浏览器原生 `alert()`/`confirm()`/`prompt()`
+- **自定义确认弹窗**：危险操作（取消运行、删除运行、归档团队、删除计划）使用 `confirmAction()` 自定义 modal，带影响说明文案
+- **计划管理**：
+  - 页面内 modal 表单创建计划（名称、目标、任务、验收标准、输出契约）
+  - 验收标准按行拆分为 `acceptance.rules`
+  - 列表展示、删除未使用计划（需确认）
+- **预设团队管理**：CRUD + 归档，每个角色绑定 AgentProfile 下拉选择
 - **运行记录**：
   - 显示关联 Plan 标题、runId、状态 badge
   - 人性化耗时格式（X时Y分 / X分Y秒）
@@ -400,17 +406,22 @@ docker compose up -d --scale ugk-pi-team-worker=2  # 多 worker 验证
   - 任务进度条 + 成功/失败/取消统计
   - SSE 实时更新（active run 自动订阅，terminal 自动断开）
   - 展开/收起任务详情表格
+  - 活跃运行排在列表前面
+  - 空状态包含下一步操作引导
+- **运行操作**：
+  - 暂停/恢复直接执行，不需要二次确认
+  - 取消使用 `cancelRunWithConfirm()`，带不可恢复影响说明
+  - 删除使用 `confirmAction()`，仅允许 terminal run
+  - 操作期间按钮 disabled
 - **任务详情**：
   - 中文 phase 标签（执行中/验收中/复盘中/生成报告等），带颜色编码
-  - 尝试历史卡片（状态、ID、时间戳、可点击文件列表）
-  - 显示 worker/checker/watcher 的 `runtimeContext`（requested/resolved profile、fallback、browser ID、browser scope）
-  - 显示 run 级 finalizer 的 `finalizerRuntimeContext`
-  - 文件内容弹窗查看（调用 Attempt API）
-- **最终报告**：页面内弹窗展示，不再打开新窗口
-- **状态管理**：
-  - 加载 spinner、错误信息 + 重试链接
-  - 操作按钮在异步操作期间禁用
-  - 所有动态文本经过 escapeHtml 转义
+  - 尝试历史卡片（状态、ID、时间戳、file-chip 文件按钮）
+  - `runtimeContext` 默认折叠（`<details>/<summary>`），点击展开详情
+  - 错误摘要使用 `attempt-error` 高亮样式
+  - 文件内容弹窗查看（调用 Attempt API，统一 modal-panel 样式）
+- **最终报告**：统一 modal 弹窗，支持一键复制报告文本
+- **移动端响应式**：`@media (max-width: 720px)` 适配（modal 全宽、摘要隐藏、按钮换行、表格缩窄）
+- **安全性**：所有动态文本经过 `escapeHtml()` 转义，toast 使用 `textContent`
 
 ### Checker/Watcher JSON Output Format
 
