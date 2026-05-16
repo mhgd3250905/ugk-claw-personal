@@ -720,3 +720,61 @@ test("P12-T1: CSS defines toast and confirm styles", () => {
 	assert.match(html, /\.confirm-box/);
 	assert.match(html, /#team-confirm-modal/);
 });
+
+// ── P12 Task 2: Plan modal replaces prompt() ──
+
+test("P12-T2: inline script contains no native prompt()", () => {
+	const html = renderTeamPage();
+	const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+	const scriptContent = scripts.join('');
+	assert.doesNotMatch(scriptContent, /\bprompt\s*\(/, "script must not contain native prompt()");
+});
+
+test("P12-T2: page has plan-modal with form fields", () => {
+	const html = renderTeamPage();
+	assert.match(html, /id="plan-modal"/);
+	assert.match(html, /id="plan-title"/);
+	assert.match(html, /id="plan-teamunit"/);
+	assert.match(html, /id="plan-goal"/);
+	assert.match(html, /id="plan-task-title"/);
+	assert.match(html, /id="plan-task-text"/);
+	assert.match(html, /id="plan-acceptance"/);
+	assert.match(html, /id="plan-output-contract"/);
+});
+
+test("P12-T2: savePlan function exists and constructs acceptance rules", () => {
+	const script = extractScript();
+	assert.match(script, /async function savePlan\(\)/);
+	assert.match(script, /acceptanceText\.split/);
+	assert.match(script, /acceptance:.*rules/);
+});
+
+test("P12-T2: createPlan opens modal instead of using prompt", () => {
+	const script = extractScript();
+	const match = script.match(/async function createPlan[\s\S]*?^}/m);
+	assert.ok(match, "should find createPlan");
+	assert.match(match[0], /plan-modal/);
+	assert.match(match[0], /classList\.add\('open'\)/);
+});
+
+test("P12-T2: plan-modal has click-outside close handler", () => {
+	const script = extractScript();
+	assert.match(script, /plan-modal[\s\S]*closePlanModal/);
+});
+
+test("P12-T2: savePlan shows error on empty title", () => {
+	const script = extractScript();
+	const match = script.match(/async function savePlan[\s\S]*?^}/m);
+	assert.ok(match, "should find savePlan");
+	assert.match(match[0], /showError.*计划名称/);
+});
+
+test("P12-T2: savePlan escapes dynamic values in acceptance rules", () => {
+	const script = extractScript();
+	// savePlan uses .value from DOM elements, not innerHTML injection
+	const match = script.match(/async function savePlan[\s\S]*?^}/m);
+	assert.ok(match, "should find savePlan");
+	// Should use .value for reading fields
+	assert.match(match[0], /\$\('plan-title'\)\.value/);
+	assert.match(match[0], /\$\('plan-goal'\)\.value/);
+});

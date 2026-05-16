@@ -186,6 +186,31 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 	</div>
 </div>
 
+
+<!-- Plan Modal -->
+<div id="plan-modal" class="modal-overlay">
+	<div class="modal">
+		<h2>新建计划</h2>
+		<label>计划名称</label>
+		<input id="plan-title" placeholder="计划名称" />
+		<label>默认团队</label>
+		<select id="plan-teamunit"></select>
+		<label>目标</label>
+		<textarea id="plan-goal" placeholder="计划目标"></textarea>
+		<label>任务标题</label>
+		<input id="plan-task-title" placeholder="任务标题" value="任务1" />
+		<label>任务内容</label>
+		<textarea id="plan-task-text" placeholder="任务内容"></textarea>
+		<label>验收标准（每行一条）</label>
+		<textarea id="plan-acceptance" placeholder="完成目标"></textarea>
+		<label>输出契约</label>
+		<textarea id="plan-output-contract" placeholder="中文汇总"></textarea>
+		<div class="modal-actions">
+			<button class="btn" style="background:var(--border);color:var(--text)" onclick="closePlanModal()">取消</button>
+			<button class="btn btn-primary" onclick="savePlan()">创建</button>
+		</div>
+	</div>
+</div>
 <!-- Report Modal -->
 <div id="report-modal" class="modal-overlay">
 	<div class="report-content">
@@ -642,15 +667,46 @@ async function archiveTeamUnit(id) {
 
 async function createPlan() {
 	var teams = await api('/team-units');
-	if (!teams.length) { showError('请先创建预设团队。'); return; }
 	var active = teams.filter(function(t) { return !t.archived; });
-	if (!active.length) { showError('没有可用的预设团队（全部已归档）。'); return; }
-	var unitId = active[0].teamUnitId;
-	var title = prompt('计划名称：');
-	if (!title) return;
-	var goalText = prompt('目标：') || '';
-	await api('/plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title, defaultTeamUnitId: unitId, goal: { text: goalText }, tasks: [{ id: 'task_1', title: '任务1', input: { text: goalText }, acceptance: { rules: ['完成目标'] } }], outputContract: { text: '中文汇总' } }) });
-	loadPlans();
+	if (!active.length) { showError('没有可用的预设团队。请先在预设团队中创建。'); return; }
+	var sel = $('plan-teamunit');
+	if (!sel) return;
+	sel.innerHTML = '';
+	for (var i = 0; i < active.length; i++) {
+		var opt = document.createElement('option');
+		opt.value = active[i].teamUnitId;
+		opt.textContent = active[i].title;
+		sel.appendChild(opt);
+	}
+	$('plan-title').value = '';
+	$('plan-goal').value = '';
+	$('plan-task-title').value = '任务1';
+	$('plan-task-text').value = '';
+	$('plan-acceptance').value = '完成目标';
+	$('plan-output-contract').value = '中文汇总';
+	$('plan-modal').classList.add('open');
+}
+
+function closePlanModal() {
+	$('plan-modal').classList.remove('open');
+}
+
+async function savePlan() {
+	var title = $('plan-title').value;
+	if (!title) { showError('请输入计划名称'); return; }
+	var unitId = $('plan-teamunit').value;
+	var goalText = $('plan-goal').value;
+	var taskTitle = $('plan-task-title').value || '任务1';
+	var taskText = $('plan-task-text').value || goalText;
+	var acceptanceText = $('plan-acceptance').value || '完成目标';
+	var rules = acceptanceText.split(String.fromCharCode(10)).map(function(l) { return l.trim(); }).filter(function(l) { return l; });
+	var outputContract = $('plan-output-contract').value || '中文汇总';
+	try {
+		await api('/plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title, defaultTeamUnitId: unitId, goal: { text: goalText }, tasks: [{ id: 'task_1', title: taskTitle, input: { text: taskText }, acceptance: { rules: rules } }], outputContract: { text: outputContract } }) });
+		closePlanModal();
+		showSuccess('计划已创建');
+		loadPlans();
+	} catch (e) { showError(e.message); }
 }
 
 async function startRun(planId) {
@@ -871,6 +927,9 @@ $('report-modal').addEventListener('click', function(e) {
 $('file-viewer').addEventListener('click', function(e) {
 	if (e.target === $('file-viewer')) closeFileViewer();
 });
+	$("plan-modal").addEventListener("click", function(e) {
+		if (e.target === $("plan-modal")) closePlanModal();
+	});
 
 
 	// Initial load
