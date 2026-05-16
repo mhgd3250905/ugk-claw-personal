@@ -822,3 +822,36 @@ test("P12-T3: empty states include action links", () => {
 	assert.match(script, /detail-toggle.*openTeamUnitModal/);
 	assert.match(script, /showSection.*plans/);
 });
+
+// ── P12 Task 4: Run action and danger operation UX ──
+
+test("P12-T4: cancelRunWithConfirm function exists with confirmAction", () => {
+	const script = extractScript();
+	assert.match(script, /async function cancelRunWithConfirm\(runId\)/);
+	assert.match(script, /cancelRunWithConfirm[\s\S]*?confirmAction/);
+});
+
+test("P12-T4: cancel buttons use cancelRunWithConfirm, not direct controlRun", () => {
+	const script = extractScript();
+	// Cancel buttons should have onclick="cancelRunWithConfirm..."
+	assert.match(script, /onclick="cancelRunWithConfirm/);
+	// No onclick should call controlRun with cancel action
+	assert.doesNotMatch(script, /onclick="controlRun[^"]*cancel/);
+});
+
+test("P12-T4: pause/resume buttons do not require confirmation", () => {
+	const script = extractScript();
+	assert.match(script, /onclick="controlRun[^"]*pause/);
+	assert.match(script, /onclick="controlRun[^"]*resume/);
+});
+
+test("P12-T4: delete buttons use confirmAction via deleteRun", () => {
+	const script = extractScript();
+	assert.match(script, /async function deleteRun[\s\S]*?confirmAction/);
+	assert.match(script, /async function deleteRun[\s\S]*?danger:\s*true/);
+});
+
+test("P12-T4: cancel confirm has clear impact description", () => {
+	const script = extractScript();
+	assert.match(script, /cancelRunWithConfirm[\s\S]*?不可恢复/);
+});

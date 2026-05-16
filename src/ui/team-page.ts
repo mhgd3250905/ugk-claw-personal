@@ -371,16 +371,6 @@ function showSection(name, evt) {
 }
 
 function updateSummary(plans, teams, runs) {
-	var plansEl = $("summary-plans");
-	var teamsEl = $("summary-teams");
-	var runsEl = $("summary-active-runs");
-	if (plansEl) plansEl.textContent = plans ? plans.length : 0;
-	if (teamsEl) teamsEl.textContent = teams ? teams.length : 0;
-	var activeRuns = runs ? runs.filter(function(r) { return r.status === "queued" || r.status === "running" || r.status === "paused"; }).length : 0;
-	if (runsEl) runsEl.textContent = activeRuns;
-}
-
-function updateSummary(plans, teams, runs) {
 	var plansEl = $('summary-plans');
 	var teamsEl = $('summary-teams');
 	var runsEl = $('summary-active-runs');
@@ -876,10 +866,15 @@ function unsubscribeAllSSE() {
 	_sseConnections = {};
 }
 
+async function cancelRunWithConfirm(runId) {
+	var ok = await confirmAction({ message: "确认取消此运行？当前任务将被中断，不可恢复。", confirmText: "取消运行", danger: true });
+	if (ok) controlRun(runId, "cancel");
+}
+
 function renderRunActions(r) {
 	var html = '<span class="detail-toggle" onclick="toggleRunDetail(\\'' + r.runId + '\\')">展开任务详情</span>';
-	if (r.status === 'running') html += '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'pause\\')">暂停</button><button class="btn btn-danger btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>';
-	if (r.status === 'paused') html += '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'resume\\')">恢复</button><button class="btn btn-danger btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')">取消</button>';
+	if (r.status === 'running') html += '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'pause\\')">暂停</button><button class="btn btn-danger btn-sm" onclick="cancelRunWithConfirm(\\'' + r.runId + '\\')">取消</button>';
+	if (r.status === 'paused') html += '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'resume\\')">恢复</button><button class="btn btn-danger btn-sm" onclick="cancelRunWithConfirm(\\'' + r.runId + '\\')">取消</button>';
 	if (r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed') html += '<button class="btn btn-primary btn-sm" onclick="viewReport(\\'' + r.runId + '\\')">查看报告</button><button class="btn btn-danger btn-sm" onclick="deleteRun(\\'' + r.runId + '\\')">删除</button>';
 	if (r.status === 'cancelled') html += '<button class="btn btn-danger btn-sm" onclick="deleteRun(\\'' + r.runId + '\\')">删除</button>';
 	return html;
