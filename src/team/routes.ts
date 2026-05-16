@@ -6,8 +6,10 @@ import { TeamOrchestrator } from "./orchestrator.js";
 import { computeTeamConfigLocks } from "./config-locks.js";
 import { MockRoleRunner } from "./role-runner.js";
 import type { TeamRoleRunner } from "./role-runner.js";
+import type { TeamRunState } from "./types.js";
 import { AgentProfileRoleRunner } from "./agent-profile-role-runner.js";
 import { loadAgentProfilesSync } from "../agent/agent-profile-catalog.js";
+import { configureSseResponse, writeSseEvent, startSseHeartbeat, endSseResponse } from "../routes/chat-sse.js";
 
 export interface TeamRouteOptions {
 	teamDataDir: string;
@@ -333,4 +335,87 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 			reply.code(404).send({ error: "final report not found" });
 		}
 	});
+
+		// SSE: run state snapshots
+		app.get("/v1/team/runs/:runId/events", async (request, reply) => {
+			const { runId } = request.params as { runId: string };
+			const state = await workspace.getState(runId);
+			if (!state) { reply.code(404).send({ error: "run not found" }); return; }
+
+			configureSseResponse(reply.raw);
+
+			const sendSnapshot = (s: TeamRunState) => {
+				writeSseEvent(reply.raw, { type: "snapshot", data: s });
+			};
+
+			sendSnapshot(state);
+
+			const TERMINAL = new Set(["completed", "completed_with_failures", "failed", "cancelled"]);
+			if (TERMINAL.has(state.status)) {
+				endSseResponse(reply.raw);
+				return;
+			}
+
+			const heartbeat = startSseHeartbeat(reply.raw, 15_000);
+
+			const POLL_INTERVAL = 2000;
+			let stopped = false;
+			const poll = setInterval(async () => {
+				if (stopped || reply.raw.destroyed || reply.raw.writableEnded) {
+					clearInterval(poll);
+					return;
+				}
+				try {
+					const fresh = await workspace.getState(runId);
+					if (!fresh) { stopped = true; clearInterval(poll); heartbeat.stop(); endSseResponse(reply.raw); return; }
+					sendSnapshot(fresh);
+					if (TERMINAL.has(fresh.status)) {
+						stopped = true;
+						clearInterval(poll);
+						heartbeat.stop();
+						endSseResponse(reply.raw);
+					}
+				} catch {
+					// state read failed; skip this tick
+				}
+			}, POLL_INTERVAL);
+			poll.unref?.();
+
+			request.raw.on("close", () => {
+				stopped = true;
+				clearInterval(poll);
+				heartbeat.stop();
+			});
+		});
+
+		// Attempt read-only API (safe path resolution)
+		app.get("/v1/team/runs/:runId/tasks/:taskId/attempts", async (request, reply) => {
+			const { runId, taskId } = request.params as { runId: string; taskId: string };
+			const state = await workspace.getState(runId);
+			if (!state) { reply.code(404).send({ error: "run not found" }); return; }
+			if (!state.taskStates[taskId]) { reply.code(404).send({ error: "task not found" }); return; }
+			try {
+				const attempts = await workspace.listAttempts(runId, taskId);
+				reply.send({ attempts });
+			} catch {
+				reply.send({ attempts: [] });
+			}
+		});
+
+		app.get("/v1/team/runs/:runId/tasks/:taskId/attempts/:attemptId/files/:fileName", async (request, reply) => {
+			const { runId, taskId, attemptId, fileName } = request.params as { runId: string; taskId: string; attemptId: string; fileName: string };
+			const state = await workspace.getState(runId);
+			if (!state) { reply.code(404).send({ error: "run not found" }); return; }
+			if (!state.taskStates[taskId]) { reply.code(404).send({ error: "task not found" }); return; }
+			if (/[^a-zA-Z0-9._-]/.test(fileName) || fileName.includes("..")) {
+				reply.code(400).send({ error: "invalid file name" }); return;
+			}
+			try {
+				const content = await workspace.readAttemptFile(runId, taskId, attemptId, fileName);
+				if (content === null) { reply.code(404).send({ error: "file not found" }); return; }
+				reply.type("text/plain; charset=utf-8").send(content);
+			} catch {
+				reply.code(404).send({ error: "file not found" });
+			}
+		});
 }

@@ -1,4 +1,5 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { join } from "node:path";
 import type { TeamPlan, TeamProgress, TeamRunState, TeamTaskState } from "./types.js";
 import { generateRunId, generateAttemptId } from "./ids.js";
@@ -138,6 +139,36 @@ export class RunWorkspace {
 	async deleteRun(runId: string): Promise<void> {
 		const runDir = join(this.rootDir, "runs", runId);
 		await rm(runDir, { recursive: true, force: true });
+	}
+	async listAttempts(runId: string, taskId: string): Promise<Array<{ attemptId: string; status: string; createdAt: string; files: string[] }>> {
+		const attemptsDir = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts");
+		let dirs: string[];
+		try { dirs = await readdir(attemptsDir); } catch { return []; }
+		const results: Array<{ attemptId: string; status: string; createdAt: string; files: string[] }> = [];
+		for (const d of dirs) {
+			const meta = await this.readJson<{ attemptId: string; status: string; createdAt: string }>(join(attemptsDir, d, "attempt.json"));
+			let files: string[] = [];
+			try { files = (await readdir(join(attemptsDir, d))).filter(f => f !== "attempt.json" && f !== "work" && f !== "output"); } catch { /* empty */ }
+			results.push({
+				attemptId: meta?.attemptId ?? d,
+				status: meta?.status ?? "unknown",
+				createdAt: meta?.createdAt ?? "",
+				files,
+			});
+		}
+		return results;
+	}
+
+	async readAttemptFile(runId: string, taskId: string, attemptId: string, fileName: string): Promise<string | null> {
+		if (/[^a-zA-Z0-9._-]/.test(fileName) || fileName.includes("..")) return null;
+		if (/[^a-zA-Z0-9_-]/.test(attemptId) || attemptId.includes("..")) return null;
+		if (/[^a-zA-Z0-9_-]/.test(taskId) || taskId.includes("..")) return null;
+		const filePath = join(this.rootDir, "runs", runId, "tasks", taskId, "attempts", attemptId, fileName);
+		const runRoot = join(this.rootDir, "runs", runId);
+		const resolved = path.resolve(filePath);
+		const root = path.resolve(runRoot);
+		if (!resolved.startsWith(root + path.sep) && resolved !== root) return null;
+		try { return await readFile(filePath, "utf8"); } catch { return null; }
 	}
 
 	private async writeAttemptFile(runId: string, taskId: string, attemptId: string, fileName: string, content: string): Promise<void> {
