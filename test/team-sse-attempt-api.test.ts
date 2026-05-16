@@ -278,3 +278,97 @@ test("GET attempt file returns 404 for missing run", async () => {
 		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
 	}
 });
+
+// ── Task 5: structured attempt metadata API ──
+
+test("GET attempts returns full lifecycle metadata", async () => {
+	const { app, root, teamDir } = await buildTestServer();
+	try {
+		const unitRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: unitBody });
+		const planRes = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody(unitRes.json().teamUnitId) });
+		const runRes = await app.inject({ method: "POST", url: `/v1/team/plans/${planRes.json().planId}/runs` });
+		const runId = runRes.json().runId;
+
+		const attemptDir = join(teamDir, "runs", runId, "tasks", "t1", "attempts", "attempt_meta1");
+		await mkdir(attemptDir, { recursive: true });
+		await writeFile(join(attemptDir, "attempt.json"), JSON.stringify({
+			attemptId: "attempt_meta1",
+			taskId: "t1",
+			status: "succeeded",
+			phase: "succeeded",
+			createdAt: "2026-05-16T00:00:00.000Z",
+			updatedAt: "2026-05-16T00:01:00.000Z",
+			finishedAt: "2026-05-16T00:01:00.000Z",
+			worker: [{ outputRef: "tasks/t1/attempts/attempt_meta1/worker-output-001.md", outputIndex: 1 }],
+			checker: [{ verdict: "pass", reason: "ok", revisionIndex: 1, recordRef: "tasks/t1/attempts/attempt_meta1/checker-verdict-001.json", feedbackRef: null }],
+			watcher: { decision: "accept_task", reason: "good", recordRef: "tasks/t1/attempts/attempt_meta1/watcher-review.json" },
+			resultRef: "tasks/t1/attempts/attempt_meta1/accepted-result.md",
+			errorSummary: null,
+		}));
+		await writeFile(join(attemptDir, "accepted-result.md"), "result");
+
+		const res = await app.inject({ method: "GET", url: `/v1/team/runs/${runId}/tasks/t1/attempts` });
+		assert.equal(res.statusCode, 200);
+		const a = res.json().attempts[0];
+
+		// Lifecycle metadata fields
+		assert.equal(a.phase, "succeeded");
+		assert.equal(a.updatedAt, "2026-05-16T00:01:00.000Z");
+		assert.equal(a.finishedAt, "2026-05-16T00:01:00.000Z");
+		assert.ok(Array.isArray(a.worker));
+		assert.equal(a.worker.length, 1);
+		assert.equal(a.worker[0].outputRef, "tasks/t1/attempts/attempt_meta1/worker-output-001.md");
+		assert.ok(Array.isArray(a.checker));
+		assert.equal(a.checker.length, 1);
+		assert.equal(a.checker[0].verdict, "pass");
+		assert.ok(a.watcher);
+		assert.equal(a.watcher.decision, "accept_task");
+		assert.equal(a.resultRef, "tasks/t1/attempts/attempt_meta1/accepted-result.md");
+		assert.equal(a.errorSummary, null);
+		assert.ok(a.files.includes("accepted-result.md"));
+
+		await app.close();
+	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
+	}
+});
+
+test("GET attempts returns defaults for old-format attempt.json", async () => {
+	const { app, root, teamDir } = await buildTestServer();
+	try {
+		const unitRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: unitBody });
+		const planRes = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody(unitRes.json().teamUnitId) });
+		const runRes = await app.inject({ method: "POST", url: `/v1/team/plans/${planRes.json().planId}/runs` });
+		const runId = runRes.json().runId;
+
+		const attemptDir = join(teamDir, "runs", runId, "tasks", "t1", "attempts", "attempt_oldformat");
+		await mkdir(attemptDir, { recursive: true });
+		// Old format: only attemptId and status, no lifecycle fields
+		await writeFile(join(attemptDir, "attempt.json"), JSON.stringify({
+			attemptId: "attempt_oldformat",
+			status: "succeeded",
+			createdAt: "2026-05-15T00:00:00Z",
+		}));
+
+		const res = await app.inject({ method: "GET", url: `/v1/team/runs/${runId}/tasks/t1/attempts` });
+		assert.equal(res.statusCode, 200);
+		const a = res.json().attempts[0];
+
+		// Should have defaults, not 500
+		assert.equal(a.attemptId, "attempt_oldformat");
+		assert.equal(a.status, "succeeded");
+		assert.equal(a.phase, "succeeded"); // fallback from status
+		assert.ok(Array.isArray(a.worker));
+		assert.equal(a.worker.length, 0);
+		assert.ok(Array.isArray(a.checker));
+		assert.equal(a.checker.length, 0);
+		assert.equal(a.watcher, null);
+		assert.equal(a.resultRef, null);
+		assert.equal(a.errorSummary, null);
+		assert.equal(a.finishedAt, null);
+
+		await app.close();
+	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
+	}
+});
