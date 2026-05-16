@@ -38,7 +38,7 @@ test("team page has plan, team, run sections", () => {
 test("team page escapes dynamic API values before inserting HTML", () => {
 	const html = renderTeamPage();
 	assert.match(html, /escapeHtml\(safePlan\.title/);
-	assert.match(html, /escapeHtml\(goalText\)/);
+	assert.match(html, /escapeHtml\(goalText\)|escapeHtml\(truncateText\(goalText/);
 	assert.match(html, /escapeHtml\(t\.title\)/);
 	assert.match(html, /escapeHtml\(text\)/);
 });
@@ -891,8 +891,8 @@ test("P13-T1: plan card renders outputContract", () => {
 
 test("P13-T1: plan card escapes goal and output text", () => {
 	const script = extractScript();
-	assert.match(script, /renderPlanCard[\s\S]*?escapeHtml.*goal/);
-	assert.match(script, /renderPlanCard[\s\S]*?escapeHtml.*output/);
+	assert.match(script, /renderPlanSummary[\s\S]*?escapeHtml.*goal/);
+	assert.match(script, /renderPlanSummary[\s\S]*?escapeHtml.*output/);
 });
 
 test("P13-T1: plan card handles missing fields", () => {
@@ -959,13 +959,18 @@ test("P13-T3: card action area includes JSON viewer button", () => {
 test("P13-T4: key CSS classes exist for plan card structure", () => {
 	const html = renderTeamPage();
 	assert.match(html, /\.plan-card/);
-	assert.match(html, /\.plan-task-card/);
-	assert.match(html, /\.plan-task-head/);
-	assert.match(html, /\.plan-goal/);
-	assert.match(html, /\.plan-output/);
+	assert.match(html, /\.plan-card-header/);
+	assert.match(html, /\.plan-card-title/);
+	assert.match(html, /\.plan-card-chips/);
+	assert.match(html, /\.plan-chip/);
+	assert.match(html, /\.plan-summary/);
+	assert.match(html, /\.plan-task-row/);
+	assert.match(html, /\.plan-task-row-head/);
 	assert.match(html, /\.plan-task-list/);
+	assert.match(html, /\.plan-task-details/);
 	assert.match(html, /\.acceptance-list/);
 	assert.match(html, /\.acceptance-rule/);
+	assert.match(html, /\.plan-actions/);
 });
 
 test("P13-T4: plan card has mobile responsive rules", () => {
@@ -1042,4 +1047,178 @@ test("P12-T5: modals use modal-header and modal-body classes", () => {
 	const html = renderTeamPage();
 	assert.match(html, /modal-header/);
 	assert.match(html, /modal-body/);
+});
+
+
+// ── P14 Task 1: Compact Plan Card Rendering Tests ──
+
+// Helper: extract renderPlanCard from inline script and execute it
+function extractRenderPlanCard(): (plan: any) => string {
+	const script = extractScript();
+	const start = script.indexOf("function escapeHtml");
+	const end = script.indexOf("async function loadPlans");
+	assert.ok(start >= 0, "should find escapeHtml start");
+	assert.ok(end > start, "should find loadPlans boundary");
+	const source = script.slice(start, end);
+	// Use eval to build the function with a literal \n in the source
+	const wrapped = source + "\nreturn renderPlanCard;";
+	const fn = new Function(wrapped);
+	return fn();
+}
+
+// Representative fixture with long text and 5 tasks
+const longPlan = {
+	planId: "plan_p14_test",
+	title: "P14 测试计划",
+	defaultTeamUnitId: "tu_001",
+	goal: { text: "这是一个很长的目标文本，用于验证紧凑卡片不会把全部内容摊开。".repeat(10) },
+	tasks: [
+		{ id: "t1", title: "任务一：初始化环境", input: { text: "这是任务一的详细输入内容，包含很多文字来测试截断效果。".repeat(8) }, acceptance: { rules: ["规则一：必须完成X功能", "规则二：必须通过Y测试", "规则三：必须包含Z文档"] } },
+		{ id: "t2", title: "任务二：数据迁移", input: { text: "短输入" }, acceptance: { rules: ["规则A：数据完整"] } },
+		{ id: "t3", title: "任务三：接口联调", input: { text: "第三任务输入" }, acceptance: { rules: ["规则B", "规则C"] } },
+		{ id: "t4", title: "任务四：压力测试", input: { text: "第四任务的输入内容" }, acceptance: { rules: ["规则D", "规则E", "规则F", "规则G"] } },
+		{ id: "t5", title: "任务五：上线验收", input: { text: "最后任务" }, acceptance: { rules: ["规则H"] } },
+	],
+	outputContract: { text: "这是一个很长的输出契约文本，用于验证输出不会默认全展开。".repeat(8) },
+	archived: false,
+	createdAt: "2026-05-16T10:00:00.000Z",
+	updatedAt: "2026-05-16T10:00:00.000Z",
+	runCount: 2,
+};
+
+test("P14-T1: renderPlanCard produces compact card with header and chips", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	const html = renderPlanCard(longPlan);
+	assert.match(html, /plan-card-header/);
+	assert.match(html, /plan-card-title/);
+	assert.match(html, /plan-card-chips/);
+	assert.match(html, /plan-chip/);
+	assert.match(html, /5 个任务/);
+	assert.match(html, /2 次运行/);
+});
+
+test("P14-T1: renderPlanCard clips goal text in summary section", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	const html = renderPlanCard(longPlan);
+	assert.match(html, /plan-summary/);
+	assert.match(html, /plan-summary-row/);
+	assert.match(html, /plan-summary-label/);
+	assert.match(html, /plan-summary-text/);
+	// Goal text should be truncated, not shown in full
+	const goalMatch = html.match(/plan-summary-text">([^<]*目标[^<]*)/);
+	assert.ok(goalMatch, "should find clipped goal text in summary");
+	const displayedGoal = goalMatch[1];
+	assert.ok(displayedGoal.length < longPlan.goal.text.length, "goal should be clipped");
+});
+
+test("P14-T1: renderPlanCard clips output contract in summary", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	const html = renderPlanCard(longPlan);
+	// Output contract text should be truncated
+	const outputMatch = html.match(/plan-summary-text">([^<]*输出[^<]*)/);
+	assert.ok(outputMatch, "should find clipped output text in summary");
+	const displayedOutput = outputMatch[1];
+	assert.ok(displayedOutput.length < longPlan.outputContract.text.length, "output should be clipped");
+});
+
+test("P14-T1: renderPlanCard uses compact task rows with metadata", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	const html = renderPlanCard(longPlan);
+	assert.match(html, /plan-task-row/);
+	assert.match(html, /plan-task-row-head/);
+	assert.match(html, /plan-task-num/);
+	assert.match(html, /plan-task-meta/);
+	assert.match(html, /任务一：初始化环境/);
+	assert.match(html, /任务二：数据迁移/);
+	assert.match(html, /任务三：接口联调/);
+	assert.match(html, /\d+字/);
+	assert.match(html, /\d+ 条验收/);
+});
+
+test("P14-T1: renderPlanCard hides task input and acceptance rules behind details toggle", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	const html = renderPlanCard(longPlan);
+	assert.match(html, /plan-task-details/);
+	assert.match(html, /<details/);
+	assert.match(html, /展开详情/);
+	// Input text should be inside details, not in the visible row
+	const longInput = longPlan.tasks[0].input.text;
+	// The raw input should be in the details section, but we verify details exist
+	assert.match(html, /plan-task-detail-input/);
+});
+
+test("P14-T1: renderPlanCard shows expand-all for plans with more than 3 tasks", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	const html = renderPlanCard(longPlan);
+	assert.match(html, /展开全部任务/);
+	assert.match(html, /data-plan-extra/);
+});
+
+test("P14-T1: renderPlanCard preserves actions: JSON, create run, delete", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	const html = renderPlanCard(longPlan);
+	assert.match(html, /plan-actions/);
+	assert.match(html, /查看 JSON/);
+	assert.match(html, /创建运行/);
+	// runCount=2, so delete button should NOT appear
+	assert.doesNotMatch(html, /删除/);
+	// With runCount=0, delete should appear
+	const html2 = renderPlanCard({ ...longPlan, runCount: 0 });
+	assert.match(html2, /删除/);
+});
+
+test("P14-T1: renderPlanCard handles missing fields gracefully", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	assert.doesNotThrow(() => renderPlanCard({}));
+	assert.doesNotThrow(() => renderPlanCard({ planId: "p1" }));
+	assert.doesNotThrow(() => renderPlanCard({ planId: "p1", tasks: null }));
+	assert.doesNotThrow(() => renderPlanCard({ planId: "p1", tasks: [{ title: "t" }] }));
+	assert.doesNotThrow(() => renderPlanCard({ planId: "p1", tasks: [{ title: "t", acceptance: { rules: "not an array" } }] }));
+	assert.doesNotThrow(() => renderPlanCard({ planId: "p1", tasks: [], goal: null, outputContract: null }));
+	const html = renderPlanCard({ planId: "p1", tasks: [] });
+	assert.match(html, /plan-card/);
+	assert.match(html, /plan-card-header/);
+	assert.match(html, /0 个任务/);
+});
+
+test("P14-T1: renderPlanCard escapes malicious content", () => {
+	const renderPlanCard = extractRenderPlanCard();
+	const malicious = {
+		planId: "p_evil",
+		title: '<script>alert("xss")</script>',
+		goal: { text: '"><img src=x onerror=bad>' },
+		tasks: [{
+			id: "t1",
+			title: '<script>evil</script>',
+			input: { text: '" onclick="bad' },
+			acceptance: { rules: ["<script>rule</script>", '" onmouseover="bad'] },
+		}],
+		outputContract: { text: "'; alert(1); //" },
+		runCount: 0,
+	};
+	const html = renderPlanCard(malicious);
+	assert.doesNotMatch(html, /<script>alert/);
+	assert.doesNotMatch(html, /<script>evil/);
+	assert.doesNotMatch(html, /<script>rule/);
+	assert.doesNotMatch(html, /onclick="bad/);
+	assert.doesNotMatch(html, /onmouseover="bad/);
+	assert.doesNotMatch(html, /<img src=x/);
+	assert.match(html, /&lt;script&gt;/);
+});
+
+test("P14-T1: renderPlanSummary and firstLine helpers exist", () => {
+	const script = extractScript();
+	assert.match(script, /function renderPlanSummary\(plan\)/);
+	assert.match(script, /function firstLine\(text\)/);
+	assert.match(script, /plan-task-details/);
+	assert.match(script, /plan-task-detail-content/);
+});
+
+test("P14-T1: inline scripts remain valid JavaScript after P14 changes", () => {
+	const html = renderTeamPage();
+	const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+	assert.ok(scripts.length > 0);
+	for (const script of scripts) {
+		assert.doesNotThrow(() => new Function(script), "inline script should be valid JS after P14 changes");
+	}
 });

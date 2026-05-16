@@ -138,16 +138,29 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 /* Attempt error highlight */
 .attempt-error { color: var(--fail); font-weight: 500; }
 
-/* Plan card structured layout */
-.plan-card .plan-goal { font-size: 13px; color: var(--muted); margin-bottom: 8px; overflow-wrap: break-word; }
-.plan-card .plan-meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-.plan-card .plan-output { font-size: 13px; color: var(--text); margin-bottom: 8px; overflow-wrap: break-word; }
+/* Plan card compact layout */
+.plan-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+.plan-card-title { font-size: 14px; font-weight: 600; }
+.plan-card-chips { display: flex; gap: 6px; }
+.plan-chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: rgba(115,115,115,0.12); color: var(--muted); }
+.plan-summary { margin-bottom: 8px; }
+.plan-summary-row { display: flex; gap: 8px; margin-bottom: 2px; font-size: 13px; overflow-wrap: break-word; }
+.plan-summary-label { color: var(--muted); flex-shrink: 0; min-width: 28px; }
+.plan-summary-text { color: var(--text); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .plan-task-list { margin-bottom: 4px; }
 .plan-task-extra { margin-bottom: 4px; }
-.plan-task-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; }
-.plan-task-head { font-size: 13px; font-weight: 500; margin-bottom: 4px; overflow-wrap: break-word; }
+.plan-task-row { border-top: 1px solid var(--border); padding: 6px 0; }
+.plan-task-row-head { font-size: 13px; font-weight: 500; overflow-wrap: break-word; }
 .plan-task-num { color: var(--muted); font-size: 11px; margin-right: 4px; }
-.plan-task-input { font-size: 12px; color: var(--muted); margin-bottom: 4px; overflow-wrap: break-word; word-break: break-word; }
+.plan-task-meta { color: var(--muted); font-size: 11px; font-weight: 400; }
+.plan-task-details { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.plan-task-details summary { cursor: pointer; font-size: 12px; color: var(--accent); list-style: none; }
+.plan-task-details summary::-webkit-details-marker { display: none; }
+.plan-task-details summary::before { content: "\\25B8 "; }
+.plan-task-details[open] summary::before { content: "\\25BE "; }
+.plan-task-detail-content { margin-top: 4px; padding-left: 12px; }
+.plan-task-detail-input { font-size: 12px; color: var(--muted); margin-bottom: 4px; overflow-wrap: break-word; white-space: pre-wrap; }
+.plan-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
 .acceptance-list { list-style: none; padding: 0; margin: 4px 0 0; }
 .acceptance-list .acceptance-rule { font-size: 12px; color: var(--muted); padding: 1px 0 1px 16px; position: relative; overflow-wrap: break-word; }
 .acceptance-list .acceptance-rule::before { content: "\\2713"; position: absolute; left: 0; color: var(--success); font-size: 11px; }
@@ -163,8 +176,8 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 	.main { padding: 12px; }
 	.card { padding: 12px; }
 	.profile-grid { grid-template-columns: 1fr; }
-	.plan-task-card { padding: 6px 8px; }
-	.plan-card .plan-goal, .plan-card .plan-output, .plan-task-input { font-size: 12px; }
+	.plan-task-row { padding: 4px 0; }
+	.plan-summary-text { font-size: 12px; }
 	}
 </style>
 </head>
@@ -555,6 +568,27 @@ async function saveTeamUnit() {
 			return str.slice(0, maxLen) + '...';
 		}
 
+		function firstLine(text) {
+			if (!text) return '';
+			var str = String(text);
+			var idx = str.indexOf('\\n');
+			return idx >= 0 ? str.slice(0, idx) : str;
+		}
+
+		function renderPlanSummary(plan) {
+			var safePlan = plan || {};
+			var goalText = safePlan.goal && safePlan.goal.text ? safePlan.goal.text : '';
+			var outputText = safePlan.outputContract && safePlan.outputContract.text ? safePlan.outputContract.text : '';
+			var rows = '';
+			if (goalText) {
+				rows += '<div class="plan-summary-row"><span class="plan-summary-label">目标</span><span class="plan-summary-text">' + escapeHtml(truncateText(goalText, 120)) + '</span></div>';
+			}
+			if (outputText) {
+				rows += '<div class="plan-summary-row"><span class="plan-summary-label">输出</span><span class="plan-summary-text">' + escapeHtml(truncateText(outputText, 80)) + '</span></div>';
+			}
+			return rows ? '<div class="plan-summary">' + rows + '</div>' : '';
+		}
+
 		function renderAcceptanceRules(rules) {
 			var safeRules = Array.isArray(rules) ? rules : [];
 			if (!safeRules.length) return '';
@@ -565,12 +599,22 @@ async function saveTeamUnit() {
 
 		function renderPlanTaskPreview(task, index) {
 			var safeTask = task || {};
-			var inputText = truncateText(safeTask.input && safeTask.input.text ? safeTask.input.text : '', 120);
+			var inputText = safeTask.input && safeTask.input.text ? safeTask.input.text : '';
 			var rules = safeTask.acceptance && Array.isArray(safeTask.acceptance.rules) ? safeTask.acceptance.rules : [];
-			return '<div class="plan-task-card">' +
-				'<div class="plan-task-head"><span class="plan-task-num">#' + (index + 1) + '</span> ' + escapeHtml(safeTask.title || safeTask.id || '') + '</div>' +
-				(inputText ? '<p class="plan-task-input">' + escapeHtml(inputText) + '</p>' : '') +
-				renderAcceptanceRules(rules) +
+			var metaParts = [];
+			if (inputText) metaParts.push(inputText.length + '字');
+			if (rules.length) metaParts.push(rules.length + ' 条验收');
+			var metaHtml = metaParts.length ? ' <span class="plan-task-meta">' + metaParts.join(' / ') + '</span>' : '';
+			var detailsHtml = '';
+			if (inputText || rules.length) {
+				detailsHtml = '<details class="plan-task-details"><summary>展开详情</summary><div class="plan-task-detail-content">';
+				if (inputText) detailsHtml += '<p class="plan-task-detail-input">' + escapeHtml(inputText) + '</p>';
+				if (rules.length) detailsHtml += renderAcceptanceRules(rules);
+				detailsHtml += '</div></details>';
+			}
+			return '<div class="plan-task-row">' +
+				'<div class="plan-task-row-head"><span class="plan-task-num">#' + (index + 1) + '</span> ' + escapeHtml(safeTask.title || safeTask.id || '') + metaHtml + '</div>' +
+				detailsHtml +
 				'</div>';
 		}
 
@@ -601,22 +645,19 @@ async function saveTeamUnit() {
 		function renderPlanCard(plan) {
 			var safePlan = plan || {};
 			var tasks = Array.isArray(safePlan.tasks) ? safePlan.tasks : [];
-			var goalText = safePlan.goal && safePlan.goal.text ? safePlan.goal.text : '';
-			var outputText = safePlan.outputContract && safePlan.outputContract.text ? safePlan.outputContract.text : '';
 			var preview = tasks.slice(0, PLAN_TASK_PREVIEW_LIMIT);
 			var extra = tasks.slice(PLAN_TASK_PREVIEW_LIMIT);
 			var hasExtra = extra.length > 0;
 			var previewHtml = preview.map(function(t, i) { return renderPlanTaskPreview(t, i); }).join('');
 			var extraHtml = hasExtra ? extra.map(function(t, i) { return renderPlanTaskPreview(t, PLAN_TASK_PREVIEW_LIMIT + i); }).join('') : '';
+			var summaryHtml = renderPlanSummary(safePlan);
 			return '<div class="card plan-card">' +
-				'<h3>' + escapeHtml(safePlan.title || '') + ' <span class="badge badge-muted">' + tasks.length + ' 个任务</span></h3>' +
-				(goalText ? '<p class="plan-goal">' + escapeHtml(goalText) + '</p>' : '') +
-				'<div class="plan-meta"><span>运行：' + (safePlan.runCount || 0) + '</span></div>' +
-				(outputText ? '<p class="plan-output">输出：' + escapeHtml(outputText) + '</p>' : '') +
+				'<div class="plan-card-header"><span class="plan-card-title">' + escapeHtml(safePlan.title || '') + '</span><div class="plan-card-chips"><span class="plan-chip">' + tasks.length + ' 个任务</span><span class="plan-chip">' + (safePlan.runCount || 0) + ' 次运行</span></div></div>' +
+				summaryHtml +
 				'<div class="plan-task-list">' + previewHtml + '</div>' +
 				(hasExtra ? '<div class="plan-task-extra" data-plan-extra="' + escapeHtml(safePlan.planId || '') + '" style="display:none">' + extraHtml + '</div>' +
 					'<button class="btn btn-sm detail-toggle" onclick="togglePlanTasks(this, ' + jsArg(safePlan.planId) + ')">展开全部任务</button>' : '') +
-				'<div style="margin-top:8px;display:flex;gap:8px">' +
+				'<div class="plan-actions">' +
 				'<button class="btn btn-sm" onclick="viewPlanJson(' + jsArg(safePlan.planId) + ')">查看 JSON</button>' +
 				'<button class="btn btn-primary" onclick="startRun(\\x27' + safePlan.planId + '\\x27)">创建运行</button>' +
 				(safePlan.runCount === 0 ? '<button class="btn btn-danger" onclick="deletePlan(\\x27' + safePlan.planId + '\\x27)">删除</button>' : '') +
