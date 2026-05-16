@@ -1,11 +1,26 @@
 ---
 name: team-plan-creator
-description: Use when the user asks to create a Team Runtime plan, set up a team for multi-agent task execution, or mentions Chinese phrases like "创建团队计划", "新建团队", "配置执行团队". This skill guides the Agent through creating TeamUnit presets and Plans via the /v1/team REST API.
+description: Use when and only when the user message contains the explicit keyword "/team-plan". This skill guides the Agent through creating TeamUnit presets and Plans via the /v1/team REST API. If the user merely mentions "team plan", "团队计划", Team Runtime, or planning without "/team-plan", do not use this skill automatically; ask whether they want to start with "/team-plan".
 ---
 
 # Team Plan Creator
 
 Use this skill to create Team Runtime v2 plans and team presets through the REST API. This skill only creates or updates planning resources. It must not create or start Runs.
+
+## Activation contract
+
+This skill has a strict activation keyword:
+
+- **MUST activate** when the user message contains `/team-plan`.
+- **MUST NOT activate automatically** when the user only mentions `team plan`, `Team Plan`, `团队计划`, `Team Runtime`, "计划", or a vague intention to plan work.
+- If the user mentions Team planning without `/team-plan`, reply briefly that Team Plan creation is available through `/team-plan`, and ask them to resend or confirm with that keyword.
+- Treat `/team-plan` as an intent boundary, not as normal prose. Once active, this skill must stay in planning-resource mode and must not start implementation work.
+
+Examples:
+
+- `/team-plan 帮我创建一个分步骤计划，目标是优化 Team UI` → activate this skill.
+- `我想聊聊 team plan 怎么设计` → do not activate; discuss or ask whether they want to use `/team-plan`.
+- `创建一个团队计划` → do not create anything yet; ask the user to use `/team-plan 创建一个团队计划...` if they want the guarded workflow.
 
 ## Workflow
 

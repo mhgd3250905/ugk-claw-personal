@@ -65,3 +65,17 @@ test("team-plan-creator skill does not allow direct .data/team editing", async (
 	assert.match(skill, /\.data\/team/);
 	assert.match(skill, /MUST NOT|must not|禁止|do not|不允许/);
 });
+
+test("team-plan-creator skill requires explicit /team-plan activation keyword", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /\/team-plan/);
+	assert.match(skill, /MUST activate[\s\S]*\/team-plan/);
+	assert.match(skill, /MUST NOT activate automatically/);
+});
+
+test("team-plan-creator skill does not auto-activate on casual team plan mentions", async () => {
+	const skill = await readSkill();
+	assert.match(skill, /merely mentions "team plan"/);
+	assert.match(skill, /团队计划/);
+	assert.match(skill, /ask whether they want to start with "\/team-plan"/);
+});

@@ -12,6 +12,19 @@
 
 ---
 
+## 2026-05-16 — Team Plan Creator explicit `/team-plan` trigger
+
+- **主题**: 收紧 Team Plan 创建技能的触发边界，避免普通聊天里提到 team plan 时 Agent 直接开始创建或执行工作
+- **影响范围**: `.pi/skills/team-plan-creator/SKILL.md`, `test/team-plan-creator-skill.test.ts`
+- **变更**:
+  - `team-plan-creator` 改为仅在用户消息包含显式关键词 `/team-plan` 时触发
+  - 普通提到 `team plan`、`团队计划`、`Team Runtime` 或泛泛聊计划时，不自动创建资源；应提示用户使用 `/team-plan`
+  - 保持原有安全边界：只创建/更新 TeamUnit 与 Plan，不启动 Run，不直接编辑 `.data/team`
+  - 新增测试锁定 `/team-plan` 显式触发和普通提及不自动触发的说明
+- **测试**: `node --test --test-concurrency=1 --import tsx test/team-plan-creator-skill.test.ts`
+
+---
+
 ## 2026-05-16 — P12: Team Console UX Refresh
 
 - **主题**: 把 `/playground/team` 从工程调试页优化为可用 Team 控制台
