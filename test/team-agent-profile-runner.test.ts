@@ -92,6 +92,16 @@ function makeCapturingSessionFactory(responses: string[]) {
 	return { factory: factory as unknown as BackgroundAgentSessionFactory, captured };
 }
 
+interface CapturedRouteCall {
+	scope: string;
+	browserId: string | undefined;
+}
+
+interface CapturedCleanupCall {
+	scope: string;
+	options?: { browserId?: string };
+}
+
 test("AgentProfileRoleRunner runWorker returns content", async () => {
 	const root = await mkdtemp(join(tmpdir(), "team-ap-runner-"));
 	try {
@@ -825,12 +835,12 @@ test("cleanup receives same browserScope as session", async () => {
 		const { factory, captured } = makeCapturingSessionFactory(["done"]);
 		const resolver = makeFakeProfileResolver({ wo: { defaultBrowserId: "chrome-01" } });
 
-		const cleanupScopes: string[] = [];
+		const cleanupCalls: CapturedCleanupCall[] = [];
 		const runner = new AgentProfileRoleRunner({
 			projectRoot: root, teamDataDir: root,
 			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
 			profileResolver: resolver as never, sessionFactory: factory,
-			closeBrowserTargetsForScope: async (scope: string) => { cleanupScopes.push(scope); },
+			closeBrowserTargetsForScope: async (scope: string, options?: { browserId?: string }) => { cleanupCalls.push({ scope, options }); },
 		});
 
 		await runner.runWorker({
@@ -839,8 +849,126 @@ test("cleanup receives same browserScope as session", async () => {
 		});
 
 		assert.equal(captured.length, 1);
-		assert.equal(cleanupScopes.length, 1);
-		assert.equal(cleanupScopes[0], captured[0]!.browserScope);
+		assert.equal(cleanupCalls.length, 1);
+		assert.equal(cleanupCalls[0]!.scope, captured[0]!.browserScope);
+		assert.equal(cleanupCalls[0]!.options?.browserId, "chrome-01");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("team role runner writes and clears browser scope route like background runner", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const { factory, captured } = makeCapturingSessionFactory(["done"]);
+		const resolver = makeFakeProfileResolver({ wo: { defaultBrowserId: "work-01" } });
+		const routeCalls: CapturedRouteCall[] = [];
+		const cleanupCalls: CapturedCleanupCall[] = [];
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory: factory,
+			setBrowserScopeRoute: async (scope: string, browserId: string | undefined) => { routeCalls.push({ scope, browserId }); },
+			closeBrowserTargetsForScope: async (scope: string, options?: { browserId?: string }) => { cleanupCalls.push({ scope, options }); },
+		});
+
+		const out = await runner.runWorker({
+			runId: "run_route_1", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		assert.equal(captured.length, 1);
+		const scope = captured[0]!.browserScope;
+		assert.ok(scope, "session should receive canonical browser scope");
+		assert.deepEqual(routeCalls, [
+			{ scope, browserId: "work-01" },
+			{ scope, browserId: undefined },
+		]);
+		assert.deepEqual(cleanupCalls, [
+			{ scope, options: { browserId: "work-01" } },
+		]);
+		assert.equal(out.runtimeContext?.browserScope, scope);
+		assert.equal(out.runtimeContext?.browserId, "work-01");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("team role runner clears browser scope route when browserId is absent", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const { factory, captured } = makeCapturingSessionFactory(["done"]);
+		const resolver = makeFakeProfileResolver({});
+		const routeCalls: CapturedRouteCall[] = [];
+		const cleanupCalls: CapturedCleanupCall[] = [];
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory: factory,
+			setBrowserScopeRoute: async (scope: string, browserId: string | undefined) => { routeCalls.push({ scope, browserId }); },
+			closeBrowserTargetsForScope: async (scope: string, options?: { browserId?: string }) => { cleanupCalls.push({ scope, options }); },
+		});
+
+		const out = await runner.runWorker({
+			runId: "run_route_none", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		assert.equal(captured.length, 1);
+		const scope = captured[0]!.browserScope;
+		assert.ok(scope, "session should still receive a scoped browser route key");
+		assert.equal(captured[0]!.browserId, undefined);
+		assert.deepEqual(routeCalls, [
+			{ scope, browserId: undefined },
+			{ scope, browserId: undefined },
+		]);
+		assert.deepEqual(cleanupCalls, [
+			{ scope, options: undefined },
+		]);
+		assert.equal(out.runtimeContext?.browserId, null);
+		assert.equal(out.runtimeContext?.browserScope, scope);
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});
+
+test("team role runner clears browser scope route when session creation fails", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const resolver = makeFakeProfileResolver({ wo: { defaultBrowserId: "work-01" } });
+		const routeCalls: CapturedRouteCall[] = [];
+		const cleanupCalls: CapturedCleanupCall[] = [];
+		const sessionFactory = {
+			createSession: async () => {
+				throw new Error("session init failed");
+			},
+		} as unknown as BackgroundAgentSessionFactory;
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "wo", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory,
+			setBrowserScopeRoute: async (scope: string, browserId: string | undefined) => { routeCalls.push({ scope, browserId }); },
+			closeBrowserTargetsForScope: async (scope: string, options?: { browserId?: string }) => { cleanupCalls.push({ scope, options }); },
+		});
+
+		await assert.rejects(
+			() => runner.runWorker({
+				runId: "run_route_fail", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+				attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+			}),
+			{ message: "session init failed" },
+		);
+
+		assert.equal(routeCalls.length, 2);
+		assert.equal(routeCalls[0]!.browserId, "work-01");
+		assert.equal(routeCalls[1]!.scope, routeCalls[0]!.scope);
+		assert.equal(routeCalls[1]!.browserId, undefined);
+		assert.deepEqual(cleanupCalls, [
+			{ scope: routeCalls[0]!.scope, options: { browserId: "work-01" } },
+		]);
 	} finally {
 		await rm(root, { recursive: true }).catch(() => {});
 	}
@@ -876,7 +1004,7 @@ test("runWorker returns profile and browser runtime context", async () => {
 		assert.equal(out.runtimeContext?.fallbackUsed, true);
 		assert.equal(out.runtimeContext?.fallbackReason, "profile_not_found");
 		assert.equal(out.runtimeContext?.browserId, "chrome-main");
-		assert.equal(out.runtimeContext?.browserScope, "team:run_ctx_1:worker:att_1:main");
+		assert.equal(out.runtimeContext?.browserScope, "chrome-main-team-run_ctx_1-worker-att_1-main");
 	} finally {
 		await rm(root, { recursive: true }).catch(() => {});
 	}

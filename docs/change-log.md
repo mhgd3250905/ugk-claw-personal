@@ -12,6 +12,21 @@
 
 ---
 
+## 2026-05-16 — P9: Team Browser Binding Parity
+
+- **主题**: 对齐 Team role runner 与 chat agent / conn worker 的 browser scope route 生命周期，避免重新造浏览器资源系统
+- **影响范围**: `src/team/agent-profile-role-runner.ts`, `src/team/routes.ts`, Team 测试, `docs/team-runtime.md`
+- **变更**:
+  - Team role session 使用同一个 canonical scope 贯穿 route、session、agent scope、cleanup、runtime context
+  - 生产 Team real runner 显式注入既有 `setBrowserScopeRoute()` 和 `closeBrowserTargetsForScope()`
+  - `runtimeContext.browserScope` 记录实际传给成熟 browser binding 链路的 scope
+  - 新增测试覆盖 scope route 写入/清理、cleanup browserId 参数、无 browserId 和 session 创建失败时的 route 清理语义
+  - 明确 P9 不新增 browser provisioning、resource scheduler、browser pool 或 sidecar 拓扑
+- **测试**: 270 pass
+- **源码入口**: `src/team/agent-profile-role-runner.ts`, `src/team/routes.ts`, `test/team-agent-profile-runner.test.ts`
+
+---
+
 ## 2026-05-16 — P8-E: Profile Browser Scope End-to-End Audit
 
 - **主题**: 补齐 P8-A 至 P8-D 的 runtime context 边界审计覆盖，不引入新的运行时能力

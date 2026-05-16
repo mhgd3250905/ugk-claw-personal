@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 267 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 270 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -256,14 +256,17 @@ worker 会为每个 claim 到的 run 写入 `state.lease`：
 2. `options.defaultBrowserId`（构造时传入的 fallback）
 3. `undefined`（无浏览器绑定）
 
-Browser scope 按 `team:<runId>:<role>:<roleKey>:<profileId>` 构建，确保：
-- 同一 run 的 worker/checker/watcher/finalizer 各有独立 scope
-- 不同 attempt 的 worker/checker scope 不同（`roleKey` 为 `attemptId`）
-- 清理回调接收与 `createSession()` 完全一致的 scope
+Browser scope 先按 `team:<runId>:<role>:<roleKey>:<profileId>` 构建 role/attempt 身份，再与 browser ID 收口为 canonical cleanup scope。该 canonical scope 会贯穿：
+
+- `setBrowserScopeRoute(scope, browserId)`
+- `ProjectBackgroundSessionFactory.createSession({ browserScope: scope })`
+- `runWithScopedAgentEnvironment(scope, ...)`
+- `closeBrowserTargetsForScope(scope, { browserId })`
+- `runtimeContext.browserScope`
 
 worker/checker/watcher 的 attempt 元数据会记录 `runtimeContext`，用于排查 profile fallback、实际 browser ID 和 browser scope。finalizer 的 runtime context 写入 run state 的 `finalizerRuntimeContext`。
 
-当前阶段不是完整的 per-profile 浏览器/session 隔离——多个 role 可能使用相同的 browser ID，但 scope 区分足以避免清理碰撞。
+P9 对齐了 Team 与 chat agent / conn worker 已有的 browser binding 链路。Team 不创建新的浏览器资源系统，不调度 Chrome profile，也不改变 sidecar 拓扑；browser ID 到真实 CDP/Chrome profile 的映射仍由既有 browser registry / env 配置决定。
 
 P8-E 已补齐端到端审计覆盖：finalizer 失败、取消、超时路径会保持 `finalizerRuntimeContext: null`；`GET /v1/team/runs/:runId` 会原样返回已持久化的 finalizer runtime context；Team UI 对 worker/checker/watcher/finalizer runtime context 的动态值执行 HTML 转义。
 
@@ -448,11 +451,11 @@ Cancel/pause always takes priority over phase timeout — if a run is already ca
 2. **SSE 跨进程 fallback 延迟** — 同进程状态变更通过 `RunStateEvents` 立即推送；独立 worker 进程写入的状态变更通过 1 秒 change-detect fallback 捕获，因此跨进程更新可能有短暂延迟。
 3. **默认单活跃 run** — `TEAM_MAX_CONCURRENT_RUNS` 默认为 `1`，即全局只允许一个 queued/running/paused run。设置为更大的值可允许并发 active run，但单个 worker 进程仍顺序执行；多 worker 进程可通过 lease 机制分别 claim 不同的 queued run。
 4. **Timeout 60 分钟** — 超时 run 标记为 failed。
-5. **无 per-profile 并发隔离** — browser scope 按 role/attempt 区分以避免清理碰撞，但并发 run 仍共享 AgentProfile，不保证浏览器实例独立。
+5. **浏览器实例由既有 browser registry/env 决定** — Team 复用 chat/conn 的 browser binding 链路，不负责创建或调度 Chrome profile。多个 role 是否真正落到不同浏览器实例，取决于 AgentProfile 的 `defaultBrowserId` 与 `UGK_BROWSER_INSTANCES_JSON` 等既有配置。
 
 ## 后续计划
 
-1. Per-profile 浏览器实例隔离（独立 Chrome sidecar profile / session 独立）
+1. 真实多 AgentProfile + 多 browserId 的 Team smoke test：验证两个 profile 的 role session 分别命中既有 browser registry 中的不同 CDP endpoint。
 
 ---
 

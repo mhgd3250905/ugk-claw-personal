@@ -8,7 +8,9 @@ import { MockRoleRunner } from "./role-runner.js";
 import type { TeamRoleRunner } from "./role-runner.js";
 import type { TeamRunState } from "./types.js";
 import { AgentProfileRoleRunner } from "./agent-profile-role-runner.js";
+import { closeBrowserTargetsForScope } from "../agent/browser-cleanup.js";
 import { loadAgentProfilesSync } from "../agent/agent-profile-catalog.js";
+import { setBrowserScopeRoute } from "../browser/browser-scope-routes.js";
 import { configureSseResponse, writeSseEvent, startSseHeartbeat, endSseResponse } from "../routes/chat-sse.js";
 
 export interface TeamRouteOptions {
@@ -28,6 +30,8 @@ function createRoleRunner(options: TeamRouteOptions): TeamRoleRunner {
 		checkerProfileId: "main",
 		watcherProfileId: "main",
 		finalizerProfileId: "main",
+		setBrowserScopeRoute,
+		closeBrowserTargetsForScope,
 	});
 }
 

@@ -22,7 +22,8 @@ export interface AgentProfileRoleRunnerOptions {
 	profileResolver?: BackgroundAgentProfileResolver;
 	sessionFactory?: BackgroundAgentSessionFactory;
 	defaultBrowserId?: string;
-	closeBrowserTargetsForScope?: (scope: string) => Promise<void>;
+	setBrowserScopeRoute?: (scope: string, browserId: string | undefined) => Promise<void>;
+	closeBrowserTargetsForScope?: (scope: string, options?: { browserId?: string }) => Promise<void>;
 }
 
 function buildDefaultRef(profileId: string): BackgroundAgentProfileRef {
@@ -442,59 +443,63 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 			roleKey: roleContext.roleKey,
 			profileId: snapshot.profileId,
 		});
+		const browserCleanupScope = browserId ? createBrowserCleanupScope(browserScope, browserId) : browserScope;
 		const runtimeContext: TeamRoleRuntimeContext = {
 			requestedProfileId,
 			resolvedProfileId: snapshot.profileId,
 			fallbackUsed: snapshot.fallbackUsed === true,
 			...(snapshot.fallbackReason ? { fallbackReason: snapshot.fallbackReason } : {}),
 			browserId: browserId ?? null,
-			browserScope,
+			browserScope: browserCleanupScope,
 		};
-		const scopeId = browserId ? createBrowserCleanupScope(browserScope, browserId) : undefined;
+		const setBrowserScopeRoute = this.options.setBrowserScopeRoute;
+		const closeBrowserTargetsForScope = this.options.closeBrowserTargetsForScope;
 
-		const session = await this.sessionFactory.createSession({
-			runId,
-			connId: `team-${runId}`,
-			workspace: {
-				rootPath: workspace.rootPath,
-				inputDir: workspace.workDir,
-				workDir: workspace.workDir,
-				outputDir: workspace.outputDir,
-				logsDir: workspace.outputDir,
-				sessionDir: workspace.sessionDir,
-				sharedDir: workspace.workDir,
-				publicDir: workspace.outputDir,
-				artifactPublicDir: workspace.outputDir,
-				manifestPath: join(workspace.rootPath, "manifest.json"),
-			},
-			snapshot,
-			browserId,
-			browserScope,
-		});
-
-		const wsEnv: Record<string, string | undefined> = {
-			OUTPUT_DIR: workspace.outputDir,
-			WORK_DIR: workspace.workDir,
-			INPUT_DIR: workspace.workDir,
-			LOGS_DIR: workspace.outputDir,
-		};
-
-		const doPrompt = () => promptWithAbort(session, prompt, signal);
+		let session: AgentSessionLike | undefined;
 
 		try {
-			if (scopeId) {
-				await runWithScopedAgentEnvironment(scopeId, async () => {
-					await runWithBackgroundWorkspaceContext(wsEnv, doPrompt);
-				});
-			} else {
-				await runWithBackgroundWorkspaceContext(wsEnv, doPrompt);
-			}
+			await setBrowserScopeRoute?.(browserCleanupScope, browserId);
+			session = await this.sessionFactory.createSession({
+				runId,
+				connId: `team-${runId}`,
+				workspace: {
+					rootPath: workspace.rootPath,
+					inputDir: workspace.workDir,
+					workDir: workspace.workDir,
+					outputDir: workspace.outputDir,
+					logsDir: workspace.outputDir,
+					sessionDir: workspace.sessionDir,
+					sharedDir: workspace.workDir,
+					publicDir: workspace.outputDir,
+					artifactPublicDir: workspace.outputDir,
+					manifestPath: join(workspace.rootPath, "manifest.json"),
+				},
+				snapshot,
+				browserId,
+				browserScope: browserCleanupScope,
+			});
+
+			const wsEnv: Record<string, string | undefined> = {
+				OUTPUT_DIR: workspace.outputDir,
+				WORK_DIR: workspace.workDir,
+				INPUT_DIR: workspace.workDir,
+				LOGS_DIR: workspace.outputDir,
+			};
+
+			await runWithScopedAgentEnvironment(browserCleanupScope, async () => {
+				await runWithBackgroundWorkspaceContext(wsEnv, () => promptWithAbort(session!, prompt, signal));
+			});
 		} finally {
-			if (this.options.closeBrowserTargetsForScope && browserScope) {
-				await this.options.closeBrowserTargetsForScope(browserScope).catch(() => {});
+			try {
+				await closeBrowserTargetsForScope?.(browserCleanupScope, browserId ? { browserId } : undefined).catch(() => {});
+			} finally {
+				await setBrowserScopeRoute?.(browserCleanupScope, undefined).catch(() => {});
 			}
 		}
 
+		if (!session) {
+			throw new Error("failed to create team role session");
+		}
 		const lastMsg = findLastAssistantMessage(session.messages ?? []);
 		assertAssistantMessageSucceeded(lastMsg);
 
