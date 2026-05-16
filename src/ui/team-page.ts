@@ -297,11 +297,11 @@ async function loadRuns() {
 				currentTask + errorHtml +
 				'<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
 				'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
-				'<span class="detail-toggle" onclick="toggleRunDetail(\'' + r.runId + '\')">展开任务详情</span>' +
-				(r.status === 'running' ? '<button class="btn btn-primary btn-sm" onclick="controlRun(\'' + r.runId + '\', 'pause\')"  >暂停</button><button class="btn btn-danger btn-sm" onclick="controlRun(\'' + r.runId + '\', 'cancel\')"  >取消</button>' : '') +
-				(r.status === 'paused' ? '<button class="btn btn-primary btn-sm" onclick="controlRun(\'' + r.runId + '\', 'resume\')"  >恢复</button><button class="btn btn-danger btn-sm" onclick="controlRun(\'' + r.runId + '\', 'cancel\')"  >取消</button>' : '') +
-				(r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed' ? '<button class="btn btn-primary btn-sm" onclick="viewReport(\'' + r.runId + '\')"  >查看报告</button><button class="btn btn-danger btn-sm" onclick="deleteRun(\'' + r.runId + '\')"  >删除</button>' : '') +
-				(r.status === 'cancelled' ? '<button class="btn btn-danger btn-sm" onclick="deleteRun(\'' + r.runId + '\')"  >删除</button>' : '') +
+				'<span class="detail-toggle" onclick="toggleRunDetail(\\'' + r.runId + '\\')">展开任务详情</span>' +
+				(r.status === 'running' ? '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'pause\\')"  >暂停</button><button class="btn btn-danger btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')"  >取消</button>' : '') +
+				(r.status === 'paused' ? '<button class="btn btn-primary btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'resume\\')"  >恢复</button><button class="btn btn-danger btn-sm" onclick="controlRun(\\'' + r.runId + '\\', \\'cancel\\')"  >取消</button>' : '') +
+				(r.status === 'completed' || r.status === 'completed_with_failures' || r.status === 'failed' ? '<button class="btn btn-primary btn-sm" onclick="viewReport(\\'' + r.runId + '\\')"  >查看报告</button><button class="btn btn-danger btn-sm" onclick="deleteRun(\\'' + r.runId + '\\')"  >删除</button>' : '') +
+				(r.status === 'cancelled' ? '<button class="btn btn-danger btn-sm" onclick="deleteRun(\\'' + r.runId + '\\')"  >删除</button>' : '') +
 				'</div>' +
 				'<div id="run-detail-' + r.runId + '" class="run-detail"></div>' +
 				'</div>';

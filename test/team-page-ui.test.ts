@@ -19,6 +19,15 @@ test("team page references /v1/team API", () => {
 	assert.match(html, /\/v1\/team/);
 });
 
+test("team page inline scripts are valid JavaScript", () => {
+	const html = renderTeamPage();
+	const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
+	assert.ok(scripts.length > 0);
+	for (const script of scripts) {
+		assert.doesNotThrow(() => new Function(script));
+	}
+});
+
 test("team page has plan, team, run sections", () => {
 	const html = renderTeamPage();
 	assert.match(html, /section-plans/);

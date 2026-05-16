@@ -124,7 +124,7 @@ run 内相对路径，指向 accepted 或 failed 结果文件。格式如 `tasks
 |------|------|------|
 | GET | `/v1/team/runs/:runId/final-report` | 读取 final-report.md（text/markdown） |
 
-final report 由 finalizer agent 生成。如果 run 尚未完成或 finalizer 失败，返回 404。
+final report 优先由 finalizer agent 生成。若 finalizer 失败，orchestrator 会写入 deterministic fallback report，并把 run 标记为 `completed_with_failures`；只有 run 尚未完成或报告文件不存在时返回 404。
 
 ## 执行链路
 
@@ -289,17 +289,15 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 
 1. **Worker 无 durable lease** — worker 崩溃后 run 会卡在 running。没有 heartbeat、crash recovery 或重复执行防护。
 2. **默认 mock runner** — 真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。
-3. **Finalizer 无 fallback report** — finalizer 失败时不生成 deterministic fallback report。
-4. **UI 基础** — 有任务详情展开和操作入口，但缺少 SSE 实时刷新和 attempt 级详情。
-5. **单 worker** — 当前只支持一个 worker 进程轮询。
-6. **Timeout 60 分钟** — 超时 run 标记为 failed。
+3. **UI 基础** — 有任务详情展开和操作入口，但缺少 SSE 实时刷新和 attempt 级详情。
+4. **单 worker** — 当前只支持一个 worker 进程轮询。
+5. **Timeout 60 分钟** — 超时 run 标记为 failed。
 
 ## 后续计划
 
 1. Worker lease / heartbeat / crash recovery
-2. Finalizer deterministic fallback report
-3. SSE 实时刷新
-4. 并发 worker 支持
+2. SSE 实时刷新
+3. 并发 worker 支持
 
 ---
 
