@@ -14,6 +14,7 @@ import { configureSseResponse, writeSseEvent, startSseHeartbeat, endSseResponse 
 export interface TeamRouteOptions {
 	teamDataDir: string;
 	projectRoot: string;
+	maxConcurrentRuns?: number;
 }
 
 function createRoleRunner(options: TeamRouteOptions): TeamRoleRunner {
@@ -68,6 +69,7 @@ export function registerTeamRoutes(app: FastifyInstance, options: TeamRouteOptio
 			maxCheckerRevisions: 3,
 			maxWatcherRevisions: 1,
 			maxRunDurationMinutes: 60,
+			maxConcurrentRuns: options.maxConcurrentRuns,
 		});
 	}
 

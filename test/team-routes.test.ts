@@ -197,9 +197,42 @@ test("Second run returns 409 while first is active", async () => {
 		await app.inject({ method: "POST", url: `/v1/team/plans/${planId}/runs` });
 		const second = await app.inject({ method: "POST", url: `/v1/team/plans/${planId}/runs` });
 		assert.equal(second.statusCode, 409);
+		assert.match(second.json().error, /active run limit reached/);
 
 		await app.close();
 	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
+	}
+});
+
+test("maxConcurrentRuns=2 allows two active runs, third returns 409", async () => {
+	const prevValue = process.env.TEAM_MAX_CONCURRENT_RUNS;
+	process.env.TEAM_MAX_CONCURRENT_RUNS = "2";
+	const root = await mkdtemp(join(tmpdir(), "team-api-"));
+	const teamDir = join(root, "team");
+	process.env.TEAM_RUNTIME_ENABLED = "true";
+	process.env.TEAM_DATA_DIR = teamDir;
+	const app = await buildServer({ agentService: createAgentServiceStub() });
+	try {
+		const unitRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: unitBody });
+		const planRes = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody(unitRes.json().teamUnitId) });
+		const planId = planRes.json().planId;
+
+		const first = await app.inject({ method: "POST", url: `/v1/team/plans/${planId}/runs` });
+		assert.equal(first.statusCode, 201);
+
+		const second = await app.inject({ method: "POST", url: `/v1/team/plans/${planId}/runs` });
+		assert.equal(second.statusCode, 201);
+		assert.notEqual(second.json().runId, first.json().runId);
+
+		const third = await app.inject({ method: "POST", url: `/v1/team/plans/${planId}/runs` });
+		assert.equal(third.statusCode, 409);
+		assert.match(third.json().error, /active run limit reached/);
+
+		await app.close();
+	} finally {
+		if (prevValue === undefined) delete process.env.TEAM_MAX_CONCURRENT_RUNS;
+		else process.env.TEAM_MAX_CONCURRENT_RUNS = prevValue;
 		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
 	}
 });

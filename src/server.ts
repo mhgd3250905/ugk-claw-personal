@@ -214,7 +214,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
 
 	if (config.teamRuntimeEnabled) {
 		const { registerTeamRoutes } = await import("./team/routes.js");
-		registerTeamRoutes(app, { teamDataDir: config.teamDataDir, projectRoot: config.projectRoot });
+		registerTeamRoutes(app, { teamDataDir: config.teamDataDir, projectRoot: config.projectRoot, maxConcurrentRuns: config.teamMaxConcurrentRuns });
 	}
 
 	return app;
