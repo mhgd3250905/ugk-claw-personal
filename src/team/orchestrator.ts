@@ -29,6 +29,7 @@ export interface TeamOrchestratorOptions {
 	maxCheckerRevisions: number;
 	maxWatcherRevisions: number;
 	maxRunDurationMinutes: number;
+	maxConcurrentRuns?: number;
 	phaseTimeouts?: PhaseTimeouts;
 }
 
@@ -112,6 +113,7 @@ export class TeamOrchestrator {
 	private readonly maxWatcherRevisions: number;
 	private readonly maxRunDurationMs: number;
 	private readonly phaseTimeouts: PhaseTimeouts;
+	private readonly maxConcurrentRuns: number;
 	private elapsedOffset = 0;
 	private abortController: AbortController | null = null;
 	private leaseOwnerId: string | null = null;
@@ -126,21 +128,18 @@ export class TeamOrchestrator {
 		this.maxWatcherRevisions = options.maxWatcherRevisions;
 		this.maxRunDurationMs = options.maxRunDurationMinutes * 60 * 1000;
 		this.phaseTimeouts = options.phaseTimeouts ?? DEFAULT_PHASE_TIMEOUTS;
+		this.maxConcurrentRuns = Math.max(1, Math.floor(options.maxConcurrentRuns ?? 1));
 	}
 
 	async createRun(planId: string): Promise<TeamRunState> {
 		const plan = await this.planStore.get(planId);
 		if (!plan) throw new Error(`plan not found: ${planId}`);
 
-		const existingStates = await this.workspace.listStates();
-		const hasActive = existingStates.some(s => s.status === "queued" || s.status === "running" || s.status === "paused");
-		if (hasActive) throw new Error("active run exists");
-
 		const teamUnit = await this.teamUnitStore.get(plan.defaultTeamUnitId);
 		if (!teamUnit) throw new Error(`team unit not found: ${plan.defaultTeamUnitId}`);
 		if (teamUnit.archived) throw new Error("archived team unit cannot be used");
 
-		const state = await this.workspace.createRun(plan, teamUnit.teamUnitId);
+		const state = await this.workspace.createRunWithAdmission(plan, teamUnit.teamUnitId, this.maxConcurrentRuns);
 		await this.planStore.incrementRunCount(planId);
 		return state;
 	}

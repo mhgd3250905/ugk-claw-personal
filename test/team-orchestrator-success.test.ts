@@ -27,7 +27,7 @@ async function setup() {
 		outputContract: { text: "output" },
 	});
 	const orchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: runner, dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60 });
-	return { root, plan, orchestrator, workspace };
+	return { root, plan, orchestrator, workspace, planStore, unitStore };
 }
 
 test("orchestrator: two tasks run sequentially to completed", async () => {
@@ -77,7 +77,56 @@ test("orchestrator: second run fails when active run exists", async () => {
 	const { root, plan, orchestrator } = await setup();
 	try {
 		await orchestrator.createRun(plan.planId);
-		await assert.rejects(() => orchestrator.createRun(plan.planId), { message: "active run exists" });
+		await assert.rejects(() => orchestrator.createRun(plan.planId), { message: "active run limit reached" });
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("orchestrator: maxConcurrentRuns=2 allows two queued runs", async () => {
+	const { root, plan, unitStore, planStore, workspace } = await setup();
+	const orchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: new MockRoleRunner(), dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60, maxConcurrentRuns: 2 });
+	try {
+		const first = await orchestrator.createRun(plan.planId);
+		assert.equal(first.status, "queued");
+
+		const second = await orchestrator.createRun(plan.planId);
+		assert.equal(second.status, "queued");
+		assert.notEqual(second.runId, first.runId);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("orchestrator: maxConcurrentRuns=2, third run rejects", async () => {
+	const { root, plan, unitStore, planStore, workspace } = await setup();
+	const orchestrator = new TeamOrchestrator({ planStore, teamUnitStore: unitStore, workspace, roleRunner: new MockRoleRunner(), dataDir: root, maxCheckerRevisions: 3, maxWatcherRevisions: 1, maxRunDurationMinutes: 60, maxConcurrentRuns: 2 });
+	try {
+		await orchestrator.createRun(plan.planId);
+		await orchestrator.createRun(plan.planId);
+
+		await assert.rejects(
+			() => orchestrator.createRun(plan.planId),
+			{ message: "active run limit reached" },
+		);
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("orchestrator: completed previous run does not block new run", async () => {
+	const { root, plan, orchestrator } = await setup();
+	try {
+		const state = await orchestrator.createRun(plan.planId);
+		state.status = "completed";
+		state.finishedAt = new Date().toISOString();
+		await (await import("node:fs/promises")).writeFile(
+			join(root, "runs", state.runId, "state.json"),
+			JSON.stringify(state, null, 2),
+		);
+
+		const second = await orchestrator.createRun(plan.planId);
+		assert.equal(second.status, "queued");
 	} finally {
 		await rm(root, { recursive: true });
 	}
