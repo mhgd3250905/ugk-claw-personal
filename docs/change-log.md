@@ -12,6 +12,21 @@
 
 ---
 
+## 2026-05-16 — P8-A: Profile-Aware Browser Scope
+
+- **主题**: 让 Team 角色session honor resolved AgentProfile 的 `defaultBrowserId`，并按 role/attempt 构建 browser scope
+- **影响范围**: `src/team/agent-profile-role-runner.ts`, `test/team-agent-profile-runner.test.ts`, `docs/team-runtime.md`
+- **变更**:
+  - `runSession()` 从 `snapshot.defaultBrowserId ?? options.defaultBrowserId` 选择 browser ID
+  - Browser scope 从 `team:<runId>` 改为 `team:<runId>:<role>:<roleKey>:<profileId>`，worker/checker/watcher/finalizer 各有独立 scope
+  - 新增 `buildTeamBrowserScope` 辅助函数（含 sanitize）
+  - 清理回调接收与 session 创建完全一致的 scope
+  - 5 个新测试用 capturing session factory 验证 browser ID 选择、scope 唯一性、cleanup 一致性
+- **测试**: 258 pass
+- **源码入口**: `src/team/agent-profile-role-runner.ts:runSession`
+
+---
+
 ## 2026-05-16 — P6-B SSE 跨进程 fallback 修复
 
 - **主题**: 修复事件驱动 SSE 只覆盖 HTTP 进程内状态写入、无法感知独立 worker 进程推进 run 的问题

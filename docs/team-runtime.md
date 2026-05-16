@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 253 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 258 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -245,6 +245,21 @@ worker 会为每个 claim 到的 run 写入 `state.lease`：
 
 `AgentProfileRoleRunner` 通过 `BackgroundAgentProfileResolver` → `AgentTemplateRegistry` → playground profile lookup 解析 profile。profile 不存在时 fallback 到 `main`。
 
+### Profile-aware browser binding
+
+每个角色 session 的 browser ID 优先级：
+
+1. `snapshot.defaultBrowserId`（resolved AgentProfile 携带的浏览器绑定）
+2. `options.defaultBrowserId`（构造时传入的 fallback）
+3. `undefined`（无浏览器绑定）
+
+Browser scope 按 `team:<runId>:<role>:<roleKey>:<profileId>` 构建，确保：
+- 同一 run 的 worker/checker/watcher/finalizer 各有独立 scope
+- 不同 attempt 的 worker/checker scope 不同（`roleKey` 为 `attemptId`）
+- 清理回调接收与 `createSession()` 完全一致的 scope
+
+当前阶段不是完整的 per-profile 浏览器/session 隔离——多个 role 可能使用相同的 browser ID，但 scope 区分足以避免清理碰撞。
+
 ### resultRef 和 finalizer prompt
 
 `runFinalizer()` 调用 `readRefContent()` 读取每个 task 的 `resultRef` 文件内容，传入 `buildFinalizerPrompt()`。文件不存在时 fallback 为 ref 字符串。
@@ -424,11 +439,11 @@ Cancel/pause always takes priority over phase timeout — if a run is already ca
 2. **SSE 跨进程 fallback 延迟** — 同进程状态变更通过 `RunStateEvents` 立即推送；独立 worker 进程写入的状态变更通过 1 秒 change-detect fallback 捕获，因此跨进程更新可能有短暂延迟。
 3. **默认单活跃 run** — `TEAM_MAX_CONCURRENT_RUNS` 默认为 `1`，即全局只允许一个 queued/running/paused run。设置为更大的值可允许并发 active run，但单个 worker 进程仍顺序执行；多 worker 进程可通过 lease 机制分别 claim 不同的 queued run。
 4. **Timeout 60 分钟** — 超时 run 标记为 failed。
-5. **无 per-profile 并发隔离** — 并发 run 共享 AgentProfile，不保证浏览器/session 独立。
+5. **无 per-profile 并发隔离** — browser scope 按 role/attempt 区分以避免清理碰撞，但并发 run 仍共享 AgentProfile，不保证浏览器实例独立。
 
 ## 后续计划
 
-1. Per-profile 资源隔离（浏览器/session 独立）
+1. Per-profile 浏览器实例隔离（独立 Chrome sidecar profile / session 独立）
 
 ---
 
