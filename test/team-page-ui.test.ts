@@ -544,3 +544,37 @@ test("P5: inline scripts remain valid JavaScript after P5 changes", () => {
 		assert.doesNotThrow(() => new Function(script), "inline script should be valid JS after P5 changes");
 	}
 });
+
+// ── P8-C: role runtime context UI ──
+
+test("P8-C: attempt cards render role runtime context", () => {
+	const script = extractScript();
+	assert.match(script, /function renderRuntimeContext\(role,\s*ctx\)/);
+	assert.match(script, /runtime-context/);
+	assert.match(script, /requestedProfileId/);
+	assert.match(script, /resolvedProfileId/);
+	assert.match(script, /browserId/);
+	assert.match(script, /browserScope/);
+	assert.match(script, /fallbackUsed/);
+	assert.match(script, /fallbackReason/);
+	assert.match(script, /renderRuntimeContext\('worker'/);
+	assert.match(script, /renderRuntimeContext\('checker'/);
+	assert.match(script, /renderRuntimeContext\('watcher'/);
+});
+
+test("P8-C: runtime context dynamic values are escaped", () => {
+	const script = extractScript();
+	assert.match(script, /escapeHtml\(role\)/);
+	assert.match(script, /escapeHtml\(ctx\.requestedProfileId\)/);
+	assert.match(script, /escapeHtml\(ctx\.resolvedProfileId\)/);
+	assert.match(script, /escapeHtml\(ctx\.fallbackReason\)/);
+	assert.match(script, /escapeHtml\(ctx\.browserId/);
+	assert.match(script, /escapeHtml\(ctx\.browserScope\)/);
+});
+
+test("P8-C: runtime context has compact CSS and fallback badge", () => {
+	const html = renderTeamPage();
+	assert.match(html, /\.runtime-context/);
+	assert.match(html, /\.runtime-context-fallback/);
+	assert.match(html, /fallback/);
+});

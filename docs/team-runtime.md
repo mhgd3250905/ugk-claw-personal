@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 260 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 263 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -384,6 +384,7 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 - **任务详情**：
   - 中文 phase 标签（执行中/验收中/复盘中/生成报告等），带颜色编码
   - 尝试历史卡片（状态、ID、时间戳、可点击文件列表）
+  - 显示 worker/checker/watcher 的 `runtimeContext`（requested/resolved profile、fallback、browser ID、browser scope）
   - 文件内容弹窗查看（调用 Attempt API）
 - **最终报告**：页面内弹窗展示，不再打开新窗口
 - **状态管理**：

@@ -66,6 +66,9 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 
 /* Attempt card */
 .attempt-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-top: 4px; font-size: 12px; }
+.runtime-context { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; color: var(--muted); font-size: 11px; }
+.runtime-context span { display: inline-block; padding: 1px 5px; border-radius: 3px; background: rgba(115,115,115,0.12); }
+.runtime-context-fallback { color: var(--warn); background: rgba(245,158,11,0.14) !important; }
 .attempt-files { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
 .attempt-file { color: var(--accent); cursor: pointer; font-size: 11px; text-decoration: underline; }
 .attempt-file:hover { color: var(--accent-hover); }
@@ -277,6 +280,19 @@ function showSection(name, evt) {
 function statusBadge(status) {
 	var map = { completed: 'badge-success', completed_with_failures: 'badge-warn', failed: 'badge-fail', running: 'badge-warn', queued: 'badge-muted', paused: 'badge-warn', cancelled: 'badge-muted' };
 	return '<span class="badge ' + (map[status] || 'badge-muted') + '">' + escapeHtml(status) + '</span>';
+}
+
+function renderRuntimeContext(role, ctx) {
+	if (!ctx) return '';
+	var parts = [
+		'<span>' + escapeHtml(role) + ': ' + escapeHtml(ctx.requestedProfileId) + ' → ' + escapeHtml(ctx.resolvedProfileId) + '</span>',
+		'<span>browser: ' + escapeHtml(ctx.browserId == null ? 'none' : ctx.browserId) + '</span>',
+		'<span>scope: ' + escapeHtml(ctx.browserScope) + '</span>',
+	];
+	if (ctx.fallbackUsed) {
+		parts.push('<span class="runtime-context-fallback">fallback' + (ctx.fallbackReason ? ': ' + escapeHtml(ctx.fallbackReason) : '') + '</span>');
+	}
+	return '<div class="runtime-context">' + parts.join('') + '</div>';
 }
 
 function profileName(id) {
@@ -526,11 +542,16 @@ function renderTaskDetail(state, plan, attemptsMap) {
 					if (a.resultRef) lcLines.push('结果: ' + escapeHtml(a.resultRef));
 					if (a.errorSummary) lcLines.push('<span style="color:var(--fail)">错误: ' + escapeHtml(a.errorSummary) + '</span>');
 					var lcHtml = lcLines.length ? '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + lcLines.join(' / ') + '</div>' : '';
+					var runtimeHtml = '';
+					if (a.worker && a.worker.length) runtimeHtml += a.worker.map(function(w) { return renderRuntimeContext('worker', w.runtimeContext); }).join('');
+					if (a.checker && a.checker.length) runtimeHtml += a.checker.map(function(c) { return renderRuntimeContext('checker', c.runtimeContext); }).join('');
+					if (a.watcher) runtimeHtml += renderRuntimeContext('watcher', a.watcher.runtimeContext);
 					return '<div class="attempt-card">' +
 						'<span style="color:' + statusColor + '">' + escapeHtml(a.status) + '</span> ' +
 						escapeHtml(a.attemptId.slice(0, 12)) + '... ' +
 						'<span class="ts">' + formatTimestamp(a.createdAt) + '</span>' +
 						lcHtml +
+						runtimeHtml +
 						(a.files.length > 0 ? '<div class="attempt-files">' + filesHtml + '</div>' : '') +
 						'</div>';
 				}).join('');

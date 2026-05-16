@@ -12,6 +12,21 @@
 
 ---
 
+## 2026-05-16 — P8-C: Surface Role Runtime Context In Team UI
+
+- **主题**: 在 `/playground/team` attempt 详情中展示 P8-B 写入的角色运行上下文
+- **影响范围**: `src/ui/team-page.ts`, `test/team-page-ui.test.ts`, `docs/team-runtime.md`
+- **变更**:
+  - attempt 卡片新增 runtime context 展示，覆盖 worker/checker/watcher
+  - 显示 requested/resolved profile、fallback reason、browser ID、browser scope
+  - fallback 使用醒目标记，旧 attempt 没有 `runtimeContext` 时不显示该块
+  - 所有 runtime context 动态值继续经过 `escapeHtml`
+  - 新增 UI 测试覆盖展示入口、fallback badge、转义约束
+- **测试**: 263 pass
+- **源码入口**: `src/ui/team-page.ts:renderRuntimeContext`, `src/ui/team-page.ts:renderTaskDetail`
+
+---
+
 ## 2026-05-16 — P8-B: Role Runtime Context Audit Trail
 
 - **主题**: 将 Team 角色 session 的 profile/browser 解析结果写入 attempt 元数据，补齐 P8-A 后的可观测性
