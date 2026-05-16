@@ -147,7 +147,6 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 .plan-summary-row { display: flex; gap: 8px; margin-bottom: 2px; font-size: 13px; overflow-wrap: break-word; }
 .plan-summary-label { color: var(--muted); flex-shrink: 0; min-width: 28px; }
 .plan-summary-text { color: var(--text); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.plan-task-list { margin-bottom: 4px; }
 .plan-task-extra { margin-bottom: 4px; }
 .plan-task-row { border-top: 1px solid var(--border); padding: 6px 0; }
 .plan-task-row-head { font-size: 13px; font-weight: 500; overflow-wrap: break-word; }
@@ -559,7 +558,7 @@ async function saveTeamUnit() {
 	} catch (e) { showError(e.message); }
 }
 
-		var PLAN_TASK_PREVIEW_LIMIT = 3;
+		var PLAN_TASK_PREVIEW_LIMIT = 0;
 
 		function truncateText(text, maxLen) {
 			if (!text) return '';
@@ -623,7 +622,7 @@ async function saveTeamUnit() {
 			if (!extra) return;
 			var expanded = extra.style.display !== 'none';
 			extra.style.display = expanded ? 'none' : 'block';
-			btn.textContent = expanded ? '展开全部任务' : '收起任务';
+			btn.textContent = expanded ? '展开任务列表' : '收起任务';
 		}
 
 		function viewPlanJson(planId) {
@@ -645,18 +644,13 @@ async function saveTeamUnit() {
 		function renderPlanCard(plan) {
 			var safePlan = plan || {};
 			var tasks = Array.isArray(safePlan.tasks) ? safePlan.tasks : [];
-			var preview = tasks.slice(0, PLAN_TASK_PREVIEW_LIMIT);
-			var extra = tasks.slice(PLAN_TASK_PREVIEW_LIMIT);
-			var hasExtra = extra.length > 0;
-			var previewHtml = preview.map(function(t, i) { return renderPlanTaskPreview(t, i); }).join('');
-			var extraHtml = hasExtra ? extra.map(function(t, i) { return renderPlanTaskPreview(t, PLAN_TASK_PREVIEW_LIMIT + i); }).join('') : '';
+			var allTaskHtml = tasks.map(function(t, i) { return renderPlanTaskPreview(t, i); }).join('');
 			var summaryHtml = renderPlanSummary(safePlan);
 			return '<div class="card plan-card">' +
 				'<div class="plan-card-header"><span class="plan-card-title">' + escapeHtml(safePlan.title || '') + '</span><div class="plan-card-chips"><span class="plan-chip">' + tasks.length + ' 个任务</span><span class="plan-chip">' + (safePlan.runCount || 0) + ' 次运行</span></div></div>' +
 				summaryHtml +
-				'<div class="plan-task-list">' + previewHtml + '</div>' +
-				(hasExtra ? '<div class="plan-task-extra" data-plan-extra="' + escapeHtml(safePlan.planId || '') + '" style="display:none">' + extraHtml + '</div>' +
-					'<button class="btn btn-sm detail-toggle" onclick="togglePlanTasks(this, ' + jsArg(safePlan.planId) + ')">展开全部任务</button>' : '') +
+				(tasks.length ? '<div class="plan-task-extra" data-plan-extra="' + escapeHtml(safePlan.planId || '') + '" style="display:none">' + allTaskHtml + '</div>' +
+					'<button class="btn btn-sm detail-toggle" onclick="togglePlanTasks(this, ' + jsArg(safePlan.planId) + ')">展开任务列表</button>' : '') +
 				'<div class="plan-actions">' +
 				'<button class="btn btn-sm" onclick="viewPlanJson(' + jsArg(safePlan.planId) + ')">查看 JSON</button>' +
 				'<button class="btn btn-primary" onclick="startRun(\\x27' + safePlan.planId + '\\x27)">创建运行</button>' +

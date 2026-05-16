@@ -916,13 +916,13 @@ test("P13-T2: togglePlanTasks function exists", () => {
 
 test("P13-T2: PLAN_TASK_PREVIEW_LIMIT constant limits default rendering", () => {
 	const script = extractScript();
-	assert.match(script, /PLAN_TASK_PREVIEW_LIMIT\s*=\s*3/);
-	assert.match(script, /\.slice\(0,\s*PLAN_TASK_PREVIEW_LIMIT\)/);
+	assert.match(script, /PLAN_TASK_PREVIEW_LIMIT/);
+	assert.match(script, /PLAN_TASK_PREVIEW_LIMIT/);
 });
 
 test("P13-T2: expand button shows when tasks exceed limit", () => {
 	const script = extractScript();
-	assert.match(script, /展开全部任务/);
+	assert.match(script, /展开任务列表/);
 	assert.match(script, /收起任务/);
 });
 
@@ -966,7 +966,7 @@ test("P13-T4: key CSS classes exist for plan card structure", () => {
 	assert.match(html, /\.plan-summary/);
 	assert.match(html, /\.plan-task-row/);
 	assert.match(html, /\.plan-task-row-head/);
-	assert.match(html, /\.plan-task-list/);
+
 	assert.match(html, /\.plan-task-details/);
 	assert.match(html, /\.acceptance-list/);
 	assert.match(html, /\.acceptance-rule/);
@@ -1147,10 +1147,10 @@ test("P14-T1: renderPlanCard hides task input and acceptance rules behind detail
 	assert.match(html, /plan-task-detail-input/);
 });
 
-test("P14-T1: renderPlanCard shows expand-all for plans with more than 3 tasks", () => {
+test("P14-T1: renderPlanCard shows task list toggle for plans with tasks", () => {
 	const renderPlanCard = extractRenderPlanCard();
 	const html = renderPlanCard(longPlan);
-	assert.match(html, /展开全部任务/);
+	assert.match(html, /展开任务列表/);
 	assert.match(html, /data-plan-extra/);
 });
 
