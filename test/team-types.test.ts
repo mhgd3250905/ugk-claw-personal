@@ -147,14 +147,40 @@ test("TeamAttemptMetadata worker and checker are arrays", () => {
 	const meta: TeamAttemptMetadata = {
 		attemptId: "a1", taskId: "t1", status: "running", phase: "worker_running",
 		createdAt: "", updatedAt: "", finishedAt: null,
-		worker: [{ outputRef: "ref.md", outputIndex: 1 }],
-		checker: [{ verdict: "pass", reason: "ok", revisionIndex: 1, recordRef: "v.json", feedbackRef: null }],
+		worker: [{
+			outputRef: "ref.md",
+			outputIndex: 1,
+			runtimeContext: {
+				requestedProfileId: "worker_profile",
+				resolvedProfileId: "main",
+				fallbackUsed: true,
+				fallbackReason: "profile_not_found",
+				browserId: "browser_a",
+				browserScope: "team:run_1:worker:attempt_1:main",
+			},
+		}],
+		checker: [{
+			verdict: "pass",
+			reason: "ok",
+			revisionIndex: 1,
+			recordRef: "v.json",
+			feedbackRef: null,
+			runtimeContext: {
+				requestedProfileId: "checker_profile",
+				resolvedProfileId: "checker_profile",
+				fallbackUsed: false,
+				browserId: null,
+				browserScope: "team:run_1:checker:attempt_1:checker_profile",
+			},
+		}],
 		watcher: null, resultRef: null, errorSummary: null,
 	};
 	assert.equal(Array.isArray(meta.worker), true);
 	assert.equal(Array.isArray(meta.checker), true);
 	assert.equal(meta.worker.length, 1);
 	assert.equal(meta.checker.length, 1);
+	assert.equal(meta.worker[0]!.runtimeContext?.fallbackReason, "profile_not_found");
+	assert.equal(meta.checker[0]!.runtimeContext?.browserId, null);
 });
 
 test("TeamAttemptMetadata watcher can be set to a summary object", () => {
@@ -162,10 +188,22 @@ test("TeamAttemptMetadata watcher can be set to a summary object", () => {
 		attemptId: "a1", taskId: "t1", status: "succeeded", phase: "watcher_accepted",
 		createdAt: "", updatedAt: "", finishedAt: "2026-05-16T01:00:00.000Z",
 		worker: [], checker: [],
-		watcher: { decision: "accept_task", reason: "looks good", recordRef: "w.json" },
+		watcher: {
+			decision: "accept_task",
+			reason: "looks good",
+			recordRef: "w.json",
+			runtimeContext: {
+				requestedProfileId: "watcher_profile",
+				resolvedProfileId: "watcher_profile",
+				fallbackUsed: false,
+				browserId: "browser_b",
+				browserScope: "team:run_1:watcher:attempt_1:watcher_profile",
+			},
+		},
 		resultRef: "accepted-result.md", errorSummary: null,
 	};
 	assert.ok(meta.watcher);
 	assert.equal(meta.watcher.decision, "accept_task");
+	assert.equal(meta.watcher.runtimeContext?.browserScope, "team:run_1:watcher:attempt_1:watcher_profile");
 	assert.equal(meta.finishedAt, "2026-05-16T01:00:00.000Z");
 });

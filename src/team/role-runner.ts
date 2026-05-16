@@ -1,4 +1,4 @@
-import type { TeamTask, TeamPlan } from "./types.js";
+import type { TeamTask, TeamPlan, TeamRoleRuntimeContext } from "./types.js";
 
 export interface WorkerInput {
 	runId: string;
@@ -14,6 +14,7 @@ export interface WorkerInput {
 export interface WorkerOutput {
 	content: string;
 	artifactRefs: string[];
+	runtimeContext?: TeamRoleRuntimeContext;
 }
 
 export interface CheckerInput {
@@ -30,6 +31,7 @@ export interface CheckerOutput {
 	reason: string;
 	feedback?: string;
 	resultContent?: string;
+	runtimeContext?: TeamRoleRuntimeContext;
 }
 
 export interface WatcherInput {
@@ -47,6 +49,7 @@ export interface WatcherOutput {
 	reason: string;
 	revisionMode?: "amend" | "redo";
 	feedback?: string;
+	runtimeContext?: TeamRoleRuntimeContext;
 }
 
 export interface FinalizerInput {
@@ -58,6 +61,7 @@ export interface FinalizerInput {
 
 export interface FinalizerOutput {
 	finalReport: string;
+	runtimeContext?: TeamRoleRuntimeContext;
 }
 
 export interface TeamRoleRunner {

@@ -459,7 +459,11 @@ export class TeamOrchestrator {
 
 			const workerOutputIdx = checkerRevision + 1;
 			const workerRef = await this.workspace.writeWorkerOutput(runId, task.id, attemptId, workerOutputIdx, workerOut.content);
-			await this.workspace.recordAttemptWorkerOutput(runId, task.id, attemptId, { outputRef: workerRef, outputIndex: workerOutputIdx });
+			await this.workspace.recordAttemptWorkerOutput(runId, task.id, attemptId, {
+				outputRef: workerRef,
+				outputIndex: workerOutputIdx,
+				runtimeContext: workerOut.runtimeContext,
+			});
 			await this.workspace.updateAttemptPhase(runId, task.id, attemptId, "worker_completed");
 
 			const workerFinished = new Date();
@@ -525,6 +529,7 @@ export class TeamOrchestrator {
 				revisionIndex: checkerIdx,
 				recordRef: `tasks/${task.id}/attempts/${attemptId}/checker-verdict-${String(checkerIdx).padStart(3, "0")}.json`,
 				feedbackRef: checkerFeedbackRef,
+				runtimeContext: checkerOut.runtimeContext,
 			});
 
 			const checkerFinished = new Date();
@@ -615,6 +620,7 @@ export class TeamOrchestrator {
 				await this.workspace.recordAttemptWatcherResult(state.runId, task.id, attemptId, {
 					decision: "confirm_failed", reason: "watcher timeout",
 					recordRef: `tasks/${task.id}/attempts/${attemptId}/watcher-review.json`,
+					runtimeContext: watcherOut.runtimeContext,
 				});
 				return watcherOut;
 			}
@@ -628,6 +634,7 @@ export class TeamOrchestrator {
 			revisionMode: watcherOut.revisionMode,
 			feedback: watcherOut.feedback,
 			recordRef: `tasks/${task.id}/attempts/${attemptId}/watcher-review.json`,
+			runtimeContext: watcherOut.runtimeContext,
 		});
 
 		const watcherFinished = new Date();

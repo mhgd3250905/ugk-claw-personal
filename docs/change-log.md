@@ -12,6 +12,21 @@
 
 ---
 
+## 2026-05-16 — P8-B: Role Runtime Context Audit Trail
+
+- **主题**: 将 Team 角色 session 的 profile/browser 解析结果写入 attempt 元数据，补齐 P8-A 后的可观测性
+- **影响范围**: `src/team/types.ts`, `src/team/role-runner.ts`, `src/team/agent-profile-role-runner.ts`, `src/team/orchestrator.ts`, Team 测试
+- **变更**:
+  - 新增 `TeamRoleRuntimeContext`，记录 `requestedProfileId`、`resolvedProfileId`、`fallbackUsed`、`fallbackReason`、`browserId`、`browserScope`
+  - `AgentProfileRoleRunner` 在 worker/checker/watcher/finalizer 输出中返回 runtime context
+  - orchestrator 将 worker/checker/watcher 的 runtime context 写入 attempt metadata
+  - 旧 attempt 不含 `runtimeContext` 时仍按可选字段兼容读取
+  - 新增测试覆盖真实 runner runtime context 返回，以及 orchestrator 持久化到 attempt metadata
+- **测试**: 260 pass
+- **源码入口**: `src/team/agent-profile-role-runner.ts:runSession`, `src/team/orchestrator.ts:runWorkUnit`
+
+---
+
 ## 2026-05-16 — P8-A: Profile-Aware Browser Scope
 
 - **主题**: 让 Team 角色session honor resolved AgentProfile 的 `defaultBrowserId`，并按 role/attempt 构建 browser scope

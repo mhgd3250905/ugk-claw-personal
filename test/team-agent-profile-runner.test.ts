@@ -845,3 +845,39 @@ test("cleanup receives same browserScope as session", async () => {
 		await rm(root, { recursive: true }).catch(() => {});
 	}
 });
+
+test("runWorker returns profile and browser runtime context", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-ap-browser-"));
+	try {
+		const { factory } = makeCapturingSessionFactory(["done"]);
+		const resolver = makeFakeProfileResolver({
+			missing_worker: {
+				profileId: "main",
+				fallbackUsed: true,
+				fallbackReason: "profile_not_found",
+				defaultBrowserId: "chrome-main",
+			},
+		});
+
+		const runner = new AgentProfileRoleRunner({
+			projectRoot: root, teamDataDir: root,
+			workerProfileId: "missing_worker", checkerProfileId: "c", watcherProfileId: "w", finalizerProfileId: "f",
+			profileResolver: resolver as never, sessionFactory: factory,
+			defaultBrowserId: "fallback_browser",
+		});
+
+		const out = await runner.runWorker({
+			runId: "run_ctx_1", task: { id: "task_1", title: "t", input: { text: "do" }, acceptance: { rules: ["r1"] } },
+			attemptId: "att_1", workDir: join(root, "work"), outputDir: join(root, "output"), acceptanceRules: ["r1"],
+		});
+
+		assert.equal(out.runtimeContext?.requestedProfileId, "missing_worker");
+		assert.equal(out.runtimeContext?.resolvedProfileId, "main");
+		assert.equal(out.runtimeContext?.fallbackUsed, true);
+		assert.equal(out.runtimeContext?.fallbackReason, "profile_not_found");
+		assert.equal(out.runtimeContext?.browserId, "chrome-main");
+		assert.equal(out.runtimeContext?.browserScope, "team:run_ctx_1:worker:att_1:main");
+	} finally {
+		await rm(root, { recursive: true }).catch(() => {});
+	}
+});

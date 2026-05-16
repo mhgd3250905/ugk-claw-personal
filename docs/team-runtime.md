@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 258 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 260 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -82,12 +82,14 @@ queued → running → completed / completed_with_failures / failed / cancelled
 每个 attempt 维护结构化生命周期元数据（`TeamAttemptMetadata`）：
 
 - `phase` — 当前生命周期阶段：`created → worker_running → worker_completed → checker_reviewing → checker_passed/checker_revising/checker_failed → watcher_reviewing → watcher_accepted/watcher_revision_requested/watcher_confirmed_failed → succeeded/failed/interrupted/cancelled`
-- `worker[]` — worker 输出摘要数组，每次 worker 执行追加一条 `{ outputRef, outputIndex }`
-- `checker[]` — checker 评审摘要数组，每次 checker 评审追加一条 `{ verdict, reason, feedback, revisionIndex, recordRef, feedbackRef }`
-- `watcher` — watcher 评审摘要（单条，后写覆盖），`{ decision, reason, revisionMode, feedback, recordRef }`
+- `worker[]` — worker 输出摘要数组，每次 worker 执行追加一条 `{ outputRef, outputIndex, runtimeContext? }`
+- `checker[]` — checker 评审摘要数组，每次 checker 评审追加一条 `{ verdict, reason, feedback, revisionIndex, recordRef, feedbackRef, runtimeContext? }`
+- `watcher` — watcher 评审摘要（单条，后写覆盖），`{ decision, reason, revisionMode, feedback, recordRef, runtimeContext? }`
 - `resultRef` — 最终结果文件引用
 - `errorSummary` — 错误摘要
 - `finishedAt` — 完成时间
+
+`runtimeContext` 记录角色 session 的实际解析结果：`requestedProfileId`、`resolvedProfileId`、`fallbackUsed`、`fallbackReason`、`browserId`、`browserScope`。旧 attempt 不含该字段时仍可正常读取。
 
 #### checker revise vs watcher request_revision
 
@@ -257,6 +259,8 @@ Browser scope 按 `team:<runId>:<role>:<roleKey>:<profileId>` 构建，确保：
 - 同一 run 的 worker/checker/watcher/finalizer 各有独立 scope
 - 不同 attempt 的 worker/checker scope 不同（`roleKey` 为 `attemptId`）
 - 清理回调接收与 `createSession()` 完全一致的 scope
+
+worker/checker/watcher 的 attempt 元数据会记录 `runtimeContext`，用于排查 profile fallback、实际 browser ID 和 browser scope。finalizer runner 也返回同样的 runtime context，但当前没有 attempt 结构承载 finalizer 审计字段。
 
 当前阶段不是完整的 per-profile 浏览器/session 隔离——多个 role 可能使用相同的 browser ID，但 scope 区分足以避免清理碰撞。
 

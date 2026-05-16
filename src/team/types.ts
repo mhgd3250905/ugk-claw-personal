@@ -22,6 +22,7 @@ export type AttemptLifecyclePhase =
 export interface TeamAttemptWorkerSummary {
 	outputRef: string | null;
 	outputIndex: number;
+	runtimeContext?: TeamRoleRuntimeContext;
 }
 
 export interface TeamAttemptCheckerSummary {
@@ -32,6 +33,7 @@ export interface TeamAttemptCheckerSummary {
 	revisionIndex: number;
 	recordRef: string | null;
 	feedbackRef: string | null;
+	runtimeContext?: TeamRoleRuntimeContext;
 }
 
 export interface TeamAttemptWatcherSummary {
@@ -40,6 +42,16 @@ export interface TeamAttemptWatcherSummary {
 	revisionMode?: WatcherRevisionMode;
 	feedback?: string;
 	recordRef: string | null;
+	runtimeContext?: TeamRoleRuntimeContext;
+}
+
+export interface TeamRoleRuntimeContext {
+	requestedProfileId: string;
+	resolvedProfileId: string;
+	fallbackUsed: boolean;
+	fallbackReason?: "profile_not_found" | "profile_archived" | "legacy_profile";
+	browserId: string | null;
+	browserScope: string;
 }
 
 export interface TeamAttemptMetadata {

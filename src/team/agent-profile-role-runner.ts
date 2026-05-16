@@ -1,7 +1,7 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { TeamRoleRunner, WorkerInput, WorkerOutput, CheckerInput, CheckerOutput, WatcherInput, WatcherOutput, FinalizerInput, FinalizerOutput } from "./role-runner.js";
-import type { TeamTask, TeamPlan } from "./types.js";
+import type { TeamTask, TeamPlan, TeamRoleRuntimeContext } from "./types.js";
 import type { BackgroundAgentSessionFactory } from "../agent/background-agent-runner.js";
 import { BackgroundAgentProfileResolver } from "../agent/background-agent-profile.js";
 import type { ResolvedBackgroundAgentSnapshot, BackgroundAgentProfileRef } from "../agent/background-agent-profile.js";
@@ -340,9 +340,9 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workspace = await this.createRoleWorkspace(input.runId, input.attemptId, "worker");
 		const prompt = buildWorkerPrompt(input.task, input.acceptanceRules, input.feedback);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal, { role: "worker", roleKey: input.attemptId });
+		const sessionResult = await this.runSession(snapshot, this.options.workerProfileId, input.runId, workspace, prompt, input.signal, { role: "worker", roleKey: input.attemptId });
 
-		return { content, artifactRefs: [] };
+		return { content: sessionResult.content, artifactRefs: [], runtimeContext: sessionResult.runtimeContext };
 	}
 
 	async runChecker(input: CheckerInput): Promise<CheckerOutput> {
@@ -351,20 +351,21 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workerOutput = await readRefContent(this.options.teamDataDir, input.runId, input.workerOutputRef);
 		const prompt = buildCheckerPrompt(input.task, input.acceptanceRules, workerOutput);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal, { role: "checker", roleKey: input.attemptId });
+		const sessionResult = await this.runSession(snapshot, this.options.checkerProfileId, input.runId, workspace, prompt, input.signal, { role: "checker", roleKey: input.attemptId });
+		const content = sessionResult.content;
 
 		try {
 			const parsed = parseJsonResponse<CheckerJsonOutput>(content);
 			const normalized = normalizeCheckerOutput(parsed);
-			if (normalized) return normalized;
-			return { verdict: "fail", reason: "checker output parse error: invalid verdict", resultContent: content };
+			if (normalized) return { ...normalized, runtimeContext: sessionResult.runtimeContext };
+			return { verdict: "fail", reason: "checker output parse error: invalid verdict", resultContent: content, runtimeContext: sessionResult.runtimeContext };
 		} catch {
 			const parsed = parseCheckerJsonish(content);
 			if (parsed) {
 				const normalized = normalizeCheckerOutput(parsed);
-				if (normalized) return normalized;
+				if (normalized) return { ...normalized, runtimeContext: sessionResult.runtimeContext };
 			}
-			return { verdict: "fail", reason: "checker output parse error", resultContent: content };
+			return { verdict: "fail", reason: "checker output parse error", resultContent: content, runtimeContext: sessionResult.runtimeContext };
 		}
 	}
 
@@ -373,20 +374,21 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const workspace = await this.createRoleWorkspace(input.runId, input.attemptId, "watcher");
 		const prompt = buildWatcherPrompt(input.task, input.workUnitStatus, input.resultRef, input.errorSummary);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal, { role: "watcher", roleKey: input.attemptId });
+		const sessionResult = await this.runSession(snapshot, this.options.watcherProfileId, input.runId, workspace, prompt, input.signal, { role: "watcher", roleKey: input.attemptId });
+		const content = sessionResult.content;
 
 		try {
 			const parsed = parseJsonResponse<WatcherJsonOutput>(content);
 			const normalized = normalizeWatcherOutput(parsed);
-			if (normalized) return normalized;
-			return { decision: "confirm_failed", reason: "watcher output parse error: invalid decision" };
+			if (normalized) return { ...normalized, runtimeContext: sessionResult.runtimeContext };
+			return { decision: "confirm_failed", reason: "watcher output parse error: invalid decision", runtimeContext: sessionResult.runtimeContext };
 		} catch {
 			const parsed = parseWatcherJsonish(content);
 			if (parsed) {
 				const normalized = normalizeWatcherOutput(parsed);
-				if (normalized) return normalized;
+				if (normalized) return { ...normalized, runtimeContext: sessionResult.runtimeContext };
 			}
-			return { decision: "confirm_failed", reason: "watcher output parse error" };
+			return { decision: "confirm_failed", reason: "watcher output parse error", runtimeContext: sessionResult.runtimeContext };
 		}
 	}
 
@@ -404,9 +406,9 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 
 		const prompt = buildFinalizerPrompt(input.plan, taskResultsWithContent);
 
-		const content = await this.runSession(snapshot, input.runId, workspace, prompt, input.signal, { role: "finalizer", roleKey: "finalizer" });
+		const sessionResult = await this.runSession(snapshot, this.options.finalizerProfileId, input.runId, workspace, prompt, input.signal, { role: "finalizer", roleKey: "finalizer" });
 
-		return { finalReport: content };
+		return { finalReport: sessionResult.content, runtimeContext: sessionResult.runtimeContext };
 	}
 
 	private async resolveProfile(profileId: string): Promise<ResolvedBackgroundAgentSnapshot> {
@@ -426,12 +428,13 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 
 	private async runSession(
 		snapshot: ResolvedBackgroundAgentSnapshot,
+		requestedProfileId: string,
 		runId: string,
 		workspace: { rootPath: string; workDir: string; outputDir: string; sessionDir: string },
 		prompt: string,
 		signal: AbortSignal | undefined,
 		roleContext: { role: string; roleKey: string },
-	): Promise<string> {
+	): Promise<{ content: string; runtimeContext: TeamRoleRuntimeContext }> {
 		const browserId = snapshot.defaultBrowserId ?? this.options.defaultBrowserId;
 		const browserScope = buildTeamBrowserScope({
 			runId,
@@ -439,6 +442,14 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 			roleKey: roleContext.roleKey,
 			profileId: snapshot.profileId,
 		});
+		const runtimeContext: TeamRoleRuntimeContext = {
+			requestedProfileId,
+			resolvedProfileId: snapshot.profileId,
+			fallbackUsed: snapshot.fallbackUsed === true,
+			...(snapshot.fallbackReason ? { fallbackReason: snapshot.fallbackReason } : {}),
+			browserId: browserId ?? null,
+			browserScope,
+		};
 		const scopeId = browserId ? createBrowserCleanupScope(browserScope, browserId) : undefined;
 
 		const session = await this.sessionFactory.createSession({
@@ -487,6 +498,6 @@ export class AgentProfileRoleRunner implements TeamRoleRunner {
 		const lastMsg = findLastAssistantMessage(session.messages ?? []);
 		assertAssistantMessageSucceeded(lastMsg);
 
-		return stringifyVisibleAssistantContent(lastMsg?.content ?? "");
+		return { content: stringifyVisibleAssistantContent(lastMsg?.content ?? ""), runtimeContext };
 	}
 }

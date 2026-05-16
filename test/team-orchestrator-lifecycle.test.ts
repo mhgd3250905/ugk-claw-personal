@@ -386,3 +386,75 @@ test("lifecycle: generic watcher error finishes active attempt as failed", async
 		await rm(root, { recursive: true });
 	}
 });
+
+test("lifecycle: records role runtime context in attempt metadata", async () => {
+	const { root, plan, workspace } = await setup();
+	const runner = new (class extends MockRoleRunner {
+		override async runWorker(input: import("../src/team/role-runner.js").WorkerInput) {
+			const out = await super.runWorker(input);
+			return {
+				...out,
+				runtimeContext: {
+					requestedProfileId: "missing_worker",
+					resolvedProfileId: "main",
+					fallbackUsed: true,
+					fallbackReason: "profile_not_found" as const,
+					browserId: "browser_worker",
+					browserScope: "team:run_ctx:worker:attempt_1:main",
+				},
+			};
+		}
+
+		override async runChecker(input: import("../src/team/role-runner.js").CheckerInput) {
+			const out = await super.runChecker(input);
+			return {
+				...out,
+				runtimeContext: {
+					requestedProfileId: "checker_profile",
+					resolvedProfileId: "checker_profile",
+					fallbackUsed: false,
+					browserId: null,
+					browserScope: "team:run_ctx:checker:attempt_1:checker_profile",
+				},
+			};
+		}
+
+		override async runWatcher(input: import("../src/team/role-runner.js").WatcherInput) {
+			const out = await super.runWatcher(input);
+			return {
+				...out,
+				runtimeContext: {
+					requestedProfileId: "watcher_profile",
+					resolvedProfileId: "watcher_profile",
+					fallbackUsed: false,
+					browserId: "browser_watcher",
+					browserScope: "team:run_ctx:watcher:attempt_1:watcher_profile",
+				},
+			};
+		}
+	})();
+	const orc = new TeamOrchestrator({
+		planStore: new PlanStore(root),
+		teamUnitStore: new TeamUnitStore(root),
+		workspace,
+		roleRunner: runner,
+		dataDir: root,
+		maxCheckerRevisions: 3,
+		maxWatcherRevisions: 1,
+		maxRunDurationMinutes: 60,
+	});
+	try {
+		const state = await orc.createRun(plan.planId);
+		await orc.runToCompletion(state.runId);
+
+		const attempts = await workspace.listAttempts(state.runId, "task_1");
+		const attempt = attempts[0]!;
+		assert.equal(attempt.worker[0]!.runtimeContext?.requestedProfileId, "missing_worker");
+		assert.equal(attempt.worker[0]!.runtimeContext?.resolvedProfileId, "main");
+		assert.equal(attempt.worker[0]!.runtimeContext?.fallbackReason, "profile_not_found");
+		assert.equal(attempt.checker[0]!.runtimeContext?.browserId, null);
+		assert.equal(attempt.watcher?.runtimeContext?.browserScope, "team:run_ctx:watcher:attempt_1:watcher_profile");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
