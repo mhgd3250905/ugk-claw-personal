@@ -70,9 +70,9 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 .runtime-context { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; color: var(--muted); font-size: 11px; }
 .runtime-context span { display: inline-block; padding: 1px 5px; border-radius: 3px; background: rgba(115,115,115,0.12); }
 .runtime-context-fallback { color: var(--warn); background: rgba(245,158,11,0.14) !important; }
-.attempt-files { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
-.attempt-file { color: var(--accent); cursor: pointer; font-size: 11px; text-decoration: underline; }
-.attempt-file:hover { color: var(--accent-hover); }
+.file-chips { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.file-chip { display: inline-block; padding: 2px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--accent); font-size: 11px; cursor: pointer; }
+.file-chip:hover { background: var(--border); }
 
 /* Modal overlay base */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
@@ -116,6 +116,40 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 .confirm-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 400px; max-width: 95vw; padding: 24px; }
 .confirm-box p { font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
 .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Unified modal panel */
+.modal-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; width: 680px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.modal-header h2, .modal-header h3 { font-size: 15px; font-weight: 600; margin: 0; }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-body pre { white-space: pre-wrap; font-family: inherit; font-size: 13px; line-height: 1.6; }
+.copy-btn { padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+.copy-btn:hover { color: var(--text); background: var(--border); }
+
+
+/* Runtime context collapsible */
+.runtime-context-wrap { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.runtime-context-wrap summary { cursor: pointer; list-style: none; }
+.runtime-context-wrap summary::-webkit-details-marker { display: none; }
+.runtime-context-wrap summary::before { content: "\\25B8 "; }
+.runtime-context-wrap[open] summary::before { content: "\\25BE "; }
+.runtime-context-detail { margin-top: 2px; }
+
+/* Attempt error highlight */
+.attempt-error { color: var(--fail); font-weight: 500; }
+
+/* Mobile responsive */
+@media (max-width: 720px) {
+	.modal-panel, .report-content, .file-viewer-content, .modal, .confirm-box { width: 100% !important; max-width: 100% !important; border-radius: 0 !important; max-height: 100vh !important; }
+	.topbar { flex-wrap: wrap; gap: 8px; }
+	.team-summary { display: none !important; }
+	.run-actions { flex-wrap: wrap; }
+	table { font-size: 11px; }
+	th, td { padding: 6px 8px; }
+	.main { padding: 12px; }
+	.card { padding: 12px; }
+	.profile-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -223,23 +257,28 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 </div>
 <!-- Report Modal -->
 <div id="report-modal" class="modal-overlay">
-	<div class="report-content">
-		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+	<div class="modal-panel">
+		<div class="modal-header">
 			<h2>最终报告</h2>
-			<button class="btn" style="background:var(--border);color:var(--text)" onclick="closeReportModal()">关闭</button>
+			<div style="display:flex;gap:8px">
+				<button class="copy-btn" id="copy-report-btn" onclick="copyReport()">复制</button>
+				<button class="btn" style="background:var(--border);color:var(--text)" onclick="closeReportModal()">关闭</button>
+			</div>
 		</div>
-		<div id="report-body"><div class="loading"><div class="spinner"></div> 加载中...</div></div>
+		<div class="modal-body" id="report-body"><div class="loading"><div class="spinner"></div> 加载中...</div></div>
 	</div>
 </div>
 
 <!-- File Viewer -->
 <div id="file-viewer" class="file-viewer">
-	<div class="file-viewer-content">
-		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+	<div class="modal-panel">
+		<div class="modal-header">
 			<h3 id="file-viewer-title">文件内容</h3>
 			<button class="btn" style="background:var(--border);color:var(--text)" onclick="closeFileViewer()">关闭</button>
 		</div>
-		<pre id="file-viewer-body"></pre>
+		<div class="modal-body">
+			<pre id="file-viewer-body"></pre>
+		</div>
 	</div>
 </div>
 
@@ -386,17 +425,17 @@ function statusBadge(status) {
 }
 
 function renderRuntimeContext(role, ctx) {
-	if (!ctx) return '';
-	var parts = [
-		'<span>' + escapeHtml(role) + ': ' + escapeHtml(ctx.requestedProfileId) + ' → ' + escapeHtml(ctx.resolvedProfileId) + '</span>',
-		'<span>browser: ' + escapeHtml(ctx.browserId == null ? 'none' : ctx.browserId) + '</span>',
-		'<span>scope: ' + escapeHtml(ctx.browserScope) + '</span>',
-	];
-	if (ctx.fallbackUsed) {
-		parts.push('<span class="runtime-context-fallback">fallback' + (ctx.fallbackReason ? ': ' + escapeHtml(ctx.fallbackReason) : '') + '</span>');
+		if (!ctx) return '';
+		var summary = escapeHtml(role) + ': ' + escapeHtml(ctx.requestedProfileId) + ' \u2192 ' + escapeHtml(ctx.resolvedProfileId) + ' | browser: ' + escapeHtml(ctx.browserId == null ? 'none' : ctx.browserId) + ' | scope: ' + escapeHtml(ctx.browserScope);
+		if (ctx.fallbackUsed) summary += ' (fallback' + (ctx.fallbackReason ? ': ' + escapeHtml(ctx.fallbackReason) : '') + ')';
+		var detailParts = [
+			'<span>' + escapeHtml(role) + ': ' + escapeHtml(ctx.requestedProfileId) + ' \u2192 ' + escapeHtml(ctx.resolvedProfileId) + '</span>',
+			'<span>browser: ' + escapeHtml(ctx.browserId == null ? 'none' : ctx.browserId) + '</span>',
+			'<span>scope: ' + escapeHtml(ctx.browserScope) + '</span>',
+		];
+		if (ctx.fallbackUsed) detailParts.push('<span class="runtime-context-fallback">fallback' + (ctx.fallbackReason ? ': ' + escapeHtml(ctx.fallbackReason) : '') + '</span>');
+		return '<details class="runtime-context-wrap"><summary>' + summary + '</summary><div class="runtime-context runtime-context-detail">' + detailParts.join('') + '</div></details>';
 	}
-	return '<div class="runtime-context">' + parts.join('') + '</div>';
-}
 
 function profileName(id) {
 	var a = agentCatalog.find(function(x) { return (x.agentId || 'main') === id; });
@@ -632,14 +671,14 @@ function renderTaskDetail(state, plan, attemptsMap) {
 			if (ts.attemptCount > 0) detailParts.push('尝试 ' + ts.attemptCount + ' 次');
 			if (ts.activeAttemptId) detailParts.push('尝试ID: ' + escapeHtml(ts.activeAttemptId.slice(0, 12)) + '...');
 			if (ts.resultRef) detailParts.push('<span style="color:var(--success)">结果: ' + escapeHtml(ts.resultRef) + '</span>');
-			if (ts.errorSummary) detailParts.push('<span style="color:var(--fail)">错误: ' + escapeHtml(ts.errorSummary) + '</span>');
+			if (ts.errorSummary) detailParts.push('<span class="attempt-error">错误: ' + escapeHtml(ts.errorSummary) + '</span>');
 			var attemptsHtml = '';
 			var attempts = attemptsMap && attemptsMap[task.id];
 			if (attempts && attempts.length > 0) {
 				attemptsHtml = attempts.map(function(a) {
 					var statusColor = a.status === 'succeeded' ? 'var(--success)' : a.status === 'failed' ? 'var(--fail)' : 'var(--muted)';
 					var filesHtml = a.files.map(function(f) {
-						return '<span class="attempt-file" onclick="viewAttemptFile(' + jsArg(state.runId) + ',' + jsArg(task.id) + ',' + jsArg(a.attemptId) + ',' + jsArg(f) + ')">' + escapeHtml(f) + '</span>';
+						return '<span class="file-chip" onclick="viewAttemptFile(' + jsArg(state.runId) + ',' + jsArg(task.id) + ',' + jsArg(a.attemptId) + ',' + jsArg(f) + ')">' + escapeHtml(f) + '</span>';
 					}).join('');
 					var lcLines = [];
 					if (a.phase) lcLines.push('阶段: ' + escapeHtml(phaseLabel(a.phase)));
@@ -650,7 +689,7 @@ function renderTaskDetail(state, plan, attemptsMap) {
 					}
 					if (a.watcher) lcLines.push('watcher: ' + escapeHtml(a.watcher.decision));
 					if (a.resultRef) lcLines.push('结果: ' + escapeHtml(a.resultRef));
-					if (a.errorSummary) lcLines.push('<span style="color:var(--fail)">错误: ' + escapeHtml(a.errorSummary) + '</span>');
+					if (a.errorSummary) lcLines.push('<span class="attempt-error">错误: ' + escapeHtml(a.errorSummary) + '</span>');
 					var lcHtml = lcLines.length ? '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + lcLines.join(' / ') + '</div>' : '';
 					var runtimeHtml = '';
 					if (a.worker && a.worker.length) runtimeHtml += a.worker.map(function(w) { return renderRuntimeContext('worker', w.runtimeContext); }).join('');
@@ -662,7 +701,7 @@ function renderTaskDetail(state, plan, attemptsMap) {
 						'<span class="ts">' + formatTimestamp(a.createdAt) + '</span>' +
 						lcHtml +
 						runtimeHtml +
-						(a.files.length > 0 ? '<div class="attempt-files">' + filesHtml + '</div>' : '') +
+						(a.files.length > 0 ? '<div class="file-chips">' + filesHtml + '</div>' : '') +
 						'</div>';
 				}).join('');
 			}
@@ -797,6 +836,24 @@ async function viewReport(runId) {
 		body.innerHTML = '<p style="color:var(--fail)">加载失败：' + escapeHtml(e.message) + '</p>';
 	}
 }
+
+function copyReport() {
+		var body = $('report-body');
+		if (!body) return;
+		var pre = body.querySelector('pre');
+		var text = pre ? pre.textContent : body.textContent;
+		if (navigator.clipboard) {
+			navigator.clipboard.writeText(text).then(function() { showSuccess('已复制'); });
+		} else {
+			var ta = document.createElement('textarea');
+			ta.value = text;
+			document.body.appendChild(ta);
+			ta.select();
+			document.execCommand('copy');
+			document.body.removeChild(ta);
+			showSuccess('已复制');
+		}
+	}
 
 function closeReportModal() {
 	$('report-modal').classList.remove('open');

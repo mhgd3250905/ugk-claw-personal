@@ -357,7 +357,7 @@ test("P4: viewAttemptFile function exists", () => {
 	assert.match(script, /async function viewAttemptFile/);
 	assert.match(script, /\/attempts\//);
 	const html = renderTeamPage();
-	assert.match(html, /attempt-file/);
+	assert.match(html, /file-chip/);
 });
 
 test("P4: plan title displayed in run cards with plan-title class", () => {
@@ -474,7 +474,7 @@ test("P4: timestamp class used for formatted times", () => {
 test("P4: attempt-card CSS class defined", () => {
 	const html = renderTeamPage();
 	assert.match(html, /\.attempt-card/);
-	assert.match(html, /\.attempt-file/);
+	assert.match(html, /\.file-chip/);
 });
 
 test("P4: inline scripts are still valid JavaScript with P4 changes", () => {
@@ -854,4 +854,58 @@ test("P12-T4: delete buttons use confirmAction via deleteRun", () => {
 test("P12-T4: cancel confirm has clear impact description", () => {
 	const script = extractScript();
 	assert.match(script, /cancelRunWithConfirm[\s\S]*?不可恢复/);
+});
+
+// ── P12 Task 5: Detail modal polish and readability ──
+
+test("P12-T5: report and file modals use unified modal-panel class", () => {
+	const html = renderTeamPage();
+	assert.match(html, /id="report-modal"[\s\S]*?modal-panel/);
+	assert.match(html, /id="file-viewer"[\s\S]*?modal-panel/);
+});
+
+test("P12-T5: report modal has copy button", () => {
+	const html = renderTeamPage();
+	assert.match(html, /copy-btn.*copyReport/);
+	assert.match(html, /function copyReport/);
+});
+
+test("P12-T5: copyReport uses textContent for safety", () => {
+	const script = extractScript();
+	assert.match(script, /copyReport[\s\S]*?textContent/);
+});
+
+test("P12-T5: attempt files use file-chip class", () => {
+	const script = extractScript();
+	assert.match(script, /file-chip/);
+	assert.doesNotMatch(script, /attempt-file/);
+});
+
+test("P12-T5: runtime context uses details/summary for collapse", () => {
+	const script = extractScript();
+	assert.match(script, /runtime-context-wrap/);
+	assert.match(script, /<details class="runtime-context-wrap">/);
+	assert.match(script, /<summary>/);
+});
+
+test("P12-T5: runtime context dynamic values still use escapeHtml", () => {
+	const script = extractScript();
+	assert.match(script, /renderRuntimeContext[\s\S]*?escapeHtml/);
+});
+
+test("P12-T5: attempt file links use jsArg and pathSegment", () => {
+	const script = extractScript();
+	assert.match(script, /viewAttemptFile[\s\S]*?jsArg/);
+	assert.match(script, /viewAttemptFile[\s\S]*?pathSegment/);
+});
+
+test("P12-T5: CSS has mobile responsive breakpoint", () => {
+	const html = renderTeamPage();
+	assert.match(html, /@media \(max-width: 720px\)/);
+});
+
+test("P12-T5: modals use modal-header and modal-body classes", () => {
+	const html = renderTeamPage();
+	assert.match(html, /modal-header/);
+	assert.match(html, /modal-body/);
 });
