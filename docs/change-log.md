@@ -12,6 +12,21 @@
 
 ---
 
+## 2026-05-16 — P6-B: Event-Driven Run SSE
+
+- **主题**: 将 `/v1/team/runs/:runId/events` 从 2 秒轮询改为事件驱动推送
+- **影响范围**: `src/team/run-state-events.ts`, `src/team/run-workspace.ts`, `src/team/routes.ts`, `test/team-run-state-events.test.ts`, `test/team-sse-attempt-api.test.ts`
+- **变更**:
+  - 新增 `RunStateEvents` 进程内通知机制，按 `runId` 分发订阅
+  - `RunWorkspace.saveState()` 在原子 `rename()` 完成后调用 `events.notify(state)`
+  - SSE 路由订阅 `workspace.events` 替代 2 秒 `setInterval` 轮询
+  - 保持 SSE payload shape（`{ type: "snapshot", data: <TeamRunState> }`）、初始 snapshot、terminal 关闭、15 秒 heartbeat 行为不变
+  - 新增 5 个通知机制测试 + 2 个事件驱动 SSE 测试（含 300ms 延迟断言证明非轮询）
+- **测试**: 252 pass
+- **源码入口**: `src/team/run-state-events.ts`, `src/team/routes.ts:/v1/team/runs/:runId/events`
+
+---
+
 ## 2026-05-16 — P6-A admission lock 高并发补强
 
 - **主题**: 修复 admission lock 在容量未满的高并发创建下过早返回 `admission lock busy` 的问题

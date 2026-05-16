@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 244 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 252 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -162,10 +162,10 @@ final report 优先由 finalizer agent 生成。若 finalizer 失败，orchestra
 
 - Content-Type: `text/event-stream`
 - 连接建立后立即发送当前 state snapshot（`{ type: "snapshot", data: <TeamRunState> }`）
-- 对于 active run（queued/running/paused），每 2 秒轮询 state 并推送 snapshot
+- 对于 active run（queued/running/paused），服务端通过 `RunStateEvents` 订阅 `saveState()` 通知，状态变更后立即推送 snapshot（事件驱动，非轮询）
 - run 进入 terminal 状态后发送最终 snapshot 并关闭连接
 - 15 秒 SSE heartbeat 保持连接活跃
-- 客户端断开自动清理 interval 和 listener
+- 客户端断开自动清理 subscription 和 heartbeat
 
 ### Attempt 只读 API
 
@@ -334,6 +334,7 @@ docker compose restart ugk-pi-team-worker  # worker 改动后
 | `src/team/routes.ts` | v2 TeamUnit / Plan / Run / SSE / Attempt HTTP API |
 | `src/team/orchestrator.ts` | run 创建、状态迁移、worker/checker/watcher/finalizer 编排 |
 | `src/team/run-workspace.ts` | run 目录、state、attempt、resultRef、final-report、attempt 文件读取 持久化 |
+| `src/team/run-state-events.ts` | 进程内 run state 变更通知（subscribe/notify） |
 | `src/team/team-unit-store.ts` | TeamUnit 存储 |
 | `src/team/plan-store.ts` | Plan 存储和 runCount 不变式 |
 | `src/team/config-locks.ts` | 活跃 run 对 Plan / TeamUnit / AgentProfile 的锁计算 |
@@ -420,15 +421,14 @@ Cancel/pause always takes priority over phase timeout — if a run is already ca
 ## 已知限制
 
 1. **默认 mock runner** — 真实 runner 需显式 `TEAM_USE_MOCK_RUNNER=false`。
-2. **SSE 轮询间隔** — SSE 基于服务端 2 秒轮询 state 文件，不是事件驱动推送。对高频状态变化有短暂延迟。
+2. **SSE 单进程通知** — SSE 基于进程内 `RunStateEvents` 推送，仅在同一 HTTP 服务器进程内有效。跨进程（独立 worker）的状态变更不触发通知；生产环境 worker 进程独立运行时，SSE 客户端在 worker 完成后需等待前端列表刷新。
 3. **默认单活跃 run** — `TEAM_MAX_CONCURRENT_RUNS` 默认为 `1`，即全局只允许一个 queued/running/paused run。设置为更大的值可允许并发 active run，但单个 worker 进程仍顺序执行；多 worker 进程可通过 lease 机制分别 claim 不同的 queued run。
 4. **Timeout 60 分钟** — 超时 run 标记为 failed。
 5. **无 per-profile 并发隔离** — 并发 run 共享 AgentProfile，不保证浏览器/session 独立。
 
 ## 后续计划
 
-1. 事件驱动 SSE（orchestrator 直接推送，而非轮询）
-2. Per-profile 资源隔离（浏览器/session 独立）
+1. Per-profile 资源隔离（浏览器/session 独立）
 
 ---
 
