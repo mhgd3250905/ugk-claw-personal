@@ -247,6 +247,14 @@ export class TeamOrchestrator {
 
 		await this.workspace.saveState(state);
 
+		// Best-effort: mark active attempt as interrupted
+		if (state.currentTaskId) {
+			const ts = state.taskStates[state.currentTaskId];
+			if (ts?.activeAttemptId) {
+				await this.workspace.finishAttempt(runId, state.currentTaskId, ts.activeAttemptId, { status: "interrupted", phase: "interrupted", errorSummary: "run paused" }).catch(() => {});
+			}
+		}
+
 		this.abortController?.abort(new Error(reason));
 
 		return state;
@@ -289,6 +297,13 @@ export class TeamOrchestrator {
 		}
 
 		await this.workspace.saveState(state);
+
+		// Best-effort: mark active attempts as cancelled
+		for (const [tid, ts] of Object.entries(state.taskStates)) {
+			if (ts.activeAttemptId) {
+				await this.workspace.finishAttempt(runId, tid, ts.activeAttemptId, { status: "cancelled", phase: "cancelled", errorSummary: "run cancelled" }).catch(() => {});
+			}
+		}
 
 		this.abortController?.abort(new Error(reason));
 
@@ -352,16 +367,23 @@ export class TeamOrchestrator {
 
 			if (watcherResult.decision === "accept_task") {
 				if (workUnitResult === "passed") {
+					await this.workspace.finishAttempt(state.runId, task.id, attemptId, { status: "succeeded", phase: "succeeded", resultRef: ts.resultRef });
 					ts.status = "succeeded";
 					ts.progress = { phase: "succeeded", message: progressMessages.succeeded, updatedAt: now() };
 					state.summary.succeededTasks++;
 				} else {
+					await this.workspace.finishAttempt(state.runId, task.id, attemptId, { status: "failed", phase: "failed", errorSummary: "watcher accepted failed work unit" });
 					ts.status = "failed";
 					ts.progress = { phase: "failed", message: progressMessages.failed, updatedAt: now() };
 					state.summary.failedTasks++;
 				}
 				taskDone = true;
 			} else if (watcherResult.decision === "confirm_failed") {
+				const attList = await this.workspace.listAttempts(state.runId, task.id);
+				const att = attList.find(a => a.attemptId === attemptId);
+				if (!att?.finishedAt) {
+					await this.workspace.finishAttempt(state.runId, task.id, attemptId, { status: "failed", phase: "failed", errorSummary: "watcher confirmed failed" });
+				}
 				ts.status = "failed";
 				ts.progress = { phase: "failed", message: progressMessages.failed, updatedAt: now() };
 				state.summary.failedTasks++;
@@ -369,11 +391,18 @@ export class TeamOrchestrator {
 			} else if (watcherResult.decision === "request_revision") {
 				watcherRevisions++;
 				if (watcherRevisions > this.maxWatcherRevisions) {
+					const attListW = await this.workspace.listAttempts(state.runId, task.id);
+					const attW = attListW.find(a => a.attemptId === attemptId);
+					if (!attW?.finishedAt) {
+						await this.workspace.finishAttempt(state.runId, task.id, attemptId, { status: "failed", phase: "failed", errorSummary: "exceeded max watcher revisions" });
+					}
 					ts.status = "failed";
 					ts.errorSummary = "exceeded max watcher revisions";
 					ts.progress = { phase: "failed", message: progressMessages.failed, updatedAt: now() };
 					state.summary.failedTasks++;
 					taskDone = true;
+				} else {
+					await this.workspace.finishAttempt(state.runId, task.id, attemptId, { status: "interrupted", phase: "watcher_revision_requested", errorSummary: "watcher requested revision" });
 				}
 			}
 
@@ -511,7 +540,7 @@ export class TeamOrchestrator {
 				const s = (await this.workspace.getState(runId))!;
 				if (this.shouldStop(s)) return "failed";
 				const resultRef = await this.workspace.writeAcceptedResult(runId, task.id, attemptId, resultContent);
-				await this.workspace.finishAttempt(runId, task.id, attemptId, { status: "succeeded", phase: "succeeded", resultRef });
+				await this.workspace.updateAttemptPhase(runId, task.id, attemptId, "checker_passed");
 				s.taskStates[task.id]!.resultRef = resultRef;
 				await this.workspace.saveState(s);
 				return "passed";
@@ -546,6 +575,12 @@ export class TeamOrchestrator {
 	}
 
 	private async runWatcherPhase(state: TeamRunState, task: TeamTask, attemptId: string, workUnitStatus: "passed" | "failed", signal: AbortSignal) {
+		const preAttempts = await this.workspace.listAttempts(state.runId, task.id);
+		const preAttempt = preAttempts.find(a => a.attemptId === attemptId);
+		if (preAttempt && !preAttempt.finishedAt) {
+			await this.workspace.updateAttemptPhase(state.runId, task.id, attemptId, "watcher_reviewing");
+		}
+
 		const current = await this.workspace.getState(state.runId);
 		if (current && !this.shouldStop(current)) {
 			current.taskStates[task.id]!.progress = { phase: "watcher_reviewing", message: progressMessages.watcher_reviewing, updatedAt: now() };
@@ -578,12 +613,24 @@ export class TeamOrchestrator {
 			if (error instanceof Error && error.message === "watcher timeout") {
 				watcherOut = { decision: "confirm_failed", reason: "watcher timeout" };
 				await this.workspace.writeWatcherReview(state.runId, task.id, attemptId, watcherOut);
+				await this.workspace.recordAttemptWatcherResult(state.runId, task.id, attemptId, {
+					decision: "confirm_failed", reason: "watcher timeout",
+					recordRef: `tasks/${task.id}/attempts/${attemptId}/watcher-review.json`,
+				});
 				return watcherOut;
 			}
 			throw error;
 		}
 
 		await this.workspace.writeWatcherReview(state.runId, task.id, attemptId, watcherOut);
+		await this.workspace.recordAttemptWatcherResult(state.runId, task.id, attemptId, {
+			decision: watcherOut.decision,
+			reason: watcherOut.reason,
+			revisionMode: watcherOut.revisionMode,
+			feedback: watcherOut.feedback,
+			recordRef: `tasks/${task.id}/attempts/${attemptId}/watcher-review.json`,
+		});
+
 		const watcherFinished = new Date();
 		await writeTimingSpan(this.dataDir, {
 			runId: state.runId, taskId: task.id, attemptId, phase: "watcher",

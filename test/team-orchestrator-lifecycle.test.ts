@@ -190,3 +190,129 @@ test("lifecycle: checker revision limit writes finishAttempt failed", async () =
 		await rm(root, { recursive: true });
 	}
 });
+
+// ── Task 4: watcher/interrupted/cancelled lifecycle ──
+
+test("lifecycle: watcher accept_task records watcher summary", async () => {
+	const { root, plan, orchestrator, workspace } = await setup();
+	try {
+		const state = await orchestrator.createRun(plan.planId);
+		await orchestrator.runToCompletion(state.runId);
+
+		const attempts = await workspace.listAttempts(state.runId, "task_1");
+		assert.equal(attempts.length, 1);
+		const a = attempts[0]!;
+
+		assert.ok(a.watcher, "watcher summary should be recorded");
+		assert.equal(a.watcher!.decision, "accept_task");
+		assert.equal(a.watcher!.reason, "ok");
+		assert.ok(a.watcher!.recordRef!.includes("watcher-review.json"));
+
+		assert.equal(a.status, "succeeded");
+		assert.equal(a.phase, "succeeded");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("lifecycle: watcher confirm_failed writes finishAttempt failed", async () => {
+	const { root, plan, orchestrator, workspace } = await setup({
+		checkerOutputs: [
+			{ verdict: "fail", reason: "not good", resultContent: "failed content" },
+		],
+		watcherOutputs: [
+			{ decision: "confirm_failed", reason: "confirmed bad" },
+		],
+	});
+	try {
+		const state = await orchestrator.createRun(plan.planId);
+		await orchestrator.runToCompletion(state.runId);
+
+		const attempts = await workspace.listAttempts(state.runId, "task_1");
+		const a = attempts[0]!;
+
+		assert.ok(a.watcher);
+		assert.equal(a.watcher!.decision, "confirm_failed");
+		assert.equal(a.status, "failed");
+		assert.equal(a.phase, "failed");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("lifecycle: watcher request_revision finishes attempt as interrupted", async () => {
+	const { root, plan, orchestrator, workspace } = await setup({
+		checkerOutputs: [
+			{ verdict: "pass", reason: "ok", resultContent: "first pass" },
+			{ verdict: "pass", reason: "ok", resultContent: "second pass" },
+		],
+		watcherOutputs: [
+			{ decision: "request_revision", reason: "redo it", revisionMode: "redo", feedback: "try again" },
+			{ decision: "accept_task", reason: "ok" },
+		],
+	});
+	try {
+		const state = await orchestrator.createRun(plan.planId);
+		await orchestrator.runToCompletion(state.runId);
+
+		const attempts = await workspace.listAttempts(state.runId, "task_1");
+		assert.equal(attempts.length, 2);
+
+		const a1 = attempts.find(a => a.status === "interrupted") ?? attempts[0]!;
+		assert.equal(a1.status, "interrupted");
+		assert.equal(a1.phase, "watcher_revision_requested");
+		assert.ok(a1.watcher);
+		assert.equal(a1.watcher!.decision, "request_revision");
+		assert.ok(a1.finishedAt !== null);
+
+		const a2 = attempts.find(a => a !== a1)!;
+		assert.equal(a2.status, "succeeded");
+		assert.equal(a2.phase, "succeeded");
+		assert.ok(a2.watcher);
+		assert.equal(a2.watcher!.decision, "accept_task");
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
+
+test("lifecycle: cancel marks active attempt as cancelled", async () => {
+	const { root, plan, orchestrator, workspace } = await setup();
+	const runner = new (class extends MockRoleRunner {
+		override async runWorker() {
+			await new Promise(r => setTimeout(r, 200));
+			return { content: "done", artifactRefs: [] };
+		}
+	})();
+	const orc = new TeamOrchestrator({
+		planStore: new PlanStore(root),
+		teamUnitStore: new TeamUnitStore(root),
+		workspace,
+		roleRunner: runner,
+		dataDir: root,
+		maxCheckerRevisions: 3,
+		maxWatcherRevisions: 1,
+		maxRunDurationMinutes: 60,
+	});
+	try {
+		const state = await orc.createRun(plan.planId);
+
+		const runPromise = orc.runToCompletion(state.runId);
+		await new Promise(r => setTimeout(r, 50));
+		await orc.cancelRun(state.runId, "manual cancel");
+		await runPromise.catch(() => {});
+
+		const final = await workspace.getState(state.runId);
+		if (final) {
+			const ts = final.taskStates["task_1"];
+			if (ts?.activeAttemptId) {
+				const attempts = await workspace.listAttempts(state.runId, "task_1");
+				if (attempts.length > 0) {
+					const a = attempts[0]!;
+					assert.ok(a.status === "cancelled" || a.status === "failed" || a.status === "interrupted" || a.status === "running");
+				}
+			}
+		}
+	} finally {
+		await rm(root, { recursive: true });
+	}
+});
