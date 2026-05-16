@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildServer } from "../src/server.js";
 import type { AgentService } from "../src/agent/agent-service.js";
+import { RunWorkspace } from "../src/team/run-workspace.js";
 
 function createAgentServiceStub() {
 	return {
@@ -159,6 +160,36 @@ test("POST /v1/team/plans/:planId/runs creates run", async () => {
 		assert.equal(stateRes.statusCode, 200);
 		assert.equal(stateRes.json().status, "queued");
 
+		await app.close();
+	} finally {
+		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }
+	}
+});
+
+test("GET /v1/team/runs/:runId returns finalizer runtime context", async () => {
+	const { app, root, teamDir } = await buildTestServer();
+	try {
+		const unitRes = await app.inject({ method: "POST", url: "/v1/team/team-units", payload: unitBody });
+		const planRes = await app.inject({ method: "POST", url: "/v1/team/plans", payload: planBody(unitRes.json().teamUnitId) });
+		const runRes = await app.inject({ method: "POST", url: `/v1/team/plans/${planRes.json().planId}/runs` });
+		const runId = runRes.json().runId;
+		const workspace = new RunWorkspace(teamDir);
+		const state = await workspace.getState(runId);
+		assert.ok(state, "created run state should exist");
+		state.finalizerRuntimeContext = {
+			requestedProfileId: "finalizer-profile",
+			resolvedProfileId: "main",
+			browserId: "browser-a",
+			browserScope: "team:run:finalizer",
+			fallbackUsed: true,
+			fallbackReason: "profile_not_found",
+		};
+		await workspace.saveState(state);
+
+		const stateRes = await app.inject({ method: "GET", url: `/v1/team/runs/${runId}` });
+
+		assert.equal(stateRes.statusCode, 200);
+		assert.deepEqual(stateRes.json().finalizerRuntimeContext, state.finalizerRuntimeContext);
 		await app.close();
 	} finally {
 		try { await rm(root, { recursive: true, force: true }); } catch { /* concurrent write */ }

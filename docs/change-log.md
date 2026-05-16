@@ -12,6 +12,20 @@
 
 ---
 
+## 2026-05-16 — P8-E: Profile Browser Scope End-to-End Audit
+
+- **主题**: 补齐 P8-A 至 P8-D 的 runtime context 边界审计覆盖，不引入新的运行时能力
+- **影响范围**: Team 测试, `docs/team-runtime.md`
+- **变更**:
+  - finalizer 抛错、取消、超时时断言 `finalizerRuntimeContext` 保持 `null`
+  - 路由测试覆盖 `GET /v1/team/runs/:runId` 返回已持久化的 finalizer runtime context
+  - UI 行为测试执行 `renderTaskDetail()`，验证 worker/checker/watcher/finalizer runtime context 动态值不会形成 HTML 注入
+  - 未发现需要修改生产代码的真实缺口
+- **测试**: 267 pass
+- **源码入口**: `test/team-finalizer-fallback.test.ts`, `test/team-orchestrator-timeout.test.ts`, `test/team-routes.test.ts`, `test/team-page-ui.test.ts`
+
+---
+
 ## 2026-05-16 — P8-D: Persist Finalizer Runtime Context
 
 - **主题**: 将 finalizer session 的 profile/browser 解析结果持久化到 run state，并在 Team UI 展示

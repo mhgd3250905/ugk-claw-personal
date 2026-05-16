@@ -13,7 +13,7 @@
 - v2 基础链路已验证通过（mock + 真实 runner）
 - AbortSignal 全链路传播：cancel/pause 能中断正在执行的 agent session
 - 真实 runner smoke test：`run_1c54aaa7e442`，status: completed，P0_REAL_RUNNER_OK
-- 最新验证：`npm run test:team` 265 pass，`npx tsc --noEmit` 通过
+- 最新验证：`npm run test:team` 267 pass，`npx tsc --noEmit` 通过
 
 ## 核心概念
 
@@ -264,6 +264,8 @@ Browser scope 按 `team:<runId>:<role>:<roleKey>:<profileId>` 构建，确保：
 worker/checker/watcher 的 attempt 元数据会记录 `runtimeContext`，用于排查 profile fallback、实际 browser ID 和 browser scope。finalizer 的 runtime context 写入 run state 的 `finalizerRuntimeContext`。
 
 当前阶段不是完整的 per-profile 浏览器/session 隔离——多个 role 可能使用相同的 browser ID，但 scope 区分足以避免清理碰撞。
+
+P8-E 已补齐端到端审计覆盖：finalizer 失败、取消、超时路径会保持 `finalizerRuntimeContext: null`；`GET /v1/team/runs/:runId` 会原样返回已持久化的 finalizer runtime context；Team UI 对 worker/checker/watcher/finalizer runtime context 的动态值执行 HTML 转义。
 
 ### resultRef 和 finalizer prompt
 

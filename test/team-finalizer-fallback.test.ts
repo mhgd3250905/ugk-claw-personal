@@ -37,6 +37,7 @@ test("finalizer failure writes fallback final-report.md", async () => {
 
 		assert.equal(final.status, "completed_with_failures");
 		assert.match(final.lastError ?? "", /finalizer agent crashed/);
+		assert.equal(final.finalizerRuntimeContext, null);
 
 		const report = await readFile(join(root, "runs", state.runId, "final-report.md"), "utf8");
 		assert.match(report, /系统自动生成的 fallback 报告/);
@@ -146,6 +147,7 @@ test("cancelled run does not write fallback report", async () => {
 		const final = await runPromise;
 
 		assert.equal(final.status, "cancelled");
+		assert.equal(final.finalizerRuntimeContext, null);
 
 		// No final-report.md should exist
 		const reportExists = await readFile(join(root, "runs", state.runId, "final-report.md"), "utf8").then(() => true).catch(() => false);

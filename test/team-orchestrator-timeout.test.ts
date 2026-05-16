@@ -233,6 +233,7 @@ test("finalizer timeout writes fallback report", async () => {
 		const result = await orchestrator.runToCompletion(state.runId);
 		assert.equal(result.status, "completed_with_failures");
 		assert.match(result.lastError ?? "", /finalizer timeout/);
+		assert.equal(result.finalizerRuntimeContext, null);
 
 		const report = await readFile(join(root, "runs", state.runId, "final-report.md"), "utf8");
 		assert.ok(report.includes("fallback"), "should contain fallback report marker");

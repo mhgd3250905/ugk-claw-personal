@@ -587,3 +587,52 @@ test("P8-D: task detail renders finalizer runtime context from run state", () =>
 	assert.match(script, /renderRuntimeContext\('finalizer',\s*state\.finalizerRuntimeContext\)/);
 	assert.match(script, /finalizer-runtime/);
 });
+
+test("P8-E: renderTaskDetail escapes role runtime context values", () => {
+	const script = extractScript();
+	const helperStart = script.indexOf("function escapeHtml");
+	const helperEnd = script.indexOf("async function editTeamUnit");
+	assert.ok(helperStart >= 0, "should find helper source start");
+	assert.ok(helperEnd > helperStart, "should find helper source end");
+	const helperSource = script.slice(helperStart, helperEnd);
+	const renderTaskDetail = new Function(helperSource + "\nreturn renderTaskDetail;")() as (state: any, plan: any, attemptsMap: any) => string;
+	const maliciousContext = {
+		requestedProfileId: "<script>alert(1)</script>",
+		resolvedProfileId: "\" onclick=\"bad",
+		browserId: "browser<&>",
+		browserScope: "scope\" onmouseover=\"bad",
+		fallbackUsed: true,
+		fallbackReason: "'><img src=x onerror=bad>",
+	};
+	const state = {
+		runId: "run_<bad>",
+		finalizerRuntimeContext: maliciousContext,
+		taskStates: {
+			t1: { status: "succeeded", progress: { phase: "succeeded", message: "done" }, attemptCount: 1, activeAttemptId: "attempt_1" },
+		},
+	};
+	const plan = { tasks: [{ id: "t1", title: "<b>task</b>" }] };
+	const attemptsMap = {
+		t1: [{
+			status: "succeeded",
+			attemptId: "attempt_<bad>",
+			createdAt: "2026-05-16T00:00:00.000Z",
+			phase: "succeeded",
+			worker: [{ runtimeContext: maliciousContext }],
+			checker: [{ verdict: "pass", runtimeContext: maliciousContext }],
+			watcher: { decision: "accept", runtimeContext: maliciousContext },
+			files: [],
+		}],
+	};
+
+	const html = renderTaskDetail(state, plan, attemptsMap);
+
+	assert.doesNotMatch(html, /<script>/);
+	assert.doesNotMatch(html, /<img/);
+	assert.doesNotMatch(html, /onclick="bad/);
+	assert.doesNotMatch(html, /onmouseover="bad/);
+	assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+	assert.match(html, /&quot; onclick=&quot;bad/);
+	assert.match(html, /scope&quot; onmouseover=&quot;bad/);
+	assert.match(html, /&lt;img src=x onerror=bad&gt;/);
+});
