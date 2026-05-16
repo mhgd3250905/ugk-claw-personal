@@ -98,3 +98,55 @@ test("releaseRunLease clears only the owning lease", async () => {
 		await rm(root, { recursive: true, force: true });
 	}
 });
+
+test("two queued runs can be claimed by different workers", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-lease-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const planA: TeamPlan = { ...plan, planId: "plan_a" };
+		const planB: TeamPlan = { ...plan, planId: "plan_b" };
+		const runA = await ws.createRunWithAdmission(planA, "team_1", 2);
+		const runB = await ws.createRunWithAdmission(planB, "team_1", 2);
+
+		assert.equal(runA.status, "queued");
+		assert.equal(runB.status, "queued");
+		assert.notEqual(runA.runId, runB.runId);
+
+		const claimedA = await ws.claimNextRunnableRun("worker_a", 60_000);
+		assert.ok(claimedA);
+		const claimedIds = new Set([claimedA.runId]);
+		assert.equal(claimedA.status, "running");
+		assert.equal(claimedA.lease?.ownerId, "worker_a");
+
+		const claimedB = await ws.claimNextRunnableRun("worker_b", 60_000);
+		assert.ok(claimedB);
+		assert.ok(!claimedIds.has(claimedB.runId), "second claim should be a different run");
+		assert.equal(claimedB.status, "running");
+		assert.equal(claimedB.lease?.ownerId, "worker_b");
+
+		const thirdClaim = await ws.claimNextRunnableRun("worker_c", 60_000);
+		assert.equal(thirdClaim, null);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test("claim still works when some runs are terminal", async () => {
+	const root = await mkdtemp(join(tmpdir(), "team-lease-"));
+	try {
+		const ws = new RunWorkspace(root);
+		const runA = await ws.createRunWithAdmission(plan, "team_1", 2);
+		runA.status = "completed";
+		runA.finishedAt = new Date().toISOString();
+		await ws.saveState(runA);
+
+		const planB: TeamPlan = { ...plan, planId: "plan_b" };
+		await ws.createRunWithAdmission(planB, "team_1", 2);
+
+		const claimed = await ws.claimNextRunnableRun("worker_a", 60_000);
+		assert.ok(claimed);
+		assert.equal(claimed.status, "running");
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
