@@ -1,6 +1,6 @@
 # 当前交接快照
 
-更新时间：`2026-06-02`
+更新时间：`2026-06-03`
 
 这份文档只记录当前接手所需事实。历史流水账不要塞回来；需要追溯旧阶段时用 Git 历史和专题文档。若本文件与当前用户提示、`git status` 或真实运行结果冲突，以后者为准。
 
@@ -49,13 +49,15 @@ git log -- <path>
 
 当前已确认：
 
-- 分支：`main`。
-- 本轮 Git 保存包含 Team Console / Canvas Task run history、Discovery 子画布 generated child 操作菜单和浅编辑面板布局收口；继续工作前以 `git status --short --branch` 和 `git log -1 --oneline` 为准。
-- 本轮不提交 `.codex/config.toml`、`.codex/plans/*`、`.omo/`、`github-trending.txt`、runtime/public 报告产物或截图。
-- 未跟踪 runtime/public 产物禁止提交：
-  - `public/developer-forum-sources-report.html`
-  - `public/forum-sources-report.html`
-  - `public/medtrum-view/`
+- 分支：`feature/main-latest-development`，从 `origin/main` 最新提交 `4410a5c Record Discovery child menu handoff` 开出。
+- 本轮 Git 保存包含 Team Console / Canvas Task run history 节点化展示、Discovery 子画布 generated child 运行记录入口、历史 run 详情观察卡片顶部摘要和“复制给 Agent 分析”。
+- 继续工作前以 `git status --short --branch` 和 `git log -1 --oneline` 为准。
+- 本轮不提交 `.codex/config.toml`、`.codex/plans/*`、`.omo/`、runtime/public 报告产物或截图。
+- 当前未跟踪文件禁止提交，除非用户明确要求：
+  - `reddit-daily-highlight.md`
+  - `reddit-hot-topic.md`
+  - `runtime/LogManager.java`
+  - `skills-lock.json`
 
 继续工作前仍要重新执行：
 
@@ -83,7 +85,8 @@ git log --oneline origin/main..HEAD
 - `/v1/team/task-runs/by-task?view=summary` 会省略 heavy `source.boundInputs`；`/v1/team/task-runs/:runId/tasks/:taskId/attempts?view=dispatch-diagnostics` 会省略 heavy role process 字段，只保留 dispatch diagnostics 所需摘要。
 - Team Console live 模式画布 UI 状态已改为通过 `/v1/team/console-layout` 共享保存；从 `3000`、`5174` 等不同入口打开时，节点位置、viewport、展开分支、dock/收纳状态保持一致。mock/fixture 仍保留本地隔离。
 - Team Console 画布恢复态已设置 1 秒最小可见时长，并使用 `role="status"` 的动画 loading 与滚动进度条；刷新时不会再让 root filter 或恢复文案一闪而过。
-- Team Console Task 操作菜单已增加“运行记录”入口，按 Task 打开画布外右侧抽屉；历史列表只请求 summary，不把全部历史 run/attempt/file 渲染进 Atlas 主画布，点击单条 run 后才懒加载 attempts 和文件内容。
+- Team Console Task 操作菜单已增加“运行记录”入口，按 Task 在 Execution Atlas 内展开历史 run 列表子节点；历史列表只请求 summary，不把全部历史 run/attempt/file 渲染进主画布节点，点击单条 run 后才懒加载 attempts 和文件内容。
+- 从历史 run 列表打开的运行观察卡片会在顶部显示开始时间、结束时间和“复制给 Agent 分析”按钮；普通最新运行观察卡片不显示这块历史摘要。
 - Canvas Task run 标注已独立持久化到 `.data/team/task-runs/run-annotations.json`；支持每个 Task 单一 best 标记、软归档和备注，不改写 `.data/team/task-runs/runs/<runId>` 下的 run/attempt/result/process 文件本体。
 - 新增 `GET /v1/team/tasks/:taskId/run-history` 和 `PATCH /v1/team/task-runs/:runId/annotation`；详情仍复用既有 `GET /v1/team/task-runs/:runId`、attempts 和 attempt file API。
 - Discovery 子画布 generated child card 的操作入口已收口为悬浮时显示的纵向菜单按钮；点击后在按钮下方弹出 popover，允许超出子画布边界显示，并包含编辑、归档、运行记录和运行入口。generated Task 浅编辑面板按内容自适应高度，不再在表单内部显示滚动条。
@@ -136,7 +139,11 @@ git log --oneline origin/main..HEAD
 - `npm --prefix apps\team-console run test -- --run src\tests\team-api.test.ts --testNamePattern "run history|annotations"`：2 passed，85 skipped。
 - `npm --prefix apps\team-console run build`：passed。
 - `npx tsc --noEmit`：passed。
-- 浏览器验证 `http://127.0.0.1:5174/`：Live API Task “运行记录”抽屉打开成功；只打开抽屉时请求 `run-history`，点击 run 后才请求 attempts，点击文件后在抽屉内展示预览；浅色/深色抽屉滚动布局正常。
+- 浏览器验证 `http://127.0.0.1:5174/`：Live API Task “运行记录”入口可打开 Atlas 子节点历史列表；只打开列表时请求 `run-history`，点击 run 后才请求 attempts，点击文件后在下游详情节点展示预览。
+- `npm --prefix apps/team-console run test -- --run src/tests/app-live-data.test.tsx src/tests/app-run-observer.test.tsx`：86 passed。
+- `npm --prefix apps/team-console run build`：passed。
+- `git diff --check`：passed。
+- Docker Team Console 已重启；`http://127.0.0.1:5174/` 返回 200，`http://127.0.0.1:3000/healthz` 返回 `{"ok":true}`。
 - `npm --prefix apps\team-console run test -- --run src\tests\app-live-data.test.tsx`：69 passed。
 - `npm --prefix apps\team-console run build`：passed。
 - `npx tsc --noEmit`：passed。

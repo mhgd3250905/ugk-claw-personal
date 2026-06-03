@@ -14,6 +14,13 @@
 
 ---
 
+## 2026-06-03 — Team Console run history branch cards
+
+- **主题**: 将 Team Console Task “运行记录”从右侧 drawer 收口为 Execution Atlas 子节点：先展示历史 run 列表卡片，点击单条记录后在其下游展开运行观察卡片；从历史记录打开的运行观察顶部补回开始时间、结束时间和“复制给 Agent 分析”按钮。
+- **影响范围**: `5174` Task 操作菜单、Discovery generated Task 操作菜单、运行记录列表、历史 run 详情观察卡片和复制给 Agent 的分析上下文；普通最新运行观察卡片不显示历史摘要。
+- **验证**: `npm --prefix apps/team-console run test -- --run src/tests/app-live-data.test.tsx src/tests/app-run-observer.test.tsx`、`npm --prefix apps/team-console run build`、`git diff --check`，并重启 Docker Team Console 后确认 `http://127.0.0.1:5174/` 返回 200、主后端 `/healthz` 正常。
+- **对应入口**: `apps/team-console/src/app/App.tsx`、`apps/team-console/src/app/use-task-branch-stack.ts`、`apps/team-console/src/app/app.css`、`apps/team-console/src/graph/execution-map.css`、`apps/team-console/src/tests/app-live-data.test.tsx`。
+
 ## 2026-06-02 — Team Console Discovery child action menu polish
 
 - **主题**: 收口 Discovery 子画布 generated child card 的操作入口：卡片悬浮才显示纵向菜单按钮，点击后在按钮下方弹出 popover 菜单，菜单可超出子画布边界；菜单内包含编辑、归档、运行记录和运行入口。generated Task 浅编辑面板按内容自适应高度，不再在表单内部显示滚动条。
